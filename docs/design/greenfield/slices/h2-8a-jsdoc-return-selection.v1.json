@@ -1,0 +1,356 @@
+{
+  "schema": 1,
+  "status": "selection-and-source-inventory-not-runtime-ready",
+  "selected_at": "2026-09-14",
+  "base_head": "7d6bc9848e97c26b0438da5ec73bd08c9a175c9a",
+  "base_tree": "627cb7e207fea304f5537953fef5009a18b4c659",
+  "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default",
+  "typescript": {
+    "version": "6.0.3",
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "span_hash_contract": "UTF-8 of TypeScript AST SourceFile.text.slice(node.getStart(sourceFile), node.end), excluding leading trivia",
+    "owners": [
+      {
+        "name": "getJSDocReturnTag",
+        "start_line": 11708,
+        "end_line": 11710,
+        "sha256_utf8_no_leading_trivia": "b2e5d489778920afc5fbafadda45db920f26427bb97b8468c2e72f9db754fa97"
+      },
+      {
+        "name": "getJSDocReturnType",
+        "start_line": 11728,
+        "end_line": 11744,
+        "sha256_utf8_no_leading_trivia": "f909494ebde583b830864c84ba7fedad175c0f39c9fa3f552304d249531b4a55"
+      },
+      {
+        "name": "getJSDocTagsWorker",
+        "start_line": 11745,
+        "end_line": 11759,
+        "sha256_utf8_no_leading_trivia": "0a34e6bbcc40b0defaf081cfc45ac3d2432e49b519be9c0021404ccffb1cf98c"
+      },
+      {
+        "name": "getJSDocCommentsAndTags",
+        "start_line": 15429,
+        "end_line": 15450,
+        "sha256_utf8_no_leading_trivia": "bda31a23c9223eef6ec5cc021ef44347df230ff3772b75e09e9c98a21d86a62b"
+      },
+      {
+        "name": "getNextJSDocCommentLocation",
+        "start_line": 15465,
+        "end_line": 15474,
+        "sha256_utf8_no_leading_trivia": "0363f4d764e0b25365d7974abdb1999796960a670120e1430db24a991cea59e5"
+      },
+      {
+        "name": "getEffectiveReturnTypeNode",
+        "start_line": 16768,
+        "end_line": 16770,
+        "sha256_utf8_no_leading_trivia": "9e80b532375c363e87d07a44861504e13f492040de792dc4f798daf863b8a825"
+      },
+      {
+        "name": "serializeReturnTypeForSignature",
+        "start_line": 53524,
+        "end_line": 53546,
+        "sha256_utf8_no_leading_trivia": "eda7cf69a1d390417dc501f119965c4b38ded91d83590887846fb7a7ed6e810e"
+      },
+      {
+        "name": "getReturnTypeOfSignature",
+        "start_line": 59810,
+        "end_line": 59841,
+        "sha256_utf8_no_leading_trivia": "df557ad68b6debdc0429118c13f768427d8581a43db662b4536c5c7857152301"
+      },
+      {
+        "name": "getReturnTypeFromAnnotation",
+        "start_line": 59842,
+        "end_line": 59871,
+        "sha256_utf8_no_leading_trivia": "40da9978b568fe0671ad142d3b90ad45bc486b1b10a9e82a2c4e62ee760bd922"
+      },
+      {
+        "name": "serializeReturnTypeForSignature",
+        "start_line": 133807,
+        "end_line": 133829,
+        "sha256_utf8_no_leading_trivia": "2613c93b4c87501a50542d94cf930e00038f187d87404fa012d65a3b2a973001"
+      },
+      {
+        "name": "createReturnFromSignature",
+        "start_line": 134397,
+        "end_line": 134406,
+        "sha256_utf8_no_leading_trivia": "ba775455eef8f7a4acb98b62d45cc958afd735b047f68f21dcaf734c435cf2bf"
+      },
+      {
+        "name": "typeFromSingleReturnExpression",
+        "start_line": 134407,
+        "end_line": 134441,
+        "sha256_utf8_no_leading_trivia": "0ad2346da631c7d22d2559111b87b1f70ec4f6e80f411067cf0b641965899191"
+      }
+    ]
+  },
+  "files": {
+    "crates/binder/src/node_util.rs": "7bb0a612b1307952f6ef4995394b6f618a27447f02c053e29ff681a421db0f04",
+    "crates/checker/src/jsdoc.rs": "6c6b28c7e1a7da50d0852bc3bc04c2c69eafa77c5a9f716cb940585ec6630c6c",
+    "crates/checker/src/functions.rs": "7e38449bae70690d119ec3345f41149560efc6087e36e94224cb2b1b9462d93d",
+    "crates/checker/src/contextual.rs": "2b97726433d699ba175d689e414e4201d3dc843293e74980b727bc4b403faec7",
+    "crates/checker/src/annotate.rs": "fdf5acd1249e76d51466e428e34235ee3acffa76fc5ff3ea229678c976f2c894",
+    "crates/checker/src/syntactic_type_node_builder.rs": "655accdcf99fc6a636f56dc2c379ca4cff754978f4b5873dfd217379a7fe731e",
+    "crates/checker/src/node_builder/signatures.rs": "37bee14b91b0ef36045aff0de66ea286a3290d4e3a8679ba8be62e3cdb285599",
+    "crates/checker/src/node_builder/serialize.rs": "b3374f68e632becd51ff1030280ed05edcb872890074c7a1924bcd10aff01ef6",
+    "crates/compiler/tests/h2_8a_declaration_comment_ranges.rs": "51ef353c11b370bd35e9f674a16b2ac677e253e3e633053c818a19e0401c14cd",
+    "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": "a89cf18ebc3e86f16b39991c40bd54a53189bb64d43ab5fbaded7143bcdc58b4",
+    "ts-tests/tests/cases/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts": "af54d57edaf952584d8456b72b87b96fcb2ac51bc536a87c30cc81c901ece8bc",
+    "ratchets/h2-8a-candidates.v1.json": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c",
+    "ratchets/h2-8a-candidate-inputs.v1.json": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b",
+    "ratchets/h2-8a-observations.v1.json": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "original_artifact_rows": {
+    "ratchets/h2-8a-candidates.v1.json": {
+      "sha256_json_stringify": "ecd0095853add273cd420b52fe16d4c19450da2440611ec1ff577da5e1b544c5",
+      "row": {
+        "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default",
+        "suite": "conformance",
+        "source": {
+          "path": "jsdoc/declarations/jsDeclarationsFunctionsCjs.ts",
+          "bytes": 1317,
+          "sha256": "af54d57edaf952584d8456b72b87b96fcb2ac51bc536a87c30cc81c901ece8bc",
+          "git_blob_sha1": "47bc963fb234cd1d9920da19e7ea28887e8d7dd0"
+        },
+        "original_required_slices": [
+          "H2.1a",
+          "H2.3a",
+          "H2.5g",
+          "H2.7b",
+          "H2.8a"
+        ],
+        "required_slices": [
+          "H2.8a"
+        ],
+        "effective_owner_reasons": [
+          {
+            "owner": "H2.8a",
+            "reason": "effective rootDir/outDir"
+          }
+        ],
+        "added_slices": [],
+        "source_facts": {
+          "parse_diagnostic_units": [],
+          "excessive_depth_units": []
+        },
+        "parent_membership": [],
+        "input_sha256": "aa2891668cb803d506d812f1d0195d2b46504b8abd11448b7130e969f736bbba",
+        "disposition": "candidate-only",
+        "runtime_admitted": false
+      }
+    },
+    "ratchets/h2-8a-candidate-inputs.v1.json": {
+      "sha256_json_stringify": "aa2891668cb803d506d812f1d0195d2b46504b8abd11448b7130e969f736bbba",
+      "row": {
+        "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default",
+        "suite": "conformance",
+        "source": {
+          "path": "jsdoc/declarations/jsDeclarationsFunctionsCjs.ts",
+          "bytes": 1317,
+          "sha256": "af54d57edaf952584d8456b72b87b96fcb2ac51bc536a87c30cc81c901ece8bc",
+          "git_blob_sha1": "47bc963fb234cd1d9920da19e7ea28887e8d7dd0"
+        },
+        "settings": [
+          [
+            "target",
+            "es2015"
+          ],
+          [
+            "allowJs",
+            "true"
+          ],
+          [
+            "checkJs",
+            "true"
+          ],
+          [
+            "outDir",
+            "./out"
+          ],
+          [
+            "declaration",
+            "true"
+          ],
+          [
+            "filename",
+            "index.js"
+          ]
+        ],
+        "selection": {
+          "root_unit_ids": [
+            0
+          ],
+          "other_unit_ids": [],
+          "program_root_unit_ids": [
+            0
+          ],
+          "vfs_write_order": [
+            0
+          ]
+        },
+        "effective_options": {
+          "allowJs": true,
+          "checkJs": true,
+          "declaration": true,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "outDir": "./out",
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input": {
+          "route": "whole-program",
+          "current_directory": "/.src",
+          "use_case_sensitive_file_names": true,
+          "roots": [
+            "/.src/index.js"
+          ],
+          "files": [
+            {
+              "path": "/.src/index.js",
+              "text": "module.exports.a = function a() {}\n\nmodule.exports.b = function b() {}\nmodule.exports.b.cat = \"cat\";\n\nmodule.exports.c = function c() {}\nmodule.exports.c.Cls = class {}\n\n/**\n * @param {number} a\n * @param {number} b\n * @return {string} \n */\nmodule.exports.d = function d(a, b) { return /** @type {*} */(null); }\n\n/**\n * @template T,U\n * @param {T} a\n * @param {U} b\n * @return {T & U} \n */\nmodule.exports.e = function e(a, b) { return /** @type {*} */(null); }\n\n/**\n * @template T\n * @param {T} a\n */\nmodule.exports.f = function f(a) {\n    return a;\n}\nmodule.exports.f.self = module.exports.f;\n\n/**\n * @param {{x: string}} a\n * @param {{y: typeof module.exports.b}} b\n */\nfunction g(a, b) {\n    return a.x && b.y();\n}\n\nmodule.exports.g = g;\n\n/**\n * @param {{x: string}} a\n * @param {{y: typeof module.exports.b}} b\n */\nfunction hh(a, b) {\n    return a.x && b.y();\n}\n\nmodule.exports.h = hh;\n\nmodule.exports.i = function i() {}\nmodule.exports.ii = module.exports.i;\n\n// note that this last one doesn't make much sense in cjs, since exports aren't hoisted bindings\nmodule.exports.jj = module.exports.j;\nmodule.exports.j = function j() {}\n"
+            }
+          ],
+          "config": null,
+          "vfs_symlinks": [],
+          "shared_mount": null,
+          "default_library_file_name": null
+        },
+        "project_descriptor": null
+      }
+    },
+    "ratchets/h2-8a-observations.v1.json": {
+      "sha256_json_stringify": "fee2db923421a70393c56a732e0675b034e91b59b8f2a76393efef05c5125598",
+      "row": {
+        "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default",
+        "input_sha256": "aa2891668cb803d506d812f1d0195d2b46504b8abd11448b7130e969f736bbba",
+        "required_slices": [
+          "H2.8a"
+        ],
+        "disposition": "typescript-reference-only",
+        "typescript_observation": {
+          "program_source_order": [
+            "/.src/index.js"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [
+            {
+              "index": 0,
+              "path": "./out/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KbW9kdWxlLmV4cG9ydHMuYSA9IGZ1bmN0aW9uIGEoKSB7IH07DQptb2R1bGUuZXhwb3J0cy5iID0gZnVuY3Rpb24gYigpIHsgfTsNCm1vZHVsZS5leHBvcnRzLmIuY2F0ID0gImNhdCI7DQptb2R1bGUuZXhwb3J0cy5jID0gZnVuY3Rpb24gYygpIHsgfTsNCm1vZHVsZS5leHBvcnRzLmMuQ2xzID0gY2xhc3Mgew0KfTsNCi8qKg0KICogQHBhcmFtIHtudW1iZXJ9IGENCiAqIEBwYXJhbSB7bnVtYmVyfSBiDQogKiBAcmV0dXJuIHtzdHJpbmd9DQogKi8NCm1vZHVsZS5leHBvcnRzLmQgPSBmdW5jdGlvbiBkKGEsIGIpIHsgcmV0dXJuIC8qKiBAdHlwZSB7Kn0gKi8gKG51bGwpOyB9Ow0KLyoqDQogKiBAdGVtcGxhdGUgVCxVDQogKiBAcGFyYW0ge1R9IGENCiAqIEBwYXJhbSB7VX0gYg0KICogQHJldHVybiB7VCAmIFV9DQogKi8NCm1vZHVsZS5leHBvcnRzLmUgPSBmdW5jdGlvbiBlKGEsIGIpIHsgcmV0dXJuIC8qKiBAdHlwZSB7Kn0gKi8gKG51bGwpOyB9Ow0KLyoqDQogKiBAdGVtcGxhdGUgVA0KICogQHBhcmFtIHtUfSBhDQogKi8NCm1vZHVsZS5leHBvcnRzLmYgPSBmdW5jdGlvbiBmKGEpIHsNCiAgICByZXR1cm4gYTsNCn07DQptb2R1bGUuZXhwb3J0cy5mLnNlbGYgPSBtb2R1bGUuZXhwb3J0cy5mOw0KLyoqDQogKiBAcGFyYW0ge3t4OiBzdHJpbmd9fSBhDQogKiBAcGFyYW0ge3t5OiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMuYn19IGINCiAqLw0KZnVuY3Rpb24gZyhhLCBiKSB7DQogICAgcmV0dXJuIGEueCAmJiBiLnkoKTsNCn0NCm1vZHVsZS5leHBvcnRzLmcgPSBnOw0KLyoqDQogKiBAcGFyYW0ge3t4OiBzdHJpbmd9fSBhDQogKiBAcGFyYW0ge3t5OiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMuYn19IGINCiAqLw0KZnVuY3Rpb24gaGgoYSwgYikgew0KICAgIHJldHVybiBhLnggJiYgYi55KCk7DQp9DQptb2R1bGUuZXhwb3J0cy5oID0gaGg7DQptb2R1bGUuZXhwb3J0cy5pID0gZnVuY3Rpb24gaSgpIHsgfTsNCm1vZHVsZS5leHBvcnRzLmlpID0gbW9kdWxlLmV4cG9ydHMuaTsNCi8vIG5vdGUgdGhhdCB0aGlzIGxhc3Qgb25lIGRvZXNuJ3QgbWFrZSBtdWNoIHNlbnNlIGluIGNqcywgc2luY2UgZXhwb3J0cyBhcmVuJ3QgaG9pc3RlZCBiaW5kaW5ncw0KbW9kdWxlLmV4cG9ydHMuamogPSBtb2R1bGUuZXhwb3J0cy5qOw0KbW9kdWxlLmV4cG9ydHMuaiA9IGZ1bmN0aW9uIGooKSB7IH07DQo=",
+              "callback_utf8_bytes": 1202,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KbW9kdWxlLmV4cG9ydHMuYSA9IGZ1bmN0aW9uIGEoKSB7IH07DQptb2R1bGUuZXhwb3J0cy5iID0gZnVuY3Rpb24gYigpIHsgfTsNCm1vZHVsZS5leHBvcnRzLmIuY2F0ID0gImNhdCI7DQptb2R1bGUuZXhwb3J0cy5jID0gZnVuY3Rpb24gYygpIHsgfTsNCm1vZHVsZS5leHBvcnRzLmMuQ2xzID0gY2xhc3Mgew0KfTsNCi8qKg0KICogQHBhcmFtIHtudW1iZXJ9IGENCiAqIEBwYXJhbSB7bnVtYmVyfSBiDQogKiBAcmV0dXJuIHtzdHJpbmd9DQogKi8NCm1vZHVsZS5leHBvcnRzLmQgPSBmdW5jdGlvbiBkKGEsIGIpIHsgcmV0dXJuIC8qKiBAdHlwZSB7Kn0gKi8gKG51bGwpOyB9Ow0KLyoqDQogKiBAdGVtcGxhdGUgVCxVDQogKiBAcGFyYW0ge1R9IGENCiAqIEBwYXJhbSB7VX0gYg0KICogQHJldHVybiB7VCAmIFV9DQogKi8NCm1vZHVsZS5leHBvcnRzLmUgPSBmdW5jdGlvbiBlKGEsIGIpIHsgcmV0dXJuIC8qKiBAdHlwZSB7Kn0gKi8gKG51bGwpOyB9Ow0KLyoqDQogKiBAdGVtcGxhdGUgVA0KICogQHBhcmFtIHtUfSBhDQogKi8NCm1vZHVsZS5leHBvcnRzLmYgPSBmdW5jdGlvbiBmKGEpIHsNCiAgICByZXR1cm4gYTsNCn07DQptb2R1bGUuZXhwb3J0cy5mLnNlbGYgPSBtb2R1bGUuZXhwb3J0cy5mOw0KLyoqDQogKiBAcGFyYW0ge3t4OiBzdHJpbmd9fSBhDQogKiBAcGFyYW0ge3t5OiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMuYn19IGINCiAqLw0KZnVuY3Rpb24gZyhhLCBiKSB7DQogICAgcmV0dXJuIGEueCAmJiBiLnkoKTsNCn0NCm1vZHVsZS5leHBvcnRzLmcgPSBnOw0KLyoqDQogKiBAcGFyYW0ge3t4OiBzdHJpbmd9fSBhDQogKiBAcGFyYW0ge3t5OiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMuYn19IGINCiAqLw0KZnVuY3Rpb24gaGgoYSwgYikgew0KICAgIHJldHVybiBhLnggJiYgYi55KCk7DQp9DQptb2R1bGUuZXhwb3J0cy5oID0gaGg7DQptb2R1bGUuZXhwb3J0cy5pID0gZnVuY3Rpb24gaSgpIHsgfTsNCm1vZHVsZS5leHBvcnRzLmlpID0gbW9kdWxlLmV4cG9ydHMuaTsNCi8vIG5vdGUgdGhhdCB0aGlzIGxhc3Qgb25lIGRvZXNuJ3QgbWFrZSBtdWNoIHNlbnNlIGluIGNqcywgc2luY2UgZXhwb3J0cyBhcmVuJ3QgaG9pc3RlZCBiaW5kaW5ncw0KbW9kdWxlLmV4cG9ydHMuamogPSBtb2R1bGUuZXhwb3J0cy5qOw0KbW9kdWxlLmV4cG9ydHMuaiA9IGZ1bmN0aW9uIGooKSB7IH07DQo=",
+              "materialized_utf8_bytes": 1202,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.js"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 1,
+              "path": "./out/index.d.ts",
+              "kind": "declaration",
+              "callback_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGEoKTogdm9pZDsNCmV4cG9ydCBmdW5jdGlvbiBiKCk6IHZvaWQ7DQpleHBvcnQgbmFtZXNwYWNlIGIgew0KICAgIGxldCBjYXQ6IHN0cmluZzsNCn0NCmV4cG9ydCBmdW5jdGlvbiBjKCk6IHZvaWQ7DQpleHBvcnQgbmFtZXNwYWNlIGMgew0KICAgIGV4cG9ydCB7IENscyB9Ow0KfQ0KZXhwb3J0IGZ1bmN0aW9uIGQoYTogbnVtYmVyLCBiOiBudW1iZXIpOiBzdHJpbmc7DQpleHBvcnQgZnVuY3Rpb24gZTxULCBVPihhOiBULCBiOiBVKTogVCAmIFU7DQpleHBvcnQgZnVuY3Rpb24gZjxUPihhOiBUKTogVDsNCmV4cG9ydCBuYW1lc3BhY2UgZiB7DQogICAgaW1wb3J0IHNlbGYgPSBmOw0KICAgIGV4cG9ydCB7IHNlbGYgfTsNCn0NCmV4cG9ydCBmdW5jdGlvbiBpKCk6IHZvaWQ7DQpleHBvcnQgZnVuY3Rpb24gaigpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDbHMgew0KfQ0KLyoqDQogKiBAcGFyYW0ge3t4OiBzdHJpbmd9fSBhDQogKiBAcGFyYW0ge3t5OiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMuYn19IGINCiAqLw0KZXhwb3J0IGZ1bmN0aW9uIGcoYTogew0KICAgIHg6IHN0cmluZzsNCn0sIGI6IHsNCiAgICB5OiB7DQogICAgICAgICgpOiB2b2lkOw0KICAgICAgICBjYXQ6IHN0cmluZzsNCiAgICB9Ow0KfSk6IHZvaWQgfCAiIjsNCi8qKg0KICogQHBhcmFtIHt7eDogc3RyaW5nfX0gYQ0KICogQHBhcmFtIHt7eTogdHlwZW9mIG1vZHVsZS5leHBvcnRzLmJ9fSBiDQogKi8NCmRlY2xhcmUgZnVuY3Rpb24gaGgoYTogew0KICAgIHg6IHN0cmluZzsNCn0sIGI6IHsNCiAgICB5OiB7DQogICAgICAgICgpOiB2b2lkOw0KICAgICAgICBjYXQ6IHN0cmluZzsNCiAgICB9Ow0KfSk6IHZvaWQgfCAiIjsNCmV4cG9ydCB7IGhoIGFzIGgsIGkgYXMgaWksIGogYXMgamogfTsNCg==",
+              "callback_utf8_bytes": 904,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGEoKTogdm9pZDsNCmV4cG9ydCBmdW5jdGlvbiBiKCk6IHZvaWQ7DQpleHBvcnQgbmFtZXNwYWNlIGIgew0KICAgIGxldCBjYXQ6IHN0cmluZzsNCn0NCmV4cG9ydCBmdW5jdGlvbiBjKCk6IHZvaWQ7DQpleHBvcnQgbmFtZXNwYWNlIGMgew0KICAgIGV4cG9ydCB7IENscyB9Ow0KfQ0KZXhwb3J0IGZ1bmN0aW9uIGQoYTogbnVtYmVyLCBiOiBudW1iZXIpOiBzdHJpbmc7DQpleHBvcnQgZnVuY3Rpb24gZTxULCBVPihhOiBULCBiOiBVKTogVCAmIFU7DQpleHBvcnQgZnVuY3Rpb24gZjxUPihhOiBUKTogVDsNCmV4cG9ydCBuYW1lc3BhY2UgZiB7DQogICAgaW1wb3J0IHNlbGYgPSBmOw0KICAgIGV4cG9ydCB7IHNlbGYgfTsNCn0NCmV4cG9ydCBmdW5jdGlvbiBpKCk6IHZvaWQ7DQpleHBvcnQgZnVuY3Rpb24gaigpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDbHMgew0KfQ0KLyoqDQogKiBAcGFyYW0ge3t4OiBzdHJpbmd9fSBhDQogKiBAcGFyYW0ge3t5OiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMuYn19IGINCiAqLw0KZXhwb3J0IGZ1bmN0aW9uIGcoYTogew0KICAgIHg6IHN0cmluZzsNCn0sIGI6IHsNCiAgICB5OiB7DQogICAgICAgICgpOiB2b2lkOw0KICAgICAgICBjYXQ6IHN0cmluZzsNCiAgICB9Ow0KfSk6IHZvaWQgfCAiIjsNCi8qKg0KICogQHBhcmFtIHt7eDogc3RyaW5nfX0gYQ0KICogQHBhcmFtIHt7eTogdHlwZW9mIG1vZHVsZS5leHBvcnRzLmJ9fSBiDQogKi8NCmRlY2xhcmUgZnVuY3Rpb24gaGgoYTogew0KICAgIHg6IHN0cmluZzsNCn0sIGI6IHsNCiAgICB5OiB7DQogICAgICAgICgpOiB2b2lkOw0KICAgICAgICBjYXQ6IHN0cmluZzsNCiAgICB9Ow0KfSk6IHZvaWQgfCAiIjsNCmV4cG9ydCB7IGhoIGFzIGgsIGkgYXMgaWksIGogYXMgamogfTsNCg==",
+              "materialized_utf8_bytes": 904,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.js"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2565,
+              "category": "Error",
+              "file": "/.src/index.js",
+              "start": 1097,
+              "length": 1,
+              "message": "Property 'j' is used before being assigned.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        },
+        "repetitions": 2
+      }
+    }
+  },
+  "new_native_baseline": {
+    "status": "observed-strict-failure",
+    "artifact": "docs/design/greenfield/slices/h2-8a-jsdoc-return-before.v1.json",
+    "sha256": "4ddf7a42b2b8aa417d1306d11b465f63ca9caf1cddc34fe433102178d71b171a",
+    "head": "7d6bc9848e97c26b0438da5ec73bd08c9a175c9a",
+    "root": "/Users/hiramatsu/dev/tsc-rs-utf16-integration",
+    "run_directory": "/Users/hiramatsu/dev/tsc-rs-utf16-integration/target/integration-evidence/g5c-next-slice-before-20260914-150702",
+    "exit_code": 101,
+    "repetitions": 2,
+    "inputs_unchanged": true,
+    "actuals_identical": true,
+    "difference_paths": [
+      "/writes/1/callback_utf8_base64",
+      "/writes/1/callback_utf8_bytes",
+      "/writes/1/materialized_utf8_base64",
+      "/writes/1/materialized_utf8_bytes"
+    ]
+  },
+  "integration": {
+    "pr": 521,
+    "head": "7d6bc9848e97c26b0438da5ec73bd08c9a175c9a",
+    "hosted_run": 34810033022,
+    "status": "in_progress",
+    "snapshot_at": "2026-09-14T15:12:00+09:00",
+    "status_note": "Preparation-time snapshot. Check the linked PR/run for the final hosted result; the source baseline stays fixed."
+  }
+}

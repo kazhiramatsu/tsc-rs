@@ -174,7 +174,8 @@ impl Transformer for TargetTransformer {
         initialize_transform_flags(context.arena_mut()?, source)?;
         context.start_lexical_environment()?;
         let current_root = context.arena().root(source)?;
-        let mut visitor = TargetVisitor::new(context, source, self.pass, current_root)?;
+        let mut visitor =
+            TargetVisitor::new(context, source, self.pass, self.target, current_root)?;
         let visited = visitor.visit(current_root.node());
         let lexical_environment = visitor.context.end_lexical_environment();
         let generated_bindings = visitor.generated_bindings.source_bindings();
@@ -294,6 +295,7 @@ struct TargetVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     pass: TargetPass,
+    target: ScriptTarget,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     generated_bindings: GeneratedBindingScopes,
@@ -304,6 +306,7 @@ impl<'context> TargetVisitor<'context> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         pass: TargetPass,
+        target: ScriptTarget,
         root: TransformNode,
     ) -> Result<Self, TransformError> {
         Ok(Self {
@@ -314,6 +317,7 @@ impl<'context> TargetVisitor<'context> {
             context,
             source,
             pass,
+            target,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
         })
@@ -1304,12 +1308,16 @@ impl<'context> TargetVisitor<'context> {
         parameters: Option<NodeArrayId>,
     ) -> Result<ParameterHoistPlan, TransformError> {
         let nodes = self.array_nodes(parameters)?;
-        let requires_hoist = nodes
-            .iter()
-            .map(|parameter| self.subtree_requires_hoisted_temp(*parameter, true))
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .any(|required| required);
+        // visitParameterList only moves defaults for targets retaining native
+        // parameters. ES5 leaves the binding identity and initializer for the
+        // later ES2015 pass, so it must not reserve a discarded alias here.
+        let requires_hoist = self.target >= ScriptTarget::ES2015
+            && nodes
+                .iter()
+                .map(|parameter| self.subtree_requires_hoisted_temp(*parameter, true))
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .any(|required| required);
         let mut binding_aliases = Vec::with_capacity(nodes.len());
         for parameter in nodes {
             let alias = if requires_hoist && self.parameter_has_binding_pattern(parameter)? {
@@ -1512,6 +1520,9 @@ impl<'context> TargetVisitor<'context> {
             ))
     }
 
+    /// tsc-port: visitParameterList @6.0.3
+    /// tsc-hash: 75f4e96e0f53dac4523f71d86dc9a4216465c88b670afeb6202b7853fb27d8fa
+    /// tsc-span: _tsc.js:91168-91181
     fn visit_parameter_list(
         &mut self,
         parameters: Option<NodeArrayId>,
@@ -1538,10 +1549,11 @@ impl<'context> TargetVisitor<'context> {
                 })?;
             visited.push(self.node(node));
         }
-        if self
-            .context
-            .lexical_environment_flags()
-            .contains(LexicalEnvironmentFlags::VARIABLES_HOISTED_IN_PARAMETERS)
+        if self.target >= ScriptTarget::ES2015
+            && self
+                .context
+                .lexical_environment_flags()
+                .contains(LexicalEnvironmentFlags::VARIABLES_HOISTED_IN_PARAMETERS)
         {
             for (parameter, alias) in visited.iter_mut().zip(&plan.binding_aliases) {
                 *parameter = self.lower_parameter_default(*parameter, alias.as_ref())?;
@@ -1602,22 +1614,35 @@ impl<'context> TargetVisitor<'context> {
             data.name = Some(alias_name.node());
             data.initializer = None;
         } else if let Some(initializer) = data.initializer.map(|id| self.node(id)) {
-            let name_text = self.identifier_text(name)?.to_owned();
-            let condition_name = self.create_identifier(&name_text)?;
+            // tsc-port: addDefaultValueAssignmentForInitializer @6.0.3
+            // tsc-hash: 40b44ee01a36e04f01c1117674832a11a865d16bb40a5fc6c1da6395ad60d4a2
+            // tsc-span: _tsc.js:91239-91276
+            // Preserve name identity and the parameter's assignment/block
+            // ranges while suppressing the moved initializer's own maps and
+            // comments.
+            let condition_name = self.context.factory()?.clone_node(name)?;
             let condition = self.create_strict_undefined_check(condition_name)?;
-            let assignment_name = self.create_identifier(&name_text)?;
+            let assignment_name = self.context.factory()?.clone_node(name)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(assignment_name)
+                .set_flags(EmitFlags::NO_SOURCE_MAP);
+            self.context
+                .arena_mut()?
+                .metadata_mut(initializer)
+                .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
             let assignment = self.create_assignment(assignment_name, initializer)?;
+            self.context
+                .factory()?
+                .set_text_range(assignment, parameter)?;
             self.context
                 .arena_mut()?
                 .metadata_mut(assignment)
-                .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP);
+                .set_flags(EmitFlags::NO_COMMENTS);
             let statement = self.create_expression_statement(assignment)?;
-            self.context
-                .arena_mut()?
-                .metadata_mut(statement)
-                .add_flags(EmitFlags::NO_COMMENTS);
             let block = self.create_block(vec![statement], false)?;
-            self.context.arena_mut()?.metadata_mut(block).add_flags(
+            self.context.factory()?.set_text_range(block, parameter)?;
+            self.context.arena_mut()?.metadata_mut(block).set_flags(
                 EmitFlags::SINGLE_LINE
                     | EmitFlags::NO_TRAILING_SOURCE_MAP
                     | EmitFlags::NO_TOKEN_SOURCE_MAPS
@@ -2490,16 +2515,6 @@ impl<'context> TargetVisitor<'context> {
                     .ok_or_else(|| TransformError::UnknownNode(self.node(*node)))
             })
             .collect()
-    }
-
-    fn identifier_text(&self, node: TransformNode) -> Result<&str, TransformError> {
-        match &self.context.arena().node(node)?.data {
-            NodeData::Identifier(data) => Ok(&data.text),
-            _ => Err(TransformError::RequiredChildRemoved {
-                parent: SyntaxKind::Parameter,
-                field: "identifier parameter name",
-            }),
-        }
     }
 
     fn is_prologue_statement(&self, statement: TransformNode) -> Result<bool, TransformError> {
