@@ -80,6 +80,10 @@ pub(crate) struct CliEmitSessionOutcome {
     pub(crate) options_diagnostics: DiagnosticList,
     pub(crate) global_diagnostics: DiagnosticList,
     pub(crate) semantic_diagnostics: DiagnosticList,
+    /// `noEmit && getEmitDeclarations(options)` only: the declaration getter's
+    /// rows after a clean semantic pass (emitFilesAndReportErrors,
+    /// _tsc.js:129433-129440). Emitting programs leave this empty.
+    pub(crate) declaration_diagnostics: DiagnosticList,
     pub(crate) work_counters: NoEmitWorkCounters,
 }
 
@@ -101,13 +105,27 @@ impl CliEmitSessionOutcome {
             let global_is_empty = self.global_diagnostics.is_empty();
             diagnostics.extend(self.global_diagnostics);
             if options_are_empty && global_is_empty {
+                let semantic_is_empty = self.semantic_diagnostics.is_empty();
                 diagnostics.extend(self.semantic_diagnostics);
+                // getDeclarationDiagnostics joins only while allDiagnostics still
+                // holds the config-file parsing rows alone (129433-129440); the
+                // caller fills this stream under the same gate.
+                if semantic_is_empty {
+                    diagnostics.extend(self.declaration_diagnostics);
+                }
             }
         }
         diagnostics.extend(self.emit.diagnostics().iter().cloned());
         sort_and_dedupe_diagnostics(&mut diagnostics);
         (self.emit, diagnostics, self.work_counters)
     }
+}
+
+/// tsc-port: getEmitDeclarations @6.0.3
+/// tsc-hash: f385c1e1ef2b314fab891cf63605d192e845fd49775c89849d96a7fa96389541
+/// tsc-span: _tsc.js:18151-18156
+fn get_emit_declarations(options: &CompilerOptions) -> bool {
+    options.declaration == Some(true) || options.composite == Some(true)
 }
 
 /// One ordinary whole-Program emit with its command reporting observation.
@@ -200,6 +218,7 @@ impl ProgramDiagnostics {
             options_diagnostics: self.options,
             global_diagnostics: self.global,
             semantic_diagnostics: self.semantic,
+            declaration_diagnostics: DiagnosticList::new(),
             work_counters,
         }
     }
@@ -918,12 +937,34 @@ impl ProgramSession {
         let current_directory = self.prepared.current_directory().display().to_owned();
         if self.prepared.mode() == PreparedProgramMode::NoEmit {
             let options = self.prepared.compiler_options().clone();
+            // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): with noEmit
+            // and getEmitDeclarations(options), program.getDeclarationDiagnostics()
+            // joins the report after the semantic pass, only while nothing
+            // beyond the config-file parsing diagnostics was reported. run()
+            // keeps H0's separate no-emitter contract, so the getter uses a
+            // second consuming session over a clone of the prepared program,
+            // opened only when that gate holds.
+            let declaration_program = (options.no_emit == Some(true)
+                && get_emit_declarations(&options))
+            .then(|| self.prepared.clone());
             let outcome = self.run()?;
             // Preserve H0's separate typed execution and zero emitter activity.
             // Only the upstream whole-program empty build-info return value is
             // added for the command observer; no sink or resolver is invoked.
             let emit =
                 EmitOutcome::no_emit_without_build_info(&options).map_err(DriverError::Emit)?;
+            let declaration_diagnostics = match declaration_program {
+                Some(prepared)
+                    if outcome.syntactic_diagnostics.is_empty()
+                        && outcome.options_diagnostics.is_empty()
+                        && outcome.global_diagnostics.is_empty()
+                        && outcome.semantic_diagnostics.is_empty() =>
+                {
+                    ProgramSession::new(prepared)
+                        .get_declaration_diagnostics(EmitSelection::WholeProgram)?
+                }
+                _ => DiagnosticList::new(),
+            };
             let reported = CliEmitSessionOutcome {
                 emit,
                 config_diagnostics: outcome.config_diagnostics,
@@ -931,6 +972,7 @@ impl ProgramSession {
                 options_diagnostics: outcome.options_diagnostics,
                 global_diagnostics: outcome.global_diagnostics,
                 semantic_diagnostics: outcome.semantic_diagnostics,
+                declaration_diagnostics,
                 work_counters: outcome.work_counters,
             };
             return Ok(EmitCommandOutcome::new(reported, current_directory.as_js()));
