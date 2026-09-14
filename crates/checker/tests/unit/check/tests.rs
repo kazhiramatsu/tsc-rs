@@ -6379,7 +6379,12 @@ fn excess_property_with_spelling_suggestion_reports_2561() {
 }
 
 #[test]
-fn excess_property_suggestion_uses_the_written_string_literal_name() {
+fn excess_property_suggestion_uses_the_unescaped_symbol_name() {
+    // tsc 6.0.3 probe (2026-09-14, review fix round A-2): the object-literal
+    // branch of hasExcessProperties renders getSuggestionForNonexistentProperty
+    // → symbolName(suggestion), so a string-named property suggests
+    // `ns:attribute` without quotes; only the JSX branch keeps the written
+    // symbolToString face (see jsx::tests::namespaced_jsx_attribute_suggestion_uses_symbol_to_string_face).
     assert_eq!(
         checked_diags(
             "declare let value: { \"ns:attribute\": string };\nvalue = { attribute: \"x\" };\n",
@@ -6389,7 +6394,7 @@ fn excess_property_suggestion_uses_the_written_string_literal_name() {
             57,
             9,
             "Object literal may only specify known properties, but 'attribute' does not exist \
-                 in type '{ \"ns:attribute\": string; }'. Did you mean to write '\"ns:attribute\"'?"
+                 in type '{ \"ns:attribute\": string; }'. Did you mean to write 'ns:attribute'?"
                 .to_owned()
         )]
     );

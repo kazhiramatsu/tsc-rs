@@ -5811,7 +5811,7 @@ impl<'a> CheckerState<'a> {
     /// getNameOfSymbolFromNameType (55523-55539): declarationless and
     /// early-bound computed symbols retain the literal/unique-symbol name
     /// that produced them instead of exposing their internal escaped key.
-    fn symbol_name_from_name_type_slice(
+    pub(crate) fn symbol_name_from_name_type_slice(
         &self,
         symbol: SymbolId,
         in_initial_entity_name: bool,

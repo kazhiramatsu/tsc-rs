@@ -109,12 +109,6 @@ impl<'a> From<&'a EscapedName> for JsStr<'a> {
     }
 }
 
-impl tsc_diagnostics::DiagnosticArgument for EscapedName {
-    fn diagnostic_value(&self) -> JsStr<'_> {
-        self.as_js()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

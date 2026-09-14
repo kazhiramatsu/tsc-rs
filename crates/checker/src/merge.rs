@@ -408,6 +408,36 @@ impl<'a> CheckerState<'a> {
             .to_owned()
     }
 
+    /// tsc-port: symbolName @6.0.3
+    /// tsc-hash: 201131264fe4f6f45c2da6248df265ae411ebc24acc96f4b77c6b676a48ade0a
+    /// tsc-span: _tsc.js:11452-11457
+    ///
+    /// A private class member renders its `#name` source text
+    /// (isPrivateIdentifierClassElementDeclaration, 11944-11946); every other
+    /// symbol unescapes its escaped name. Spelling-suggestion candidates and
+    /// "Did you mean" values use this face, never the written face of
+    /// getNameOfSymbolAsWritten.
+    pub(crate) fn symbol_name(&self, symbol: SymbolId) -> JsString {
+        if let Some(declaration) = self.binder.symbol(symbol).value_declaration {
+            let source = self.binder.source_of_node(declaration);
+            let is_class_element = matches!(
+                source.arena.node(declaration).kind,
+                SyntaxKind::PropertyDeclaration
+                    | SyntaxKind::MethodDeclaration
+                    | SyntaxKind::GetAccessor
+                    | SyntaxKind::SetAccessor
+            );
+            if is_class_element {
+                if let Some(name) = get_name_of_declaration(source, declaration) {
+                    if let NodeData::PrivateIdentifier(data) = &source.arena.node(name).data {
+                        return JsString::from(data.text.as_str());
+                    }
+                }
+            }
+        }
+        self.symbol_display_name(symbol)
+    }
+
     /// tsc-port: getNameOfSymbolAsWritten @6.0.3
     /// tsc-hash: 6202a5dabe4ef7e7d99294b9c5e97a88c6c3dc22be8f024346eb294dc50eae1c
     /// tsc-span: _tsc.js:55541-55575
@@ -474,7 +504,13 @@ impl<'a> CheckerState<'a> {
             return tsc_binder::node_util::declaration_name_to_string(source, Some(name_node))
                 .into();
         }
-        self.symbol_display_name(symbol)
+        // getNameOfSymbolAsWritten (_tsc.js:55586-55588): a symbol without a
+        // named declaration (a mapped-type or otherwise synthesized property)
+        // renders its nameType face before falling back to symbolName.
+        if let Some(name) = self.symbol_name_from_name_type_slice(symbol, false, false, None) {
+            return name;
+        }
+        self.symbol_name(symbol)
     }
 
     /// tsc reportMergeSymbolError (inside mergeSymbol, 47755-47775) +

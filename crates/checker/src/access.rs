@@ -3456,10 +3456,9 @@ impl<'a> CheckerState<'a> {
                         containing_type,
                     )?;
                     if let Some(suggestion) = suggestion {
-                        let suggested_name = tsc_binder::unescape_leading_underscores(
-                            &self.binder.symbol(suggestion).escaped_name,
-                        )
-                        .to_owned();
+                        // symbolName(suggestion) (_tsc.js:75452): a private
+                        // member suggests `#name`, never its `__#N@#name` key.
+                        let suggested_name = self.symbol_name(suggestion);
                         let message = if is_unchecked_js {
                             &tsc_diagnostics::gen::Property_0_may_not_exist_on_type_1_Did_you_mean_2
                         } else {

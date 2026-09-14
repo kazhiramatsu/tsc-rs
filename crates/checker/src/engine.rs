@@ -2621,6 +2621,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     SymbolFlags::VALUE,
                 )
             });
+            // The JSX branch renders symbolToString(suggestionSymbol), the
+            // written face (_tsc.js:65373-65374); only the object-literal
+            // branch below and the property/element accesses use symbolName.
             let suggestion = suggestion_symbol
                 .map(|suggestion_symbol| self.st.symbol_name_as_written_slice(suggestion_symbol));
             return Ok(ExcessPropertyReport {

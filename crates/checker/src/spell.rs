@@ -227,12 +227,9 @@ impl<'a> CheckerState<'a> {
         meaning: SymbolFlags,
     ) -> Option<SymbolId> {
         get_spelling_suggestion(self, name, symbols, |state, candidate| {
-            let candidate_name = state
-                .binder
-                .symbol(candidate)
-                .escaped_name
-                .unescape()
-                .to_owned();
+            // getCandidateName starts from symbolName(candidate): a private
+            // member competes as `#name`, not as its `__#N@#name` key.
+            let candidate_name = state.symbol_name(candidate);
             if candidate_name.starts_with("\"") {
                 return None;
             }
@@ -332,7 +329,9 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<JsString>> {
         let suggestion =
             self.get_suggested_symbol_for_nonexistent_property(name_node, name, containing_type)?;
-        Ok(suggestion.map(|symbol| self.symbol_name_as_written_slice(symbol)))
+        // symbolName(suggestion): the unescaped (or `#private`) face, never
+        // the written face with its quotes and escape spellings.
+        Ok(suggestion.map(|symbol| self.symbol_name(symbol)))
     }
 }
 
