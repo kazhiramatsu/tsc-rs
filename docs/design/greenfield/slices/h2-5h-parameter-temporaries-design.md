@@ -1,8 +1,8 @@
 # H2.5h parameter temporary: implementation design
 
-2026-09-14。状態: **upstream witnesses complete / native before and causal gate pending**。
+2026-09-14。状態: **implementation-ready — native before / causal gate complete、after pending**。
 [依頼資料](h2-5h-parameter-temporaries.md) の production 許可2ファイルを維持する。
-この文書は native before / Rust trace の欄を埋めるまで runtime-ready ではない。
+§5 に全68ケースの native before と Rust trace を記録した。after 成功はまだ主張しない。
 
 ## 1. 固定した入力と比較
 
@@ -21,7 +21,7 @@ callback metadata、materialized bytes、related diagnostics 等の追加観測�
 | 原 ES5 | 4 | H2.5h frozen input、`qualified-vfs` / Established |
 | 原 ES2015 | 4 | H2.5g frozen input、同じ route/floor |
 | 原 ESNext | 4 | 元 ES2015 input の target だけを元 source directive の ESNext に変更 |
-| P2–P6 controls | 56 | `/.src/main.ts`、明示 settings、MapFamilyWithDeclarationOnly。map/BOM 等を落とさない |
+| P2–P6 controls | 56 | `/.src/main.ts`、明示 settings、MapFamilyWithDeclarationOnly。noEmit 2件のみ完全 options を保持した `load_program`。map/BOM 等を落とさない |
 
 元の command exit 2 と TS5107 を保持する。strict runner の成否とは区別する。
 比較対象は writes の配列全体（順序/path/kind/bytes/hash/長さ/BOM/materialized bytes/onError/sourceFiles/data）、
@@ -143,21 +143,79 @@ typed identity と completed-tree naming を維持する。今回の修復は既
 | P6 | `comments-lf`, `comments-crlf`, `comments-removed` | parameter comments、prologue、line endings |
 | P6 | `source-map`, `bom`, `no-emit`, `no-emit-on-error` | map、BOM、command 境界と診断 |
 
-## 5. Native before と因果 gate（未完了）
+## 5. Native before と因果 gate
 
 専用 strict test は `crates/compiler/tests/h2_5h_parameter_temporaries.rs`。
 `original_parameter_commands` は12件、`focused_parameter_commands` は56件を各2回実行する。
 失敗しても全 cases の actual/error/partial-writes/expected を保存してから group を失敗させる。
 filter は調査専用で空選択を拒否する。完了証拠は filter なしの全68件。
 
-現在の未解決:
+`before-complete-20260914-1656` は全136 captures、37 exact / 31差分、exit 101。
+原 ES2015/ESNext 8件は exact。原 ES5 4件の全 actual は §2 の counterfactual と完全一致した。
+最初の run の test adapter 不備と修正は [report §3](h2-5h-parameter-temporaries-report.md#3-native-before) に残す。
+修正後も先に取得した128 captures は全 field が不変だった。
 
-1. fresh native before の command/exit と136 captures。
-2. Rust の pass 間 parameter/body と alias/hoist の記録。
-3. 原4件の差分が上の target/alias 条件で説明できること。追加56件の baseline 分類。
+`before-trace-20260914-1700` は許可2ファイルに一時的な読み取り用 trace を加え、同じ全68件を各2回実行。
+exit 101、155.46秒。全136 captures が uninstrumented before と完全一致した。
+trace は stderr と `trace-excerpts.json`、instrumentation は `working.patch` に保存した。
+instrumentation を除去後、準備時27 source pins と再一致したことを確認した。
 
-この欄を実測で解消してから production 修正へ進む。現段階で原因確定や runtime-ready は宣言しない。
-実行枠は先行する Claude の focused native 実行終了後に受け取る。
+### C1: ES5 の parameter lowering を後続 ES2015 へ渡す
+
+Rust の ES2020 pass は flag を `0 → 3 (IN_PARAMETERS | VARIABLES_HOISTED_IN_PARAMETERS) → 2 → 0`
+と遷移させ、ES5 でも initializer を除去する。binding pattern の原ケースでは、local alias を
+`GeneratedBindingId(0)` / provisional `_a` として予約し、その後の hoisted temp が id 1 / `_b` となる。
+parameter は ObjectBindingPattern から Identifier に変わる。ES2015 の body 合流時は
+`multiline=false` のまま。これが上流 ES5 trace と異なる最初の分岐である。
+
+§3 の typed target の伝播と2つの guard を C1 として実装する。lowering の guard は上流の条件を復元し、
+alias-plan の guard は ES5 で実行しなくなる lowering 用の予約を止める。hoisted temp 自体の
+identity / lexical owner / materialization は維持する。両 guard を含む修正を全68件で確認し、
+ES2015 側の C2 と原因別に記録する。ES2015 本体の production 変更は予定しない。
+
+### C2: native parameter initializer の clone/range/flags
+
+before には ES2015 の `comments-lf`、`comments-crlf`、`source-map`、`bom`、
+`no-emit-on-error` にも差分がある。元 parameter の `/* after */` が initializer の末尾でも出力され、
+body 先頭の `/* body */` が消える。同じ source の map positions にも差分がある。
+これは C1 の ES5 target 条件とは別で、同じ `es2021.rs::lower_parameter_default` の initializer arm が owner。
+
+上流 `range-trace.mjs` は comments-lf/source-map の ES5/ES2015 4件を記録し、無改造 TS と全 tuple が一致。
+`range-trace.json` SHA-256 は `6c6448a566e8cf6ffff79f3fe75e52fadb44f15caebd7f34315c8e8cb4adddf7`。
+`comments-lf/es2015` の parameter range は 111..156、initializer は 130..156（この input は ASCII）。
+
+| node | TS trace | Rust before trace | C2 の変更 |
+| --- | --- | --- | --- |
+| 条件の name | positionless clone、original は元 Identifier | source identity のない新規 Identifier | `factory.clone_node(name)` |
+| 代入の name | 同 clone、flags 96 (NoSourceMap) | 新規 Identifier、flags なし | clone + `set_flags(NO_SOURCE_MAP)` |
+| initializer | range 130..156、flags 3168 (NoSourceMap + NoComments) | 同 range、flags なし | 既存 flags に両 flags を追加 |
+| assignment | parameter range 111..156、flags 3072 (NoComments) | synthetic range、flags 3168 | parameter の text range + NoComments のみ |
+| expression statement | synthetic range、flags なし | synthetic range、NoComments | 追加 flags を除去 |
+| then block | parameter range、flags 3905 | synthetic range、同 flags | parameter の text range を付与 |
+
+Rust の `u32::MAX` は TS の synthetic `-1` sentinel に対応する。trace はこの差を値の正規化で隠さない。
+変更は pinned `addDefaultValueAssignmentForInitializer`（91239–91276、selection に既存 pin）に従う。
+rest / binding-pattern の arm、context、factory、printer は変更しない。
+共有 factory の `clone_node` と `set_text_range`、metadata の `set_flags` / `add_flags` をそのまま使う。
+`standard_decorators.rs` の同 owner port も同じ clone/range 配置を使用していることを read-only で確認した。
+
+追加 read-only helpers の body pins（AST getStart〜end）:
+
+| owner | span | SHA-256 |
+| --- | --- | --- |
+| `createNodeFactory/cloneNode` | 24436–24466 | `04e6cc6ac32172f263e59d0ef1b89774f0e310425f3f99b6923286b5a3be59a7` |
+| `setEmitFlags` | 25318–25321 | `74360b7b9b8d9725d16ddd1d9fd7c263293aed62f0d34ff196598a63893624ec` |
+| `setTextRange` | 28256–28258 | `641fccddbba39e0b73a702f725eb9b0ffc3fa470e7ae811cac817d9323d8cbb4` |
+
+`cloneIdentifier`（24409–24420）と `cloneGeneratedIdentifier`（24401–24408）の original / generated identity
+維持も読解した。Rust factory は既存の typed original/metadata copy を持ち、その実装を置き換えない。
+ledger hash は行 span の改行込み bytes を用いる。C2 helper は
+`40b44ee01a36e04f01c1117674832a11a865d16bb40a5fc6c1da6395ad60d4a2`、
+C1 の visitParameterList は既存 ledger 値と一致した。
+
+**実装前 gate: 未解決0。** C1 と C2 の順に別 commit で実装し、それぞれ全68件の完全 command ×2 を確認する。
+各中間結果は保持し、最終 after と区別する。新たな残差の owner が許可2ファイル外にある場合は
+OUT-OF-SCOPE として記録し、期待値・比較を緩めない。
 
 ## 6. After / regression / handoff
 
