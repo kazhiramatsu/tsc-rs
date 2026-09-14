@@ -1,6 +1,6 @@
 # H2.5h parameter temporary: implementation design
 
-2026-09-14。状態: **原4件と関連回帰 verified、共通 producer は C3 printer 残差を持つ部分閉包、統合待ち**。
+2026-09-14。状態: **原4件と関連回帰 verified、共通 producer は C3 printer 残差を持つ部分閉包、PR #522 で統合済み**。
 [依頼資料](h2-5h-parameter-temporaries.md) の production 許可2ファイルを維持する。
 §5 に全68ケースの native before と Rust trace、§6 と report に final after を記録する。
 

@@ -1,8 +1,9 @@
 # H2.5h parameter temporary 実装記録
 
-2026-09-14。状態: **原4件 exact ×2、全68件中63 exact / 5件の既存 printer 差分、関連回帰完了、統合待ち**。
+2026-09-14。状態: **原4件 exact ×2、全68件中63 exact / 5件の既存 printer 差分、関連回帰完了、PR #522 で main 統合済み**。
 [依頼](h2-5h-parameter-temporaries.md) と [設計](h2-5h-parameter-temporaries-design.md) に従う。
-原4件の修復を実測した。共通 producer 全体の閉包と統合完了はまだ主張しない。
+原4件の修復を実測した。共通 producer 全体は C3 を残す部分閉包。
+[統合記録](h2-8a-g5c-parameter-integration.md) に hosted success と main landing を記録する。
 
 ## 1. 現在の source と成果物
 
@@ -177,5 +178,5 @@ UTC 時刻、前後 source hash、stdout/stderr、capture/binary hash を保存�
 各 directory は新規作成とし、既存 captures を上書きしない。
 Cargo target は `target/parameter-temporaries`、jobs 2、低優先度、test threads 1。
 
-未完了: 統合、今回の hosted acceptance。C3 は本 ticket 外の次 owner。
+統合と今回の hosted acceptance は PR #522 で完了。C3 は本 ticket 外の次 owner。
 full developer CI / certificate walk / global profile 再 mint は、現行 schedule に従い実行しない。

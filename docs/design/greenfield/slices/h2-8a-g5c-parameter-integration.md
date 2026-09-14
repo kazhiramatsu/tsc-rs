@@ -1,6 +1,6 @@
 # G5c JSDoc return / ES5 parameter temporary integration
 
-2026-09-14。状態: **両担当と combined source の検証完了（C3 5件は既知失敗）、hosted 待ち**。
+2026-09-14。状態: **hosted acceptance 成功、両担当を main へ統合済み（C3 5件は別 owner の既知失敗）**。
 G5c と ES5 parameter の独立した補修を1つの train へ合流する。
 H2.8a 全体の close、global profile の再 mint、新規 admission は主張しない。
 
@@ -98,3 +98,14 @@ parameter は `TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR`、G5c は `TSC_RS_JSDOC_RETUR
 combined candidate を1つの PR とし、既存の unsplit `cargo xtask acceptance` を hosted で実行する。
 full developer CI / certificate walk / global profile 再 mint は現行 schedule に従い実行せず、成功とも記録しない。
 hosted の final candidate 成功と mergeable を確認して、merge commit で統合する。
+
+2026-09-14 landing: [PR #522](https://github.com/kazhiramatsu/tsc-rs/pull/522) を merge commit
+`1738a661a829c56100cd6f2c962268e6ecc5b6bc` で main に統合した（`2026-09-14T09:40:14Z`）。
+[hosted acceptance run 34824935291](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34824935291) は
+candidate `02988d64b9c236fe75aff73efad9ab616c8da211` に対して success。
+job は46分47秒。実ログの diagnostic conformance は7691 cases、49024/49024 matched、
+FP=0 / FN=0 / mismatches=0。H2.5h は932 candidates =876 exact /12 known /44 deferred、
+repetitions=2。今回削除した4行を含め、既存の hosted boundary を通過した。
+Claude `886e60771` と Codex `754a2afe3` の最終 commits は両方 merge の ancestry に含まれる。
+C3 の5件は引き続き別 owner の strict failures で、全68件の閉包や H2.8a close は主張しない。
+この landing 記録は Markdown のみで、検証済み runtime/fixture/manifest の bytes は変更しない。

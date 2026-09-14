@@ -29,7 +29,9 @@ validation and merge lineage.
 combines the owned JSDoc return repair with the four ES5 parameter-temporary
 rows. Both components have complete focused observations and adjacent
 regressions; combined verification confirms both components, all 1738 checker
-library tests and fmt. Hosted acceptance is pending. The candidate H2.5h manifest removes only those four rows (16 → 12).
+library tests and fmt. [PR #522](https://github.com/kazhiramatsu/tsc-rs/pull/522) landed as `1738a661a` after
+[hosted acceptance](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34824935291) passed for `02988d64b`.
+The H2.5h manifest removes only those four rows (16 → 12).
 Five additional ES2015 parameter/comment controls retain a separate printer
 gap and stay strict failures. This is a bounded repair, with H2.8a and that
 printer owner still open; no global re-mint or admission is claimed.
