@@ -1033,16 +1033,15 @@ impl<'a> CheckerState<'a> {
                 has_return_with_no_expression = true;
                 continue;
             };
-            expr = node_util::skip_parentheses_pub(self.binder.source_of_node(expr), expr);
+            // skipParentheses(expr, /*excludeJSDocTypeAssertions*/ true): a
+            // parenthesized JSDoc type assertion stays the checked expression.
+            expr = self.skip_parentheses_excluding_jsdoc_type_assertions(expr);
             if function_flags & FUNCTION_FLAGS_ASYNC != 0
                 && self.kind_of(expr) == SyntaxKind::AwaitExpression
             {
                 if let NodeData::AwaitExpression(data) = self.data_of(expr) {
                     if let Some(operand) = data.expression {
-                        expr = node_util::skip_parentheses_pub(
-                            self.binder.source_of_node(operand),
-                            operand,
-                        );
+                        expr = self.skip_parentheses_excluding_jsdoc_type_assertions(operand);
                     }
                 }
             }

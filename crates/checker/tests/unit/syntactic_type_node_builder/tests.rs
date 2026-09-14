@@ -1122,3 +1122,180 @@ fn declaration_comment_parameter_lookup_matches_upstream_node_identity() {
         "parameter lookup mismatches: {failures:?}"
     );
 }
+
+// H2.8a G5c: the syntactic return lookup must select the same JSDoc return
+// node as upstream getJSDocReturnType / getEffectiveReturnTypeNode for every
+// function-like host, including hosts whose tags live on an outer statement.
+#[test]
+fn jsdoc_return_lookup_matches_upstream_node_identity() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../compiler/tests/fixtures/h2-8a-jsdoc-return.json"
+    )))
+    .unwrap();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 58);
+    let mut failures = Vec::new();
+    let mut traced = 0;
+    for case in cases {
+        let id = case["id"].as_str().unwrap();
+        let files = case["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|file| {
+                (
+                    file["path"].as_str().unwrap(),
+                    file["text"].as_str().unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let expected = case["return_trace"].as_array().unwrap();
+        traced += expected.len();
+        for repetition in 0..2 {
+            let result = std::panic::catch_unwind(|| {
+                let options = CompilerOptions {
+                    allow_js: true,
+                    ..CompilerOptions::default()
+                };
+                with_program_state(&files, &options, |checker| {
+                    for (index, (path, _)) in files.iter().enumerate() {
+                        let rows = expected
+                            .iter()
+                            .filter(|row| row["host"]["file"] == *path)
+                            .collect::<Vec<_>>();
+                        let events = Rc::new(RefCell::new(Vec::new()));
+                        let mut resolver = TestResolver::new(Rc::clone(&events));
+                        let mut tracker = TestTracker { events };
+                        let source = checker.binder.source(index);
+                        let root = source.root;
+                        let mut arena = TransformArena::new();
+                        let target = arena.add_source(
+                            source,
+                            Some(SourceFileId::from_raw(u32::try_from(index).unwrap())),
+                        );
+                        for node in source.arena.node_ids() {
+                            if let Some(transform) = arena.node_ref(target, node) {
+                                resolver
+                                    .node_kinds
+                                    .insert(transform, source.arena.node(node).kind);
+                            }
+                        }
+                        // Pre-order tree walk (forEachChild order): the arena also
+                        // holds speculative nodes the parser abandoned.
+                        fn collect_function_like(
+                            source: &tsc_syntax::SourceFile,
+                            node: tsc_syntax::NodeId,
+                            out: &mut Vec<tsc_syntax::NodeId>,
+                        ) {
+                            if matches!(
+                                source.arena.node(node).kind,
+                                SyntaxKind::FunctionDeclaration
+                                    | SyntaxKind::FunctionExpression
+                                    | SyntaxKind::ArrowFunction
+                                    | SyntaxKind::MethodDeclaration
+                                    | SyntaxKind::GetAccessor
+                                    | SyntaxKind::SetAccessor
+                                    | SyntaxKind::Constructor
+                            ) {
+                                out.push(node);
+                            }
+                            tsc_syntax::for_each_child(
+                                &source.arena,
+                                source.arena.node(node),
+                                |child| {
+                                    collect_function_like(source, child, out);
+                                    false
+                                },
+                            );
+                        }
+                        let mut collected = Vec::new();
+                        collect_function_like(source, root, &mut collected);
+                        let hosts = collected
+                            .into_iter()
+                            .map(|node| arena.node_ref(target, node).unwrap())
+                            .collect::<Vec<_>>();
+                        assert_eq!(
+                            hosts.len(),
+                            rows.len(),
+                            "{id}: function-like hosts of {path}"
+                        );
+                        let result = with_context(
+                            checker,
+                            &mut arena,
+                            target,
+                            Some(root),
+                            Some(EmitNodeBuilderFlags::NONE),
+                            None,
+                            Some(&mut tracker),
+                            None,
+                            None,
+                            |_checker, arena, target, context| {
+                                let builder = SyntacticTypeNodeBuilder::new(&options);
+                                let session = SyntacticBuildSession::new(
+                                    &builder,
+                                    &mut resolver,
+                                    arena,
+                                    target,
+                                    context,
+                                    EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
+                                );
+                                // Upstream positions are UTF-16 offsets; the arena
+                                // stores UTF-8 byte offsets of the same text.
+                                let describe = |node: Option<TransformNode>| {
+                                    node.map_or(serde_json::Value::Null, |node| {
+                                        let record = session.arena.node(node).unwrap();
+                                        let syntax = session.arena.source(node.source()).unwrap().syntax();
+                                        let text = syntax.text();
+                                        let units = |offset: u32| text[..offset as usize].encode_utf16().count();
+                                        serde_json::json!({"kind": format!("{:?}", record.kind),
+                                            "pos": units(record.pos), "end": units(record.end),
+                                            "file": syntax.file_name.as_str().expect("scalar filename observation")})
+                                    })
+                                };
+                                for (&host, row) in hosts.iter().zip(&rows) {
+                                    assert_eq!(describe(Some(host)), row["host"], "{id}: host identity");
+                                    if session.is_in_js_file(host)? {
+                                        let jsdoc = session.get_jsdoc_return_type(host)?;
+                                        assert_eq!(
+                                            describe(jsdoc),
+                                            row["jsdoc_return_type"],
+                                            "{id}: JSDoc return type identity of {}",
+                                            row["name"]
+                                        );
+                                    }
+                                    let effective = session.effective_return_type_node(host)?;
+                                    assert_eq!(
+                                        describe(effective),
+                                        row["effective_return_type_node"],
+                                        "{id}: effective return annotation identity of {}",
+                                        row["name"]
+                                    );
+                                }
+                                Ok(())
+                            },
+                            None,
+                        )
+                        .expect("test context succeeds");
+                        assert_eq!(result, Some(()));
+                    }
+                });
+            });
+            if let Err(error) = result {
+                let text = error
+                    .downcast_ref::<String>()
+                    .cloned()
+                    .or_else(|| error.downcast_ref::<&str>().map(|text| (*text).to_owned()))
+                    .unwrap_or_else(|| "panic".to_owned());
+                failures.push(format!("{id} repetition {repetition}: {text}"));
+            }
+        }
+    }
+    assert_eq!(traced, 70);
+    assert!(
+        failures.is_empty(),
+        "{} JSDoc return lookup mismatches:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
