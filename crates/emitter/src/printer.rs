@@ -993,6 +993,11 @@ impl PrintedText {
         self.text.units()
     }
 
+    /// Both faces of the generated value, for the artifact boundary.
+    pub(crate) fn generated_text(&self) -> &GeneratedText {
+        &self.text
+    }
+
     pub const fn end(&self) -> GeneratedUtf16Location {
         self.end
     }

@@ -138,6 +138,14 @@ fn captured_write(index: usize, artifact: &EmitArtifact) -> Value {
     };
     // These frozen source and callback strings are scalar. Diagnostic values retain UTF-16
     // separately above; this byte channel does not qualify arbitrary callbacks.
+    // Fail closed (review A-4): these frozen callbacks are scalar, so the
+    // callback value and its UTF-8 projection coincide; a lone unit would
+    // otherwise be projected to U+FFFD silently.
+    assert!(
+        char::decode_utf16(artifact.callback_units().iter().copied()).all(|unit| unit.is_ok()),
+        "{}: callback carries an unpaired unit; compare units instead",
+        scalar_path(artifact.path())
+    );
     let callback = std::str::from_utf8(artifact.callback_bytes()).unwrap();
     json!({"index": index, "path": scalar_path(artifact.path()),
         "callback": string_value(callback), "write_byte_order_mark": artifact.write_byte_order_mark(),

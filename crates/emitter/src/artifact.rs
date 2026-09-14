@@ -3,7 +3,51 @@ use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_diagnostics::{Diagnostic, DiagnosticList};
 
+use crate::writer::GeneratedText;
 use crate::GeneratedUtf16Position;
+
+/// The JavaScript string handed to TypeScript's write callback together with
+/// its UTF-8 sink projection. tsc's `writeFile` callback receives the raw
+/// string (`_tsc.js:16644-16650`); only `sys.writeFile` (`5164-5182`) turns an
+/// unpaired unit into U+FFFD. Both faces are retained so a harness can compare
+/// the callback value unit for unit while the sink still receives the
+/// projection.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmitCallbackText(GeneratedText);
+
+impl EmitCallbackText {
+    pub(crate) fn from_generated(text: GeneratedText) -> Self {
+        Self(text)
+    }
+
+    /// The UTF-8 sink projection.
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// The raw UTF-16 value.
+    pub fn units(&self) -> Cow<'_, [u16]> {
+        self.0.units()
+    }
+}
+
+impl From<String> for EmitCallbackText {
+    fn from(text: String) -> Self {
+        Self(GeneratedText::from(text))
+    }
+}
+
+impl From<&str> for EmitCallbackText {
+    fn from(text: &str) -> Self {
+        Self(GeneratedText::from(text))
+    }
+}
+
+impl From<Box<str>> for EmitCallbackText {
+    fn from(text: Box<str>) -> Self {
+        Self(GeneratedText::from(text))
+    }
+}
 
 /// Normalized data passed with a JavaScript or declaration text callback.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -76,13 +120,13 @@ pub enum EmitArtifactKind {
 /// One immutable write-callback observation.
 ///
 /// Fields are private so a caller cannot manufacture an internally
-/// inconsistent struct literal. Product-specific constructors retain exact
-/// UTF-8 callback text without a BOM, while the BOM decision remains a
-/// separate observable value.
+/// inconsistent struct literal. Product-specific constructors retain the exact
+/// callback string without a BOM (raw units plus the UTF-8 sink projection),
+/// while the BOM decision remains a separate observable value.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmitArtifact {
     path: JsString,
-    callback_text: Box<str>,
+    callback_text: EmitCallbackText,
     write_byte_order_mark: bool,
     kind: EmitArtifactKind,
     source_files: Option<Box<[JsString]>>,
@@ -92,7 +136,7 @@ pub struct EmitArtifact {
 impl EmitArtifact {
     pub fn javascript(
         path: impl Into<JsString>,
-        callback_text: impl Into<Box<str>>,
+        callback_text: impl Into<EmitCallbackText>,
         write_byte_order_mark: bool,
         source_files: Option<Vec<JsString>>,
         metadata: EmitTextMetadata,
@@ -109,7 +153,7 @@ impl EmitArtifact {
 
     pub fn declaration(
         path: impl Into<JsString>,
-        callback_text: impl Into<Box<str>>,
+        callback_text: impl Into<EmitCallbackText>,
         write_byte_order_mark: bool,
         source_files: Option<Vec<JsString>>,
         metadata: EmitTextMetadata,
@@ -126,7 +170,7 @@ impl EmitArtifact {
 
     pub fn javascript_map(
         path: impl Into<JsString>,
-        callback_text: impl Into<Box<str>>,
+        callback_text: impl Into<EmitCallbackText>,
         source_files: Option<Vec<JsString>>,
     ) -> Self {
         Self::map(
@@ -139,7 +183,7 @@ impl EmitArtifact {
 
     pub fn declaration_map(
         path: impl Into<JsString>,
-        callback_text: impl Into<Box<str>>,
+        callback_text: impl Into<EmitCallbackText>,
         source_files: Option<Vec<JsString>>,
     ) -> Self {
         Self::map(
@@ -152,7 +196,7 @@ impl EmitArtifact {
 
     pub fn build_info(
         path: impl Into<JsString>,
-        callback_text: impl Into<Box<str>>,
+        callback_text: impl Into<EmitCallbackText>,
         metadata: EmitBuildInfoMetadata,
     ) -> Self {
         Self {
@@ -167,7 +211,7 @@ impl EmitArtifact {
 
     fn text(
         path: impl Into<JsString>,
-        callback_text: impl Into<Box<str>>,
+        callback_text: impl Into<EmitCallbackText>,
         write_byte_order_mark: bool,
         kind: EmitArtifactKind,
         source_files: Option<Vec<JsString>>,
@@ -189,7 +233,7 @@ impl EmitArtifact {
 
     fn map(
         path: impl Into<JsString>,
-        callback_text: impl Into<Box<str>>,
+        callback_text: impl Into<EmitCallbackText>,
         kind: EmitArtifactKind,
         source_files: Option<Vec<JsString>>,
     ) -> Self {
@@ -211,12 +255,20 @@ impl EmitArtifact {
         self.path.as_js()
     }
 
+    /// The UTF-8 sink projection of the callback string: an unpaired unit is
+    /// U+FFFD here, exactly as `sys.writeFile` materializes it.
     pub fn callback_text(&self) -> &str {
-        &self.callback_text
+        self.callback_text.as_str()
     }
 
     pub fn callback_bytes(&self) -> &[u8] {
-        self.callback_text.as_bytes()
+        self.callback_text.as_str().as_bytes()
+    }
+
+    /// The JavaScript string tsc hands to its `writeFile` callback, unit for
+    /// unit (`_tsc.js:16644-16650`).
+    pub fn callback_units(&self) -> Cow<'_, [u16]> {
+        self.callback_text.units()
     }
 
     pub const fn write_byte_order_mark(&self) -> bool {

@@ -141,7 +141,7 @@ fn finish_declaration_map_for_output(
         Some(map_path),
         source_path,
     )?;
-    let mut text = printed.text().to_owned();
+    let mut text = printed.generated_text().clone();
     let mut url_position = printed.end().position();
     if printed.end().column() != 0 {
         text.push_str(new_line.text());
@@ -157,7 +157,7 @@ fn finish_declaration_map_for_output(
         map: EmitArtifact::declaration_map(map_path, map_json, Some(source_files.to_vec())),
         declaration: EmitArtifact::declaration(
             declaration_path,
-            text,
+            crate::artifact::EmitCallbackText::from_generated(text),
             options.emit_bom == Some(true),
             Some(source_files.to_vec()),
             EmitTextMetadata::new(diagnostics, Some(url_position)),

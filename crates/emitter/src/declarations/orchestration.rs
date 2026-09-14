@@ -309,7 +309,7 @@ pub(crate) fn emit_declaration_unit(
         (
             EmitArtifact::declaration(
                 declaration_path,
-                printed.text(),
+                crate::artifact::EmitCallbackText::from_generated(printed.generated_text().clone()),
                 options.emit_bom == Some(true),
                 Some(source_files),
                 EmitTextMetadata::new(diagnostics.clone(), None),

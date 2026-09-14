@@ -1,3 +1,4 @@
+use crate::artifact::EmitCallbackText;
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_types::{CompilerOptions, ScriptTarget};
@@ -1055,7 +1056,9 @@ pub fn emit_files_with_activity(
                         map_path.map(JsString::as_js),
                         source_path,
                     )?;
-                    let mut javascript_text = printed.text().to_owned();
+                    // The callback keeps the generated value's raw units; only
+                    // its sink projection substitutes U+FFFD.
+                    let mut javascript_text = printed.generated_text().clone();
                     let mut url_position = printed.end().position();
                     if printed.end().column() != 0 {
                         javascript_text.push_str(new_line.text());
@@ -1077,7 +1080,7 @@ pub fn emit_files_with_activity(
                     activity.create_javascript_artifact();
                     artifacts.push(EmitArtifact::javascript(
                         javascript_path,
-                        javascript_text,
+                        EmitCallbackText::from_generated(javascript_text),
                         options.emit_bom == Some(true),
                         Some(source_files.clone()),
                         EmitTextMetadata::new(transform_diagnostics, Some(url_position)),
@@ -1086,7 +1089,7 @@ pub fn emit_files_with_activity(
                     activity.create_javascript_artifact();
                     artifacts.push(EmitArtifact::javascript(
                         javascript_path,
-                        printed.text(),
+                        EmitCallbackText::from_generated(printed.generated_text().clone()),
                         options.emit_bom == Some(true),
                         Some(source_files.clone()),
                         EmitTextMetadata::new(transform_diagnostics, None),
