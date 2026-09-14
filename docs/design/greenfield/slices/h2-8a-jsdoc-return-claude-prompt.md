@@ -3,6 +3,7 @@
 `/Users/hiramatsu/dev/tsc-rs-jsdoc-return` の `work/h2-8a-jsdoc-return` で作業してください。
 runtime base は `7d6bc9848e97c26b0438da5ec73bd08c9a175c9a`（PR #521 の統合候補）です。
 資料のコミットが上に載っていても、着手中の worktree を reset しないでください。
+[統合完了と補助ファイル整理の記録](h2-8a-jsdoc-return-integration-note.md)も確認してください。
 
 [依頼資料](h2-8a-jsdoc-return.md) と [固定入力・source inventory](h2-8a-jsdoc-return-selection.v1.json) を読み、
 `node scripts/check-h2-8a-jsdoc-return-selection.mjs` で開始 source を確認してください。
