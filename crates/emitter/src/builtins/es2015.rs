@@ -1423,6 +1423,12 @@ impl Es2015Visitor<'_, '_, '_> {
         arguments: Vec<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let source = self.source;
+        // tsc createCallExpression (_tsc.js:22579-22585) runs the callee through
+        // parenthesizeLeftSideOfAccess (20466-20471); see the ES2018 host.
+        let callee = self
+            .context
+            .factory()?
+            .parenthesize_left_side_of_access(callee)?;
         let arguments = self
             .context
             .factory()?

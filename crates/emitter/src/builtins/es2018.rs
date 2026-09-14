@@ -4769,6 +4769,14 @@ impl<'context> Es2018Visitor<'context> {
         callee: TransformNode,
         arguments: Vec<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
+        // tsc createCallExpression (_tsc.js:22579-22585) runs the callee through
+        // parenthesizeLeftSideOfAccess (20466-20471): a lowered optional-chain
+        // tag arrives here as a conditional expression and must not bind to
+        // the argument list.
+        let callee = self
+            .context
+            .factory()?
+            .parenthesize_left_side_of_access(callee)?;
         let arguments = self
             .context
             .factory()?

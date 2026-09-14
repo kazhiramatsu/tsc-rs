@@ -3792,7 +3792,7 @@ impl<'arena> NodeFactory<'arena> {
         )
     }
 
-    fn parenthesize_left_side_of_access(
+    pub(crate) fn parenthesize_left_side_of_access(
         &mut self,
         expression: TransformNode,
     ) -> Result<TransformNode, TransformError> {
