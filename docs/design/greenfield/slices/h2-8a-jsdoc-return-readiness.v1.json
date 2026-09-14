@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "slice": "H2.8a G5c JSDoc return annotation ownership",
+  "state": "ready",
+  "base_head": "7d6bc9848e97c26b0438da5ec73bd08c9a175c9a",
+  "design": {
+    "path": "docs/design/greenfield/slices/h2-8a-jsdoc-return-design.md",
+    "anchors": [
+      "## 2. Pinned upstream owners",
+      "## 4. Cause proof on the same nodes",
+      "### 5.1 Binder: AST-only return lookup",
+      "### 5.2 Checker syntactic builder",
+      "### 5.3 Checker semantic return aggregation",
+      "### 5.4 Checker diagnostic signature display",
+      "## 6. Controls and witnesses",
+      "## 8. Readiness",
+      "| Unresolved items | 0 |"
+    ]
+  },
+  "typescript": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "span_hash_contract": "SHA-256 of the whole lines start..end inclusive, each terminated by LF (the repository tsc-hash ledger algorithm)",
+    "owners": [
+      {"name": "getJSDocReturnTag", "start_line": 11708, "end_line": 11710, "first_line_contains": "function getJSDocReturnTag(node)", "sha256_whole_lines": "9b02cc14a58da114906e21bbb106c7cf8c0bf85e3555915f43e295c59776dd20"},
+      {"name": "getJSDocTypeTag", "start_line": 11714, "end_line": 11720, "first_line_contains": "function getJSDocTypeTag(node)", "sha256_whole_lines": "0c07d7f33cca41752e2a1714164de9d4912d78de25145a44694d688c4ceb48a9"},
+      {"name": "getJSDocReturnType", "start_line": 11728, "end_line": 11744, "first_line_contains": "function getJSDocReturnType(node)", "sha256_whole_lines": "7bcd67792fdeaceeecc2c6ff990b94e0065646e3068932012592c00efafe9eea"},
+      {"name": "getJSDocTagsWorker", "start_line": 11745, "end_line": 11759, "first_line_contains": "function getJSDocTagsWorker(node, noCache)", "sha256_whole_lines": "57325aecd61d6df7de8277e221e63b1ecb7a7f6a3501d999255bc88fb82d81f2"},
+      {"name": "getFirstJSDocTag", "start_line": 11767, "end_line": 11769, "first_line_contains": "function getFirstJSDocTag(node, predicate, noCache)", "sha256_whole_lines": "692bf3520107ebc11067c254d2e883b0e4767a5dccd1d9dbdd795d8e7dd5e679"},
+      {"name": "getJSDocCommentsAndTags", "start_line": 15429, "end_line": 15450, "first_line_contains": "function getJSDocCommentsAndTags(hostNode, noCache)", "sha256_whole_lines": "06bd3326770ddb5efcb52a26bc02e694410ca4cfc4fdd1b0a5da80215773703d"},
+      {"name": "filterOwnedJSDocTags", "start_line": 15451, "end_line": 15461, "first_line_contains": "function filterOwnedJSDocTags(hostNode, comments)", "sha256_whole_lines": "4287e545ec38802a2766922acf834c9bd3408679eaeb047278c09528ed924c94"},
+      {"name": "ownsJSDocTag", "start_line": 15462, "end_line": 15464, "first_line_contains": "function ownsJSDocTag(hostNode, tag)", "sha256_whole_lines": "b2fe170504879c65b19c45cf47f347e85cc00cfb334570284df207ea27b3a651"},
+      {"name": "getNextJSDocCommentLocation", "start_line": 15465, "end_line": 15474, "first_line_contains": "function getNextJSDocCommentLocation(node)", "sha256_whole_lines": "12679e1abba9e5aa883b2cae53161fead29e07485c4853f7e507a7fe5ff433c2"},
+      {"name": "getEffectiveReturnTypeNode", "start_line": 16768, "end_line": 16770, "first_line_contains": "function getEffectiveReturnTypeNode(node)", "sha256_whole_lines": "48ca97d514d3167e7f6ad934bb144fdf907c4bca4f09b790587d13a4fc2faeeb"},
+      {"name": "isJSDocTypeAssertion", "start_line": 27553, "end_line": 27555, "first_line_contains": "function isJSDocTypeAssertion(node)", "sha256_whole_lines": "62e3b328401615642ade63804d7b852af9ff6cd6f4ed3ff1c159e9409f492193"},
+      {"name": "getJSDocTypeAssertionType", "start_line": 27556, "end_line": 27560, "first_line_contains": "function getJSDocTypeAssertionType(node)", "sha256_whole_lines": "cfd55501eb32ceeddde6324f1995a8762d73652e63928d8787c23d389fe0c9d1"},
+      {"name": "canReuseTypeNodeAnnotation", "start_line": 50932, "end_line": 50955, "first_line_contains": "canReuseTypeNodeAnnotation(syntacticContext, node, existing, symbol, requiresAddingUndefined)", "sha256_whole_lines": "edfd54626c63d3d1645a16cfcad8561dab1388e09a7278579ada789709becc6d"},
+      {"name": "serializeReturnTypeForSignature (semantic)", "start_line": 53524, "end_line": 53546, "first_line_contains": "function serializeReturnTypeForSignature(context, signature)", "sha256_whole_lines": "31fc902e4dc5253fc144eb471e4f27423714c36d86bf4af777b4186cabb4b123"},
+      {"name": "serializeTypeAnnotationOfDeclaration", "start_line": 133706, "end_line": 133729, "first_line_contains": "function serializeTypeAnnotationOfDeclaration(declaredType, context, node, symbol", "sha256_whole_lines": "e23bbbb5fd3312ca518de15faf39bf09573dbe3a1e071fdc6640ff91ff3525e9"},
+      {"name": "serializeReturnTypeForSignature (syntactic)", "start_line": 133807, "end_line": 133829, "first_line_contains": "function serializeReturnTypeForSignature(node, symbol, context)", "sha256_whole_lines": "392dd1cdbbe89fcce6955d0c3d92b5f8f79cb32596078ca3d747b39114d144f8"},
+      {"name": "inferReturnTypeOfSignatureSignature", "start_line": 133962, "end_line": 133970, "first_line_contains": "function inferReturnTypeOfSignatureSignature(node, context, symbol, reportFallback)", "sha256_whole_lines": "0dc7d6a529bd4c9f52dbbd183a425c0b83ce8e4662657e1ff99f9d8c7d78f5e9"},
+      {"name": "typeFromTypeAssertion", "start_line": 133988, "end_line": 133999, "first_line_contains": "function typeFromTypeAssertion(expression, type, context, requiresAddingUndefined)", "sha256_whole_lines": "35cfd4c12775e6d02a0ffe014b8eddb48abf9a7974d39eb816ec11e89a553af2"},
+      {"name": "typeFromExpression", "start_line": 134000, "end_line": 134082, "first_line_contains": "function typeFromExpression(node, context, isConstContext = false", "sha256_whole_lines": "618dccd876b1fdcf9053f5bfabc74f50521767b59a4b2b3bb3e2f5b441562ca7"},
+      {"name": "createReturnFromSignature", "start_line": 134397, "end_line": 134406, "first_line_contains": "function createReturnFromSignature(fn, symbol, context, reportFallback = true)", "sha256_whole_lines": "1e237223cdce33e60b17473553ec75a4a4a36d23e0147d6c3c33037a16063359"},
+      {"name": "typeFromSingleReturnExpression", "start_line": 134407, "end_line": 134441, "first_line_contains": "function typeFromSingleReturnExpression(declaration, context)", "sha256_whole_lines": "300d9bc8493ff2d3f460dc696531a2ebf20651741256b7a044ab0d41e8c55138"},
+      {"name": "isContextuallyTyped", "start_line": 134442, "end_line": 134446, "first_line_contains": "function isContextuallyTyped(node)", "sha256_whole_lines": "045888c7689997501d48c7fecb06b6beefc553a072825502ad1019cc0ba70468"},
+      {"name": "getTypeNamesForErrorDisplay", "start_line": 50748, "end_line": 50756, "first_line_contains": "function getTypeNamesForErrorDisplay(left, right)", "sha256_whole_lines": "40a0bc0eba39778afa87e7a1acdc421c12ecc5e0d0c117c72327676c61922597"},
+      {"name": "checkAndAggregateReturnExpressionTypes", "start_line": 78959, "end_line": 79008, "first_line_contains": "function checkAndAggregateReturnExpressionTypes(func, checkMode)", "sha256_whole_lines": "69b5d219762f77c14a66f98a7981ba6bfa0ee5411becccc95ddf59efef3e609e"},
+      {"name": "skipParentheses", "start_line": 15661, "end_line": 15664, "first_line_contains": "function skipParentheses(node, excludeJSDocTypeAssertions)", "sha256_whole_lines": "57477e009374b3ffadffee5b4db7695a3c33fc1710ed92ce3c06ab51d147e7f3"},
+      {"name": "isOuterExpression", "start_line": 27561, "end_line": 27581, "first_line_contains": "function isOuterExpression(node, kinds = 63 /* All */)", "sha256_whole_lines": "5516dd616d83f3a2e9d8caaf560d9d12c8a8718fd446d453702b1a81ab8da298"},
+      {"name": "skipOuterExpressions", "start_line": 27582, "end_line": 27587, "first_line_contains": "function skipOuterExpressions(node, kinds = 63 /* All */)", "sha256_whole_lines": "8b1eff7c004dde6bbe6b5940ba064195f1aea6668ca5d8b1f4a69bf9cec4dec1"}
+    ]
+  },
+  "fixture": {
+    "path": "crates/compiler/tests/fixtures/h2-8a-jsdoc-return.json",
+    "sha256": "687d28b13459dff3b472515c430f66165c4bdaaec6f07bbbb893ca2997d54ba3",
+    "observer": "scripts/observe-h2-8a-jsdoc-return.mjs",
+    "cases": 58,
+    "traced_functions": 70,
+    "groups": ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8"]
+  },
+  "rust_symbols": {
+    "crates/binder/src/node_util.rs": {
+      "present": ["pub fn get_jsdoc_return_tag(source: &SourceFile, host: NodeId) -> Option<NodeId>", "pub fn get_jsdoc_return_type(source: &SourceFile, host: NodeId) -> Option<NodeId>", "fn visit_owned_jsdoc_tags(", "pub fn get_jsdoc_type_tag(source: &SourceFile, host: NodeId) -> Option<NodeId>"]
+    },
+    "crates/checker/src/syntactic_type_node_builder.rs": {
+      "present": ["node_util::get_jsdoc_return_type(", "fn get_jsdoc_return_type(", "fn effective_return_type_node(", "fn create_return_from_signature("],
+      "absent": ["fn direct_jsdoc_tags(", "G5C-TRACE"]
+    },
+    "crates/checker/src/functions.rs": {
+      "present": ["fn check_and_aggregate_return_expression_types(", "expr = self.skip_parentheses_excluding_jsdoc_type_assertions(expr);", "expr = self.skip_parentheses_excluding_jsdoc_type_assertions(operand);"]
+    },
+    "crates/checker/src/check.rs": {
+      "present": ["fn serialize_return_type_for_signature_slice(", "if let Some(annotation) = self.effective_return_type_node(declaration) {"]
+    },
+    "crates/compiler/tests/h2_8a_jsdoc_return.rs": {
+      "present": ["fn jsdoc_return_controls_match_complete_commands_twice()", "fn original_g5c_complete_command()"]
+    },
+    "crates/checker/tests/unit/syntactic_type_node_builder/tests.rs": {
+      "present": ["fn jsdoc_return_lookup_matches_upstream_node_identity()"]
+    }
+  }
+}

@@ -1,0 +1,550 @@
+{
+  "schema": "h2-5h-parameter-temporaries-preparation/v1",
+  "status": "selection-and-source-inventory-not-runtime-ready",
+  "selected_at": "2026-09-14",
+  "main_runtime_base": "3462ef0e0ca10b90eaed2c93c12baacbec2e628d",
+  "accepted_runtime_candidate": "7d6bc9848e97c26b0438da5ec73bd08c9a175c9a",
+  "accepted_runtime_tree": "627cb7e207fea304f5537953fef5009a18b4c659",
+  "shared_preparation": "46b9743b525efd6659ff940dfc24b911f9d91946",
+  "base_head": "96037be2c876621d59ebf82cda1967cf8c59ac83",
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-parameter-temporaries",
+  "branch": "work/h2-5h-parameter-temporaries",
+  "typescript": {
+    "version": "6.0.3",
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "hash_method": "AST getStart(source) through node.end, UTF-8, excluding leading trivia; not the production ledger algorithm",
+    "owners": [
+      {
+        "id": "visitParameterList",
+        "name": "visitParameterList",
+        "start_line": 91168,
+        "end_line": 91181,
+        "sha256_utf8_no_leading_trivia": "2835f20d38d494faaa1aa6faaf5748981e7665eae6e4032cb999ce043effd0ec"
+      },
+      {
+        "id": "addDefaultValueAssignmentsIfNeeded",
+        "name": "addDefaultValueAssignmentsIfNeeded",
+        "start_line": 91182,
+        "end_line": 91196,
+        "sha256_utf8_no_leading_trivia": "371a3a9c4db5d210791f8773b4b074a75a6521933ccebf080050c6a5508d7a9c"
+      },
+      {
+        "id": "addDefaultValueAssignmentIfNeeded",
+        "name": "addDefaultValueAssignmentIfNeeded",
+        "start_line": 91197,
+        "end_line": 91199,
+        "sha256_utf8_no_leading_trivia": "f0c5674c0c9d696a22c493ce998a1f31193730e1b37792aecddd0f3ec48e30b7"
+      },
+      {
+        "id": "addDefaultValueAssignmentForBindingPattern",
+        "name": "addDefaultValueAssignmentForBindingPattern",
+        "start_line": 91200,
+        "end_line": 91238,
+        "sha256_utf8_no_leading_trivia": "ffe4a52e24846839c3f130cf1bd52a52e9b01c37ef2b34d0d42c910e4f2c71a3"
+      },
+      {
+        "id": "addDefaultValueAssignmentForInitializer",
+        "name": "addDefaultValueAssignmentForInitializer",
+        "start_line": 91239,
+        "end_line": 91276,
+        "sha256_utf8_no_leading_trivia": "b54c3ffef836c6a21175eaa6ef3b9febd1d8e8383994b245ecda2f9cf4b024fc"
+      },
+      {
+        "id": "visitFunctionBody",
+        "name": "visitFunctionBody",
+        "start_line": 91277,
+        "end_line": 91290,
+        "sha256_utf8_no_leading_trivia": "a3a512cd174753f2fb2f9744298f42b06fb64b600d7dbfe206f3650b35372839"
+      },
+      {
+        "id": "transformES2020",
+        "name": "transformES2020",
+        "start_line": 102943,
+        "end_line": 103202,
+        "sha256_utf8_no_leading_trivia": "89444e00815d1908c9e512cc7e2025c5deae70434a8f21565a0c9a633b555b85"
+      },
+      {
+        "id": "transformES2020/visitOptionalExpression",
+        "name": "visitOptionalExpression",
+        "start_line": 103073,
+        "end_line": 103157,
+        "sha256_utf8_no_leading_trivia": "746937ac1b4df1a598d9adf59c32af86f26afd6199e9b822033eb11dbb162ef8"
+      },
+      {
+        "id": "transformES2020/transformNullishCoalescingExpression",
+        "name": "transformNullishCoalescingExpression",
+        "start_line": 103173,
+        "end_line": 103192,
+        "sha256_utf8_no_leading_trivia": "7a4829737526f3fc67aa441b08b0a855b2bf40567145b48cf858f99001176ba2"
+      },
+      {
+        "id": "transformES2015/visitParameter",
+        "name": "visitParameter",
+        "start_line": 105672,
+        "end_line": 105722,
+        "sha256_utf8_no_leading_trivia": "959f029daefcf69c3363addd1f8eae9236b2c9d304ac6b37592fdb4b11da28f2"
+      },
+      {
+        "id": "transformES2015/addDefaultValueAssignmentsIfNeeded2",
+        "name": "addDefaultValueAssignmentsIfNeeded2",
+        "start_line": 105726,
+        "end_line": 105744,
+        "sha256_utf8_no_leading_trivia": "47e2b98a01f4b885e6bc1a08fc453d5f53c26543016a851cefe71eed36641000"
+      },
+      {
+        "id": "transformES2015/insertDefaultValueAssignmentForBindingPattern",
+        "name": "insertDefaultValueAssignmentForBindingPattern",
+        "start_line": 105745,
+        "end_line": 105783,
+        "sha256_utf8_no_leading_trivia": "bb64d2e837fc2d29afe0ef353112f706629e5839dd6594930373534459088856"
+      },
+      {
+        "id": "transformES2015/insertDefaultValueAssignmentForInitializer",
+        "name": "insertDefaultValueAssignmentForInitializer",
+        "start_line": 105784,
+        "end_line": 105814,
+        "sha256_utf8_no_leading_trivia": "71f569d722ae3e16eb92bf1357936c2929613bd91a42a0af4a7eee5de3f044d9"
+      },
+      {
+        "id": "transformES2015/transformFunctionBody",
+        "name": "transformFunctionBody",
+        "start_line": 106255,
+        "end_line": 106329,
+        "sha256_utf8_no_leading_trivia": "6e6b52c1363de0fe7a2d55643ee8b42fa19df605d4901c46347a95e7b366a2d4"
+      },
+      {
+        "id": "transformNodes/hoistVariableDeclaration",
+        "name": "hoistVariableDeclaration",
+        "start_line": 116104,
+        "end_line": 116116,
+        "sha256_utf8_no_leading_trivia": "2d0687fbc9b8daa02fa3fde270944ce04c8fbc551a520a3090a9b2609e5b35a0"
+      }
+    ]
+  },
+  "files": {
+    "crates/emitter/src/builtins/es2021.rs": "41533e0c083c6b8a2ca2131596f868998fdc59bc514ba0ac2cee0dc8dcfd2415",
+    "crates/emitter/src/builtins/es2015.rs": "a3dd5caf99be448c4aaa315bdd65f9e3df79130caea513a5250ce9fc344cb8be",
+    "crates/emitter/src/transform.rs": "d0e2510cd8e157f4ddd326cfd1e2e92c27c7dab4d49a874ec64296f175ae32ec",
+    "crates/emitter/src/builtins.rs": "1ff70bba20a81b21dd076d89322ae808e53506a9d06d3892cd79b8a2ed6dbd8d",
+    "crates/emitter/src/builtins/target_bindings.rs": "400041568bd649c6e402593949881470d7a47aeb05d1aa60511f9132cfd023ee",
+    "crates/emitter/src/builtins/generated_bindings.rs": "170bd9f1c7935ce2b53c0a9718081f3e969a767a9b7017daaae7b55c3126ada5",
+    "crates/emitter/tests/integration/active_transform_contract.rs": "f5631eb16f55d8b4167ff37f1e9a54637ffcf50e4998ab69314556e998bd975e",
+    "crates/compiler/tests/integration/h2_5h_static_this_super_rows.rs": "98ce380b65d29f64110b9fcc1e5fec9c66c5027ad075b23ef7c9144549b25304",
+    "crates/compiler/tests/h2_5h_utf16_original_rows_complete.rs": "c73d753c9d3347df7c820cb01bb45c66f0dab6ece239e9b4d0e0ba99aebc61a2",
+    "crates/compiler/tests/h2_6a_map_option_projection.rs": "14fec485caf7207c5a1fe26628cabb78ea51a272913e419dff0a3760a526b570",
+    "crates/binder/src/node_util.rs": "7bb0a612b1307952f6ef4995394b6f618a27447f02c053e29ff681a421db0f04",
+    "crates/checker/src/jsdoc.rs": "6c6b28c7e1a7da50d0852bc3bc04c2c69eafa77c5a9f716cb940585ec6630c6c",
+    "crates/checker/src/functions.rs": "7e38449bae70690d119ec3345f41149560efc6087e36e94224cb2b1b9462d93d",
+    "crates/checker/src/contextual.rs": "2b97726433d699ba175d689e414e4201d3dc843293e74980b727bc4b403faec7",
+    "crates/checker/src/annotate.rs": "fdf5acd1249e76d51466e428e34235ee3acffa76fc5ff3ea229678c976f2c894",
+    "crates/checker/src/syntactic_type_node_builder.rs": "655accdcf99fc6a636f56dc2c379ca4cff754978f4b5873dfd217379a7fe731e",
+    "crates/checker/src/node_builder/signatures.rs": "37bee14b91b0ef36045aff0de66ea286a3290d4e3a8679ba8be62e3cdb285599",
+    "crates/checker/src/node_builder/serialize.rs": "b3374f68e632becd51ff1030280ed05edcb872890074c7a1924bcd10aff01ef6",
+    "docs/design/greenfield/slices/h2-8a-jsdoc-return-selection.v1.json": "4dadfa77a0c253191aa817fad50c529690519d8b55e3a50763ac64e4f607bb96",
+    "ratchets/h2-5h-qualification.v1.json": "488e9940fcb8b6b359bad5fc9fa822eeae46af59b9aefd2bd5e3a20c37c396a3",
+    "ratchets/h2-5g-qualification.v1.json": "8666e68c50b098fcac015b523307ce71e4f39d689e9cb7f3b31d405cde9cacaa",
+    "ts-tests/tests/cases/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.ts": "3139a1020aea49f75b9a4eed1f4b99294cec65f4c40052798ad569d02d52fc0c",
+    "ts-tests/tests/cases/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterInitializer.ts": "a46640bc23ec07738c6823d9d13eef62ba1dfc2dc005d3d9427365fb48f02fb8",
+    "ts-tests/tests/cases/conformance/expressions/optionalChaining/optionalChainingInParameterBindingPattern.ts": "d9903923c52551d0c0ce62d1c59e31c7a2f84d08de948e9c31f9c7b7614e815d",
+    "ts-tests/tests/cases/conformance/expressions/optionalChaining/optionalChainingInParameterInitializer.ts": "d9413fc0fb03099399291c2a9748bd34d2e64f1d0b2d809e616296de077af640",
+    "ratchets/h2-5h-known-divergences.v1.json": "720e1822ae7f21fec19f238c4f4aeee1ba35b585568cd9b2f476b25e18a86926",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "manifest": {
+    "path": "ratchets/h2-5h-known-divergences.v1.json",
+    "total_count": 16,
+    "selected_rows": [
+      {
+        "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterInitializer.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterBindingPattern.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterInitializer.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      }
+    ],
+    "preserved_rows": [
+      {
+        "case_id": "typescript-6.0.3/compiler/emitAccessExpressionOfCastedObjectLiteralExpressionInArrowFunctionES5.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/async/es5/asyncAwait_es5.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/async/es5/asyncImportedPromise_es5.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/decorators/class/decoratedBlockScopedClass2.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/decorators/class/decoratedBlockScopedClass3.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/emitter/es5/asyncGenerators/emitter.asyncGenerators.classMethods.es5.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/es6/destructuring/destructuringVariableDeclaration1ES5iterable.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForAwaitOf.3.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForAwaitOf.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForOf.1.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForOf.5.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of37.ts#target%3Des5",
+        "owner": "h2-5h-ca-2a-r4",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": false,
+        "emit_refused": false
+      }
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.ts#target%3Des5",
+      "role": "repair-candidate",
+      "artifact": "ratchets/h2-5h-qualification.v1.json",
+      "sha256_json_stringify": "c8320f521470d9de9988208dee18ac77ce187c2bba3a4b1bc3c10fc68927ec0a",
+      "source_path": "ts-tests/tests/cases/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.ts",
+      "source_sha256": "3139a1020aea49f75b9a4eed1f4b99294cec65f4c40052798ad569d02d52fc0c",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "input_sha256_json_stringify": "a4b5a28956dc3310715886dfe0b53a38fe8dd5876cc32b6069871cee9ec4b77a",
+      "typescript_observation_sha256_json_stringify": "4ca346d26ba9bb041deaa0e39cc81aef8842d71c8555d5fa63ae36fafec31d17",
+      "typescript_run_fingerprints": [
+        "abc91bfcf0cdf3f1973ff7c858709e9fe20122f21a8de841d97977bb5c558576",
+        "abc91bfcf0cdf3f1973ff7c858709e9fe20122f21a8de841d97977bb5c558576"
+      ],
+      "command_exit_code": 2,
+      "reported_diagnostic_codes": [
+        5107
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterInitializer.ts#target%3Des5",
+      "role": "repair-candidate",
+      "artifact": "ratchets/h2-5h-qualification.v1.json",
+      "sha256_json_stringify": "e17045b29b0124474d76e9c3da28dd755abf1bb71d3d68d8173acc9642061f6b",
+      "source_path": "ts-tests/tests/cases/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterInitializer.ts",
+      "source_sha256": "a46640bc23ec07738c6823d9d13eef62ba1dfc2dc005d3d9427365fb48f02fb8",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "input_sha256_json_stringify": "a64a8fc1005564874d1b00525b54b39c5c122173d7a5c75ac0b299595e362a02",
+      "typescript_observation_sha256_json_stringify": "da63c567ab2a29fe5dbd364bb7e99ada384c2a5b627361a4997a679af97bd33c",
+      "typescript_run_fingerprints": [
+        "f96f17f3f631cf540a0688091f9c45d92a05f091be0af3b3f9ae72b772934990",
+        "f96f17f3f631cf540a0688091f9c45d92a05f091be0af3b3f9ae72b772934990"
+      ],
+      "command_exit_code": 2,
+      "reported_diagnostic_codes": [
+        5107
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterBindingPattern.ts#target%3Des5",
+      "role": "repair-candidate",
+      "artifact": "ratchets/h2-5h-qualification.v1.json",
+      "sha256_json_stringify": "ed6bf9ef7d00571177ac794a4b1f30f4b8c092638b914a8a5a5894b02a2fc0d7",
+      "source_path": "ts-tests/tests/cases/conformance/expressions/optionalChaining/optionalChainingInParameterBindingPattern.ts",
+      "source_sha256": "d9903923c52551d0c0ce62d1c59e31c7a2f84d08de948e9c31f9c7b7614e815d",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "input_sha256_json_stringify": "01d144d2603661cbf21965602894b4629169b5872f30a0686a2acc70031735c3",
+      "typescript_observation_sha256_json_stringify": "690458e99e07555e34b18cbee0869f769a2c3a1749cada8b1e89bf69b86bfc68",
+      "typescript_run_fingerprints": [
+        "7aae67317bd24de3b163af8dfd50d07e98c869956138bd369f065b98e802866f",
+        "7aae67317bd24de3b163af8dfd50d07e98c869956138bd369f065b98e802866f"
+      ],
+      "command_exit_code": 2,
+      "reported_diagnostic_codes": [
+        5107
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterInitializer.ts#target%3Des5",
+      "role": "repair-candidate",
+      "artifact": "ratchets/h2-5h-qualification.v1.json",
+      "sha256_json_stringify": "0fdbbf9ea8980bcdb623c76dcc7936fe8f8f940de09641f6fffd2284a6533cde",
+      "source_path": "ts-tests/tests/cases/conformance/expressions/optionalChaining/optionalChainingInParameterInitializer.ts",
+      "source_sha256": "d9413fc0fb03099399291c2a9748bd34d2e64f1d0b2d809e616296de077af640",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "input_sha256_json_stringify": "2ed6a19da4ea550b51418891dee51490754a259bf6847c761bad8d53b448bb12",
+      "typescript_observation_sha256_json_stringify": "46a91996cb0b31b26aee128d94e08b6411824a024228d2ae035f1eb28b4c4b6b",
+      "typescript_run_fingerprints": [
+        "78b8dc7b48ed7e89fe35cda23ce0ca061755349b4b0817810d9081cbb36cc025",
+        "78b8dc7b48ed7e89fe35cda23ce0ca061755349b4b0817810d9081cbb36cc025"
+      ],
+      "command_exit_code": 2,
+      "reported_diagnostic_codes": [
+        5107
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.ts#target%3Des2015",
+      "role": "frozen-adjacent-control",
+      "artifact": "ratchets/h2-5g-qualification.v1.json",
+      "sha256_json_stringify": "09dcec705ffa970913097e339d39fc7d36bbebf72769434cd3e0395752bb2afc",
+      "source_path": "ts-tests/tests/cases/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.ts",
+      "source_sha256": "3139a1020aea49f75b9a4eed1f4b99294cec65f4c40052798ad569d02d52fc0c",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "input_sha256_json_stringify": "56d027046013e2ac7508fdda2f93b004a122699f1659775fcc87e01e95c7faeb",
+      "typescript_observation_sha256_json_stringify": "cca9055cd0b3d4d55b150f30f0d14d7c0de7ff9c4b044393f7a970e186ec3da3",
+      "typescript_run_fingerprints": [
+        "8f13ea4a337b10237124bad23fd90b4d034d3ff55e9edb113f33be9a3998bc44",
+        "8f13ea4a337b10237124bad23fd90b4d034d3ff55e9edb113f33be9a3998bc44"
+      ],
+      "command_exit_code": 0,
+      "reported_diagnostic_codes": []
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterInitializer.ts#target%3Des2015",
+      "role": "frozen-adjacent-control",
+      "artifact": "ratchets/h2-5g-qualification.v1.json",
+      "sha256_json_stringify": "c2a01a335e0db7da7e1eb73f3c0a0d8d1e6b47ff149506b3b7144d318373c566",
+      "source_path": "ts-tests/tests/cases/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterInitializer.ts",
+      "source_sha256": "a46640bc23ec07738c6823d9d13eef62ba1dfc2dc005d3d9427365fb48f02fb8",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "input_sha256_json_stringify": "937b90fc935c249b4a41a5c0cd97664ec8336b56b9018a4aec774f8895deacde",
+      "typescript_observation_sha256_json_stringify": "9b26f5dd382b680b33b433bdc1a420ad4746b96376d9d896076609933b056aac",
+      "typescript_run_fingerprints": [
+        "4c7e73c12ea8e0d5fe6843e2c49ec625ddd2627798e18002e85d865a06805821",
+        "4c7e73c12ea8e0d5fe6843e2c49ec625ddd2627798e18002e85d865a06805821"
+      ],
+      "command_exit_code": 0,
+      "reported_diagnostic_codes": []
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterBindingPattern.ts#target%3Des2015",
+      "role": "frozen-adjacent-control",
+      "artifact": "ratchets/h2-5g-qualification.v1.json",
+      "sha256_json_stringify": "2f91b7c792718550134c68205d5870ac3d6bcd76357e21ceecae40ca0c15813a",
+      "source_path": "ts-tests/tests/cases/conformance/expressions/optionalChaining/optionalChainingInParameterBindingPattern.ts",
+      "source_sha256": "d9903923c52551d0c0ce62d1c59e31c7a2f84d08de948e9c31f9c7b7614e815d",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "input_sha256_json_stringify": "b4cdba1f1d5d556ad5f3f612129049e6584f569c17cd26f55dc61cf2e0c48781",
+      "typescript_observation_sha256_json_stringify": "76a26c10bd4fe2f857cbdb72f4404096ed9c30d58e07681b01086dc9d7873ffd",
+      "typescript_run_fingerprints": [
+        "d5bb3b443c153b1651923c80e676b77b7aafb82913293590dc5eb00cdf3e2475",
+        "d5bb3b443c153b1651923c80e676b77b7aafb82913293590dc5eb00cdf3e2475"
+      ],
+      "command_exit_code": 0,
+      "reported_diagnostic_codes": []
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterInitializer.ts#target%3Des2015",
+      "role": "frozen-adjacent-control",
+      "artifact": "ratchets/h2-5g-qualification.v1.json",
+      "sha256_json_stringify": "f03e5e674c090c3f15b16db72ec61762cc9fb6c6f7d374bc3c1cae4c7c382724",
+      "source_path": "ts-tests/tests/cases/conformance/expressions/optionalChaining/optionalChainingInParameterInitializer.ts",
+      "source_sha256": "d9413fc0fb03099399291c2a9748bd34d2e64f1d0b2d809e616296de077af640",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "input_sha256_json_stringify": "ebd4b1f68a7446a480a90714bb15e7aef5de325972d8e6aa023dcf5cb54c6209",
+      "typescript_observation_sha256_json_stringify": "50fa5591e48e6999a464f42b0c0fb567c4731e040d3c70ccdc0671082cba0386",
+      "typescript_run_fingerprints": [
+        "62ab2ae316e88f3ea5379f52d23371847ef3f6b3766a7241c9df8556689c8ab2",
+        "62ab2ae316e88f3ea5379f52d23371847ef3f6b3766a7241c9df8556689c8ab2"
+      ],
+      "command_exit_code": 0,
+      "reported_diagnostic_codes": []
+    }
+  ],
+  "pending_controls": [
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.ts#target%3Desnext",
+      "role": "original-target-control",
+      "status": "fresh-typescript-and-native-observation-not-run"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterInitializer.ts#target%3Desnext",
+      "role": "original-target-control",
+      "status": "fresh-typescript-and-native-observation-not-run"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterBindingPattern.ts#target%3Desnext",
+      "role": "original-target-control",
+      "status": "fresh-typescript-and-native-observation-not-run"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterInitializer.ts#target%3Desnext",
+      "role": "original-target-control",
+      "status": "fresh-typescript-and-native-observation-not-run"
+    }
+  ],
+  "new_native_baseline": {
+    "status": "not-run",
+    "required": "Full original ES5 four plus ES2015 four observations, each twice; save complete tuples and differences before production edits."
+  },
+  "implementation_design": {
+    "status": "pending",
+    "path": "docs/design/greenfield/slices/h2-5h-parameter-temporaries-design.md"
+  },
+  "ownership": {
+    "codex": {
+      "existing_production": [
+        "crates/emitter/src/builtins/es2021.rs",
+        "crates/emitter/src/builtins/es2015.rs"
+      ],
+      "planned_new": [
+        "scripts/observe-h2-5h-parameter-temporaries.mjs",
+        "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json",
+        "crates/compiler/tests/h2_5h_parameter_temporaries.rs",
+        "docs/design/greenfield/slices/h2-5h-parameter-temporaries-design.md",
+        "docs/design/greenfield/slices/h2-5h-parameter-temporaries-report.md"
+      ],
+      "preparation": [
+        "docs/design/greenfield/slices/h2-5h-parameter-temporaries.md",
+        "docs/design/greenfield/slices/h2-5h-parameter-temporaries-codex-prompt.md",
+        "docs/design/greenfield/slices/h2-5h-parameter-temporaries-selection.v1.json",
+        "docs/design/greenfield/slices/h2-8a-g5c-h2-5h-parameter-coordination.md",
+        "scripts/check-h2-5h-parameter-preparation.mjs"
+      ]
+    },
+    "claude": {
+      "source_packet": "docs/design/greenfield/slices/h2-8a-jsdoc-return-selection.v1.json",
+      "initial_and_conditional_production": [
+        "crates/binder/src/node_util.rs",
+        "crates/checker/src/jsdoc.rs",
+        "crates/checker/src/functions.rs",
+        "crates/checker/src/contextual.rs",
+        "crates/checker/src/annotate.rs",
+        "crates/checker/src/syntactic_type_node_builder.rs",
+        "crates/checker/src/node_builder/signatures.rs",
+        "crates/checker/src/node_builder/serialize.rs"
+      ],
+      "reserved_prefixes": [
+        "crates/binder/",
+        "crates/checker/",
+        "docs/design/greenfield/slices/h2-8a-jsdoc-return",
+        "scripts/observe-h2-8a-jsdoc-return",
+        "scripts/check-h2-8a-jsdoc-return",
+        "crates/compiler/tests/h2_8a_jsdoc_return",
+        "crates/compiler/tests/fixtures/h2-8a-jsdoc-return"
+      ]
+    },
+    "shared_forbidden_prefixes": [
+      "ratchets/",
+      "crates/oracle/",
+      "crates/xtask/",
+      "crates/harness/",
+      "crates/compiler/src/",
+      "crates/program/",
+      "crates/syntax/",
+      ".github/",
+      "scripts/chain-walk",
+      "docs/design/greenfield/emitter-architecture.md",
+      "docs/design/greenfield/post-h1-completion-slices.md",
+      "docs/design/greenfield/slices/README.md"
+    ],
+    "read_only_references": [
+      "crates/emitter/src/transform.rs",
+      "crates/emitter/src/builtins.rs",
+      "crates/emitter/src/builtins/target_bindings.rs",
+      "crates/emitter/src/builtins/generated_bindings.rs",
+      "crates/emitter/tests/integration/active_transform_contract.rs",
+      "crates/compiler/tests/integration/h2_5h_static_this_super_rows.rs",
+      "crates/compiler/tests/h2_5h_utf16_original_rows_complete.rs",
+      "crates/compiler/tests/h2_6a_map_option_projection.rs"
+    ]
+  },
+  "verification": {
+    "fresh_native_run": false,
+    "runtime_modified": false,
+    "full_local_ci_run": false,
+    "certificate_walk_run": false,
+    "scope_check": "node scripts/check-h2-5h-parameter-preparation.mjs --scope",
+    "initial_check": "node scripts/check-h2-5h-parameter-preparation.mjs"
+  }
+}

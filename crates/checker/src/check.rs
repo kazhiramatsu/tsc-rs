@@ -10071,20 +10071,13 @@ impl<'a> CheckerState<'a> {
         let return_type = self.get_return_type_of_signature(signature)?;
         let declaration = self.signature_of(signature).declaration;
         if let Some(declaration) = declaration {
-            let annotation = match self.data_of(declaration) {
-                NodeData::FunctionDeclaration(data) => data.r#type,
-                NodeData::FunctionExpression(data) => data.r#type,
-                NodeData::ArrowFunction(data) => data.r#type,
-                NodeData::MethodDeclaration(data) => data.r#type,
-                NodeData::MethodSignature(data) => data.r#type,
-                NodeData::CallSignature(data) => data.r#type,
-                NodeData::ConstructSignature(data) => data.r#type,
-                NodeData::FunctionType(data) => data.r#type,
-                NodeData::ConstructorType(data) => data.r#type,
-                NodeData::GetAccessor(data) => data.r#type,
-                _ => None,
-            };
-            if let Some(annotation) = annotation {
+            // createReturnFromSignature (_tsc.js:134397-134406): the effective
+            // return annotation — the direct `.type`, a JSDocSignature's return
+            // tag or, in JavaScript, the owned `@return` / callable `@type`
+            // node (getEffectiveReturnTypeNode 16768-16770) — goes through the
+            // reuse channel first; typeFromSingleReturnExpression runs only
+            // when no annotation node exists.
+            if let Some(annotation) = self.effective_return_type_node(declaration) {
                 if let Some(text) = self.annotation_reuse_text_slice(
                     annotation,
                     return_type,
@@ -10094,8 +10087,7 @@ impl<'a> CheckerState<'a> {
                 )? {
                     return Ok(text);
                 }
-            }
-            if let Some(text) =
+            } else if let Some(text) =
                 self.syntactic_single_return_type_text_slice(declaration, fully_qualified)?
             {
                 return Ok(text);

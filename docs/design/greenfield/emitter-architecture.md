@@ -34,6 +34,27 @@ reviewed performance ceiling are in the post-H1 schedule §1.2). The rows
 promoted below cite that validation ref; the merge ref remains delivery
 lineage only.
 
+The 2026-09-14 [G5c / parameter repair integration](slices/h2-8a-g5c-parameter-integration.md)
+adds bounded code audits to this predecessor record. In `builtins/es2021.rs`,
+`TargetVisitor` receives `TargetTransformer`'s effective `ScriptTarget`;
+parameter-default lowering and its alias plan run only for targets retaining
+native parameters. ES5 still hoists expression temps in that pass and leaves
+default/pattern expansion to `es2015.rs`. The initializer worker now uses
+typed factory clones, parameter text ranges and the upstream emit flags.
+`E-CONTEXT`, `E-NAMES-BASE` and `E-POSITIONS` keep their existing representation
+and lifetime contracts. The [scoped report](slices/h2-5h-parameter-temporaries-report.md)
+records the exact original rows and the separate, still-open compact-body
+printer comment phase; it does not requalify all comment behavior.
+
+For declaration return annotations, `SyntacticBuildSession` now delegates to
+`tsc_binder::node_util::get_jsdoc_return_type` over the host's parsed source and
+retains its `TransformSourceId`. The semantic return-aggregation assertion
+boundary and the diagnostic signature renderer reuse the existing effective
+annotation routes. No resolver interface or cross-source identity contract
+changes. The [G5c design](slices/h2-8a-jsdoc-return-design.md) owns these bounded
+claims; the shared profiles remain frozen and hosted integration is recorded
+separately from the component validation refs.
+
 Every architecture row uses one lifecycle:
 
 | Lifecycle | Meaning |
