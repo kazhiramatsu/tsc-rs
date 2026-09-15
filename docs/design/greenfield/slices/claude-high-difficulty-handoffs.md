@@ -9,13 +9,14 @@ production readiness、accepted profile、runtime activation は各 owner の正
 [全残タスクと完了までのスライス設計](../remaining-completion-slices.md) に、
 Claude 担当 C01〜C05 と、それ以外の実装・統合・検証・配布を分けて記録しました。
 本書の5件だけでプロジェクトの残タスクが尽きるわけではありません。
-推奨送付順は **③ printer → ④ transpile → ⑤ cache → ① literal → ② binding**。
+③ printer の隔離候補は受領済みで、[A-INT3 の統合レビュー](h2-8a-printer-failure/INTEGRATION.md)へ進みました。
+次の推奨送付順は **④ transpile → ⑤ cache → ① literal → ② binding**。
 ①②は現行実装との対応表から始め、再現した差があれば優先順位を上げます。
 各候補の本番統合と admission は統合担当が持ちます。
 
 [PLAN-BASE の照合台帳](plan-base/README.md)も参照できます。旧 class 128失敗のうち88件は
 同じ fixture の現在の hosted で exact、40件は未再測定です。C01/C02 では古い失敗一覧を
-そのまま修復対象にせず台帳と照合してください。③ printer failure の依頼範囲は維持します。
+そのまま修復対象にせず台帳と照合してください。③を丸ごと再実装する依頼は不要です。
 
 旧版は `6e298cda8` からの v18 復元を全依頼の開始点にしていました。
 その後、main に UTF-16 の値・template flags、generated binding、parameter の修正が入りました。
@@ -37,8 +38,8 @@ CI 改修も [PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) で main
 | 候補 | 個別資料 | 今回依頼する到達点 | 現在の扱い |
 | --- | --- | --- | --- |
 | ① UTF-16 リテラルの更新・伝播 | [A40-LITERAL-UPDATE](h2-8a-literal-update-claude-handoff.md) | 現行 factory の値更新・raw/quote/text-source/flags の残経路監査、差がある場合の修復 | `JsString` と templateFlags の移行済み部分を再実装しない。新規の失敗数は未計測 |
-| ② decorator の生成名・binding | [A41-BINDING](h2-8a-generated-binding-claude-handoff.md) | 現行の型付き binding に対する global/synthetic/nested/lifecycle の残経路監査と修復 | `TargetBinding` と parse census は導入済み。SUPER の computed-name・helper-order 修正を含む状態から始める |
-| ③ printer の失敗時状態・再利用 | [A40-PRINT-FAILURE](h2-8a-printer-failure-claude-handoff.md) | 失敗順序・継続状態の observer、必要な隔離修復 | テーマは継続。最新 printer/writer/UTF-16 API で before を採る |
+| ② decorator の生成名・binding | [A41-BINDING](h2-8a-generated-binding-claude-handoff.md) | 現行の型付き binding に対する global/synthetic/nested/lifecycle の残経路監査と修復 | `TargetBinding` 導入済み。C03 の failure 後の `x_2` / `x_1` 差を追加の具体的な監査入力にする |
+| ③ printer の失敗時状態・再利用 | [A40-PRINT-FAILURE](h2-8a-printer-failure-claude-handoff.md) | 失敗順序・継続状態の observer、必要な隔離修復 | 提出済み、A-INT3 が統合。44/46 direct case が exact、2 case は owner 付き保留。全 API 完了とは扱わない |
 | ④ noCheck / transpile パイプライン | [H2.8c 先行依頼](h2-8c-transpile-claude-handoff.md) | 3 経路の依存設計、source oracle、隔離 prototype | テーマは継続。最新 compiler/emitter を使う。runtime activation は後続 |
 | ⑤ resolution cache 無効化 | [L2.3 先行依頼](l2-3-resolution-cache-claude-handoff.md) | snapshot/dependency 設計、実 resolver を使う隔離 prototype | テーマは継続。最新 resolver/host/path identity を使う。Program 再利用への組込みは後続 |
 | 提出済み・統合済み | [A41-SUPER](h2-8a-decorator-super-claude-handoff.md) | after-18 の候補・8 patch・receipt は保存済み | PR #523。旧依頼文を新規実装依頼として再送しない |
@@ -46,7 +47,8 @@ CI 改修も [PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) で main
 ①②の最初の成果物は、旧要求と現行 source/既存 witness の対応表です。
 各行を「既存実装で観測済み」「追加対照が必要」「差を再現」「到達前提が未成立」に分け、
 差を再現した範囲を実装候補にします。旧要求の全項目を未実装と仮定してコードを増やしません。
-③〜⑤も失敗数は未計測であり、この一覧は完了・未完了の網羅証明ではありません。
+③の測定範囲と保留は統合記録を参照してください。④⑤の失敗数は未計測であり、
+この一覧は完了・未完了の網羅証明ではありません。
 
 ## 共通の読み順と開始点
 

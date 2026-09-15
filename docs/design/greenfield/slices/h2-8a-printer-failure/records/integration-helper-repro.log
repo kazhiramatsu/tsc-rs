@@ -1,0 +1,43 @@
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure-review/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 4.26s
+     Running tests/printer_failure_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/printer_failure_contract-f36a6d3d26fee24b)
+
+running 1 test
+test review_entry_carry_controls ... REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printFile/before
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printFile/after
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printBundle/before
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printBundle/after
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printNode/before
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printNode/after
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printBundle/before
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printBundle/after
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printNode/before
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printNode/after
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printFile/before
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printFile/after
+REVIEW EXACT x2 printer-failure/printNode/review/success-failure-failure-success
+REVIEW EXACT x2 printer-failure/printNode/review/sticky-comments-to-printFile
+REVIEW EXACT x2 printer-failure/printNode/review/sticky-comments-to-printBundle
+REVIEW EXACT x2 printer-failure/printNode/review/nested-comments-with-trivia
+REVIEW MISMATCH printer-failure/printNode/review/bundled-helpers/success#op2: expected {"op":2,"status":"returned","text":"a(1);\r\nb(2);\r\nc(3);\r\nd(4);\r\n","text_utf16":[97,40,49,41,59,13,10,98,40,50,41,59,13,10,99,40,51,41,59,13,10,100,40,52,41,59,13,10],"utf8_base64":"YSgxKTsNCmIoMik7DQpjKDMpOw0KZCg0KTsNCg==","utf8_bytes":28,"end_utf16":{"position":28,"line":4,"column":0}} actual {"op":2,"status":"returned","text":"var __reviewHelper = 1;\r\na(1);\r\nb(2);\r\nc(3);\r\nd(4);\r\n","utf8_base64":"dmFyIF9fcmV2aWV3SGVscGVyID0gMTsNCmEoMSk7DQpiKDIpOw0KYygzKTsNCmQoNCk7DQo=","utf8_bytes":53,"end_utf16":{"position":53,"line":5,"column":0},"text_utf16":[118,97,114,32,95,95,114,101,118,105,101,119,72,101,108,112,101,114,32,61,32,49,59,13,10,97,40,49,41,59,13,10,98,40,50,41,59,13,10,99,40,51,41,59,13,10,100,40,52,41,59,13,10]}
+REVIEW MISMATCH printer-failure/printNode/review/bundled-helpers/success#op4: expected {"op":4,"status":"returned","text":"a(1);\r\nb(2);\r\nc(3);\r\nd(4);\r\n","text_utf16":[97,40,49,41,59,13,10,98,40,50,41,59,13,10,99,40,51,41,59,13,10,100,40,52,41,59,13,10],"utf8_base64":"YSgxKTsNCmIoMik7DQpjKDMpOw0KZCg0KTsNCg==","utf8_bytes":28,"end_utf16":{"position":28,"line":4,"column":0}} actual {"op":4,"status":"returned","text":"var __reviewHelper = 1;\r\na(1);\r\nb(2);\r\nc(3);\r\nd(4);\r\n","utf8_base64":"dmFyIF9fcmV2aWV3SGVscGVyID0gMTsNCmEoMSk7DQpiKDIpOw0KYygzKTsNCmQoNCk7DQo=","utf8_bytes":53,"end_utf16":{"position":53,"line":5,"column":0},"text_utf16":[118,97,114,32,95,95,114,101,118,105,101,119,72,101,108,112,101,114,32,61,32,49,59,13,10,97,40,49,41,59,13,10,98,40,50,41,59,13,10,99,40,51,41,59,13,10,100,40,52,41,59,13,10]}
+REVIEW MISMATCH printer-failure/printNode/review/bundled-helpers/before#op2: expected {"op":2,"status":"returned","text":"var __reviewHelper = 1;\r\na(1);\r\na(1);\r\nb(2);\r\nc(3);\r\nd(4);\r\n","text_utf16":[118,97,114,32,95,95,114,101,118,105,101,119,72,101,108,112,101,114,32,61,32,49,59,13,10,97,40,49,41,59,13,10,97,40,49,41,59,13,10,98,40,50,41,59,13,10,99,40,51,41,59,13,10,100,40,52,41,59,13,10],"utf8_base64":"dmFyIF9fcmV2aWV3SGVscGVyID0gMTsNCmEoMSk7DQphKDEpOw0KYigyKTsNCmMoMyk7DQpkKDQpOw0K","utf8_bytes":60,"end_utf16":{"position":60,"line":6,"column":0}} actual {"op":2,"status":"returned","text":"var __reviewHelper = 1;\r\na(1);\r\nvar __reviewHelper = 1;\r\na(1);\r\nb(2);\r\nc(3);\r\nd(4);\r\n","utf8_base64":"dmFyIF9fcmV2aWV3SGVscGVyID0gMTsNCmEoMSk7DQp2YXIgX19yZXZpZXdIZWxwZXIgPSAxOw0KYSgxKTsNCmIoMik7DQpjKDMpOw0KZCg0KTsNCg==","utf8_bytes":85,"end_utf16":{"position":85,"line":7,"column":0},"text_utf16":[118,97,114,32,95,95,114,101,118,105,101,119,72,101,108,112,101,114,32,61,32,49,59,13,10,97,40,49,41,59,13,10,118,97,114,32,95,95,114,101,118,105,101,119,72,101,108,112,101,114,32,61,32,49,59,13,10,97,40,49,41,59,13,10,98,40,50,41,59,13,10,99,40,51,41,59,13,10,100,40,52,41,59,13,10]}
+REVIEW MISMATCH printer-failure/printNode/review/bundled-helpers/before#op4: expected {"op":4,"status":"returned","text":"a(1);\r\nb(2);\r\nc(3);\r\nd(4);\r\n","text_utf16":[97,40,49,41,59,13,10,98,40,50,41,59,13,10,99,40,51,41,59,13,10,100,40,52,41,59,13,10],"utf8_base64":"YSgxKTsNCmIoMik7DQpjKDMpOw0KZCg0KTsNCg==","utf8_bytes":28,"end_utf16":{"position":28,"line":4,"column":0}} actual {"op":4,"status":"returned","text":"var __reviewHelper = 1;\r\na(1);\r\nb(2);\r\nc(3);\r\nd(4);\r\n","utf8_base64":"dmFyIF9fcmV2aWV3SGVscGVyID0gMTsNCmEoMSk7DQpiKDIpOw0KYygzKTsNCmQoNCk7DQo=","utf8_bytes":53,"end_utf16":{"position":53,"line":5,"column":0},"text_utf16":[118,97,114,32,95,95,114,101,118,105,101,119,72,101,108,112,101,114,32,61,32,49,59,13,10,97,40,49,41,59,13,10,98,40,50,41,59,13,10,99,40,51,41,59,13,10,100,40,52,41,59,13,10]}
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/high
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/low
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/pair-across-failure
+REVIEW exact 19/21
+
+thread 'review_entry_carry_controls' (16716362) panicked at crates/emitter/tests/printer_failure_contract.rs:764:5:
+review failures: ["printer-failure/printNode/review/bundled-helpers/success", "printer-failure/printNode/review/bundled-helpers/before"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    review_entry_carry_controls
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `--test printer_failure_contract`

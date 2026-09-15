@@ -105,88 +105,107 @@ impl Printer {
         }
         transformation
             .finalize_bundle_generated_names_for_print(bundle.sources(), global_name_oracle)?;
-        let mut writer = create_text_writer(self.options.new_line);
-        if let Some(inputs) = recording {
-            writer
-                .set_source_map_recording(Some(crate::source_map::SourceMapRecording::new(inputs)));
-        }
-        // writeBundle / emitShebangIfNeeded (_tsc.js:117058-117070,
-        // 119824-119840): the first shebang anywhere in the bundle wins.
-        for source in &sources {
-            if let Some(shebang) = source_shebang(
-                transformation
-                    .arena()
-                    .source(source.source_id)?
-                    .syntax()
-                    .text(),
-            ) {
-                writer.write_comment(shebang);
-                writer.write_line(false);
-                break;
+        self.start_print();
+        // writeBundle with a caller-owned writer versus printBundle into the
+        // printer-owned writer (see print_transformed_source_file).
+        let own_writer = recording.is_none();
+        let mut writer = if own_writer {
+            self.begin_print()
+        } else {
+            create_text_writer(self.options.new_line)
+        };
+        let outcome = (|| -> Result<(), PrinterError> {
+            if let Some(inputs) = recording {
+                writer.set_source_map_recording(Some(crate::source_map::SourceMapRecording::new(
+                    inputs,
+                )));
             }
-        }
-        let mut prologues = BTreeSet::new();
-        for source in &sources {
-            self.prepare_emission_plan(transformation, source.root)?;
-            let mut needs_source_switch = true;
-            for &raw_statement in &source.statements {
-                let statement = transformation
-                    .arena()
-                    .node_ref(source.source_id, raw_statement)
-                    .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
-                let Some(value) = self.bundle_prologue_value(transformation, statement)? else {
+            // writeBundle / emitShebangIfNeeded (_tsc.js:117058-117070,
+            // 119824-119840): the first shebang anywhere in the bundle wins.
+            for source in &sources {
+                if let Some(shebang) = source_shebang(
+                    transformation
+                        .arena()
+                        .source(source.source_id)?
+                        .syntax()
+                        .text(),
+                ) {
+                    writer.write_comment(shebang);
+                    writer.write_line(false);
                     break;
-                };
-                if prologues.insert(value) {
-                    if needs_source_switch {
-                        self.set_source_map_source(transformation, source.source_id, &mut writer)?;
-                        needs_source_switch = false;
-                    }
-                    self.write_bundle_prologue(transformation, statement, &mut writer)?;
                 }
             }
-        }
-        let mut emitted_helpers = BTreeSet::<Box<str>>::new();
-        // ModuleKind.None leaves helpers next to the first requesting source.
-        // Other module kinds hoist unscoped helpers into the bundle header.
-        if self.options.module_kind != Some(0) {
+            let mut prologues = BTreeSet::new();
             for source in &sources {
-                let helpers = source
-                    .helpers
-                    .iter()
-                    .filter(|helper| {
-                        !helper.scoped() && emitted_helpers.insert(helper.name().into())
-                    })
-                    .cloned()
-                    .collect::<Vec<_>>();
-                self.emit_helpers(&helpers, &mut writer)?;
+                self.prepare_emission_plan(transformation, source.root)?;
+                let mut needs_source_switch = true;
+                for &raw_statement in &source.statements {
+                    let statement = transformation
+                        .arena()
+                        .node_ref(source.source_id, raw_statement)
+                        .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
+                    let Some(value) = self.bundle_prologue_value(transformation, statement)? else {
+                        break;
+                    };
+                    if prologues.insert(value) {
+                        if needs_source_switch {
+                            self.set_source_map_source(
+                                transformation,
+                                source.source_id,
+                                &mut writer,
+                            )?;
+                            needs_source_switch = false;
+                        }
+                        self.write_bundle_prologue(transformation, statement, &mut writer)?;
+                    }
+                }
             }
-        }
-        self.emit_reference_directives(
-            bundle.synthetic_file_references().unwrap_or_default(),
-            bundle.synthetic_type_references().unwrap_or_default(),
-            bundle.synthetic_lib_references().unwrap_or_default(),
-            &mut writer,
-        );
-        for mut source in sources {
-            source
-                .helpers
-                .retain(|helper| helper.scoped() || emitted_helpers.insert(helper.name().into()));
-            self.prepare_emission_plan(transformation, source.root)?;
-            self.set_source_map_source(transformation, source.source_id, &mut writer)?;
-            self.write_transformed_source_file(
-                transformation,
-                SourceFilePrintBody {
-                    source_id: source.source_id,
-                    root: source.root,
-                    statement_array: source.statement_array,
-                    statements: source.statements,
-                    helpers: &source.helpers,
-                    mode: SourceFileEmitMode::Bundle,
-                },
+            // ModuleKind.None leaves helpers next to the first requesting source.
+            // Other module kinds hoist unscoped helpers into the bundle header.
+            if self.options.module_kind != Some(0) {
+                for source in &sources {
+                    let helpers = source
+                        .helpers
+                        .iter()
+                        .filter(|helper| {
+                            !helper.scoped() && self.bundled_helpers.insert(helper.name().into())
+                        })
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    self.emit_helpers(&helpers, &mut writer)?;
+                }
+            }
+            self.emit_reference_directives(
+                bundle.synthetic_file_references().unwrap_or_default(),
+                bundle.synthetic_type_references().unwrap_or_default(),
+                bundle.synthetic_lib_references().unwrap_or_default(),
                 &mut writer,
-            )?;
+            );
+            for mut source in sources {
+                source.helpers.retain(|helper| {
+                    helper.scoped() || self.bundled_helpers.insert(helper.name().into())
+                });
+                self.prepare_emission_plan(transformation, source.root)?;
+                self.set_source_map_source(transformation, source.source_id, &mut writer)?;
+                self.write_transformed_source_file(
+                    transformation,
+                    SourceFilePrintBody {
+                        source_id: source.source_id,
+                        root: source.root,
+                        statement_array: source.statement_array,
+                        statements: source.statements,
+                        helpers: &source.helpers,
+                        mode: SourceFileEmitMode::Bundle,
+                    },
+                    &mut writer,
+                )?;
+            }
+            Ok(())
+        })();
+        if own_writer {
+            return self.end_print(writer, outcome);
         }
+        self.finish_print(outcome)?;
         let source_map = writer
             .take_source_map_recording()
             .map(crate::source_map::SourceMapRecording::into_generator);
@@ -234,7 +253,7 @@ impl Printer {
             transformation,
             emitted,
             EmitHint::Unspecified,
-            EmitContext::file_root(),
+            self.root_context(),
             writer,
         )?;
         self.emit_statement_trailing_comments(transformation, emitted, writer)?;

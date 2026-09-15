@@ -2,6 +2,12 @@
 
 作成日：2026-09-14。親：H2.8a / A6-40。状態：隔離候補の research。
 
+**2026-09-15 提出後更新**：[提出記録](h2-8a-printer-failure/DESIGN.md)を受領し、
+[統合レビュー](h2-8a-printer-failure/INTEGRATION.md)へ移行しました。
+この依頼全体を新規作業として再送しません。source をまたぐ container は A-INT3-CS、
+失敗後の生成名は C02 / A-INT2、未到達の public API 面は API1.1a に残しています。
+以下は元の依頼仕様です。
+
 
 **2026-09-15 更新**：開始点と検証分担は[共通手順](claude-high-difficulty-handoffs.md)の最新版に従います。
 SUPER 統合後の main の SHA を固定し、ローカルは新規失敗・関連 owner の focused set、

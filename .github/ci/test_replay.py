@@ -32,6 +32,34 @@ class SelectionTests(unittest.TestCase):
             "include": [{"group": "controls", "suites": ["followup2"]}],
         })
 
+    def test_printer_fixture_and_observers_only_select_printer_group(self):
+        for path in replay.PRINTER_INPUTS:
+            with self.subTest(path=path):
+                plan = replay.selection([path])
+                self.assertEqual(plan["acceptance"], [])
+                self.assertEqual(plan["witnesses"], ["printer"])
+                self.assertEqual(replay.matrices(plan)["witnesses"], {
+                    "include": [{"group": "printer", "suites": ["printer"]}],
+                })
+
+    def test_printer_job_rejects_missing_or_zero_test_target(self):
+        full = "\n".join("test result: ok. 1 passed; 0 failed;" for _ in replay.PRINTER_TARGETS)
+        for output in (full.replace("1 passed", "0 passed", 1), full.split("\n", 1)[1]):
+            fake = subprocess.CompletedProcess([], 0, output)
+            with patch.object(replay.subprocess, "run", return_value=fake):
+                with self.assertRaises(ValueError):
+                    replay.printer_witnesses()
+        with patch.object(replay.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, full)):
+            replay.printer_witnesses()
+
+    def test_bundle_sink_fixture_selects_only_its_complete_commands(self):
+        plan = replay.selection(["crates/compiler/tests/fixtures/bundle-sinks.json"])
+        self.assertEqual(plan["acceptance"], [])
+        self.assertEqual(plan["witnesses"], ["bundle-sinks"])
+        self.assertEqual(replay.matrices(plan)["witnesses"], {
+            "include": [{"group": "controls", "suites": ["bundle-sinks"]}],
+        })
+
     def test_shared_comparator_is_an_acceptance_input(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
@@ -99,7 +127,7 @@ class WitnessTests(unittest.TestCase):
     def test_frozen_input_catalog_counts(self):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
-            "followup3": 48, "retained": 530, "direct": 32,
+            "followup3": 48, "retained": 530, "direct": 32, "printer": 46, "bundle-sinks": 10,
         })
 
     def test_focused_selection_is_union_and_never_silent_empty(self):
@@ -126,7 +154,8 @@ class WitnessTests(unittest.TestCase):
 
     def test_cli_rejects_missing_or_invalid_selection_before_cargo(self):
         with patch.object(witness.subprocess, "run") as run:
-            for argv in (["retained"], ["retained", "--case", "no-matching-case"], ["direct", "--case", "shared"]):
+            for argv in (["retained"], ["retained", "--case", "no-matching-case"], ["direct", "--case", "shared"],
+                         ["printer", "--case", "recover-same"]):
                 with self.assertRaises(SystemExit) as exit:
                     witness.main(argv)
                 self.assertEqual(exit.exception.code, 2)

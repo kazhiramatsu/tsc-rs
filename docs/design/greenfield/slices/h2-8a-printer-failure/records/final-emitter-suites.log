@@ -1,0 +1,1089 @@
+2026年 9月15日 火曜日 23時06分27秒 JST
+f9ef828a56c9f9305947a6e6f3c1ae39072b3110
+ M crates/emitter/src/printer.rs
+ M crates/emitter/src/printer/bundle.rs
+?? crates/emitter/tests/fixtures/printer-failure-hooks.json
+?? crates/emitter/tests/fixtures/printer-failure-probes.json
+?? crates/emitter/tests/printer_failure_contract.rs
+?? docs/design/greenfield/slices/h2-8a-printer-failure/
+?? scripts/observe-printer-failures.mjs
+ crates/emitter/src/printer.rs        | 651 ++++++++++++++++++++++++-----------
+ crates/emitter/src/printer/bundle.rs | 170 +++++----
+ 2 files changed, 548 insertions(+), 273 deletions(-)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 40.46s
+     Running tests/comma_argument_factory_contract.rs (target/debug/deps/comma_argument_factory_contract-4ffffe729ce1fe2f)
+
+running 2 tests
+test comma_argument_factory_matches_typescript ... ok
+test list_cursor_lifecycle_matches_typescript ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/comma_list_printer_contract.rs (target/debug/deps/comma_list_printer_contract-653d920d2f9a9c97)
+
+running 1 test
+test comma_list_printer_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/decorator_super_direct_contract.rs (target/debug/deps/decorator_super_direct_contract-33404c250148a994)
+
+running 1 test
+test decorator_super_direct_controls_match_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests/emit_pipeline_phases_contract.rs (target/debug/deps/emit_pipeline_phases_contract-76f67f5d71b22d2a)
+
+running 1 test
+test emit_pipeline_phases_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/list_comment_flags_contract.rs (target/debug/deps/list_comment_flags_contract-3023874cf6aa0a82)
+
+running 1 test
+test list_comment_flags_match_typescript_printer ... FAILED
+
+failures:
+
+---- list_comment_flags_match_typescript_printer stdout ----
+List comment flags EXACT x2 call-inline/None/retained
+List comment flags EXACT x2 call-inline/None/removed
+List comment flags EXACT x2 call-inline/NoLeadingComments/retained
+List comment flags EXACT x2 call-inline/NoLeadingComments/removed
+List comment flags EXACT x2 call-inline/NoTrailingComments/retained
+List comment flags EXACT x2 call-inline/NoTrailingComments/removed
+List comment flags EXACT x2 call-inline/NoComments/retained
+List comment flags EXACT x2 call-inline/NoComments/removed
+List comment flags EXACT x2 call-inline/NoNestedComments/retained
+List comment flags EXACT x2 call-inline/NoNestedComments/removed
+List comment flags FAIL call-inline/ParentNoNestedComments/retained repetition 0: actual "f(/* FIRST */ x /* AFTER */, y);\n", expected "f(x, y);\n"
+List comment flags FAIL call-inline/ParentNoNestedComments/retained repetition 1: actual "f(/* FIRST */ x /* AFTER */, y);\n", expected "f(x, y);\n"
+List comment flags EXACT x2 call-inline/ParentNoNestedComments/removed
+List comment flags EXACT x2 call-newline/None/retained
+List comment flags EXACT x2 call-newline/None/removed
+List comment flags EXACT x2 call-newline/NoLeadingComments/retained
+List comment flags EXACT x2 call-newline/NoLeadingComments/removed
+List comment flags EXACT x2 call-newline/NoTrailingComments/retained
+List comment flags EXACT x2 call-newline/NoTrailingComments/removed
+List comment flags EXACT x2 call-newline/NoComments/retained
+List comment flags EXACT x2 call-newline/NoComments/removed
+List comment flags EXACT x2 call-newline/NoNestedComments/retained
+List comment flags EXACT x2 call-newline/NoNestedComments/removed
+List comment flags FAIL call-newline/ParentNoNestedComments/retained repetition 0: actual "f(\n/* FIRST */ x /* AFTER */, \n/* SECOND */ y);\n", expected "f(x, y);\n"
+List comment flags FAIL call-newline/ParentNoNestedComments/retained repetition 1: actual "f(\n/* FIRST */ x /* AFTER */, \n/* SECOND */ y);\n", expected "f(x, y);\n"
+List comment flags EXACT x2 call-newline/ParentNoNestedComments/removed
+List comment flags EXACT x2 array-inline/None/retained
+List comment flags EXACT x2 array-inline/None/removed
+List comment flags EXACT x2 array-inline/NoLeadingComments/retained
+List comment flags EXACT x2 array-inline/NoLeadingComments/removed
+List comment flags EXACT x2 array-inline/NoTrailingComments/retained
+List comment flags EXACT x2 array-inline/NoTrailingComments/removed
+List comment flags EXACT x2 array-inline/NoComments/retained
+List comment flags EXACT x2 array-inline/NoComments/removed
+List comment flags EXACT x2 array-inline/NoNestedComments/retained
+List comment flags EXACT x2 array-inline/NoNestedComments/removed
+List comment flags EXACT x2 array-inline/ParentNoNestedComments/retained
+List comment flags EXACT x2 array-inline/ParentNoNestedComments/removed
+List comment flags EXACT x2 array-newline/None/retained
+List comment flags EXACT x2 array-newline/None/removed
+List comment flags EXACT x2 array-newline/NoLeadingComments/retained
+List comment flags EXACT x2 array-newline/NoLeadingComments/removed
+List comment flags EXACT x2 array-newline/NoTrailingComments/retained
+List comment flags EXACT x2 array-newline/NoTrailingComments/removed
+List comment flags EXACT x2 array-newline/NoComments/retained
+List comment flags EXACT x2 array-newline/NoComments/removed
+List comment flags EXACT x2 array-newline/NoNestedComments/retained
+List comment flags EXACT x2 array-newline/NoNestedComments/removed
+List comment flags EXACT x2 array-newline/ParentNoNestedComments/retained
+List comment flags EXACT x2 array-newline/ParentNoNestedComments/removed
+
+thread 'list_comment_flags_match_typescript_printer' (16684878) panicked at crates/emitter/tests/list_comment_flags_contract.rs:128:5:
+list comment flag failures: ["call-inline/ParentNoNestedComments/retained", "call-newline/ParentNoNestedComments/retained"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    list_comment_flags_match_typescript_printer
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--test list_comment_flags_contract`
+     Running tests/list_format_flags_contract.rs (target/debug/deps/list_format_flags_contract-883bff1e01295cb5)
+
+running 1 test
+test list_format_flags_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/printer_failure_contract.rs (target/debug/deps/printer_failure_contract-f36a6d3d26fee24b)
+
+running 3 tests
+test printer_failure_hooks_match_typescript ... ok
+test printer_failure_probes_are_recorded_upstream_only_evidence ... ok
+test rust_only_typed_errors_keep_the_printer_usable ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/source_comment_topology_contract.rs (target/debug/deps/source_comment_topology_contract-196b98f67bd3e7f6)
+
+running 18 tests
+test ambient_comment_container_flows_through_synthetic_parentheses ... ok
+test ambient_container_end_reaches_binary_prefix_final_child ... ok
+test ambient_container_end_reaches_list_and_wrapper_final_children ... ok
+test asi_outer_comment_container_is_inherited_through_synthetic_new ... ok
+test no_asi_obligation_reaches_partial_wrapper_through_composite_left_edges ... ok
+test normal_return_and_throw_consume_source_comments_around_wrapper_metadata ... ok
+test parsed_no_asi_parentheses_split_wrapper_and_token_comment_ownership ... ok
+test ranged_grammar_parentheses_leave_source_comments_outside ... ok
+test remove_comments_drops_comment_driven_parentheses_but_keeps_grammar_parentheses ... ok
+test source_ranged_grammar_parent_keeps_child_explicit_comment_range ... ok
+test synthetic_grammar_parentheses_move_source_comments_inside ... ok
+test synthetic_single_line_leading_comment_always_terminates_its_line ... ok
+test synthetic_whole_no_asi_parentheses_consume_source_and_wrapper_comments ... ok
+test trailing_phase_does_not_consume_the_next_statements_leading_comment ... ok
+test yield_consumes_a_different_operand_owner_before_parent_trailing_comments ... ok
+test yield_parent_retains_trailing_comment_after_operand_consumes_leading_comment ... ok
+test zero_width_child_comment_range_does_not_fall_back_to_parent_range ... ok
+test zero_width_parent_comment_range_does_not_claim_child_trailing_comments ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/utf16_writer_contract.rs (target/debug/deps/utf16_writer_contract-e0e2048ce1b3f93d)
+
+running 2 tests
+test utf16_writer_matches_typescript ... ok
+test writer_value_equality_survives_chunking_and_clone_clear ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: 1 target failed:
+    `--test list_comment_flags_contract`
+exit(named suites): 101
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 15.42s
+     Running tests/contracts.rs (target/debug/deps/contracts-6f4d81d7b835d614)
+
+running 401 tests
+test active_transform_contract::abstract_class_forces_constructor_through_typescript_class_element_visitor ... ok
+test active_transform_contract::alias_elision_uses_the_borrowed_resolver_and_never_queries_type_only_specifiers ... ok
+test active_transform_contract::aliasless_legacy_decorated_class_keeps_post_decorator_comment_owners ... ok
+test active_transform_contract::ambient_and_runtime_legacy_computed_names_share_order_but_not_storage ... ok
+test active_transform_contract::ambient_legacy_decorator_anchor_owns_static_bucket_classification ... ok
+test active_transform_contract::ambient_legacy_decorator_anchor_visits_decorator_and_name_expressions ... ok
+test active_transform_contract::ambient_legacy_decorator_call_names_evaluate_once_at_decoration_site ... ok
+test active_transform_contract::ambient_legacy_decorator_computed_names_remain_direct_expressions ... ok
+test active_transform_contract::ambient_namespace_exports_keep_only_their_non_emitted_anchor ... ok
+test active_transform_contract::anonymous_class_expression_reuses_the_property_access_assignment_name ... ok
+test active_transform_contract::anonymous_class_expression_reuses_the_property_assignment_name ... ok
+test active_transform_contract::anonymous_class_expression_reuses_the_variable_declaration_name ... ok
+test active_transform_contract::anonymous_class_receiver_precedes_its_computed_static_key_binding ... ok
+test active_transform_contract::anonymous_default_class_fields_share_declaration_and_runtime_names ... ok
+test active_transform_contract::array_element_end_comments_precede_their_delimiter ... ok
+test active_transform_contract::array_list_comment_boundaries_cover_trailing_commas_and_omitted_elements ... ok
+test active_transform_contract::array_literal_elements_preserve_parsed_sibling_line_breaks ... ok
+test active_transform_contract::arrow_object_body_is_parenthesized_after_type_erasure ... ok
+test active_transform_contract::assignment_mode_parameter_properties_precede_field_initializers ... ok
+test active_transform_contract::assignment_to_an_erased_instantiation_expression_keeps_grammar_parentheses ... ok
+test active_transform_contract::auto_accessor_backing_names_follow_member_identity_in_runtime_scope ... ok
+test active_transform_contract::automatic_jsx_children_retain_expression_trailing_comments ... ok
+test active_transform_contract::binary_operator_token_boundaries_retain_leading_and_trailing_comments ... ok
+test active_transform_contract::call_list_start_distinguishes_comment_first_from_newline_first ... ok
+test active_transform_contract::case_block_end_comments_survive_class_field_relocation ... ok
+test active_transform_contract::case_colon_token_owns_its_same_line_trailing_comment ... ok
+test active_transform_contract::chained_property_access_retains_a_comment_before_its_dot_token ... ok
+test active_transform_contract::changed_node_printer_uses_the_configured_newline_and_preserves_unicode_literals ... ok
+test active_transform_contract::class_binding_allocations_follow_tsc_lexical_environment_phases ... ok
+test active_transform_contract::class_field_key_evaluation_drains_into_the_next_computed_member ... ok
+test active_transform_contract::class_fields_keep_legacy_decorated_declarations_statement_expandable ... ok
+test active_transform_contract::class_pending_prefix_and_member_walk_drain_into_one_retained_computed_name ... ok
+test active_transform_contract::classic_jsx_attribute_tail_is_not_owned_by_the_generated_property ... ok
+test active_transform_contract::classic_jsx_children_retain_expression_trailing_comments ... ok
+test active_transform_contract::classic_jsx_factory_root_carries_typed_namespace_identity ... ok
+test active_transform_contract::classic_jsx_fragment_roots_keep_opening_fragment_identity ... ok
+test active_transform_contract::classic_self_closing_jsx_factory_root_keeps_opening_node_identity ... ok
+test active_transform_contract::commentless_const_enum_integer_access_keeps_the_property_dot_boundary ... ok
+test active_transform_contract::commentless_const_enum_numeric_substitution_keeps_expression_grammar ... ok
+test active_transform_contract::common_js_detached_reference_stays_between_strict_and_custom_prologues ... ok
+test active_transform_contract::common_js_named_import_tag_erases_the_substituted_property_receiver ... ok
+test active_transform_contract::common_js_using_file_level_defaults_respect_erased_source_identifiers ... ok
+test active_transform_contract::common_js_using_generated_decorator_binding_map_miss_stays_out_of_the_resolver ... ok
+test active_transform_contract::common_js_using_hoist_chains_anonymous_default_class_binding ... ok
+test active_transform_contract::common_js_using_hoist_chains_direct_and_aliased_exports ... ok
+test active_transform_contract::common_js_using_hoist_chains_named_default_class_bindings ... ok
+test active_transform_contract::common_js_using_hoist_keeps_generated_default_publication_after_export_equals ... ok
+test active_transform_contract::common_js_using_hoist_keeps_generated_default_publication_before_export_equals ... ok
+test active_transform_contract::common_js_using_hoist_keeps_local_variable_initializer_local ... ok
+test active_transform_contract::common_js_using_hoist_preserves_export_alias_assignment_order ... ok
+test active_transform_contract::common_js_using_hoist_preserves_multiple_alias_source_order ... ok
+test active_transform_contract::common_js_using_hoist_renames_default_binding_around_a_source_collision ... ok
+test active_transform_contract::common_js_using_hoist_substitutes_exported_variable_initializer ... ok
+test active_transform_contract::common_js_using_hoist_substitutes_named_export_class_once ... ok
+test active_transform_contract::compact_binding_pattern_does_not_indent_after_source_line_comment ... ok
+test active_transform_contract::compact_private_function_body_emits_inter_statement_comment_once ... ok
+test active_transform_contract::computed_auto_accessor_pairs_share_one_class_definition_key_evaluation ... ok
+test active_transform_contract::computed_class_field_named_evaluation_reuses_the_class_key_cache ... ok
+test active_transform_contract::computed_object_property_named_evaluation_uses_prop_key_once ... ok
+test active_transform_contract::concise_arrow_body_retains_its_leading_comment ... ok
+test active_transform_contract::concise_arrow_body_retains_its_same_line_leading_comment_once ... ok
+test active_transform_contract::conditional_expression_boundaries_retain_each_branch_comment_once ... ok
+test active_transform_contract::conditional_separator_uses_its_source_anchor_after_a_synthetic_condition ... ok
+test active_transform_contract::conditional_true_branch_line_comment_stays_before_the_colon ... ok
+test active_transform_contract::const_enum_access_comment_escapes_closing_multiline_delimiter ... ok
+test active_transform_contract::const_enum_negative_access_comment_stays_inside_access_parentheses ... ok
+test active_transform_contract::const_enum_numeric_substitution_uses_javascript_number_spelling ... ok
+test active_transform_contract::const_enum_string_substitution_preserves_utf16_code_units ... ok
+test active_transform_contract::constructor_and_getter_recovery_fields_follow_factory_update_boundaries ... ok
+test active_transform_contract::decorated_class_pending_comma_keys_preserve_tsc_operand_boundaries ... ok
+test active_transform_contract::decorated_static_auto_accessor_matches_typescript_target_routing ... ok
+test active_transform_contract::decorated_static_private_and_auto_accessor_facts_supply_static_this_identity ... ok
+test active_transform_contract::detached_source_prefix_stays_before_standard_decorator_helpers ... ok
+test active_transform_contract::dotted_namespace_iife_body_retains_module_block_closing_comments ... ok
+test active_transform_contract::dotted_namespace_inherits_export_and_lexical_declaration_ownership ... ok
+test active_transform_contract::downlevel_standard_decorator_metadata_uses_the_class_receiver ... ok
+test active_transform_contract::duplicate_private_fields_preserve_distinct_recovery_storage ... ok
+test active_transform_contract::duplicate_private_kinds_use_the_last_effective_slot_without_losing_allocations ... ok
+test active_transform_contract::duplicate_private_static_then_instance_field_uses_the_effective_weak_map_slot ... ok
+test active_transform_contract::element_access_brackets_own_each_internal_comment_boundary ... ok
+test active_transform_contract::empty_case_block_uses_the_multiline_case_block_list_format_after_transform ... ok
+test active_transform_contract::empty_delimited_lists_retain_their_node_array_boundary_comments ... ok
+test active_transform_contract::empty_function_body_does_not_reown_the_open_brace_trailing_comment ... ok
+test active_transform_contract::empty_legacy_decorated_anonymous_default_does_not_request_named_evaluation ... ok
+test active_transform_contract::empty_multiline_block_indents_its_node_array_comment ... ok
+test active_transform_contract::empty_namespace_body_does_not_reown_an_erased_statement_comment ... ok
+test active_transform_contract::enum_member_substitution_respects_property_access_identifier_names ... ok
+test active_transform_contract::erased_arrow_head_does_not_reemit_comments_before_the_arrow_token ... ok
+test active_transform_contract::erased_assertions_restore_expression_statement_and_numeric_access_grammar ... ok
+test active_transform_contract::erased_class_heritage_slot_keeps_the_name_boundary_comment ... ok
+test active_transform_contract::erased_class_member_keeps_its_same_line_comment_out_of_the_next_member ... ok
+test active_transform_contract::erased_declarations_remain_empty_embedded_statements ... ok
+test active_transform_contract::erased_export_under_a_label_keeps_the_module_transform_statement_slot ... ok
+test active_transform_contract::erased_parameter_types_keep_both_comment_boundaries ... ok
+test active_transform_contract::erased_parenthesized_arrow_body_preserves_its_no_asi_comment ... ok
+test active_transform_contract::erased_source_leader_preserves_only_recognized_triple_slash_comments ... ok
+test active_transform_contract::erased_type_only_namespace_anchors_source_trailing_comments ... ok
+test active_transform_contract::erased_variable_types_preserve_declaration_boundary_comments ... ok
+test active_transform_contract::es2015_await_lowering_restores_prefix_unary_operand_parentheses ... ok
+test active_transform_contract::es2015_base_class_does_not_hoist_nested_static_block_super_base ... ok
+test active_transform_contract::es2015_class_bindings_created_in_parameters_move_defaults_to_the_body ... ok
+test active_transform_contract::es2015_exponentiation_keeps_statement_comments_outside_synthetic_arguments ... ok
+test active_transform_contract::es2015_exponentiation_uses_typed_lexical_temp_ownership ... ok
+test active_transform_contract::es2015_nullish_expansion_is_parenthesized_as_a_conditional_condition ... ok
+test active_transform_contract::es2015_single_object_literal_spread_retains_object_assign_call ... ok
+test active_transform_contract::es2015_static_auto_accessor_redirectors_use_the_class_constructor_identity ... ok
+test active_transform_contract::es2015_static_class_expression_keeps_its_assigned_name_and_helper_order ... ok
+test active_transform_contract::es2016_common_js_using_default_families_reconcile_collisions_independently ... ok
+test active_transform_contract::es2016_standard_class_and_member_decorators_share_the_generated_default_binding ... ok
+test active_transform_contract::es2017_async_lexical_arguments_capture_respects_arrow_and_function_boundaries ... ok
+test active_transform_contract::es2017_async_rest_parameters_remain_in_the_outer_es2015_function ... ok
+test active_transform_contract::es2017_await_recovery_uses_the_non_top_level_transform_context ... ok
+test active_transform_contract::es2017_hoists_for_await_names_derived_from_a_simple_async_parameter ... ok
+test active_transform_contract::es2017_queries_async_private_function_through_parsed_member ... ok
+test active_transform_contract::es2018_array_binding_defers_identifier_default_after_object_rest ... ok
+test active_transform_contract::es2018_discarded_outer_call_still_requires_object_rest_argument_values ... ok
+test active_transform_contract::es2018_empty_array_object_rest_target_materializes_only_its_value ... ok
+test active_transform_contract::es2018_non_final_declaration_rest_remains_in_the_final_rest_exclusion_set ... ok
+test active_transform_contract::es2018_object_rest_assignment_captures_a_rhs_identifier_reassigned_by_the_pattern ... ok
+test active_transform_contract::es2018_object_rest_classifies_literal_computed_keys_without_temporaries ... ok
+test active_transform_contract::es2018_optional_catch_bindings_preserve_original_token_comments ... ok
+test active_transform_contract::es2018_optional_catch_bindings_use_scoped_generated_names ... ok
+test active_transform_contract::es2018_retained_object_binding_comment_has_one_list_owner ... ok
+test active_transform_contract::es2018_using_named_evaluation_restores_erased_outer_expressions ... ok
+test active_transform_contract::es2018_visits_a_synthetic_descriptor_that_contains_object_rest_in_its_value ... ok
+test active_transform_contract::es2019_optional_call_preserves_erased_instantiation_grammar_boundary ... ok
+test active_transform_contract::es2019_optional_calls_keep_the_exact_javascript_receiver ... ok
+test active_transform_contract::es2019_optional_chain_composition_matches_the_pinned_transform ... ok
+test active_transform_contract::es2019_optional_chains_and_nullish_coalescing_preserve_evaluation_order ... ok
+test active_transform_contract::es2019_optional_chains_restore_erased_typescript_outer_expressions ... ok
+test active_transform_contract::es2019_parameter_hoists_share_the_typed_function_scope_plan ... ok
+test active_transform_contract::es2020_logical_assignment_hoists_are_owned_by_each_function_scope ... ok
+test active_transform_contract::es2020_logical_assignments_stabilize_each_access_operand_once ... ok
+test active_transform_contract::es2020_parameter_hoists_move_defaults_into_typed_function_prologues ... ok
+test active_transform_contract::es2021_auto_accessors_expand_into_downlevel_private_storage ... ok
+test active_transform_contract::es2021_class_lowering_finalizes_outer_bindings_before_nested_static_evaluation ... ok
+test active_transform_contract::es2021_private_auto_accessor_keeps_logical_and_backing_slots_distinct ... ok
+test active_transform_contract::es2021_private_behavior_uses_a_shared_brand_and_named_functions ... ok
+test active_transform_contract::es2021_private_fields_use_owned_slots_and_helper_operations ... ok
+test active_transform_contract::es2021_public_fields_use_typed_assignment_and_define_policies ... ok
+test active_transform_contract::es2021_static_initializers_own_lexical_this_and_super_bindings ... ok
+test active_transform_contract::es2022_auto_accessor_lowers_while_native_fields_remain_owned ... ok
+test active_transform_contract::es2022_decorated_auto_accessor_comment_belongs_to_getter_only ... ok
+test active_transform_contract::es2022_decorator_call_bindings_preserve_receivers_and_lexical_super ... ok
+test active_transform_contract::es2022_disposal_names_follow_output_scope_ownership ... ok
+test active_transform_contract::es2022_disposal_names_follow_retained_class_member_order ... ok
+test active_transform_contract::es2022_using_scope_is_lowered_through_typed_disposal_state ... ok
+test active_transform_contract::es_module_class_publications_follow_declaration_owned_operations ... ok
+test active_transform_contract::es_module_default_classes_publish_after_class_field_and_decorator_operations ... ok
+test active_transform_contract::esnext_accesses_and_calls_distinguish_optional_chain_continuations_from_chain_breaks ... ok
+test active_transform_contract::exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree ... ok
+test active_transform_contract::exported_legacy_decorated_classes_without_constructors_skip_metadata_in_modules ... ok
+test active_transform_contract::external_import_equals_recovery_respects_source_element_ownership ... ok
+test active_transform_contract::fallback_class_expression_result_in_a_loop_is_iteration_scoped ... ok
+test active_transform_contract::for_await_result_temp_derives_from_the_final_iterator_spelling ... ok
+test active_transform_contract::function_body_detached_comment_precedes_relocated_field_initializer ... ok
+test active_transform_contract::generated_binding_in_concise_arrow_keeps_synthetic_body_single_line ... ok
+test active_transform_contract::h2_3a_javascript_print_preserves_shebang_directive_and_attached_comments ... ok
+test active_transform_contract::if_statement_tokens_own_each_internal_comment_boundary ... ok
+test active_transform_contract::inline_array_list_indent_is_retained_by_a_multiline_object_element ... ok
+test active_transform_contract::invalid_bigint_enum_name_is_cloned_for_emit_after_diagnostics ... ok
+test active_transform_contract::invalid_constructor_parameter_modifiers_are_erased_after_diagnostics ... ok
+test active_transform_contract::invalid_react_namespace_option_value_is_retained_by_recovery_emit ... ok
+test active_transform_contract::isolated_accessor_constructor_retains_modifier_without_parent_typescript_visit ... ok
+test active_transform_contract::labeled_enum_uses_the_surrounding_typescript_lexical_scope ... ok
+test active_transform_contract::legacy_accessor_recovery_limits_ownership_to_the_first_two_declarations ... ok
+test active_transform_contract::legacy_alias_and_producer_temp_hoists_keep_two_epochs_in_every_scope ... ok
+test active_transform_contract::legacy_binding_kinds_control_descendant_shadowing ... ok
+test active_transform_contract::legacy_bodyless_accessor_direct_admission_uses_the_current_tree ... ok
+test active_transform_contract::legacy_bodyless_setter_recovery_keeps_parameter_temp_in_synthesized_body ... ok
+test active_transform_contract::legacy_class_alias_ordinals_follow_output_ast_order_at_esnext ... ok
+test active_transform_contract::legacy_class_elements_finish_nested_temp_work_before_the_next_members_metadata ... ok
+test active_transform_contract::legacy_class_expression_decorator_is_visitation_only_before_heritage_and_members ... ok
+test active_transform_contract::legacy_class_parameter_metadata_requires_an_explicit_constructor_body ... ok
+test active_transform_contract::legacy_class_transaction_visits_modifiers_metadata_heritage_then_members ... ok
+test active_transform_contract::legacy_computed_bigint_accessors_own_independent_decorations ... ok
+test active_transform_contract::legacy_computed_decorator_separates_erased_key_from_helper_identity ... ok
+test active_transform_contract::legacy_computed_name_hoists_are_owned_by_sibling_function_bodies ... ok
+test active_transform_contract::legacy_concise_arrow_only_expands_when_its_body_owns_a_hoist ... ok
+test active_transform_contract::legacy_decorated_anonymous_default_reserves_definition_before_computed_key ... ok
+test active_transform_contract::legacy_decorated_class_alias_storage_is_a_custom_prologue ... ok
+test active_transform_contract::legacy_decorated_class_comments_have_one_deliberate_owner ... ok
+test active_transform_contract::legacy_decorated_class_exports_follow_lowered_static_fields ... ok
+test active_transform_contract::legacy_decorated_class_materializes_pending_work_as_individual_statements ... ok
+test active_transform_contract::legacy_decorated_definition_binding_serves_static_this_but_not_super ... ok
+test active_transform_contract::legacy_decorated_named_evaluation_does_not_allocate_for_control_classes ... ok
+test active_transform_contract::legacy_decorated_static_initializers_use_invalid_lexical_receivers ... ok
+test active_transform_contract::legacy_dynamic_accessor_names_own_independent_decorations_in_source_order ... ok
+test active_transform_contract::legacy_explicit_this_rules_keep_admission_serialization_and_runtime_distinct ... ok
+test active_transform_contract::legacy_import_metadata_uses_the_class_name_scope_for_value_resolution ... ok
+test active_transform_contract::legacy_invalid_super_calls_preserve_only_an_available_definition_receiver ... ok
+test active_transform_contract::legacy_literal_computed_accessors_share_one_decoration_owner ... ok
+test active_transform_contract::legacy_member_decorator_expression_is_consumed_once_from_the_visited_handoff ... ok
+test active_transform_contract::legacy_member_decorator_expression_is_visited_before_its_metadata ... ok
+test active_transform_contract::legacy_member_decorator_expressions_use_the_typescript_erased_tree ... ok
+test active_transform_contract::legacy_metadata_temporaries_precede_computed_key_binding_for_the_same_member ... ok
+test active_transform_contract::legacy_metadata_unknown_conditional_branches_do_not_hoist_fallback_temps ... ok
+test active_transform_contract::legacy_metadata_unwraps_jsdoc_nullable_and_non_nullable_types ... ok
+test active_transform_contract::legacy_method_overload_signature_is_not_a_decoration_owner ... ok
+test active_transform_contract::legacy_nested_class_alias_declaration_uses_its_function_frame ... ok
+test active_transform_contract::legacy_noncomputed_bigint_accessor_clones_the_helper_key ... ok
+test active_transform_contract::legacy_parameter_decorator_index_excludes_the_erased_this_parameter ... ok
+test active_transform_contract::legacy_parameter_decorator_nested_temps_belong_to_method_and_constructor_bodies ... ok
+test active_transform_contract::legacy_parameter_only_computed_decorator_does_not_prepare_shared_binding ... ok
+test active_transform_contract::legacy_parameter_transactions_interleave_decorator_name_and_initializer ... ok
+test active_transform_contract::legacy_private_expression_flag_is_scanned_before_runtime_admission ... ok
+test active_transform_contract::legacy_setter_metadata_falls_back_to_the_getter_return_type ... ok
+test active_transform_contract::legacy_signed_accessor_split_drops_runtime_setter_parameter_decoration_only ... ok
+test active_transform_contract::legacy_signed_numeric_accessors_split_after_metadata_grouping ... ok
+test active_transform_contract::legacy_static_accessor_runtime_group_includes_setter_parameter_decorators ... ok
+test active_transform_contract::legacy_static_blocks_are_sibling_temp_scopes_with_source_wide_aliases ... ok
+test active_transform_contract::member_assignment_is_not_an_identifier_named_evaluation_source ... ok
+test active_transform_contract::multiline_array_of_lowered_class_wrappers_breaks_between_elements ... ok
+test active_transform_contract::multiline_comment_indentation_is_relative_to_its_source_line ... ok
+test active_transform_contract::multiline_object_drops_only_comments_on_the_opening_delimiter_line ... ok
+test active_transform_contract::namespace_body_does_not_reown_a_removed_tail_declaration_comment ... ok
+test active_transform_contract::namespace_body_retains_comments_after_its_last_runtime_statement ... ok
+test active_transform_contract::namespace_destructuring_plan_hoists_temps_and_preserves_leaf_order ... ok
+test active_transform_contract::namespace_export_assignment_does_not_reown_the_declaration_comment ... ok
+test active_transform_contract::namespace_exported_binding_patterns_publish_each_leaf ... ok
+test active_transform_contract::namespace_parameter_names_reserve_descendant_bindings_not_member_names ... ok
+test active_transform_contract::native_standard_decorator_root_is_owned_after_typescript_erasure ... ok
+test active_transform_contract::no_asi_projection_preserves_parsed_parenthesis_token_comments ... ok
+test active_transform_contract::nullish_lowering_parentheses_do_not_reown_the_statement_comment ... ok
+test active_transform_contract::numeric_literal_source_text_is_reused_only_when_the_target_allows_it ... ok
+test active_transform_contract::object_rest_binding_pattern_comments_keep_declaration_indentation ... ok
+test active_transform_contract::object_spread_keeps_object_assign_at_es2015_and_above ... ok
+test active_transform_contract::object_spread_uses_the_assign_helper_below_es2015 ... ok
+test active_transform_contract::optional_element_and_call_comments_follow_tsc_delimiter_ownership ... ok
+test active_transform_contract::ordinary_class_expression_keeps_pending_and_static_work_as_ordered_operands ... ok
+test active_transform_contract::parameter_lists_retain_comments_at_each_delimiter_boundary ... ok
+test active_transform_contract::parameter_property_assignments_preserve_escaped_identifier_spelling ... ok
+test active_transform_contract::parenthesized_jsx_line_comment_terminates_before_closing_delimiters ... ok
+test active_transform_contract::parenthesized_open_token_owns_its_same_line_trailing_comment ... ok
+test active_transform_contract::parsed_arrow_directive_body_remains_multiline_after_type_erasure ... ok
+test active_transform_contract::parsed_comma_computed_name_is_not_reparenthesized_by_the_printer ... ok
+test active_transform_contract::parser_recovery_statement_tokens_keep_tsc_canonical_spacing ... ok
+test active_transform_contract::partially_emitted_satisfies_wrappers_preserve_inner_comments ... ok
+test active_transform_contract::preserved_jsx_expression_comments_follow_jsx_token_boundaries ... ok
+test active_transform_contract::preserved_jsx_tags_use_expression_namespace_substitution ... ok
+test active_transform_contract::private_accessor_pairing_follows_the_effective_slot_and_source_order ... ok
+test active_transform_contract::private_auto_accessor_provenance_does_not_invent_a_constructor_fact ... ok
+test active_transform_contract::private_field_destructuring_targets_use_setter_wrappers ... ok
+test active_transform_contract::private_member_definition_comments_follow_tsc_ownership ... ok
+test active_transform_contract::private_method_calls_and_tags_preserve_receiver_binding ... ok
+test active_transform_contract::private_method_updates_preserve_tsc_value_and_comment_boundaries ... ok
+test active_transform_contract::private_postfix_update_value_is_grouped_in_a_variable_initializer ... ok
+test active_transform_contract::private_static_class_expression_uses_its_hash_prefixed_assigned_name ... ok
+test active_transform_contract::private_static_optional_call_preserves_the_receiver_binding ... ok
+test active_transform_contract::property_access_cursor_comments_follow_the_token_line_scopes ... ok
+test active_transform_contract::property_initializer_retains_its_intervening_comment ... ok
+test active_transform_contract::relocated_assignment_field_owns_its_leading_comment_once ... ok
+test active_transform_contract::relocated_class_field_operation_owns_initializer_trailing_comment_once ... ok
+test active_transform_contract::relocated_field_initializer_does_not_reown_constructor_header_comments ... ok
+test active_transform_contract::remove_comments_keeps_only_the_top_detached_pinned_group ... ok
+test active_transform_contract::remove_comments_suppresses_simple_parameter_and_retained_arrow_comments ... ok
+test active_transform_contract::rest_parameter_loop_reuses_the_dedicated_i_slot_per_function ... ok
+test active_transform_contract::retained_arrow_comment_resumes_before_a_parenthesized_concise_body ... ok
+test active_transform_contract::retained_arrow_line_comment_keeps_tsc_body_spacing ... ok
+test active_transform_contract::retained_arrow_token_owns_its_same_line_trailing_comment_once ... ok
+test active_transform_contract::retained_arrow_token_owns_multiple_comments_before_a_block_body ... ok
+test active_transform_contract::return_and_yield_no_asi_parentheses_follow_erased_left_edges ... ok
+test active_transform_contract::runtime_in_operator_remains_a_javascript_token ... ok
+test active_transform_contract::runtime_legacy_decorator_call_names_evaluate_once_in_the_class ... ok
+test active_transform_contract::runtime_legacy_decorator_computed_names_keep_one_shared_binding ... ok
+test active_transform_contract::semantic_class_expression_identity_in_a_loop_is_iteration_scoped ... ok
+test active_transform_contract::setter_update_erases_parameter_types_but_preserves_recovery_signature_fields ... ok
+test active_transform_contract::simple_arrow_parameter_and_arrow_token_keep_distinct_trailing_comments ... ok
+test active_transform_contract::simple_arrow_parameter_list_preserves_tsc_intervening_comment_replay ... ok
+test active_transform_contract::source_file_closes_an_eof_multiline_comment_like_tsc ... ok
+test active_transform_contract::standard_class_decorator_anonymous_default_has_no_name_projection ... ok
+test active_transform_contract::standard_class_decorator_common_js_namespace_merge_uses_exported_binding_identity ... ok
+test active_transform_contract::standard_decorator_class_evaluation_precedes_pending_field_keys ... ok
+test active_transform_contract::standard_decorator_class_expression_keeps_inline_comment_outside_iife ... ok
+test active_transform_contract::standard_decorator_class_extra_follows_static_field_extra_in_trailing_block ... ok
+test active_transform_contract::standard_decorator_class_extra_follows_static_method_extra_in_leading_block ... ok
+test active_transform_contract::standard_decorator_default_export_statement_owns_adjacent_leading_comment ... ok
+test active_transform_contract::standard_decorator_fallback_erases_invalid_declaration_modifiers_only ... ok
+test active_transform_contract::standard_decorator_fallback_erases_parameter_marker_inside_decorated_class ... ok
+test active_transform_contract::standard_decorator_fallback_preserves_invalid_static_block_owner ... ok
+test active_transform_contract::standard_decorator_generated_default_shares_one_collision_safe_binding ... ok
+test active_transform_contract::standard_decorator_helper_does_not_claim_same_spelling_source_call ... ok
+test active_transform_contract::standard_decorator_metadata_definition_is_a_single_line_if_statement ... ok
+test active_transform_contract::standard_decorator_mode_does_not_retain_an_ambient_legacy_anchor ... ok
+test active_transform_contract::standard_decorator_named_declaration_has_one_outer_leading_comment_owner ... ok
+test active_transform_contract::standard_decorator_named_default_projects_mapped_and_unmapped_roles ... ok
+test active_transform_contract::standard_decorator_named_export_projects_the_parsed_class_name ... ok
+test active_transform_contract::standard_decorator_parameter_property_bridge_is_inactive_in_esnext_define_mode ... ok
+test active_transform_contract::standard_decorator_parameter_property_initializer_follows_direct_super_call ... ok
+test active_transform_contract::standard_decorator_parameter_property_initializer_follows_nested_try_super_path ... ok
+test active_transform_contract::standard_decorator_parameter_property_initializer_follows_parenthesized_super_paths ... ok
+test active_transform_contract::standard_decorator_pending_class_operations_keep_source_order_and_statement_ownership ... ok
+test active_transform_contract::standard_decorator_pending_initializers_flow_through_ordinary_instance_fields ... ok
+test active_transform_contract::standard_decorator_pending_method_initializer_falls_back_to_constructor_without_fields ... ok
+test active_transform_contract::standard_decorator_pending_method_initializer_flows_into_es2015_parameter_property ... ok
+test active_transform_contract::standard_decorator_pending_method_initializer_flows_into_es2022_parameter_property ... ok
+test active_transform_contract::standard_decorator_pending_method_initializer_only_owns_first_parameter_property ... ok
+test active_transform_contract::standard_decorator_pending_method_initializer_owns_uninitialized_first_field ... ok
+test active_transform_contract::standard_decorator_pending_static_method_initializer_creates_uninitialized_field_value ... ok
+test active_transform_contract::standard_decorator_pending_static_method_initializer_owns_first_ordinary_field ... ok
+test active_transform_contract::standard_decorator_pending_static_method_initializer_precedes_static_block_body ... ok
+test active_transform_contract::standard_decorator_residual_initializer_keeps_derived_prologue_single ... ok
+test active_transform_contract::standard_decorator_residual_initializer_replays_base_constructor_prologue ... ok
+test active_transform_contract::standard_decorator_residual_initializer_replays_custom_variable_prologue ... ok
+test active_transform_contract::standard_decorator_residual_instance_initializer_follows_parenthesized_super_paths ... ok
+test active_transform_contract::standard_decorator_residual_static_field_initializer_uses_trailing_block ... ok
+test active_transform_contract::standard_decorator_residual_static_method_initializer_stays_in_leading_block ... ok
+test active_transform_contract::standard_decorator_terminal_initializer_follows_nested_try_super_path ... ok
+test active_transform_contract::standard_member_decorator_common_js_namespace_merge_uses_exported_binding_identity ... ok
+test active_transform_contract::static_super_assignment_value_stays_grouped_in_a_define_property_initializer ... ok
+test active_transform_contract::synthesized_disposal_body_keeps_detached_prefix_inside_the_try ... ok
+test active_transform_contract::synthesized_exponentiation_arguments_retain_recovery_leading_comments ... ok
+test active_transform_contract::synthesized_jsx_import_owns_position_before_detached_source_prefix ... ok
+test active_transform_contract::synthetic_constructor_does_not_reown_the_class_leading_comment ... ok
+test active_transform_contract::system_default_export_value_does_not_reown_asi_trailing_comments ... ok
+test active_transform_contract::system_module_hoists_nested_var_but_keeps_nested_lexical_bindings_local ... ok
+test active_transform_contract::system_module_keeps_import_hoists_in_source_order_when_setters_are_deduplicated ... ok
+test active_transform_contract::system_module_materializes_anonymous_default_declaration_bindings ... ok
+test active_transform_contract::tagged_template_optional_chain_recovery_omits_the_diagnostic_question_dot ... ok
+test active_transform_contract::transformed_super_switch_retains_the_empty_case_block_line_in_crlf_output ... ok
+test active_transform_contract::try_clause_boundaries_split_trailing_and_leading_comment_ownership ... ok
+test active_transform_contract::type_erasure_parentheses_do_not_reown_the_statement_comment ... ok
+test active_transform_contract::typed_class_expression_forces_constructor_through_typescript_class_element_visitor ... ok
+test active_transform_contract::typed_sibling_forces_constructor_through_typescript_class_element_visitor ... ok
+test active_transform_contract::typescript_and_legacy_passes_exchange_one_ambient_property_anchor ... ok
+test active_transform_contract::typescript_class_facts_legacy_private_member_does_not_name_anonymous_default ... ok
+test active_transform_contract::typescript_class_facts_legacy_private_method_parameter_admits_recovery_emit ... ok
+test active_transform_contract::typescript_class_facts_legacy_runtime_parameter_decorator_names_anonymous_default ... ok
+test active_transform_contract::typescript_class_facts_standard_ambient_properties_do_not_name_anonymous_default ... ok
+test active_transform_contract::typescript_class_facts_standard_member_decorator_names_anonymous_default ... ok
+test active_transform_contract::typescript_class_facts_standard_parameter_decorator_does_not_name_anonymous_default ... ok
+test active_transform_contract::typescript_parent_preserves_non_constructor_accessor_recovery_modifiers ... ok
+test active_transform_contract::unannotated_this_parameters_admit_typescript_erasure ... ok
+test active_transform_contract::unassigned_member_only_standard_decorator_does_not_install_a_runtime_name ... ok
+test active_transform_contract::unassigned_standard_class_decorator_installs_the_empty_runtime_name ... ok
+test active_transform_contract::unresolved_private_method_access_uses_tsc_diagnostic_recovery_output ... ok
+test active_transform_contract::using_standard_anonymous_default_keeps_tsc_owner_family_across_targets_and_modules ... ok
+test active_transform_contract::variable_initializers_retain_comments_around_erased_type_boundaries ... ok
+test artifact_sink_contract::artifact_retains_callback_bytes_bom_provenance_and_metadata_independently ... ok
+test artifact_sink_contract::filesystem_sink_creates_missing_parents_outward_in_and_retries_with_bom ... ok
+test artifact_sink_contract::filesystem_sink_reports_create_failure_without_retrying_the_file ... ok
+test artifact_sink_contract::filesystem_sink_reports_only_the_final_retry_failure ... ok
+test artifact_sink_contract::filesystem_sink_writes_once_without_parent_observations_on_success ... ok
+test artifact_sink_contract::memory_sink_is_ordered_and_reports_only_written ... ok
+test artifact_sink_contract::optional_callback_arguments_preserve_absent_versus_present_empty ... ok
+test artifact_sink_contract::sink_io_failures_retain_operation_path_and_stable_message ... ok
+test comment_scope_witness_contract::every_frozen_witness_case_reproduces_the_oracle_bytes ... ok
+test printer_foundation_contract::canonical_asi_jump_comments_follow_the_synthesized_terminator ... ok
+test printer_foundation_contract::canonical_binary_and_prefix_operators_preserve_lexical_separation ... ok
+test printer_foundation_contract::canonical_binding_patterns_emit_omitted_expressions_as_empty_slots ... ok
+test printer_foundation_contract::canonical_call_arguments_keep_line_comment_spacing_without_indent_drift ... ok
+test printer_foundation_contract::canonical_call_list_keeps_comments_before_the_closing_delimiter ... ok
+test printer_foundation_contract::canonical_continue_statement_writes_its_asi_safe_terminator ... ok
+test printer_foundation_contract::canonical_do_statement_ends_a_non_block_body_before_while ... ok
+test printer_foundation_contract::canonical_jump_statements_preserve_keyword_and_label_comments ... ok
+test printer_foundation_contract::canonical_leading_block_comment_separates_the_following_token ... ok
+test printer_foundation_contract::canonical_multiline_comments_preserve_empty_lines ... ok
+test printer_foundation_contract::canonical_nested_conditionals_preserve_source_line_structure ... ok
+test printer_foundation_contract::canonical_object_literals_preserve_same_line_property_groups ... ok
+test printer_foundation_contract::canonical_property_access_preserves_a_line_break_after_the_dot ... ok
+test printer_foundation_contract::canonical_source_file_mode_emits_deferred_import_phase ... ok
+test printer_foundation_contract::canonical_source_file_mode_walks_an_unchanged_tree ... ok
+test printer_foundation_contract::canonical_string_line_continuation_keeps_its_source_newline ... ok
+test printer_foundation_contract::canonical_switch_tokens_own_internal_comments ... ok
+test printer_foundation_contract::canonical_template_spans_do_not_preserve_incidental_source_spaces ... ok
+test printer_foundation_contract::empty_case_block_uses_the_multiline_case_block_list_format ... ok
+test printer_foundation_contract::recording_absent_uses_the_same_pipeline_and_dormant_roots_fail_typed ... ok
+test printer_foundation_contract::standalone_tsx_child_keeps_comment_newline_separate_from_raw_jsx_text ... ok
+test printer_foundation_contract::standalone_tsx_printer_emits_type_argument_delimiters ... ok
+test printer_foundation_contract::standalone_tsx_printer_preserves_attribute_and_child_comments ... ok
+test printer_foundation_contract::standalone_tsx_tag_name_line_comment_uses_the_configured_newline ... ok
+test printer_foundation_contract::template_span_comment_ownership_covers_open_expression_and_close_boundaries ... ok
+test printer_foundation_contract::template_span_expression_owns_comments_after_the_substitution_open ... ok
+test printer_foundation_contract::throw_keyword_and_expression_share_internal_comment_boundaries_once ... ok
+test printer_foundation_contract::whole_source_pipeline_preserves_text_and_positions ... ok
+test printer_oracle_contract::source_byte_to_utf16_locations_match_vendored_line_maps ... ok
+test printer_oracle_contract::text_writer_matches_vendored_unicode_and_newline_steps ... ok
+test printer_oracle_contract::whole_source_printer_coordinates_match_vendored_printer ... ok
+test token_cursor_contract::await_keyword_owns_the_frozen_inner_comment_boundary ... ok
+test token_cursor_contract::binary_separators_handoff_comments_once_across_layouts_and_in_keyword ... ok
+test token_cursor_contract::chained_access_keeps_a_line_comment_with_the_preceding_call ... ok
+test token_cursor_contract::comment_and_source_map_ranges_are_independent_metadata ... ok
+test token_cursor_contract::detached_prefix_resume_handles_crlf_and_jsdoc_boundaries ... ok
+test token_cursor_contract::detached_prefix_resumes_before_the_first_attached_comment ... ok
+test token_cursor_contract::for_headers_advance_across_every_internal_comment_boundary ... ok
+test token_cursor_contract::jsx_brace_positions_do_not_duplicate_unicode_comments ... ok
+test token_cursor_contract::keyword_expression_tokens_resume_into_their_operands ... ok
+test token_cursor_contract::loop_and_with_headers_advance_across_internal_comments ... ok
+test token_cursor_contract::module_token_positions_preserve_unicode_comments_once ... ok
+test token_cursor_contract::nested_await_comments_resume_once_and_remove_cleanly ... ok
+test token_cursor_contract::nullish_lowering_reuses_the_binary_child_completion_contract ... ok
+test token_cursor_contract::optional_catch_binding_advances_from_positions_without_token_search ... ok
+test token_cursor_contract::optional_chain_lowering_repeats_only_source_trailing_receiver_comments ... ok
+test token_cursor_contract::property_token_handoff_remains_non_duplicating ... ok
+test token_cursor_contract::remove_comments_uses_the_same_position_cursor_without_comment_output ... ok
+test token_cursor_contract::return_and_throw_tokens_resume_comments_into_their_expressions ... ok
+test token_cursor_contract::transformed_child_does_not_claim_its_original_declarations_trailing_comment ... ok
+test token_cursor_contract::yield_and_yield_star_resume_comments_into_their_operands ... ok
+test writer_position_contract::leading_trivia_removal_is_bounded_by_the_source_range ... ok
+test writer_position_contract::source_positions_reject_byte_utf16_and_synthetic_confusion ... ok
+test writer_position_contract::writer_tracks_utf8_text_and_utf16_coordinates_independently ... ok
+
+test result: ok. 401 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.63s
+
+exit(contracts filtered): 0
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 39.61s
+     Running unittests src/lib.rs (target/debug/deps/tsc_emitter-6021388bac73fbc5)
+
+running 505 tests
+test activity::tests::declaration_profiles_admit_only_their_own_completed_runtime_slices ... ok
+test activity::tests::every_h2_runtime_slice_fails_closed_before_admission ... ok
+test activity::tests::h1_profile_has_positive_wiring_and_zero_h2_runtime_activity ... ok
+test activity::tests::h2_1b_profile_admits_only_the_two_completed_runtime_slices ... ok
+test activity::tests::h2_1c_profile_admits_only_the_three_completed_runtime_slices ... ok
+test activity::tests::h2_1d_profile_admits_only_the_four_completed_runtime_slices ... ok
+test activity::tests::h2_1e_profile_admits_only_the_five_completed_runtime_slices ... ok
+test activity::tests::h2_2a_profile_admits_only_the_six_completed_runtime_slices ... ok
+test activity::tests::h2_2b_profile_admits_only_the_seven_completed_runtime_slices ... ok
+test activity::tests::h2_2c_profile_admits_only_the_eight_completed_runtime_slices ... ok
+test activity::tests::h2_2d_profile_admits_only_the_nine_completed_runtime_slices ... ok
+test activity::tests::h2_3a_profile_admits_only_the_ten_completed_runtime_slices ... ok
+test activity::tests::h2_3b_profile_admits_only_the_eleven_completed_runtime_slices ... ok
+test activity::tests::h2_3c_profile_admits_only_the_twelve_completed_runtime_slices ... ok
+test activity::tests::h2_3d_profile_admits_only_the_thirteen_completed_runtime_slices ... ok
+test activity::tests::h2_4a_profile_admits_only_the_fourteen_completed_runtime_slices ... ok
+test activity::tests::h2_4b_profile_admits_only_the_fifteen_completed_runtime_slices ... ok
+test activity::tests::h2_5f_profile_admits_only_the_twenty_one_completed_runtime_slices ... ok
+test activity::tests::h2_5g_profile_admits_only_the_twenty_two_completed_runtime_slices ... ok
+test activity::tests::h2_5h_profile_admits_only_the_twenty_three_completed_runtime_slices ... ok
+test builtins::es2015::tests::accessor_pairs_keep_escaped_name_identity_for_js_literal_values ... ok
+test builtins::es2015::tests::captured_this_super_fold_survives_a_source_super_collision ... ok
+test builtins::es2015::tests::class_property_declaration_is_a_typed_error ... ok
+test builtins::es2015::tests::default_exported_class_lowers_to_var_statement_plus_export_assignment ... ok
+test builtins::es2015::tests::detached_header_comment_precedes_the_helper_block ... ok
+test builtins::es2015::tests::exported_class_lowers_to_var_statement_plus_export_declaration ... ok
+test builtins::es2015::tests::private_accessor_name_is_a_typed_error ... ok
+test builtins::es2015::tests::projects_arrow_basic ... ok
+test builtins::es2015::tests::projects_arrow_block_body ... ok
+test builtins::es2015::tests::projects_arrow_default_param ... ok
+test builtins::es2015::tests::projects_arrow_in_method_super ... ok
+test builtins::es2015::tests::projects_arrow_multiline ... ok
+test builtins::es2015::tests::projects_arrow_nested_this ... ok
+test builtins::es2015::tests::projects_arrow_this_fn ... ok
+test builtins::es2015::tests::projects_arrow_this_toplevel ... ok
+test builtins::es2015::tests::projects_captured_this_collision ... ok
+test builtins::es2015::tests::projects_captured_this_two_fns ... ok
+test builtins::es2015::tests::projects_class_accessors ... ok
+test builtins::es2015::tests::projects_class_basic ... ok
+test builtins::es2015::tests::projects_class_ctor ... ok
+test builtins::es2015::tests::projects_class_derived_return_this ... ok
+test builtins::es2015::tests::projects_class_derived_super_tail ... ok
+test builtins::es2015::tests::projects_class_expr_anon ... ok
+test builtins::es2015::tests::projects_class_expr_named ... ok
+test builtins::es2015::tests::projects_class_extends ... ok
+test builtins::es2015::tests::projects_class_extends_default_ctor ... ok
+test builtins::es2015::tests::projects_class_extends_null ... ok
+test builtins::es2015::tests::projects_class_generator_method ... ok
+test builtins::es2015::tests::projects_class_method_default_param ... ok
+test builtins::es2015::tests::projects_class_methods_static ... ok
+test builtins::es2015::tests::projects_class_new_target_ctor ... ok
+test builtins::es2015::tests::projects_class_semicolon_element ... ok
+test builtins::es2015::tests::projects_class_static_super_property ... ok
+test builtins::es2015::tests::projects_class_super_property ... ok
+test builtins::es2015::tests::projects_class_udcf_method ... ok
+test builtins::es2015::tests::projects_comma_unused_result ... ok
+test builtins::es2015::tests::projects_const_basic ... ok
+test builtins::es2015::tests::projects_destr_assignment ... ok
+test builtins::es2015::tests::projects_destr_assignment_expr_value ... ok
+test builtins::es2015::tests::projects_destr_catch ... ok
+test builtins::es2015::tests::projects_destr_for_of_pattern ... ok
+test builtins::es2015::tests::projects_destr_let_block ... ok
+test builtins::es2015::tests::projects_destr_nested_defaults ... ok
+test builtins::es2015::tests::projects_destr_var_array ... ok
+test builtins::es2015::tests::projects_destr_var_object ... ok
+test builtins::es2015::tests::projects_fn_expr_named_new_target ... ok
+test builtins::es2015::tests::projects_fn_new_target ... ok
+test builtins::es2015::tests::projects_forof_array_basic ... ok
+test builtins::es2015::tests::projects_forof_array_expr ... ok
+test builtins::es2015::tests::projects_forof_assign_destr_head ... ok
+test builtins::es2015::tests::projects_forof_assign_head ... ok
+test builtins::es2015::tests::projects_forof_capture_body ... ok
+test builtins::es2015::tests::projects_forof_iterable ... ok
+test builtins::es2015::tests::projects_forof_iterable_nested ... ok
+test builtins::es2015::tests::projects_forof_labeled_break ... ok
+test builtins::es2015::tests::projects_forof_let_head ... ok
+test builtins::es2015::tests::projects_ident_unicode_escape ... ok
+test builtins::es2015::tests::projects_labeled_nonloop ... ok
+test builtins::es2015::tests::projects_let_basic ... ok
+test builtins::es2015::tests::projects_let_block_collision ... ok
+test builtins::es2015::tests::projects_let_explicit_init_block ... ok
+test builtins::es2015::tests::projects_let_for_in ... ok
+test builtins::es2015::tests::projects_let_in_switch_case ... ok
+test builtins::es2015::tests::projects_let_loop_no_capture ... ok
+test builtins::es2015::tests::projects_let_no_init_toplevel ... ok
+test builtins::es2015::tests::projects_let_shadow_fn ... ok
+test builtins::es2015::tests::projects_let_two_blocks ... ok
+test builtins::es2015::tests::projects_let_uninit_captured_in_loop ... ok
+test builtins::es2015::tests::projects_let_uninit_colliding_block ... ok
+test builtins::es2015::tests::projects_let_uninit_colliding_in_loop ... ok
+test builtins::es2015::tests::projects_loop_capture_arguments ... ok
+test builtins::es2015::tests::projects_loop_capture_basic ... ok
+test builtins::es2015::tests::projects_loop_capture_break ... ok
+test builtins::es2015::tests::projects_loop_capture_continue ... ok
+test builtins::es2015::tests::projects_loop_capture_do ... ok
+test builtins::es2015::tests::projects_loop_capture_for_in ... ok
+test builtins::es2015::tests::projects_loop_capture_for_of ... ok
+test builtins::es2015::tests::projects_loop_capture_labeled_break ... ok
+test builtins::es2015::tests::projects_loop_capture_labeled_break_mid ... ok
+test builtins::es2015::tests::projects_loop_capture_labeled_continue ... ok
+test builtins::es2015::tests::projects_loop_capture_nested_return ... ok
+test builtins::es2015::tests::projects_loop_capture_out_param ... ok
+test builtins::es2015::tests::projects_loop_capture_return ... ok
+test builtins::es2015::tests::projects_loop_capture_return_void ... ok
+test builtins::es2015::tests::projects_loop_capture_switch_break ... ok
+test builtins::es2015::tests::projects_loop_capture_this ... ok
+test builtins::es2015::tests::projects_loop_capture_this_arrow ... ok
+test builtins::es2015::tests::projects_loop_capture_var_destr ... ok
+test builtins::es2015::tests::projects_loop_capture_var_hoist ... ok
+test builtins::es2015::tests::projects_loop_capture_while ... ok
+test builtins::es2015::tests::projects_loop_cond_conversion ... ok
+test builtins::es2015::tests::projects_loop_incr_conversion ... ok
+test builtins::es2015::tests::projects_loop_init_conversion ... ok
+test builtins::es2015::tests::projects_numeric_binary_octal ... ok
+test builtins::es2015::tests::projects_obj_accessor_computed_mix ... ok
+test builtins::es2015::tests::projects_obj_computed_first ... ok
+test builtins::es2015::tests::projects_obj_computed_middle ... ok
+test builtins::es2015::tests::projects_obj_computed_multiline ... ok
+test builtins::es2015::tests::projects_obj_computed_shorthand_method_mix ... ok
+test builtins::es2015::tests::projects_obj_generator_method ... ok
+test builtins::es2015::tests::projects_obj_method ... ok
+test builtins::es2015::tests::projects_obj_shorthand ... ok
+test builtins::es2015::tests::projects_param_default ... ok
+test builtins::es2015::tests::projects_param_default_two ... ok
+test builtins::es2015::tests::projects_param_pattern_array ... ok
+test builtins::es2015::tests::projects_param_pattern_object_default ... ok
+test builtins::es2015::tests::projects_param_pattern_rest_mix ... ok
+test builtins::es2015::tests::projects_param_rest ... ok
+test builtins::es2015::tests::projects_param_rest_only ... ok
+test builtins::es2015::tests::projects_spread_array ... ok
+test builtins::es2015::tests::projects_spread_array_downlevel ... ok
+test builtins::es2015::tests::projects_spread_array_literal_seg ... ok
+test builtins::es2015::tests::projects_spread_array_trailing_comma ... ok
+test builtins::es2015::tests::projects_spread_call ... ok
+test builtins::es2015::tests::projects_spread_call_downlevel ... ok
+test builtins::es2015::tests::projects_spread_call_only ... ok
+test builtins::es2015::tests::projects_spread_elem_call ... ok
+test builtins::es2015::tests::projects_spread_method_call ... ok
+test builtins::es2015::tests::projects_spread_new ... ok
+test builtins::es2015::tests::projects_spread_new_prop_callee ... ok
+test builtins::es2015::tests::projects_spread_super_call ... ok
+test builtins::es2015::tests::projects_string_extended_unicode ... ok
+test builtins::es2015::tests::projects_switch_in_converted_loop ... ok
+test builtins::es2015::tests::projects_synthetic_super_collision ... ok
+test builtins::es2015::tests::projects_tagged_crlf_raw ... ok
+test builtins::es2015::tests::projects_tagged_expr_tag ... ok
+test builtins::es2015::tests::projects_tagged_in_generator ... ok
+test builtins::es2015::tests::projects_tagged_in_loop_capture ... ok
+test builtins::es2015::tests::projects_tagged_invalid_escape ... ok
+test builtins::es2015::tests::projects_tagged_invalid_octal ... ok
+test builtins::es2015::tests::projects_tagged_invalid_unicode_brace ... ok
+test builtins::es2015::tests::projects_tagged_module_export ... ok
+test builtins::es2015::tests::projects_tagged_module_invalid ... ok
+test builtins::es2015::tests::projects_tagged_module_two ... ok
+test builtins::es2015::tests::projects_tagged_multi_span ... ok
+test builtins::es2015::tests::projects_tagged_nested ... ok
+test builtins::es2015::tests::projects_tagged_no_subst ... ok
+test builtins::es2015::tests::projects_template_basic ... ok
+test builtins::es2015::tests::projects_template_expr_only ... ok
+test builtins::es2015::tests::projects_template_multi_span ... ok
+test builtins::es2015::tests::projects_template_no_subst ... ok
+test builtins::es2015::tests::projects_yield_star_body_site ... ok
+test builtins::es2015::tests::projects_yield_star_init_site ... ok
+test builtins::es2015::tests::type_script_class_wrapper_surgery_flattens_the_wrapped_class ... ok
+test builtins::flatten_destructuring::tests::all_omitted_unused_assignment_is_a_typed_error ... ok
+test builtins::flatten_destructuring::tests::all_omitted_used_assignment_returns_the_bare_value ... ok
+test builtins::flatten_destructuring::tests::method_element_in_assignment_pattern_is_a_typed_error ... ok
+test builtins::flatten_destructuring::tests::projects_arr_downlevel_empty ... ok
+test builtins::flatten_destructuring::tests::projects_arr_downlevel_pair ... ok
+test builtins::flatten_destructuring::tests::projects_arr_downlevel_rest ... ok
+test builtins::flatten_destructuring::tests::projects_arr_empty ... ok
+test builtins::flatten_destructuring::tests::projects_arr_holes_default_rest ... ok
+test builtins::flatten_destructuring::tests::projects_arr_nested_deep ... ok
+test builtins::flatten_destructuring::tests::projects_arr_single ... ok
+test builtins::flatten_destructuring::tests::projects_assign_array ... ok
+test builtins::flatten_destructuring::tests::projects_assign_collision ... ok
+test builtins::flatten_destructuring::tests::projects_assign_empty_unwrap ... ok
+test builtins::flatten_destructuring::tests::projects_assign_unused ... ok
+test builtins::flatten_destructuring::tests::projects_assign_used ... ok
+test builtins::flatten_destructuring::tests::projects_effectful_computed_rebind ... ok
+test builtins::flatten_destructuring::tests::projects_obj_computed ... ok
+test builtins::flatten_destructuring::tests::projects_obj_computed_literal ... ok
+test builtins::flatten_destructuring::tests::projects_obj_default ... ok
+test builtins::flatten_destructuring::tests::projects_obj_empty ... ok
+test builtins::flatten_destructuring::tests::projects_obj_multi ... ok
+test builtins::flatten_destructuring::tests::projects_obj_nested ... ok
+test builtins::flatten_destructuring::tests::projects_obj_nested_default ... ok
+test builtins::flatten_destructuring::tests::projects_obj_numeric_prop ... ok
+test builtins::flatten_destructuring::tests::projects_obj_single ... ok
+test builtins::flatten_destructuring::tests::projects_obj_string_prop ... ok
+test builtins::flatten_destructuring::tests::projects_objectrest_assign ... ok
+test builtins::flatten_destructuring::tests::projects_objectrest_binding ... ok
+test builtins::flatten_destructuring::tests::projects_objectrest_computed ... ok
+test builtins::generated_bindings::tests::active_ancestor_bindings_stay_reserved_in_descendants ... ok
+test builtins::generated_bindings::tests::descendant_reserved_preferred_bindings_still_reuse_in_siblings ... ok
+test builtins::generated_bindings::tests::duplicate_planned_temp_in_same_scope_falls_back_to_temp_sequence ... ok
+test builtins::generated_bindings::tests::eager_local_preferred_reservations_are_not_hoisted_bindings ... ok
+test builtins::generated_bindings::tests::file_level_optimistic_peers_share_text_but_reserve_descendants ... ok
+test builtins::generated_bindings::tests::formatted_private_temps_have_a_role_local_sequence ... ok
+test builtins::generated_bindings::tests::generated_name_state_starts_fresh_for_each_print ... ok
+test builtins::generated_bindings::tests::generated_private_names_reserve_ancestors_but_reuse_in_siblings ... ok
+test builtins::generated_bindings::tests::loop_variable_prefers_the_dedicated_slot_once_per_scope ... ok
+test builtins::generated_bindings::tests::node_keyed_allocation_is_stable_per_node_and_advances_per_source_name ... ok
+test builtins::generated_bindings::tests::occupied_loop_slot_falls_through_to_the_temp_sequence ... ok
+test builtins::generated_bindings::tests::planned_temp_can_be_reused_in_sibling_scopes ... ok
+test builtins::generated_bindings::tests::planned_temp_is_retained_when_available ... ok
+test builtins::generated_bindings::tests::preferred_reconciliation_advances_from_the_planned_suffix ... ok
+test builtins::generated_bindings::tests::print_generated_name_ignores_an_ordinary_synthetic_sibling ... ok
+test builtins::generated_bindings::tests::print_generated_name_reserves_identifiers_outside_the_printed_node ... ok
+test builtins::generated_bindings::tests::print_generated_name_starts_with_first_suffix_without_a_source_collision ... ok
+test builtins::generated_bindings::tests::sibling_scopes_reuse_the_loop_variable_spelling ... ok
+test builtins::generated_bindings::tests::source_occupied_allocator_pushes_past_the_reserved_names ... ok
+test builtins::generators::tests::binding_less_catch_is_a_typed_error ... ok
+test builtins::generators::tests::generator_method_is_a_typed_error ... ok
+test builtins::generators::tests::projects_accessor_nested_generator ... ok
+test builtins::generators::tests::projects_array_leading_hole ... ok
+test builtins::generators::tests::projects_array_literal ... ok
+test builtins::generators::tests::projects_array_yield_first ... ok
+test builtins::generators::tests::projects_binary_cache ... ok
+test builtins::generators::tests::projects_call_args ... ok
+test builtins::generators::tests::projects_call_yield_first_arg ... ok
+test builtins::generators::tests::projects_catch_generated_reuse ... ok
+test builtins::generators::tests::projects_comma_expr ... ok
+test builtins::generators::tests::projects_compound_assign ... ok
+test builtins::generators::tests::projects_conditional ... ok
+test builtins::generators::tests::projects_continue_break ... ok
+test builtins::generators::tests::projects_continue_in_for_yield_incr ... ok
+test builtins::generators::tests::projects_do_loop ... ok
+test builtins::generators::tests::projects_elem_access ... ok
+test builtins::generators::tests::projects_elem_access_target_assign ... ok
+test builtins::generators::tests::projects_elem_call_args ... ok
+test builtins::generators::tests::projects_empty ... ok
+test builtins::generators::tests::projects_fn_expr_generator ... ok
+test builtins::generators::tests::projects_for_bare ... ok
+test builtins::generators::tests::projects_for_in ... ok
+test builtins::generators::tests::projects_for_loop ... ok
+test builtins::generators::tests::projects_hoisted_fn ... ok
+test builtins::generators::tests::projects_if_else ... ok
+test builtins::generators::tests::projects_if_no_else ... ok
+test builtins::generators::tests::projects_labeled_block_break ... ok
+test builtins::generators::tests::projects_labeled_break ... ok
+test builtins::generators::tests::projects_logical_and ... ok
+test builtins::generators::tests::projects_logical_or ... ok
+test builtins::generators::tests::projects_method_call_args ... ok
+test builtins::generators::tests::projects_multiline_body ... ok
+test builtins::generators::tests::projects_multiline_obj ... ok
+test builtins::generators::tests::projects_named_fn_expr_generator ... ok
+test builtins::generators::tests::projects_nested_fn ... ok
+test builtins::generators::tests::projects_nested_generator ... ok
+test builtins::generators::tests::projects_nested_try ... ok
+test builtins::generators::tests::projects_new_args ... ok
+test builtins::generators::tests::projects_non_generator_untouched ... ok
+test builtins::generators::tests::projects_obj_accessor_initial_chunk ... ok
+test builtins::generators::tests::projects_obj_accessor_pair_post_yield ... ok
+test builtins::generators::tests::projects_obj_accessor_post_yield ... ok
+test builtins::generators::tests::projects_obj_method_post_yield ... ok
+test builtins::generators::tests::projects_obj_string_numeric_after_yield ... ok
+test builtins::generators::tests::projects_object_literal ... ok
+test builtins::generators::tests::projects_params ... ok
+test builtins::generators::tests::projects_paren_call_target ... ok
+test builtins::generators::tests::projects_plain_vars ... ok
+test builtins::generators::tests::projects_prop_access_target_assign ... ok
+test builtins::generators::tests::projects_return_bare ... ok
+test builtins::generators::tests::projects_return_value ... ok
+test builtins::generators::tests::projects_script_do_in_yield_stmt ... ok
+test builtins::generators::tests::projects_script_labeled_in_yield_stmt ... ok
+test builtins::generators::tests::projects_script_loop_in_yield_stmt ... ok
+test builtins::generators::tests::projects_script_switch_in_yield_stmt ... ok
+test builtins::generators::tests::projects_switch_yield ... ok
+test builtins::generators::tests::projects_throw_in_try ... ok
+test builtins::generators::tests::projects_throw_stmt ... ok
+test builtins::generators::tests::projects_try_catch ... ok
+test builtins::generators::tests::projects_try_catch_finally ... ok
+test builtins::generators::tests::projects_try_catch_use ... ok
+test builtins::generators::tests::projects_try_finally ... ok
+test builtins::generators::tests::projects_two_yields ... ok
+test builtins::generators::tests::projects_use_strict_directive ... ok
+test builtins::generators::tests::projects_var_multi_split ... ok
+test builtins::generators::tests::projects_while_loop ... ok
+test builtins::generators::tests::projects_with_stmt ... ok
+test builtins::generators::tests::projects_yield_bare ... ok
+test builtins::generators::tests::projects_yield_in_condition_only ... ok
+test builtins::generators::tests::projects_yield_one ... ok
+test builtins::generators::tests::projects_yield_star ... ok
+test builtins::generators::tests::projects_yield_star_in_expr ... ok
+test builtins::generators::tests::projects_yield_value_use ... ok
+test builtins::helpers::helpers_tests::helper_texts_match_the_vendored_declarations ... ok
+test builtins::jsx::tests::jsx_text_normalizer_classifies_only_first_middle_and_last_lines ... ok
+test builtins::target_bindings::tests::authoritative_temp_policy_falls_back_on_collision ... ok
+test builtins::target_bindings::tests::authoritative_temp_policy_retains_available_planned_spelling ... ok
+test builtins::target_bindings::tests::declaration_names_precede_uses_in_source_module_and_function_scopes ... ok
+test builtins::target_bindings::tests::parsed_identifier_snapshot_retains_erased_file_level_collisions ... ok
+test builtins::target_bindings::tests::traversal_temp_policy_uses_final_scope_cursor ... ok
+test builtins::template_flags_tests::template_facets_follow_parser_flags_and_survive_factory_copies ... ok
+test builtins::tests::amd_import_equals_call_keeps_its_local_parameter_receiver_free ... ok
+test builtins::tests::amd_import_re_exports_are_published_at_their_import_source_positions ... ok
+test builtins::tests::amd_nested_dynamic_import_reserves_executor_bindings_in_emit_order ... ok
+test builtins::tests::amd_unnamed_dependency_comment_is_emitted_only_outside_the_wrapper ... ok
+test builtins::tests::class_fields_do_not_synthesize_super_for_transparently_wrapped_null_heritage ... ok
+test builtins::tests::class_fields_insert_initializers_after_a_parenthesized_super_statement ... ok
+test builtins::tests::classic_jsx_preserves_single_line_whitespace_text_children ... ok
+test builtins::tests::clearing_retained_messages_does_not_erase_structural_recovery ... ok
+test builtins::tests::common_js_appends_explicit_exports_for_each_array_binding_leaf ... ok
+test builtins::tests::common_js_default_class_publishes_after_its_static_field_operations ... ok
+test builtins::tests::common_js_default_class_skips_only_its_undefined_preinitializer ... ok
+test builtins::tests::common_js_direct_export_does_not_reexport_a_conflicting_import_binding ... ok
+test builtins::tests::common_js_direct_variable_publishes_primary_before_collector_aliases ... ok
+test builtins::tests::common_js_duplicate_export_equals_keeps_the_first_assignment ... ok
+test builtins::tests::common_js_elides_an_embedded_uninitialized_direct_export_and_substitutes_its_read ... ok
+test builtins::tests::common_js_embedded_initialized_direct_export_owns_its_primary_publication ... ok
+test builtins::tests::common_js_erased_ambient_export_still_qualifies_same_file_reads ... ok
+test builtins::tests::common_js_esmodule_marker_queries_only_the_forced_javascript_source ... ok
+test builtins::tests::common_js_esmodule_marker_resolver_default_is_typed_unavailable ... ok
+test builtins::tests::common_js_export_equals_suppresses_appended_class_export ... ok
+test builtins::tests::common_js_exported_updates_publish_new_values_and_preserve_postfix_results ... ok
+test builtins::tests::common_js_exported_updates_use_direct_storage_and_publish_only_aliases ... ok
+test builtins::tests::common_js_family_preserves_recovery_empty_non_export_variable_statements ... ok
+test builtins::tests::common_js_file_level_generated_export_map_rejects_ordinary_generated_ids ... ok
+test builtins::tests::common_js_flattens_destructuring_assignments_to_all_exported_names ... ok
+test builtins::tests::common_js_flattens_exported_destructuring_variable_declarations ... ok
+test builtins::tests::common_js_generated_require_leaves_import_tail_comments_with_the_statement ... ok
+test builtins::tests::common_js_import_equals_appends_explicit_export_specifiers ... ok
+test builtins::tests::common_js_marker_does_not_reown_exported_enum_jsdoc ... ok
+test builtins::tests::common_js_materializes_anonymous_default_function_binding ... ok
+test builtins::tests::common_js_materializes_invalid_anonymous_exported_class_identity ... ok
+test builtins::tests::common_js_merged_exported_namespace_publishes_its_initializer ... ok
+test builtins::tests::common_js_named_re_exports_use_live_bindings_and_source_comments ... ok
+test builtins::tests::common_js_nested_export_update_temps_belong_to_the_module_scope ... ok
+test builtins::tests::common_js_publishes_each_duplicate_anonymous_default_function ... ok
+test builtins::tests::common_js_publishes_export_specifiers_for_erased_ambient_functions ... ok
+test builtins::tests::common_js_publishes_the_standard_decorator_synthetic_named_export ... ok
+test builtins::tests::common_js_substitutes_orphan_automatic_jsx_import_references ... ok
+test builtins::tests::common_js_trailing_module_specifier_uses_tsc_generated_name ... ok
+test builtins::tests::common_js_unused_export_star_identity_does_not_consume_a_module_name ... ok
+test builtins::tests::common_js_wraps_exported_legacy_decorator_assignment ... ok
+test builtins::tests::commonjs_import_bindings_keep_const_at_es2015_and_above ... ok
+test builtins::tests::commonjs_import_bindings_use_var_below_es2015 ... ok
+test builtins::tests::commonjs_import_equals_binding_uses_var_below_es2015 ... ok
+test builtins::tests::constructor_prologue_stops_before_strings_and_noncontiguous_custom_statements ... ok
+test builtins::tests::decorated_computed_names_are_shared_for_identifiers_and_class_expressions ... ok
+test builtins::tests::duplicate_default_re_export_preinitializes_a_hoisted_function_export ... ok
+test builtins::tests::duplicate_private_getter_ordinal_precedes_the_generated_role_suffix ... ok
+test builtins::tests::dynamic_import_recovery_preserves_a_missing_argument_across_module_formats ... ok
+test builtins::tests::es5_pipeline_registers_the_joint_es2015_generators_pass_in_upstream_order ... ok
+test builtins::tests::export_default_reparenthesizes_a_class_exposed_by_type_erasure ... ok
+test builtins::tests::exported_import_equals_re_exports_from_the_export_object_owner ... ok
+test builtins::tests::hoisted_exports_leave_detached_comments_for_the_function_declaration ... ok
+test builtins::tests::invalid_private_enum_member_recovers_as_an_empty_expression_name ... ok
+test builtins::tests::jsx_spread_attributes_keep_object_assign_at_es2015_and_above ... ok
+test builtins::tests::jsx_spread_attributes_use_the_assign_helper_below_es2015 ... ok
+test builtins::tests::jsx_transforms_preserve_js_option_and_literal_values ... ok
+test builtins::tests::legacy_decorator_and_class_field_temps_share_final_binding_order ... ok
+test builtins::tests::legacy_decorator_recovers_default_class_without_export ... ok
+test builtins::tests::lowered_optional_chain_heritage_keeps_its_left_hand_side_boundary ... ok
+test builtins::tests::meta_property_token_maps_internal_invariants_match_typescript ... ok
+test builtins::tests::meta_property_token_maps_module_name_context_is_not_a_value_reference ... ok
+test builtins::tests::module_export_substitution_uses_enum_binding_identity_across_namespaces ... ok
+test builtins::tests::module_identifier_bases_match_typescript_utf16_replacement ... ok
+test builtins::tests::module_transformer_selection_absent_host_and_missing_format_keep_distinct_boundaries ... ok
+test builtins::tests::module_transformer_selection_factory_names_match_typescript_twice ... ok
+test builtins::tests::module_transformer_selection_host_calls_and_bundle_activity_follow_selected_factory ... ok
+test builtins::tests::module_transforms_preserve_js_name_values ... ok
+test builtins::tests::named_amd_module_keeps_named_dependency_semantics_without_reemitting_pragmas ... ok
+test builtins::tests::named_default_function_namespace_merge_uses_the_source_export_owner ... ok
+test builtins::tests::namespace_default_classes_share_generated_declaration_identity ... ok
+test builtins::tests::namespace_default_functions_keep_recovery_syntax_and_generated_export_identity ... ok
+test builtins::tests::namespace_erases_external_import_equals_even_when_the_alias_is_referenced ... ok
+test builtins::tests::namespace_exported_internal_alias_uses_container_storage ... ok
+test builtins::tests::nested_class_computed_field_names_use_the_enclosing_static_evaluation_frame ... ok
+test builtins::tests::nested_private_storage_setup_precedes_its_private_computed_key_read ... ok
+test builtins::tests::ordinary_detached_comment_uses_the_same_relocated_statement_list_contract ... ok
+test builtins::tests::parsed_class_transform_flags_match_typescript_owned_bits ... ok
+test builtins::tests::parsed_private_expression_flags_exclude_declaration_names ... ok
+test builtins::tests::preflight_admits_only_parser_owned_literal_recovery ... ok
+test builtins::tests::private_assignment_target_skips_parentheses_and_erased_type_wrappers ... ok
+test builtins::tests::private_method_constructor_references_use_the_class_alias ... ok
+test builtins::tests::private_storage_captured_by_a_loop_class_expression_is_declared_in_the_loop_body ... ok
+test builtins::tests::private_storage_names_follow_current_class_provenance ... ok
+test builtins::tests::private_storage_setup_precedes_a_computed_member_key ... ok
+test builtins::tests::remove_comments_suppresses_relocated_prefix_without_losing_amd_dependency_semantics ... ok
+test builtins::tests::standard_decorator_class_references_preserve_parsed_and_generated_identity ... ok
+test builtins::tests::standard_decorator_runtime_names_and_helper_stems_match_typescript ... ok
+test builtins::tests::static_super_frame_is_inherited_by_arrows_but_nested_class_owns_its_static_base ... ok
+test builtins::tests::static_super_targets_share_reflect_lowering_for_every_value_use ... ok
+test builtins::tests::static_this_frame_is_inherited_by_arrows_but_not_functions_or_nested_classes ... ok
+test builtins::tests::system_default_import_call_keeps_the_substituted_direct_callee ... ok
+test builtins::tests::system_module_hoists_uninitialized_export_from_source_owned_if_statement ... ok
+test builtins::tests::system_module_preserves_generated_automatic_jsx_local_reference ... ok
+test builtins::tests::system_module_reuses_single_destructuring_initializer_without_a_temp ... ok
+test builtins::tests::typescript_transform_erases_preserved_jsx_type_arguments ... ok
+test builtins::tests::typescript_transform_materializes_missing_accessor_bodies ... ok
+test builtins::tests::typescript_transform_preserves_jsdoc_recovery_type_arguments ... ok
+test builtins::tests::typescript_transform_structurally_erases_jsx_recovery_type_arguments ... ok
+test builtins::tests::umd_dynamic_import_preserves_literal_quote_provenance_in_its_amd_copy ... ok
+test builtins::tests::umd_dynamic_import_temp_converts_a_concise_arrow_to_an_owned_body ... ok
+test builtins::tests::umd_dynamic_import_temp_is_owned_by_a_static_block ... ok
+test builtins::tests::umd_dynamic_import_temp_is_owned_by_the_nearest_method_body ... ok
+test builtins::tests::umd_dynamic_import_temp_moves_an_es2015_parameter_default_into_the_body ... ok
+test builtins::tests::umd_exported_function_inherits_the_module_parameter_temp_scope ... ok
+test builtins::tests::umd_mixed_dependencies_keep_paired_aliases_and_one_outer_comment_prefix ... ok
+test builtins::tests::umd_nested_dynamic_import_reserves_executor_bindings_in_emit_order ... ok
+test builtins::tests::umd_single_amd_dependency_pragmas_remain_owned_by_the_outer_source_prefix ... ok
+test builtins::tests::updated_class_expression_transform_flags_match_typescript_owned_bits ... ok
+test builtins::tests::updated_class_transform_flags_match_typescript_owned_bits ... ok
+test builtins::tests::using_anonymous_default_decorator_handoff_keeps_owner_and_binding_domains ... ok
+test builtins::tests::yield_parenthesizes_a_synthetic_umd_dynamic_import_comma_sequence ... ok
+test declarations::tests::boundary_observer_records_rewritten_output_provenance_and_flags ... ok
+test declarations::tests::diagnostic_context_selects_all_three_external_module_messages ... ok
+test declarations::tests::ensure_type_restores_error_name_and_diagnostic_context_on_resolver_error ... ok
+test declarations::tests::ensure_type_selects_explicit_synthesized_fallback_and_private_arms ... ok
+test declarations::tests::private_method_collapse_preserves_jsdoc_array_and_comment_range ... ok
+test declarations::tests::state_reset_and_owned_frames_restore_before_error_propagation ... ok
+test declarations::tests::subtree_binding_pattern_direct_return_preserves_upstream_diagnostic_leak ... ok
+test declarations::tests::subtree_private_method_direct_return_preserves_upstream_enclosing_leak ... ok
+test declarations::tests::tracker_assigns_first_alias_vector_verbatim_then_merges_uniquely ... ok
+test declarations_p2_tests::custom_declaration_transformers_are_a_typed_refusal ... ok
+test declarations_p2_tests::preserved_reference_is_synthesized_with_relative_target_and_sentinel_range ... ok
+test declarations_p2_tests::update_faces_preserve_identity_and_attach_original_on_change ... ok
+test external_module_names::tests::h2_7d_hostless_bundle_module_names_are_refused ... ok
+test external_module_names::tests::h2_7d_module_identities_match_typescript_source_facts_twice ... ok
+test external_module_names::tests::h2_7d_module_paths_match_all_typescript_helper_observations_twice ... ok
+test factory::factory_classifier_tests::binding_pattern_and_spread_rows_classify ... ok
+test factory::factory_classifier_tests::declaration_and_completion_rows_classify ... ok
+test factory::factory_classifier_tests::identifier_name_position_strips_possible_top_level_await ... ok
+test factory::factory_classifier_tests::lexical_this_and_super_rows_classify_through_super_calls ... ok
+test factory::factory_classifier_tests::token_facets_match_the_creation_table ... ok
+test factory::factory_classifier_tests::yield_and_generator_rows_classify_and_exclude_at_the_function_boundary ... ok
+test factory::original_provenance_tests::emit_original_stops_at_resolver_only_provenance_through_clones ... ok
+test factory::original_provenance_tests::literal_code_units_follow_owned_values_independently_of_source_provenance ... ok
+test factory::original_provenance_tests::not_emitted_type_element_and_utf16_literal_ownership_are_exact ... ok
+test factory::original_provenance_tests::reuse_clone_accepts_cross_source_original_within_one_arena_only ... ok
+test factory::original_provenance_tests::synthetic_export_names_preserve_ts_utf16_values_through_clones ... ok
+test factory::original_provenance_tests::type_parenthesizer_rule_tables_cover_direct_and_delegated_kinds ... ok
+test factory::original_provenance_tests::typed_faces_smoke_families_and_preserve_exact_type_flags ... ok
+test factory::original_provenance_tests::typed_updates_reuse_identity_or_preserve_original_provenance ... ok
+test factory::original_provenance_tests::unique_names_allocate_arena_owned_generated_binding_identities ... ok
+test factory::original_provenance_tests::utf16_factory_literals_print_like_equivalent_parsed_literals_for_both_quotes ... ok
+test factory::parsed_metadata::tests::parsed_constants_preserve_number_bits_and_string_code_units ... ok
+test factory::parsed_metadata::tests::parsed_metadata_rejects_foreign_program_authority_and_conflicting_targets_atomically ... ok
+test factory::parsed_metadata::tests::parsed_metadata_rejects_same_snapshot_and_numeric_nodes_from_another_parse_domain ... ok
+test factory::parsed_metadata::tests::parsed_metadata_rejects_unimplemented_fields_and_synthetic_type_references ... ok
+test factory::parsed_metadata::tests::parsed_metadata_survives_reordered_mounts_without_projecting_synthetic_originals ... ok
+test plan::tests::bundle_shape_is_valid_but_older_profiles_still_reject_emit_requests ... ok
+test plan::tests::h2_7d_bundle_module_filter_requires_authoritative_source_syntax ... ok
+test plan::tests::h2_7d_bundle_plans_match_typescript_selection_paths_and_collisions ... ok
+test plan::tests::h2_7d_common_directory_eligibility_includes_excluded_modules_without_syntax ... ok
+test plan::tests::h2_7d_retained_module_facts_plan_without_borrowing_checked_syntax ... ok
+test printer::bundle::bundle_printer_tests::declaration_and_untransformed_external_module_members_require_their_printers ... ok
+test printer::bundle::bundle_printer_tests::global_script_bundles_match_complete_typescript_output_bytes_twice ... ok
+test printer::comment_scope_predicate_tests::at_zero_start_with_positive_end_claims_both_sides ... ok
+test printer::comment_scope_predicate_tests::jsx_one_sided_ranges_require_present_suppressed_side ... ok
+test printer::comment_scope_predicate_tests::jsx_text_claims_exactly_the_flagged_side ... ok
+test printer::comment_scope_predicate_tests::jsx_text_without_flags_claims_neither_side ... ok
+test printer::comment_scope_predicate_tests::one_sided_comment_ranges_claim_present_endpoint_and_inherit_other ... ok
+test printer::comment_scope_predicate_tests::one_sided_zero_position_has_no_comment_extent ... ok
+test printer::comment_scope_predicate_tests::ordinary_original_range_claims_both_sides ... ok
+test printer::comment_scope_predicate_tests::suppression_flags_claim_while_suppressing_emission ... ok
+test printer::comment_scope_predicate_tests::synthesized_and_zero_width_ranges_claim_nothing_so_the_scope_inherits ... ok
+test resolver::node_builder_seam_tests::declaration_emit_flag_words_match_the_vendored_constants ... ok
+test resolver::node_builder_seam_tests::factory_view_constructs_this_type_token_and_rejects_other_type_kinds ... ok
+test resolver::node_builder_seam_tests::parse_tree_transform_node_round_trips_and_rejects_foreign_ids ... ok
+test resolver::node_builder_seam_tests::serialization_members_fail_closed_by_default ... ok
+test source_map::tests::a_source_map_range_naming_a_second_source_registers_and_records_against_it ... ok
+test source_map::tests::add_source_dedupes_on_relative_key_and_keeps_raw_order ... ok
+test source_map::tests::backtracking_source_position_commits_prior_mapping ... ok
+test source_map::tests::base64_vectors_match_reference_encodings ... ok
+test source_map::tests::h2_6b_lane_replays_are_byte_equal ... ok
+test source_map::tests::h2_7e_bundle_declaration_map_path_lanes_match_typescript ... ok
+test source_map::tests::identical_position_readds_collapse ... ok
+test source_map::tests::json_escaper_matches_serde_reference ... ok
+test source_map::tests::leading_and_trailing_source_map_flags_suppress_exactly_one_side ... ok
+test source_map::tests::line_advances_emit_semicolon_runs_and_reset_character_base ... ok
+test source_map::tests::map_url_rejects_unpaired_units_without_losing_the_original_value ... ok
+test source_map::tests::no_nested_source_maps_suppresses_node_token_and_comment_records_inside_the_subtree ... ok
+test source_map::tests::no_token_source_maps_gates_the_token_lane_only ... ok
+test source_map::tests::relativizer_cross_root_uses_file_url_prefix ... ok
+test source_map::tests::same_position_source_advance_overwrites_pending ... ok
+test source_map::tests::serialization_shape_key_order_and_sources_content ... ok
+test source_map::tests::source_map_js_values_match_typescript ... ok
+test source_map::tests::source_root_field_forms ... ok
+test source_map::tests::sourceless_mapping_after_sourced_commits_intact ... ok
+test source_map::tests::vlq_spec_vectors ... ok
+test source_map::tests::witness_replays_are_byte_equal ... ok
+test tests::claiming_preserves_the_declaration_list_end ... ok
+test tests::comment_ranges_validate_independent_endpoints_and_preserve_source_identity ... ok
+test tests::declaration_emit_resolver_surface_preserves_pinned_values_and_names ... ok
+test tests::declaration_list_claim_arms_the_dedupe_and_inherits_like_the_others ... ok
+test tests::declaration_list_end_guards_without_a_claimed_container ... ok
+test tests::emit_helper_name_distinguishes_user_calls_and_survives_factory_updates ... ok
+test tests::empty_scope_retains_no_end_and_exposes_no_sides ... ok
+test tests::factory_private_expression_flags_distinguish_declarations_property_access_and_in ... ok
+test tests::guards_never_match_across_sources ... ok
+test tests::outcome_retains_optional_presence_and_independent_emitted_file_order ... ok
+test tests::per_side_claim_replaces_some_sides_and_inherits_none_sides ... ok
+test tests::range_views_reject_synthesized_and_zero_width_ranges ... ok
+test tests::relative_module_rewrite_keeps_utf16_name_identity ... ok
+test tests::relative_module_specifier_rewrite_matches_typescript_suffix_rules ... ok
+test token_cursor_tests::comment_resume_can_only_merge_progress_for_the_same_owner_boundary ... ok
+test token_cursor_tests::position_cursor_2727_statement_work_is_linear_and_scan_free ... ok
+test transform::bundle_transform_tests::builtin_bundle_helpers_belong_to_the_requesting_source ... ok
+test transform::bundle_transform_tests::bundle_transform_traces_match_pinned_typescript_twice ... ok
+test transform::bundle_transform_tests::failed_bundle_member_disposes_the_transformer_once ... ok
+test transform::hook_chaining_tests::notification_wraps_with_the_first_registered_transformer_outermost ... ok
+test transform::hook_chaining_tests::substitution_delegates_previous_first_in_registration_order ... ok
+test transform::hook_chaining_tests::substitution_only_registration_never_fires_notification_hooks ... ok
+
+test result: ok. 505 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+
+exit(lib units): 0
+2026年 9月15日 火曜日 23時08分09秒 JST

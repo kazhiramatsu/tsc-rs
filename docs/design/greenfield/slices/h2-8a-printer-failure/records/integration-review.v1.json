@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "route": "printer-failure-integration-review",
+  "base": "938dec454904398fd94d9939c173750ac9ba8d05",
+  "submitted_base": "f9ef828a56c9f9305947a6e6f3c1ae39072b3110",
+  "submitted_patch_sha256": "65a315d99f61b7f776383c49940cdd7a86b4f1c9610b8a5f8a0815c2206dfb19",
+  "source_input_sha256": {
+    "crates/emitter/src/printer.rs": "c5cefd60d3a99f387e44a15ad1f6ac52ee32e1c39a4033b18fb579c91bec3bc0",
+    "crates/emitter/src/printer/bundle.rs": "7f5d9a22c82f6c1dbd0138c65af0fd8ca2c41775d6645304f002b55a4a2a50cd",
+    "crates/emitter/tests/printer_failure_contract.rs": "d896a7041d8892fe893958f56dea02fe71f0e8deb5d657054eace9c15b7c6339",
+    "scripts/observe-printer-failures.mjs": "491f5e6f0bcab4fc0894fc6c654a09f1401bc284e9b0e579eb2ddf0a211aac3c",
+    "scripts/observe-printer-failure-review.mjs": "11c7a97bd2a2e3a860151629a67edf7831cb31b6d7159076f3b40f189eb04eb6",
+    "crates/emitter/tests/fixtures/printer-failure-hooks.json": "8b2d6b5aa7abcfa0fb29ee935db1c56107ce7649915b33b53381f094b265f0dc",
+    "crates/emitter/tests/fixtures/printer-failure-probes.json": "88375011067483ed64fe0d0e245c1fc3aa0c60bbf68a2ea31f524309f60b1904",
+    "crates/emitter/tests/fixtures/printer-failure-review.json": "9e98140562cdb90541adaae0d3cc213308b2204f61f624f73269cfa4e9ab083d",
+    "crates/emitter/tests/fixtures/printer-failure-known-native.json": "4d0b8f04341534d75dd74e2072576d907ab8aa34e26155a9214b399f369c505f"
+  },
+  "record_sha256": {
+    "integration-submitted-focused.log": "20d1a17fbf7a6ceaa1390c9798554ed76c8d7a0f62c8ad1b8f4576374511c968",
+    "integration-comment-repro.log": "4445d4e47215c93e58ecb3aa98c9805055db7c704d87292c16f6c924e92c82ef",
+    "integration-helper-repro.log": "030828d41b5d3a4cf4360b3e6699fde70de2bf40bfb35b27fd819fa4d4de99e7",
+    "integration-final-focused.log": "a7989d42e9e2c7762cc9255b61ff8de7fa02ddf44099fdda3c769bf6fca85188",
+    "integration-no-emit-gate.log": "0181d2ec6934fc22da48dc4c12210ceacd270b54de9ac37722cb86c7d0536de7",
+    "integration-review-actual.json": "83d1f5beffc2901e2ab076efbe1eea06197127b88163cc7f25abd13709e9b63a",
+    "integration-clippy-strict.jsonl": "3c2968c896b40347ce1f7b5c66341698ad93cd55c42791fc8be743d4c64a6f5c",
+    "integration-clippy.jsonl": "cc4860e18d285453dc7caf7b56126146de5a5b28bb25ad5e6ea1492d18a19028"
+  },
+  "test_binary_sha256": "7470db67572e658dcc58df18dfccd4179e424918ec7b3f9d83f6e5dc90fa38bb",
+  "results": {
+    "submitted_hooks": {
+      "cases": 25,
+      "exact_twice": 23,
+      "known_cases": 2,
+      "known_keys": 3
+    },
+    "added_controls": {
+      "cases": 21,
+      "exact_twice": 21
+    },
+    "emitter_focused": {
+      "targets": 7,
+      "tests_passed": 30,
+      "exit": 0
+    },
+    "no_emit_on_error_owner": {
+      "tests_passed": 1,
+      "filtered_out": 451,
+      "exit": 0
+    },
+    "clippy_strict": {
+      "exit": 101,
+      "blocking_existing_program_findings": 145
+    },
+    "clippy_normal": {
+      "exit": 0,
+      "program_warnings": 145,
+      "emitter_warnings": 16,
+      "printer_bundle_new_target_findings": 0
+    },
+    "fmt": {
+      "exit": 0
+    },
+    "hosted": {
+      "status": "pending",
+      "record": "pull request checks and final PR body"
+    }
+  },
+  "deferred": [
+    {
+      "case_id": "printer-failure/printNode/before/identifier-2/recover-other-source-same-positions",
+      "owner": "H2.8a-A-INT3-CS",
+      "exact_credit": false
+    },
+    {
+      "case_id": "printer-failure/printNode/unique-name/after/statement-1/recover-new-unique",
+      "owner": "C02 / H2.8a-A-INT2",
+      "exact_credit": false
+    }
+  ],
+  "upstream_only_probe_rows": 14,
+  "native_admission_changed": false
+}

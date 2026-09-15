@@ -1,0 +1,67 @@
+2026年 9月15日 火曜日 22時48分16秒 JST
+f9ef828a56c9f9305947a6e6f3c1ae39072b3110
+ M crates/emitter/src/printer.rs
+ M crates/emitter/src/printer/bundle.rs
+?? crates/emitter/tests/fixtures/printer-failure-hooks.json
+?? crates/emitter/tests/fixtures/printer-failure-probes.json
+?? crates/emitter/tests/printer_failure_contract.rs
+?? scripts/observe-printer-failures.mjs
+ crates/emitter/src/printer.rs        | 625 ++++++++++++++++++++++++-----------
+ crates/emitter/src/printer/bundle.rs | 170 +++++-----
+ 2 files changed, 529 insertions(+), 266 deletions(-)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 1m 50s
+     Running tests/printer_failure_contract.rs (target/debug/deps/printer_failure_contract-f36a6d3d26fee24b)
+
+running 2 tests
+test printer_failure_hooks_match_typescript ... printer failure hooks: 17/23 cases exact; 10 mismatching keys; 0 known
+MISMATCH printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op2: expected {"op":2,"status":"returned","text":"/*a*/ f(h(z); //u\r\n","utf8_base64":"LyphKi8gZihoKHopOyAvL3UNCg==","utf8_bytes":19,"end_utf16":{"position":19,"line":1,"column":0}} actual {"op":2,"status":"returned","text":"/*a*/ f(/*b*/ h(z); //u\r\n","utf8_base64":"LyphKi8gZigvKmIqLyBoKHopOyAvL3UNCg==","utf8_bytes":25,"end_utf16":{"position":25,"line":1,"column":0}}
+MISMATCH printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op3: expected {"op":3,"status":"returned","text":"h(z); //u\r\n","utf8_base64":"aCh6KTsgLy91DQo=","utf8_bytes":11,"end_utf16":{"position":11,"line":1,"column":0}} actual {"op":3,"status":"returned","text":"/*b*/ h(z); //u\r\n","utf8_base64":"LypiKi8gaCh6KTsgLy91DQo=","utf8_bytes":17,"end_utf16":{"position":17,"line":1,"column":0}}
+MISMATCH printer-failure/printNode/after/statement-1/recover-same#op2: expected {"op":2,"status":"returned","text":"/*a*/ f(x); //t\r\n/*a*/ f(x); //t\r\n","utf8_base64":"LyphKi8gZih4KTsgLy90DQovKmEqLyBmKHgpOyAvL3QNCg==","utf8_bytes":34,"end_utf16":{"position":34,"line":2,"column":0}} actual {"op":2,"status":"returned","text":"/*a*/ f(x);/*a*/ f(x); //t\r\n","utf8_base64":"LyphKi8gZih4KTsvKmEqLyBmKHgpOyAvL3QNCg==","utf8_bytes":28,"end_utf16":{"position":28,"line":1,"column":0}}
+MISMATCH printer-failure/printNode/substitution-y/after/identifier-2/recover-same#events: expected 35 events, actual 33; first difference at 15: expected {"op":1,"phase":"before","hint":"Expression","kind":80,"pos":8,"end":9} actual {"op":2,"phase":"substitute","hint":"Unspecified","kind":245,"pos":0,"end":11}
+MISMATCH printer-failure/printNode/substitution-y/after/identifier-2/recover-same#op2: expected {"op":2,"status":"returned","text":"/*a*/ f(yf(x); //t\r\n","utf8_base64":"LyphKi8gZih5Zih4KTsgLy90DQo=","utf8_bytes":20,"end_utf16":{"position":20,"line":1,"column":0}} actual {"op":2,"status":"returned","text":"/*a*/ f(f(x); //t\r\n","utf8_base64":"LyphKi8gZihmKHgpOyAvL3QNCg==","utf8_bytes":19,"end_utf16":{"position":19,"line":1,"column":0}}
+MISMATCH printer-failure/printNode/substitution-y/success/recover-same#events: expected 27 events, actual 24; first difference at 15: expected {"op":1,"phase":"before","hint":"Expression","kind":80,"pos":8,"end":9} actual {"op":2,"phase":"substitute","hint":"Unspecified","kind":245,"pos":0,"end":11}
+MISMATCH printer-failure/printNode/substitution-y/success/recover-same#op1: expected {"op":1,"status":"returned","text":"/*a*/ f(y); //t\r\n","utf8_base64":"LyphKi8gZih5KTsgLy90DQo=","utf8_bytes":17,"end_utf16":{"position":17,"line":1,"column":0}} actual {"op":1,"status":"threw","error":"Transform(InvalidLifecycle { operation: \"construct or use the node factory\", state: Completed })"}
+MISMATCH printer-failure/printNode/substitution-y/success/recover-same#op2: expected {"op":2,"status":"returned","text":"/*a*/ f(x); //t\r\n","utf8_base64":"LyphKi8gZih4KTsgLy90DQo=","utf8_bytes":17,"end_utf16":{"position":17,"line":1,"column":0}} actual {"op":2,"status":"returned","text":"/*a*/ f(f(x); //t\r\n","utf8_base64":"LyphKi8gZihmKHgpOyAvL3QNCg==","utf8_bytes":19,"end_utf16":{"position":19,"line":1,"column":0}}
+MISMATCH printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2: expected {"op":2,"status":"returned","text":"const x_1 = 1;const x_2 = 1;","utf8_base64":"Y29uc3QgeF8xID0gMTtjb25zdCB4XzIgPSAxOw==","utf8_bytes":28,"end_utf16":{"position":28,"line":0,"column":28}} actual {"op":2,"status":"returned","text":"const x_1 = 1;const x_1 = 1;","utf8_base64":"Y29uc3QgeF8xID0gMTtjb25zdCB4XzEgPSAxOw==","utf8_bytes":28,"end_utf16":{"position":28,"line":0,"column":28}}
+MISMATCH printer-failure/printFile/before/identifier-2/recover-same#op2: expected {"op":2,"status":"returned","text":"/*a*/ f(\r\nf(x); //t\r\ng(y);\r\n","utf8_base64":"LyphKi8gZigNCmYoeCk7IC8vdA0KZyh5KTsNCg==","utf8_bytes":28,"end_utf16":{"position":28,"line":3,"column":0}} actual {"op":2,"status":"returned","text":"/*a*/ f(f(x); //t\r\ng(y);\r\n","utf8_base64":"LyphKi8gZihmKHgpOyAvL3QNCmcoeSk7DQo=","utf8_bytes":26,"end_utf16":{"position":26,"line":2,"column":0}}
+THREW printer-failure/printNode/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-same-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-statement#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitute/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/identifier-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/nested-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/remove-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitution-y/after/identifier-2/recover-same#op1: "Transform(InvalidLifecycle { operation: \"construct or use the node factory\", state: Completed })"
+THREW printer-failure/printNode/substitution-y/success/recover-same#op1: "Transform(InvalidLifecycle { operation: \"construct or use the node factory\", state: Completed })"
+THREW printer-failure/printNode/before/non-bmp/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-crlf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/list-item-3/cursor-array#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/after/source-file-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-other-file#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printBundle/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+
+thread 'printer_failure_hooks_match_typescript' (16664058) panicked at crates/emitter/tests/printer_failure_contract.rs:503:5:
+assertion `left == right` failed: printer failure hook mismatches differ from the recorded divergence list
+  left: {"printer-failure/printFile/before/identifier-2/recover-same#op2", "printer-failure/printNode/after/statement-1/recover-same#op2", "printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op2", "printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op3", "printer-failure/printNode/substitution-y/after/identifier-2/recover-same#events", "printer-failure/printNode/substitution-y/after/identifier-2/recover-same#op2", "printer-failure/printNode/substitution-y/success/recover-same#events", "printer-failure/printNode/substitution-y/success/recover-same#op1", "printer-failure/printNode/substitution-y/success/recover-same#op2", "printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2"}
+ right: {}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test printer_failure_probes_are_recorded_upstream_only_evidence ... ok
+
+failures:
+
+failures:
+    printer_failure_hooks_match_typescript
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `--test printer_failure_contract`
+exit: 101
+2026年 9月15日 火曜日 22時50分07秒 JST

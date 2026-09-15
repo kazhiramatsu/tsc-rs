@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a focused decorator witness selection without building xtask first."""
+"""Run a focused witness selection without building xtask first."""
 import argparse
 import json
 import os
@@ -15,7 +15,7 @@ SUPER = {
     **{name: (f"-{name}", f"TSC_RS_DECORATOR_SUPER_{name.upper()}_CASE_SET")
        for name in ("extra", "followup", "followup2", "followup3")},
 }
-SUITES = (*SUPER, "retained", "direct")
+SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks")
 RETAINED_FIXTURES = (
     "retained-accessor-owners", "class-helper-accessor-producers",
     "class-field-alias-map-positions", "decorator-receiver-context",
@@ -41,6 +41,12 @@ def case_ids(suite):
             if name == "class-field-alias-map-positions":
                 rows = [row for row in rows if row["options"]["target"] == 9]
             cases.extend(rows)
+    elif suite == "bundle-sinks":
+        cases = read_cases(FIXTURES / "bundle-sinks.json")
+    elif suite == "printer":
+        cases = []
+        for name in ("printer-failure-hooks", "printer-failure-review"):
+            cases.extend(read_cases(ROOT / f"crates/emitter/tests/fixtures/{name}.json"))
     else:
         cases = read_cases(ROOT / "crates/emitter/tests/fixtures/decorator-super-direct.json")
     ids = [case["case_id"] for case in cases]
@@ -67,11 +73,20 @@ def invocation(suite, needles, environ=None):
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_FILTER", None)
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_SET", None)
     env.setdefault("CARGO_BUILD_JOBS", "2")
+    if suite == "printer":
+        if needles:
+            raise ValueError("printer failure controls run together; use --all (46 small direct rows)")
+        return ["cargo", "test", "--manifest-path", "crates/emitter/Cargo.toml",
+                "--test", "printer_failure_contract", "--", "--nocapture", "--test-threads=1"], env
     if suite in SUPER:
         suffix, key = SUPER[suite]
         name = f"decorator_super{suffix.replace('-', '_')}_forms_match_complete_typescript_observations"
         target, test = "decorator_super_contract", f"h2_8a_decorator_super::{name}"
         env[key] = ",".join(needle.strip() for needle in needles) if needles else "all"
+    elif suite == "bundle-sinks":
+        if needles:
+            raise ValueError("bundle sink controls run together; use --all (10 complete commands)")
+        target, test = "h2_7d_bundle_sinks", "ordinary_bundle_sink_commands_match_complete_typescript_twice"
     elif suite == "retained":
         target = "contracts"
         test = "h2_8a_retained_accessor_owners::retained_accessor_owners_match_complete_typescript_observations"

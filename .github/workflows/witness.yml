@@ -29,11 +29,11 @@ jobs:
         run: python3 .github/ci/replay.py plan
 
   witnesses:
-    name: decorator witnesses (${{ matrix.group }})
+    name: witnesses (${{ matrix.group }})
     needs: plan
     if: needs.plan.outputs.has_witnesses == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: ${{ matrix.group == 'printer' && 20 || 60 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
