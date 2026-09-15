@@ -3,6 +3,11 @@
 2026-09-16。統合担当：Codex。main `78b186190` の未登録10 targetを追加した。
 本番 Rust と既存 fixture の変更はない。Claude の④→⑤→①→②の作業順に影響しない。
 
+[PR #530](https://github.com/kazhiramatsu/tsc-rs/pull/530) として merge `92e323587` に着地。
+全7 replay job・両必須gateが成功。printer jobは2分17秒、追加direct分はobserver7.336秒＋
+Cargo build/replay12.019秒。最長job27分36秒、7 replay job合計87分04秒（plan/gate/main push除外）。
+これはrunner変動を含む実測であり、単独の性能比較ではない。
+
 ## 実行単位と検証した母集団
 
 次の suite を `python3 scripts/witness.py <suite> --all` で実行できる。

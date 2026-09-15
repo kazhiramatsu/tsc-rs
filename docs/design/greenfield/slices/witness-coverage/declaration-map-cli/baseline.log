@@ -1,0 +1,55 @@
+   Compiling tsc-rs-diagnostics v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/diagnostics)
+   Compiling serde_core v1.0.228
+   Compiling libc v0.2.186
+   Compiling tsc-rs-types v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/types)
+   Compiling version_check v0.9.5
+   Compiling generic-array v0.14.7
+   Compiling jobserver v0.1.35
+   Compiling tsc-rs-syntax v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/syntax)
+   Compiling proc-macro2 v1.0.106
+   Compiling find-msvc-tools v0.1.9
+   Compiling shlex v2.0.1
+   Compiling cc v1.2.66
+   Compiling serde_json v1.0.150
+   Compiling tsc-rs-host v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/host)
+   Compiling unicode-ident v1.0.24
+   Compiling typenum v1.20.1
+   Compiling quote v1.0.46
+   Compiling pkg-config v0.3.33
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+   Compiling tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/program)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/emitter)
+   Compiling tsc-rs-binder v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/binder)
+   Compiling tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/checker)
+   Compiling syn v2.0.118
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling zstd-safe v7.2.4
+   Compiling serde v1.0.228
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/compiler)
+   Compiling digest v0.10.7
+   Compiling cpufeatures v0.2.17
+   Compiling serde_derive v1.0.228
+   Compiling cfg-if v1.0.4
+   Compiling sha2 v0.10.9
+   Compiling tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/harness)
+   Compiling zstd v0.13.3
+   Compiling stats_alloc v0.1.10
+   Compiling base64 v0.22.1
+    Finished `test` profile [unoptimized] target(s) in 15m 25s
+     Running tests/h2_7e_original_corpus.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_7e_original_corpus-f8a512390aedfe9f)
+
+running 1 test
+test h2_7e_original_corpus_preserves_complete_tuples_and_boundaries ... H2.7e original manifest=/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/compiler binary=/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/tsc-rs
+H2.7e original EXACT x2 typescript-6.0.3/compiler/declarationMaps.ts#default
+H2.7e original EXACT x2 typescript-6.0.3/compiler/declarationMapsMultifile.ts#default
+H2.7e original EXACT x2 typescript-6.0.3/compiler/declarationMapsWithoutDeclaration.ts#default
+H2.7e original EXACT x2 typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock25.ts#target%3Des2022
+H2.7e original EXACT x2 typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock25.ts#target%3Desnext
+H2.7e original EXACT x2 typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015
+H2.7e original EXACT x2 typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022
+H2.7e original EXACT x2 typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Desnext
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 53.25s
+

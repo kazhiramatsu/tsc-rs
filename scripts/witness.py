@@ -82,7 +82,7 @@ EMITTER_DIRECT = {
         "observers": ("scripts/observe-token-comment-phase-printer-metadata.mjs",),
     },
 }
-SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks", *EMITTER_DIRECT)
+SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks", "declaration-map-cli", *EMITTER_DIRECT)
 RETAINED_FIXTURES = (
     "retained-accessor-owners", "class-helper-accessor-producers",
     "class-field-alias-map-positions", "decorator-receiver-context",
@@ -109,7 +109,12 @@ def case_ids(suite):
         if len(set(ids)) != len(ids):
             raise ValueError(f"{suite}: duplicate fixture membership")
         return ids
-    if suite in SUPER:
+    if suite == "declaration-map-cli":
+        cases = [row for row in read_cases(ROOT / "ratchets/h2-7de-observations.v1.json")
+                 if row["required_slices"] == ["H2.7e"]]
+        if len(cases) != 8:
+            raise ValueError("declaration-map-cli: changed eight-case membership")
+    elif suite in SUPER:
         suffix, _ = SUPER[suite]
         # Input IDs include the two primary upstream exceptions. The Rust
         # comparator reports those separately and requires a native match.
@@ -171,6 +176,10 @@ def invocation(suite, needles, environ=None):
         if needles:
             raise ValueError("bundle sink controls run together; use --all (10 complete commands)")
         target, test = "h2_7d_bundle_sinks", "ordinary_bundle_sink_commands_match_complete_typescript_twice"
+    elif suite == "declaration-map-cli":
+        if needles:
+            raise ValueError("declaration map CLI controls run together; use --all (8 CLI cases)")
+        target, test = "h2_7e_original_corpus", "h2_7e_original_cli_matches_outputs_diagnostics_and_exit_twice"
     elif suite == "retained":
         target = "contracts"
         test = "h2_8a_retained_accessor_owners::retained_accessor_owners_match_complete_typescript_observations"
@@ -228,6 +237,18 @@ def run_emitter_direct(suites):
                       "cargo_build_and_replay_seconds": round(time.monotonic() - started, 3)}), flush=True)
 
 
+def run_declaration_map_cli(command, env):
+    started = time.monotonic()
+    result = subprocess.run(command, cwd=ROOT, env=env, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, check=False)
+    print(result.stdout, end="", flush=True)
+    result.check_returncode()
+    if "test result: ok. 1 passed; 0 failed; 0 ignored;" not in result.stdout:
+        raise ValueError("declaration-map-cli: missing or zero-test CLI comparison")
+    print(json.dumps({"declaration_map_cli_cases": 8, "repetitions": 2,
+                      "cargo_build_and_replay_seconds": round(time.monotonic() - started, 3)}), flush=True)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("suite", choices=SUITES)
@@ -261,6 +282,9 @@ def main(argv=None):
         return 0
     if args.suite in EMITTER_DIRECT:
         run_emitter_direct([args.suite])
+        return 0
+    if args.suite == "declaration-map-cli":
+        run_declaration_map_cli(command, env)
         return 0
     return subprocess.run(command, cwd=ROOT, env=env, check=False).returncode
 
