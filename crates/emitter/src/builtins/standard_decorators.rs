@@ -4272,10 +4272,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
             DecoratedClassRuntimeName::AssignedReference(binding) => {
                 self.create_binding_identifier(binding)?
             }
-            other => match source_name {
-                Some(source) => self.create_string_literal_from_property_literal(source)?,
-                None => self.create_string_literal(other.text())?,
-            },
+            DecoratedClassRuntimeName::Declared(_) | DecoratedClassRuntimeName::Assigned(_) => {
+                match source_name {
+                    Some(source) => self.create_string_literal_from_property_literal(source)?,
+                    None => self.create_string_literal(class_name.text())?,
+                }
+            }
+            // A TypeScript-generated default_N binding is not the source
+            // name of an anonymous default declaration.
+            other => self.create_string_literal(other.text())?,
         };
         let call = self.create_call(helper, vec![target, name])?;
         let statement = self.create_expression_statement(call)?;

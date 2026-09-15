@@ -27,9 +27,13 @@ passed after the helper, computed-name and alias corrections.
 
 Synthetic direct controls: 28 exact, 4 recorded upstream divergences, 0 failed.
 The four divergences are preserved as explicit controls, not reported as exact.
-Formatting passes. Clippy on the current main has pre-existing findings; the
-integration report compares the emitter findings against the same base instead
-of reusing the candidate's earlier green result.
+Focused emitter checks pass: 7 library tests and 68 decorator contracts. The
+contracts caught a generated `default_N` binding incorrectly replacing the
+runtime name `"default"`; the source-provenance adaptation now distinguishes
+that synthetic name, and the unchanged contract passes in both module modes.
+Formatting passes. Emitter Clippy has the same 16 findings (same diagnostic
+kinds and files) as the integration base; dependency-inclusive Clippy also
+stops on existing program findings. This is not an integrated lint-green claim.
 
 ## Hosted coverage
 
