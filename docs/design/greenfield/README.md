@@ -1,5 +1,12 @@
 # Greenfield execution guide (READ FIRST, FOLLOW EXACTLY)
 
+For the 2026-09-15 status, start with the
+[remaining-task inventory and completion slices](remaining-completion-slices.md)
+and the [schedule checkpoint](post-h1-completion-slices.md). They separate Claude
+handoffs from integration work, carry forward completed LR/CFG/UTF-16/SUPER work,
+and enumerate compiler, TS7, reuse, build/watch, API, service, LSP and release work.
+The current test route is [focused local checks and selected hosted replay](../../witness-testing.md).
+
 This directory began as the executable M-track build plan. For the completed
 M/core track, the five parent documents remain its design authority:
 
@@ -33,13 +40,12 @@ sections that packet names. A packet with a stale architecture reference,
 unresolved item, or unstated implementation choice is not ready for production
 edits.
 
-After H2.5g closes, the schedule inserts the
-[Functional CI framework and evidence architecture](functional-ci-evidence.md) before
-H2.5h-a. It defines an independent reusable framework: pure generic `ci-core`,
-bounded-effect generic `ci-runner`, and repository-owned adapters that inject
-namespace and semantics. Follow its FCI dependency stages only through exact
-ready packets in the slice-packet index; the architecture or stage table alone
-does not authorize production work. The [gate-tax 2 CI slice](gate-tax-2.md)
+The [Functional CI framework and evidence architecture](functional-ci-evidence.md)
+remains a separate, paused framework track under the 2026-08-17 emitter-first
+direction. It is not an interlock before H2.5h or the current CI scheduling
+improvements. Reconsider its remaining stages after H2.9 through the schedule;
+its architecture or stage table alone does not activate them.
+The [gate-tax 2 CI slice](gate-tax-2.md)
 records the witness observation-adoption mechanism, the canonical convergence
 loop, and the resume divergence printer that service the H2.5h-a packet
 ladder's evidence chain.

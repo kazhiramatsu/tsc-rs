@@ -1,6 +1,12 @@
 # Post-H1 slice packets
 
 Document role: **canonical index for executable post-H1 slice packets**.
+The [2026-09-15 remaining-task inventory](../remaining-completion-slices.md)
+distinguishes completed work, current residuals, Claude's five candidate handoffs,
+integration slices and later product tracks. It is a planning index, not a blanket
+runtime-ready packet. The [Claude handoff index](claude-high-difficulty-handoffs.md)
+owns the current starting point and focused-local/hosted validation instructions.
+
 The schedule in [post-h1-completion-slices.md](../post-h1-completion-slices.md)
 defines which packet may be active. A packet is a self-contained execution
 index over current architecture rows, pinned tsc owners, current local gaps,

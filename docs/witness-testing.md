@@ -73,3 +73,37 @@ A new witness target needs an explicit CI entry and ownership rule. Until that i
 added, do not report it as covered by `cargo xtask acceptance` or these decorator
 jobs. Unknown paths keep existing broad coverage but do not invent execution of a
 new target.
+
+## Hosted measurements and remaining coverage work
+
+[PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) landed as `bb2d51c89`.
+Both aggregate checks passed. The previous run was
+[PR #523 acceptance](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34962781518)
+and its [witness workflow](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34962781338).
+
+| Job | Before | After |
+| --- | --- | --- |
+| Acceptance | One serial job: 46m23s | early 11m50s, wide 28m03s, late 16m47s |
+| Primary witnesses | 15m15s | 10m31s |
+| Controls witnesses | 11m43s | 8m23s |
+| Retained witnesses | 14m12s | 6m42s |
+
+The [new acceptance run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34967807268)
+retained all 31 slices. H2.5g alone still took about 22m40s to execute its 9,027
+candidates; the longest complete job fell to 28m03s by separating other work.
+The [new witness run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34967807283)
+retained primary 670 exact × 2 plus two upstream exceptions, controls 408 exact × 2
+plus direct 28 exact / 4 known, and retained 530 exact × 2.
+
+These are observed job times including builds, job overhead and
+hosted runner variation, not an isolated cache benchmark. Separate acceptance
+builds increased aggregate runner time (the three jobs total 56m40s); the benefit
+is timeout margin and independent retries. Collection selection and documentation
+skipping reduce unnecessary execution on narrower changes.
+
+For future additions, use 45 minutes per job as a split-review threshold while
+keeping the 60-minute hard limit. Record build/oracle/replay time and total runner
+minutes. Do not increase workers without measuring memory. New standalone
+compiler witnesses and future build/watch/LSP suites still require their own
+coverage inventory and explicit jobs; see OPS-COVER / OPS-BUDGET in the
+[completion plan](design/greenfield/remaining-completion-slices.md).

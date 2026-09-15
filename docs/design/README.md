@@ -59,6 +59,9 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
 
 ## Active Execution (greenfield)
 
+- [Remaining tasks and completion slices](greenfield/remaining-completion-slices.md):
+  current implementation/evidence audit, Claude versus integration ownership,
+  dependencies and completion criteria for all remaining product tracks.
 - [greenfield/typescript-7-direction.md](greenfield/typescript-7-direction.md):
   user-approved native TypeScript 7 and direct LSP direction, superseding
   the mandatory tsserver/adapter sequence. Start with the
