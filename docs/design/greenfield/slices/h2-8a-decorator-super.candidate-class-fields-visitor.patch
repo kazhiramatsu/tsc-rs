@@ -1,0 +1,98 @@
+diff --git a/crates/emitter/src/builtins/class_fields.rs b/crates/emitter/src/builtins/class_fields.rs
+index f4c9d9ba0..a0cd33dcd 100644
+--- a/crates/emitter/src/builtins/class_fields.rs
++++ b/crates/emitter/src/builtins/class_fields.rs
+@@ -21,6 +21,9 @@ use super::{
+ 
+ mod downlevel;
+ 
++/// The visited parameters, return type and body of one function-like owner.
++type VisitedFunctionParts = (Option<NodeArrayId>, Option<NodeId>, Option<NodeId>);
++
+ /// tsc-port: transformClassFields @6.0.3
+ /// tsc-hash: 65cacc85f81402ff4468cf65c7636dbd5a0ce9eb6c3248f060aa5193c3af8304
+ /// tsc-span: _tsc.js:95852-98038
+@@ -251,7 +254,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
+                 NodeData::PrivateIdentifier(data)
+                     if node.pos != u32::MAX
+                         && node.end != u32::MAX
+-                        && (node.flags & NodeFlags::SYNTHESIZED.bits() as i32) == 0 =>
++                        && (node.flags & NodeFlags::SYNTHESIZED.bits()) == 0 =>
+                 {
+                     Some(data.text.clone())
+                 }
+@@ -1290,6 +1293,20 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
+         if let Some(binding) = self.computed_name_bindings.get(&key) {
+             return Ok(binding.clone());
+         }
++        // getGeneratedNameForNode(name) resolves through the original node, so
++        // a key already cached by an earlier pass (the standard-decorator
++        // `_a = __propKey(...)` assignment ending the name's sequence) yields
++        // that same generated identity here instead of a second temp.
++        if let NodeData::ComputedPropertyName(data) = &self.context.arena().node(name)?.data {
++            if let Some(expression) = data.expression.map(|node| self.node(node)) {
++                if let Some(cached) = self.find_computed_name_cache(expression)? {
++                    if let Some(binding) = self.generated_binding_of_identifier(cached)? {
++                        self.computed_name_bindings.insert(key, binding.clone());
++                        return Ok(binding);
++                    }
++                }
++            }
++        }
+         // getGeneratedNameForNode can be called by constructor initialization
+         // before the name's evaluation owner hoists its declaration.
+         let provisional = self.generated_names.allocate_temp();
+@@ -1298,6 +1315,35 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
+         Ok(binding)
+     }
+ 
++    /// The generated binding an earlier pass wrote onto an identifier, as a
++    /// [`TargetBinding`] view over its metadata.
++    fn generated_binding_of_identifier(
++        &self,
++        identifier: TransformNode,
++    ) -> Result<Option<TargetBinding>, TransformError> {
++        let NodeData::Identifier(data) = &self.context.arena().node(identifier)?.data else {
++            return Ok(None);
++        };
++        let Some(metadata) = self.context.arena().metadata(identifier) else {
++            return Ok(None);
++        };
++        let Some(id) = metadata.generated_binding_id() else {
++            return Ok(None);
++        };
++        Ok(Some(TargetBinding::from_existing(
++            id,
++            data.text.clone(),
++            metadata.generated_binding_base().map(str::to_owned),
++            metadata
++                .generated_binding_preferred_base()
++                .map(str::to_owned),
++            metadata.generated_binding_role_suffix().map(str::to_owned),
++            metadata.generated_binding_is_file_level_optimistic(),
++            metadata.generated_binding_planned_name_is_authoritative(),
++            metadata.generated_binding_reserved_in_nested_scopes(),
++        )))
++    }
++
+     fn property_name_expression_if_needed(
+         &mut self,
+         name: TransformNode,
+@@ -1972,7 +2018,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
+         // module/printer ID consumers run after this pass. An arena NodeId
+         // must not be mistaken for that separate source identity predicate.
+         let unanchored = (record.pos == u32::MAX || record.end == u32::MAX)
+-            && (record.flags & NodeFlags::SYNTHESIZED.bits() as i32) != 0
++            && (record.flags & NodeFlags::SYNTHESIZED.bits()) != 0
+             && self.context.arena().metadata(expression).is_none();
+         if unanchored {
+             match &record.data {
+@@ -3411,7 +3457,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
+         return_type: Option<NodeId>,
+         body: Option<NodeId>,
+         owner: GeneratedBindingOwner,
+-    ) -> Result<(Option<NodeArrayId>, Option<NodeId>, Option<NodeId>), TransformError> {
++    ) -> Result<VisitedFunctionParts, TransformError> {
+         self.context.start_lexical_environment()?;
+         let (previous, scope) = self.generated_names.enter(owner);
+         let result: Result<_, TransformError> = (|| {

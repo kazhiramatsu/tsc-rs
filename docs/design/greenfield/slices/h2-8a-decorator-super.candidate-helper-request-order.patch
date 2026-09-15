@@ -1,0 +1,127 @@
+diff --git a/crates/emitter/src/builtins/helpers.rs b/crates/emitter/src/builtins/helpers.rs
+index 00f4572dc..09d87d83e 100644
+--- a/crates/emitter/src/builtins/helpers.rs
++++ b/crates/emitter/src/builtins/helpers.rs
+@@ -7,49 +7,6 @@
+ 
+ use crate::EmitHelper;
+ 
+-/// Below ES2022, Rust's class-plan ownership reaches the decoration block
+-/// before it materializes the private method definitions. Restore upstream's
+-/// request order by moving `in` after the get/set helpers in that target band.
+-/// The ES2022 selective path intentionally retains its natural `in`, get, set
+-/// order.
+-///
+-/// tsc-port: compareEmitHelpers @6.0.3
+-/// tsc-hash: 6aded4fcda1966f22031b02be6fe60fbdae9bb1e3376f2b691778902f370edfe
+-/// tsc-span: _tsc.js:26023-26030
+-/// tsc-port: classPrivateFieldGetHelper/classPrivateFieldSetHelper/classPrivateFieldInHelper @6.0.3
+-/// tsc-hash: 55400ded83254461bb2435b8b96808f768117a37bcc2b5eed2fedceda7c23226
+-/// tsc-span: _tsc.js:26440-26472
+-pub(crate) fn order_private_field_helpers(helpers: &mut Vec<EmitHelper>, in_after_access: bool) {
+-    if !in_after_access {
+-        return;
+-    }
+-    let Some(in_index) = helpers
+-        .iter()
+-        .position(|helper| helper.name() == "typescript:classPrivateFieldIn")
+-    else {
+-        return;
+-    };
+-    let last_access_index = helpers
+-        .iter()
+-        .enumerate()
+-        .fold(None, |last, (index, helper)| {
+-            matches!(
+-                helper.name(),
+-                "typescript:classPrivateFieldGet" | "typescript:classPrivateFieldSet"
+-            )
+-            .then_some(index)
+-            .or(last)
+-        });
+-    let Some(last_access_index) = last_access_index else {
+-        return;
+-    };
+-    if in_index > last_access_index {
+-        return;
+-    }
+-    let helper = helpers.remove(in_index);
+-    helpers.insert(last_access_index, helper);
+-}
+-
+ const SET_FUNCTION_NAME_HELPER_TEXT: &str = r#"var __setFunctionName = (this && this.__setFunctionName) || function (f, name, prefix) {
+     if (typeof name === "symbol") name = name.description ? "[".concat(name.description, "]") : "";
+     return Object.defineProperty(f, "name", { configurable: true, value: prefix ? "".concat(prefix, " ", name) : name });
+diff --git a/crates/emitter/src/transform.rs b/crates/emitter/src/transform.rs
+index 0b9a8f851..b1b18f8bc 100644
+--- a/crates/emitter/src/transform.rs
++++ b/crates/emitter/src/transform.rs
+@@ -499,6 +499,13 @@ pub struct TransformationContext {
+     block_scoped_variables: Vec<TransformNode>,
+     block_scope_stack: Vec<Vec<TransformNode>>,
+     emit_helpers: Vec<EmitHelper>,
++    /// Parked request buffers, innermost last (`defer_emit_helper_requests`
++    /// / `resume_emit_helper_requests`). While a buffer is open, a request
++    /// that is not already in `emit_helpers` lands in the innermost buffer
++    /// instead of the file's helper list, so a visitor that reaches a
++    /// subtree earlier than tsc does can re-issue those requests at the
++    /// point tsc reaches it (the class-fields downlevel's relocated statics).
++    deferred_emit_helper_requests: Vec<Vec<EmitHelper>>,
+     source_emit_helpers: BTreeMap<TransformSourceId, Vec<EmitHelper>>,
+     diagnostics: DiagnosticList,
+     generated_binding_names: BTreeMap<GeneratedBindingId, Box<str>>,
+@@ -519,6 +526,7 @@ impl TransformationContext {
+             block_scoped_variables: Vec::new(),
+             block_scope_stack: Vec::new(),
+             emit_helpers: Vec::new(),
++            deferred_emit_helper_requests: Vec::new(),
+             source_emit_helpers: BTreeMap::new(),
+             diagnostics: Vec::new(),
+             generated_binding_names: BTreeMap::new(),
+@@ -795,12 +803,46 @@ impl TransformationContext {
+         {
+             return Ok(());
+         }
++        if let Some(deferred) = self.deferred_emit_helper_requests.last_mut() {
++            if !deferred.iter().any(|existing| existing.name == helper.name) {
++                deferred.push(helper);
++            }
++            return Ok(());
++        }
+         self.emit_helpers.push(helper);
+         Ok(())
+     }
+ 
++    /// Open a parked request buffer: until the matching
++    /// `resume_emit_helper_requests`, new unscoped helper requests (those not
++    /// already in the file's list) are collected instead of appended, in
++    /// request order and without duplicates. Buffers nest; a request made
++    /// while an inner buffer is open belongs to that inner buffer.
++    pub fn defer_emit_helper_requests(&mut self) -> Result<(), TransformError> {
++        self.require_transforming("defer emit helper requests")?;
++        self.deferred_emit_helper_requests.push(Vec::new());
++        Ok(())
++    }
++
++    /// Close the innermost parked request buffer and hand its requests back
++    /// to the caller, which re-issues them through `request_emit_helper` at
++    /// the point where tsc would have made them (deduplication against the
++    /// requests made in the meantime happens there).
++    pub fn resume_emit_helper_requests(&mut self) -> Result<Vec<EmitHelper>, TransformError> {
++        self.require_transforming("resume emit helper requests")?;
++        debug_assert!(
++            !self.deferred_emit_helper_requests.is_empty(),
++            "emit helper request deferral stays balanced"
++        );
++        Ok(self.deferred_emit_helper_requests.pop().unwrap_or_default())
++    }
++
+     pub fn read_emit_helpers(&mut self) -> Result<Vec<EmitHelper>, TransformError> {
+         self.require_transforming("read emit helpers")?;
++        debug_assert!(
++            self.deferred_emit_helper_requests.is_empty(),
++            "every parked helper request buffer is resumed before the pass ends"
++        );
+         Ok(std::mem::take(&mut self.emit_helpers))
+     }
+ 

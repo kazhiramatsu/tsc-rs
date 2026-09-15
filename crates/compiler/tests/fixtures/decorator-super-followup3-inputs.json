@@ -1,0 +1,1460 @@
+{
+  "version": 1,
+  "description": "A6-41-SUPER third follow-up: emit-helper request order of relocated static blocks and static field initializers below ES2022 (private in/get/set helpers) in plain and decorated classes",
+  "variants": 8,
+  "cases_per_variant": 6,
+  "families": {
+    "helper-order": [
+      "plain-static-in-then-method-get",
+      "plain-static-blocks-in-then-get",
+      "plain-static-field-get-then-block-in",
+      "plain-instance-get-then-static-in",
+      "plain-nested-class-in-static-block",
+      "decorated-static-in-then-method-get",
+      "decorated-instance-then-private-static-method",
+      "decorated-instance-get-then-static-in"
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "decorator-super-followup3/es2015/set/helper-order/plain-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "plain-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static {\n        record(#x in this);\n    }\n    static #m() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/set/helper-order/plain-static-blocks-in-then-get",
+      "family": "helper-order",
+      "variant": "plain-static-blocks-in-then-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static {\n        record(#x in this);\n    }\n    static {\n        record(this.#x);\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/set/helper-order/plain-static-field-get-then-block-in",
+      "family": "helper-order",
+      "variant": "plain-static-field-get-then-block-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static f = this.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(Derived.f);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/set/helper-order/plain-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "plain-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/set/helper-order/plain-nested-class-in-static-block",
+      "family": "helper-order",
+      "variant": "plain-nested-class-in-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #m() { return #x in this; }\n    static #x = 1;\n    static {\n        class Inner { static #y = 1; static #n() { return this.#y; } static { record(this.#n()); } }\n        record(Inner.name);\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/set/helper-order/decorated-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "decorated-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static {\n        record(#x in this);\n    }\n    static #p() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#p());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/set/helper-order/decorated-instance-then-private-static-method",
+      "family": "helper-order",
+      "variant": "decorated-instance-then-private-static-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    y = 1;\n    static #p() { return 2; }\n    static {\n        record(this.#p());\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/set/helper-order/decorated-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "decorated-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/define/helper-order/plain-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "plain-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static {\n        record(#x in this);\n    }\n    static #m() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/define/helper-order/plain-static-blocks-in-then-get",
+      "family": "helper-order",
+      "variant": "plain-static-blocks-in-then-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static {\n        record(#x in this);\n    }\n    static {\n        record(this.#x);\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/define/helper-order/plain-static-field-get-then-block-in",
+      "family": "helper-order",
+      "variant": "plain-static-field-get-then-block-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static f = this.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(Derived.f);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/define/helper-order/plain-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "plain-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/define/helper-order/plain-nested-class-in-static-block",
+      "family": "helper-order",
+      "variant": "plain-nested-class-in-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #m() { return #x in this; }\n    static #x = 1;\n    static {\n        class Inner { static #y = 1; static #n() { return this.#y; } static { record(this.#n()); } }\n        record(Inner.name);\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/define/helper-order/decorated-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "decorated-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static {\n        record(#x in this);\n    }\n    static #p() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#p());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/define/helper-order/decorated-instance-then-private-static-method",
+      "family": "helper-order",
+      "variant": "decorated-instance-then-private-static-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    y = 1;\n    static #p() { return 2; }\n    static {\n        record(this.#p());\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2015/define/helper-order/decorated-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "decorated-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/set/helper-order/plain-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "plain-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static {\n        record(#x in this);\n    }\n    static #m() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/set/helper-order/plain-static-blocks-in-then-get",
+      "family": "helper-order",
+      "variant": "plain-static-blocks-in-then-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static {\n        record(#x in this);\n    }\n    static {\n        record(this.#x);\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/set/helper-order/plain-static-field-get-then-block-in",
+      "family": "helper-order",
+      "variant": "plain-static-field-get-then-block-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static f = this.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(Derived.f);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/set/helper-order/plain-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "plain-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/set/helper-order/plain-nested-class-in-static-block",
+      "family": "helper-order",
+      "variant": "plain-nested-class-in-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #m() { return #x in this; }\n    static #x = 1;\n    static {\n        class Inner { static #y = 1; static #n() { return this.#y; } static { record(this.#n()); } }\n        record(Inner.name);\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/set/helper-order/decorated-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "decorated-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static {\n        record(#x in this);\n    }\n    static #p() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#p());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/set/helper-order/decorated-instance-then-private-static-method",
+      "family": "helper-order",
+      "variant": "decorated-instance-then-private-static-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    y = 1;\n    static #p() { return 2; }\n    static {\n        record(this.#p());\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/set/helper-order/decorated-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "decorated-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/define/helper-order/plain-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "plain-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static {\n        record(#x in this);\n    }\n    static #m() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/define/helper-order/plain-static-blocks-in-then-get",
+      "family": "helper-order",
+      "variant": "plain-static-blocks-in-then-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static {\n        record(#x in this);\n    }\n    static {\n        record(this.#x);\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/define/helper-order/plain-static-field-get-then-block-in",
+      "family": "helper-order",
+      "variant": "plain-static-field-get-then-block-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static f = this.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(Derived.f);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/define/helper-order/plain-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "plain-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/define/helper-order/plain-nested-class-in-static-block",
+      "family": "helper-order",
+      "variant": "plain-nested-class-in-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #m() { return #x in this; }\n    static #x = 1;\n    static {\n        class Inner { static #y = 1; static #n() { return this.#y; } static { record(this.#n()); } }\n        record(Inner.name);\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/define/helper-order/decorated-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "decorated-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static {\n        record(#x in this);\n    }\n    static #p() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#p());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/define/helper-order/decorated-instance-then-private-static-method",
+      "family": "helper-order",
+      "variant": "decorated-instance-then-private-static-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    y = 1;\n    static #p() { return 2; }\n    static {\n        record(this.#p());\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/es2022/define/helper-order/decorated-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "decorated-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/set/helper-order/plain-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "plain-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static {\n        record(#x in this);\n    }\n    static #m() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/set/helper-order/plain-static-blocks-in-then-get",
+      "family": "helper-order",
+      "variant": "plain-static-blocks-in-then-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static {\n        record(#x in this);\n    }\n    static {\n        record(this.#x);\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/set/helper-order/plain-static-field-get-then-block-in",
+      "family": "helper-order",
+      "variant": "plain-static-field-get-then-block-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static f = this.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(Derived.f);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/set/helper-order/plain-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "plain-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/set/helper-order/plain-nested-class-in-static-block",
+      "family": "helper-order",
+      "variant": "plain-nested-class-in-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #m() { return #x in this; }\n    static #x = 1;\n    static {\n        class Inner { static #y = 1; static #n() { return this.#y; } static { record(this.#n()); } }\n        record(Inner.name);\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/set/helper-order/decorated-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "decorated-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static {\n        record(#x in this);\n    }\n    static #p() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#p());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/set/helper-order/decorated-instance-then-private-static-method",
+      "family": "helper-order",
+      "variant": "decorated-instance-then-private-static-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    y = 1;\n    static #p() { return 2; }\n    static {\n        record(this.#p());\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/set/helper-order/decorated-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "decorated-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/define/helper-order/plain-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "plain-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static {\n        record(#x in this);\n    }\n    static #m() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/define/helper-order/plain-static-blocks-in-then-get",
+      "family": "helper-order",
+      "variant": "plain-static-blocks-in-then-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static {\n        record(#x in this);\n    }\n    static {\n        record(this.#x);\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/define/helper-order/plain-static-field-get-then-block-in",
+      "family": "helper-order",
+      "variant": "plain-static-field-get-then-block-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    static f = this.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(Derived.f);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/define/helper-order/plain-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "plain-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/define/helper-order/plain-nested-class-in-static-block",
+      "family": "helper-order",
+      "variant": "plain-nested-class-in-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nexport class Derived extends Base {\n    static #m() { return #x in this; }\n    static #x = 1;\n    static {\n        class Inner { static #y = 1; static #n() { return this.#y; } static { record(this.#n()); } }\n        record(Inner.name);\n        record(this.#m());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/define/helper-order/decorated-static-in-then-method-get",
+      "family": "helper-order",
+      "variant": "decorated-static-in-then-method-get",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static {\n        record(#x in this);\n    }\n    static #p() { return this.#x; }\n    static #x = 1;\n    static {\n        record(this.#p());\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/define/helper-order/decorated-instance-then-private-static-method",
+      "family": "helper-order",
+      "variant": "decorated-instance-then-private-static-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    y = 1;\n    static #p() { return 2; }\n    static {\n        record(this.#p());\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-followup3/esnext/define/helper-order/decorated-instance-get-then-static-in",
+      "family": "helper-order",
+      "variant": "decorated-instance-get-then-static-in",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends Base {\n    @dec static m() { return 1; }\n    static #x = 1;\n    y = Derived.#x;\n    static {\n        record(#x in this);\n    }\n}\nrecord(new Derived().y);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    }
+  ]
+}

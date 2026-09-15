@@ -702,6 +702,7 @@ struct StandardDecoratorVisitor<'context> {
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     inferred_class_names: BTreeMap<NodeId, JsString>,
+    inferred_class_name_sources: BTreeMap<NodeId, TransformNode>,
     /// Named evaluation through a non-literal computed property name: the
     /// anonymous decorated class receives the property's hoisted key temp.
     inferred_class_name_references: BTreeMap<NodeId, TargetBinding>,
@@ -800,6 +801,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             inferred_class_names: BTreeMap::new(),
+            inferred_class_name_sources: BTreeMap::new(),
             inferred_class_name_references: BTreeMap::new(),
             expanded_classes: BTreeMap::new(),
             used_names,
@@ -833,14 +835,28 @@ impl<'context> StandardDecoratorVisitor<'context> {
         id: NodeId,
         value_use: DecoratorValueUse,
     ) -> Result<Option<NodeId>, TransformError> {
-        if let Some(mapped) = self.nodes.get(&id) {
-            self.audit_memo_hit(id)?;
-            return Ok(*mapped);
-        }
         let original = self.node(id);
         let record = self.context.arena().node(original)?.clone();
         let kind = record.kind;
-        self.audit_memo_first_visit(original)?;
+        // A discarded lowering must neither reuse nor replace the cached
+        // required-value lowering when a synthetic node is shared.
+        let mode_sensitive = value_use == DecoratorValueUse::Discarded
+            && matches!(
+                kind,
+                SyntaxKind::PrefixUnaryExpression
+                    | SyntaxKind::PostfixUnaryExpression
+                    | SyntaxKind::BinaryExpression
+                    | SyntaxKind::CommaListExpression
+                    | SyntaxKind::ParenthesizedExpression
+                    | SyntaxKind::PartiallyEmittedExpression
+            );
+        if !mode_sensitive {
+            if let Some(mapped) = self.nodes.get(&id) {
+                self.audit_memo_hit(id)?;
+                return Ok(*mapped);
+            }
+            self.audit_memo_first_visit(original)?;
+        }
         let transformed = match record.data {
             // tsc-port: isNamedEvaluation(node, isAnonymousClassNeedingAssignedName)
             // @6.0.3 — the visitor's named-evaluation sources record the
@@ -850,14 +866,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 self.record_named_evaluation_of_identifier(data.name, data.initializer, true)?;
                 Some(self.update_generic(original, NodeData::VariableDeclaration(data))?)
             }
-            NodeData::Parameter(data) => {
-                self.record_named_evaluation_of_identifier(
-                    data.name,
-                    data.initializer,
-                    data.dot_dot_dot_token.is_none(),
-                )?;
-                Some(self.update_generic(original, NodeData::Parameter(data))?)
-            }
+            NodeData::Parameter(data) => Some(self.visit_parameter_declaration(original, data)?),
             NodeData::BindingElement(data) => {
                 self.record_named_evaluation_of_identifier(
                     data.name,
@@ -866,8 +875,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 )?;
                 Some(self.update_generic(original, NodeData::BindingElement(data))?)
             }
-            NodeData::PropertyAssignment(data) => {
-                self.record_named_evaluation_of_property_name(data.name, data.initializer)?;
+            NodeData::PropertyAssignment(mut data) => {
+                self.record_property_assignment_named_evaluation(&mut data)?;
                 Some(self.update_generic(original, NodeData::PropertyAssignment(data))?)
             }
             NodeData::ShorthandPropertyAssignment(data) => {
@@ -1028,7 +1037,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
             NodeData::Token => Some(id),
             data => Some(self.update_generic(original, data)?),
         };
-        self.nodes.insert(id, transformed);
+        if !mode_sensitive {
+            self.nodes.insert(id, transformed);
+        }
         Ok(transformed)
     }
 
@@ -1074,7 +1085,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let Some(text) = self.identifier_text(self.node(name))?.map(str::to_owned) else {
             return Ok(());
         };
-        self.record_named_evaluation_text(initializer, &text)
+        self.record_named_evaluation_text(initializer, &text)?;
+        self.record_named_evaluation_source(initializer, self.node(name))
     }
 
     /// `getAssignedNameOfPropertyName` for object-literal property
@@ -1092,7 +1104,82 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let Some(text) = self.property_name_literal_text(self.node(name))? else {
             return Ok(());
         };
-        self.record_named_evaluation_text(initializer, &text)
+        self.record_named_evaluation_text(initializer, &text)?;
+        self.record_named_evaluation_source(initializer, self.node(name))
+    }
+
+    /// transformNamedEvaluation caches a non-literal computed object key
+    /// and gives the anonymous decorated class the same reserved reference.
+    fn record_property_assignment_named_evaluation(
+        &mut self,
+        data: &mut tsc_syntax::nodes::PropertyAssignmentData,
+    ) -> Result<(), TransformError> {
+        let Some(name) = data.name.map(|id| self.node(id)) else {
+            return Ok(());
+        };
+        let Some(class) = self.anonymous_class_needing_assigned_name(data.initializer)? else {
+            return Ok(());
+        };
+        let record = self.context.arena().node(name)?.data.clone();
+        if !matches!(record, NodeData::ComputedPropertyName(_))
+            && self
+                .property_name_literal_text(name)?
+                .is_some_and(|text| text == "__proto__")
+        {
+            return Ok(());
+        }
+        if self.property_name_literal_text(name)?.is_some() {
+            return self.record_named_evaluation_of_property_name(data.name, data.initializer);
+        }
+        let NodeData::ComputedPropertyName(computed) = record else {
+            return Ok(());
+        };
+        let expression = computed.expression.map(|id| self.node(id)).ok_or(
+            TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ComputedPropertyName,
+                field: "expression",
+            },
+        )?;
+        let binding = self.hoist_temp_variable(true)?;
+        self.request_prop_key_helper()?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::PropKey)?;
+        let key = self.create_call(helper, vec![expression])?;
+        let temporary = self.create_binding_identifier(&binding)?;
+        let assignment = self.create_assignment(temporary, key)?;
+        let updated_name = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ComputedPropertyName(tsc_syntax::nodes::ComputedPropertyNameData {
+                expression: Some(assignment.node()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.set_text_range(updated_name, name)?;
+        data.name = Some(updated_name.node());
+        self.inferred_class_name_references
+            .insert(class.node(), binding);
+        Ok(())
+    }
+
+    fn record_named_evaluation_source(
+        &mut self,
+        initializer: Option<NodeId>,
+        name: TransformNode,
+    ) -> Result<(), TransformError> {
+        if let Some(class) = self.anonymous_class_needing_assigned_name(initializer)? {
+            let source = match &self.context.arena().node(name)?.data {
+                NodeData::ComputedPropertyName(data) => data.expression.map(|id| self.node(id)),
+                _ => Some(name),
+            };
+            if let Some(source) = source {
+                self.inferred_class_name_sources
+                    .entry(class.node())
+                    .or_insert(source);
+            }
+        }
+        Ok(())
     }
 
     fn record_named_evaluation_text<'a>(
@@ -1165,6 +1252,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.inferred_class_names
                 .entry(class.node())
                 .or_insert(text);
+            self.record_named_evaluation_source(data.initializer, name_node)?;
             return Ok(PropertyNamedEvaluation::NotRewritten);
         }
         let NodeData::ComputedPropertyName(computed) =
@@ -1573,12 +1661,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     // (`isPrivateIdentifierClassElementDeclaration(member) &&
                     // hasAccessorModifier(member)`); public ones stay `accessor`
                     // and class-field lowering applies its own target rule.
+                    let private_source_name =
+                        self.private_name_source_spelling(member_data.name)?;
                     let backing_name = (is_accessor && is_private).then(|| {
                         if computed_expression.is_some() {
                             self.allocate_computed_private_storage(&mut used_private)
                         } else {
                             self.allocate_private_storage(
-                                name.as_str().expect("private identifier spelling"),
+                                private_source_name.as_deref().unwrap_or_else(|| {
+                                    name.as_str().expect("private identifier spelling")
+                                }),
                                 &mut used_private,
                             )
                         }
@@ -1632,6 +1724,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     }
                 }
             }
+        }
+        if needs_set_function_name && explicit_class_name.is_none() {
+            self.context
+                .request_emit_helper(super::helpers::set_function_name())?;
+        }
+        if !method_plans.is_empty() {
+            self.request_run_initializers_helper()?;
         }
         // tsc-port: transformClassLike @6.0.3 — class decorators are
         // transformed first and the extends expression is visited second,
@@ -1691,11 +1790,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         // injectClassNamedEvaluationHelperBlockIfMissing does.
         let class_fields_owns_set_function_name =
             needs_set_function_name && explicit_class_name.is_some();
-        self.request_helpers(
-            (needs_set_function_name && !class_fields_owns_set_function_name)
-                || needs_descriptor_names,
-            !method_plans.is_empty(),
-        )?;
+        let deferred_class_helpers = plans.is_empty() && method_plans.is_empty();
+        if !deferred_class_helpers {
+            self.request_helpers(needs_descriptor_names, false)?;
+        }
         let metadata_name = self.allocate_file_level_name("_metadata")?;
         let mut definitions = Vec::new();
         if let Some(class_plan) = class_decoration.as_ref() {
@@ -1792,8 +1890,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let target = (!class_fields_names_the_class)
                 .then(|| class_decoration.as_ref().map(|plan| &plan.class_this_name))
                 .flatten();
-            transformed_members
-                .push(self.create_set_function_name_block(runtime_class_name, target)?);
+            let name_source = explicit_class_name_node.or_else(|| {
+                self.inferred_class_name_sources
+                    .get(&original.node())
+                    .copied()
+            });
+            transformed_members.push(self.create_set_function_name_block(
+                runtime_class_name,
+                target,
+                name_source,
+            )?);
         }
         if let Some(member) = named_evaluation_member {
             let visited = if let Some(class_this) = class_this_identity {
@@ -1906,6 +2012,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         // tsc-port: exitClass @6.0.3 — everything synthesized below is
         // created, not visited; heritage clauses and the class name are
         // visited outside the class frame.
+        if deferred_class_helpers {
+            self.request_helpers(false, false)?;
+        }
         self.exit_receiver_class();
         // mergeLexicalEnvironment: the hoisted temporaries precede the class
         // definition statements, and `_outerThis` (unshifted by the pending
@@ -3121,7 +3230,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             MethodKind::Getter => Some("get"),
             MethodKind::Setter => Some("set"),
         };
-        let named = self.create_set_function_name(function, &plan.name, prefix)?;
+        let source_name = self.declaration_property_name(plan.original)?;
+        let named = self.create_set_function_name(function, &plan.name, prefix, source_name)?;
         let property_name = match plan.kind {
             MethodKind::Method => "value",
             MethodKind::Getter => "get",
@@ -3170,7 +3280,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .arena_mut()?
             .metadata_mut(getter)
             .add_flags(EmitFlags::NO_COMMENTS);
-        let getter = self.create_set_function_name(getter, &plan.name, Some("get"))?;
+        let getter = self.create_set_function_name(
+            getter,
+            &plan.name,
+            Some("get"),
+            plan.data.name.map(|id| self.node(id)),
+        )?;
 
         let value = self.create_parameter("value")?;
         let parameters = self
@@ -3195,7 +3310,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .arena_mut()?
             .metadata_mut(setter)
             .add_flags(EmitFlags::NO_COMMENTS);
-        let setter = self.create_set_function_name(setter, &plan.name, Some("set"))?;
+        let setter = self.create_set_function_name(
+            setter,
+            &plan.name,
+            Some("set"),
+            plan.data.name.map(|id| self.node(id)),
+        )?;
 
         let getter = self.create_property("get", getter)?;
         self.set_original_only(getter, plan.original)?;
@@ -3219,12 +3339,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
         function: TransformNode,
         name: impl Into<JsStr<'a>>,
         prefix: Option<&str>,
+        source_name: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
             .context
             .factory()?
             .create_unscoped_helper_identifier(self.source, EmitHelperName::SetFunctionName)?;
-        let name = self.create_string_literal(name)?;
+        let name = match source_name {
+            Some(source) => self.create_string_literal_from_property_literal(source)?,
+            None => self.create_string_literal(name)?,
+        };
         let mut arguments = vec![function, name];
         if let Some(prefix) = prefix {
             arguments.push(self.create_string_literal(prefix)?);
@@ -3427,6 +3551,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
         } else if let Some(literal) = plan.computed_literal {
             // `{ computed: true, name: createStringLiteralFromNode(expression) }`
             self.create_string_literal_from_property_literal(self.node(literal))?
+        } else if let Some(source) = source_name {
+            self.create_string_literal_from_property_literal(source)?
         } else {
             self.create_string_literal(&plan.name)?
         };
@@ -3475,6 +3601,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
         } else if let Some(literal) = plan.computed_literal {
             // `{ computed: true, name: createStringLiteralFromNode(expression) }`
             self.create_string_literal_from_property_literal(self.node(literal))?
+        } else if let Some(source) = source_name {
+            self.create_string_literal_from_property_literal(source)?
         } else {
             self.create_string_literal(&plan.name)?
         };
@@ -3532,6 +3660,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     name.as_str().expect("private identifier spelling"),
                 )?,
             }
+        } else if let Some(source) = source_name {
+            self.create_string_literal_from_property_literal(source)?
         } else {
             self.create_string_literal(name)?
         };
@@ -3617,6 +3747,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
         literal: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let text = match &self.context.arena().node(literal)?.data {
+            NodeData::Identifier(data) => data.text.clone().into(),
+            NodeData::PrivateIdentifier(data) => data.text.clone().into(),
             NodeData::StringLiteral(data) => data.text.clone(),
             NodeData::NumericLiteral(data) => data.text.clone().into(),
             NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
@@ -4125,6 +4257,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         &mut self,
         class_name: &DecoratedClassRuntimeName,
         target_name: Option<&TargetBinding>,
+        source_name: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
             .context
@@ -4139,6 +4272,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
             DecoratedClassRuntimeName::AssignedReference(binding) => {
                 self.create_binding_identifier(binding)?
             }
+            DecoratedClassRuntimeName::Declared(_) | DecoratedClassRuntimeName::Assigned(_) => {
+                match source_name {
+                    Some(source) => self.create_string_literal_from_property_literal(source)?,
+                    None => self.create_string_literal(class_name.text())?,
+                }
+            }
+            // A TypeScript-generated default_N binding is not the source
+            // name of an anonymous default declaration.
             other => self.create_string_literal(other.text())?,
         };
         let call = self.create_call(helper, vec![target, name])?;
@@ -5425,9 +5566,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let block = if matches!(self.context.arena().node(body)?.data, NodeData::Block(_)) {
             body
         } else {
-            // converToFunctionBlock(body, /*multiLine*/ true)
+            // convertToFunctionBlock retains the concise body's source range.
             let return_statement = self.create_return_statement(body)?;
-            self.create_block(vec![return_statement], true)?
+            self.context
+                .factory()?
+                .set_text_range(return_statement, body)?;
+            let block = self.create_block(vec![return_statement], false)?;
+            self.context.factory()?.set_text_range(block, body)?;
+            block
         };
         let merged = self.merge_block_environment(block, temporaries, initialization_statements)?;
         match &mut data {
@@ -5446,6 +5592,78 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .factory()?
             .update_node(updated_node, data, flags)?
             .node())
+    }
+
+    /// tsc-port: visitParameterDeclaration @6.0.3 (_tsc.js:100202-100225) —
+    /// modifiers (an erased parameter decorator still reaches this visitor),
+    /// question token and type are dropped; when the parameter changed, it
+    /// takes the original's comment range, the text and source-map ranges
+    /// past its modifiers (`moveRangePastModifiers`), and its name loses its
+    /// trailing source map (`(a = super.x) => a` maps the default, not the
+    /// end of `a`). Named evaluation records an anonymous decorated class
+    /// default before visiting the initializer.
+    fn visit_parameter_declaration(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ParameterData,
+    ) -> Result<NodeId, TransformError> {
+        let last_modifier = self.array_nodes(data.modifiers)?.last().copied();
+        data.modifiers = None;
+        self.record_named_evaluation_of_identifier(
+            data.name,
+            data.initializer,
+            data.dot_dot_dot_token.is_none(),
+        )?;
+        data.name = self.visit_optional_node(data.name)?;
+        data.question_token = None;
+        data.r#type = None;
+        data.initializer = self.visit_optional_node(data.initializer)?;
+        let name = data.name;
+        let updated = self.update_data(original, NodeData::Parameter(data))?;
+        if updated != original.node() {
+            let updated_node = self.node(updated);
+            let record = self.context.arena().node(original)?;
+            let (pos, end) = (record.pos, record.end);
+            // moveRangePastModifiers: the range starts after the last modifier.
+            let past_modifiers_pos = match last_modifier {
+                Some(modifier) => self.context.arena().node(modifier)?.end,
+                None => pos,
+            };
+            let source = self.context.arena().source(original.source())?.syntax();
+            let comment_range =
+                SourceRange::from_raw(pos, end, source.positions()).map_err(|error| {
+                    TransformError::InvalidSourceRange {
+                        node: original,
+                        error,
+                    }
+                })?;
+            let past_modifiers = SourceRange::from_raw(past_modifiers_pos, end, source.positions())
+                .map_err(|error| TransformError::InvalidSourceRange {
+                    node: original,
+                    error,
+                })?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(updated_node)
+                .set_comment_range(crate::CommentRange::new(original.source(), comment_range));
+            self.context.factory()?.set_text_range_from_source_range(
+                updated_node,
+                original.source(),
+                past_modifiers,
+            )?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(updated_node)
+                .set_source_map_range(SourceMapRange::new(original.source(), past_modifiers));
+            if let Some(name) = name {
+                let name = self.node(name);
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(name)
+                    .add_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
+            }
+        }
+        Ok(updated)
     }
 
     /// tsc-port: visitParameterList @6.0.3
@@ -6391,6 +6609,32 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }
             ordinal += 1;
         }
+    }
+
+    /// getTextOfNode of a parsed private name: its source spelling (a
+    /// `\u` escape stays as written); `None` for other or synthesized names.
+    fn private_name_source_spelling(
+        &self,
+        name: Option<NodeId>,
+    ) -> Result<Option<String>, TransformError> {
+        let Some(name) = name else {
+            return Ok(None);
+        };
+        let name = self.node(name);
+        let record = self.context.arena().node(name)?;
+        if !matches!(record.data, NodeData::PrivateIdentifier(_))
+            || record.parent.is_none()
+            || record.pos == u32::MAX
+            || record.end == u32::MAX
+        {
+            return Ok(None);
+        }
+        let syntax = self.context.arena().source(name.source())?.syntax();
+        let start = tsc_syntax::skip_trivia(syntax.text(), record.pos as usize);
+        Ok(syntax
+            .text()
+            .get(start..record.end as usize)
+            .map(str::to_owned))
     }
 
     fn allocate_private_storage(&self, name: &str, used: &mut BTreeSet<String>) -> String {
@@ -7522,10 +7766,9 @@ impl StandardDecoratorVisitor<'_> {
                     return Ok(None);
                 };
                 match &self.context.arena().node(self.node(name))?.data {
-                    NodeData::Identifier(identifier) => {
-                        let text = identifier.text.clone();
-                        Ok(Some(self.create_string_literal(&text)?))
-                    }
+                    NodeData::Identifier(_) => Ok(Some(
+                        self.create_string_literal_from_property_literal(self.node(name))?,
+                    )),
                     _ => Ok(None),
                 }
             }
@@ -8134,22 +8377,15 @@ impl StandardDecoratorVisitor<'_> {
         self.update_data(original, NodeData::ParenthesizedExpression(data))
     }
 
-    /// tsc-port: visitPartiallyEmittedExpression @6.0.3
+    /// Partially emitted type-erasure wrappers use the ordinary visitor,
+    /// including when their enclosing expression discards its result.
     fn visit_partially_emitted_expression(
         &mut self,
         original: TransformNode,
-        mut data: tsc_syntax::nodes::PartiallyEmittedExpressionData,
-        value_use: DecoratorValueUse,
+        data: tsc_syntax::nodes::PartiallyEmittedExpressionData,
+        _value_use: DecoratorValueUse,
     ) -> Result<NodeId, TransformError> {
-        if self.receiver_class_this.is_none() {
-            return self.update_generic(original, NodeData::PartiallyEmittedExpression(data));
-        }
-        data.expression = match (data.expression, value_use) {
-            (Some(expression), DecoratorValueUse::Discarded) => self.visit_discarded(expression)?,
-            (Some(expression), DecoratorValueUse::Required) => self.visit(expression)?,
-            (None, _) => None,
-        };
-        self.update_data(original, NodeData::PartiallyEmittedExpression(data))
+        self.update_generic(original, NodeData::PartiallyEmittedExpression(data))
     }
 
     /// tsc-port: visitAssignmentPattern @6.0.3
