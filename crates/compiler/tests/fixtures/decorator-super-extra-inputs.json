@@ -1,0 +1,1281 @@
+{
+  "version": 1,
+  "description": "A6-41-SUPER extra controls: _outerThis versus hoisted cache temp ordering and anonymous/named heritage of a decorated class",
+  "variants": 7,
+  "cases_per_variant": 6,
+  "families": {
+    "phase-order": [
+      "outer-this-and-cache-temp",
+      "decorated-field-then-undecorated-computed-method",
+      "decorated-field-then-decorated-computed-method",
+      "decorated-field-no-later-computed-name"
+    ],
+    "handoff": [
+      "heritage-anonymous-class",
+      "heritage-anonymous-function",
+      "heritage-named-class"
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "decorator-super-extra/es2015/set/phase-order/outer-this-and-cache-temp",
+      "family": "phase-order",
+      "variant": "outer-this-and-cache-temp",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) static [mkey()]() {} static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/set/handoff/heritage-anonymous-class",
+      "family": "handoff",
+      "variant": "heritage-anonymous-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/set/handoff/heritage-anonymous-function",
+      "family": "handoff",
+      "variant": "heritage-anonymous-function",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\n(Function.prototype as any).m2 = function (this: any, a: number) { events.push([\"m2\", a]); return a; };\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends (function () {} as any as { new (): object; m2(a: number): number }) {\n    static {\n        record(super.m2(rhs()));\n    }\n}\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/set/handoff/heritage-named-class",
+      "family": "handoff",
+      "variant": "heritage-named-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class Named { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/set/phase-order/decorated-field-then-undecorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-undecorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) n() {} @(this.dec) static p() {} static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/set/phase-order/decorated-field-then-decorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-decorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/set/phase-order/decorated-field-no-later-computed-name",
+      "family": "phase-order",
+      "variant": "decorated-field-no-later-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static n() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/define/phase-order/outer-this-and-cache-temp",
+      "family": "phase-order",
+      "variant": "outer-this-and-cache-temp",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) static [mkey()]() {} static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/define/handoff/heritage-anonymous-class",
+      "family": "handoff",
+      "variant": "heritage-anonymous-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/define/handoff/heritage-anonymous-function",
+      "family": "handoff",
+      "variant": "heritage-anonymous-function",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\n(Function.prototype as any).m2 = function (this: any, a: number) { events.push([\"m2\", a]); return a; };\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends (function () {} as any as { new (): object; m2(a: number): number }) {\n    static {\n        record(super.m2(rhs()));\n    }\n}\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/define/handoff/heritage-named-class",
+      "family": "handoff",
+      "variant": "heritage-named-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class Named { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/define/phase-order/decorated-field-then-undecorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-undecorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) n() {} @(this.dec) static p() {} static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/define/phase-order/decorated-field-then-decorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-decorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2015/define/phase-order/decorated-field-no-later-computed-name",
+      "family": "phase-order",
+      "variant": "decorated-field-no-later-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static n() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/set/phase-order/outer-this-and-cache-temp",
+      "family": "phase-order",
+      "variant": "outer-this-and-cache-temp",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) static [mkey()]() {} static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/set/handoff/heritage-anonymous-class",
+      "family": "handoff",
+      "variant": "heritage-anonymous-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/set/handoff/heritage-anonymous-function",
+      "family": "handoff",
+      "variant": "heritage-anonymous-function",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\n(Function.prototype as any).m2 = function (this: any, a: number) { events.push([\"m2\", a]); return a; };\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends (function () {} as any as { new (): object; m2(a: number): number }) {\n    static {\n        record(super.m2(rhs()));\n    }\n}\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/set/handoff/heritage-named-class",
+      "family": "handoff",
+      "variant": "heritage-named-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class Named { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/set/phase-order/decorated-field-then-undecorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-undecorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) n() {} @(this.dec) static p() {} static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/set/phase-order/decorated-field-then-decorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-decorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/set/phase-order/decorated-field-no-later-computed-name",
+      "family": "phase-order",
+      "variant": "decorated-field-no-later-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static n() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/define/phase-order/outer-this-and-cache-temp",
+      "family": "phase-order",
+      "variant": "outer-this-and-cache-temp",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) static [mkey()]() {} static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/define/handoff/heritage-anonymous-class",
+      "family": "handoff",
+      "variant": "heritage-anonymous-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/define/handoff/heritage-anonymous-function",
+      "family": "handoff",
+      "variant": "heritage-anonymous-function",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\n(Function.prototype as any).m2 = function (this: any, a: number) { events.push([\"m2\", a]); return a; };\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends (function () {} as any as { new (): object; m2(a: number): number }) {\n    static {\n        record(super.m2(rhs()));\n    }\n}\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/define/handoff/heritage-named-class",
+      "family": "handoff",
+      "variant": "heritage-named-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class Named { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/define/phase-order/decorated-field-then-undecorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-undecorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) n() {} @(this.dec) static p() {} static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/define/phase-order/decorated-field-then-decorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-decorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/es2022/define/phase-order/decorated-field-no-later-computed-name",
+      "family": "phase-order",
+      "variant": "decorated-field-no-later-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static n() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/set/phase-order/outer-this-and-cache-temp",
+      "family": "phase-order",
+      "variant": "outer-this-and-cache-temp",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) static [mkey()]() {} static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/set/handoff/heritage-anonymous-class",
+      "family": "handoff",
+      "variant": "heritage-anonymous-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/set/handoff/heritage-anonymous-function",
+      "family": "handoff",
+      "variant": "heritage-anonymous-function",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\n(Function.prototype as any).m2 = function (this: any, a: number) { events.push([\"m2\", a]); return a; };\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends (function () {} as any as { new (): object; m2(a: number): number }) {\n    static {\n        record(super.m2(rhs()));\n    }\n}\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/set/handoff/heritage-named-class",
+      "family": "handoff",
+      "variant": "heritage-named-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class Named { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/set/phase-order/decorated-field-then-undecorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-undecorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) n() {} @(this.dec) static p() {} static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/set/phase-order/decorated-field-then-decorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-decorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/set/phase-order/decorated-field-no-later-computed-name",
+      "family": "phase-order",
+      "variant": "decorated-field-no-later-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static n() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/define/phase-order/outer-this-and-cache-temp",
+      "family": "phase-order",
+      "variant": "outer-this-and-cache-temp",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) static [mkey()]() {} static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/define/handoff/heritage-anonymous-class",
+      "family": "handoff",
+      "variant": "heritage-anonymous-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/define/handoff/heritage-anonymous-function",
+      "family": "handoff",
+      "variant": "heritage-anonymous-function",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\n(Function.prototype as any).m2 = function (this: any, a: number) { events.push([\"m2\", a]); return a; };\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends (function () {} as any as { new (): object; m2(a: number): number }) {\n    static {\n        record(super.m2(rhs()));\n    }\n}\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/define/handoff/heritage-named-class",
+      "family": "handoff",
+      "variant": "heritage-named-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\n@dec\nexport class Derived extends class Named { static stored = 1; static get x() { events.push([\"get\", this.name]); return this.stored; } static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; } } {\n    static {\n        record(super.x);\n        super.x = rhs();\n    }\n}\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/define/phase-order/decorated-field-then-undecorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-undecorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) n() {} @(this.dec) static p() {} static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/define/phase-order/decorated-field-then-decorated-computed-method",
+      "family": "phase-order",
+      "variant": "decorated-field-then-decorated-computed-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\"; const mk = \"mk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static [mk]() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-extra/esnext/define/phase-order/decorated-field-no-later-computed-name",
+      "family": "phase-order",
+      "variant": "decorated-field-no-later-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const events: unknown[] = [];\nfunction dec(value: any, context: any): any { return value; }\nfunction key(): \"x\" { events.push(\"key\"); return \"x\"; }\nfunction mkey(): \"m\" { events.push(\"mkey\"); return \"m\"; }\nfunction tkey(): \"t\" { events.push(\"tkey\"); return \"t\"; }\nfunction rhs() { events.push(\"rhs\"); return 3; }\nfunction record(value: unknown) { events.push(value); }\nconst kk = \"kk\";\nclass Base {\n    static stored = 1;\n    static get x() { events.push([\"get\", this.name]); return this.stored; }\n    static set x(value: number) { events.push([\"set\", this.name, value]); this.stored = value; }\n    static m(this: any, a: number) { events.push([\"m\", this.name, a]); return a; }\n    static t(this: any, s: TemplateStringsArray, ...subs: unknown[]) { events.push([\"t\", this.name, s[0], subs]); return s; }\n    im() { events.push(\"im\"); return 0; }\n}\nconst holder = { dec, make() { return @dec class extends Base { @(this.dec) [kk] = 1; @(this.dec) static n() { return super.x; } static { record(super.x); } }; } };\nconst Derived = holder.make();\nrecord(Derived.name);\nrecord(Derived.stored);\nexport const tail = events.length;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    }
+  ]
+}

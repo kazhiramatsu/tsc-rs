@@ -349,6 +349,7 @@ dependencies = [
  "tsc-rs-host",
  "tsc-rs-program",
  "tsc-rs-syntax",
+ "zstd",
 ]
 
 [[package]]

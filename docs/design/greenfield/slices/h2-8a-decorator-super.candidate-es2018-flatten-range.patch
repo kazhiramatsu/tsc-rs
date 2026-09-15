@@ -1,0 +1,30 @@
+diff --git a/crates/emitter/src/builtins/es2018.rs b/crates/emitter/src/builtins/es2018.rs
+index bee389745..a0b26fff7 100644
+--- a/crates/emitter/src/builtins/es2018.rs
++++ b/crates/emitter/src/builtins/es2018.rs
+@@ -3181,12 +3181,20 @@ impl<'context> Es2018Visitor<'context> {
+         if value_use == ExpressionValueUse::Required {
+             expressions.push(value);
+         }
+-        let expression = if expressions.is_empty() {
+-            value
++        // tsc returns `inlineExpressions(expressions)` as is
++        // (`flattenDestructuringAssignment`, _tsc.js:93325): a single
++        // flattened assignment keeps the element range emitAssignment gave
++        // it and a synthesized comma chain carries no range or original.
++        // Re-ranging the result to the whole destructuring assignment moved
++        // the trailing mapping of `({ ...super.list } = value)` (the rest
++        // element wrapped by the standard-decorator setter) from the rest
++        // element's end to the assignment's end (A6-41-SUPER
++        // `es2015/*/object-target/rest`).
++        if expressions.is_empty() {
++            Ok(value)
+         } else {
+-            self.inline_expressions(expressions)?
+-        };
+-        self.set_original_and_range(expression, original)
++            self.inline_expressions(expressions)
++        }
+     }
+ 
+     fn flatten_destructuring_binding(
