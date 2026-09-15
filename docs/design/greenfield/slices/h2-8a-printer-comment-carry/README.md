@@ -6,8 +6,9 @@
 元の `recover-other-source-same-positions` 1 case / 2 op の修復。
 Claude の元 worktree と提出成果物は変更しない。
 
-状態：修復と focused 検証は完了。最終 receipt は [review.v1.json](records/review.v1.json)、
-hosted の head・run・時間と merge 結果は PR に記録する。
+状態：**[PR #528](https://github.com/kazhiramatsu/tsc-rs/pull/528) で統合済み**。
+全 hosted job が成功し、最長28分26秒、printer は1分52秒。merge は `21732ef9a`。
+最終ローカル receipt は [review.v1.json](records/review.v1.json)、hosted の head・run・時間は PR に保存した。
 本書はこの source 修復・対照・CI 所有関係の範囲を扱う。profile/admission の変更は含まない。
 ③を再依頼する必要はなく、Claude は④ noCheck / transpile を並行して開始できる。
 

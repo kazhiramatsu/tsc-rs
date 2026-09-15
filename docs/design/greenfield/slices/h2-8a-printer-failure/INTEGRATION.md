@@ -5,6 +5,11 @@ Claude の提出は [DESIGN](DESIGN.md) と `records/` に原形で保存する�
 提出 worktree `../tsc-rs-printer-failure` / `draft/h2-8a-printer-failure` は変更していない。
 提出 base `f9ef828a5` から統合 base までの変更は PLAN-BASE の文書・棚卸しのみ。
 
+**後続記録（2026-09-16）**：[PR #527](https://github.com/kazhiramatsu/tsc-rs/pull/527)
+で全 hosted job の成功後に統合済み（merge `526c2b37a`）。source をまたぐコメントの1 caseは
+[A-INT3-CS / PR #528](../h2-8a-printer-comment-carry/README.md)で追加修復・統合した。
+以下の44/46と3 opは、#527のローカル checkpoint の記録として維持する。
+
 **状態：統合候補のローカル検証完了。hosted の結果と統合 SHA は PR に記録する。**
 printer 全 API の failure 互換性が完了したという記録ではない。
 生成名と source をまたぐ container の2 case は後続 owner を明示して残す。
