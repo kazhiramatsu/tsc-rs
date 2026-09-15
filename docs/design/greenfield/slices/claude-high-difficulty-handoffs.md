@@ -41,7 +41,7 @@ CI 改修も [PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) で main
 | --- | --- | --- | --- |
 | ① UTF-16 リテラルの更新・伝播 | [A40-LITERAL-UPDATE](h2-8a-literal-update-claude-handoff.md) | 現行 factory の値更新・raw/quote/text-source/flags の残経路監査、差がある場合の修復 | `JsString` と templateFlags の移行済み部分を再実装しない。新規の失敗数は未計測 |
 | ② decorator の生成名・binding | [A41-BINDING](h2-8a-generated-binding-claude-handoff.md) | 現行の型付き binding に対する global/synthetic/nested/lifecycle の残経路監査と修復 | `TargetBinding` 導入済み。C03 の failure 後の `x_2` / `x_1` 差を追加の具体的な監査入力にする |
-| ③ printer の失敗時状態・再利用 | [A40-PRINT-FAILURE](h2-8a-printer-failure-claude-handoff.md) | 失敗順序・継続状態の observer、必要な隔離修復 | 提出済み、A-INT3 が統合。統合時44/46 exact。後続 A-INT3-CS がコメント1 case を修復・focused検証済み。生成名は②へ引継ぎ。全 API 完了とは扱わない |
+| ③ printer の失敗時状態・再利用 | [A40-PRINT-FAILURE](h2-8a-printer-failure-claude-handoff.md) | 失敗順序・継続状態の observer、必要な隔離修復 | 提出済み、A-INT3 が統合。PR #527 / #528 で統合済み。提出分24/25 exact。生成名は②、追加 hook hint 差は API1.2-HINT。全 API 完了とは扱わない |
 | ④ noCheck / transpile パイプライン | [H2.8c 先行依頼](h2-8c-transpile-claude-handoff.md) | 3 経路の依存設計、source oracle、隔離 prototype | テーマは継続。最新 compiler/emitter を使う。runtime activation は後続 |
 | ⑤ resolution cache 無効化 | [L2.3 先行依頼](l2-3-resolution-cache-claude-handoff.md) | snapshot/dependency 設計、実 resolver を使う隔離 prototype | テーマは継続。最新 resolver/host/path identity を使う。Program 再利用への組込みは後続 |
 | 提出済み・統合済み | [A41-SUPER](h2-8a-decorator-super-claude-handoff.md) | after-18 の候補・8 patch・receipt は保存済み | PR #523。旧依頼文を新規実装依頼として再送しない |

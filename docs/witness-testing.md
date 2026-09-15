@@ -120,3 +120,12 @@ minutes. Do not increase workers without measuring memory. New standalone
 compiler witnesses and future build/watch/LSP suites still require their own
 coverage inventory and explicit jobs; see OPS-COVER / OPS-BUDGET in the
 [completion plan](design/greenfield/remaining-completion-slices.md).
+
+## Test entry coverage
+
+The [PR-gate entry inventory](design/greenfield/slices/witness-coverage/README.md)
+lists all 64 standalone Cargo test targets and 16 lib/bin test harnesses. It
+separates unfiltered commands, named-test filters, and shared acceptance helpers.
+A broad replay selected for an unknown test source does not automatically run
+that source's standalone target. OPS-COVER-2 through 4 pair new owner commands
+with target/fixture selection and a measured job budget.
