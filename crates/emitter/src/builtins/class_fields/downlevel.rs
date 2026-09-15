@@ -2041,7 +2041,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             data.modifiers = self.filter_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?;
         }
         let mut retained = operations.retained_members;
-        if !operations.instance.is_empty() {
+        let synthetic_constructor = if !operations.instance.is_empty() {
             self.install_instance_operations(
                 &mut retained,
                 &operations.instance,
@@ -2049,9 +2049,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 class_name.as_deref(),
                 original,
                 data.members,
-            )?;
-        }
-        self.install_private_static_pending_block(&mut retained, &mut operations.pending)?;
+            )?
+        } else {
+            None
+        };
+        self.install_private_static_pending_block(
+            &mut retained,
+            &mut operations.pending,
+            synthetic_constructor,
+        )?;
         self.visit_static_operations(&mut operations.static_)?;
         let members = self.rebuild_class_member_array(data.members, retained)?;
         data.members = Some(members.array());
@@ -2255,7 +2261,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             None => None,
         };
         let mut retained = operations.retained_members;
-        if !operations.instance.is_empty() {
+        let synthetic_constructor = if !operations.instance.is_empty() {
             self.install_instance_operations(
                 &mut retained,
                 &operations.instance,
@@ -2263,9 +2269,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 class_name.as_deref(),
                 original,
                 data.members,
-            )?;
-        }
-        self.install_private_static_pending_block(&mut retained, &mut operations.pending)?;
+            )?
+        } else {
+            None
+        };
+        self.install_private_static_pending_block(
+            &mut retained,
+            &mut operations.pending,
+            synthetic_constructor,
+        )?;
         self.visit_static_operations(&mut operations.static_)?;
         let members = self.rebuild_class_member_array(data.members, retained)?;
         data.members = Some(members.array());
@@ -2362,7 +2374,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             parent: SyntaxKind::ClassExpression,
             field: "lowered class expression binding",
         })?;
-        self.register_class_alias(original, &binding)?;
+        // createClassTempVar uses classThis without registering a class alias.
+        if self.class_this_binding(original).is_none() {
+            self.register_class_alias(original, &binding)?;
+        }
 
         // Class expressions cannot expand their containing statement.  A
         // comma expression owns the temporary class value and every ordered
@@ -4372,7 +4387,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         let receiver =
                             self.visit_required(data.right, SyntaxKind::BinaryExpression, "right")?;
                         let expression = self.create_private_in(&slot, receiver)?;
-                        self.set_original_and_range(expression, original)?;
+                        // transformPrivateIdentifierInInExpression sets only the original node.
+                        self.context
+                            .arena_mut()?
+                            .set_original_node(expression, Some(original))?;
                         return Ok(expression.node());
                     }
                 }
@@ -6337,7 +6355,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         class_name: Option<&str>,
         class: TransformNode,
         member_range: Option<NodeArrayId>,
-    ) -> Result<(), TransformError> {
+    ) -> Result<Option<TransformNode>, TransformError> {
         // Private-brand setup precedes parameter properties, and parameter
         // properties precede ordinary field initializers regardless of the
         // synthetic member order produced by transformTypeScript.
@@ -6390,15 +6408,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .node(*member)
                 .is_ok_and(|member| member.kind == SyntaxKind::Constructor)
         });
-        let constructor = if let Some(index) = constructor {
+        let (constructor, synthetic) = if let Some(index) = constructor {
             let constructor = self.inject_into_constructor(members[index], &statements)?;
             members[index] = constructor;
-            constructor
+            (constructor, false)
         } else {
             let constructor =
                 self.create_synthetic_constructor(derived, statements, class, member_range)?;
-            members.insert(0, constructor);
-            constructor
+            self.arrange_synthetic_members(members, Some(constructor), None);
+            (constructor, true)
         };
         let constructor = self.install_function_bindings(constructor, bindings, Vec::new())?;
         let index = members
@@ -6414,7 +6432,62 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             })
             .expect("instance operations always own a constructor");
         members[index] = constructor;
-        Ok(())
+        Ok(synthetic.then_some(constructor))
+    }
+
+    /// tsc-port: transformClassMembers @6.0.3 (_tsc.js:97218-97231) — when
+    /// this pass synthesizes a constructor or the pending-expressions static
+    /// block, the member list is rebuilt as the class-this assignment block,
+    /// the named-evaluation helper block, the synthetic constructor, the
+    /// synthetic static block, then every other member in its order. A
+    /// member passed here that is not in the list yet is inserted at that
+    /// position; one already in the list is moved there.
+    fn arrange_synthetic_members(
+        &self,
+        members: &mut Vec<TransformNode>,
+        synthetic_constructor: Option<TransformNode>,
+        synthetic_static_block: Option<TransformNode>,
+    ) {
+        let class_this = members.iter().position(|member| {
+            self.context
+                .arena()
+                .metadata(*member)
+                .and_then(|metadata| metadata.class_this)
+                .is_some()
+        });
+        let named_evaluation = members
+            .iter()
+            .position(|member| {
+                self.context
+                    .arena()
+                    .metadata(*member)
+                    .and_then(|metadata| metadata.assigned_name)
+                    .is_some()
+            })
+            .filter(|index| Some(*index) != class_this);
+        let mut arranged = Vec::with_capacity(members.len() + 2);
+        if let Some(index) = class_this {
+            arranged.push(members[index]);
+        }
+        if let Some(index) = named_evaluation {
+            arranged.push(members[index]);
+        }
+        arranged.extend(synthetic_constructor);
+        arranged.extend(synthetic_static_block);
+        arranged.extend(
+            members
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|(index, member)| {
+                    Some(*index) != class_this
+                        && Some(*index) != named_evaluation
+                        && Some(*member) != synthetic_constructor
+                        && Some(*member) != synthetic_static_block
+                })
+                .map(|(_, member)| member),
+        );
+        *members = arranged;
     }
 
     /// Downlevel static operands are visited after the retained members and
@@ -6624,6 +6697,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         members: &mut Vec<TransformNode>,
         pending: &mut ClassPendingPlan,
+        synthetic_constructor: Option<TransformNode>,
     ) -> Result<(), TransformError> {
         if !self.selectively_transforms_private_static_elements() || pending.is_empty() {
             return Ok(());
@@ -6646,40 +6720,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             TransformFlags::NONE,
         )?;
 
-        let class_this = members.iter().position(|member| {
-            self.context
-                .arena()
-                .metadata(*member)
-                .and_then(|metadata| metadata.class_this)
-                .is_some()
-        });
-        let named_evaluation = members.iter().position(|member| {
-            self.context
-                .arena()
-                .metadata(*member)
-                .and_then(|metadata| metadata.assigned_name)
-                .is_some()
-        });
-        let mut leading = Vec::with_capacity(3);
-        if let Some(index) = class_this {
-            leading.push(members[index]);
-        }
-        if let Some(index) = named_evaluation {
-            if Some(index) != class_this {
-                leading.push(members[index]);
-            }
-        }
-        leading.push(static_block);
-        leading.extend(
-            members
-                .iter()
-                .copied()
-                .enumerate()
-                .filter_map(|(index, member)| {
-                    (Some(index) != class_this && Some(index) != named_evaluation).then_some(member)
-                }),
-        );
-        *members = leading;
+        self.arrange_synthetic_members(members, synthetic_constructor, Some(static_block));
         Ok(())
     }
 

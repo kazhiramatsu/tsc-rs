@@ -15,7 +15,10 @@ use std::path::{Path, PathBuf};
 use base64::Engine as _;
 use serde_json::{json, Value};
 use sha2::Digest;
-use tsc_diagnostics::{Diagnostic, MessageChain};
+use tsc_diagnostics::{Diagnostic, JsString, MessageChain};
+
+#[path = "../../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
 use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitIoError, EmitIoOperation, EmitWriteDisposition,
     EmitWriteMetadata, OutputSink,
@@ -24,6 +27,7 @@ use tsc_host::MemoryCompilerHost;
 use tsc_program::{
     load_emitting_program, CompilerOptions, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
 };
+use utf16_scalar_json::observe as scalar_json;
 
 const EXPECTED_CASES: usize = 672;
 const EXPECTED_EXTRA_CASES: usize = 42;
@@ -69,7 +73,7 @@ struct RecordingSink {
 impl OutputSink for RecordingSink {
     fn write(&mut self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError> {
         let index = self.writes.len();
-        let path = artifact.path().to_path_buf();
+        let path = artifact.path().to_owned();
         self.writes.push(artifact);
         if self.failure_index == Some(index) {
             return Err(EmitIoError::new(
@@ -279,7 +283,14 @@ fn replay_case(case: &Value, fixture_sha256: &str, pass: usize) {
         case_id,
         &outcome,
         command.diagnostics(),
-        Some((command.status_writes().to_vec(), command.exit_code())),
+        Some((
+            command
+                .status_writes()
+                .iter()
+                .map(|text| text.as_str().expect("scalar fixture status").to_owned())
+                .collect(),
+            command.exit_code(),
+        )),
         &sink.writes,
         expected,
         true,
@@ -353,7 +364,7 @@ fn prepare_program(case: &Value) -> tsc_program::PreparedProgram {
             "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
             "declaration" => options.declaration = value.as_bool(),
             "declarationMap" => options.declaration_map = value.as_bool(),
-            "outDir" => options.out_dir = value.as_str().map(str::to_owned),
+            "outDir" => options.out_dir = value.as_str().map(JsString::from),
             "allowJs" => options.allow_js = value.as_bool().unwrap(),
             "checkJs" => options.check_js = value.as_bool(),
             "removeComments" => options.remove_comments = value.as_bool(),
@@ -384,7 +395,7 @@ fn capture_complete_command(
     writes: &[EmitArtifact],
     outcome: &tsc_emitter::EmitOutcome,
     reported: &[Diagnostic],
-    status_writes: &[String],
+    status_writes: &[JsString],
     exit_code: i32,
     expected: &Value,
 ) {
@@ -406,7 +417,7 @@ fn capture_complete_command(
     let maps = outcome.source_maps().map(|maps| {
         maps.iter()
             .map(|map| {
-                json!({"input_source_file_names": map.input_source_files(),
+                json!({"input_source_file_names": scalar_json(&map.input_source_files()),
                     "source_map_json": map.canonical_json()})
             })
             .collect::<Vec<_>>()
@@ -414,8 +425,8 @@ fn capture_complete_command(
     let actual = json!({"writes": writes, "reported_diagnostics": diagnostics(reported),
         "emit_refused": outcome.emit_skipped(), "emit_result": {
             "emit_skipped": outcome.emit_skipped(), "diagnostics": diagnostics(outcome.diagnostics()),
-            "emitted_files": outcome.emitted_files(), "source_maps": maps},
-        "status_writes": status_writes, "exit_code": exit_code});
+            "emitted_files": scalar_json(&outcome.emitted_files()), "source_maps": maps},
+        "status_writes": scalar_json(&status_writes), "exit_code": exit_code});
     let value = json!({"case_id": case_id, "capture_index": index, "pass": pass,
         "capture_kind": "supplemental-complete-command", "fixture_sha256": fixture_sha256,
         "actual": actual, "error": Value::Null, "partial_writes": Value::Null, "expected": expected});
@@ -431,7 +442,7 @@ fn message(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar fixture diagnostic"));
     for next in &chain.next {
         message(next, indent + 1, text);
     }
@@ -443,9 +454,9 @@ fn diagnostics(diagnostics: &[Diagnostic]) -> Value {
         let related = (d.related_information_present || !d.related.is_empty()).then(|| d.related.iter().map(|r| {
             let mut text = String::new(); message(&r.message, 0, &mut text);
             json!({"code":r.message.code,"category":format!("{:?}",r.message.category),
-                "file":r.file_name,"start":r.start,"length":r.length,"message":text,"related_information":null})
+                "file":scalar_json(&r.file_name),"start":r.start,"length":r.length,"message":text,"related_information":null})
         }).collect::<Vec<_>>());
-        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":d.file_name,
+        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":scalar_json(&d.file_name),
             "start":d.start,"length":d.length,"message":text,"related_information":related})
     }).collect::<Vec<_>>())
 }
@@ -475,7 +486,7 @@ fn captured_write(index: usize, artifact: &EmitArtifact) -> Value {
         "materialized_utf8_base64":base64::engine::general_purpose::STANDARD.encode(artifact.materialized_bytes()),
         "materialized_utf8_bytes":artifact.materialized_bytes().len(),
         // OutputSink::write's Result is the typed equivalent of onError.
-        "on_error_callback_present":true,"source_files":artifact.source_files(),
+        "on_error_callback_present":true,"source_files":scalar_json(&artifact.source_files()),
         "data_present":artifact.metadata().is_some(),
         "data_source_map_url_pos":position,"data_diagnostics":data_diagnostics})
 }

@@ -493,7 +493,12 @@ impl<'context> TargetVisitor<'context> {
         let assignment = self.create_parenthesized(assignment)?;
         let result =
             self.create_binary(left, Self::non_assignment_operator(operator), assignment)?;
-        Ok(self.set_original_and_range(result, original)?.node())
+        // tsc-port: transformLogicalAssignment @6.0.3 returns the created
+        // binary expression as is (no text range, no original): re-ranging it
+        // to the assignment added a trailing mapping at the assignment's end
+        // (A6-41-SUPER `named-evaluation/assignment-logical` at ES2015).
+        let _ = original;
+        Ok(result.node())
     }
 
     fn transform_exponentiation_assignment(

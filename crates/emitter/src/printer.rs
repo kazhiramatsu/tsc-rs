@@ -2325,8 +2325,16 @@ impl Printer {
                 }
             }
             NodeData::PrivateIdentifier(data) if changed => {
-                writer.write_symbol(&data.text);
-                Ok(())
+                if self.transformed_identifier_can_reuse_source_spelling(
+                    transformation,
+                    node,
+                    &data.text,
+                )? {
+                    self.write_original_without_leading_trivia(transformation, node, writer)
+                } else {
+                    writer.write_symbol(&data.text);
+                    Ok(())
+                }
             }
             NodeData::QualifiedName(data) => {
                 self.emit_qualified_name(transformation, node, &data, expression_context, writer)
@@ -2700,7 +2708,14 @@ impl Printer {
                         .and_then(crate::LiteralNodeProperties::string_literal_text_source)
                     {
                         let source_record = transformation.arena().node(text_source)?;
-                        if let NodeData::Identifier(identifier) = &source_record.data {
+                        let name_text = match &source_record.data {
+                            NodeData::Identifier(identifier) => Some(identifier.text.as_str()),
+                            NodeData::PrivateIdentifier(identifier) => {
+                                Some(identifier.text.as_str())
+                            }
+                            _ => None,
+                        };
+                        if let Some(name_text) = name_text {
                             // tsc-port: getLiteralTextOfNode @6.0.3
                             // tsc-hash: 43989b908107b6f48eae6547835a82a24937f43ba2ddd8673c48b83018d8201e
                             // tsc-span: _tsc.js:120467-120479
@@ -2712,7 +2727,7 @@ impl Printer {
                                 .arena()
                                 .metadata(text_source)
                                 .is_some_and(|metadata| metadata.generated_binding_id().is_some());
-                            let mut text = identifier.text.as_str();
+                            let mut text = name_text;
                             if !generated
                                 && text_source.source() == node.source()
                                 && source_record.parent.is_some()
@@ -14091,10 +14106,12 @@ impl Printer {
         }
         let record = transformation.arena().node(node)?;
         let original_record = transformation.arena().node(original)?;
-        let NodeData::Identifier(original_identifier) = &original_record.data else {
-            return Ok(false);
+        let original_text = match &original_record.data {
+            NodeData::Identifier(identifier) => &identifier.text,
+            NodeData::PrivateIdentifier(identifier) => &identifier.text,
+            _ => return Ok(false),
         };
-        if original_identifier.text != text
+        if original_text != text
             || record.pos != original_record.pos
             || record.end != original_record.end
         {
