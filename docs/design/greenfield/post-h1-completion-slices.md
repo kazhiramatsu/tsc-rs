@@ -1,5 +1,15 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
+2026-09-15 PLAN-BASE checkpoint: the [dated residual/evidence inventory](slices/plan-base/README.md)
+is complete at main `f9ef828a5`. All 15,642 frozen corpus IDs have a disposition;
+the crosswalk contains 6,045 IDs / 9,004 memberships, not a defect count.
+Of the historical class 128 failures, 88 have current hosted exact results with
+identical fixture bytes and 40 are not remeasured. Seven of the historical global
+14 failures have later complete-command repair records, without claiming a new
+global result. D/E plus directory migration is 314 exact / 11 later references.
+No new native replay or runtime/profile change was made. VER1.0-MAP, OPS-COVER
+and H2.9-INV consume this inventory; Claude's C03 scope remains unchanged.
+
 2026-09-15 checkpoint: the [remaining-task inventory and completion slices](remaining-completion-slices.md)
 now records every follow-on product track, separates Claude's five research/candidate
 handoffs from integration work, and distinguishes current deferred observations

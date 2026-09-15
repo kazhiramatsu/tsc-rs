@@ -10,6 +10,12 @@ CI 改修も main `bb2d51c89` にマージ済み。
 **Claude は下記の C01〜C05。それ以外の行は Codex／統合担当が持ちます。**
 候補の提出、main への統合、製品の qualification は別の完了条件です。
 
+2026-09-15：**[PLAN-BASE の台帳作成](slices/plan-base/README.md)は完了**。
+全15,642 corpus IDを照合し、6,045 ID・9,004所属の残差／検証記録台帳を作成した。
+旧 class 128失敗のうち88件は同じ fixture で現在の hosted が exact、40件は未再測定。
+旧 global 14件には後続修復記録7件があり、最新 main の全件失敗数とは区別する。
+新規 Rust replay は行わず、次は VER1.0-MAP と必要な OPS-COVER の対象をこの台帳から選ぶ。
+
 ## 1. 現在地と、残タスクに戻さないもの
 
 | 項目 | 確認できた状態 | 今後の扱い |
@@ -50,7 +56,7 @@ CI 改修も main `bb2d51c89` にマージ済み。
 | H2.6a / b / c | a: 174 exact / known 1 / deferred 2。b: 6 exact。c: 631 exact / known 8 / deferred 4 | A-RES、transpile 等の明示 owner。c の current refusal は isolatedModules と useCaseSensitiveFileNames |
 | H2.7b | 1593 candidates、1557 exact、deferred 36 | H2.9-INV と各 artifact/option owner |
 | H2.7c | 42 candidates、32 exact、deferred 10 | targeted / mode 等の後続 owner。旧 close 時の 31/11 を現在値にしない |
-| H2.7d original | 283 exact、reference 32。H2.6c や D/E joint band と重複 | H2.9-INV で reference ID と後続の exact admission を照合 |
+| H2.7d/e＋directory | D283＋E-only8＋directory23＝314 exact、11 later references。D-only の中間出力 reference 32 は最終残数ではない | PLAN-BASE で23 directory移行を ID ごとに照合済み。残りの入力・観測を H2.9-INV と各 owner へ |
 
 上表・旧 global/class・known manifests は重複する。**表の数を足して残件数にしない**。
 既に別の profile で exact になった保留行もあるため、PLAN-BASE で case / observation / version /
@@ -95,7 +101,7 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 
 | ID | 作業と成果物 | 依存・終了条件 |
 | --- | --- | --- |
-| PLAN-BASE | main SHA を固定し、全 active profile の source/future/later-deferred、旧 global 14、class 128、既知差分 20 IDs、parameter/comment 5、direct known 4、後続修復を case ID / owner / receipt で照合した現行台帳を作る | 本書から開始可。重複を除き、既存 exact / 未再測定 / 再現差 / later-owned / upstream exception を全行へ付与。未計測を pass にしない |
+| PLAN-BASE — 完了 | [固定 main `f9ef828a5` の台帳](slices/plan-base/README.md)。全 active profile の source/future/later-deferred、旧 global/class、known、parameter、direct、upstream exception と後続修復を照合 | 全15,642 corpus IDに disposition あり。再生成一致、判定境界7 tests。これは台帳の完了であり、修復・全 profile qualification の完了ではない |
 | VER1.0-MAP | 固定 TS7 の tests / CHANGES と H2 残項目を retained / intentional change / removed option / new feature に分類。parser/checker/resolver/emitter/libs/CLI/service の機能分母と依存を作る | PLAN-BASE と既存 native workflow。新しい参照を選ぶ場合も commit を固定。ES5/System/UMD/Node10/Classic/AMD/outFile 等を個別に disposition。廃止予定を 6.0.3 の修復完了として数えない |
 | OPS-COVER | Cargo の standalone test target、acceptance の imported test、各 fixture の所有関係を列挙し、未収載の必要な witness の hosted 入口を追加 | PLAN-BASE の対象集合を使う。declaration-specifier / CFG / literal 等が現 CI に含まれると推測しない。target ごとの選択・件数・時間・失敗伝播を証明 |
 | OPS-BUDGET | 追加 suite の build / oracle / replay を測定し、変更 owner ごとの job 分割を維持 | OPS-COVER と各新規 target の実測。1 job 45 分を分割検討の目安、60 分を hard limit とする。重複した build による総 runner 時間も記録。worker 増でメモリ上限を隠さない |
