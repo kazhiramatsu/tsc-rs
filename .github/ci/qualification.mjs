@@ -1872,7 +1872,7 @@ export function validatePolicy(policy) {
   // Rust acceptance body and its owner-control boundary remain pinned below.
   const executionSources = [
     ".github/workflows/ci.yml", ".github/workflows/witness.yml",
-    ".github/ci/replay.py", "scripts/witness.py",
+    ".github/ci/replay.py", ".github/ci/test_replay.py", "scripts/witness.py",
     "crates/xtask/src/acceptance_plan.rs", "crates/xtask/src/acceptance_slices.rs",
   ];
   if (!exactKeys(hosted.execution_source_sha256, executionSources)) {

@@ -25,7 +25,9 @@ WITNESS_GROUPS = {
     "primary": ("primary",),
     "controls": ("extra", "followup", "followup2", "followup3", "direct", "bundle-sinks"),
     "retained": ("retained",),
-    "printer": ("printer",),
+    # Reuse this short job's emitter build. Fixture changes select individual
+    # direct suites without running unrelated printer failure/owner controls.
+    "printer": ("printer", *witness.EMITTER_DIRECT),
 }
 PRINTER_TARGETS = (
     "printer_failure_contract", "emit_pipeline_phases_contract",
@@ -68,6 +70,10 @@ def selection(paths):
     acceptance, witnesses = set(), set()
     for file in paths:
         if file.startswith("docs/") or file in ("README.md", "CONTRIBUTING.md", "LICENSE"):
+            continue
+        direct_owners = {suite for suite in witness.EMITTER_DIRECT if file in witness.emitter_inputs(suite)}
+        if direct_owners:
+            witnesses.update(direct_owners)
             continue
         if file in PRINTER_INPUTS:
             witnesses.add("printer")
@@ -227,6 +233,8 @@ def main():
     args = parser.parse_args()
     if args.command == "plan":
         subprocess.run(["node", ".github/ci/qualification.mjs", "check-policy"], cwd=ROOT, check=True)
+        subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", ".github/ci",
+                        "-p", "test_replay.py"], cwd=ROOT, check=True)
         validate_partition()
         event_path = os.environ.get("GITHUB_EVENT_PATH")
         try:
@@ -254,8 +262,13 @@ def main():
         for suite in suites:
             if suite == "printer":
                 printer_witnesses()
+            elif suite in witness.EMITTER_DIRECT:
+                continue  # Batch selected small targets below, sharing one build.
             else:
                 subprocess.run([sys.executable, "scripts/witness.py", suite, "--all"], cwd=ROOT, check=True)
+        direct = [suite for suite in suites if suite in witness.EMITTER_DIRECT]
+        if direct:
+            witness.run_emitter_direct(direct)
     else:
         if args.value not in ("acceptance", "witnesses"):
             parser.error("gate requires acceptance or witnesses")
