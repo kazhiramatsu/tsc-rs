@@ -12,10 +12,11 @@ python3 scripts/witness.py direct --all
 python3 scripts/witness.py printer --all
 python3 scripts/witness.py literal-value-provenance --all
 python3 scripts/witness.py comma-argument-factory --all
+python3 scripts/witness.py declaration-map-cli --all
 ```
 
 Suites: `primary`, `extra`, `followup`, `followup2`, `followup3`, `retained`, `direct`,
-`printer`, `bundle-sinks`, plus the ten small
+`printer`, `bundle-sinks`, `declaration-map-cli`, plus the ten small
 [emitter direct suites](design/greenfield/slices/witness-coverage/emitter-direct/README.md).
 `--all` explicitly requests the whole suite, normally on hosted CI. `--list` and
 `--dry-run` neither build Rust nor run tests. Commands use a manifest path and an
@@ -28,6 +29,10 @@ The `printer` target runs together: 70 small direct rows (65 exact, 5 documented
 gaps), plus the same target's probe/safety/negative controls. It takes milliseconds
 after compilation and does not run the Program/oracle chain. `bundle-sinks` runs
 10 complete commands together; normally leave that replay to hosted CI.
+`declaration-map-cli` runs eight existing original CLI cases twice, with output
+bytes/set, diagnostics and exit checks. Its exact test omits the shared Program
+comparison already covered by acceptance; the immutable oracle checks remain.
+See [OPS-COVER-3A](design/greenfield/slices/witness-coverage/declaration-map-cli/README.md).
 On macOS, use `taskpolicy -b nice -n 15 python3 scripts/witness.py ...` to lower
 priority. Do not run several heavy local replays simultaneously.
 
@@ -65,7 +70,9 @@ and ten individually selectable literal/factory/metadata targets. It retains a
 20-minute limit and two workers. Selected direct targets run in one Cargo call;
 a literal fixture change runs only its owning target and observers, without the
 printer failure suite or a compiler/acceptance replay.
-The controls job also runs `bundle-sinks`, sharing its existing compiler build.
+The controls job also runs `bundle-sinks` and `declaration-map-cli`, sharing its
+existing compiler build. The CLI test wrapper selects only its eight CLI cases;
+its shared Program helper selects late acceptance and the CLI suite.
 Printer fixtures/targets/observers select only the printer job; the bundle sink
 fixture/target selects only its ten commands in controls. Common printer source
 changes retain all related acceptance and witness coverage. The printer runner
@@ -140,5 +147,7 @@ A broad replay selected for an unknown test source does not automatically run
 that source's standalone target. OPS-COVER-2 through 4 pair new owner commands
 with target/fixture selection and a measured job budget. OPS-COVER-2 adds the ten
 emitter direct targets: the remaining count is 42 standalone targets without a
-direct entry (compiler22 / other20). The original 52-target inventory is retained
+direct entry at that step (compiler22 / other20). OPS-COVER-3A then registers the
+eight CLI cases through a named-test filter: 41 targets still lack a direct entry
+(compiler21 / other20). The original 52-target inventory is retained
 as a historical snapshot.

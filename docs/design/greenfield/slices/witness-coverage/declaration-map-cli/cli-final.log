@@ -1,0 +1,22 @@
+declaration-map-cli: selected 8 input cases
+env cargo test --manifest-path crates/compiler/Cargo.toml --test h2_7e_original_corpus h2_7e_original_cli_matches_outputs_diagnostics_and_exit_twice -- --exact --nocapture --test-threads=1
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/compiler)
+    Finished `test` profile [unoptimized] target(s) in 2.78s
+     Running tests/h2_7e_original_corpus.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_7e_original_corpus-f8a512390aedfe9f)
+
+running 1 test
+test h2_7e_original_cli_matches_outputs_diagnostics_and_exit_twice ... H2.7e original manifest=/Users/hiramatsu/dev/tsc-rs-compiler-witness-coverage/crates/compiler binary=/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/tsc-rs
+H2.7e CLI outputs/diagnostics/exit agree x2 typescript-6.0.3/compiler/declarationMaps.ts#default
+H2.7e CLI outputs/diagnostics/exit agree x2 typescript-6.0.3/compiler/declarationMapsMultifile.ts#default
+H2.7e CLI outputs/diagnostics/exit agree x2 typescript-6.0.3/compiler/declarationMapsWithoutDeclaration.ts#default
+H2.7e CLI outputs/diagnostics/exit agree x2 typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock25.ts#target%3Des2022
+H2.7e CLI outputs/diagnostics/exit agree x2 typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock25.ts#target%3Desnext
+H2.7e CLI outputs/diagnostics/exit agree x2 typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015
+H2.7e CLI outputs/diagnostics/exit agree x2 typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022
+H2.7e CLI outputs/diagnostics/exit agree x2 typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Desnext
+H2.7e CLI: 8 cases, twice; shared Program comparison is a separate test
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 30.22s
+
+{"declaration_map_cli_cases": 8, "repetitions": 2, "cargo_build_and_replay_seconds": 33.629}

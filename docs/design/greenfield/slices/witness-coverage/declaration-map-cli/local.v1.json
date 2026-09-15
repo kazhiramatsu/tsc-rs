@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "baseline_commit": "7342c65e54be2f779c6c64f804eb2f99c526e513",
+  "integration_source_commit": "ed8adaf8edd01857d6aa7628d9fb39136c834c3c",
+  "scope": "E-only8 relocated CLI output set/bytes, stdout/stderr and exit; not additional original command exact IDs",
+  "case_ids": [
+    "typescript-6.0.3/compiler/declarationMaps.ts#default",
+    "typescript-6.0.3/compiler/declarationMapsMultifile.ts#default",
+    "typescript-6.0.3/compiler/declarationMapsWithoutDeclaration.ts#default",
+    "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock25.ts#target%3Des2022",
+    "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock25.ts#target%3Desnext",
+    "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022",
+    "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Desnext"
+  ],
+  "baseline": {
+    "exit_code": 0,
+    "tests_passed": 1,
+    "build_seconds": 925,
+    "test_seconds": 53.25,
+    "comparisons": "Program8 x2 plus CLI8 x2; 3 compound and 2 transpile boundaries classified by existing Program helper",
+    "test_binary": "/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_7e_original_corpus-f8a512390aedfe9f",
+    "test_binary_sha256": "81dc144f27715b68b7f56ab73cadfe0070c3aa15ab5369d301df9990eb6bb752",
+    "compiler_binary_sha256": "220a014bacf1c6814a7a7002a529c26c9ebeead75f7d49935c6f7a40013a5e6e",
+    "test_source_sha256": "429312addb822c83e99f400d00a334204ee730c75b6e916823dfd463810136a6",
+    "log_sha256": "fa5dcdecfaafc6d22e55be249c85f21bbc48d71a35dde694691c438640dadf21"
+  },
+  "after": {
+    "exit_code": 0,
+    "tests_passed": 1,
+    "tests_filtered_out": 1,
+    "test_seconds": 30.22,
+    "compile_seconds": 2.78,
+    "declaration_map_cli_cases": 8,
+    "repetitions": 2,
+    "cargo_build_and_replay_seconds": 33.629,
+    "test_binary_sha256": "3f6babe1b9e619b9550c74b96aff632dbc4a45e376a7c8d2014fd7b01d8b112e",
+    "compiler_binary_sha256": "220a014bacf1c6814a7a7002a529c26c9ebeead75f7d49935c6f7a40013a5e6e",
+    "compiler_binary_unchanged": true,
+    "CLI_comparison_body_unchanged": true
+  },
+  "environment": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-printer-failure/target",
+    "priority": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15"
+    ]
+  },
+  "baseline_command": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "crates/compiler/Cargo.toml",
+    "--test",
+    "h2_7e_original_corpus",
+    "h2_7e_original_corpus_preserves_complete_tuples_and_boundaries",
+    "--",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "after_command": [
+    "python3",
+    ".github/ci/replay.py",
+    "witnesses"
+  ],
+  "after_WITNESS_SUITES": [
+    "declaration-map-cli"
+  ],
+  "light_checks": {
+    "planner_tests": 25,
+    "policy_check": true,
+    "policy_boundary_test": true,
+    "cargo_fmt_check": true,
+    "inventory_check": true
+  },
+  "execution_source_sha256": {
+    "crates/compiler/tests/h2_7e_original_corpus.rs": "6c5e22bd3fa031ddbfcb0e4ce7e68a6ed57f2a44c372843f9f26c1ee9a719da0",
+    ".github/ci/replay.py": "f102f339a55f06111d1ba05c2d08311db005bc2bdbefa045058eede9f4f00c31",
+    ".github/ci/test_replay.py": "6baae7ddd05db8876d49458be59d2ee48e9a5af9dd211b45a9dd724aea87ce23",
+    "scripts/witness.py": "adb6bf31eb7b57a1e44e1170fe6d01549da552660d161fa13d89ec6bfee93dc1"
+  },
+  "input_sha256": {
+    ".node-version": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c",
+    "Cargo.lock": "e2a9b63447bb9cc3ee9924ae43915d2d7dd4f8f715c503e0b3372643cbb42810",
+    "Cargo.toml": "edd7e574f72487c69e900e43346058ce66e4052575bb2c48c3d552ea4db5edd5",
+    "crates/compiler/Cargo.toml": "ca3ad097be2704bd6caab63e73e7b92a05b5c255840382e260ecb8d04599ac4a",
+    "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs": "fe190da333d2d4d0d0cb7df4098f067f5eda4f331841f5171166354ede56c9ef",
+    "crates/oracle/h2-7de-candidates.mjs": "0c1947c53ae421dd7859af4d391306dcc2c60bb45ceec75767dbd73069a389d7",
+    "crates/oracle/h2-7de-observations.mjs": "9a525d7db81a634725c2d5a6cbc01c3219e835109ed0927eaf35a213f18401e5",
+    "crates/oracle/vfs-directory-overlay.mjs": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76",
+    "ratchets/h2-7de-candidate-inputs.v1.json": "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a",
+    "ratchets/h2-7de-candidates.v1.json": "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d",
+    "ratchets/h2-7de-observations.v1.json": "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+    "vendor/typescript-6.0.3/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "log_sha256": {
+    "baseline.log": "fa5dcdecfaafc6d22e55be249c85f21bbc48d71a35dde694691c438640dadf21",
+    "cli-final.log": "ae87eff54a72960fb500bb1513203267649f08d5b2d8af856e8073c6e3b10dce"
+  },
+  "limits": [
+    "Low-priority local build reused a shared target directory but changed worktree paths; timings are not a cold hosted benchmark.",
+    "Baseline combines Program and CLI; their times were not measured independently before the split.",
+    "After runs only the extracted CLI test. Unchanged Program comparator remains in acceptance late.",
+    "Hosted final conclusions and durations are recorded in the PR body without replacing this local capture."
+  ]
+}
