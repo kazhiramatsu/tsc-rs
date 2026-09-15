@@ -23,7 +23,7 @@ GROUPS = {
 # select just one collection within this job; direct controls share its build.
 WITNESS_GROUPS = {
     "primary": ("primary",),
-    "controls": ("extra", "followup", "followup2", "followup3", "direct", "bundle-sinks"),
+    "controls": ("extra", "followup", "followup2", "followup3", "direct", "bundle-sinks", "declaration-map-cli"),
     "retained": ("retained",),
     # Reuse this short job's emitter build. Fixture changes select individual
     # direct suites without running unrelated printer failure/owner controls.
@@ -81,6 +81,13 @@ def selection(paths):
         if file in ("crates/compiler/tests/h2_7d_bundle_sinks.rs",
                     "crates/compiler/tests/fixtures/bundle-sinks.json"):
             witnesses.add("bundle-sinks")
+            continue
+        if file == "crates/compiler/tests/h2_7e_original_corpus.rs":
+            witnesses.add("declaration-map-cli")
+            continue
+        if file == "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs":
+            acceptance.add("late")
+            witnesses.add("declaration-map-cli")
             continue
         if file in SUPER_MODULES:
             witnesses.update(witness.SUPER)

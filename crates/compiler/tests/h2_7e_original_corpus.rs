@@ -4,13 +4,13 @@ use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
 #[path = "integration/h2_7e_original_corpus_shared.rs"]
 mod h2_7e_original_corpus_shared;
 use h2_7e_original_corpus_shared::{frozen, indexed, workspace};
 
-#[test]
-fn h2_7e_original_corpus_preserves_complete_tuples_and_boundaries() {
+fn assert_compiled_worktree() {
     assert_eq!(
         std::env::current_dir().unwrap().canonicalize().unwrap(),
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -23,7 +23,17 @@ fn h2_7e_original_corpus_preserves_complete_tuples_and_boundaries() {
         env!("CARGO_MANIFEST_DIR"),
         env!("CARGO_BIN_EXE_tsc-rs")
     );
+}
+
+#[test]
+fn h2_7e_original_corpus_preserves_complete_tuples_and_boundaries() {
+    assert_compiled_worktree();
     h2_7e_original_corpus_shared::assert_original_corpus(&workspace());
+}
+
+#[test]
+fn h2_7e_original_cli_matches_outputs_diagnostics_and_exit_twice() {
+    assert_compiled_worktree();
     assert_original_cli_corpus();
 }
 
@@ -169,6 +179,24 @@ fn assert_original_cli_corpus() {
         "ratchets/h2-7de-observations.v1.json",
         "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
     );
+    // This test runs independently of the Program comparator. Retain the
+    // immutable oracle/input checks that comparator previously ran first,
+    // including the actual TS CLI used for the relocated config diagnostic.
+    assert_eq!(observations["repetitions"], 2);
+    for pin in observations["inputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(std::iter::once(&observations["generator"]))
+    {
+        let bytes = std::fs::read(workspace().join(pin["path"].as_str().unwrap())).unwrap();
+        assert_eq!(
+            json!(format!("{:x}", Sha256::digest(bytes))),
+            pin["sha256"],
+            "{}",
+            pin["path"]
+        );
+    }
     let inputs = indexed(&inputs);
     let mut compared = 0;
     for (id, reference) in indexed(&observations) {
@@ -178,7 +206,9 @@ fn assert_original_cli_corpus() {
         for _ in 0..2 {
             assert_cli(inputs[id], &reference["typescript_observation"]);
         }
+        eprintln!("H2.7e CLI outputs/diagnostics/exit agree x2 {id}");
         compared += 1;
     }
     assert_eq!(compared, 8);
+    eprintln!("H2.7e CLI: {compared} cases, twice; shared Program comparison is a separate test");
 }

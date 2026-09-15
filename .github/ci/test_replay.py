@@ -87,6 +87,20 @@ class SelectionTests(unittest.TestCase):
         suites = [suite for group in replay.WITNESS_GROUPS.values() for suite in group]
         self.assertCountEqual(suites, witness.SUITES)
 
+    def test_declaration_map_cli_wrapper_and_shared_program_helper_have_distinct_owners(self):
+        plan = replay.selection(["crates/compiler/tests/h2_7e_original_corpus.rs"])
+        self.assertEqual(plan["acceptance"], [])
+        self.assertEqual(plan["witnesses"], ["declaration-map-cli"])
+        self.assertEqual(replay.matrices(plan)["witnesses"], {
+            "include": [{"group": "controls", "suites": ["declaration-map-cli"]}],
+        })
+        shared = replay.selection(["crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs"])
+        self.assertEqual(shared["acceptance"], ["late"])
+        self.assertEqual(shared["witnesses"], ["declaration-map-cli"])
+        for path in ("ratchets/h2-7de-observations.v1.json", "ratchets/h2-7de-candidate-inputs.v1.json"):
+            # These immutable joins also serve D283, directories and other slices.
+            self.assertEqual(replay.selection([path])["acceptance"], list(replay.GROUPS))
+
     def test_shared_comparator_is_an_acceptance_input(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
@@ -155,6 +169,7 @@ class WitnessTests(unittest.TestCase):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
             "followup3": 48, "retained": 530, "direct": 32, "printer": 70, "bundle-sinks": 10,
+            "declaration-map-cli": 8,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,
             "class-header-token-metadata": 32, "comma-argument-factory": 519,
@@ -202,6 +217,23 @@ class WitnessTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 witness.emitter_command(suites)
 
+    def test_declaration_map_cli_runs_only_its_exact_test_and_rejects_zero_success(self):
+        command, env = witness.invocation("declaration-map-cli", [], {})
+        self.assertEqual(command, ["cargo", "test", "--manifest-path", "crates/compiler/Cargo.toml",
+                                  "--test", "h2_7e_original_corpus",
+                                  "h2_7e_original_cli_matches_outputs_diagnostics_and_exit_twice",
+                                  "--", "--exact", "--nocapture", "--test-threads=1"])
+        summary = "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out;"
+        for output, code in ((summary, 0), ("", 0), (summary.replace("1 passed", "0 passed"), 0),
+                             (summary.replace("0 ignored", "1 ignored"), 0), (summary, 101)):
+            with self.subTest(output=output, code=code):
+                with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess(command, code, output)):
+                    if output == summary and code == 0:
+                        witness.run_declaration_map_cli(command, env)
+                    else:
+                        with self.assertRaises((ValueError, subprocess.CalledProcessError)):
+                            witness.run_declaration_map_cli(command, env)
+
     def test_focused_selection_is_union_and_never_silent_empty(self):
         ids = witness.case_ids("followup3")
         self.assertEqual(len(witness.select_cases(ids, ["es2015/set/"])), 8)
@@ -228,6 +260,7 @@ class WitnessTests(unittest.TestCase):
         with patch.object(witness.subprocess, "run") as run:
             for argv in (["retained"], ["retained", "--case", "no-matching-case"], ["direct", "--case", "shared"],
                          ["printer", "--case", "recover-same"],
+                         ["declaration-map-cli"], ["declaration-map-cli", "--case", "declarationMaps"],
                          ["literal-value-provenance"], ["literal-value-provenance", "--case", "template"]):
                 with self.assertRaises(SystemExit) as exit:
                     witness.main(argv)
