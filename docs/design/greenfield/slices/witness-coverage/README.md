@@ -1,28 +1,31 @@
-# OPS-COVER-1：PR CI のテスト入口台帳
+# OPS-COVER：PR CI のテスト入口台帳
 
-2026-09-16。統合担当：Codex。**棚卸し完了。追加実行入口の実装は OPS-COVER-2〜4。**
+2026-09-16。統合担当：Codex。**棚卸しと emitter direct10 の入口追加完了。残りは OPS-COVER-3〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[固定台帳](inventory.v1.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v2.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
-## 分かったこと
+[最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
+[OPS-COVER-2 の実装・検証](emitter-direct/README.md)で10 targetを追加し、以下を v2 に更新した。
+
+## 現在の入口
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
-| standalone target（filter なし） | 7 | printer job の7 target。ignored/cfg-disabled test の実行までは意味しない |
+| standalone target（filter なし） | 17 | printer job の7 targetと個別選択のdirect10 target。ignored/cfg-disabled test の実行までは意味しない |
 | standalone target（名前で filter） | 5 | compiler3 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
-| standalone target の直接呼出しなし | 52 | compiler22 / emitter10 / その他20 |
+| standalone target の直接呼出しなし | 42 | compiler22 / その他20 |
 | lib/bin の test harness | 16 | この2 workflowからの `cargo test` による直接実行なし |
 
-**64 standalone target を列挙した。52件を「挙動が未検証」とは数えない。**
+**64 standalone target を列挙した。42件を「挙動が未検証」とは数えない。**
 acceptance が同じ比較 helper を Rust の `#[path]` で取り込み、関数を直接呼ぶ場合がある。
 台帳は source の共有関係10 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
 helper の共有から、その target の全テスト・新しい入力集合の実行まで推論しない。
 
-現在、直接入口のない52 targetの source を単独変更すると、planner は unknown input として
+現在、直接入口のない42 targetの source を単独変更すると、planner は unknown input として
 **全 acceptance / witness グループを選択するが、その standalone target 自身は追加しない**。
-`literal_value_provenance_contract.rs` なども該当する。これは共有 production の安全策としての
+v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では専用 target のみを選ぶ。共有 production の安全策としての
 全体 replay と、変更した専用 contract の実行が別物であることを示す。
-解決には target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
+残る42件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
 
 ### 実例：shared helper と target 全体は違う
 
@@ -39,7 +42,7 @@ helper の共有から、その target の全テスト・新しい入力集合�
 
 | ID / 担当 | 対象 | 入れる順序・終了条件 |
 | --- | --- | --- |
-| OPS-COVER-2 / 統合担当 | 未登録の emitter direct 10 target | literal4 / metadata6を分けて現行 baselineと fixture 分母を確認。必要な owner group に実コマンド・fixture/target 選択・0 test拒否を一緒に登録。新しい producer 修復PRの検証範囲と合わせ、無関係な full chain を増やさない |
+| OPS-COVER-2 / 統合担当 | emitter direct 10 target：入口追加完了 | [検証記録](emitter-direct/README.md)。literal4 / metadata6、2239 row ×2、13 tests。既存 printer job の20分枠・2 workersでbuildを共有し、専用入力はtarget単位で選択 |
 | OPS-COVER-3 / 統合担当 | compiler22 target と filtered3 target の未選択部分 | 先に既存 acceptance の case ID / helper 呼出しとの重複を照合。H2.7e の追加CLI比較、UTF-16/literal、declaration/map、parameter の順に具体的な未収載集合を確定。530などの既存全体を再度追加しない |
 | OPS-COVER-4 / 統合担当、各製品 owner | その他20 standalone と16 lib/bin harness | syntax/binder/types、host/program、checker/API、harness/fuzz に分割。単独file変更と共有変更の依存表を持ち、該当製品 slice の公開契約・取消・error・文字列境界を実測して登録 |
 | OPS-BUDGET / 統合担当 | 新規 group の build / replay / merge後の重複 | 2 workers、45分で分割検討、60分hard limit。PRとmain pushの実行時間を別集計。entryを追加してから恒常的な時間超過を発見する順序にしない |
@@ -80,7 +83,7 @@ workflow の認識していない shell entry が追加された場合はエラ�
 - `--check` は metadata / command / source hash の drift を検知する。台帳の1行を「全体実行」に
   改変した negative control も拒否を確認した。これは互換テストのpass件数には加算しない。
 
-## 全 standalone target
+## 全 standalone target（v2）
 
 下表の「共有」は acceptance と明示的な source参照が重なる数で、実行したテスト数ではない。
 filter名、command owner、source/fixture path、driverの関数名はJSON台帳で参照できる。
@@ -114,24 +117,24 @@ filter名、command owner、source/fixture path、driverの関数名はJSON台�
 | compiler | [h2_8a_utf16_literal_recovery_corpus](../../../../../crates/compiler/tests/h2_8a_utf16_literal_recovery_corpus.rs) | なし | 0 |
 | compiler | [h2_8a_utf16_review_fix_controls](../../../../../crates/compiler/tests/h2_8a_utf16_review_fix_controls.rs) | なし | 0 |
 | compiler | [h2_8a_utf16_tagged_template_controls](../../../../../crates/compiler/tests/h2_8a_utf16_tagged_template_controls.rs) | なし | 0 |
-| emitter | [class_header_token_metadata_contract](../../../../../crates/emitter/tests/class_header_token_metadata_contract.rs) | なし | 0 |
-| emitter | [comma_argument_factory_contract](../../../../../crates/emitter/tests/comma_argument_factory_contract.rs) | なし | 0 |
+| emitter | [class_header_token_metadata_contract](../../../../../crates/emitter/tests/class_header_token_metadata_contract.rs) | target指定・filterなし | 0 |
+| emitter | [comma_argument_factory_contract](../../../../../crates/emitter/tests/comma_argument_factory_contract.rs) | target指定・filterなし | 0 |
 | emitter | [comma_list_printer_contract](../../../../../crates/emitter/tests/comma_list_printer_contract.rs) | target指定・filterなし | 0 |
 | emitter | [contracts](../../../../../crates/emitter/tests/contracts.rs) | test名でfilter | 0 |
 | emitter | [decorator_super_direct_contract](../../../../../crates/emitter/tests/decorator_super_direct_contract.rs) | test名でfilter | 0 |
-| emitter | [ellipsis_comment_metadata_contract](../../../../../crates/emitter/tests/ellipsis_comment_metadata_contract.rs) | なし | 0 |
+| emitter | [ellipsis_comment_metadata_contract](../../../../../crates/emitter/tests/ellipsis_comment_metadata_contract.rs) | target指定・filterなし | 0 |
 | emitter | [emit_pipeline_phases_contract](../../../../../crates/emitter/tests/emit_pipeline_phases_contract.rs) | target指定・filterなし | 0 |
-| emitter | [import_type_attributes_contract](../../../../../crates/emitter/tests/import_type_attributes_contract.rs) | なし | 0 |
+| emitter | [import_type_attributes_contract](../../../../../crates/emitter/tests/import_type_attributes_contract.rs) | target指定・filterなし | 0 |
 | emitter | [list_comment_flags_contract](../../../../../crates/emitter/tests/list_comment_flags_contract.rs) | target指定・filterなし | 0 |
 | emitter | [list_format_flags_contract](../../../../../crates/emitter/tests/list_format_flags_contract.rs) | target指定・filterなし | 0 |
-| emitter | [literal_parent_provenance_contract](../../../../../crates/emitter/tests/literal_parent_provenance_contract.rs) | なし | 0 |
-| emitter | [literal_value_provenance_contract](../../../../../crates/emitter/tests/literal_value_provenance_contract.rs) | なし | 0 |
-| emitter | [mapped_type_members_contract](../../../../../crates/emitter/tests/mapped_type_members_contract.rs) | なし | 0 |
+| emitter | [literal_parent_provenance_contract](../../../../../crates/emitter/tests/literal_parent_provenance_contract.rs) | target指定・filterなし | 0 |
+| emitter | [literal_value_provenance_contract](../../../../../crates/emitter/tests/literal_value_provenance_contract.rs) | target指定・filterなし | 0 |
+| emitter | [mapped_type_members_contract](../../../../../crates/emitter/tests/mapped_type_members_contract.rs) | target指定・filterなし | 0 |
 | emitter | [printer_failure_contract](../../../../../crates/emitter/tests/printer_failure_contract.rs) | target指定・filterなし | 0 |
 | emitter | [source_comment_topology_contract](../../../../../crates/emitter/tests/source_comment_topology_contract.rs) | target指定・filterなし | 0 |
-| emitter | [string_literal_identifier_source_contract](../../../../../crates/emitter/tests/string_literal_identifier_source_contract.rs) | なし | 0 |
-| emitter | [token_comment_phase_metadata_contract](../../../../../crates/emitter/tests/token_comment_phase_metadata_contract.rs) | なし | 0 |
-| emitter | [utf16_literal_escaping_contract](../../../../../crates/emitter/tests/utf16_literal_escaping_contract.rs) | なし | 0 |
+| emitter | [string_literal_identifier_source_contract](../../../../../crates/emitter/tests/string_literal_identifier_source_contract.rs) | target指定・filterなし | 0 |
+| emitter | [token_comment_phase_metadata_contract](../../../../../crates/emitter/tests/token_comment_phase_metadata_contract.rs) | target指定・filterなし | 0 |
+| emitter | [utf16_literal_escaping_contract](../../../../../crates/emitter/tests/utf16_literal_escaping_contract.rs) | target指定・filterなし | 0 |
 | emitter | [utf16_writer_contract](../../../../../crates/emitter/tests/utf16_writer_contract.rs) | target指定・filterなし | 0 |
 | fuzz | [contracts](../../../../../crates/fuzz/tests/contracts.rs) | なし | 0 |
 | harness | [contracts](../../../../../crates/harness/tests/contracts.rs) | なし | 0 |

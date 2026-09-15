@@ -60,6 +60,33 @@ class SelectionTests(unittest.TestCase):
             "include": [{"group": "controls", "suites": ["bundle-sinks"]}],
         })
 
+    def test_emitter_direct_inputs_select_only_their_target_and_share_printer_build(self):
+        for suite in witness.EMITTER_DIRECT:
+            for path in witness.emitter_inputs(suite):
+                with self.subTest(suite=suite, path=path):
+                    self.assertTrue((ROOT / path).is_file(), path)
+                    plan = replay.selection([path])
+                    self.assertEqual(plan["acceptance"], [])
+                    self.assertEqual(plan["witnesses"], [suite])
+                    self.assertEqual(replay.matrices(plan)["witnesses"], {
+                        "include": [{"group": "printer", "suites": [suite]}],
+                    })
+
+    def test_changed_direct_inputs_union_with_other_owners_without_full_replay(self):
+        plan = replay.selection([
+            "crates/emitter/tests/fixtures/template-raw-provenance.json",
+            "ratchets/h2-8a-list-cursor-lifecycle.v1.json",
+            "crates/emitter/tests/fixtures/printer-failure-hooks.json",
+            "crates/compiler/tests/fixtures/decorator-super-followup3-inputs.json",
+        ])
+        self.assertEqual(plan["acceptance"], [])
+        self.assertEqual(plan["witnesses"], ["followup3", "printer", "literal-value-provenance", "comma-argument-factory"])
+        self.assertEqual(len(replay.matrices(plan)["witnesses"]["include"]), 2)
+
+    def test_witness_groups_cover_every_suite_once(self):
+        suites = [suite for group in replay.WITNESS_GROUPS.values() for suite in group]
+        self.assertCountEqual(suites, witness.SUITES)
+
     def test_shared_comparator_is_an_acceptance_input(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
@@ -128,7 +155,52 @@ class WitnessTests(unittest.TestCase):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
             "followup3": 48, "retained": 530, "direct": 32, "printer": 70, "bundle-sinks": 10,
+            "literal-parent-provenance": 128, "literal-value-provenance": 540,
+            "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,
+            "class-header-token-metadata": 32, "comma-argument-factory": 519,
+            "ellipsis-comment-metadata": 144, "import-type-attributes": 84,
+            "mapped-type-members": 328, "token-comment-phase-metadata": 96,
         })
+
+    def test_direct_catalog_rejects_missing_duplicate_and_empty_ids(self):
+        for rows in ([], [{"case_id": "a"}] * 128, [{"case_id": ""}] * 128):
+            with patch.object(witness, "read_cases", return_value=rows):
+                with self.assertRaises(ValueError):
+                    witness.case_ids("literal-parent-provenance")
+
+    def test_direct_runner_batches_only_selected_targets_and_rejects_partial_success(self):
+        selected = ["literal-value-provenance", "import-type-attributes"]
+        summary = "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        full = summary * 2
+        def run_with(output, status=0):
+            with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], status, output)) as run:
+                witness.run_emitter_direct(selected)
+                return run.call_args_list
+        calls = run_with(full)
+        self.assertEqual([call.args[0] for call in calls[:-1]], [
+            ["node", "scripts/observe-template-raw-provenance.mjs", "--check"],
+            ["node", "scripts/observe-string-property-provenance.mjs", "--check"],
+            ["node", "scripts/observe-import-type-attributes.mjs", "--check"],
+        ])
+        command = calls[-1].args[0]
+        self.assertEqual([command[i + 1] for i, arg in enumerate(command) if arg == "--test"],
+                         ["literal_value_provenance_contract", "import_type_attributes_contract"])
+        self.assertNotIn("--exact", command)
+        for output in ("", summary, full + summary, full.replace("2 passed", "0 passed", 1),
+                       full.replace("0 ignored", "1 ignored", 1), full.replace("0 filtered out", "1 filtered out", 1)):
+            with self.subTest(output=output), self.assertRaises(ValueError):
+                run_with(output)
+        with self.assertRaises(subprocess.CalledProcessError):
+            run_with(full, 101)
+
+    def test_direct_runner_propagates_observer_failure_before_cargo(self):
+        with patch.object(witness.subprocess, "run", side_effect=subprocess.CalledProcessError(1, ["node"])) as run:
+            with self.assertRaises(subprocess.CalledProcessError):
+                witness.run_emitter_direct(["import-type-attributes"])
+            self.assertEqual(run.call_count, 1)
+        for suites in ([], ["printer"], ["import-type-attributes"] * 2):
+            with self.assertRaises(ValueError):
+                witness.emitter_command(suites)
 
     def test_focused_selection_is_union_and_never_silent_empty(self):
         ids = witness.case_ids("followup3")
@@ -155,7 +227,8 @@ class WitnessTests(unittest.TestCase):
     def test_cli_rejects_missing_or_invalid_selection_before_cargo(self):
         with patch.object(witness.subprocess, "run") as run:
             for argv in (["retained"], ["retained", "--case", "no-matching-case"], ["direct", "--case", "shared"],
-                         ["printer", "--case", "recover-same"]):
+                         ["printer", "--case", "recover-same"],
+                         ["literal-value-provenance"], ["literal-value-provenance", "--case", "template"]):
                 with self.assertRaises(SystemExit) as exit:
                     witness.main(argv)
                 self.assertEqual(exit.exception.code, 2)

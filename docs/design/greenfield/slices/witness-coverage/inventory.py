@@ -54,7 +54,7 @@ def load_replay():
     sys.path.insert(0, str(ROOT / '.github/ci'))
     import replay
     READ.update((ROOT / name).resolve() for name in (
-        '.github/ci/replay.py', 'scripts/witness.py',
+        '.github/ci/replay.py', '.github/ci/test_replay.py', 'scripts/witness.py',
         '.github/workflows/ci.yml', '.github/workflows/witness.yml'))
     expected_runs = {
         'ci.yml': {'python3 .github/ci/replay.py plan', 'python3 .github/ci/replay.py acceptance "$ACCEPTANCE_GROUP"', 'python3 .github/ci/replay.py gate acceptance'},
@@ -79,11 +79,18 @@ def command_rows(replay):
                 continue
             argv, _ = replay.witness.invocation(suite, [], {})
             owner = argv[argv.index('--manifest-path') + 1].split('/')[1]
-            at = argv.index('--test')
-            assert '--exact' in argv and argv[at + 2] != '--', argv
-            rows.append({'group': group, 'suite': suite, 'package': f'tsc-rs-{owner}',
-                         'target': argv[at + 1], 'filter': argv[at + 2],
-                         'evidence': 'scripts/witness.py:invocation'})
+            if '--exact' in argv:
+                at = argv.index('--test')
+                assert argv.count('--test') == 1 and argv[at + 2] != '--', argv
+                targets = [(argv[at + 1], argv[at + 2])]
+            else:
+                options = argv[argv.index('--manifest-path') + 2:argv.index('--')]
+                assert options and len(options) % 2 == 0 and options[::2] == ['--test'] * (len(options) // 2), argv
+                targets = [(target, None) for target in options[1::2]]
+            for target, test_filter in targets:
+                rows.append({'group': group, 'suite': suite, 'package': f'tsc-rs-{owner}',
+                             'target': target, 'filter': test_filter,
+                             'evidence': 'scripts/witness.py:invocation'})
     module = ast.parse(read(ROOT / '.github/ci/replay.py'))
     printer = next(node for node in module.body if isinstance(node, ast.FunctionDef)
                    and node.name == 'printer_witnesses')
@@ -225,7 +232,7 @@ def main():
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--write', action='store_true', help='write a NEW snapshot only')
     action.add_argument('--check', action='store_true', help='compare current source with the frozen snapshot')
-    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v1.json')
+    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v2.json')
     args = parser.parse_args()
     if args.check:
         source_commit = json.loads(args.output.read_text())['source_commit']

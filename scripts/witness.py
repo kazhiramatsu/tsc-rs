@@ -4,9 +4,11 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import subprocess
 import sys
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "crates/compiler/tests/fixtures"
@@ -15,7 +17,72 @@ SUPER = {
     **{name: (f"-{name}", f"TSC_RS_DECORATOR_SUPER_{name.upper()}_CASE_SET")
        for name in ("extra", "followup", "followup2", "followup3")},
 }
-SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks")
+# Small direct targets share the hosted printer build, but retain individual
+# selection. Each fixture tuple is (path, row count, ID key). These counts are
+# input memberships, not a claim about complete compiler command equivalence.
+EMITTER_DIRECT = {
+    "literal-parent-provenance": {
+        "target": "literal_parent_provenance_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/literal-parent-provenance-utf16.json", 128, "case_id"),),
+        "observers": ("scripts/observe-literal-parent-provenance-utf16.mjs",),
+        "inputs": ("scripts/observe-literal-parent-provenance.mjs",
+                   "crates/emitter/tests/fixtures/literal-parent-provenance.json"),
+    },
+    "literal-value-provenance": {
+        "target": "literal_value_provenance_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/template-raw-provenance.json", 480, "case_id"),
+                     ("crates/emitter/tests/fixtures/string-property-provenance.json", 60, "case_id")),
+        "observers": ("scripts/observe-template-raw-provenance.mjs", "scripts/observe-string-property-provenance.mjs"),
+    },
+    "string-literal-identifier-source": {
+        "target": "string_literal_identifier_source_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/string-literal-identifier-source.json", 72, "case_id"),),
+        "observers": ("scripts/observe-string-literal-identifier-source.mjs",),
+    },
+    "utf16-literal-escaping": {
+        "target": "utf16_literal_escaping_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/utf16-literal-escaping.json", 288, "case_id"),
+                     ("crates/emitter/tests/fixtures/utf16-declaration-literal-printer.json", 8, "id")),
+        "observers": ("scripts/observe-utf16-literal-escaping.mjs", "scripts/observe-utf16-declaration-literal-printer.mjs"),
+    },
+    "class-header-token-metadata": {
+        "target": "class_header_token_metadata_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/class-header-token-printer-metadata.json", 32, "case_id"),),
+        "observers": ("scripts/observe-class-header-token-printer-metadata.mjs",),
+    },
+    "comma-argument-factory": {
+        "target": "comma_argument_factory_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/comma-argument-factory.json", 44, "case_id"),
+                     ("crates/emitter/tests/fixtures/list-intervening-owners.json", 96, "case_id"),
+                     ("crates/emitter/tests/fixtures/list-trailing-token-owners.json", 104, "case_id"),
+                     ("crates/emitter/tests/fixtures/list-boundary-lines.json", 264, "case_id"),
+                     ("ratchets/h2-8a-list-cursor-lifecycle.v1.json", 11, "case_id")),
+        "observers": tuple(f"scripts/observe-{name}.mjs" for name in (
+            "comma-argument-factory", "list-intervening-owners", "list-trailing-token-owners",
+            "list-boundary-lines", "list-cursor-lifecycle")),
+    },
+    "ellipsis-comment-metadata": {
+        "target": "ellipsis_comment_metadata_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/ellipsis-comment-printer-metadata.json", 144, "case_id"),),
+        "observers": ("scripts/observe-ellipsis-comment-printer-metadata.mjs",),
+    },
+    "import-type-attributes": {
+        "target": "import_type_attributes_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/import-type-attributes.json", 84, "case_id"),),
+        "observers": ("scripts/observe-import-type-attributes.mjs",),
+    },
+    "mapped-type-members": {
+        "target": "mapped_type_members_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/mapped-type-members.json", 328, "case_id"),),
+        "observers": ("scripts/observe-mapped-type-members.mjs",),
+    },
+    "token-comment-phase-metadata": {
+        "target": "token_comment_phase_metadata_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/token-comment-phase-printer-metadata.json", 96, "case_id"),),
+        "observers": ("scripts/observe-token-comment-phase-printer-metadata.mjs",),
+    },
+}
+SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks", *EMITTER_DIRECT)
 RETAINED_FIXTURES = (
     "retained-accessor-owners", "class-helper-accessor-producers",
     "class-field-alias-map-positions", "decorator-receiver-context",
@@ -29,6 +96,19 @@ def read_cases(file):
 
 
 def case_ids(suite):
+    if suite in EMITTER_DIRECT:
+        ids = []
+        for file, expected, key in EMITTER_DIRECT[suite]["fixtures"]:
+            rows = read_cases(ROOT / file)
+            local_ids = [row[key] for row in rows]
+            if (len(rows) != expected or not rows
+                    or any(not isinstance(item, str) or not item.strip() for item in local_ids)
+                    or len(set(local_ids)) != len(local_ids)):
+                raise ValueError(f"{suite}: empty, duplicate or changed fixture membership: {file}")
+            ids.extend(f"{Path(file).stem}/{item}" for item in local_ids)
+        if len(set(ids)) != len(ids):
+            raise ValueError(f"{suite}: duplicate fixture membership")
+        return ids
     if suite in SUPER:
         suffix, _ = SUPER[suite]
         # Input IDs include the two primary upstream exceptions. The Rust
@@ -73,6 +153,10 @@ def invocation(suite, needles, environ=None):
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_FILTER", None)
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_SET", None)
     env.setdefault("CARGO_BUILD_JOBS", "2")
+    if suite in EMITTER_DIRECT:
+        if needles:
+            raise ValueError(f"{suite}: small direct target runs together; use --all")
+        return emitter_command([suite]), env
     if suite == "printer":
         if needles:
             raise ValueError("printer failure controls run together; use --all (70 small direct rows)")
@@ -103,6 +187,47 @@ def invocation(suite, needles, environ=None):
     return command, env
 
 
+def emitter_inputs(suite):
+    spec = EMITTER_DIRECT[suite]
+    return {f"crates/emitter/tests/{spec['target']}.rs", *spec["observers"],
+            *(file for file, _, _ in spec["fixtures"]), *spec.get("inputs", ())}
+
+
+def emitter_command(suites):
+    if not suites or len(set(suites)) != len(suites) or any(suite not in EMITTER_DIRECT for suite in suites):
+        raise ValueError("invalid emitter direct selection")
+    command = ["cargo", "test", "--manifest-path", "crates/emitter/Cargo.toml"]
+    for suite in suites:
+        command.extend(("--test", EMITTER_DIRECT[suite]["target"]))
+    return [*command, "--", "--nocapture", "--test-threads=1"]
+
+
+def run_emitter_direct(suites):
+    """Check selected oracles, then build/replay only their targets in one Cargo call."""
+    command = emitter_command(suites)
+    for suite in suites:
+        print(f"{suite}: {len(case_ids(suite))} fixture rows (each compared twice)", flush=True)
+    started = time.monotonic()
+    observers = dict.fromkeys(observer for suite in suites for observer in EMITTER_DIRECT[suite]["observers"])
+    for observer in observers:
+        subprocess.run(["node", observer, "--check"], cwd=ROOT, check=True)
+    oracle_seconds = time.monotonic() - started
+    _, env = invocation(suites[0], [])
+    started = time.monotonic()
+    result = subprocess.run(command, cwd=ROOT, env=env, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, check=False)
+    print(result.stdout, end="", flush=True)
+    result.check_returncode()
+    counts = re.findall(r"test result: ok\. (\d+) passed; 0 failed; (\d+) ignored;.*? (\d+) filtered out;", result.stdout)
+    if (len(counts) != len(suites)
+            or any(int(passed) == 0 or int(ignored) or int(filtered) for passed, ignored, filtered in counts)):
+        raise ValueError("emitter direct target omitted, ignored, filtered or selected zero tests")
+    print(json.dumps({"emitter_direct": suites, "targets": len(suites),
+                      "tests_passed": sum(int(row[0]) for row in counts),
+                      "observer_seconds": round(oracle_seconds, 3),
+                      "cargo_build_and_replay_seconds": round(time.monotonic() - started, 3)}), flush=True)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("suite", choices=SUITES)
@@ -130,6 +255,12 @@ def main(argv=None):
                    if key.startswith("TSC_RS_") and (key.endswith("CASE_SET") or key.endswith("CASE_FILTER"))}
     print(shlex.join(["env", *[f"{key}={value}" for key, value in sorted(assignments.items())], *command]), flush=True)
     if args.dry_run:
+        if args.suite in EMITTER_DIRECT:
+            for observer in EMITTER_DIRECT[args.suite]["observers"]:
+                print(shlex.join(["node", observer, "--check"]))
+        return 0
+    if args.suite in EMITTER_DIRECT:
+        run_emitter_direct([args.suite])
         return 0
     return subprocess.run(command, cwd=ROOT, env=env, check=False).returncode
 

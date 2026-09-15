@@ -10,13 +10,19 @@ python3 scripts/witness.py followup3 --case es2015/set/
 python3 scripts/witness.py retained --case retained-constructor-references/
 python3 scripts/witness.py direct --all
 python3 scripts/witness.py printer --all
+python3 scripts/witness.py literal-value-provenance --all
+python3 scripts/witness.py comma-argument-factory --all
 ```
 
 Suites: `primary`, `extra`, `followup`, `followup2`, `followup3`, `retained`, `direct`,
-`printer`, `bundle-sinks`.
+`printer`, `bundle-sinks`, plus the ten small
+[emitter direct suites](design/greenfield/slices/witness-coverage/emitter-direct/README.md).
 `--all` explicitly requests the whole suite, normally on hosted CI. `--list` and
 `--dry-run` neither build Rust nor run tests. Commands use a manifest path and an
-exact test name, avoiding the unrelated comparator tests compiled into that target.
+exact test name for the large shared comparator targets. Small emitter direct
+suites run their whole target, with `--all`; `--case` is rejected for those suites.
+Their entry checks only the selected fixture observers and rejects missing,
+zero-test, ignored or filtered target results.
 They also avoid building the dev-profile xtask executable before the test profile.
 The `printer` target runs together: 70 small direct rows (65 exact, 5 documented
 gaps), plus the same target's probe/safety/negative controls. It takes milliseconds
@@ -53,8 +59,12 @@ and dispatch calls against that full command, so omitting or duplicating a slice
 fails before replay.
 
 `.github/workflows/witness.yml` owns primary, short controls and retained jobs.
-A separate `printer` job runs its two observers, seven focused emitter targets
-and one exact noEmitOnError owner control with a 20-minute limit and two workers.
+A separate `printer` job shares one emitter build between the printer failure
+suite (three observers, seven targets and one exact noEmitOnError owner control)
+and ten individually selectable literal/factory/metadata targets. It retains a
+20-minute limit and two workers. Selected direct targets run in one Cargo call;
+a literal fixture change runs only its owning target and observers, without the
+printer failure suite or a compiler/acceptance replay.
 The controls job also runs `bundle-sinks`, sharing its existing compiler build.
 Printer fixtures/targets/observers select only the printer job; the bundle sink
 fixture/target selects only its ten commands in controls. Common printer source
@@ -128,4 +138,7 @@ lists all 64 standalone Cargo test targets and 16 lib/bin test harnesses. It
 separates unfiltered commands, named-test filters, and shared acceptance helpers.
 A broad replay selected for an unknown test source does not automatically run
 that source's standalone target. OPS-COVER-2 through 4 pair new owner commands
-with target/fixture selection and a measured job budget.
+with target/fixture selection and a measured job budget. OPS-COVER-2 adds the ten
+emitter direct targets: the remaining count is 42 standalone targets without a
+direct entry (compiler22 / other20). The original 52-target inventory is retained
+as a historical snapshot.

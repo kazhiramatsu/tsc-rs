@@ -1,0 +1,424 @@
+   Compiling tsc-rs-diagnostics v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-witness-ci/crates/diagnostics)
+   Compiling tsc-rs-types v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-witness-ci/crates/types)
+   Compiling tsc-rs-syntax v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-witness-ci/crates/syntax)
+   Compiling tsc-rs-host v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-witness-ci/crates/host)
+   Compiling tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-witness-ci/crates/program)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-witness-ci/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 3m 40s
+     Running tests/class_header_token_metadata_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/class_header_token_metadata_contract-5e1fb01bf1a19be9)
+
+running 1 test
+test class_header_printer_metadata_matches_typescript ... Class header printer metadata EXACT x2 class-header-token-printer-metadata/named/none/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/named/none/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/named/no-nested/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/named/no-nested/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/named/no-own/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/named/no-own/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/named/no-own-or-nested/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/named/no-own-or-nested/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/anonymous/none/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/anonymous/none/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/anonymous/no-nested/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/anonymous/no-nested/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/anonymous/no-own/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/anonymous/no-own/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/anonymous/no-own-or-nested/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/anonymous/no-own-or-nested/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/default/none/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/default/none/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/default/no-nested/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/default/no-nested/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/default/no-own/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/default/no-own/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/default/no-own-or-nested/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/default/no-own-or-nested/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/expression/none/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/expression/none/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/expression/no-nested/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/expression/no-nested/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/expression/no-own/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/expression/no-own/remove
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/expression/no-own-or-nested/retain
+Class header printer metadata EXACT x2 class-header-token-printer-metadata/expression/no-own-or-nested/remove
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/comma_argument_factory_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/comma_argument_factory_contract-4ffffe729ce1fe2f)
+
+running 2 tests
+test comma_argument_factory_matches_typescript ... ok
+test list_cursor_lifecycle_matches_typescript ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/ellipsis_comment_metadata_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/ellipsis_comment_metadata_contract-a88e8679766b835a)
+
+running 1 test
+test ellipsis_comment_printer_metadata_matches_typescript ... Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-token/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/parameter-parent/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-token/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/array-binding-parent/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-token/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/object-binding-parent/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-token/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/named-tuple-parent/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-token/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-expression-parent/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/rest-type-parent/no-own-or-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/none/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/none/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/no-leading/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/no-leading/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/no-trailing/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/no-trailing/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/no-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/no-nested/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/no-own/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/no-own/remove
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/no-own-or-nested/retain
+Ellipsis comment printer metadata EXACT x2 ellipsis-comment-printer-metadata/jsx-attribute-parent/no-own-or-nested/remove
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/import_type_attributes_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/import_type_attributes_contract-b12bafaf4f9f383f)
+
+running 1 test
+test import_type_attributes_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/literal_parent_provenance_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/literal_parent_provenance_contract-f2d079fe996fade8)
+
+running 1 test
+test literal_parent_provenance_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/literal_value_provenance_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/literal_value_provenance_contract-9a9f9a536934cc93)
+
+running 2 tests
+test string_property_provenance_matches_typescript ... ok
+test template_raw_provenance_matches_typescript ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/mapped_type_members_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/mapped_type_members_contract-7691b15fb5cb807e)
+
+running 1 test
+test mapped_type_members_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/string_literal_identifier_source_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/string_literal_identifier_source_contract-d1cf4136622bc846)
+
+running 1 test
+test string_literal_identifier_source_matches_typescript_printer ... String literal identifier source EXACT x2 plain/parsed/ascii
+String literal identifier source EXACT x2 plain/parsed/unicode
+String literal identifier source EXACT x2 plain/clone/ascii
+String literal identifier source EXACT x2 plain/clone/unicode
+String literal identifier source EXACT x2 plain/synthetic/ascii
+String literal identifier source EXACT x2 plain/synthetic/unicode
+String literal identifier source EXACT x2 plain/foreign/ascii
+String literal identifier source EXACT x2 plain/foreign/unicode
+String literal identifier source EXACT x2 underscores/parsed/ascii
+String literal identifier source EXACT x2 underscores/parsed/unicode
+String literal identifier source EXACT x2 underscores/clone/ascii
+String literal identifier source EXACT x2 underscores/clone/unicode
+String literal identifier source EXACT x2 underscores/synthetic/ascii
+String literal identifier source EXACT x2 underscores/synthetic/unicode
+String literal identifier source EXACT x2 underscores/foreign/ascii
+String literal identifier source EXACT x2 underscores/foreign/unicode
+String literal identifier source EXACT x2 unicode/parsed/ascii
+String literal identifier source EXACT x2 unicode/parsed/unicode
+String literal identifier source EXACT x2 unicode/clone/ascii
+String literal identifier source EXACT x2 unicode/clone/unicode
+String literal identifier source EXACT x2 unicode/synthetic/ascii
+String literal identifier source EXACT x2 unicode/synthetic/unicode
+String literal identifier source EXACT x2 unicode/foreign/ascii
+String literal identifier source EXACT x2 unicode/foreign/unicode
+String literal identifier source EXACT x2 escaped/parsed/ascii
+String literal identifier source EXACT x2 escaped/parsed/unicode
+String literal identifier source EXACT x2 escaped/clone/ascii
+String literal identifier source EXACT x2 escaped/clone/unicode
+String literal identifier source EXACT x2 escaped/synthetic/ascii
+String literal identifier source EXACT x2 escaped/synthetic/unicode
+String literal identifier source EXACT x2 escaped/foreign/ascii
+String literal identifier source EXACT x2 escaped/foreign/unicode
+String literal identifier source EXACT x2 extended-escape/parsed/ascii
+String literal identifier source EXACT x2 extended-escape/parsed/unicode
+String literal identifier source EXACT x2 extended-escape/clone/ascii
+String literal identifier source EXACT x2 extended-escape/clone/unicode
+String literal identifier source EXACT x2 extended-escape/synthetic/ascii
+String literal identifier source EXACT x2 extended-escape/synthetic/unicode
+String literal identifier source EXACT x2 extended-escape/foreign/ascii
+String literal identifier source EXACT x2 extended-escape/foreign/unicode
+String literal identifier source EXACT x2 astral/parsed/ascii
+String literal identifier source EXACT x2 astral/parsed/unicode
+String literal identifier source EXACT x2 astral/clone/ascii
+String literal identifier source EXACT x2 astral/clone/unicode
+String literal identifier source EXACT x2 astral/synthetic/ascii
+String literal identifier source EXACT x2 astral/synthetic/unicode
+String literal identifier source EXACT x2 astral/foreign/ascii
+String literal identifier source EXACT x2 astral/foreign/unicode
+String literal identifier source EXACT x2 astral-escape/parsed/ascii
+String literal identifier source EXACT x2 astral-escape/parsed/unicode
+String literal identifier source EXACT x2 astral-escape/clone/ascii
+String literal identifier source EXACT x2 astral-escape/clone/unicode
+String literal identifier source EXACT x2 astral-escape/synthetic/ascii
+String literal identifier source EXACT x2 astral-escape/synthetic/unicode
+String literal identifier source EXACT x2 astral-escape/foreign/ascii
+String literal identifier source EXACT x2 astral-escape/foreign/unicode
+String literal identifier source EXACT x2 mixed/parsed/ascii
+String literal identifier source EXACT x2 mixed/parsed/unicode
+String literal identifier source EXACT x2 mixed/clone/ascii
+String literal identifier source EXACT x2 mixed/clone/unicode
+String literal identifier source EXACT x2 mixed/synthetic/ascii
+String literal identifier source EXACT x2 mixed/synthetic/unicode
+String literal identifier source EXACT x2 mixed/foreign/ascii
+String literal identifier source EXACT x2 mixed/foreign/unicode
+String literal identifier source EXACT x2 single-quote/parsed/ascii
+String literal identifier source EXACT x2 single-quote/parsed/unicode
+String literal identifier source EXACT x2 line-continuation/parsed/ascii
+String literal identifier source EXACT x2 line-continuation/parsed/unicode
+String literal identifier source EXACT x2 string-unicode/parsed/ascii
+String literal identifier source EXACT x2 string-unicode/parsed/unicode
+String literal identifier source EXACT x2 lone-surrogate/parsed/ascii
+String literal identifier source EXACT x2 lone-surrogate/parsed/unicode
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/token_comment_phase_metadata_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/token_comment_phase_metadata_contract-51edb5547adc4e37)
+
+running 1 test
+test token_comment_phase_printer_metadata_matches_typescript ... Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/none/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/none/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/no-leading/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/no-leading/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/no-trailing/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/no-trailing/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/no-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/no-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/no-own/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/no-own/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/no-own-or-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-class/no-own-or-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/none/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/none/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/no-leading/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/no-leading/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/no-trailing/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/no-trailing/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/no-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/no-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/no-own/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/no-own/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/no-own-or-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/export-modifier/no-own-or-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/none/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/none/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/no-leading/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/no-leading/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/no-trailing/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/no-trailing/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/no-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/no-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/no-own/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/no-own/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/no-own-or-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-parent/no-own-or-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/none/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/none/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/no-leading/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/no-leading/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/no-trailing/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/no-trailing/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/no-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/no-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/no-own/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/no-own/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/no-own-or-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/static-modifier/no-own-or-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/none/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/none/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/no-leading/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/no-leading/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/no-trailing/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/no-trailing/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/no-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/no-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/no-own/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/no-own/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/no-own-or-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/array-spread/no-own-or-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/none/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/none/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/no-leading/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/no-leading/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/no-trailing/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/no-trailing/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/no-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/no-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/no-own/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/no-own/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/no-own-or-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/object-spread/no-own-or-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/none/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/none/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/no-leading/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/no-leading/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/no-trailing/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/no-trailing/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/no-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/no-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/no-own/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/no-own/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/no-own-or-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/class-expression/no-own-or-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/none/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/none/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/no-leading/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/no-leading/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/no-trailing/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/no-trailing/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/no-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/no-nested/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/no-own/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/no-own/remove
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/no-own-or-nested/retain
+Token comment phase printer metadata EXACT x2 token-comment-phase-printer-metadata/getter-modifier/no-own-or-nested/remove
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/utf16_literal_escaping_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/utf16_literal_escaping_contract-64acb114c5a73ef2)
+
+running 2 tests
+test declaration_literal_type_no_ascii_flag_preserves_callback_units_until_utf8_output ... ok
+test utf16_literal_escaping_matches_typescript ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
