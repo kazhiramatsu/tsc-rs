@@ -12,6 +12,9 @@ use tsc_program::{
 
 use super::h2_7b_w4a_controls::assert_exact_observation;
 
+#[path = "../support/witness_libraries.rs"]
+mod witness_libraries;
+
 #[test]
 fn declaration_blocking_matches_complete_typescript_observations() {
     let artifact: Value =
@@ -37,7 +40,6 @@ pub(super) fn assert_cases_with_inspection(
     command_reporting: bool,
     inspect: fn(&str, &tsc_program::PreparedProgram, &Value),
 ) {
-    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let cases = artifact["cases"].as_array().expect("cases");
     let mut failures = Vec::new();
     for case in cases {
@@ -64,13 +66,8 @@ pub(super) fn assert_cases_with_inspection(
                     .map(|root| PathBuf::from(root.as_str().unwrap()))
                     .collect();
             }
-            for entry in std::fs::read_dir(workspace.join("vendor/typescript-6.0.3/lib")).unwrap() {
-                let entry = entry.unwrap();
-                let name = entry.file_name().to_string_lossy().into_owned();
-                if name.starts_with("lib.") && name.ends_with(".d.ts") {
-                    builder =
-                        builder.file(format!("/lib/{name}"), std::fs::read(entry.path()).unwrap());
-                }
+            for (path, bytes) in witness_libraries::files() {
+                builder = builder.file(path.as_str(), bytes.as_slice());
             }
             if let Some(config) = case["config"].as_str() {
                 builder = builder.file(config_path, config.as_bytes());

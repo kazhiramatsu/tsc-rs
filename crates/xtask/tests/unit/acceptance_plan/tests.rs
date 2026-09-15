@@ -22,7 +22,7 @@ fn shared_compiler_edits_select_every_slice() {
     assert_eq!(plan.mode, "all");
     assert_eq!(plan.selected.len(), SLICE_IDS.len());
     assert_eq!(plan.selected.first().unwrap().id, "conformance");
-    assert_eq!(plan.selected.last().unwrap().id, "h2-5g");
+    assert_eq!(plan.selected.last().unwrap().id, "h2-7de");
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn shared_h2_2c_module_selects_all_of_its_callers() {
             .collect::<Vec<_>>(),
         [
             "h2-2c", "h2-4a", "h2-4b", "h2-5a", "h2-5b", "h2-5c", "h2-5d", "h2-5e", "h2-5f",
-            "h2-5g"
+            "h2-5g", "h2-5h", "h2-6a", "h2-6b", "h2-6c", "h2-7b"
         ]
     );
 }

@@ -195,6 +195,26 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
         }
         unexpected => panic!("invalid retained accessor case selection: {unexpected:?}"),
     }
+    match std::env::var("TSC_RS_RETAINED_ACCESSOR_CASE_FILTER") {
+        Ok(selection) => {
+            let needles = selection.split(',').map(str::trim).collect::<Vec<_>>();
+            assert!(
+                needles.iter().all(|needle| !needle.is_empty()),
+                "case selection contains an empty substring"
+            );
+            cases.retain(|case| {
+                let id = case["case_id"].as_str().unwrap();
+                needles.iter().any(|needle| id.contains(needle))
+            });
+        }
+        Err(std::env::VarError::NotPresent) => {}
+        Err(error) => panic!("invalid retained accessor case filter: {error}"),
+    }
+    assert!(!cases.is_empty(), "selection matched no case");
+    eprintln!(
+        "retained accessor owners SELECTION -> {} cases",
+        cases.len()
+    );
     let mut failures = Vec::new();
     for case in &cases {
         let case_id = case["case_id"].as_str().unwrap();

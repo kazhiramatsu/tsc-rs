@@ -4386,9 +4386,8 @@ fn acceptance_plan_command(mut args: impl Iterator<Item = String>) -> Result<(),
     Ok(())
 }
 
-/// Execute one non-authoritative acceptance projection and retain a bounded
-/// classification artifact if it fails. This is the unit of future matrix
-/// reruns; it is not the current H2 closure command.
+/// Execute one acceptance slice and retain a bounded classification artifact
+/// if it fails. Hosted jobs partition the canonical full acceptance sequence.
 fn acceptance_slice_command(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let slice = args.next().ok_or("acceptance-slice requires a slice id")?;
     if let Some(argument) = args.next() {
