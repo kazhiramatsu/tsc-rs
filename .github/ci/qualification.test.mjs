@@ -82,6 +82,7 @@ const ROOTLESS_CASE_ID =
 
 const HOSTED_MODULE_PATHS = [
   "crates/xtask/src/bounded_pipeline.rs",
+  "crates/xtask/src/codegen_common.rs",
   "crates/xtask/src/h1_emit_acceptance.rs",
   "crates/xtask/src/h2_1a_acceptance.rs",
   "crates/xtask/src/h2_1b_acceptance.rs",
@@ -102,10 +103,12 @@ const HOSTED_MODULE_PATHS = [
 
 const SHARED_MODULE_PATHS = [
   "crates/xtask/src/h2_6c_de_promotions.rs",
+  "crates/xtask/src/h2_6c_output_promotions.rs",
   "crates/xtask/src/h2_6c_refusal_migrations.rs",
   "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
   "crates/compiler/tests/integration/h2_7c_corpus.rs",
   "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+  "crates/compiler/tests/support/witness_libraries.rs",
   "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
   "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
   "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
@@ -155,7 +158,7 @@ function rustOwnerBoundaryFixture() {
       : `    ${callee}(workspace)?;`,
   ).join("\n");
   const hostedStatements = [
-    ...HOSTED_MODULE_PATHS.filter((modulePath) => !modulePath.endsWith("/bounded_pipeline.rs") && !modulePath.endsWith("/h2_7c_acceptance.rs") && !modulePath.endsWith("/h2_7de_acceptance.rs")).map((modulePath) =>
+    ...HOSTED_MODULE_PATHS.filter((modulePath) => !modulePath.endsWith("/bounded_pipeline.rs") && !modulePath.endsWith("/codegen_common.rs") && !modulePath.endsWith("/h2_7c_acceptance.rs") && !modulePath.endsWith("/h2_7de_acceptance.rs")).map((modulePath) =>
       `${modulePath.slice(modulePath.lastIndexOf("/") + 1, -3)}::run(&workspace)?;`,
     ),
     "h2_2c_acceptance::run_h2_4a(&workspace)?;",
@@ -954,6 +957,7 @@ test("policy and every qualification schema boundary are valid", () => {
     "acceptance",
   ]);
   assert.equal(policy.hosted_acceptance.only_acceptance_tests, true);
+  assert.equal(policy.local_full_gate.required_for_non_documentation, false);
   assert.equal(
     Object.keys(policy.hosted_acceptance.rust_source_sha256).length,
     1 + HOSTED_MODULE_PATHS.length + SHARED_MODULE_PATHS.length,
@@ -980,6 +984,10 @@ test("policy and every qualification schema boundary are valid", () => {
     policy.approved_performance.h1_evidence,
     "ratchets/h1-noemit-performance.v1.json",
   );
+
+  const driftedExecution = clone(policy);
+  driftedExecution.hosted_acceptance.execution_source_sha256[".github/ci/replay.py"] = "0".repeat(64);
+  assert.throws(() => validatePolicy(driftedExecution), /execution content hash drifted/u);
 
   const frozen = clone(policy);
   frozen.status = "frozen";

@@ -13,6 +13,7 @@ const RUST_LEXICAL_NESTING_MAX = 256;
 
 const HOSTED_ACCEPTANCE_MODULES = Object.freeze([
   "crates/xtask/src/bounded_pipeline.rs",
+  "crates/xtask/src/codegen_common.rs",
   "crates/xtask/src/h1_emit_acceptance.rs",
   "crates/xtask/src/h2_1a_acceptance.rs",
   "crates/xtask/src/h2_1b_acceptance.rs",
@@ -36,10 +37,12 @@ const HOSTED_ACCEPTANCE_MODULES = Object.freeze([
 // main.rs module declarations.
 const HOSTED_ACCEPTANCE_SHARED_MODULES = Object.freeze([
   "crates/xtask/src/h2_6c_de_promotions.rs",
+  "crates/xtask/src/h2_6c_output_promotions.rs",
   "crates/xtask/src/h2_6c_refusal_migrations.rs",
   "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
   "crates/compiler/tests/integration/h2_7c_corpus.rs",
   "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+  "crates/compiler/tests/support/witness_libraries.rs",
   "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
   "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
   "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
@@ -1841,11 +1844,11 @@ export function validatePolicy(policy) {
   if (policy.classification.usage !== "local-evidence-tooling-only" || policy.classification.unknown_non_documentation !== "select-all") throw new Error("classification utility policy must be local-only and fail closed");
 
   const hosted = policy.hosted_acceptance;
-  if (!exactKeys(hosted, ["authority_workflow", "authority_job", "test_root", "authoritative_command", "only_acceptance_tests", "rust_source_sha256"]) || hosted.authority_workflow !== ".github/workflows/ci.yml" || hosted.authority_job !== "gates" || hosted.test_root !== "ts-tests/" || canonical(hosted.authoritative_command) !== canonical(["cargo", "xtask", "acceptance"]) || hosted.only_acceptance_tests !== true) {
+  if (!exactKeys(hosted, ["authority_workflow", "authority_job", "test_root", "authoritative_command", "only_acceptance_tests", "rust_source_sha256", "execution_source_sha256"]) || hosted.authority_workflow !== ".github/workflows/ci.yml" || hosted.authority_job !== "gates" || hosted.test_root !== "ts-tests/" || canonical(hosted.authoritative_command) !== canonical(["cargo", "xtask", "acceptance"]) || hosted.only_acceptance_tests !== true) {
     throw new Error("invalid hosted ts-tests acceptance policy");
   }
   const local = policy.local_full_gate;
-  if (!exactKeys(local, ["authoritative_command", "required_for_non_documentation", "documentation_only_exception"]) || canonical(local.authoritative_command) !== canonical(["cargo", "xtask", "ci", "--baseline", "<trusted-base>"]) || local.required_for_non_documentation !== true || local.documentation_only_exception !== true) {
+  if (!exactKeys(local, ["authoritative_command", "required_for_non_documentation", "documentation_only_exception"]) || canonical(local.authoritative_command) !== canonical(["cargo", "xtask", "ci", "--baseline", "<trusted-base>"]) || local.required_for_non_documentation !== false || local.documentation_only_exception !== true) {
     throw new Error("invalid local full-gate policy");
   }
 
@@ -1853,13 +1856,32 @@ export function validatePolicy(policy) {
   const jobsStart = workflow.indexOf("\njobs:\n");
   if (jobsStart < 0) throw new Error("hosted acceptance workflow has no jobs boundary");
   const jobIds = [...workflow.slice(jobsStart + 1).matchAll(/^  ([a-z][a-z0-9_-]*):\s*$/gmu)].map((match) => match[1]);
-  if (canonical(jobIds) !== canonical([hosted.authority_job])) throw new Error("hosted acceptance workflow must contain only the gates job");
+  if (canonical(jobIds) !== canonical(["plan", "acceptance", hosted.authority_job])) throw new Error("hosted acceptance workflow must contain planning, acceptance groups and gates");
   const runCommands = [...workflow.matchAll(/^\s+run:\s+([^\n]+)$/gmu)].map((match) => match[1].trim());
-  if (canonical(runCommands) !== canonical([hosted.authoritative_command.join(" ")])) throw new Error("hosted acceptance workflow must run only the pinned acceptance command");
-  const actions = [...workflow.matchAll(/^\s+uses:\s+(\S+)/gmu)].map((match) => match[1]);
-  if (canonical(actions) !== canonical(["actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"])) throw new Error("hosted acceptance workflow may use only the pinned checkout action");
+  if (canonical(runCommands) !== canonical([
+    "python3 .github/ci/replay.py plan",
+    'python3 .github/ci/replay.py acceptance "$ACCEPTANCE_GROUP"',
+    "python3 .github/ci/replay.py gate acceptance",
+  ])) throw new Error("hosted acceptance workflow must run only the pinned acceptance partition");
+  const actions = [...workflow.matchAll(/^\s+(?:- )?uses:\s+(\S+)/gmu)].map((match) => match[1]);
+  if (canonical(actions) !== canonical(Array(3).fill("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"))) throw new Error("hosted acceptance workflow may use only the pinned checkout action");
   for (const forbidden of ["actions/setup-node", "runs-on: windows", "\n  schedule:"]) {
     if (workflow.includes(forbidden)) throw new Error(`hosted acceptance workflow contains forbidden non-acceptance work: ${forbidden}`);
+  }
+  // These bytes define impact selection, dispatch and aggregation. The full
+  // Rust acceptance body and its owner-control boundary remain pinned below.
+  const executionSources = [
+    ".github/workflows/ci.yml", ".github/workflows/witness.yml",
+    ".github/ci/replay.py", "scripts/witness.py",
+    "crates/xtask/src/acceptance_plan.rs", "crates/xtask/src/acceptance_slices.rs",
+  ];
+  if (!exactKeys(hosted.execution_source_sha256, executionSources)) {
+    throw new Error("hosted execution source set drifted");
+  }
+  for (const file of executionSources) {
+    if (sha256(fs.readFileSync(path.join(workspace, file))) !== hosted.execution_source_sha256[file]) {
+      throw new Error(`${file} execution content hash drifted`);
+    }
   }
   const xtaskBytes = fs.readFileSync(path.join(workspace, "crates/xtask/src/main.rs"));
   const moduleSourceBytes = Object.fromEntries(
@@ -2221,6 +2243,11 @@ function writeGithubOutput(selection, target) {
 
 function main() {
   const command = process.argv[2];
+  if (command === "check-policy") {
+    validatePolicy(loadPolicy());
+    process.stdout.write("hosted acceptance execution policy is valid\n");
+    return;
+  }
   if (command === "check") {
     validatePolicy(loadPolicy());
     const contracts = validateArtifactSchemaContracts();
@@ -2363,7 +2390,7 @@ function main() {
     process.stdout.write(rendered);
     return;
   }
-  throw new Error("usage: qualification.mjs check|classify|produce-result|finalize-receipt|verify-bound-receipt|write-failure|verify-selection|verify-receipt|verify-failure ...");
+  throw new Error("usage: qualification.mjs check|check-policy|classify|produce-result|finalize-receipt|verify-bound-receipt|write-failure|verify-selection|verify-receipt|verify-failure ...");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

@@ -19,6 +19,8 @@ use tsc_diagnostics::{Diagnostic, JsString, MessageChain};
 
 #[path = "../../../program/tests/support/scalar_json.rs"]
 mod utf16_scalar_json;
+#[path = "../support/witness_libraries.rs"]
+mod witness_libraries;
 use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitIoError, EmitIoOperation, EmitWriteDisposition,
     EmitWriteMetadata, OutputSink,
@@ -199,9 +201,13 @@ fn replay_set(inputs_name: &str, fixture_name: &str, expected_cases: usize, sele
         );
     }
     match std::env::var(selection_env).as_deref() {
-        Err(std::env::VarError::NotPresent) | Ok("all") | Ok("") => {}
+        Err(std::env::VarError::NotPresent) | Ok("all") => {}
         Ok(selection) => {
             let needles = selection.split(',').map(str::trim).collect::<Vec<_>>();
+            assert!(
+                needles.iter().all(|needle| !needle.is_empty()),
+                "case selection contains an empty substring"
+            );
             cases.retain(|case| {
                 let id = case["case_id"].as_str().unwrap();
                 needles.iter().any(|needle| id.contains(needle))
@@ -325,7 +331,6 @@ fn replay_case(case: &Value, fixture_sha256: &str, pass: usize) {
 /// library catalog, limits and option projection as the shared comparator,
 /// restricted to the option keys this manifest uses).
 fn prepare_program(case: &Value) -> tsc_program::PreparedProgram {
-    let workspace = workspace();
     let mut builder = MemoryCompilerHost::builder("/project").case_sensitive(
         case["use_case_sensitive_file_names"]
             .as_bool()
@@ -343,12 +348,8 @@ fn prepare_program(case: &Value) -> tsc_program::PreparedProgram {
             .map(|root| PathBuf::from(root.as_str().unwrap()))
             .collect();
     }
-    for entry in std::fs::read_dir(workspace.join("vendor/typescript-6.0.3/lib")).unwrap() {
-        let entry = entry.unwrap();
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if name.starts_with("lib.") && name.ends_with(".d.ts") {
-            builder = builder.file(format!("/lib/{name}"), std::fs::read(entry.path()).unwrap());
-        }
+    for (path, bytes) in witness_libraries::files() {
+        builder = builder.file(path.as_str(), bytes.as_slice());
     }
     assert!(
         case["config"].is_null(),

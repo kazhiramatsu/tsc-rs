@@ -1,8 +1,8 @@
 //! Deterministic acceptance impact planning.
 //!
 //! This is deliberately separate from the fixed acceptance entrypoint. The
-//! latter is the current H2 closure authority and must remain an unsplit,
-//! argument-free command. The planner is a conservative shadow: an unknown
+//! latter remains the canonical argument-free full replay. Hosted CI partitions
+//! its complete slice sequence. This local planner remains conservative: an unknown
 //! input selects every acceptance slice, while only an explicitly disconnected
 //! input can select none.
 
@@ -38,10 +38,18 @@ pub(crate) const SLICE_IDS: &[&str] = &[
     "h2-5e",
     "h2-5f",
     "h2-5g",
+    "h2-5h",
+    "h2-6a",
+    "h2-6b",
+    "h2-6c",
+    "h2-7b",
+    "h2-7c",
+    "h2-7de",
 ];
 
 const H2_2C_SLICES: &[&str] = &[
     "h2-2c", "h2-4a", "h2-4b", "h2-5a", "h2-5b", "h2-5c", "h2-5d", "h2-5e", "h2-5f", "h2-5g",
+    "h2-5h", "h2-6a", "h2-6b", "h2-6c", "h2-7b",
 ];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

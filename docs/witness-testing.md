@@ -1,0 +1,75 @@
+# Focused witnesses and hosted replay
+
+Use a case selection while editing. List IDs before selecting; repeated `--case`
+arguments select a union. A missing or empty selection fails before Cargo starts.
+
+```sh
+python3 scripts/witness.py followup3 --list
+python3 scripts/witness.py followup3 --case es2015/set/ --dry-run
+python3 scripts/witness.py followup3 --case es2015/set/
+python3 scripts/witness.py retained --case retained-constructor-references/
+python3 scripts/witness.py direct --all
+```
+
+Suites: `primary`, `extra`, `followup`, `followup2`, `followup3`, `retained`, `direct`.
+`--all` explicitly requests the whole suite, normally on hosted CI. `--list` and
+`--dry-run` neither build Rust nor run tests. Commands use a manifest path and an
+exact test name, avoiding the unrelated comparator tests compiled into that target.
+They also avoid building the dev-profile xtask executable before the test profile.
+On macOS, use `taskpolicy -b nice -n 15 python3 scripts/witness.py ...` to lower
+priority. Do not run several heavy local replays simultaneously.
+
+The primary input list includes two recorded upstream exceptions. The Rust
+comparator reports those separately from complete native observations; a selection
+with no native case fails. Direct controls run together (28 exact, 4 documented
+divergences). Capture-enabled observers can emit extra commands: enable captures
+only for cases needing diagnosis and keep both measurement sides equivalent.
+
+The common compiler comparator and SUPER test load immutable `lib.*.d.ts` bytes
+once per process. Each case still receives a fresh memory host; the two fresh
+Program constructions, comparisons, callback inspection and failure reporting
+remain. No AST, checker state, Program, or observation result is cached.
+
+## Hosted jobs
+
+`.github/workflows/ci.yml` retains the required `gates` check and splits the complete
+31-slice `cargo xtask acceptance` sequence into independently rerunnable jobs:
+
+| Group | Slices |
+| --- | --- |
+| early | conformance, H1, H2.1 through H2.5f |
+| wide | H2.5g |
+| late | H2.5h, H2.6a/b/c, H2.7b/c/d/e |
+
+All jobs retain the 60-minute timeout and two-worker limits. The canonical full
+command remains available. A structural check compares the grouped slice registry
+and dispatch calls against that full command, so omitting or duplicating a slice
+fails before replay.
+
+`.github/workflows/witness.yml` owns primary, short controls and retained jobs.
+A change to one SUPER fixture selects only its collection in the controls job.
+Manual dispatch and common compiler/vendor/manifest or unknown changes select
+full coverage. Documentation-only changes require no Rust build or replay.
+The planner uses the complete Git diff, including both paths of a rename and
+deletions, rather than GitHub's truncated path-filter list. Missing change ranges
+select everything. Compiler tests imported by acceptance through `#[path]` remain
+acceptance inputs: changing the shared declaration comparator selects late
+acceptance and retained witnesses.
+
+The aggregate checks reject planning failures, failed/cancelled replay jobs and
+unexpectedly skipped selected jobs. A legitimate empty documentation selection
+passes explicitly. Local full legacy CI is opt-in; focused checks and the relevant
+hosted jobs are the ordinary edit/review path.
+
+To rerun a failed group locally only when needed:
+
+```sh
+python3 .github/ci/replay.py acceptance late
+# Or just the failing slice:
+cargo xtask acceptance-slice h2-7c
+```
+
+A new witness target needs an explicit CI entry and ownership rule. Until that is
+added, do not report it as covered by `cargo xtask acceptance` or these decorator
+jobs. Unknown paths keep existing broad coverage but do not invent execution of a
+new target.

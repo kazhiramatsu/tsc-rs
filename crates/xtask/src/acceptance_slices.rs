@@ -1,4 +1,4 @@
-//! Non-authoritative, individually rerunnable projections of hosted acceptance.
+//! Individually rerunnable slices of the canonical hosted acceptance sequence.
 
 use std::error::Error;
 use std::fs;
@@ -88,6 +88,13 @@ fn run_slice(slice: &str, workspace: &Path) -> Result<(), Box<dyn Error>> {
         "h2-5e" => crate::h2_2c_acceptance::run_h2_5e(workspace),
         "h2-5f" => crate::h2_2c_acceptance::run_h2_5f(workspace),
         "h2-5g" => crate::h2_2c_acceptance::run_h2_5g(workspace),
+        "h2-5h" => crate::h2_2c_acceptance::run_h2_5h(workspace),
+        "h2-6a" => crate::h2_2c_acceptance::run_h2_6a(workspace),
+        "h2-6b" => crate::h2_2c_acceptance::run_h2_6b(workspace),
+        "h2-6c" => crate::h2_2c_acceptance::run_h2_6c(workspace),
+        "h2-7b" => crate::h2_2c_acceptance::run_h2_7b(workspace),
+        "h2-7c" => crate::h2_7c_acceptance::run(workspace),
+        "h2-7de" => crate::h2_7de_acceptance::run_h2_7de(workspace),
         _ => unreachable!("slice validated by run"),
     }
 }

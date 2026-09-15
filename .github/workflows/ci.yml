@@ -4,8 +4,7 @@ on:
   pull_request:
   merge_group:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -16,30 +15,56 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # GitHub Actions owns one acceptance signal only. Local CI uses the same
-  # `cargo xtask acceptance` entrypoint; use focused owner checks while editing.
-  # Historical evidence regeneration is separate from routine local CI.
-  gates:
-    name: gates
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has_acceptance: ${{ steps.plan.outputs.has_acceptance }}
+      matrix: ${{ steps.plan.outputs.acceptance_matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: plan
+        name: Select affected replay groups
+        run: python3 .github/ci/replay.py plan
+
+  acceptance:
+    name: acceptance (${{ matrix.group }})
+    needs: plan
+    if: needs.plan.outputs.has_acceptance == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
       CARGO_BUILD_JOBS: "2"
       CARGO_INCREMENTAL: "0"
       CARGO_PROFILE_TEST_DEBUG: "0"
       RUSTC_WRAPPER: ""
-      # H2.5g is the sole hosted-wide fan-out. The Rust pipeline restores
-      # qualification order; local runs remain serial unless explicitly set.
       TSRS_H2_5G_WORKERS: "2"
-      # Hosted acceptance keeps the conformance checker pool at the same
-      # conservative bound as the emit workers; the dev profile ceiling in
-      # m8-evidence.json applies locally.
       TSRS_CONFORMANCE_WORKERS: "2"
+      ACCEPTANCE_GROUP: ${{ matrix.group }}
     steps:
-      - name: Checkout candidate
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Run selected acceptance
+        run: python3 .github/ci/replay.py acceptance "$ACCEPTANCE_GROUP"
 
-      - name: Run ts-tests acceptance suite
-        run: cargo xtask acceptance
+  gates:
+    name: gates
+    needs: [plan, acceptance]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      REPLAY_NEEDS: ${{ toJSON(needs) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Require every selected group to succeed
+        run: python3 .github/ci/replay.py gate acceptance
