@@ -1,0 +1,338 @@
+[
+ {
+  "name": "createTextWriter",
+  "start": 16365,
+  "end": 16461,
+  "sha256": "468df403cf6a10a3b3c1349c60309814fbfaf24cca610b0f6aac30fb6952bd84"
+ },
+ {
+  "name": "printNode",
+  "start": 116985,
+  "end": 117005,
+  "sha256": "624ff5c9541be6f6675b3b303aa0046881603950660ba96c4c5def59337652d9"
+ },
+ {
+  "name": "printList",
+  "start": 117006,
+  "end": 117009,
+  "sha256": "494c03ccecb91fe29e342d1558e8d8e8cdd307689ba59f99685e16b7fbca68ac"
+ },
+ {
+  "name": "printBundle",
+  "start": 117010,
+  "end": 117018,
+  "sha256": "a4a09f11399a7c1779fdbb9371d49a7893ed351bd89e01d786d161d8cf056b97"
+ },
+ {
+  "name": "printFile",
+  "start": 117019,
+  "end": 117027,
+  "sha256": "17ef82753c24464f6545418026542479e400f7f5cecc48ab30d73b7cafd5b70f"
+ },
+ {
+  "name": "writeNode",
+  "start": 117028,
+  "end": 117038,
+  "sha256": "f6450be88020022065c4162ab494bdf0dd33703dd36950eb7f86ba55a046ddf2"
+ },
+ {
+  "name": "writeList",
+  "start": 117039,
+  "end": 117057,
+  "sha256": "87715851019a534544b2b68eb9e1ff526dd39b9d0681fc7936f9973a9e187962"
+ },
+ {
+  "name": "writeBundle",
+  "start": 117058,
+  "end": 117071,
+  "sha256": "bfb6e6991765b1f3209b439e05b5b0d2d7ca54470582e28c90dbf761835d1733"
+ },
+ {
+  "name": "writeFile2",
+  "start": 117072,
+  "end": 117081,
+  "sha256": "c4d8a03526ee3ac0ebf672a4adee483d79a03f6bbfc13dadb7120153c4a202fa"
+ },
+ {
+  "name": "beginPrint",
+  "start": 117082,
+  "end": 117084,
+  "sha256": "8d4878517542f8ed4628655d54044d5a3cd4eded115402c4b23de511fb3cdce4"
+ },
+ {
+  "name": "endPrint",
+  "start": 117085,
+  "end": 117089,
+  "sha256": "b2a3b084843da506e687074d795a2d6a9fe874008c07295702dd1c41bbc434b3"
+ },
+ {
+  "name": "print",
+  "start": 117090,
+  "end": 117100,
+  "sha256": "b6934e15293f22899fbf4847a75d10bc46c04dfcc721effa61878ea1eaed44f9"
+ },
+ {
+  "name": "setSourceFile",
+  "start": 117101,
+  "end": 117108,
+  "sha256": "01175a1ecd6a3f4f5272ecee61a9cb296fe5f3677076f2b1e5ae3180da8a6b13"
+ },
+ {
+  "name": "setWriter",
+  "start": 117109,
+  "end": 117116,
+  "sha256": "3e58d0fb0b5064a656858191a44991e340ff04df1e497b9cc70475043350e70a"
+ },
+ {
+  "name": "reset",
+  "start": 117117,
+  "end": 117141,
+  "sha256": "fd783bac486dbc9d5ab0add829f7969be57ed27c0b816b8becb0da687102115d"
+ },
+ {
+  "name": "pipelineEmit",
+  "start": 117173,
+  "end": 117178,
+  "sha256": "6a43b2cfcfd4e20228aa474d96673af90c71efe2c44ad31612af62fe44208d7b"
+ },
+ {
+  "name": "getPipelinePhase",
+  "start": 117185,
+  "end": 117215,
+  "sha256": "0e29bfcca5db712b3747d892f8c4743919a8330c96c1bda5c4931dbadd009220"
+ },
+ {
+  "name": "pipelineEmitWithNotification",
+  "start": 117219,
+  "end": 117222,
+  "sha256": "3e319f7fb4078d10414fdd4842780ba31e5903d0e812e66351b6f2163ab2b98f"
+ },
+ {
+  "name": "pipelineEmitWithHint",
+  "start": 117223,
+  "end": 117235,
+  "sha256": "78e89abc1577a8d034033e940d91fbc6c699501552a003b28e8c73f3009b1b1f"
+ },
+ {
+  "name": "pipelineEmitWithSubstitution",
+  "start": 117712,
+  "end": 117718,
+  "sha256": "143322c35d63fd5ef4c65079067c52a939e82aa22301bb507b486e3b3031ba20"
+ },
+ {
+  "name": "emitHelpers",
+  "start": 117719,
+  "end": 117755,
+  "sha256": "27b8a8efc6d94c599181ff19bc36f9702eca61b9e9a24d729ff3f5c989bcc53c"
+ },
+ {
+  "name": "emitSourceFile",
+  "start": 119710,
+  "end": 119719,
+  "sha256": "cea241c6f593d9352d30faf866f13f9ef158c779c560bdea880391d7acd8bd42"
+ },
+ {
+  "name": "emitSourceFileWorker",
+  "start": 119753,
+  "end": 119769,
+  "sha256": "8dfb3b4d8372581bce1739cccac27e886d9260d86756c67ae36c9f462578ef65"
+ },
+ {
+  "name": "emitPrologueDirectives",
+  "start": 119789,
+  "end": 119811,
+  "sha256": "e59768a46c32e263ca0db916fefb348a165bfd2f21990a07899dccbcecbecba9"
+ },
+ {
+  "name": "emitPrologueDirectivesIfNeeded",
+  "start": 119812,
+  "end": 119822,
+  "sha256": "d939c07cd54394ca93e0a58f0b60dab723641114821b830cb3e9b87f728fea20"
+ },
+ {
+  "name": "emitShebangIfNeeded",
+  "start": 119823,
+  "end": 119838,
+  "sha256": "0447f0d64cad7e3f5d925063aced06da5a60008796016bef8cd352f8f9c3dc6c"
+ },
+ {
+  "name": "emitNodeList",
+  "start": 120029,
+  "end": 120067,
+  "sha256": "9286227d388af8c22b8ceb9909204c1b0e7338f14fd54f346c09bd1deabe987d"
+ },
+ {
+  "name": "emitNodeListItems",
+  "start": 120068,
+  "end": 120155,
+  "sha256": "ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40"
+ },
+ {
+  "name": "writeTokenNode",
+  "start": 120213,
+  "end": 120221,
+  "sha256": "04ee5d9812e94e045643f0f4fadc7327cf8c883a3261f0bded2aa14fb847ec80"
+ },
+ {
+  "name": "pushNameGenerationScope",
+  "start": 120480,
+  "end": 120492,
+  "sha256": "75e640eff0f9e7b2d16c54e74bb57754277c93c13f82cd2954e427afaad2a1d0"
+ },
+ {
+  "name": "popNameGenerationScope",
+  "start": 120493,
+  "end": 120502,
+  "sha256": "a2f730a921200a11f765aa55e960623d4e87c9c1d20b1d78fbb2d9ed6003bb37"
+ },
+ {
+  "name": "generateName",
+  "start": 120624,
+  "end": 120632,
+  "sha256": "5418a174d1ef0e409435e86d45f5ce273fcf55d5a1ae8895463b7d5e56e14330"
+ },
+ {
+  "name": "makeTempVariableName",
+  "start": 120703,
+  "end": 120740,
+  "sha256": "9b0f57d6a9a21d2fa06328b7cef07d8715e68ca9cb53d9ae5762a323f42cc4bf"
+ },
+ {
+  "name": "makeUniqueName",
+  "start": 120741,
+  "end": 120779,
+  "sha256": "24cb46aa2ba811ebf24cee740aa8ca553970a6bd6f18b7b57ae10ea77cb55f03"
+ },
+ {
+  "name": "makeName",
+  "start": 120943,
+  "end": 120977,
+  "sha256": "e8a91f80772266c731040e6c534a15b4d4ec8ef3c39b2ed39600cbe68a793cb7"
+ },
+ {
+  "name": "pipelineEmitWithComments",
+  "start": 120978,
+  "end": 120986,
+  "sha256": "263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34"
+ },
+ {
+  "name": "emitCommentsBeforeNode",
+  "start": 120987,
+  "end": 120994,
+  "sha256": "dc59a0901c0b5aaa640586703fb5f5a2420cf3f5ad344fd433501a20612154cf"
+ },
+ {
+  "name": "emitCommentsAfterNode",
+  "start": 120995,
+  "end": 121006,
+  "sha256": "f0baac32a6d9fcf8f005ee8f1b923e1706f679e8a1fb88e2a7753064bb644a89"
+ },
+ {
+  "name": "emitLeadingCommentsOfNode",
+  "start": 121007,
+  "end": 121032,
+  "sha256": "ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb"
+ },
+ {
+  "name": "emitTrailingCommentsOfNode",
+  "start": 121033,
+  "end": 121046,
+  "sha256": "e5c99d84eeab2c12d594ba56695a7a869c49720eb110f3715c0ea3f9271d1112"
+ },
+ {
+  "name": "emitBodyWithDetachedComments",
+  "start": 121075,
+  "end": 121104,
+  "sha256": "b07b0634586c6da5ba8ad7422074544deef1969168e79789b065a964b86b6ac7"
+ },
+ {
+  "name": "emitLeadingComments",
+  "start": 121123,
+  "end": 121134,
+  "sha256": "365543958b2ff53ab2f1731d2c6e2cba39658cc427517b6cce17442adad56cd4"
+ },
+ {
+  "name": "emitTrailingComments",
+  "start": 121176,
+  "end": 121178,
+  "sha256": "de3cf762696470a95f312618ffc50f62fe76b80a96420d707543b4b257729fb5"
+ },
+ {
+  "name": "emitTrailingCommentsOfPosition",
+  "start": 121191,
+  "end": 121198,
+  "sha256": "953cde198b7f8098bd7bc8d865e535cdac106e983efe35a4a067498ff239cbc0"
+ },
+ {
+  "name": "forEachLeadingCommentToEmit",
+  "start": 121219,
+  "end": 121233,
+  "sha256": "2e1fb613c9b9bb29f94a866a92b31e77c392cd696ee93b2e61a001e4e3981a9c"
+ },
+ {
+  "name": "forEachTrailingCommentToEmit",
+  "start": 121234,
+  "end": 121238,
+  "sha256": "bd6612ac9040b10e756e1b9666a34daebcc0fe66a227dfda01db103bfd3f27a7"
+ },
+ {
+  "name": "emitDetachedCommentsAndUpdateCommentsInfo",
+  "start": 121258,
+  "end": 121267,
+  "sha256": "849939a14b45d2dda06b6caff9f4f22d543e432c6c25da91f279cabf452d55a5"
+ },
+ {
+  "name": "pipelineEmitWithSourceMaps",
+  "start": 121277,
+  "end": 121282,
+  "sha256": "0c57cdceae760b1c5e0c2fca17706537034621460cc030cb1800d55c8c1e3efe"
+ },
+ {
+  "name": "emitSourceMapsBeforeNode",
+  "start": 121283,
+  "end": 121293,
+  "sha256": "ac346b41706c68dd97ca01be4df11b5db57df063dfb4a1b84ee9b5ac1efa2517"
+ },
+ {
+  "name": "emitSourceMapsAfterNode",
+  "start": 121294,
+  "end": 121303,
+  "sha256": "6ca767d42995b2ea08ceccbb1261345452b6f976a0665d60a80c68fa14e0aeb6"
+ },
+ {
+  "name": "emitPos",
+  "start": 121307,
+  "end": 121321,
+  "sha256": "0f8f04ad2314d22ba03071e0cdd6fd5df55a159098f978cbddb6aafc8925b33a"
+ },
+ {
+  "name": "emitSourcePos",
+  "start": 121322,
+  "end": 121332,
+  "sha256": "c3f079664348b23bc5f254936a266eb104d7fad5cc793ff5f49159625e1f8b70"
+ },
+ {
+  "name": "emitTokenWithSourceMap",
+  "start": 121333,
+  "end": 121351,
+  "sha256": "1f4c5a048470151a92b7a92ff32a976744e5222fb62cfa7c9b3e3964bde39732"
+ },
+ {
+  "name": "setSourceMapSource",
+  "start": 121352,
+  "end": 121370,
+  "sha256": "9d5ddceb0e432a1400a46679dcb977ee72a5c90837177cc4cd2cf705e82065ac"
+ },
+ {
+  "name": "emitTokenWithComment",
+  "start": 118731,
+  "end": 118764,
+  "sha256": "d7df39bba502705facedce379a636ae55b168b77701df5e72abf10ec444c2e50"
+ },
+ {
+  "name": "emitBlockFunctionBody",
+  "start": 119021,
+  "end": 119032,
+  "sha256": "7a842d13a602b6a0221ccc139e18e353ba7ba5e3139661aa005d2db42ab4f862"
+ }
+]

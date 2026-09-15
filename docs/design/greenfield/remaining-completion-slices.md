@@ -75,7 +75,9 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 ### Claude に依頼するもの（5 件）
 
 依頼入口は [Claude handoff index](slices/claude-high-difficulty-handoffs.md)。
-**推奨送付順は C03 → C04 → C05 → C01 → C02**。
+**C03 は隔離候補を受領済み。次の推奨送付順は C04 → C05 → C01 → C02**。
+[C03 統合レビュー](slices/h2-8a-printer-failure/INTEGRATION.md)に44 exact / 2保留、
+追加修復・検証・hosted 入口を記録した。2保留の owner は A-INT3-CS と C02 / A-INT2。
 既知の printer 差分と未到達 API の設計を先に進める。C01/C02 で具体的な差を再現した場合は
 その修復を前へ移す。これは依頼の順序であり、別候補を同時に同じ worktree へ適用する指示ではない。
 
@@ -87,7 +89,7 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 | C04 / H2.8c | [noCheck / transpile](slices/h2-8c-transpile-claude-handoff.md)。noCheck、transpileModule、transpileDeclaration の依存設計、source oracle、隔離 prototype | 現行 compiler/emitter と採用 version の source。共有変換・declaration を棚卸し | API ごとの complete observables、必要な linked-reference/diagnostic schedule、prototype と未到達一覧。runtime activation はせず NC1/TM1/TD1 へ |
 | C05 / L2.3 | [resolution cache](slices/l2-3-resolution-cache-claude-handoff.md)。snapshot/dependency/invalidation 設計、実 resolver の隔離 prototype | 現行 resolver/host/path identity、固定 Go reference。L2.0 の本番統合前でも調査可 | 正・負 lookup と隣接変更で reuse/invalidation を証明。所有権・取消・寿命・cache key と patch を提出。Program 再利用への組込みは L2.3 へ |
 
-5 件とも今すぐ渡せるのは **監査・調査・隔離候補の依頼**。
+C03 以外の4件は **監査・調査・隔離候補の依頼**として渡せる。C03 全体を再送しない。
 この一覧を新たな runtime `ready` 判定には使わない。Claude へ送信する操作は本書の作成に含めない。
 提出済み SUPER は 6 件目の新規依頼に数えない。
 
@@ -121,6 +123,7 @@ OPS は各製品 slice の追加対象に追随する作業でもある。新規
 | H2.8a-A-INT1 | C01 の監査を受領し、必要な literal 修復を本番へ統合 | C01 と現行 architecture / packet。変更がない場合も対応表を記録して閉じる。raw/UTF-16/flags の退行なし |
 | H2.8a-A-INT2 | C02 の binding 修復・追加対照を統合 | C02、SUPER。helper order / default runtime name / retained の必要集合が一致 |
 | H2.8a-A-INT3 | C03 の printer failure / continuation 修復を統合 | C03。INT1 と source が重なる場合は順次 rebase。失敗した呼出しと次の正常呼出しを両方比較 |
+| H2.8a-A-INT3-CS | C03 で保留した source をまたぐ comment container の互換差 | 上流 UTF-16 整数、Rust source ID + byte offset、別 arena の寿命を照合。claim/leading/trailing の読者と非 BMP / 同位置 / 異位置 controls をまとめて閉じる |
 | H2.8a-A-RES | 現行台帳に残る transform / declaration / JSDoc / JSX / option / map / output 差分を最終 owner ごとに分割修復 | PLAN-BASE、VER1.0-MAP。旧 G1〜G8 をそのまま実装単位にしない。`A-RES-<owner>-<n>` ごとに分母・依存・before を固定。H2.5h/6a/6c の manifest は実証した行だけ縮小 |
 | H2.8a-A-CLOSE | 全 output-path / BOM / newline / removeComments / collision / failure 軸と現行 global/class 対象を閉じる | PC1、INT1〜3、A-RES の採用行。H2.8a の適用対象を漏れなく disposition し、全件は hosted へ。範囲外を別 owner に保持し、必要な profile 更新を行う |
 

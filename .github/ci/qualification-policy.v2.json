@@ -51,9 +51,9 @@
     },
     "execution_source_sha256": {
       ".github/workflows/ci.yml": "de915626e641960446a9d08a62203069d27e43819b6429ac1a5154c182f2759e",
-      ".github/workflows/witness.yml": "ef99656842d2af11c4ade7cac22faa6fe1f83653d4f7d39c4bc5ddf56dc6d464",
-      ".github/ci/replay.py": "371c32b8f54cb1623ced34e46fb199d62bbb9a99406850e2a2d4ff694c904eb2",
-      "scripts/witness.py": "02feb4af19eae79e7740884ae6febeb88870409a071133b80965de1a2dbadf83",
+      ".github/workflows/witness.yml": "97edd448dd9c63549e35b8205d2a0834147dc4c492846cd6b6f87f1e50ec6f00",
+      ".github/ci/replay.py": "7fd2219214fe7c8cc7501b54159f84f1d02c17caa4a4db515bc68e882fa22711",
+      "scripts/witness.py": "068ad2637ed5c67ee193d5ffab55c832eb7ded8dd2624f9d8a1392e8baa9eee5",
       "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
       "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa"
     }

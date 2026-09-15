@@ -1019,6 +1019,27 @@ pub struct Printer {
     options: PrinterOptions,
     emission_plan: EmissionPlan,
     next_list_element: Option<ListElementPosition>,
+    /// tsc's `ownWriter` (`beginPrint`/`endPrint`, _tsc.js:117082-117089):
+    /// created once and cleared only by a completed print. A failed print
+    /// leaves its partial text, indentation and line state in place because
+    /// `endPrint` never ran, and the next print appends to it.
+    own_writer: Option<TextWriter>,
+    /// tsc's `containerPos`/`containerEnd`/`declarationListContainerEnd` as
+    /// they stand between prints. `reset()` never touches them
+    /// (_tsc.js:117117-117145): a failed print leaves the scope its innermost
+    /// frame was handed, and every later print starts from that value.
+    root_comment_scope: CommentEmissionScope,
+    /// The scope observed by the innermost failing frame of the print in
+    /// progress; promoted to `root_comment_scope` when the print returns.
+    failure_comment_scope: Option<CommentEmissionScope>,
+    /// tsc's `commentsDisabled` during a `NoNestedComments` extent and after
+    /// failure inside it. Every comment writer observes this state, including
+    /// token/list helpers that do not receive an EmitContext. Normal completion
+    /// restores it; a failure never reaches `emitCommentsAfterNode`.
+    comments_disabled_after_failure: bool,
+    /// Unscoped helpers already emitted by this printer's bundle entry.
+    /// tsc's bundledHelpers survives reset() and failed prints alike.
+    bundled_helpers: BTreeSet<Box<str>>,
 }
 
 /// The printer cursor compares UTF16 position values, including across source
@@ -1050,6 +1071,11 @@ pub fn create_printer(options: PrinterOptions) -> Printer {
         options,
         emission_plan: EmissionPlan::default(),
         next_list_element: None,
+        own_writer: None,
+        root_comment_scope: CommentEmissionScope::empty(),
+        failure_comment_scope: None,
+        comments_disabled_after_failure: false,
+        bundled_helpers: BTreeSet::new(),
     }
 }
 
@@ -1067,6 +1093,101 @@ impl GlobalNameOracle for UnavailableDeclarationGlobalNameOracle {
 impl Printer {
     pub const fn options(&self) -> PrinterOptions {
         self.options
+    }
+
+    /// tsc's `commentsDisabled`: the `removeComments` option plus the sticky
+    /// state a failure inside a `NoNestedComments` extent leaves behind.
+    fn comments_disabled(&self) -> bool {
+        self.options.remove_comments || self.comments_disabled_after_failure
+    }
+
+    /// The printer root for one print entry: tsc's `createPrinter` closure
+    /// state as it stands when the entry runs — the carried container triple
+    /// and the sticky comment suppression — rather than a fresh `-1/-1/-1`.
+    fn root_context(&self) -> EmitContext {
+        let context = EmitContext::file_root().with_comments(self.root_comment_scope);
+        if self.comments_disabled_after_failure {
+            context.with_nested_comments_suppressed()
+        } else {
+            context
+        }
+    }
+
+    /// A print entry begins: the failure record of the previous print has
+    /// already been promoted, so the new print observes its own failure only.
+    fn start_print(&mut self) {
+        self.failure_comment_scope = None;
+    }
+
+    /// tsc-port: beginPrint @6.0.3
+    /// tsc-span: _tsc.js:117082-117084
+    ///
+    /// The printer-owned writer is created on first use and retained: after
+    /// a failed print it still holds that print's partial output.
+    fn begin_print(&mut self) -> TextWriter {
+        self.own_writer
+            .take()
+            .unwrap_or_else(|| create_text_writer(self.options.new_line))
+    }
+
+    /// tsc-port: endPrint @6.0.3
+    /// tsc-span: _tsc.js:117085-117089
+    ///
+    /// A completed print returns the writer text and clears the writer. A
+    /// failed print performs neither (`createPrinter` has no `finally`): the
+    /// writer keeps its text, indentation and line state, and the carried
+    /// comment scope is promoted.
+    fn end_print(
+        &mut self,
+        mut writer: TextWriter,
+        outcome: Result<(), PrinterError>,
+    ) -> Result<PrintedText, PrinterError> {
+        let result = self.finish_print(outcome).map(|()| {
+            let printed = PrintedText {
+                text: writer.generated_text().clone(),
+                end: writer.location(),
+                source_map: None,
+            };
+            writer.clear();
+            printed
+        });
+        self.own_writer = Some(writer);
+        result
+    }
+
+    /// A print entry ends. On failure the innermost recorded scope becomes
+    /// the printer's carried container state.
+    fn finish_print<T>(&mut self, outcome: Result<T, PrinterError>) -> Result<T, PrinterError> {
+        if outcome.is_err() {
+            if let Some(scope) = self.failure_comment_scope.take() {
+                self.root_comment_scope = scope;
+            }
+        }
+        outcome
+    }
+
+    /// Record the comment scope handed to the innermost failing node frame.
+    /// tsc's closure containers stand at exactly this value when the
+    /// exception leaves `pipelineEmit`, and nothing restores them.
+    fn note_failure_scope(&mut self, expression_context: EmitContext) {
+        self.failure_comment_scope
+            .get_or_insert(expression_context.comments());
+    }
+
+    /// The leading trivia a carried container already owns: present only
+    /// when the node starts exactly where a previous failed print left
+    /// `containerPos`.
+    fn carried_container_owned_prefix(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<Option<CommentResume>, PrinterError> {
+        let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
+        self.parent_comment_container_owned_prefix_for_owner(
+            transformation,
+            self.root_comment_scope.container_pos(),
+            owner,
+        )
     }
 
     fn list_element_position(
@@ -1319,19 +1440,39 @@ impl Printer {
         transformation.arena().node(node)?;
         transformation.finalize_generated_names_for_print(node, None)?;
         self.prepare_emission_plan(transformation, node)?;
-        let mut writer = match writer_kind {
-            StandaloneWriter::MultiLine => create_text_writer(self.options.new_line),
-            StandaloneWriter::SingleLine => TextWriter::single_line(),
+        self.start_print();
+        // printNode prints into the printer-owned writer. The single-line
+        // writer models a caller-owned writer whose owner clears it (the
+        // checker's usingSingleLineStringWriter has the `finally` that
+        // createPrinter lacks), so it stays per call.
+        let own_writer = writer_kind == StandaloneWriter::MultiLine;
+        let mut writer = if own_writer {
+            self.begin_print()
+        } else {
+            TextWriter::single_line()
         };
-        self.emit_leading_comments_for_node(transformation, node, &mut writer)?;
-        self.emit_node_with_hint(
-            transformation,
-            node,
-            EmitHint::Unspecified,
-            EmitContext::file_root(),
-            &mut writer,
-        )?;
-        self.emit_trailing_comments_for_node(transformation, node, &mut writer)?;
+        let root_context = self.root_context();
+        // printNode -> writeNode -> print -> pipelineEmit: the root's own
+        // source comment phases run inside its notification bracket, guarded
+        // by the carried container (tsc's closure containers at entry).
+        let root_comments = DeferredExpressionSourceComments::nested(
+            root_context.comments(),
+            DeferredSourceCommentExtent::LeadingAndTrailing,
+        );
+        let outcome = self
+            .emit_node_with_hint_and_source_comments(
+                transformation,
+                node,
+                EmitHint::Unspecified,
+                root_context,
+                Some(root_comments),
+                &mut writer,
+            )
+            .map(|_| ());
+        if own_writer {
+            return self.end_print(writer, outcome);
+        }
+        self.finish_print(outcome)?;
         Ok(PrintedText {
             text: writer.generated_text().clone(),
             end: writer.location(),
@@ -1430,53 +1571,53 @@ impl Printer {
             ));
         }
 
-        let mut writer = create_text_writer(self.options.new_line);
+        self.start_print();
+        let mut writer = self.begin_print();
         let _ = language_variant;
-        let mut cursor = 0u32;
-        for raw_statement in statements {
-            let statement = transformation
-                .arena()
-                .node_ref(source_id, raw_statement)
-                .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
-            let emitted = transformation.substitute_node(EmitHint::Unspecified, statement)?;
-            transformation.before_emit_node(EmitHint::Unspecified, statement)?;
-            if emitted != statement {
-                transformation.after_emit_node(EmitHint::Unspecified, statement)?;
-                transformation.after_emit_node(EmitHint::SourceFile, root)?;
-                return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted));
-            }
+        let outcome = (|| -> Result<(), PrinterError> {
+            let mut cursor = 0u32;
+            for raw_statement in statements {
+                let statement = transformation
+                    .arena()
+                    .node_ref(source_id, raw_statement)
+                    .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
+                let emitted = transformation.substitute_node(EmitHint::Unspecified, statement)?;
+                transformation.before_emit_node(EmitHint::Unspecified, statement)?;
+                if emitted != statement {
+                    transformation.after_emit_node(EmitHint::Unspecified, statement)?;
+                    transformation.after_emit_node(EmitHint::SourceFile, root)?;
+                    return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted));
+                }
 
-            let range = self.node_range(transformation, statement)?;
-            let start = range.start().value();
-            let end = range.end().value();
-            if start < cursor {
-                return Err(PrinterError::OverlappingSourceRange {
-                    previous_end: cursor,
-                    start,
-                });
+                let range = self.node_range(transformation, statement)?;
+                let start = range.start().value();
+                let end = range.end().value();
+                if start < cursor {
+                    return Err(PrinterError::OverlappingSourceRange {
+                        previous_end: cursor,
+                        start,
+                    });
+                }
+                raw_write_range(&mut writer, &text, cursor, start)?;
+                self.write_original_node(
+                    transformation,
+                    statement,
+                    OriginalNodeText { range, text: &text },
+                    &mut writer,
+                )?;
+                transformation.after_emit_node(EmitHint::Unspecified, statement)?;
+                cursor = end;
             }
-            raw_write_range(&mut writer, &text, cursor, start)?;
-            self.write_original_node(
-                transformation,
-                statement,
-                OriginalNodeText { range, text: &text },
+            raw_write_range(
                 &mut writer,
+                &text,
+                cursor,
+                u32::try_from(text.len()).expect("source text exceeds u32"),
             )?;
-            transformation.after_emit_node(EmitHint::Unspecified, statement)?;
-            cursor = end;
-        }
-        raw_write_range(
-            &mut writer,
-            &text,
-            cursor,
-            u32::try_from(text.len()).expect("source text exceeds u32"),
-        )?;
-        transformation.after_emit_node(EmitHint::SourceFile, root)?;
-        Ok(PrintedText {
-            text: writer.generated_text().clone(),
-            end: writer.location(),
-            source_map: None,
-        })
+            transformation.after_emit_node(EmitHint::SourceFile, root)?;
+            Ok(())
+        })();
+        self.end_print(writer, outcome)
     }
 
     /// tsc-port: emitExpressionStatement @6.0.3
@@ -1510,64 +1651,64 @@ impl Printer {
                 .unwrap_or_default(),
             _ => return Err(PrinterError::RootIsNotSourceFile(root)),
         };
-        let mut writer = create_text_writer(self.options.new_line);
-        if let Some(statement_id) = statements.first().copied() {
-            if statements.len() != 1 {
-                transformation.after_emit_node(EmitHint::SourceFile, root)?;
-                return Err(PrinterError::UnsupportedTransformedSyntax {
-                    node: root,
-                    kind: SyntaxKind::SourceFile,
-                });
-            }
-            let statement = transformation
-                .arena()
-                .node_ref(source_id, statement_id)
-                .ok_or(PrinterError::UnknownStatement(statement_id.0))?;
-            let expression = match &transformation.arena().node(statement)?.data {
-                NodeData::ExpressionStatement(data) => {
-                    data.expression
-                        .ok_or(PrinterError::MissingTransformedChild {
-                            parent: SyntaxKind::ExpressionStatement,
-                            field: "expression",
-                        })?
-                }
-                _ => {
-                    let kind = transformation.arena().node(statement)?.kind;
+        self.start_print();
+        let mut writer = self.begin_print();
+        let outcome = (|| -> Result<(), PrinterError> {
+            if let Some(statement_id) = statements.first().copied() {
+                if statements.len() != 1 {
                     transformation.after_emit_node(EmitHint::SourceFile, root)?;
                     return Err(PrinterError::UnsupportedTransformedSyntax {
-                        node: statement,
-                        kind,
+                        node: root,
+                        kind: SyntaxKind::SourceFile,
                     });
                 }
-            };
-            let emitted_statement =
-                transformation.substitute_node(EmitHint::Unspecified, statement)?;
-            transformation.before_emit_node(EmitHint::Unspecified, statement)?;
-            if emitted_statement != statement {
+                let statement = transformation
+                    .arena()
+                    .node_ref(source_id, statement_id)
+                    .ok_or(PrinterError::UnknownStatement(statement_id.0))?;
+                let expression = match &transformation.arena().node(statement)?.data {
+                    NodeData::ExpressionStatement(data) => {
+                        data.expression
+                            .ok_or(PrinterError::MissingTransformedChild {
+                                parent: SyntaxKind::ExpressionStatement,
+                                field: "expression",
+                            })?
+                    }
+                    _ => {
+                        let kind = transformation.arena().node(statement)?.kind;
+                        transformation.after_emit_node(EmitHint::SourceFile, root)?;
+                        return Err(PrinterError::UnsupportedTransformedSyntax {
+                            node: statement,
+                            kind,
+                        });
+                    }
+                };
+                let emitted_statement =
+                    transformation.substitute_node(EmitHint::Unspecified, statement)?;
+                transformation.before_emit_node(EmitHint::Unspecified, statement)?;
+                if emitted_statement != statement {
+                    transformation.after_emit_node(EmitHint::Unspecified, statement)?;
+                    transformation.after_emit_node(EmitHint::SourceFile, root)?;
+                    return Err(PrinterError::TransformedNodeWorkerUnavailable(
+                        emitted_statement,
+                    ));
+                }
+                self.emit_statement_leading_comments(transformation, statement, &mut writer)?;
+                self.emit_node_id_with_context(
+                    transformation,
+                    source_id,
+                    expression,
+                    self.root_context(),
+                    &mut writer,
+                )?;
+                self.emit_statement_trailing_comments(transformation, statement, &mut writer)?;
                 transformation.after_emit_node(EmitHint::Unspecified, statement)?;
-                transformation.after_emit_node(EmitHint::SourceFile, root)?;
-                return Err(PrinterError::TransformedNodeWorkerUnavailable(
-                    emitted_statement,
-                ));
+                writer.write_line(false);
             }
-            self.emit_statement_leading_comments(transformation, statement, &mut writer)?;
-            self.emit_node_id_with_context(
-                transformation,
-                source_id,
-                expression,
-                EmitContext::file_root(),
-                &mut writer,
-            )?;
-            self.emit_statement_trailing_comments(transformation, statement, &mut writer)?;
-            transformation.after_emit_node(EmitHint::Unspecified, statement)?;
-            writer.write_line(false);
-        }
-        transformation.after_emit_node(EmitHint::SourceFile, root)?;
-        Ok(PrintedText {
-            text: writer.generated_text().clone(),
-            end: writer.location(),
-            source_map: None,
-        })
+            transformation.after_emit_node(EmitHint::SourceFile, root)?;
+            Ok(())
+        })();
+        self.end_print(writer, outcome)
     }
 
     fn print_transformed_source_file(
@@ -1579,45 +1720,61 @@ impl Printer {
         statements: Vec<tsc_syntax::NodeId>,
         recording: Option<crate::source_map::SourceMapRecordingInputs>,
     ) -> Result<PrintedText, PrinterError> {
-        let mut writer = create_text_writer(self.options.new_line);
-        if let Some(inputs) = recording {
-            writer
-                .set_source_map_recording(Some(crate::source_map::SourceMapRecording::new(inputs)));
-            self.set_source_map_source(transformation, source_id, &mut writer)?;
-        }
-        let helpers = self.sorted_source_emit_helpers(transformation, source_id)?;
-        // transformSystemModule moves source helpers to its module body.
-        // Emit them while writing that block so following map positions are
-        // recorded after the helper text, including source prologues/comments.
-        let helper_body = if helpers.is_empty() {
-            None
+        self.start_print();
+        // writeFile with a caller-owned writer (the compiler's per-unit
+        // writer, cleared after every unit) versus printFile into the
+        // printer-owned writer.
+        let own_writer = recording.is_none();
+        let mut writer = if own_writer {
+            self.begin_print()
         } else {
-            statements
-                .first()
-                .and_then(|statement| transformation.arena().node_ref(source_id, *statement))
-                .and_then(|statement| self.system_register_body(transformation, statement))
+            create_text_writer(self.options.new_line)
         };
-        if let Some(body) = helper_body {
-            self.emission_plan
-                .block_helpers
-                .insert(body, helpers.clone());
+        let outcome = (|| -> Result<(), PrinterError> {
+            if let Some(inputs) = recording {
+                writer.set_source_map_recording(Some(crate::source_map::SourceMapRecording::new(
+                    inputs,
+                )));
+                self.set_source_map_source(transformation, source_id, &mut writer)?;
+            }
+            let helpers = self.sorted_source_emit_helpers(transformation, source_id)?;
+            // transformSystemModule moves source helpers to its module body.
+            // Emit them while writing that block so following map positions are
+            // recorded after the helper text, including source prologues/comments.
+            let helper_body = if helpers.is_empty() {
+                None
+            } else {
+                statements
+                    .first()
+                    .and_then(|statement| transformation.arena().node_ref(source_id, *statement))
+                    .and_then(|statement| self.system_register_body(transformation, statement))
+            };
+            if let Some(body) = helper_body {
+                self.emission_plan
+                    .block_helpers
+                    .insert(body, helpers.clone());
+            }
+            let result = self.write_transformed_source_file(
+                transformation,
+                SourceFilePrintBody {
+                    source_id,
+                    root,
+                    statement_array,
+                    statements,
+                    helpers: if helper_body.is_some() { &[] } else { &helpers },
+                    mode: SourceFileEmitMode::OwnFile,
+                },
+                &mut writer,
+            );
+            if let Some(body) = helper_body {
+                self.emission_plan.block_helpers.remove(&body);
+            }
+            result
+        })();
+        if own_writer {
+            return self.end_print(writer, outcome);
         }
-        let result = self.write_transformed_source_file(
-            transformation,
-            SourceFilePrintBody {
-                source_id,
-                root,
-                statement_array,
-                statements,
-                helpers: if helper_body.is_some() { &[] } else { &helpers },
-                mode: SourceFileEmitMode::OwnFile,
-            },
-            &mut writer,
-        );
-        if let Some(body) = helper_body {
-            self.emission_plan.block_helpers.remove(&body);
-        }
-        result?;
+        self.finish_print(outcome)?;
         let text = writer.generated_text().clone();
         let end = writer.location();
         let source_map = writer
@@ -1675,6 +1832,29 @@ impl Printer {
         Ok(helpers)
     }
 
+    /// The SourceFile root's substitution and before-notification, issued
+    /// once per print at the point where writeFile/writeBundle reach
+    /// `print(SourceFile)`. A substituted root remains a typed Rust-only
+    /// error; its after-notification is the existing restoration guard.
+    fn notify_source_file_root(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        root: TransformNode,
+        notified: &mut bool,
+    ) -> Result<(), PrinterError> {
+        if *notified {
+            return Ok(());
+        }
+        *notified = true;
+        let emitted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
+        transformation.before_emit_node(EmitHint::SourceFile, root)?;
+        if emitted_root != root {
+            transformation.after_emit_node(EmitHint::SourceFile, root)?;
+            return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted_root));
+        }
+        Ok(())
+    }
+
     /// tsc-port: emitSourceFile @6.0.3
     /// tsc-hash: cea241c6f593d9352d30faf866f13f9ef158c779c560bdea880391d7acd8bd42
     /// tsc-span: _tsc.js:119710-119719
@@ -1695,12 +1875,11 @@ impl Printer {
             helpers,
             mode,
         } = body;
-        let emitted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
-        transformation.before_emit_node(EmitHint::SourceFile, root)?;
-        if emitted_root != root {
-            transformation.after_emit_node(EmitHint::SourceFile, root)?;
-            return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted_root));
-        }
+        // writeFile order: shebang, then each prologue directive through its
+        // own pipeline, THEN the SourceFile notification and emitSourceFile
+        // (_tsc.js:117072-117080); writeBundle notifies each source after the
+        // bundle prologues the same way (117058-117070).
+        let mut source_file_notified = false;
 
         let (original_source_was_statementless, original_first_statement) = {
             let original_root = transformation.arena().get_original_node(root);
@@ -1788,6 +1967,10 @@ impl Printer {
         let has_body_statements = statements.len() > skipped_prologues;
         let statement_count = statements.len();
         if !has_body_statements {
+            self.notify_source_file_root(transformation, root, &mut source_file_notified)?;
+            // emitSourceFile begins with writeLine (_tsc.js:119711): a no-op
+            // at line start, a newline after a carried partial print.
+            writer.write_line(false);
             self.emit_detached_comment_prefix(
                 transformation,
                 source_owned_detached_prefix,
@@ -1796,7 +1979,7 @@ impl Printer {
             if self.options.declaration_syntax
                 && original_source_was_statementless
                 && !statement_array_is_synthesized
-                && !self.options.remove_comments
+                && !self.comments_disabled()
             {
                 let source = transformation.arena().source(source_id)?.syntax();
                 emit_leading_comments(
@@ -1814,7 +1997,20 @@ impl Printer {
         for (statement_index, raw_statement) in
             statements.into_iter().enumerate().skip(skipped_prologues)
         {
+            // tsc writes the statement separator BEFORE each item, never
+            // after it: emitPrologueDirectives' writeLine before every
+            // prologue (_tsc.js:119795-119799) and emitNodeListItems' leading
+            // and separating line terminators (120073-120097). Every call is
+            // a no-op at line start; after a carried partial print the first
+            // one is the newline tsc observably writes. The first body
+            // statement's terminators follow the SourceFile notification.
+            if statement_index != helper_offset {
+                writer.write_line(false);
+            }
             if statement_index == helper_offset {
+                self.notify_source_file_root(transformation, root, &mut source_file_notified)?;
+                // emitSourceFile begins with writeLine (_tsc.js:119711).
+                writer.write_line(false);
                 self.emit_detached_comment_prefix(
                     transformation,
                     source_owned_detached_prefix,
@@ -1826,6 +2022,8 @@ impl Printer {
                 if self.options.declaration_syntax {
                     self.emit_triple_slash_directives_if_needed(transformation, source_id, writer)?;
                 }
+                // The statement list's leading line terminator (120073).
+                writer.write_line(false);
             }
             let statement = transformation
                 .arena()
@@ -1870,7 +2068,24 @@ impl Printer {
                 &mut pending_detached_comments,
                 emitted,
             )?;
-            if let Some(detached_resume) = detached_resume {
+            let carried_resume = self.carried_container_owned_prefix(transformation, emitted)?;
+            if let Some(carried_resume) = carried_resume {
+                // pos === containerPos: tsc skips the whole leading walk,
+                // detached prefix included (_tsc.js:121220); the node's
+                // synthetic leading comments still follow.
+                self.emit_leading_comments_for_node_worker(
+                    transformation,
+                    emitted,
+                    if had_previous_original_statement && emitted_has_original_range {
+                        LeadingCommentContext::AfterSibling
+                    } else {
+                        LeadingCommentContext::Normal
+                    },
+                    Some(carried_resume),
+                    writer,
+                )?;
+                self.emit_synthetic_leading_comments_for_node(transformation, emitted, writer)?;
+            } else if let Some(detached_resume) = detached_resume {
                 self.emit_leading_comments_for_node_worker(
                     transformation,
                     emitted,
@@ -1900,7 +2115,7 @@ impl Printer {
             // In particular, a first modifier sharing the statement's start
             // must see that claim before emitting its own leading comments.
             let owner = self.expression_comment_phase_owner_for_node(transformation, emitted)?;
-            let context = EmitContext::file_root();
+            let context = self.root_context();
             let scope =
                 self.active_expression_comment_scope(transformation, None, context, owner)?;
             self.emit_transformed_node(
@@ -1910,9 +2125,16 @@ impl Printer {
                 context.with_comments(scope),
                 writer,
             )?;
-            self.emit_statement_trailing_comments(transformation, emitted, writer)?;
+            // The statement's trailing phase consults the restored file-level
+            // scope, i.e. the carried container of a previous failed print.
+            self.emit_synthetic_trailing_comments_for_node(transformation, emitted, writer)?;
+            self.emit_trailing_comments_for_node_in_container(
+                transformation,
+                emitted,
+                self.root_comment_scope,
+                writer,
+            )?;
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
-            writer.write_line(false);
         }
         // tsc emitSourceFile: after prologue directives emitted ahead of the
         // body, emitBodyWithDetachedComments and the worker still run for the
@@ -1921,6 +2143,8 @@ impl Printer {
         // to follow. The loop above only reaches that point through the first
         // non-prologue statement.
         if has_body_statements && statement_count == helper_offset {
+            self.notify_source_file_root(transformation, root, &mut source_file_notified)?;
+            writer.write_line(false);
             self.emit_detached_comment_prefix(
                 transformation,
                 source_owned_detached_prefix,
@@ -1933,7 +2157,7 @@ impl Printer {
         }
 
         if original_source_was_statementless
-            && !self.options.remove_comments
+            && !self.comments_disabled()
             && !self.options.declaration_syntax
         {
             let source = transformation.arena().source(source_id)?.syntax();
@@ -2126,6 +2350,19 @@ impl Printer {
             .arena()
             .metadata(node)
             .map_or(EmitFlags::NONE, |metadata| metadata.flags());
+        // emitCommentsBeforeNode sets tsc's commentsDisabled only when this
+        // node's comments phase runs at all (_tsc.js:120987-120994).
+        let enters_nested_comment_suppression = node_flags
+            .intersects(EmitFlags::NO_NESTED_COMMENTS)
+            && !expression_context.nested_comments_suppressed()
+            && !self.comments_disabled();
+        if enters_nested_comment_suppression {
+            // emitCommentsBeforeNode changes the closure state before the
+            // worker, including list/token comment writers. Threading only
+            // the child context misses those writers and leaks comments into
+            // both normal output and a retained failure prefix.
+            self.comments_disabled_after_failure = true;
+        }
         let expression_context = if node_flags.intersects(EmitFlags::NO_NESTED_COMMENTS) {
             expression_context.with_nested_comments_suppressed()
         } else {
@@ -2167,6 +2404,10 @@ impl Printer {
             ),
         };
         self.after_emit_node_notification(saved_preserve_source_newlines);
+        if worker_result.is_ok() && enters_nested_comment_suppression {
+            // Only successful completion reaches emitCommentsAfterNode.
+            self.comments_disabled_after_failure = false;
+        }
         if suppress_nested_maps {
             if let Some(recording) = writer.recording_mut() {
                 recording.unsuppress();
@@ -2569,7 +2810,7 @@ impl Printer {
                     SyntaxKind::ExpressionStatement,
                     "expression",
                     if json_value {
-                        EmitContext::file_root()
+                        self.root_context()
                     } else {
                         expression_context.for_child(ExpressionSyntaxContext::EXPRESSION_STATEMENT)
                     },
@@ -3034,7 +3275,7 @@ impl Printer {
                     transformation.arena().node_ref(node.source(), expression)
                 });
                 if expression.is_none()
-                    && (self.options.remove_comments
+                    && (self.comments_disabled()
                         || expression_context.nested_comments_suppressed()
                         || !self.original_jsx_has_comments_at_open(transformation, node)?)
                 {
@@ -8506,7 +8747,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         let arena = transformation.arena();
         let end = arena.node(last)?.end;
-        let skip_comments = self.options.remove_comments
+        let skip_comments = self.comments_disabled()
             || expression_context.nested_comments_suppressed()
             || arena
                 .metadata(last)
@@ -11222,7 +11463,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments || expression_context.nested_comments_suppressed() {
+        if self.comments_disabled() || expression_context.nested_comments_suppressed() {
             return Ok(());
         }
         let arena = transformation.arena();
@@ -11260,7 +11501,7 @@ impl Printer {
         prefix_space: bool,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments || expression_context.nested_comments_suppressed() {
+        if self.comments_disabled() || expression_context.nested_comments_suppressed() {
             return Ok(());
         }
         let range = self.comment_range_for_node(transformation, child)?;
@@ -11428,7 +11669,7 @@ impl Printer {
             comments.sort_by_key(|comment| (comment.start, comment.end));
             comments.dedup_by_key(|comment| (comment.start, comment.end));
             for comment in comments {
-                if self.options.remove_comments
+                if self.comments_disabled()
                     || (self.options.only_print_js_doc_style
                         && !should_write_js_doc_style_comment(source.text(), comment.start))
                 {
@@ -12620,7 +12861,7 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         expression: TransformNode,
     ) -> Result<Option<ParenthesizedNoAsiExpression>, PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(None);
         }
         let NodeData::PartiallyEmittedExpression(data) =
@@ -12898,7 +13139,7 @@ impl Printer {
         array: Option<tsc_syntax::NodeArrayId>,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(());
         }
         let Some(array) =
@@ -12928,7 +13169,7 @@ impl Printer {
         array: Option<tsc_syntax::NodeArrayId>,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(());
         }
         let Some(array) =
@@ -13548,8 +13789,36 @@ impl Printer {
         Ok(())
     }
 
+    /// One node's pipeline entry. A failure anywhere inside — a hook, the
+    /// worker, or a nested node — records the comment scope this frame was
+    /// handed: tsc's closure containers stand at exactly that value when the
+    /// exception leaves `pipelineEmit`, and `reset()` never restores them.
     #[allow(clippy::too_many_arguments)]
     fn emit_node_with_hint_and_source_comments(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        hint: EmitHint,
+        expression_context: EmitContext,
+        deferred_source_comments: Option<DeferredExpressionSourceComments>,
+        writer: &mut TextWriter,
+    ) -> Result<ExpressionSourceCommentsOutcome, PrinterError> {
+        let outcome = self.emit_node_with_hint_and_source_comments_worker(
+            transformation,
+            node,
+            hint,
+            expression_context,
+            deferred_source_comments,
+            writer,
+        );
+        if outcome.is_err() {
+            self.note_failure_scope(expression_context);
+        }
+        outcome
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit_node_with_hint_and_source_comments_worker(
         &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
@@ -13797,19 +14066,15 @@ impl Printer {
             );
             Ok(outcome)
         })();
-        let notification = transformation.after_emit_node(hint, node);
-        match emitted {
-            Ok(outcome) => {
-                notification?;
-                Ok(outcome)
-            }
-            Err(error) => {
-                // Restore transformer notification state even when the node
-                // worker fails, while preserving the primary printer error.
-                let _ = notification;
-                Err(error)
-            }
-        }
+        // tsc's pipelineEmitWithNotification has no `finally`: when the
+        // worker fails, the transformer's after-half never runs for this
+        // node or for any ancestor (observe-printer-failures.mjs, every
+        // `#events` row). The transformer's own state stays wherever its
+        // before-half left it, exactly like an upstream onEmitNode wrapper's
+        // closure state.
+        let outcome = emitted?;
+        transformation.after_emit_node(hint, node)?;
+        Ok(outcome)
     }
 
     /// Emit the node shape selected by `parenthesizeExpressionForNoAsi`.
@@ -14391,7 +14656,7 @@ impl Printer {
         leading_space: TokenLeadingSpace,
         writer: &mut TextWriter,
     ) -> Result<Option<CommentResume>, PrinterError> {
-        if self.options.remove_comments
+        if self.comments_disabled()
             || comment_context == InterveningCommentContext::Node
                 && transformation
                     .arena()
@@ -14579,7 +14844,7 @@ impl Printer {
         let Some(deferred) = deferred.filter(|deferred| deferred.owns_trailing()) else {
             return Ok(None);
         };
-        if self.options.remove_comments
+        if self.comments_disabled()
             || owner.flags.intersects(EmitFlags::NO_TRAILING_COMMENTS)
             || owner.kind == SyntaxKind::NotEmittedStatement
         {
@@ -14715,7 +14980,7 @@ impl Printer {
         resume: Option<CommentResume>,
         writer: &mut TextWriter,
     ) -> Result<SourceLeadingCommentPhaseVisit, PrinterError> {
-        if self.options.remove_comments || owner.flags.intersects(EmitFlags::NO_LEADING_COMMENTS) {
+        if self.comments_disabled() || owner.flags.intersects(EmitFlags::NO_LEADING_COMMENTS) {
             return Ok(SourceLeadingCommentPhaseVisit::Suppressed);
         }
         let source = transformation
@@ -14872,7 +15137,7 @@ impl Printer {
         let source = transformation.arena().source(source_id)?.syntax();
         let start = owner_start.value() as usize;
         let code_start = skip_trivia(source.text(), start);
-        let (emitted_end, policy) = if self.options.remove_comments {
+        let (emitted_end, policy) = if self.comments_disabled() {
             let Some(detached_end) = detached_pinned_comment_end(source.text(), start, code_start)
             else {
                 return Ok(None);
@@ -15007,7 +15272,7 @@ impl Printer {
         // tsc consumes detachedCommentsInfo only from the leading-comment
         // phase. A hoisted export can share the declaration's range while
         // NoComments leaves that phase for the later declaration to visit.
-        if self.options.remove_comments
+        if self.comments_disabled()
             || owner.flags.intersects(EmitFlags::NO_LEADING_COMMENTS)
             || owner.kind == SyntaxKind::JsxText
             || !owner.range.range().has_nonempty_extent()
@@ -15026,7 +15291,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments
+        if self.comments_disabled()
             || transformation
                 .arena()
                 .metadata(node)
@@ -15171,7 +15436,7 @@ impl Printer {
         cursor: TokenCursor,
         writer: &mut TextWriter,
     ) -> Result<TokenAnchor, PrinterError> {
-        if self.options.remove_comments
+        if self.comments_disabled()
             || transformation
                 .arena()
                 .metadata(node)
@@ -15279,7 +15544,7 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         cursor: TokenCursor,
     ) -> Result<Option<CommentResume>, PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(None);
         }
         let Some((source_id, position)) = cursor.source_position() else {
@@ -15313,7 +15578,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments
+        if self.comments_disabled()
             || transformation
                 .arena()
                 .metadata(node)
@@ -15353,7 +15618,7 @@ impl Printer {
         before_expression: bool,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(());
         }
         let flags = transformation
@@ -16079,7 +16344,7 @@ impl Printer {
         if similar
             && (comment_boundary == TokenCommentBoundary::AdjacentListItem
                 || owner_record.end != token_end_raw)
-            && !self.options.remove_comments
+            && !self.comments_disabled()
             && leading_phase.is_some()
         {
             let comments = collect_source_comment_ranges(source.text(), token_end, true);
@@ -16208,7 +16473,7 @@ impl Printer {
         indent_leading: bool,
         writer: &mut TextWriter,
     ) -> Result<TokenAnchor, PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(cursor.into());
         }
         let Some((source_id, position)) = cursor.source_position() else {
@@ -16384,7 +16649,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments
+        if self.comments_disabled()
             || transformation
                 .arena()
                 .metadata(node)
@@ -16415,7 +16680,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(());
         }
         let comments = transformation
@@ -16445,7 +16710,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(());
         }
         let comments = transformation
@@ -16486,7 +16751,7 @@ impl Printer {
         statements: TransformNodeArray,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(());
         }
         let source = transformation.arena().source(statements.source())?.syntax();
@@ -16519,7 +16784,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(());
         }
         let original = transformation.arena().get_original_node(node);
@@ -16551,7 +16816,7 @@ impl Printer {
         function_body: bool,
         writer: &mut TextWriter,
     ) -> Result<bool, PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(false);
         }
         // A transformed block's statement-list range is the precise trivia
@@ -16677,7 +16942,7 @@ impl Printer {
         list_end: Option<usize>,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments || list_end.is_none() {
+        if self.comments_disabled() || list_end.is_none() {
             return Ok(());
         }
         // `setEmitFlags(block, NoComments)` suppresses every comment lane of
@@ -16751,7 +17016,7 @@ impl Printer {
         separating_line: bool,
         writer: &mut TextWriter,
     ) -> Result<Option<CommentResume>, PrinterError> {
-        if self.options.remove_comments || expression_context.nested_comments_suppressed() {
+        if self.comments_disabled() || expression_context.nested_comments_suppressed() {
             return Ok(None);
         }
         let (node, before_item) = match boundary {
@@ -16867,7 +17132,7 @@ impl Printer {
         ambient_scope: CommentEmissionScope,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments
+        if self.comments_disabled()
             || transformation
                 .arena()
                 .metadata(node)
@@ -16922,7 +17187,7 @@ impl Printer {
         ambient_scope: CommentEmissionScope,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments {
+        if self.comments_disabled() {
             return Ok(());
         }
         let original = transformation.arena().get_original_node(last);

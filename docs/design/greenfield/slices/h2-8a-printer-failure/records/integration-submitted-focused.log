@@ -1,0 +1,111 @@
+   Compiling tsc-rs-diagnostics v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure-review/crates/diagnostics)
+   Compiling tsc-rs-types v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure-review/crates/types)
+   Compiling tsc-rs-syntax v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure-review/crates/syntax)
+   Compiling tsc-rs-host v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure-review/crates/host)
+   Compiling tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure-review/crates/program)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure-review/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 2m 54s
+     Running tests/list_comment_flags_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/list_comment_flags_contract-3023874cf6aa0a82)
+
+running 1 test
+test list_comment_flags_match_typescript_printer ... List comment flags EXACT x2 call-inline/None/retained
+List comment flags EXACT x2 call-inline/None/removed
+List comment flags EXACT x2 call-inline/NoLeadingComments/retained
+List comment flags EXACT x2 call-inline/NoLeadingComments/removed
+List comment flags EXACT x2 call-inline/NoTrailingComments/retained
+List comment flags EXACT x2 call-inline/NoTrailingComments/removed
+List comment flags EXACT x2 call-inline/NoComments/retained
+List comment flags EXACT x2 call-inline/NoComments/removed
+List comment flags EXACT x2 call-inline/NoNestedComments/retained
+List comment flags EXACT x2 call-inline/NoNestedComments/removed
+List comment flags FAIL call-inline/ParentNoNestedComments/retained repetition 0: actual "f(/* FIRST */ x /* AFTER */, y);\n", expected "f(x, y);\n"
+List comment flags FAIL call-inline/ParentNoNestedComments/retained repetition 1: actual "f(/* FIRST */ x /* AFTER */, y);\n", expected "f(x, y);\n"
+List comment flags EXACT x2 call-inline/ParentNoNestedComments/removed
+List comment flags EXACT x2 call-newline/None/retained
+List comment flags EXACT x2 call-newline/None/removed
+List comment flags EXACT x2 call-newline/NoLeadingComments/retained
+List comment flags EXACT x2 call-newline/NoLeadingComments/removed
+List comment flags EXACT x2 call-newline/NoTrailingComments/retained
+List comment flags EXACT x2 call-newline/NoTrailingComments/removed
+List comment flags EXACT x2 call-newline/NoComments/retained
+List comment flags EXACT x2 call-newline/NoComments/removed
+List comment flags EXACT x2 call-newline/NoNestedComments/retained
+List comment flags EXACT x2 call-newline/NoNestedComments/removed
+List comment flags FAIL call-newline/ParentNoNestedComments/retained repetition 0: actual "f(\n/* FIRST */ x /* AFTER */, \n/* SECOND */ y);\n", expected "f(x, y);\n"
+List comment flags FAIL call-newline/ParentNoNestedComments/retained repetition 1: actual "f(\n/* FIRST */ x /* AFTER */, \n/* SECOND */ y);\n", expected "f(x, y);\n"
+List comment flags EXACT x2 call-newline/ParentNoNestedComments/removed
+List comment flags EXACT x2 array-inline/None/retained
+List comment flags EXACT x2 array-inline/None/removed
+List comment flags EXACT x2 array-inline/NoLeadingComments/retained
+List comment flags EXACT x2 array-inline/NoLeadingComments/removed
+List comment flags EXACT x2 array-inline/NoTrailingComments/retained
+List comment flags EXACT x2 array-inline/NoTrailingComments/removed
+List comment flags EXACT x2 array-inline/NoComments/retained
+List comment flags EXACT x2 array-inline/NoComments/removed
+List comment flags EXACT x2 array-inline/NoNestedComments/retained
+List comment flags EXACT x2 array-inline/NoNestedComments/removed
+List comment flags EXACT x2 array-inline/ParentNoNestedComments/retained
+List comment flags EXACT x2 array-inline/ParentNoNestedComments/removed
+List comment flags EXACT x2 array-newline/None/retained
+List comment flags EXACT x2 array-newline/None/removed
+List comment flags EXACT x2 array-newline/NoLeadingComments/retained
+List comment flags EXACT x2 array-newline/NoLeadingComments/removed
+List comment flags EXACT x2 array-newline/NoTrailingComments/retained
+List comment flags EXACT x2 array-newline/NoTrailingComments/removed
+List comment flags EXACT x2 array-newline/NoComments/retained
+List comment flags EXACT x2 array-newline/NoComments/removed
+List comment flags EXACT x2 array-newline/NoNestedComments/retained
+List comment flags EXACT x2 array-newline/NoNestedComments/removed
+List comment flags EXACT x2 array-newline/ParentNoNestedComments/retained
+List comment flags EXACT x2 array-newline/ParentNoNestedComments/removed
+
+thread 'list_comment_flags_match_typescript_printer' (16707775) panicked at crates/emitter/tests/list_comment_flags_contract.rs:128:5:
+list comment flag failures: ["call-inline/ParentNoNestedComments/retained", "call-newline/ParentNoNestedComments/retained"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    list_comment_flags_match_typescript_printer
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--test list_comment_flags_contract`
+     Running tests/printer_failure_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/printer_failure_contract-f36a6d3d26fee24b)
+
+running 3 tests
+test printer_failure_hooks_match_typescript ... printer failure hooks: 23/25 cases exact; 3 mismatching keys; 3 known
+MISMATCH printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op2: expected {"op":2,"status":"returned","text":"/*a*/ f(h(z); //u\r\n","utf8_base64":"LyphKi8gZihoKHopOyAvL3UNCg==","utf8_bytes":19,"end_utf16":{"position":19,"line":1,"column":0}} actual {"op":2,"status":"returned","text":"/*a*/ f(/*b*/ h(z); //u\r\n","utf8_base64":"LyphKi8gZigvKmIqLyBoKHopOyAvL3UNCg==","utf8_bytes":25,"end_utf16":{"position":25,"line":1,"column":0}}
+MISMATCH printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op3: expected {"op":3,"status":"returned","text":"h(z); //u\r\n","utf8_base64":"aCh6KTsgLy91DQo=","utf8_bytes":11,"end_utf16":{"position":11,"line":1,"column":0}} actual {"op":3,"status":"returned","text":"/*b*/ h(z); //u\r\n","utf8_base64":"LypiKi8gaCh6KTsgLy91DQo=","utf8_bytes":17,"end_utf16":{"position":17,"line":1,"column":0}}
+MISMATCH printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2: expected {"op":2,"status":"returned","text":"const x_1 = 1;const x_2 = 1;","utf8_base64":"Y29uc3QgeF8xID0gMTtjb25zdCB4XzIgPSAxOw==","utf8_bytes":28,"end_utf16":{"position":28,"line":0,"column":28}} actual {"op":2,"status":"returned","text":"const x_1 = 1;const x_1 = 1;","utf8_base64":"Y29uc3QgeF8xID0gMTtjb25zdCB4XzEgPSAxOw==","utf8_bytes":28,"end_utf16":{"position":28,"line":0,"column":28}}
+THREW printer-failure/printNode/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-same-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-statement#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitute/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/identifier-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/nested-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/remove-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitution-y/after/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/non-bmp/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-crlf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/list-item-3/cursor-array#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/source-file-1/prologue/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/after/source-file-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-other-file#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printBundle/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+ok
+test printer_failure_probes_are_recorded_upstream_only_evidence ... ok
+test rust_only_typed_errors_keep_the_printer_usable ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+error: 1 target failed:
+    `--test list_comment_flags_contract`

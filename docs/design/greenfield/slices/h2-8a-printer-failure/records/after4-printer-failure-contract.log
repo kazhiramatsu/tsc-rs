@@ -1,0 +1,42 @@
+2026年 9月15日 火曜日 22時57分15秒 JST
+f9ef828a56c9f9305947a6e6f3c1ae39072b3110
+ crates/emitter/src/printer.rs        | 652 ++++++++++++++++++++++++-----------
+ crates/emitter/src/printer/bundle.rs | 170 +++++----
+ 2 files changed, 549 insertions(+), 273 deletions(-)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 33.55s
+     Running tests/printer_failure_contract.rs (target/debug/deps/printer_failure_contract-f36a6d3d26fee24b)
+
+running 2 tests
+test printer_failure_hooks_match_typescript ... printer failure hooks: 23/25 cases exact; 3 mismatching keys; 3 known
+MISMATCH printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op2: expected {"op":2,"status":"returned","text":"/*a*/ f(h(z); //u\r\n","utf8_base64":"LyphKi8gZihoKHopOyAvL3UNCg==","utf8_bytes":19,"end_utf16":{"position":19,"line":1,"column":0}} actual {"op":2,"status":"returned","text":"/*a*/ f(/*b*/ h(z); //u\r\n","utf8_base64":"LyphKi8gZigvKmIqLyBoKHopOyAvL3UNCg==","utf8_bytes":25,"end_utf16":{"position":25,"line":1,"column":0}}
+MISMATCH printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op3: expected {"op":3,"status":"returned","text":"h(z); //u\r\n","utf8_base64":"aCh6KTsgLy91DQo=","utf8_bytes":11,"end_utf16":{"position":11,"line":1,"column":0}} actual {"op":3,"status":"returned","text":"/*b*/ h(z); //u\r\n","utf8_base64":"LypiKi8gaCh6KTsgLy91DQo=","utf8_bytes":17,"end_utf16":{"position":17,"line":1,"column":0}}
+MISMATCH printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2: expected {"op":2,"status":"returned","text":"const x_1 = 1;const x_2 = 1;","utf8_base64":"Y29uc3QgeF8xID0gMTtjb25zdCB4XzIgPSAxOw==","utf8_bytes":28,"end_utf16":{"position":28,"line":0,"column":28}} actual {"op":2,"status":"returned","text":"const x_1 = 1;const x_1 = 1;","utf8_base64":"Y29uc3QgeF8xID0gMTtjb25zdCB4XzEgPSAxOw==","utf8_bytes":28,"end_utf16":{"position":28,"line":0,"column":28}}
+THREW printer-failure/printNode/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-same-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-statement#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitute/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/identifier-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/nested-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/remove-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitution-y/after/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/non-bmp/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-crlf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/list-item-3/cursor-array#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/source-file-1/prologue/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/after/source-file-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-other-file#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printBundle/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+ok
+test printer_failure_probes_are_recorded_upstream_only_evidence ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+exit: 0

@@ -1,0 +1,122 @@
+2026年 9月15日 火曜日 22時23分19秒 JST
+f9ef828a56c9f9305947a6e6f3c1ae39072b3110
+    Finished `test` profile [unoptimized] target(s) in 0.11s
+     Running tests/comma_list_printer_contract.rs (target/debug/deps/comma_list_printer_contract-653d920d2f9a9c97)
+
+running 1 test
+test comma_list_printer_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/emit_pipeline_phases_contract.rs (target/debug/deps/emit_pipeline_phases_contract-76f67f5d71b22d2a)
+
+running 1 test
+test emit_pipeline_phases_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/list_comment_flags_contract.rs (target/debug/deps/list_comment_flags_contract-3023874cf6aa0a82)
+
+running 1 test
+test list_comment_flags_match_typescript_printer ... FAILED
+
+failures:
+
+---- list_comment_flags_match_typescript_printer stdout ----
+List comment flags EXACT x2 call-inline/None/retained
+List comment flags EXACT x2 call-inline/None/removed
+List comment flags EXACT x2 call-inline/NoLeadingComments/retained
+List comment flags EXACT x2 call-inline/NoLeadingComments/removed
+List comment flags EXACT x2 call-inline/NoTrailingComments/retained
+List comment flags EXACT x2 call-inline/NoTrailingComments/removed
+List comment flags EXACT x2 call-inline/NoComments/retained
+List comment flags EXACT x2 call-inline/NoComments/removed
+List comment flags EXACT x2 call-inline/NoNestedComments/retained
+List comment flags EXACT x2 call-inline/NoNestedComments/removed
+List comment flags FAIL call-inline/ParentNoNestedComments/retained repetition 0: actual "f(/* FIRST */ x /* AFTER */, y);\n", expected "f(x, y);\n"
+List comment flags FAIL call-inline/ParentNoNestedComments/retained repetition 1: actual "f(/* FIRST */ x /* AFTER */, y);\n", expected "f(x, y);\n"
+List comment flags EXACT x2 call-inline/ParentNoNestedComments/removed
+List comment flags EXACT x2 call-newline/None/retained
+List comment flags EXACT x2 call-newline/None/removed
+List comment flags EXACT x2 call-newline/NoLeadingComments/retained
+List comment flags EXACT x2 call-newline/NoLeadingComments/removed
+List comment flags EXACT x2 call-newline/NoTrailingComments/retained
+List comment flags EXACT x2 call-newline/NoTrailingComments/removed
+List comment flags EXACT x2 call-newline/NoComments/retained
+List comment flags EXACT x2 call-newline/NoComments/removed
+List comment flags EXACT x2 call-newline/NoNestedComments/retained
+List comment flags EXACT x2 call-newline/NoNestedComments/removed
+List comment flags FAIL call-newline/ParentNoNestedComments/retained repetition 0: actual "f(\n/* FIRST */ x /* AFTER */, \n/* SECOND */ y);\n", expected "f(x, y);\n"
+List comment flags FAIL call-newline/ParentNoNestedComments/retained repetition 1: actual "f(\n/* FIRST */ x /* AFTER */, \n/* SECOND */ y);\n", expected "f(x, y);\n"
+List comment flags EXACT x2 call-newline/ParentNoNestedComments/removed
+List comment flags EXACT x2 array-inline/None/retained
+List comment flags EXACT x2 array-inline/None/removed
+List comment flags EXACT x2 array-inline/NoLeadingComments/retained
+List comment flags EXACT x2 array-inline/NoLeadingComments/removed
+List comment flags EXACT x2 array-inline/NoTrailingComments/retained
+List comment flags EXACT x2 array-inline/NoTrailingComments/removed
+List comment flags EXACT x2 array-inline/NoComments/retained
+List comment flags EXACT x2 array-inline/NoComments/removed
+List comment flags EXACT x2 array-inline/NoNestedComments/retained
+List comment flags EXACT x2 array-inline/NoNestedComments/removed
+List comment flags EXACT x2 array-inline/ParentNoNestedComments/retained
+List comment flags EXACT x2 array-inline/ParentNoNestedComments/removed
+List comment flags EXACT x2 array-newline/None/retained
+List comment flags EXACT x2 array-newline/None/removed
+List comment flags EXACT x2 array-newline/NoLeadingComments/retained
+List comment flags EXACT x2 array-newline/NoLeadingComments/removed
+List comment flags EXACT x2 array-newline/NoTrailingComments/retained
+List comment flags EXACT x2 array-newline/NoTrailingComments/removed
+List comment flags EXACT x2 array-newline/NoComments/retained
+List comment flags EXACT x2 array-newline/NoComments/removed
+List comment flags EXACT x2 array-newline/NoNestedComments/retained
+List comment flags EXACT x2 array-newline/NoNestedComments/removed
+List comment flags EXACT x2 array-newline/ParentNoNestedComments/retained
+List comment flags EXACT x2 array-newline/ParentNoNestedComments/removed
+
+thread 'list_comment_flags_match_typescript_printer' (16635216) panicked at crates/emitter/tests/list_comment_flags_contract.rs:128:5:
+list comment flag failures: ["call-inline/ParentNoNestedComments/retained", "call-newline/ParentNoNestedComments/retained"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    list_comment_flags_match_typescript_printer
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--test list_comment_flags_contract`
+     Running tests/list_format_flags_contract.rs (target/debug/deps/list_format_flags_contract-883bff1e01295cb5)
+
+running 1 test
+test list_format_flags_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/source_comment_topology_contract.rs (target/debug/deps/source_comment_topology_contract-196b98f67bd3e7f6)
+
+running 18 tests
+test ambient_comment_container_flows_through_synthetic_parentheses ... ok
+test ambient_container_end_reaches_binary_prefix_final_child ... ok
+test ambient_container_end_reaches_list_and_wrapper_final_children ... ok
+test asi_outer_comment_container_is_inherited_through_synthetic_new ... ok
+test no_asi_obligation_reaches_partial_wrapper_through_composite_left_edges ... ok
+test normal_return_and_throw_consume_source_comments_around_wrapper_metadata ... ok
+test parsed_no_asi_parentheses_split_wrapper_and_token_comment_ownership ... ok
+test ranged_grammar_parentheses_leave_source_comments_outside ... ok
+test remove_comments_drops_comment_driven_parentheses_but_keeps_grammar_parentheses ... ok
+test source_ranged_grammar_parent_keeps_child_explicit_comment_range ... ok
+test synthetic_grammar_parentheses_move_source_comments_inside ... ok
+test synthetic_single_line_leading_comment_always_terminates_its_line ... ok
+test synthetic_whole_no_asi_parentheses_consume_source_and_wrapper_comments ... ok
+test trailing_phase_does_not_consume_the_next_statements_leading_comment ... ok
+test yield_consumes_a_different_operand_owner_before_parent_trailing_comments ... ok
+test yield_parent_retains_trailing_comment_after_operand_consumes_leading_comment ... ok
+test zero_width_child_comment_range_does_not_fall_back_to_parent_range ... ok
+test zero_width_parent_comment_range_does_not_claim_child_trailing_comments ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: 1 target failed:
+    `--test list_comment_flags_contract`
+exit: 101
+2026年 9月15日 火曜日 22時23分20秒 JST

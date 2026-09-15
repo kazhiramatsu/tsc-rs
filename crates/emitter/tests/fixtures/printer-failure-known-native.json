@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "route": "native-divergence-controls",
+  "cases": [
+    {
+      "key": "printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op2",
+      "owner": "H2.8a-A-INT3-CS",
+      "disposition": "deferred-compatibility-gap-no-exact-credit",
+      "native_result": {
+        "op": 2,
+        "status": "returned",
+        "text": "/*a*/ f(/*b*/ h(z); //u\r\n",
+        "utf8_base64": "LyphKi8gZigvKmIqLyBoKHopOyAvL3UNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "key": "printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op3",
+      "owner": "H2.8a-A-INT3-CS",
+      "disposition": "deferred-compatibility-gap-no-exact-credit",
+      "native_result": {
+        "op": 3,
+        "status": "returned",
+        "text": "/*b*/ h(z); //u\r\n",
+        "utf8_base64": "LypiKi8gaCh6KTsgLy91DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "key": "printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2",
+      "owner": "C02 / H2.8a-A-INT2",
+      "disposition": "deferred-compatibility-gap-no-exact-credit",
+      "native_result": {
+        "op": 2,
+        "status": "returned",
+        "text": "const x_1 = 1;const x_1 = 1;",
+        "utf8_base64": "Y29uc3QgeF8xID0gMTtjb25zdCB4XzEgPSAxOw==",
+        "utf8_bytes": 28,
+        "end_utf16": {
+          "position": 28,
+          "line": 0,
+          "column": 28
+        }
+      }
+    }
+  ]
+}

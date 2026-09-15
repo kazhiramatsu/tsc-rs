@@ -2,6 +2,12 @@
 
 作成日：2026-09-14。親：H2.8a / A6-41。状態：隔離候補の research。
 
+**2026-09-15 具体的な追加入力**：[C03 統合レビュー](h2-8a-printer-failure/INTEGRATION.md)の
+`printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2` は、
+失敗後に上流が `x_2`、Rust が `x_1` を出す既知差分です。上流は printer 内で lazy 生成し、
+Rust は transformation 所有で eager 確定します。正常時の生成名を全面的に作り直す前に、
+この failure/reuse の state 寿命と既存 finalizer の対応を監査してください。
+
 
 **2026-09-15 更新**：開始点と検証分担は[共通手順](claude-high-difficulty-handoffs.md)の最新版に従います。
 SUPER 統合後の main の SHA を固定し、ローカルは新規失敗・関連 owner の focused set、

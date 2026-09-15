@@ -1,0 +1,103 @@
+2026年 9月15日 火曜日 22時17分01秒 JST
+f9ef828a56c9f9305947a6e6f3c1ae39072b3110
+   Compiling zmij v1.0.21
+   Compiling tsc-rs-diagnostics v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/diagnostics)
+   Compiling serde_core v1.0.228
+   Compiling equivalent v1.0.2
+   Compiling serde_json v1.0.150
+   Compiling hashbrown v0.17.1
+   Compiling indexmap v2.14.0
+   Compiling tsc-rs-types v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/types)
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling tsc-rs-syntax v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/syntax)
+   Compiling tsc-rs-host v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/host)
+   Compiling tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/program)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 3m 01s
+     Running tests/comma_list_printer_contract.rs (target/debug/deps/comma_list_printer_contract-653d920d2f9a9c97)
+
+running 1 test
+test comma_list_printer_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/emit_pipeline_phases_contract.rs (target/debug/deps/emit_pipeline_phases_contract-76f67f5d71b22d2a)
+
+running 1 test
+test emit_pipeline_phases_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/list_comment_flags_contract.rs (target/debug/deps/list_comment_flags_contract-3023874cf6aa0a82)
+
+running 1 test
+test list_comment_flags_match_typescript_printer ... FAILED
+
+failures:
+
+---- list_comment_flags_match_typescript_printer stdout ----
+List comment flags EXACT x2 call-inline/None/retained
+List comment flags EXACT x2 call-inline/None/removed
+List comment flags EXACT x2 call-inline/NoLeadingComments/retained
+List comment flags EXACT x2 call-inline/NoLeadingComments/removed
+List comment flags EXACT x2 call-inline/NoTrailingComments/retained
+List comment flags EXACT x2 call-inline/NoTrailingComments/removed
+List comment flags EXACT x2 call-inline/NoComments/retained
+List comment flags EXACT x2 call-inline/NoComments/removed
+List comment flags EXACT x2 call-inline/NoNestedComments/retained
+List comment flags EXACT x2 call-inline/NoNestedComments/removed
+List comment flags FAIL call-inline/ParentNoNestedComments/retained repetition 0: actual "f(/* FIRST */ x /* AFTER */, y);\n", expected "f(x, y);\n"
+List comment flags FAIL call-inline/ParentNoNestedComments/retained repetition 1: actual "f(/* FIRST */ x /* AFTER */, y);\n", expected "f(x, y);\n"
+List comment flags EXACT x2 call-inline/ParentNoNestedComments/removed
+List comment flags EXACT x2 call-newline/None/retained
+List comment flags EXACT x2 call-newline/None/removed
+List comment flags EXACT x2 call-newline/NoLeadingComments/retained
+List comment flags EXACT x2 call-newline/NoLeadingComments/removed
+List comment flags EXACT x2 call-newline/NoTrailingComments/retained
+List comment flags EXACT x2 call-newline/NoTrailingComments/removed
+List comment flags EXACT x2 call-newline/NoComments/retained
+List comment flags EXACT x2 call-newline/NoComments/removed
+List comment flags EXACT x2 call-newline/NoNestedComments/retained
+List comment flags EXACT x2 call-newline/NoNestedComments/removed
+List comment flags FAIL call-newline/ParentNoNestedComments/retained repetition 0: actual "f(\n/* FIRST */ x /* AFTER */, \n/* SECOND */ y);\n", expected "f(x, y);\n"
+List comment flags FAIL call-newline/ParentNoNestedComments/retained repetition 1: actual "f(\n/* FIRST */ x /* AFTER */, \n/* SECOND */ y);\n", expected "f(x, y);\n"
+List comment flags EXACT x2 call-newline/ParentNoNestedComments/removed
+List comment flags EXACT x2 array-inline/None/retained
+List comment flags EXACT x2 array-inline/None/removed
+List comment flags EXACT x2 array-inline/NoLeadingComments/retained
+List comment flags EXACT x2 array-inline/NoLeadingComments/removed
+List comment flags EXACT x2 array-inline/NoTrailingComments/retained
+List comment flags EXACT x2 array-inline/NoTrailingComments/removed
+List comment flags EXACT x2 array-inline/NoComments/retained
+List comment flags EXACT x2 array-inline/NoComments/removed
+List comment flags EXACT x2 array-inline/NoNestedComments/retained
+List comment flags EXACT x2 array-inline/NoNestedComments/removed
+List comment flags EXACT x2 array-inline/ParentNoNestedComments/retained
+List comment flags EXACT x2 array-inline/ParentNoNestedComments/removed
+List comment flags EXACT x2 array-newline/None/retained
+List comment flags EXACT x2 array-newline/None/removed
+List comment flags EXACT x2 array-newline/NoLeadingComments/retained
+List comment flags EXACT x2 array-newline/NoLeadingComments/removed
+List comment flags EXACT x2 array-newline/NoTrailingComments/retained
+List comment flags EXACT x2 array-newline/NoTrailingComments/removed
+List comment flags EXACT x2 array-newline/NoComments/retained
+List comment flags EXACT x2 array-newline/NoComments/removed
+List comment flags EXACT x2 array-newline/NoNestedComments/retained
+List comment flags EXACT x2 array-newline/NoNestedComments/removed
+List comment flags EXACT x2 array-newline/ParentNoNestedComments/retained
+List comment flags EXACT x2 array-newline/ParentNoNestedComments/removed
+
+thread 'list_comment_flags_match_typescript_printer' (16631065) panicked at crates/emitter/tests/list_comment_flags_contract.rs:128:5:
+list comment flag failures: ["call-inline/ParentNoNestedComments/retained", "call-newline/ParentNoNestedComments/retained"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    list_comment_flags_match_typescript_printer
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--test list_comment_flags_contract`
+exit: 101
+2026年 9月15日 火曜日 22時20分03秒 JST

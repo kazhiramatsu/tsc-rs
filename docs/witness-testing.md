@@ -9,13 +9,19 @@ python3 scripts/witness.py followup3 --case es2015/set/ --dry-run
 python3 scripts/witness.py followup3 --case es2015/set/
 python3 scripts/witness.py retained --case retained-constructor-references/
 python3 scripts/witness.py direct --all
+python3 scripts/witness.py printer --all
 ```
 
-Suites: `primary`, `extra`, `followup`, `followup2`, `followup3`, `retained`, `direct`.
+Suites: `primary`, `extra`, `followup`, `followup2`, `followup3`, `retained`, `direct`,
+`printer`, `bundle-sinks`.
 `--all` explicitly requests the whole suite, normally on hosted CI. `--list` and
 `--dry-run` neither build Rust nor run tests. Commands use a manifest path and an
 exact test name, avoiding the unrelated comparator tests compiled into that target.
 They also avoid building the dev-profile xtask executable before the test profile.
+The `printer` target runs together: 46 small direct rows (44 exact, 2 documented
+gaps), plus the same target's probe/safety/negative controls. It takes milliseconds
+after compilation and does not run the Program/oracle chain. `bundle-sinks` runs
+10 complete commands together; normally leave that replay to hosted CI.
 On macOS, use `taskpolicy -b nice -n 15 python3 scripts/witness.py ...` to lower
 priority. Do not run several heavy local replays simultaneously.
 
@@ -47,6 +53,13 @@ and dispatch calls against that full command, so omitting or duplicating a slice
 fails before replay.
 
 `.github/workflows/witness.yml` owns primary, short controls and retained jobs.
+A separate `printer` job runs its two observers, seven focused emitter targets
+and one exact noEmitOnError owner control with a 20-minute limit and two workers.
+The controls job also runs `bundle-sinks`, sharing its existing compiler build.
+Printer fixtures/targets/observers select only the printer job; the bundle sink
+fixture/target selects only its ten commands in controls. Common printer source
+changes retain all related acceptance and witness coverage. The printer runner
+rejects zero-test successes as well as missing targets and nonzero exits.
 A change to one SUPER fixture selects only its collection in the controls job.
 Manual dispatch and common compiler/vendor/manifest or unknown changes select
 full coverage. Documentation-only changes require no Rust build or replay.

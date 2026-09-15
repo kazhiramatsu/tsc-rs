@@ -1,0 +1,37 @@
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-failure-review/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 4.04s
+     Running tests/printer_failure_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/printer_failure_contract-f36a6d3d26fee24b)
+
+running 1 test
+test review_entry_carry_controls ... REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printFile/before
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printFile/after
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printBundle/before
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printBundle/after
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printNode/before
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printNode/after
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printBundle/before
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printBundle/after
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printNode/before
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printNode/after
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printFile/before
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printFile/after
+REVIEW EXACT x2 printer-failure/printNode/review/success-failure-failure-success
+REVIEW EXACT x2 printer-failure/printNode/review/sticky-comments-to-printFile
+REVIEW EXACT x2 printer-failure/printNode/review/sticky-comments-to-printBundle
+REVIEW MISMATCH printer-failure/printNode/review/nested-comments-with-trivia#op0: expected {"op":0,"status":"returned","text":"/*a*/ f(x); //t\r\n","utf8_base64":"LyphKi8gZih4KTsgLy90DQo=","utf8_bytes":17,"end_utf16":{"position":17,"line":1,"column":0}} actual {"op":0,"status":"returned","text":"/*a*/ f(/*arg*/ x); //t\r\n","utf8_base64":"LyphKi8gZigvKmFyZyovIHgpOyAvL3QNCg==","utf8_bytes":25,"end_utf16":{"position":25,"line":1,"column":0}}
+REVIEW MISMATCH printer-failure/printNode/review/nested-comments-with-trivia#op2: expected {"op":2,"status":"returned","text":"/*a*/ f(f(x);","utf8_base64":"LyphKi8gZihmKHgpOw==","utf8_bytes":13,"end_utf16":{"position":13,"line":0,"column":13}} actual {"op":2,"status":"returned","text":"/*a*/ f(/*arg*/ f(x);","utf8_base64":"LyphKi8gZigvKmFyZyovIGYoeCk7","utf8_bytes":21,"end_utf16":{"position":21,"line":0,"column":21}}
+REVIEW exact 15/16
+
+thread 'review_entry_carry_controls' (16710768) panicked at crates/emitter/tests/printer_failure_contract.rs:729:5:
+review failures: ["printer-failure/printNode/review/nested-comments-with-trivia"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    review_entry_carry_controls
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `--test printer_failure_contract`

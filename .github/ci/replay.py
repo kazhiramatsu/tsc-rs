@@ -23,8 +23,23 @@ GROUPS = {
 # select just one collection within this job; direct controls share its build.
 WITNESS_GROUPS = {
     "primary": ("primary",),
-    "controls": ("extra", "followup", "followup2", "followup3", "direct"),
+    "controls": ("extra", "followup", "followup2", "followup3", "direct", "bundle-sinks"),
     "retained": ("retained",),
+    "printer": ("printer",),
+}
+PRINTER_TARGETS = (
+    "printer_failure_contract", "emit_pipeline_phases_contract",
+    "comma_list_printer_contract", "list_format_flags_contract",
+    "list_comment_flags_contract", "source_comment_topology_contract",
+    "utf16_writer_contract",
+)
+PRINTER_INPUTS = {
+    *(f"crates/emitter/tests/{target}.rs" for target in PRINTER_TARGETS),
+    *(f"crates/emitter/tests/fixtures/{name}.json" for name in (
+        "printer-failure-hooks", "printer-failure-probes", "printer-failure-review",
+        "printer-failure-known-native", "emit-pipeline-phases", "comma-list-printer",
+        "list-format-flags", "list-comment-flags", "utf16-writer")),
+    "scripts/observe-printer-failures.mjs", "scripts/observe-printer-failure-review.mjs",
 }
 SUPER_MODULES = {
     "crates/compiler/tests/integration/h2_8a_decorator_super.rs",
@@ -51,6 +66,13 @@ def selection(paths):
     acceptance, witnesses = set(), set()
     for file in paths:
         if file.startswith("docs/") or file in ("README.md", "CONTRIBUTING.md", "LICENSE"):
+            continue
+        if file in PRINTER_INPUTS:
+            witnesses.add("printer")
+            continue
+        if file in ("crates/compiler/tests/h2_7d_bundle_sinks.rs",
+                    "crates/compiler/tests/fixtures/bundle-sinks.json"):
+            witnesses.add("bundle-sinks")
             continue
         if file in SUPER_MODULES:
             witnesses.update(witness.SUPER)
@@ -166,6 +188,35 @@ def verify_gate(needs, kind):
         raise ValueError(f"{kind}: expected {expected}, got {needs[kind].get('result')}")
 
 
+def printer_witnesses():
+    """Direct failure/reuse and adjacent owner controls; no compiler/oracle chain."""
+    for observer in ("observe-printer-failures.mjs", "observe-printer-failure-review.mjs"):
+        subprocess.run(["node", f"scripts/{observer}", "--check"], cwd=ROOT, check=True)
+    command = ["cargo", "test", "--manifest-path", "crates/emitter/Cargo.toml"]
+    for target in PRINTER_TARGETS:
+        command.extend(("--test", target))
+    command.extend(("--", "--nocapture", "--test-threads=1"))
+    # These small direct targets finish in milliseconds after compilation.
+    # Preserve their output while checking that a removed/misnamed target did
+    # not turn a selected job into a silent zero-test success.
+    result = subprocess.run(command, cwd=ROOT, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, check=False)
+    print(result.stdout, end="", flush=True)
+    result.check_returncode()
+    counts = re.findall(r"test result: ok\. (\d+) passed; 0 failed;", result.stdout)
+    if len(counts) != len(PRINTER_TARGETS) or any(int(count) == 0 for count in counts):
+        raise ValueError("printer witness target omitted or selected zero tests")
+    gate = subprocess.run([
+        "cargo", "test", "--manifest-path", "crates/emitter/Cargo.toml", "--test", "contracts",
+        "output_plan_contract::duplicate_output_preflight_reaches_no_sink_and_obeys_no_emit_on_error",
+        "--", "--exact", "--nocapture", "--test-threads=1",
+    ], cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+    print(gate.stdout, end="", flush=True)
+    gate.check_returncode()
+    if "test result: ok. 1 passed; 0 failed;" not in gate.stdout:
+        raise ValueError("noEmitOnError owner control selected zero tests")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("plan", "acceptance", "witnesses", "gate"))
@@ -198,7 +249,10 @@ def main():
         if not isinstance(suites, list) or not suites or len(set(suites)) != len(suites) or any(suite not in witness.SUITES for suite in suites):
             parser.error("invalid witness suite selection")
         for suite in suites:
-            subprocess.run([sys.executable, "scripts/witness.py", suite, "--all"], cwd=ROOT, check=True)
+            if suite == "printer":
+                printer_witnesses()
+            else:
+                subprocess.run([sys.executable, "scripts/witness.py", suite, "--all"], cwd=ROOT, check=True)
     else:
         if args.value not in ("acceptance", "witnesses"):
             parser.error("gate requires acceptance or witnesses")
