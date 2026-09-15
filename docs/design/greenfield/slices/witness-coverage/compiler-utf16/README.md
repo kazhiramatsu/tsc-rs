@@ -52,5 +52,21 @@ python3 scripts/witness.py utf16-tagged-template --all
 
 ## 検証状況
 
-ローカルbaselineと新しいrunner経由の検証を進行中。hosted実行・main統合は未実施。
+baselineは4 tests成功。111 complete commandsと9 typed refusalsを各2回確認した。
+初回buildは5分12秒、test本体は98.28 + 33.33 + 16.83 = 148.44秒。
+[ローカル記録](local.v1.json)に全ID、source/input/binary/logのhash、実際のcommand・exit・時間を保存した。
+実装commitは `71370fc80`。新しいrunner経由も4 tests成功、
+111 complete commandsと9 typed refusalsが各2回通過した。TypeScript observerは4本全て一致。
+observer 77.301秒、Cargo build＋replay 145.823秒、
+合計 223.324秒。3つのtest binaryはbaselineと同じSHA-256だった。
+hosted実行・main統合は未実施で、controls job全体の所要時間は未計測。
+これはローカルの追加分の実測であり、hostedやcold buildの所要時間へ換算しない。
+
+plannerの31 tests、`qualification.mjs check-policy`、policy/schema境界test、
+入口台帳v4の再生成一致が成功。Nodeのpolicy suite全体は40 pass / 1 fail。
+失敗した `registered h2 artifact labels follow the chain-walk ORDER` は開始時のmainでも
+同じ失敗を再現した。ORDERにあるH2.8a candidates/observationsとschema登録の不一致であり、
+今回変更していない3 source（qualification本体/test/chain-walk）に属する既存のOPS-DEBT。
+全suite greenとは記録しない。
+
 この入口追加によって、Rustの製品admissionやprofile qualificationを変更しない。

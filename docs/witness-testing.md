@@ -13,15 +13,19 @@ python3 scripts/witness.py printer --all
 python3 scripts/witness.py literal-value-provenance --all
 python3 scripts/witness.py comma-argument-factory --all
 python3 scripts/witness.py declaration-map-cli --all
+python3 scripts/witness.py utf16-review-fix --all
 ```
 
 Suites: `primary`, `extra`, `followup`, `followup2`, `followup3`, `retained`, `direct`,
 `printer`, `bundle-sinks`, `declaration-map-cli`, plus the ten small
-[emitter direct suites](design/greenfield/slices/witness-coverage/emitter-direct/README.md).
+[emitter direct suites](design/greenfield/slices/witness-coverage/emitter-direct/README.md)
+and three [compiler UTF-16 suites](design/greenfield/slices/witness-coverage/compiler-utf16/README.md):
+`utf16-identity-recovery`, `utf16-review-fix`, `utf16-tagged-template`.
 `--all` explicitly requests the whole suite, normally on hosted CI. `--list` and
 `--dry-run` neither build Rust nor run tests. Commands use a manifest path and an
 exact test name for the large shared comparator targets. Small emitter direct
-suites run their whole target, with `--all`; `--case` is rejected for those suites.
+suites and compiler UTF-16 suites run their whole target, with `--all`;
+`--case` is rejected for those suites.
 Their entry checks only the selected fixture observers and rejects missing,
 zero-test, ignored or filtered target results.
 They also avoid building the dev-profile xtask executable before the test profile.
@@ -73,6 +77,10 @@ printer failure suite or a compiler/acceptance replay.
 The controls job also runs `bundle-sinks` and `declaration-map-cli`, sharing its
 existing compiler build. The CLI test wrapper selects only its eight CLI cases;
 its shared Program helper selects late acceptance and the CLI suite.
+The three compiler UTF-16 targets also share the controls build. Their selected
+observers run first, followed by one Cargo call for only the selected targets.
+The 120 fixture rows contain 111 complete-command comparisons and nine typed
+refusal controls, each repeated twice; refusals are not reported as exact matches.
 Printer fixtures/targets/observers select only the printer job; the bundle sink
 fixture/target selects only its ten commands in controls. Common printer source
 changes retain all related acceptance and witness coverage. The printer runner
@@ -155,5 +163,7 @@ with target/fixture selection and a measured job budget. OPS-COVER-2 adds the te
 emitter direct targets: the remaining count is 42 standalone targets without a
 direct entry at that step (compiler22 / other20). OPS-COVER-3A then registers the
 eight CLI cases through a named-test filter: 41 targets still lack a direct entry
-(compiler21 / other20). The original 52-target inventory is retained
-as a historical snapshot.
+(compiler21 / other20). OPS-COVER-3B registers three compiler UTF-16 targets,
+leaving 38 without a direct entry (compiler18 / other20). Earlier inventory
+snapshots remain as history; entry configuration and successful hosted execution
+are recorded separately in each slice report.

@@ -1,0 +1,33 @@
+   Compiling tsc-rs-diagnostics v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/diagnostics)
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/compiler)
+   Compiling tsc-rs-types v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/types)
+   Compiling tsc-rs-syntax v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/syntax)
+   Compiling tsc-rs-host v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/host)
+   Compiling tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/program)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/emitter)
+   Compiling tsc-rs-binder v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/binder)
+   Compiling tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/checker)
+   Compiling tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/harness)
+    Finished `test` profile [unoptimized] target(s) in 5m 12s
+     Running tests/h2_8a_utf16_identity_recovery_controls.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_8a_utf16_identity_recovery_controls-cdfbebd3a842a0ea)
+
+running 2 tests
+test identity_and_recovery_controls_match_complete_commands_twice ... ok
+test no_emit_controls_match_complete_commands_twice ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 98.28s
+
+     Running tests/h2_8a_utf16_review_fix_controls.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_8a_utf16_review_fix_controls-9671fa1248353bce)
+
+running 1 test
+test review_fix_controls_match_complete_commands_twice ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.33s
+
+     Running tests/h2_8a_utf16_tagged_template_controls.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_8a_utf16_tagged_template_controls-7e0634dd41550795)
+
+running 1 test
+test tagged_template_controls_match_complete_commands_twice ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.83s
+

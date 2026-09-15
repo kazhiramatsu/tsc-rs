@@ -1,0 +1,31 @@
+utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+utf16-review-fix: 25 fixture rows (including any typed refusal controls)
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+{"output":"/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json","sha256":"0605b71cafcffa559630bf891158a18441a5d00b84e359f9897407248c25e343","cases":65,"complete_command_executions":130}
+{"output":"/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/compiler/tests/fixtures/utf16-noemit-command-controls.json","sha256":"240b8d67c357b4268574d29031263a7984956cc6bc1fd7b675be0eaf82c577a0","cases":14,"complete_command_executions":28}
+{"output":"/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/compiler/tests/fixtures/utf16-review-fix-controls.json","sha256":"2d55c50860edb446eb8fe9165431906adadf07f6ec49f6fdf0530bd4eddd5e52","cases":25,"complete_command_executions":50}
+{"output":"/Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/crates/compiler/tests/fixtures/utf16-tagged-template-controls.json","sha256":"e8d6d1fa07d16d1887df1cb26dbbd51c150f42407a73e495239f7ccfd2a62688","cases":16,"direct_executions":32,"complete_command_executions":32}
+    Finished `test` profile [unoptimized] target(s) in 0.12s
+     Running tests/h2_8a_utf16_identity_recovery_controls.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_8a_utf16_identity_recovery_controls-cdfbebd3a842a0ea)
+
+running 2 tests
+test identity_and_recovery_controls_match_complete_commands_twice ... ok
+test no_emit_controls_match_complete_commands_twice ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 95.93s
+
+     Running tests/h2_8a_utf16_review_fix_controls.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_8a_utf16_review_fix_controls-9671fa1248353bce)
+
+running 1 test
+test review_fix_controls_match_complete_commands_twice ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.85s
+
+     Running tests/h2_8a_utf16_tagged_template_controls.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_8a_utf16_tagged_template_controls-7e0634dd41550795)
+
+running 1 test
+test tagged_template_controls_match_complete_commands_twice ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.75s
+
+{"compiler_utf16": ["utf16-identity-recovery", "utf16-review-fix", "utf16-tagged-template"], "targets": 3, "tests_passed": 4, "observer_seconds": 77.301, "cargo_build_and_replay_seconds": 145.823}

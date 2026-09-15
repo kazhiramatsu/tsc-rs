@@ -1,0 +1,790 @@
+{
+  "baseline_commit": "0323f2358a1a95d6bfc4fe436462032e0f20088b",
+  "execution_source_commit": "71370fc80d3074ff0e6c4f95108208415c553305",
+  "suites": [
+    {
+      "suite": "utf16-identity-recovery",
+      "target": "h2_8a_utf16_identity_recovery_controls",
+      "rust_tests": 2,
+      "fixture_rows": [
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a1-distinct-and-pair/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a2-object-equivalent/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a2-class-equivalent/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a2-interface-equivalent/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a3-lookup-mapped/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a3-narrowing-context/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a3-reverse-mapped/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a4-late-bound/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a5-enum-pair/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a6-template-types/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a8-name-kinds/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a8-leading-expando/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a9-diagnostic-values/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a9-spelling-suggestion/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a10-literal-type/target-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a1-distinct-and-pair/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a2-object-equivalent/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a2-class-equivalent/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a2-interface-equivalent/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a3-lookup-mapped/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a3-narrowing-context/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a3-reverse-mapped/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a4-late-bound/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a5-enum-pair/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a6-template-types/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a8-name-kinds/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a8-leading-expando/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a9-diagnostic-values/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a9-spelling-suggestion/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a10-literal-type/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a7-cross-file/module-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a7-ambient-module/module-1",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a7-cross-file/module-99",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a7-ambient-module/module-99",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "a8-private-static-instance",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es5/octal-escape",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/octal-escape",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es5/decimal-escape-8",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/decimal-escape-8",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es5/malformed-hex-escape",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/malformed-hex-escape",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es5/unterminated-extended-escape-control",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/unterminated-extended-escape-control",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es5/out-of-range-extended-escape",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/out-of-range-extended-escape",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es5/unterminated-string",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/unterminated-string",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es5/template-octal-with-surrogate",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/template-octal-with-surrogate",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b2-noEmit-declaration",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b3-b4-rejected/missing-initializer",
+          "native_contract": "typed-recovery-refusal"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b3-b4-rejected/missing-class",
+          "native_contract": "typed-recovery-refusal"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b3-b4-rejected/mixed-literal-structure",
+          "native_contract": "typed-recovery-refusal"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b3-b4-rejected/numeric-separator",
+          "native_contract": "typed-recovery-refusal"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b3-b4-rejected/hex-digits",
+          "native_contract": "typed-recovery-refusal"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b3-b4-rejected/regexp-eof",
+          "native_contract": "typed-recovery-refusal"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b3-b4-rejected/comment-eof",
+          "native_contract": "typed-recovery-refusal"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b3-b4-rejected/conflict-marker",
+          "native_contract": "typed-recovery-refusal"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b3-b4-rejected/keyword-escape",
+          "native_contract": "typed-recovery-refusal"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b5-tagged-no-diagnostic",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b6-eof-backslash",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "b6-value-eof-backslash",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "c1-multiple-spans/target-2",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "c1-multiple-spans/target-3",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "c1-multiple-spans/target-4",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/none/valid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/js-map/valid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/inline-map/valid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/declaration-map/valid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/inactive-declaration-map/valid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/listing/valid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/noEmitOnError/valid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/none/invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/js-map/invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/inline-map/invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/declaration-map/invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/inactive-declaration-map/invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/listing/invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+          "case_id": "noEmit/noEmitOnError/invalid",
+          "native_contract": "exact"
+        }
+      ],
+      "upstream_exceptions": [
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+          "case_id": "private-static-instance-es5-upstream-internal-error"
+        }
+      ],
+      "exact_rows": 70,
+      "typed_refusal_rows": 9
+    },
+    {
+      "suite": "utf16-review-fix",
+      "target": "h2_8a_utf16_review_fix_controls",
+      "rust_tests": 1,
+      "fixture_rows": [
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "m2-noemit-declaration-ts4094",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "m2-noemit-declaration-clean",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "m2-noemit-declaration-semantic-first",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "m2-noemit-declaration-syntactic-first",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "m2-noemit-without-declaration",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "m2-noemit-declaration-two-files",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a2-element-access-quoted-candidate",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a2-property-access-quoted-candidate",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a2-excess-property-quoted-candidate",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a2-private-name-candidate",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a2-leading-underscore-candidates",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a2-lone-surrogate-candidate",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a3-record-quoted-name",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a3-record-lone-surrogate-name",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a3-record-identifier-name",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a3-record-negative-numeric-name",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a3-record-numeric-name",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a4-declaration-callback-lone-unit",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "a4-declaration-callback-lone-unit-es5",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "c1-es2017-optional-property-invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "c1-es5-optional-property-valid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "c1-es2015-optional-element-invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "c1-es2015-optional-call-invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "c1-es2017-optional-chain-long-invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-review-fix-controls.json",
+          "case_id": "c1-es2015-parenthesized-tag-valid",
+          "native_contract": "exact"
+        }
+      ],
+      "upstream_exceptions": [],
+      "exact_rows": 25,
+      "typed_refusal_rows": 0
+    },
+    {
+      "suite": "utf16-tagged-template",
+      "target": "h2_8a_utf16_tagged_template_controls",
+      "rust_tests": 1,
+      "fixture_rows": [
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "object-spread-tag",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "nested-invalid-tag",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "es5-valid-invalid-valid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "rest-assignment-valid-tag",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "rest-assignment-invalid-tag",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "rest-assignment-no-tag",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "function-rest-valid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "function-nested-invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "es2015-mixed",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "es2018-retained-invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "script-invalid",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "raw-cooked-units",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "escaped-valid-rest-tag",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "nested-four-visits",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "function-expression-tag",
+          "native_contract": "exact"
+        },
+        {
+          "fixture": "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+          "case_id": "namespace-mixed",
+          "native_contract": "exact"
+        }
+      ],
+      "upstream_exceptions": [],
+      "exact_rows": 16,
+      "typed_refusal_rows": 0
+    }
+  ],
+  "input_sha256": {
+    ".node-version": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c",
+    "Cargo.lock": "e2a9b63447bb9cc3ee9924ae43915d2d7dd4f8f715c503e0b3372643cbb42810",
+    "Cargo.toml": "edd7e574f72487c69e900e43346058ce66e4052575bb2c48c3d552ea4db5edd5",
+    "crates/compiler/Cargo.toml": "ca3ad097be2704bd6caab63e73e7b92a05b5c255840382e260ecb8d04599ac4a",
+    "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json": "0605b71cafcffa559630bf891158a18441a5d00b84e359f9897407248c25e343",
+    "crates/compiler/tests/fixtures/utf16-literals-adjacent-probes-inputs.json": "44672cd7192c2897f25cf93f0c04892a2c3bcabd00589de83ac32bfff2ee6b69",
+    "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json": "240b8d67c357b4268574d29031263a7984956cc6bc1fd7b675be0eaf82c577a0",
+    "crates/compiler/tests/fixtures/utf16-review-fix-controls.json": "2d55c50860edb446eb8fe9165431906adadf07f6ec49f6fdf0530bd4eddd5e52",
+    "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json": "e8d6d1fa07d16d1887df1cb26dbbd51c150f42407a73e495239f7ccfd2a62688",
+    "crates/compiler/tests/fixtures/utf16-tagged-template-review-v1.json": "92fbb23eafa07bfbf8c33de981453f32ee9c7abe8589886f288a3819c35537ca",
+    "crates/compiler/tests/fixtures/utf16-tagged-template-review-v2.json": "28b126f461adf71aa07a199d9cfb21713a78d4e297a7094806f767aba69d0df9",
+    "crates/compiler/tests/h2_8a_utf16_identity_recovery_controls.rs": "1ba2f9da6cabc495a3f2fa88a6e7114e89707a03c8a5f7a1c124ea40c5b1d416",
+    "crates/compiler/tests/h2_8a_utf16_review_fix_controls.rs": "d48694d740cf2ffd21a56236e44023feab64862c6219f50d3197da3b1b81095b",
+    "crates/compiler/tests/h2_8a_utf16_tagged_template_controls.rs": "4ca89527e266733af99b65a3bae8a13b8a46e3a03376c10c879784999d2be7a6",
+    "rust-toolchain.toml": "fbd21d92d7dfb2ec38a4385a7541697d528ddd5dff4695619ba91f66a983f763",
+    "scripts/observe-utf16-identity-recovery-controls.mjs": "cb638aa30d2f58f71f40452bc82371167b477e5f5844bec766b4b16da2a97a63",
+    "scripts/observe-utf16-noemit-command-controls.mjs": "34df73fcfcb204750a143c6bafcbd1c55a8ad57434b6c035866ae154dd86c6e8",
+    "scripts/observe-utf16-review-fix-controls.mjs": "deaaf5575024a7639ebb4548f8e0102c08fd0793f4e4cc336953115a13d5f92d",
+    "scripts/observe-utf16-tagged-template-controls.mjs": "06ebc27a09f6724c29a49f1728c30fc446cf2196583f78f190ff1cff91c24636",
+    "vendor/typescript-6.0.3/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "execution_source_sha256": {
+    "scripts/witness.py": "5661d788dfc169c623b6574c56472ccc0eb7a5ba0037aef437f8221d51a31efb",
+    ".github/ci/replay.py": "90364bce79b040934e360549441568f5b28dcefc7e21fe75f46ec94803518822",
+    ".github/ci/test_replay.py": "711014776cc124fdf153814e5055e20067fb14da32a390eefbf4b7b8a4e8b14a",
+    ".github/ci/qualification-policy.v2.json": "7eab1ed148177bb067ed60c155a3a275e3de023b4ec2eeeee68113bf3073ccbb"
+  },
+  "version": 1,
+  "scope": "Three standalone compiler targets: 111 complete command comparisons and 9 typed recovery refusals, twice each; not a corpus exact-count increment.",
+  "baseline": {
+    "command": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "--manifest-path",
+      "crates/compiler/Cargo.toml",
+      "--test",
+      "h2_8a_utf16_identity_recovery_controls",
+      "--test",
+      "h2_8a_utf16_review_fix_controls",
+      "--test",
+      "h2_8a_utf16_tagged_template_controls",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 462.735,
+    "environment": {
+      "CARGO_BUILD_JOBS": "2",
+      "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-printer-failure/target"
+    },
+    "test_seconds": [
+      98.28,
+      33.33,
+      16.83
+    ],
+    "tests_passed": 4,
+    "log_sha256": "44de4adc26d638c92e9545c6cabc92a3920f213a5cd587e431073e4baceafff7",
+    "compile_seconds": 312
+  },
+  "after": {
+    "command": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "python3",
+      ".github/ci/replay.py",
+      "witnesses"
+    ],
+    "exit_code": 0,
+    "seconds": 223.324,
+    "environment": {
+      "CARGO_BUILD_JOBS": "2",
+      "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-printer-failure/target",
+      "WITNESS_SUITES": "[\"utf16-identity-recovery\", \"utf16-review-fix\", \"utf16-tagged-template\"]"
+    },
+    "test_seconds": [
+      95.93,
+      32.85,
+      16.75
+    ],
+    "tests_passed": 4,
+    "log_sha256": "4ca8c5ad541d294a4138f74227825f785613165a90499d2cb5ddb0d4cafd4e8e",
+    "runner_summary": {
+      "compiler_utf16": [
+        "utf16-identity-recovery",
+        "utf16-review-fix",
+        "utf16-tagged-template"
+      ],
+      "targets": 3,
+      "tests_passed": 4,
+      "observer_seconds": 77.301,
+      "cargo_build_and_replay_seconds": 145.823
+    }
+  },
+  "test_binaries": [
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_8a_utf16_tagged_template_controls-7e0634dd41550795",
+      "sha256": "7bf9e9264608bc31130d5fb945cd69c923f06389854b5bf01168116a4f328f61",
+      "after_sha256": "7bf9e9264608bc31130d5fb945cd69c923f06389854b5bf01168116a4f328f61"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_8a_utf16_identity_recovery_controls-cdfbebd3a842a0ea",
+      "sha256": "f5108a8095eb07024df170eaa20d7d27700013ca7866a9ce4d61c945514b17d1",
+      "after_sha256": "f5108a8095eb07024df170eaa20d7d27700013ca7866a9ce4d61c945514b17d1"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_8a_utf16_review_fix_controls-9671fa1248353bce",
+      "sha256": "d88dd29da555ee8166f57259e262d2bd012ffa1223c627682ffffe22b96005d7",
+      "after_sha256": "d88dd29da555ee8166f57259e262d2bd012ffa1223c627682ffffe22b96005d7"
+    }
+  ],
+  "rust_tests_and_fixture_inputs_unchanged_from_baseline": true,
+  "light_checks": {
+    "planner_tests_passed": 31,
+    "policy_check": true,
+    "policy_schema_boundary_test": true,
+    "inventory_v4_check": true,
+    "diff_check": true
+  },
+  "known_baseline_failure": {
+    "test": "registered h2 artifact labels follow the chain-walk ORDER",
+    "base_commit": "0323f2358a1a95d6bfc4fe436462032e0f20088b",
+    "base_exit_code": 1,
+    "candidate_full_policy_suite": {
+      "passed": 40,
+      "failed": 1
+    },
+    "owner": "OPS-DEBT",
+    "reason": "chain-walk ORDER includes H2.8a candidates/observations absent from the schema contract registry",
+    "base_log_sha256": "a6d5c89a4d702fa4d173a0de089ad735e338f61fa5af9fa130a02e7757408cf4",
+    "candidate_log_sha256": "ca73346f85d0a03d71c7cede96e5374fbddc050a888704f451e87b2fb19c8be4"
+  },
+  "hosted": {
+    "status": "not-run",
+    "job": "controls",
+    "worker_limit": 2,
+    "timeout_minutes": 60,
+    "split_review_minutes": 45
+  }
+}
