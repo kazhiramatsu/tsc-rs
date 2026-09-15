@@ -6,6 +6,13 @@ production readiness、accepted profile、runtime activation は各 owner の正
 
 ## 現在の状態と依頼の選び方
 
+[全残タスクと完了までのスライス設計](../remaining-completion-slices.md) に、
+Claude 担当 C01〜C05 と、それ以外の実装・統合・検証・配布を分けて記録しました。
+本書の5件だけでプロジェクトの残タスクが尽きるわけではありません。
+推奨送付順は **③ printer → ④ transpile → ⑤ cache → ① literal → ② binding**。
+①②は現行実装との対応表から始め、再現した差があれば優先順位を上げます。
+各候補の本番統合と admission は統合担当が持ちます。
+
 旧版は `6e298cda8` からの v18 復元を全依頼の開始点にしていました。
 その後、main に UTF-16 の値・template flags、generated binding、parameter の修正が入りました。
 **旧版の「未実装」という説明を、そのまま現在の不具合として依頼しないでください。**
@@ -19,6 +26,9 @@ retained 530 が各 2 回一致し、direct は 28 一致・既知差分 4 を�
 既存 acceptance も 46 分 23 秒で成功し、PR #523 は main
 `d671d8417d725ce54a4cfc42b6e7127c03347646` にマージ済みです。
 新規依頼の開始点は、下記のとおり **SUPER がマージされた main** に固定します。
+CI 改修も [PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) で main
+`bb2d51c89` にマージ済みです。新規依頼ではこの改修も含む最新 main を使い、
+古い worktree に新しい手順だけを当てないでください。
 
 | 候補 | 個別資料 | 今回依頼する到達点 | 現在の扱い |
 | --- | --- | --- | --- |

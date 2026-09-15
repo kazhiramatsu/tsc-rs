@@ -1,5 +1,28 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
+2026-09-15 checkpoint: the [remaining-task inventory and completion slices](remaining-completion-slices.md)
+now records every follow-on product track, separates Claude's five research/candidate
+handoffs from integration work, and distinguishes current deferred observations
+from historical failure counts. It adds child planning IDs under the existing
+owners; those rows are not runtime-ready packets. H2.8a remains open.
+SUPER after-18 landed in [PR #523](https://github.com/kazhiramatsu/tsc-rs/pull/523)
+as `d671d8417`; the [integration record](slices/h2-8a-decorator-super-integration.md)
+preserves its evidence. UTF-16/generated-binding foundations and the bounded
+H2.8b LR/CFG repairs are already implemented; their remaining scope is enumerated
+in the inventory rather than being requested again wholesale.
+
+The user-authorized execution policy was implemented in
+[PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524), merged as `bb2d51c89`:
+focused local checks, relevant hosted replay, acceptance split into early/wide/late,
+separate witness jobs, and no Rust replay for documentation-only changes.
+All 31 acceptance slices and the complete selected witness populations passed;
+the longest acceptance job was 28m03s (previous serial job: 46m23s).
+The [witness guide](../../witness-testing.md) owns current commands and timings.
+This checkpoint supersedes older full-local, unsplit, and ts-tests-only execution
+requirements below; historical qualification records remain unchanged.
+The Functional-CI tail stays paused. TypeScript 7 mapping precedes unnecessary
+legacy-only work, and native LSP remains the intended server product.
+
 Status (`2026-09-07`): H2.5a–H2.5g are qualified; H2.5h and
 H2.6a–H2.6c have landed with their shrink-only residual queues; H2.7a's dormant
 declaration foundation has landed; **H2.7b–H2.7e are complete**.
@@ -89,16 +112,16 @@ PR, and one reviewable before/after result. Every slice:
    failure boundary;
 7. proves repeated-run and legal-worker determinism, plus H0/H1/L1
    non-regression for every shared producer it touches;
-8. runs the complete local gate against the recorded trusted base for the
-   final runtime candidate and records the result in the PR; and
-9. lets ordinary GitHub Actions run only the fixed, unsplit
-   `cargo xtask acceptance` boundary sourced from `ts-tests`.
+8. runs the final candidate's focused local checks and necessary adjacent
+   regressions against the recorded trusted base, recording counts and results; and
+9. runs the relevant hosted acceptance partitions and witness/product jobs,
+   preserving complete coverage when shared dependencies change or are unknown.
 
-After the separately reviewed functional-CI activation, that same hosted
-command may consume an exact-key remote cache only through the Rust
-`HostedVerifiedRoot` contract. The command and ts-tests-only case scope remain
-unchanged, and owner controls remain excluded. Before that activation, the
-current workflow and H2.5g closure route remain unchanged.
+The canonical full `cargo xtask acceptance` remains available. New product or
+owner targets need explicit execution entries and selection rules; adding one
+does not claim that the existing acceptance already covers it. Full local legacy
+CI is opt-in. This scheduling change does not activate the paused Functional-CI
+framework or a `HostedVerifiedRoot` cache.
 
 H2.5g is the sole non-retroactive exception to the implementation-ready packet
 format because its production work began before that gate was adopted. The
@@ -1693,7 +1716,7 @@ with L3/L5 before their implementation; do not implement this table wholesale.
 | L5.1 | Initialize/shutdown, URI/path/workspace folders, UTF-16 positions, text-document synchronization, versioning, and configuration changes. | Protocol tests for Unicode, casing, symlinks, stale versions, reconnect, and close. |
 | L5.2 | Map navigation, completion, hover/signature, rename, symbols, hierarchy, code actions, formatting, semantic tokens, and inlay hints. | Exact mapped results and capability-dependent absence/presence. |
 | L5.3 | Concurrent scheduling, cancellation, progress, diagnostics publication, workspace edits, partial results, and error mapping. | Deterministic race/cancel traces with no stale diagnostics or partial engine state. |
-| L5.4 | Protocol, interoperability, latency, memory, churn, fault, and platform qualification. | Independent LSP product claim; these tests remain local/manual under the current `ts-tests`-only hosted-CI policy. |
+| L5.4 | Protocol, interoperability, latency, memory, churn, fault, and platform qualification. | Independent LSP product claim; focused local checks and explicit product-specific hosted jobs with change selection and bounded durations. Editor/platform observations unavailable on hosted runners remain separately recorded manual evidence. |
 
 ## 7. Final confidence, platform, and release slices
 
@@ -1701,7 +1724,7 @@ with L3/L5 before their implementation; do not implement this table wholesale.
 | --- | --- | --- |
 | M9.1c-M9.7 | Resume the existing M9 execution contract only after shared checker producers are stable. | Production generator, incident/owner closure, burn-in, fingerprint freeze, and 14-window qualification exactly as already specified. |
 | REL1.0 | Locale catalogs/fallback, Windows/POSIX path/case/drive/UNC/symlink/permission/timestamp/watch profiles, terminal capabilities, and filesystem failures for every claimed product. | Exact platform/locale matrices; unavailable profiles remain explicit. |
-| REL1.1 | `tsc`, compiler-library, tsserver, and optional LSP entry points; stock libs, licenses, package metadata, install/upgrade smoke tests, and reproducible artifacts. | Clean-environment execution, byte-reproducible packages, exact 6.0.3 version and entry behavior. |
+| REL1.1 | `tsc`, compiler-library, and native LSP entry points; stock libs, licenses, package metadata, install/upgrade smoke tests, and reproducible artifacts. Legacy tsserver is outside the required product under the recorded native direction. | Clean-environment execution, byte-reproducible packages, exact version and entry behavior for each explicitly admitted profile. |
 | REL1.2 | Final union-of-finish-lines report. | Each claimed compiler/build/API/service/server/LSP row points to its own evidence; no aggregate hides an unimplemented product. |
 | VER1.0 | TypeScript 7.0 adoption and continued tracking of Go-era features, authorized by the user on 2026-09-06; reference selection and sequencing follow [the recorded direction](typescript-7-direction.md). | New source/lib/locale/package pins, generated data, inventories, oracles, accepted sets, and explicit compatibility transition for admitted behavior. It is never a routine dependency bump. |
 
@@ -1736,11 +1759,12 @@ Before merge:
 - all new outputs/state transitions match the correct upstream or protocol
   oracle exactly, including failures and cancellation;
 - frozen earlier profiles and resource gates remain green;
-- final-candidate focused tests and the complete local gate pass against the
-  recorded trusted base;
+- final-candidate focused tests and necessary adjacent regressions pass against
+  the recorded trusted base, with inherited failures explicitly dispositioned;
 - versioned artifacts, ledgers, status docs, and PR evidence are updated in the
   same slice; and
-- the fixed hosted acceptance check succeeds before merge-commit landing.
+- the required aggregate checks succeed for the relevant hosted acceptance,
+  witness and product jobs before merge-commit landing.
 
 ## 9. Stop and re-slice conditions
 
@@ -1766,8 +1790,8 @@ Stop and amend this plan before implementation continues if:
 - a Rust internal object is exposed as public compatibility without an
   ownership/identity contract;
 - FourSlash, tsserver, and LSP results are substituted for one another; or
-- ordinary GitHub Actions would need a phase-specific job or non-`ts-tests`
-  suite under the current CI policy.
+- a required observation has no explicit local/hosted execution owner, a selected
+  job could skip silently, or its resource plan cannot fit the hosted limit.
 
 Hard implementation work, a large upstream owner, or a small current corpus
 denominator is not permission to broaden a slice, fabricate a dependency, or
