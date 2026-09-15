@@ -1,0 +1,7 @@
+    Checking tsc-rs-diagnostics v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-comment-carry/crates/diagnostics)
+    Checking tsc-rs-types v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-comment-carry/crates/types)
+    Checking tsc-rs-host v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-comment-carry/crates/host)
+    Checking tsc-rs-syntax v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-comment-carry/crates/syntax)
+    Checking tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-comment-carry/crates/program)
+    Checking tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-comment-carry/crates/emitter)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 32.26s

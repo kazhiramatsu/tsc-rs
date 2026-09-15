@@ -1,0 +1,237 @@
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-comment-carry/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 43.29s
+     Running tests/comma_list_printer_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/comma_list_printer_contract-653d920d2f9a9c97)
+
+running 1 test
+test comma_list_printer_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/emit_pipeline_phases_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/emit_pipeline_phases_contract-76f67f5d71b22d2a)
+
+running 1 test
+test emit_pipeline_phases_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/list_comment_flags_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/list_comment_flags_contract-3023874cf6aa0a82)
+
+running 1 test
+test list_comment_flags_match_typescript_printer ... List comment flags EXACT x2 call-inline/None/retained
+List comment flags EXACT x2 call-inline/None/removed
+List comment flags EXACT x2 call-inline/NoLeadingComments/retained
+List comment flags EXACT x2 call-inline/NoLeadingComments/removed
+List comment flags EXACT x2 call-inline/NoTrailingComments/retained
+List comment flags EXACT x2 call-inline/NoTrailingComments/removed
+List comment flags EXACT x2 call-inline/NoComments/retained
+List comment flags EXACT x2 call-inline/NoComments/removed
+List comment flags EXACT x2 call-inline/NoNestedComments/retained
+List comment flags EXACT x2 call-inline/NoNestedComments/removed
+List comment flags EXACT x2 call-inline/ParentNoNestedComments/retained
+List comment flags EXACT x2 call-inline/ParentNoNestedComments/removed
+List comment flags EXACT x2 call-newline/None/retained
+List comment flags EXACT x2 call-newline/None/removed
+List comment flags EXACT x2 call-newline/NoLeadingComments/retained
+List comment flags EXACT x2 call-newline/NoLeadingComments/removed
+List comment flags EXACT x2 call-newline/NoTrailingComments/retained
+List comment flags EXACT x2 call-newline/NoTrailingComments/removed
+List comment flags EXACT x2 call-newline/NoComments/retained
+List comment flags EXACT x2 call-newline/NoComments/removed
+List comment flags EXACT x2 call-newline/NoNestedComments/retained
+List comment flags EXACT x2 call-newline/NoNestedComments/removed
+List comment flags EXACT x2 call-newline/ParentNoNestedComments/retained
+List comment flags EXACT x2 call-newline/ParentNoNestedComments/removed
+List comment flags EXACT x2 array-inline/None/retained
+List comment flags EXACT x2 array-inline/None/removed
+List comment flags EXACT x2 array-inline/NoLeadingComments/retained
+List comment flags EXACT x2 array-inline/NoLeadingComments/removed
+List comment flags EXACT x2 array-inline/NoTrailingComments/retained
+List comment flags EXACT x2 array-inline/NoTrailingComments/removed
+List comment flags EXACT x2 array-inline/NoComments/retained
+List comment flags EXACT x2 array-inline/NoComments/removed
+List comment flags EXACT x2 array-inline/NoNestedComments/retained
+List comment flags EXACT x2 array-inline/NoNestedComments/removed
+List comment flags EXACT x2 array-inline/ParentNoNestedComments/retained
+List comment flags EXACT x2 array-inline/ParentNoNestedComments/removed
+List comment flags EXACT x2 array-newline/None/retained
+List comment flags EXACT x2 array-newline/None/removed
+List comment flags EXACT x2 array-newline/NoLeadingComments/retained
+List comment flags EXACT x2 array-newline/NoLeadingComments/removed
+List comment flags EXACT x2 array-newline/NoTrailingComments/retained
+List comment flags EXACT x2 array-newline/NoTrailingComments/removed
+List comment flags EXACT x2 array-newline/NoComments/retained
+List comment flags EXACT x2 array-newline/NoComments/removed
+List comment flags EXACT x2 array-newline/NoNestedComments/retained
+List comment flags EXACT x2 array-newline/NoNestedComments/removed
+List comment flags EXACT x2 array-newline/ParentNoNestedComments/retained
+List comment flags EXACT x2 array-newline/ParentNoNestedComments/removed
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/list_format_flags_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/list_format_flags_contract-883bff1e01295cb5)
+
+running 1 test
+test list_format_flags_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/printer_failure_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/printer_failure_contract-f36a6d3d26fee24b)
+
+running 9 tests
+test cloning_a_failed_printer_keeps_independent_continuations ... ok
+test comment_carry_known_event_controls_reject_widened_gaps ... COMMENT CARRY KNOWN HINT GAP printer-failure/printNode/comment-carry/declaration-list-end/lf/before; operation results exact
+
+thread 'comment_carry_known_event_controls_reject_widened_gaps' (16777239) panicked at crates/emitter/tests/printer_failure_contract.rs:982:9:
+assertion `left == right` failed: printer-failure/printNode/comment-carry/declaration-list-end/lf/before: known hint gap widened
+  left: Array [Object {"op": Number(0), "phase": String("substitute"), "hint": String("widened gap"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(0), "phase": String("before"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(0), "phase": String("substitute"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(0), "phase": String("before"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(0), "phase": String("after"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(0), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(0), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(0), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(0), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(0), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(0), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(0), "phase": String("after"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(1), "phase": String("substitute"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(1), "phase": String("before"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(1), "phase": String("substitute"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(1), "phase": String("before"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(1), "phase": String("after"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(1), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(1), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(1), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(1), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(1), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(2), "phase": String("substitute"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(2), "phase": String("before"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(2), "phase": String("substitute"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(2), "phase": String("before"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(2), "phase": String("after"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(2), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(2), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(2), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(2), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(2), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(2), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(2), "phase": String("after"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(3), "phase": String("substitute"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(3), "phase": String("before"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(3), "phase": String("substitute"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(3), "phase": String("before"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(3), "phase": String("after"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(3), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(3), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(3), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(3), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(3), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(3), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(3), "phase": String("after"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(4), "phase": String("substitute"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(4), "phase": String("before"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(4), "phase": String("substitute"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(4), "phase": String("before"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(4), "phase": String("after"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(4), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(4), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(4), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(4), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(4), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(4), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(4), "phase": String("after"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}]
+ right: Array [Object {"op": Number(0), "phase": String("substitute"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(0), "phase": String("before"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(0), "phase": String("substitute"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(0), "phase": String("before"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(0), "phase": String("after"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(0), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(0), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(0), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(0), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(0), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(0), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(0), "phase": String("after"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(1), "phase": String("substitute"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(1), "phase": String("before"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(1), "phase": String("substitute"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(1), "phase": String("before"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(1), "phase": String("after"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(1), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(1), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(1), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(1), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(1), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(2), "phase": String("substitute"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(2), "phase": String("before"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(2), "phase": String("substitute"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(2), "phase": String("before"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(2), "phase": String("after"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(2), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(2), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(2), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(2), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(2), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(2), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(2), "phase": String("after"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(3), "phase": String("substitute"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(3), "phase": String("before"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(3), "phase": String("substitute"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(3), "phase": String("before"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(3), "phase": String("after"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(3), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(3), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(3), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(3), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(3), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(3), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(3), "phase": String("after"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(4), "phase": String("substitute"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(4), "phase": String("before"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}, Object {"op": Number(4), "phase": String("substitute"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(4), "phase": String("before"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(4), "phase": String("after"), "hint": String("IdentifierName"), "kind": Number(80), "pos": Number(13), "end": Number(15)}, Object {"op": Number(4), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(4), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(4), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(17), "end": Number(19)}, Object {"op": Number(4), "phase": String("substitute"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(4), "phase": String("before"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(4), "phase": String("after"), "hint": String("Expression"), "kind": Number(80), "pos": Number(20), "end": Number(21)}, Object {"op": Number(4), "phase": String("after"), "hint": String("Unspecified"), "kind": Number(244), "pos": Number(0), "end": Number(23)}]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'comment_carry_known_event_controls_reject_widened_gaps' (16777239) panicked at crates/emitter/tests/printer_failure_contract.rs:975:9:
+assertion `left == right` failed
+  left: ["printer-failure/printNode/comment-carry/declaration-list-end/lf/before#events", "printer-failure/printNode/comment-carry/declaration-list-end/lf/before#op2"]
+ right: ["printer-failure/printNode/comment-carry/declaration-list-end/lf/before#events"]
+ok
+test comment_containers_match_across_sources ... COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/crlf/after
+COMMENT CARRY KNOWN HINT GAP printer-failure/printNode/comment-carry/declaration-list-end/lf/before; operation results exact
+COMMENT CARRY KNOWN HINT GAP printer-failure/printNode/comment-carry/declaration-list-end/lf/after; operation results exact
+COMMENT CARRY KNOWN HINT GAP printer-failure/printNode/comment-carry/declaration-list-end/crlf/before; operation results exact
+COMMENT CARRY KNOWN HINT GAP printer-failure/printNode/comment-carry/declaration-list-end/crlf/after; operation results exact
+COMMENT CARRY exact 20/24; 24/24 operation results exact; 4 pinned hook-hint gaps
+ok
+test comment_containers_survive_replaced_transformations ... COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/crlf/after
+COMMENT CARRY KNOWN HINT GAP printer-failure/printNode/comment-carry/declaration-list-end/lf/before; operation results exact
+COMMENT CARRY KNOWN HINT GAP printer-failure/printNode/comment-carry/declaration-list-end/lf/after; operation results exact
+COMMENT CARRY KNOWN HINT GAP printer-failure/printNode/comment-carry/declaration-list-end/crlf/before; operation results exact
+COMMENT CARRY KNOWN HINT GAP printer-failure/printNode/comment-carry/declaration-list-end/crlf/after; operation results exact
+ok
+test known_native_controls_reject_widened_gaps ... 
+thread 'known_native_controls_reject_widened_gaps' (16777246) panicked at crates/emitter/tests/printer_failure_contract.rs:666:9:
+assertion `left == right` failed: known divergence changed: "printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2"
+  left: Object {"op": Number(2), "status": String("returned"), "text": String("widened gap"), "utf8_base64": String("Y29uc3QgeF8xID0gMTtjb25zdCB4XzEgPSAxOw=="), "utf8_bytes": Number(28), "end_utf16": Object {"position": Number(28), "line": Number(0), "column": Number(28)}}
+ right: Object {"op": Number(2), "status": String("returned"), "text": String("const x_1 = 1;const x_1 = 1;"), "utf8_base64": String("Y29uc3QgeF8xID0gMTtjb25zdCB4XzEgPSAxOw=="), "utf8_bytes": Number(28), "end_utf16": Object {"position": Number(28), "line": Number(0), "column": Number(28)}}
+ok
+test printer_failure_hooks_match_typescript ... printer failure hooks: 24/25 cases exact; 1 mismatching keys; 1 known
+MISMATCH printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2: expected {"op":2,"status":"returned","text":"const x_1 = 1;const x_2 = 1;","utf8_base64":"Y29uc3QgeF8xID0gMTtjb25zdCB4XzIgPSAxOw==","utf8_bytes":28,"end_utf16":{"position":28,"line":0,"column":28}} actual {"op":2,"status":"returned","text":"const x_1 = 1;const x_1 = 1;","utf8_base64":"Y29uc3QgeF8xID0gMTtjb25zdCB4XzEgPSAxOw==","utf8_bytes":28,"end_utf16":{"position":28,"line":0,"column":28}}
+THREW printer-failure/printNode/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-same-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-statement#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitute/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/identifier-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/nested-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/remove-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitution-y/after/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/non-bmp/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-crlf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/list-item-3/cursor-array#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/source-file-1/prologue/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/after/source-file-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-other-file#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printBundle/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+ok
+test printer_failure_probes_are_recorded_upstream_only_evidence ... ok
+test review_entry_carry_controls ... REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printFile/before
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printFile/after
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printBundle/before
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printBundle/after
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printNode/before
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printNode/after
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printBundle/before
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printBundle/after
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printNode/before
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printNode/after
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printFile/before
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printFile/after
+REVIEW EXACT x2 printer-failure/printNode/review/success-failure-failure-success
+REVIEW EXACT x2 printer-failure/printNode/review/sticky-comments-to-printFile
+REVIEW EXACT x2 printer-failure/printNode/review/sticky-comments-to-printBundle
+REVIEW EXACT x2 printer-failure/printNode/review/nested-comments-with-trivia
+REVIEW EXACT x2 printer-failure/printNode/review/bundled-helpers/success
+REVIEW EXACT x2 printer-failure/printNode/review/bundled-helpers/before
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/high
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/low
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/pair-across-failure
+REVIEW exact 21/21
+ok
+test rust_only_typed_errors_keep_the_printer_usable ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/source_comment_topology_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/source_comment_topology_contract-196b98f67bd3e7f6)
+
+running 18 tests
+test ambient_comment_container_flows_through_synthetic_parentheses ... ok
+test ambient_container_end_reaches_binary_prefix_final_child ... ok
+test ambient_container_end_reaches_list_and_wrapper_final_children ... ok
+test asi_outer_comment_container_is_inherited_through_synthetic_new ... ok
+test no_asi_obligation_reaches_partial_wrapper_through_composite_left_edges ... ok
+test normal_return_and_throw_consume_source_comments_around_wrapper_metadata ... ok
+test parsed_no_asi_parentheses_split_wrapper_and_token_comment_ownership ... ok
+test ranged_grammar_parentheses_leave_source_comments_outside ... ok
+test remove_comments_drops_comment_driven_parentheses_but_keeps_grammar_parentheses ... ok
+test source_ranged_grammar_parent_keeps_child_explicit_comment_range ... ok
+test synthetic_grammar_parentheses_move_source_comments_inside ... ok
+test synthetic_single_line_leading_comment_always_terminates_its_line ... ok
+test synthetic_whole_no_asi_parentheses_consume_source_and_wrapper_comments ... ok
+test trailing_phase_does_not_consume_the_next_statements_leading_comment ... ok
+test yield_consumes_a_different_operand_owner_before_parent_trailing_comments ... ok
+test yield_parent_retains_trailing_comment_after_operand_consumes_leading_comment ... ok
+test zero_width_child_comment_range_does_not_fall_back_to_parent_range ... ok
+test zero_width_parent_comment_range_does_not_claim_child_trailing_comments ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/utf16_writer_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/utf16_writer_contract-e0e2048ce1b3f93d)
+
+running 2 tests
+test utf16_writer_matches_typescript ... ok
+test writer_value_equality_survives_chunking_and_clone_clear ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

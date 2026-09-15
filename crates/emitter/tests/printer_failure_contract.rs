@@ -20,24 +20,12 @@ use tsc_types::NodeFlags;
 /// Divergences that remain after the candidate, keyed by `case_id#opN` or
 /// `case_id#events`. Each entry names its design boundary; the test is green
 /// only when the observed mismatch set equals this list exactly.
-const KNOWN_DIVERGENCES: &[(&str, &str)] = &[
-    (
-        "printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op2",
-        "tsc compares bare integer positions, so a carried container from main.ts \
-         suppresses other.ts trivia at the same offsets; the Rust scope is a \
-         source-identified CommentCursor and never matches across sources",
-    ),
-    (
-        "printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op3",
-        "same cross-source integer coincidence as op2 (the carry persists)",
-    ),
-    (
-        "printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2",
-        "tsc generates names lazily inside the print and keeps generatedNames after a \
+const KNOWN_DIVERGENCES: &[(&str, &str)] = &[(
+    "printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2",
+    "tsc generates names lazily inside the print and keeps generatedNames after a \
          failure (x_2); Rust finalizes generated binding names eagerly per print on the \
          transformation, so a later print restarts at x_1",
-    ),
-];
+)];
 
 #[derive(Clone, Debug, Default)]
 struct OpConfig {
@@ -341,6 +329,18 @@ fn build_targets(
                     .unwrap();
                 targets.insert(target.to_owned(), Target::Node(statement));
             }
+        }
+    }
+    if let Some(specs) = case["target_specs"].as_object() {
+        for (name, spec) in specs {
+            targets.insert(
+                name.to_owned(),
+                Target::Node(statement(
+                    arena,
+                    sources[spec["source"].as_u64().unwrap() as usize],
+                    spec["index"].as_u64().unwrap() as usize,
+                )),
+            );
         }
     }
     targets
@@ -924,4 +924,195 @@ fn review_entry_carry_controls() {
         cases.len()
     );
     assert!(failures.is_empty(), "review failures: {failures:?}");
+}
+
+#[test]
+fn comment_containers_match_across_sources() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/printer-comment-carry.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 24);
+    let mut captures = Vec::new();
+    let mut exact = 0;
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let actual = replay(case);
+        assert_eq!(actual, replay(case), "{id}: repetitions");
+        exact += usize::from(assert_comment_carry(case, &actual));
+        captures.push(serde_json::json!({"case_id":id,"rust_observation":actual}));
+    }
+    if let Ok(path) = std::env::var("TSC_RS_COMMENT_CARRY_ACTUAL") {
+        std::fs::write(
+            path,
+            serde_json::to_string_pretty(&captures).unwrap() + "\n",
+        )
+        .unwrap();
+    }
+    println!(
+        "COMMENT CARRY exact {exact}/{}; 24/24 operation results exact; 4 pinned hook-hint gaps",
+        cases.len()
+    );
+    assert_eq!(exact, 20);
+}
+
+/// The declaration cases expose an existing binding-name EmitHint difference.
+/// Pin every native event from the unmodified base; an event key alone must
+/// never permit a wider callback-order or position regression. All operation
+/// results still have to match TypeScript exactly. These four rows receive no
+/// complete-exact credit (API1.2-HINT).
+fn assert_comment_carry(case: &serde_json::Value, actual: &serde_json::Value) -> bool {
+    let id = case["case_id"].as_str().unwrap();
+    let found = compare(id, &case["typescript_observation"], actual);
+    let known: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "fixtures/printer-comment-carry-known-native.json"
+    ))
+    .unwrap();
+    let rows = known["cases"].as_array().unwrap();
+    assert_eq!(rows.len(), 4);
+    if let Some(row) = rows.iter().find(|row| row["case_id"] == id) {
+        assert_eq!(
+            found
+                .iter()
+                .map(|(key, _)| key.as_str())
+                .collect::<Vec<_>>(),
+            vec![format!("{id}#events")]
+        );
+        assert_eq!(
+            actual["events"], row["native_events"],
+            "{id}: known hint gap widened"
+        );
+        println!("COMMENT CARRY KNOWN HINT GAP {id}; operation results exact");
+        false
+    } else {
+        assert!(found.is_empty(), "{id}: {found:?}");
+        println!("COMMENT CARRY EXACT x2 {id}");
+        true
+    }
+}
+
+#[test]
+fn comment_containers_survive_replaced_transformations() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/printer-comment-carry.json")).unwrap();
+    for case in artifact["cases"].as_array().unwrap() {
+        let first = replay_with_replaced_transformations(case);
+        assert_eq!(first, replay_with_replaced_transformations(case));
+        assert_comment_carry(case, &first);
+    }
+}
+
+/// Recreate and drop the transformation for EACH print. Every source now gets
+/// local source ID zero, and the prior arena is unavailable to the next print.
+/// The same upstream sequence applies: allocation layout is Rust-only, so
+/// these controls do not add another 24 cases to compatibility counts.
+fn replay_with_replaced_transformations(case: &serde_json::Value) -> serde_json::Value {
+    let options = PrinterOptions::new(if case["newLine"] == "lf" {
+        NewLineKind::LineFeed
+    } else {
+        NewLineKind::CarriageReturnLineFeed
+    })
+    .with_source_file_text_mode(SourceFileTextMode::Canonical);
+    let mut shared = create_printer(options);
+    let state = Rc::new(RefCell::new(HookState::default()));
+    let mut results = Vec::new();
+    for (index, op) in case["ops"].as_array().unwrap().iter().enumerate() {
+        let spec = &case["target_specs"][op["target"].as_str().unwrap()];
+        let input = &case["sources"][spec["source"].as_u64().unwrap() as usize];
+        let parsed = parse_source_file(
+            input["name"].as_str().unwrap(),
+            input["text"].as_str().unwrap(),
+            Default::default(),
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, None);
+        let node = statement(&arena, source, spec["index"].as_u64().unwrap() as usize);
+        {
+            let mut state = state.borrow_mut();
+            state.counts.clear();
+            state.config = OpConfig {
+                index,
+                fault: op["fault"].as_object().map(|fault| {
+                    (
+                        fault["phase"].as_str().unwrap().to_owned(),
+                        u16::try_from(fault["kind"].as_u64().unwrap()).unwrap(),
+                        u32::try_from(fault["occurrence"].as_u64().unwrap()).unwrap(),
+                    )
+                }),
+                substitution: None,
+            };
+        }
+        let hooks = FailingHooks {
+            tracked: case["tracked"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|kind| kind_from_number(kind.as_u64().unwrap()))
+                .collect(),
+            state: Rc::clone(&state),
+            helper: None,
+        };
+        let mut transformation = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![Box::new(hooks)],
+            false,
+        )
+        .unwrap();
+        let mut fresh = create_printer(options);
+        let printer = if op["printer"] == "fresh" {
+            &mut fresh
+        } else {
+            &mut shared
+        };
+        let result = printer.print(
+            &mut transformation,
+            PrintRequest::StandaloneNode {
+                node,
+                writer: StandaloneWriter::MultiLine,
+            },
+            None,
+        );
+        results.push(match result {
+            Ok(printed) => measure(&printed, index),
+            Err(error) => {
+                assert!(op["fault"].is_object());
+                assert!(matches!(
+                    error,
+                    PrinterError::Transform(TransformError::Unsupported(
+                        UnsupportedEmitFeature::CustomTransformers
+                    ))
+                ));
+                serde_json::json!({"op":index,"status":"threw","error":format!("{error:?}")})
+            }
+        });
+    }
+    let events = std::mem::take(&mut state.borrow_mut().events);
+    serde_json::json!({"events":events,"results":results})
+}
+
+#[test]
+fn comment_carry_known_event_controls_reject_widened_gaps() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/printer-comment-carry.json")).unwrap();
+    let case = artifact["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| {
+            case["case_id"]
+                .as_str()
+                .unwrap()
+                .contains("declaration-list-end/lf/before")
+        })
+        .unwrap();
+    let mut actual = replay(case);
+    assert!(!assert_comment_carry(case, &actual));
+    actual["events"][0]["hint"] = "widened gap".into();
+    assert!(std::panic::catch_unwind(|| assert_comment_carry(case, &actual)).is_err());
+    let mut actual = replay(case);
+    actual["results"][2]["text"] = "widened output gap".into();
+    assert!(std::panic::catch_unwind(|| assert_comment_carry(case, &actual)).is_err());
 }

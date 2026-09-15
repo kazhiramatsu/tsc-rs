@@ -8,10 +8,12 @@
 use tsc_syntax::{parse_source_file, SyntaxKind};
 
 use super::{
-    CommentCursor, CommentEmissionScope, CommentRange, EmitFlags, ExpressionCommentPhaseOwner,
-    Printer, SourceRange,
+    CommentEmissionScope, CommentRange, EmitFlags, ExpressionCommentPhaseOwner, Printer,
+    SourceRange,
 };
-use crate::{SourceBytePosition, SourceByteRange, TransformArena, TransformSourceId};
+use crate::{
+    SourceBytePosition, SourceByteRange, SourceUtf16Position, TransformArena, TransformSourceId,
+};
 
 struct PredicateFixture {
     parsed: tsc_syntax::SourceFile,
@@ -31,11 +33,12 @@ fn fixture() -> PredicateFixture {
 }
 
 impl PredicateFixture {
-    fn cursor(&self, value: u32) -> CommentCursor {
-        CommentCursor::new(
-            self.source,
+    fn position(&self, value: u32) -> SourceUtf16Position {
+        SourceUtf16Position::from_byte(
             SourceBytePosition::new(value, self.parsed.positions()).expect("source position"),
+            self.parsed.positions(),
         )
+        .unwrap()
     }
 
     fn owner(
@@ -72,8 +75,8 @@ fn ordinary_original_range_claims_both_sides() {
     let fixture = fixture();
     let owner = fixture.owner(8, 14, EmitFlags::NONE, SyntaxKind::Identifier);
     assert_eq!(
-        Printer::established_container_sides(owner),
-        (Some(fixture.cursor(8)), Some(fixture.cursor(14))),
+        Printer::established_container_sides(owner, fixture.parsed.positions()).unwrap(),
+        (Some(fixture.position(8)), Some(fixture.position(14))),
     );
 }
 
@@ -82,8 +85,8 @@ fn at_zero_start_with_positive_end_claims_both_sides() {
     let fixture = fixture();
     let owner = fixture.owner(0, 14, EmitFlags::NONE, SyntaxKind::Identifier);
     assert_eq!(
-        Printer::established_container_sides(owner),
-        (Some(fixture.cursor(0)), Some(fixture.cursor(14))),
+        Printer::established_container_sides(owner, fixture.parsed.positions()).unwrap(),
+        (Some(fixture.position(0)), Some(fixture.position(14))),
     );
 }
 
@@ -97,8 +100,8 @@ fn suppression_flags_claim_while_suppressing_emission() {
     ] {
         let owner = fixture.owner(8, 14, flags, SyntaxKind::Identifier);
         assert_eq!(
-            Printer::established_container_sides(owner),
-            (Some(fixture.cursor(8)), Some(fixture.cursor(14))),
+            Printer::established_container_sides(owner, fixture.parsed.positions()).unwrap(),
+            (Some(fixture.position(8)), Some(fixture.position(14))),
             "a suppression flag suppresses emission, never the claim",
         );
     }
@@ -108,7 +111,10 @@ fn suppression_flags_claim_while_suppressing_emission() {
 fn jsx_text_without_flags_claims_neither_side() {
     let fixture = fixture();
     let owner = fixture.owner(8, 14, EmitFlags::NONE, SyntaxKind::JsxText);
-    assert_eq!(Printer::established_container_sides(owner), (None, None));
+    assert_eq!(
+        Printer::established_container_sides(owner, fixture.parsed.positions()).unwrap(),
+        (None, None)
+    );
 }
 
 #[test]
@@ -116,13 +122,13 @@ fn jsx_text_claims_exactly_the_flagged_side() {
     let fixture = fixture();
     let leading = fixture.owner(8, 14, EmitFlags::NO_LEADING_COMMENTS, SyntaxKind::JsxText);
     assert_eq!(
-        Printer::established_container_sides(leading),
-        (Some(fixture.cursor(8)), None),
+        Printer::established_container_sides(leading, fixture.parsed.positions()).unwrap(),
+        (Some(fixture.position(8)), None),
     );
     let trailing = fixture.owner(8, 14, EmitFlags::NO_TRAILING_COMMENTS, SyntaxKind::JsxText);
     assert_eq!(
-        Printer::established_container_sides(trailing),
-        (None, Some(fixture.cursor(14))),
+        Printer::established_container_sides(trailing, fixture.parsed.positions()).unwrap(),
+        (None, Some(fixture.position(14))),
     );
 }
 
@@ -131,18 +137,19 @@ fn synthesized_and_zero_width_ranges_claim_nothing_so_the_scope_inherits() {
     let fixture = fixture();
     let synthesized = fixture.synthesized_owner(EmitFlags::NONE, SyntaxKind::Identifier);
     assert_eq!(
-        Printer::established_container_sides(synthesized),
+        Printer::established_container_sides(synthesized, fixture.parsed.positions()).unwrap(),
         (None, None)
     );
     let zero_width = fixture.owner(14, 14, EmitFlags::NONE, SyntaxKind::Identifier);
     assert_eq!(
-        Printer::established_container_sides(zero_width),
+        Printer::established_container_sides(zero_width, fixture.parsed.positions()).unwrap(),
         (None, None)
     );
 
     let outer = CommentEmissionScope::empty()
-        .claim_sides(Some(fixture.cursor(0)), Some(fixture.cursor(21)));
-    let (pos, end) = Printer::established_container_sides(synthesized);
+        .claim_sides(Some(fixture.position(0)), Some(fixture.position(21)));
+    let (pos, end) =
+        Printer::established_container_sides(synthesized, fixture.parsed.positions()).unwrap();
     assert_eq!(
         outer.claim_sides(pos, end),
         outer,
@@ -154,7 +161,7 @@ fn synthesized_and_zero_width_ranges_claim_nothing_so_the_scope_inherits() {
 fn one_sided_comment_ranges_claim_present_endpoint_and_inherit_other() {
     let fixture = fixture();
     let outer = CommentEmissionScope::empty()
-        .claim_declaration_list_sides(Some(fixture.cursor(0)), Some(fixture.cursor(21)));
+        .claim_declaration_list_sides(Some(fixture.position(0)), Some(fixture.position(21)));
     for flags in [
         EmitFlags::NONE,
         EmitFlags::NO_LEADING_COMMENTS,
@@ -165,26 +172,27 @@ fn one_sided_comment_ranges_claim_present_endpoint_and_inherit_other() {
             (
                 8,
                 u32::MAX,
-                (Some(fixture.cursor(8)), None),
-                (Some(fixture.cursor(8)), Some(fixture.cursor(21))),
+                (Some(fixture.position(8)), None),
+                (Some(fixture.position(8)), Some(fixture.position(21))),
             ),
             (
                 u32::MAX,
                 14,
-                (None, Some(fixture.cursor(14))),
-                (Some(fixture.cursor(0)), Some(fixture.cursor(14))),
+                (None, Some(fixture.position(14))),
+                (Some(fixture.position(0)), Some(fixture.position(14))),
             ),
         ] {
             let mut owner = fixture.synthesized_owner(flags, SyntaxKind::Identifier);
             owner.range =
                 CommentRange::from_raw(fixture.source, start, end, fixture.parsed.positions())
                     .unwrap();
-            let claims = Printer::established_container_sides(owner);
+            let claims =
+                Printer::established_container_sides(owner, fixture.parsed.positions()).unwrap();
             assert_eq!(claims, expected);
             let inner = outer.claim_sides(claims.0, claims.1);
             assert_eq!((inner.container_pos(), inner.container_end()), inherited);
             assert!(
-                inner.retains_end(fixture.cursor(21)),
+                inner.retains_end(fixture.position(21)),
                 "the independent declaration-list end survives"
             );
         }
@@ -195,7 +203,7 @@ fn one_sided_comment_ranges_claim_present_endpoint_and_inherit_other() {
 fn one_sided_zero_position_has_no_comment_extent() {
     let fixture = fixture();
     let outer = CommentEmissionScope::empty()
-        .claim_sides(Some(fixture.cursor(8)), Some(fixture.cursor(21)));
+        .claim_sides(Some(fixture.position(8)), Some(fixture.position(21)));
     for (start, end) in [(0, u32::MAX), (u32::MAX, 0)] {
         for flags in [EmitFlags::NONE, EmitFlags::NO_COMMENTS] {
             for kind in [SyntaxKind::Identifier, SyntaxKind::JsxText] {
@@ -203,7 +211,9 @@ fn one_sided_zero_position_has_no_comment_extent() {
                 owner.range =
                     CommentRange::from_raw(fixture.source, start, end, fixture.parsed.positions())
                         .unwrap();
-                let claims = Printer::established_container_sides(owner);
+                let claims =
+                    Printer::established_container_sides(owner, fixture.parsed.positions())
+                        .unwrap();
                 assert_eq!(claims, (None, None));
                 assert_eq!(outer.claim_sides(claims.0, claims.1), outer);
             }
@@ -221,7 +231,7 @@ fn jsx_one_sided_ranges_require_present_suppressed_side() {
             8,
             u32::MAX,
             EmitFlags::NO_LEADING_COMMENTS,
-            (Some(fixture.cursor(8)), None),
+            (Some(fixture.position(8)), None),
         ),
         (u32::MAX, 14, EmitFlags::NONE, (None, None)),
         (u32::MAX, 14, EmitFlags::NO_LEADING_COMMENTS, (None, None)),
@@ -229,12 +239,15 @@ fn jsx_one_sided_ranges_require_present_suppressed_side() {
             u32::MAX,
             14,
             EmitFlags::NO_TRAILING_COMMENTS,
-            (None, Some(fixture.cursor(14))),
+            (None, Some(fixture.position(14))),
         ),
     ] {
         let mut owner = fixture.synthesized_owner(flags, SyntaxKind::JsxText);
         owner.range =
             CommentRange::from_raw(fixture.source, start, end, fixture.parsed.positions()).unwrap();
-        assert_eq!(Printer::established_container_sides(owner), expected);
+        assert_eq!(
+            Printer::established_container_sides(owner, fixture.parsed.positions()).unwrap(),
+            expected
+        );
     }
 }
