@@ -1,0 +1,1906 @@
+{
+  "version": 1,
+  "base": "3aa9ba638c2210d1fb68bebf0935d3981e834dd7",
+  "cases": [
+    {
+      "case_id": "printer-failure/printNode/comment-carry/declaration-list-end/lf/before",
+      "owner": "API1.2-HINT",
+      "disposition": "deferred-compatibility-gap-no-exact-credit",
+      "native_events": [
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "case_id": "printer-failure/printNode/comment-carry/declaration-list-end/lf/after",
+      "owner": "API1.2-HINT",
+      "disposition": "deferred-compatibility-gap-no-exact-credit",
+      "native_events": [
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 1,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "case_id": "printer-failure/printNode/comment-carry/declaration-list-end/crlf/before",
+      "owner": "API1.2-HINT",
+      "disposition": "deferred-compatibility-gap-no-exact-credit",
+      "native_events": [
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "case_id": "printer-failure/printNode/comment-carry/declaration-list-end/crlf/after",
+      "owner": "API1.2-HINT",
+      "disposition": "deferred-compatibility-gap-no-exact-credit",
+      "native_events": [
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 0,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 0,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 1,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 1,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 1,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 2,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 2,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 3,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 3,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "IdentifierName",
+          "kind": 80,
+          "pos": 13,
+          "end": 15
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 17,
+          "end": 19
+        },
+        {
+          "op": 4,
+          "phase": "substitute",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "before",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Expression",
+          "kind": 80,
+          "pos": 20,
+          "end": 21
+        },
+        {
+          "op": 4,
+          "phase": "after",
+          "hint": "Unspecified",
+          "kind": 244,
+          "pos": 0,
+          "end": 23
+        }
+      ]
+    }
+  ]
+}

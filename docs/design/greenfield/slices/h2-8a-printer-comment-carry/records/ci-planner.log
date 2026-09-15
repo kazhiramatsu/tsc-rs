@@ -1,0 +1,40 @@
+..........test result: ok. 0 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;....usage: test_replay.py [-h] [--case ID_SUBSTRING | --all] [--list] [--dry-run]
+                      {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks}
+test_replay.py: error: choose --case or --all; use --list to inspect IDs
+usage: test_replay.py [-h] [--case ID_SUBSTRING | --all] [--list] [--dry-run]
+                      {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks}
+test_replay.py: error: selection matched no cases
+usage: test_replay.py [-h] [--case ID_SUBSTRING | --all] [--list] [--dry-run]
+                      {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks}
+test_replay.py: error: direct controls run together; use --all
+usage: test_replay.py [-h] [--case ID_SUBSTRING | --all] [--list] [--dry-run]
+                      {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks}
+test_replay.py: error: printer failure controls run together; use --all (70 small direct rows)
+...
+----------------------------------------------------------------------
+Ran 17 tests in 0.118s
+
+OK

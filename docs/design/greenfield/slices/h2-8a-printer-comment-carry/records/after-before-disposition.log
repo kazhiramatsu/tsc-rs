@@ -1,0 +1,108 @@
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-comment-carry/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 1m 09s
+     Running tests/printer_failure_contract.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/printer_failure_contract-f36a6d3d26fee24b)
+
+running 7 tests
+test cloning_a_failed_printer_keeps_independent_continuations ... ok
+test comment_containers_match_across_sources ... COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/crlf/after
+COMMENT CARRY MISMATCH printer-failure/printNode/comment-carry/declaration-list-end/lf/before#events: expected 58 events, actual 58; first difference at 2: expected {"op":0,"phase":"substitute","hint":"Unspecified","kind":80,"pos":13,"end":15} actual {"op":0,"phase":"substitute","hint":"IdentifierName","kind":80,"pos":13,"end":15}
+COMMENT CARRY MISMATCH printer-failure/printNode/comment-carry/declaration-list-end/lf/after#events: expected 59 events, actual 59; first difference at 2: expected {"op":0,"phase":"substitute","hint":"Unspecified","kind":80,"pos":13,"end":15} actual {"op":0,"phase":"substitute","hint":"IdentifierName","kind":80,"pos":13,"end":15}
+COMMENT CARRY MISMATCH printer-failure/printNode/comment-carry/declaration-list-end/crlf/before#events: expected 58 events, actual 58; first difference at 2: expected {"op":0,"phase":"substitute","hint":"Unspecified","kind":80,"pos":13,"end":15} actual {"op":0,"phase":"substitute","hint":"IdentifierName","kind":80,"pos":13,"end":15}
+COMMENT CARRY MISMATCH printer-failure/printNode/comment-carry/declaration-list-end/crlf/after#events: expected 59 events, actual 59; first difference at 2: expected {"op":0,"phase":"substitute","hint":"Unspecified","kind":80,"pos":13,"end":15} actual {"op":0,"phase":"substitute","hint":"IdentifierName","kind":80,"pos":13,"end":15}
+COMMENT CARRY exact 20/24
+
+thread 'comment_containers_match_across_sources' (16770679) panicked at crates/emitter/tests/printer_failure_contract.rs:978:5:
+comment carry failures: ["printer-failure/printNode/comment-carry/declaration-list-end/lf/before", "printer-failure/printNode/comment-carry/declaration-list-end/lf/after", "printer-failure/printNode/comment-carry/declaration-list-end/crlf/before", "printer-failure/printNode/comment-carry/declaration-list-end/crlf/after"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test known_native_controls_reject_widened_gaps ... 
+thread 'known_native_controls_reject_widened_gaps' (16770680) panicked at crates/emitter/tests/printer_failure_contract.rs:678:9:
+assertion `left == right` failed: known divergence changed: "printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op2"
+  left: Object {"op": Number(2), "status": String("returned"), "text": String("/*a*/ f(h(z); //u\r\n"), "utf8_base64": String("LyphKi8gZihoKHopOyAvL3UNCg=="), "utf8_bytes": Number(19), "end_utf16": Object {"position": Number(19), "line": Number(1), "column": Number(0)}}
+ right: Object {"op": Number(2), "status": String("returned"), "text": String("/*a*/ f(/*b*/ h(z); //u\r\n"), "utf8_base64": String("LyphKi8gZigvKmIqLyBoKHopOyAvL3UNCg=="), "utf8_bytes": Number(25), "end_utf16": Object {"position": Number(25), "line": Number(1), "column": Number(0)}}
+FAILED
+test printer_failure_hooks_match_typescript ... printer failure hooks: 24/25 cases exact; 1 mismatching keys; 3 known
+MISMATCH printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2: expected {"op":2,"status":"returned","text":"const x_1 = 1;const x_2 = 1;","utf8_base64":"Y29uc3QgeF8xID0gMTtjb25zdCB4XzIgPSAxOw==","utf8_bytes":28,"end_utf16":{"position":28,"line":0,"column":28}} actual {"op":2,"status":"returned","text":"const x_1 = 1;const x_1 = 1;","utf8_base64":"Y29uc3QgeF8xID0gMTtjb25zdCB4XzEgPSAxOw==","utf8_bytes":28,"end_utf16":{"position":28,"line":0,"column":28}}
+THREW printer-failure/printNode/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-same-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-statement#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitute/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/identifier-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/nested-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/remove-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitution-y/after/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/non-bmp/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-crlf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/list-item-3/cursor-array#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/source-file-1/prologue/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/after/source-file-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-other-file#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printBundle/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+
+thread 'printer_failure_hooks_match_typescript' (16770681) panicked at crates/emitter/tests/printer_failure_contract.rs:678:9:
+assertion `left == right` failed: known divergence changed: "printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op2"
+  left: Object {"op": Number(2), "status": String("returned"), "text": String("/*a*/ f(h(z); //u\r\n"), "utf8_base64": String("LyphKi8gZihoKHopOyAvL3UNCg=="), "utf8_bytes": Number(19), "end_utf16": Object {"position": Number(19), "line": Number(1), "column": Number(0)}}
+ right: Object {"op": Number(2), "status": String("returned"), "text": String("/*a*/ f(/*b*/ h(z); //u\r\n"), "utf8_base64": String("LyphKi8gZigvKmIqLyBoKHopOyAvL3UNCg=="), "utf8_bytes": Number(25), "end_utf16": Object {"position": Number(25), "line": Number(1), "column": Number(0)}}
+FAILED
+test printer_failure_probes_are_recorded_upstream_only_evidence ... ok
+test review_entry_carry_controls ... REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printFile/before
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printFile/after
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printBundle/before
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printBundle/after
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printNode/before
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printNode/after
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printBundle/before
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printBundle/after
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printNode/before
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printNode/after
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printFile/before
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printFile/after
+REVIEW EXACT x2 printer-failure/printNode/review/success-failure-failure-success
+REVIEW EXACT x2 printer-failure/printNode/review/sticky-comments-to-printFile
+REVIEW EXACT x2 printer-failure/printNode/review/sticky-comments-to-printBundle
+REVIEW EXACT x2 printer-failure/printNode/review/nested-comments-with-trivia
+REVIEW EXACT x2 printer-failure/printNode/review/bundled-helpers/success
+REVIEW EXACT x2 printer-failure/printNode/review/bundled-helpers/before
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/high
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/low
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/pair-across-failure
+REVIEW exact 21/21
+ok
+test rust_only_typed_errors_keep_the_printer_usable ... ok
+
+failures:
+
+failures:
+    comment_containers_match_across_sources
+    known_native_controls_reject_widened_gaps
+    printer_failure_hooks_match_typescript
+
+test result: FAILED. 4 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+error: test failed, to rerun pass `--test printer_failure_contract`

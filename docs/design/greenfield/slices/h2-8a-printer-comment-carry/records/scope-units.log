@@ -1,0 +1,24 @@
+
+running 19 tests
+test printer::comment_scope_predicate_tests::at_zero_start_with_positive_end_claims_both_sides ... ok
+test printer::comment_scope_predicate_tests::jsx_one_sided_ranges_require_present_suppressed_side ... ok
+test printer::comment_scope_predicate_tests::jsx_text_claims_exactly_the_flagged_side ... ok
+test printer::comment_scope_predicate_tests::jsx_text_without_flags_claims_neither_side ... ok
+test printer::comment_scope_predicate_tests::one_sided_comment_ranges_claim_present_endpoint_and_inherit_other ... ok
+test printer::comment_scope_predicate_tests::one_sided_zero_position_has_no_comment_extent ... ok
+test printer::comment_scope_predicate_tests::ordinary_original_range_claims_both_sides ... ok
+test printer::comment_scope_predicate_tests::suppression_flags_claim_while_suppressing_emission ... ok
+test printer::comment_scope_predicate_tests::synthesized_and_zero_width_ranges_claim_nothing_so_the_scope_inherits ... ok
+test tests::claiming_preserves_the_declaration_list_end ... ok
+test tests::comment_ranges_validate_independent_endpoints_and_preserve_source_identity ... ok
+test tests::container_end_guards_compare_utf16_across_different_byte_layouts ... ok
+test tests::container_guards_match_utf16_across_sources_but_resumes_keep_source_identity ... ok
+test tests::declaration_list_claim_arms_the_dedupe_and_inherits_like_the_others ... ok
+test tests::declaration_list_end_guards_without_a_claimed_container ... ok
+test tests::empty_scope_retains_no_end_and_exposes_no_sides ... ok
+test tests::per_side_claim_replaces_some_sides_and_inherits_none_sides ... ok
+test tests::range_views_reject_synthesized_and_zero_width_ranges ... ok
+test token_cursor_tests::comment_resume_can_only_merge_progress_for_the_same_owner_boundary ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 487 filtered out; finished in 0.00s
+

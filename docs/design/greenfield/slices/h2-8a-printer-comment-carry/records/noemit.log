@@ -1,0 +1,9 @@
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-comment-carry/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 21.51s
+     Running tests/contracts.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/contracts-6f4d81d7b835d614)
+
+running 1 test
+test output_plan_contract::duplicate_output_preflight_reaches_no_sink_and_obeys_no_emit_on_error ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.00s
+

@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A-INT3-CS",
+  "date": "2026-09-16",
+  "base": "3aa9ba638c2210d1fb68bebf0935d3981e834dd7",
+  "status": "focused-verified-hosted-and-merge-results-in-pr",
+  "source_and_input_sha256": {
+    "crates/emitter/src/comment_cursor.rs": "e1479b5e1e3eeb47bf955d9320c0c66f720acd4aa452606bad34500fb2dbbf1b",
+    "crates/emitter/src/printer.rs": "2f81ee288e762eee16b6cd2a7feb9d166866941794b341e3ab70078938512e8e",
+    "crates/emitter/tests/printer_failure_contract.rs": "4f7ae8265a829c356056fb88635f8d8b3160cb5511f220720cdacf8ec9ea2226",
+    "crates/emitter/tests/unit/comment_scope_predicate/tests.rs": "ae38670e132cf571f78ec3e298ba6e2e23ab4f051088c5cea8660b90eae64522",
+    "crates/emitter/tests/unit/lib/tests.rs": "e6bb7046c096631a6d391d20d573f1618edc81555bd62cc21bf55aea50c998f4",
+    "scripts/observe-printer-comment-carry.mjs": "38efd1d08c0e14ab88f7a0e8f0a977f5cfe07f39c4817f82e532cdb1bee60278",
+    "crates/emitter/tests/fixtures/printer-comment-carry.json": "828484275265dbc389df0e388b514766cf7e30a26a580539fa6e50b33f2f19e5",
+    "crates/emitter/tests/fixtures/printer-comment-carry-known-native.json": "66e263bd7e23a2ac75fd67a4068bf513c576a9cab0b207c89c903417ecade1ea",
+    "crates/emitter/tests/fixtures/printer-failure-known-native.json": "592028183a262338f6af30a1ab91bbc90dbf48517bfc81f84dde7a2f7642820a",
+    "crates/emitter/tests/fixtures/printer-failure-hooks.json": "8b2d6b5aa7abcfa0fb29ee935db1c56107ce7649915b33b53381f094b265f0dc",
+    "crates/emitter/tests/fixtures/printer-failure-review.json": "9e98140562cdb90541adaae0d3cc213308b2204f61f624f73269cfa4e9ab083d",
+    "vendor/typescript-6.0.3/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+    ".github/ci/replay.py": "721b4a5fd24bf5471ca009c2f520bf8d030cc0c3c5f8e67f7ba3747586d0b35f",
+    "scripts/witness.py": "83b69886e23c9575c5669ba3ab40fc7acf39294c592224ef6ad6f7a7a4a58197"
+  },
+  "final_binary_sha256": {
+    "comma_list_printer_contract-653d920d2f9a9c97": "2ee91b0fa6e8fb9637017a861e66f8d15a91855f4600fbe688a172d7bbd1b8d6",
+    "emit_pipeline_phases_contract-76f67f5d71b22d2a": "6037bc94197b9a0a9edb738a344dc18d9ce6ef5594bfa02757ae4252afeae533",
+    "list_comment_flags_contract-3023874cf6aa0a82": "ee911ecf1e608fe5a0dbc52087ed59451ef4d52ab53c46beb2858fc8063b9dc7",
+    "list_format_flags_contract-883bff1e01295cb5": "b77833bc3879b76974770cbaa41b42ada2661487b830cd5e952f4e5a3a875820",
+    "printer_failure_contract-f36a6d3d26fee24b": "ef244be4c5f2803ac17ecf70f020d6a4a7f26dfa533bf922716768c2e73d9830",
+    "source_comment_topology_contract-196b98f67bd3e7f6": "178c1c1f53e1afeb9bfe80aa50d6c0ac29509062b124248ecaab56912cf0ec1f",
+    "utf16_writer_contract-e0e2048ce1b3f93d": "ffa9ac2ceeb5db2485a18b380d75ce358e9988189047bf7997ef49729d719871",
+    "tsc_emitter-6021388bac73fbc5": "81550dd49d840159fb7de7f018f0eda7313039c0b7c30defed73f053a9b2b0d8"
+  },
+  "environment": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-printer-failure/target",
+    "priority": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15"
+    ],
+    "rustc": "rustc 1.93.0 (254b59607 2026-01-19)\nbinary: rustc\ncommit-hash: 254b59607d4417e9dffbc307138ae5c86280fe4c\ncommit-date: 2026-01-19\nhost: aarch64-apple-darwin\nrelease: 1.93.0\nLLVM version: 21.1.8\n",
+    "node": "v25.2.1"
+  },
+  "before": {
+    "production_matches_base": true,
+    "complete_exact": 12,
+    "cases": 24,
+    "test_exit": 101,
+    "capture": "discovery-before-actual.json",
+    "log": "discovery-before.log",
+    "binary_sha256": null,
+    "limitation": "before executable was replaced by later build before its hash was captured; no retroactive binary pin"
+  },
+  "exploration_call_fault": {
+    "fixture": "discovery-call-fixture.json",
+    "log": "discovery-call-before.log",
+    "test_exit": 101,
+    "complete_exact": 12,
+    "cases": 24,
+    "adopted": false
+  },
+  "after_before_disposition": {
+    "log": "after-before-disposition.log",
+    "exit": 101,
+    "explanation": "product outputs fixed; known-comment tuple guards correctly reject repaired rows until disposition is updated; four separately pinned hint gaps remain"
+  },
+  "final": {
+    "focused_targets": 7,
+    "focused_tests": 33,
+    "scope_units": 19,
+    "linearity_units": 1,
+    "noemit_owner_tests": 1,
+    "test_exit": 0,
+    "hooks_exact": 24,
+    "hooks_total": 25,
+    "review_exact": 21,
+    "review_total": 21,
+    "comment_complete_exact": 20,
+    "comment_operation_results_exact": 24,
+    "comment_total": 24,
+    "replacement_arena_controls": 24,
+    "replacement_arena_exact_credit": 0,
+    "total_complete_exact": 65,
+    "total_cases": 70,
+    "deferred_cases": 5,
+    "repetitions": 2
+  },
+  "tools": {
+    "observer_checks": "pass",
+    "fmt": "pass",
+    "ci_planner_tests": 17,
+    "ci_planner_exit": 0,
+    "qualification_policy": "pass",
+    "clippy_exit": 0,
+    "clippy_program_warnings": 145,
+    "clippy_emitter_warnings": 16,
+    "clippy_changed_file_diagnostics": 0,
+    "strict_clippy": "not rerun: same 161 existing warnings remain; not -D warnings green"
+  },
+  "hosted": {
+    "printer_job_minutes_limit": 20,
+    "workers": 2,
+    "new_jobs": 0,
+    "selection": "new fixture/observer -> printer only; shared source -> existing related acceptance and witness groups"
+  },
+  "records_sha256": {
+    ".gitattributes": "0ded296e877d1b2a383ec19feee9b1536073a064a02e90a23f4a62d84bdef214",
+    "after-before-disposition-actual.json": "345e24be7b17c71059d85b61b5999da1f14cd7845bb83d7508bc1d9a15137d75",
+    "after-before-disposition.log": "98af7ef4dce1a698d778b94c25678b9f1d7815adb8d62c2794b602d4597165cf",
+    "ci-planner.log": "61099347c7de418b2d6e69ec51e7823f082d5b8e14559bac9a032409c08d0311",
+    "clippy-diagnostics.json": "a113b461c9fe016891da6a3e51223febf9539a3da65ccc5ff1e0303f28ed2943",
+    "clippy.log": "849713810ff9478c053a9d415f7aae16f02dfee13a508f211140aa2aa153fa25",
+    "comment-carry-final-actual.json": "345e24be7b17c71059d85b61b5999da1f14cd7845bb83d7508bc1d9a15137d75",
+    "discovery-before-actual.json": "26c19a12caf672ea18362d19bdbaf93858bd55e5c9da4ace7a5959921a35baf2",
+    "discovery-before.log": "6593843358b9294b789362f2727564edf2852ef92d5bbabcce89b20a5823d38e",
+    "discovery-call-before.log": "920233f6610ab3333f6a5cf7f5b01263f90ae03ed26cded792866985037f4772",
+    "discovery-call-fixture.json": "7ffbbaee6a8b298246a387c50db8dd7b4340cd9b92b82ee6670b86b3f89665f6",
+    "discovery-identifier-fixture.json": "828484275265dbc389df0e388b514766cf7e30a26a580539fa6e50b33f2f19e5",
+    "focused-final.log": "58f5d0f7070ceb41934a4dc569bbeced4f39f3fad025669d969dcc0d1bba8080",
+    "hooks-final-actual.json": "32121e1566245e26cf718b3e39abbd32ecc811e98726030155e97649a68375fc",
+    "linearity.log": "f035fcbe730be92a302ba4a734f8de3b6342ef5f035b37ca800042194cc6d161",
+    "noemit.log": "6b0d9e40f40baf9c9d3a7d7e7a223d090a9c4d132f647d811f1988e6484ad761",
+    "review-final-actual.json": "83d1f5beffc2901e2ab076efbe1eea06197127b88163cc7f25abd13709e9b63a",
+    "scope-unit-selection.json": "537441d9c75bf4be3c0e04f71544123f464e003c651b1d678be2dbf96f103bcb",
+    "scope-units.log": "9acb8b6635ab440acacb18cb4339f8516604a87b27df3579ce0e9e7b809b7ad8"
+  }
+}

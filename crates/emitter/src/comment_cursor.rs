@@ -1,4 +1,8 @@
-use crate::{CommentRange, SourceBytePosition, TransformSourceId};
+use tsc_diagnostics::PositionIndex;
+
+use crate::{
+    CommentRange, SourceBytePosition, SourcePositionError, SourceUtf16Position, TransformSourceId,
+};
 
 /// A validated source position whose meaning is comment ownership progress.
 ///
@@ -67,6 +71,11 @@ impl CommentCursor {
 /// trailing ordering structurally — a node's trailing phase always
 /// consults the parent's scope value.
 ///
+/// The closure values are UTF-16 offsets without source identity, just like
+/// tsc. A failed print can retain them across files or transformations. These
+/// values are comparison guards only; source slicing and resumptions still
+/// use the source-bound byte positions in `CommentCursor` and `CommentResume`.
+///
 /// The three container values are stored per side, exactly tsc's model:
 /// a claim may set one side and leave the other inherited, and a range
 /// that fails the claim gate sets neither, so the enclosing scope stays
@@ -81,9 +90,9 @@ impl CommentCursor {
 #[must_use]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct CommentEmissionScope {
-    container_pos: Option<CommentCursor>,
-    container_end: Option<CommentCursor>,
-    declaration_list_container_end: Option<CommentCursor>,
+    container_pos: Option<SourceUtf16Position>,
+    container_end: Option<SourceUtf16Position>,
+    declaration_list_container_end: Option<SourceUtf16Position>,
 }
 
 impl CommentEmissionScope {
@@ -103,8 +112,8 @@ impl CommentEmissionScope {
     /// `emitLeadingCommentsOfNode` for a non-list node.
     pub(crate) const fn claim_sides(
         self,
-        pos: Option<CommentCursor>,
-        end: Option<CommentCursor>,
+        pos: Option<SourceUtf16Position>,
+        end: Option<SourceUtf16Position>,
     ) -> Self {
         Self {
             container_pos: match pos {
@@ -131,8 +140,8 @@ impl CommentEmissionScope {
     /// tsc-span: _tsc.js:121024-121026
     pub(crate) const fn claim_declaration_list_sides(
         self,
-        pos: Option<CommentCursor>,
-        end: Option<CommentCursor>,
+        pos: Option<SourceUtf16Position>,
+        end: Option<SourceUtf16Position>,
     ) -> Self {
         Self {
             container_pos: match pos {
@@ -153,35 +162,43 @@ impl CommentEmissionScope {
     /// The `containerPos` view of one container range, read by the leading
     /// guard (`pos !== containerPos`). Ranges the claim gate rejects have
     /// no position: tsc would never have claimed them.
-    pub(crate) fn container_pos_of(container: CommentRange) -> Option<CommentCursor> {
+    pub(crate) fn container_pos_of(
+        container: CommentRange,
+        positions: &PositionIndex,
+    ) -> Result<Option<SourceUtf16Position>, SourcePositionError> {
         let range = container.range();
         range
             .has_nonempty_extent()
             .then(|| range.start())
             .flatten()
-            .map(|start| CommentCursor::new(container.source(), start))
+            .map(|start| SourceUtf16Position::from_byte(start, positions))
+            .transpose()
     }
 
     /// The `containerEnd` view of one container range, shared between the
     /// ambient guard and the per-side claim producer so they cannot drift
     /// apart.
-    pub(crate) fn container_end_of(container: CommentRange) -> Option<CommentCursor> {
+    pub(crate) fn container_end_of(
+        container: CommentRange,
+        positions: &PositionIndex,
+    ) -> Result<Option<SourceUtf16Position>, SourcePositionError> {
         let range = container.range();
         range
             .has_nonempty_extent()
             .then(|| range.end())
             .flatten()
-            .map(|end| CommentCursor::new(container.source(), end))
+            .map(|end| SourceUtf16Position::from_byte(end, positions))
+            .transpose()
     }
 
     /// The active `containerPos`, for the leading guard.
-    pub(crate) const fn container_pos(self) -> Option<CommentCursor> {
+    pub(crate) const fn container_pos(self) -> Option<SourceUtf16Position> {
         self.container_pos
     }
 
     /// The active `containerEnd`, for the trailing guard and the
     /// container-presence gates.
-    pub(crate) const fn container_end(self) -> Option<CommentCursor> {
+    pub(crate) const fn container_end(self) -> Option<SourceUtf16Position> {
         self.container_end
     }
 
@@ -189,7 +206,7 @@ impl CommentEmissionScope {
     /// owner when the claimed container or the active declaration list
     /// already ends there (`end !== containerEnd && end !==
     /// declarationListContainerEnd`, inverted).
-    pub(crate) fn retains_end(self, end: CommentCursor) -> bool {
+    pub(crate) fn retains_end(self, end: SourceUtf16Position) -> bool {
         self.container_end == Some(end) || self.declaration_list_container_end == Some(end)
     }
 
@@ -200,9 +217,9 @@ impl CommentEmissionScope {
     /// claim arm).
     #[cfg(test)]
     pub(crate) const fn contract_scope(
-        container_pos: Option<CommentCursor>,
-        container_end: Option<CommentCursor>,
-        declaration_list_container_end: Option<CommentCursor>,
+        container_pos: Option<SourceUtf16Position>,
+        container_end: Option<SourceUtf16Position>,
+        declaration_list_container_end: Option<SourceUtf16Position>,
     ) -> Self {
         Self {
             container_pos,

@@ -18,7 +18,7 @@ Suites: `primary`, `extra`, `followup`, `followup2`, `followup3`, `retained`, `d
 `--dry-run` neither build Rust nor run tests. Commands use a manifest path and an
 exact test name, avoiding the unrelated comparator tests compiled into that target.
 They also avoid building the dev-profile xtask executable before the test profile.
-The `printer` target runs together: 46 small direct rows (44 exact, 2 documented
+The `printer` target runs together: 70 small direct rows (65 exact, 5 documented
 gaps), plus the same target's probe/safety/negative controls. It takes milliseconds
 after compilation and does not run the Program/oracle chain. `bundle-sinks` runs
 10 complete commands together; normally leave that replay to hosted CI.

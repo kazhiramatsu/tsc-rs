@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
-use tsc_diagnostics::compute_line_starts;
+use tsc_diagnostics::{compute_line_starts, PositionIndex};
 use tsc_syntax::{
     for_each_child, is_js_whitespace, is_line_break, is_whitespace_like, skip_trivia, NodeData,
     NodeId, SyntaxKind,
@@ -21,9 +21,9 @@ use crate::{
     create_text_writer, CommentRange, DeclarationPrintHandlers, EmitFlags, EmitHelper, EmitHint,
     EmitResolverError, EmitResolverMethod, GeneratedUtf16Location, GlobalNameOracle, NewLineKind,
     SourceBytePosition, SourceByteRange, SourceMapRange, SourcePositionError, SourceRange,
-    SourceUtf16Location, SyntheticComment, SyntheticCommentKind, TextWriter, TransformBundle,
-    TransformError, TransformNode, TransformNodeArray, TransformSourceId, TransformationResult,
-    UnsupportedEmitFeature,
+    SourceUtf16Location, SourceUtf16Position, SyntheticComment, SyntheticCommentKind, TextWriter,
+    TransformBundle, TransformError, TransformNode, TransformNodeArray, TransformSourceId,
+    TransformationResult, UnsupportedEmitFeature,
 };
 
 use crate::writer::GeneratedText;
@@ -4107,7 +4107,14 @@ impl Printer {
                 // Thread that ownership explicitly so a ranged initializer
                 // cannot claim the statement's trailing boundary first.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let (pos, end) = Self::established_container_sides(owner);
+                let (pos, end) = Self::established_container_sides(
+                    owner,
+                    transformation
+                        .arena()
+                        .source(owner.range.source())?
+                        .syntax()
+                        .positions(),
+                )?;
                 let declaration_context = expression_context
                     .with_comments(expression_context.comments().claim_sides(pos, end));
                 if self.emit_modifiers(
@@ -4151,7 +4158,14 @@ impl Printer {
                 // list is tsc's single `declarationListContainerEnd`
                 // producer: its claimed end also arms the trailing dedupe.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let (pos, end) = Self::established_container_sides(owner);
+                let (pos, end) = Self::established_container_sides(
+                    owner,
+                    transformation
+                        .arena()
+                        .source(owner.range.source())?
+                        .syntax()
+                        .positions(),
+                )?;
                 let declaration_context = expression_context.with_comments(
                     expression_context
                         .comments()
@@ -4224,7 +4238,14 @@ impl Printer {
                 // As above, only a declaration with its own source range
                 // replaces the ambient variable-statement container.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let (pos, end) = Self::established_container_sides(owner);
+                let (pos, end) = Self::established_container_sides(
+                    owner,
+                    transformation
+                        .arena()
+                        .source(owner.range.source())?
+                        .syntax()
+                        .positions(),
+                )?;
                 let initializer_context = expression_context
                     .with_comments(expression_context.comments().claim_sides(pos, end));
                 let name = data
@@ -8095,7 +8116,10 @@ impl Printer {
         if active_scope.container_end().is_some() {
             let child_range = self.comment_range_for_node(transformation, child)?;
             if let Some(end) = child_range.range().end() {
-                return Ok(!active_scope.retains_end(CommentCursor::new(child_range.source(), end)));
+                return Ok(!active_scope.retains_end(Self::comment_container_position(
+                    transformation,
+                    CommentCursor::new(child_range.source(), end),
+                )?));
             }
         }
         self.child_trailing_comments_escape_parent_container(transformation, parent, child)
@@ -8788,7 +8812,10 @@ impl Printer {
                 let source = arena.source(parent.source())?.syntax();
                 let position = SourceBytePosition::new(position, source.positions())?;
                 if expression_context.comments().container_pos()
-                    != Some(CommentCursor::new(parent.source(), position))
+                    != Some(SourceUtf16Position::from_byte(
+                        position,
+                        source.positions(),
+                    )?)
                 {
                     self.emit_comments_at_cursor_with_phase(
                         transformation,
@@ -11479,7 +11506,10 @@ impl Printer {
         let source = arena.source(previous.source())?.syntax();
         let position = SourceBytePosition::new(end, source.positions())?;
         if expression_context.comments().container_pos()
-            != Some(CommentCursor::new(previous.source(), position))
+            != Some(SourceUtf16Position::from_byte(
+                position,
+                source.positions(),
+            )?)
         {
             self.emit_comments_at_cursor_with_phase(
                 transformation,
@@ -11510,7 +11540,10 @@ impl Printer {
         };
         if expression_context
             .comments()
-            .retains_end(CommentCursor::new(range.source(), start))
+            .retains_end(Self::comment_container_position(
+                transformation,
+                CommentCursor::new(range.source(), start),
+            )?)
         {
             return Ok(());
         }
@@ -13276,7 +13309,14 @@ impl Printer {
                         self.expression_comment_phase_owner_for_node(transformation, parent)?;
                     let owner =
                         self.expression_comment_phase_owner_for_node(transformation, node)?;
-                    let (parent_pos, _) = Self::established_container_sides(parent_owner);
+                    let (parent_pos, _) = Self::established_container_sides(
+                        parent_owner,
+                        transformation
+                            .arena()
+                            .source(parent_owner.range.source())?
+                            .syntax()
+                            .positions(),
+                    )?;
                     let container_owned = self.parent_comment_container_owned_prefix_for_owner(
                         transformation,
                         parent_pos,
@@ -14618,7 +14658,14 @@ impl Printer {
         // where the same source comment is intentionally printed at both the
         // parent boundary and the synthesized argument-list boundary.
         let parent_owner = self.expression_comment_phase_owner_for_node(transformation, parent)?;
-        let (pos, end) = Self::established_container_sides(parent_owner);
+        let (pos, end) = Self::established_container_sides(
+            parent_owner,
+            transformation
+                .arena()
+                .source(parent_owner.range.source())?
+                .syntax()
+                .positions(),
+        )?;
         self.emit_leading_comments_for_delimited_list_start_in_container(
             transformation,
             node,
@@ -14767,7 +14814,7 @@ impl Printer {
     fn parent_comment_container_owned_prefix_for_owner(
         &self,
         transformation: &TransformationResult<'_>,
-        container_pos: Option<CommentCursor>,
+        container_pos: Option<SourceUtf16Position>,
         owner: ExpressionCommentPhaseOwner,
     ) -> Result<Option<CommentResume>, PrinterError> {
         let source_id = owner.range.source();
@@ -14781,10 +14828,15 @@ impl Printer {
         //
         // tsc-port: forEachLeadingCommentToEmit @6.0.3
         // tsc-span: _tsc.js:121219-121233
-        if container_pos != Some(CommentCursor::new(source_id, owner_start)) {
+        let source = transformation.arena().source(source_id)?.syntax();
+        if container_pos
+            != Some(SourceUtf16Position::from_byte(
+                owner_start,
+                source.positions(),
+            )?)
+        {
             return Ok(None);
         }
-        let source = transformation.arena().source(source_id)?.syntax();
         let next = owner_range
             .leading_trivia_end(source.text(), source.positions())?
             .expect("comment range has a source start");
@@ -14857,13 +14909,15 @@ impl Printer {
         if !owner_range.has_nonempty_extent() {
             return Ok(Some(TrailingSourceCommentOwnership::EmptySourceRange));
         }
+        let container_end = Self::comment_container_position(
+            transformation,
+            CommentCursor::new(owner.range.source(), owner_end),
+        )?;
         if deferred
             .container
             .map(|container| self.deferred_container_scope(transformation, container))
             .transpose()?
-            .is_some_and(|scope| {
-                scope.retains_end(CommentCursor::new(owner.range.source(), owner_end))
-            })
+            .is_some_and(|scope| scope.retains_end(container_end))
         {
             return Ok(Some(TrailingSourceCommentOwnership::RetainedByParent));
         }
@@ -14903,7 +14957,14 @@ impl Printer {
         let owner = self.expression_comment_phase_owner_for_node(transformation, child)?;
         self.parent_comment_container_owned_prefix_for_owner(
             transformation,
-            CommentEmissionScope::container_pos_of(parent_range),
+            CommentEmissionScope::container_pos_of(
+                parent_range,
+                transformation
+                    .arena()
+                    .source(parent_range.source())?
+                    .syntax()
+                    .positions(),
+            )?,
             owner,
         )
     }
@@ -15340,7 +15401,10 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         let comment_range = self.comment_range_for_node(transformation, node)?;
         if let Some(end) = comment_range.range().end() {
-            if active_scope.retains_end(CommentCursor::new(comment_range.source(), end)) {
+            if active_scope.retains_end(Self::comment_container_position(
+                transformation,
+                CommentCursor::new(comment_range.source(), end),
+            )?) {
                 return Ok(());
             }
         }
@@ -15798,9 +15862,11 @@ impl Printer {
     /// tsc-span: _tsc.js:121007-121032
     fn established_container_sides(
         owner: ExpressionCommentPhaseOwner,
-    ) -> (Option<CommentCursor>, Option<CommentCursor>) {
-        let pos = CommentEmissionScope::container_pos_of(owner.range);
-        let end = CommentEmissionScope::container_end_of(owner.range);
+        positions: &PositionIndex,
+    ) -> Result<(Option<SourceUtf16Position>, Option<SourceUtf16Position>), SourcePositionError>
+    {
+        let pos = CommentEmissionScope::container_pos_of(owner.range, positions)?;
+        let end = CommentEmissionScope::container_end_of(owner.range, positions)?;
         let jsx_text = owner.kind == SyntaxKind::JsxText;
         let claim_pos = if jsx_text && !owner.flags.intersects(EmitFlags::NO_LEADING_COMMENTS) {
             None
@@ -15812,7 +15878,20 @@ impl Printer {
         } else {
             end
         };
-        (claim_pos, claim_end)
+        Ok((claim_pos, claim_end))
+    }
+
+    /// Convert with the cursor's own source before retaining a portable
+    /// UTF-16 comparison value. Retained scopes never resolve an old arena ID.
+    fn comment_container_position(
+        transformation: &TransformationResult<'_>,
+        cursor: CommentCursor,
+    ) -> Result<SourceUtf16Position, PrinterError> {
+        let source = transformation.arena().source(cursor.source())?.syntax();
+        Ok(SourceUtf16Position::from_byte(
+            cursor.position(),
+            source.positions(),
+        )?)
     }
 
     /// The enclosing scope one deferred container denotes: the scope the
@@ -15829,7 +15908,14 @@ impl Printer {
             ExpressionCommentContainer::Node(parent) => {
                 let parent_owner =
                     self.expression_comment_phase_owner_for_node(transformation, parent)?;
-                let (pos, end) = Self::established_container_sides(parent_owner);
+                let (pos, end) = Self::established_container_sides(
+                    parent_owner,
+                    transformation
+                        .arena()
+                        .source(parent_owner.range.source())?
+                        .syntax()
+                        .positions(),
+                )?;
                 CommentEmissionScope::empty().claim_sides(pos, end)
             }
         })
@@ -15849,7 +15935,14 @@ impl Printer {
             Some(container) => self.deferred_container_scope(transformation, container)?,
             None => expression_context.comments(),
         };
-        let (pos, end) = Self::established_container_sides(owner);
+        let (pos, end) = Self::established_container_sides(
+            owner,
+            transformation
+                .arena()
+                .source(owner.range.source())?
+                .syntax()
+                .positions(),
+        )?;
         Ok(inherited.claim_sides(pos, end))
     }
 
@@ -17046,7 +17139,13 @@ impl Printer {
             source.positions(),
         )?;
         let owner_cursor = CommentCursor::new(comment_source, owner);
-        if expression_context.comments().retains_end(owner_cursor) {
+        if expression_context
+            .comments()
+            .retains_end(Self::comment_container_position(
+                transformation,
+                owner_cursor,
+            )?)
+        {
             return Ok(None);
         }
         let comments = collect_source_comment_ranges(source.text(), owner.value() as usize, true);
@@ -17159,7 +17258,10 @@ impl Printer {
             return Ok(());
         };
         let position = range.end().value() as usize;
-        if !ambient_scope.retains_end(CommentCursor::new(node.source(), range.end())) {
+        if !ambient_scope.retains_end(Self::comment_container_position(
+            transformation,
+            CommentCursor::new(node.source(), range.end()),
+        )?) {
             emit_same_line_trailing_comments(
                 SourceTrivia::from_start(source.text(), position),
                 self.options.only_print_js_doc_style,
@@ -17219,7 +17321,10 @@ impl Printer {
             .iter()
             .map(|comment| (comment.start, comment.end))
             .collect::<BTreeSet<_>>();
-        if !ambient_scope.retains_end(CommentCursor::new(original.source(), range.end())) {
+        if !ambient_scope.retains_end(Self::comment_container_position(
+            transformation,
+            CommentCursor::new(original.source(), range.end()),
+        )?) {
             emit_source_trailing_comments_of_position(source.text(), start, writer);
         }
         emit_source_leading_comments_of_position(

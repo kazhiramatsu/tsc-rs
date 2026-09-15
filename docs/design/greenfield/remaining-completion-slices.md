@@ -77,7 +77,9 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 依頼入口は [Claude handoff index](slices/claude-high-difficulty-handoffs.md)。
 **C03 は隔離候補を受領済み。次の推奨送付順は C04 → C05 → C01 → C02**。
 [C03 統合レビュー](slices/h2-8a-printer-failure/INTEGRATION.md)に44 exact / 2保留、
-追加修復・検証・hosted 入口を記録した。2保留の owner は A-INT3-CS と C02 / A-INT2。
+追加修復・検証・hosted 入口を記録した。その後の [A-INT3-CS](slices/h2-8a-printer-comment-carry/README.md)
+で source をまたぐコメント差を修復・focused検証済み。提出25件の残差は C02 / A-INT2 の生成名1件。
+追加対照で観測した hook hint 4件は統合担当 API1.2-HINT に分ける。
 既知の printer 差分と未到達 API の設計を先に進める。C01/C02 で具体的な差を再現した場合は
 その修復を前へ移す。これは依頼の順序であり、別候補を同時に同じ worktree へ適用する指示ではない。
 
@@ -123,7 +125,7 @@ OPS は各製品 slice の追加対象に追随する作業でもある。新規
 | H2.8a-A-INT1 | C01 の監査を受領し、必要な literal 修復を本番へ統合 | C01 と現行 architecture / packet。変更がない場合も対応表を記録して閉じる。raw/UTF-16/flags の退行なし |
 | H2.8a-A-INT2 | C02 の binding 修復・追加対照を統合 | C02、SUPER。helper order / default runtime name / retained の必要集合が一致 |
 | H2.8a-A-INT3 | C03 の printer failure / continuation 修復を統合 | C03。INT1 と source が重なる場合は順次 rebase。失敗した呼出しと次の正常呼出しを両方比較 |
-| H2.8a-A-INT3-CS | C03 で保留した source をまたぐ comment container の互換差 | 上流 UTF-16 整数、Rust source ID + byte offset、別 arena の寿命を照合。claim/leading/trailing の読者と非 BMP / 同位置 / 異位置 controls をまとめて閉じる |
+| H2.8a-A-INT3-CS | [source をまたぐ comment container の修復](slices/h2-8a-printer-comment-carry/README.md)（統合担当、修復・focused検証済み） | 元の保留1 case / 2 op と追加24 case の出力を照合。UTF-16 比較値と source-bound byte cursor を分離。新しい transformation への再利用、隣接契約、hosted の通過で閉じる |
 | H2.8a-A-RES | 現行台帳に残る transform / declaration / JSDoc / JSX / option / map / output 差分を最終 owner ごとに分割修復 | PLAN-BASE、VER1.0-MAP。旧 G1〜G8 をそのまま実装単位にしない。`A-RES-<owner>-<n>` ごとに分母・依存・before を固定。H2.5h/6a/6c の manifest は実証した行だけ縮小 |
 | H2.8a-A-CLOSE | 全 output-path / BOM / newline / removeComments / collision / failure 軸と現行 global/class 対象を閉じる | PC1、INT1〜3、A-RES の採用行。H2.8a の適用対象を漏れなく disposition し、全件は hosted へ。範囲外を別 owner に保持し、必要な profile 更新を行う |
 
@@ -218,6 +220,7 @@ legacy tsserver を先に実装する条件を付けない。各 query family �
 | API1.0 | public signature ↔ upstream implementation ↔ Rust の converse inventory、Rust-native / optional JS profile | VER-MAP と現行 API。すべての signature に disposition。内部の同名関数を公開互換と数えない |
 | API1.1a | AST/source/factory/printer の公開所有権、identity、error、thread/semver contract | API1.0、H2.8a。signature/behavior と lifetime tests、raw internal ID の露出を防ぐ |
 | API1.1b | Program/Checker/host、cancellation、反復呼出しの公開 contract | API1.1a、H2.8b/d。direct API 観測、取消安全性と lifetime を検証 |
+| API1.2-HINT | 宣言 binding と initializer の hook EmitHint を固定 6.0.3 に揃える（統合担当） | [A-INT3-CS の4既知イベント差分と探索ログ](slices/h2-8a-printer-comment-carry/README.md#残る差分)。公開済み Transformer の hint/order/substitution を新しい source oracle で比較。現在の Claude C01〜C05 とは別作業 |
 | API1.2 | before / after / afterDeclarations custom transforms、clone/original、callback/write precedence | API1.1、H2.8c/d。callback 順序、mutation/identity、error/repeated emit/cancel が一致 |
 | L3.0 | Go LS / native FourSlash の query inventory、service host/snapshot/modes、typed request と multigeneration harness | VER-MAP、L2.0。採用 query ごとの complete results / span / cancel を固定。調査・harness は H2 終了前から可 |
 | L3-PROJ1 | configured/inferred/external project、open-file overlay、選択、config discovery、lifecycle | L3.0、L2.4、CFG/HOST。旧 L4.1 の必要責務をここへ移す。open/edit/close と project release を比較 |
