@@ -138,6 +138,12 @@ compiler witnesses and future build/watch/LSP suites still require their own
 coverage inventory and explicit jobs; see OPS-COVER / OPS-BUDGET in the
 [completion plan](design/greenfield/remaining-completion-slices.md).
 
+[OPS-COVER-2 / PR #530](https://github.com/kazhiramatsu/tsc-rs/pull/530) added ten
+emitter direct targets within the existing printer job: 2m17s for that job,
+including 7.336s of new observer checks and 12.019s of new Cargo build/replay.
+All seven replay jobs and both PR gates passed; the longest job was 27m36s.
+The seven replay jobs total 87m04s, excluding plans/gates and main-push replay.
+
 ## Test entry coverage
 
 The [PR-gate entry inventory](design/greenfield/slices/witness-coverage/README.md)
