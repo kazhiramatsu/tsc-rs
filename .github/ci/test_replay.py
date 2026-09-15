@@ -83,6 +83,33 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(plan["witnesses"], ["followup3", "printer", "literal-value-provenance", "comma-argument-factory"])
         self.assertEqual(len(replay.matrices(plan)["witnesses"]["include"]), 2)
 
+    def test_compiler_utf16_inputs_select_only_their_target_in_controls(self):
+        for suite in witness.COMPILER_UTF16:
+            for path in witness.compiler_utf16_inputs(suite):
+                with self.subTest(suite=suite, path=path):
+                    self.assertTrue((ROOT / path).is_file(), path)
+                    plan = replay.selection([path])
+                    self.assertEqual(plan["acceptance"], [])
+                    self.assertEqual(plan["witnesses"], [suite])
+                    self.assertEqual(replay.matrices(plan)["witnesses"], {
+                        "include": [{"group": "controls", "suites": [suite]}],
+                    })
+
+    def test_compiler_utf16_union_and_shared_inputs_retain_other_owners(self):
+        plan = replay.selection([
+            "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
+            "crates/compiler/tests/h2_8a_utf16_review_fix_controls.rs",
+            "crates/emitter/tests/fixtures/template-raw-provenance.json",
+        ])
+        self.assertEqual(plan["acceptance"], [])
+        self.assertEqual(plan["witnesses"], ["literal-value-provenance", "utf16-identity-recovery", "utf16-review-fix"])
+        self.assertEqual(len(replay.matrices(plan)["witnesses"]["include"]), 2)
+        for path in ("crates/compiler/tests/fixtures/utf16-literals-adjacent-probes-inputs.json",
+                     "vendor/typescript-6.0.3/lib/typescript.js"):
+            plan = replay.selection([path])
+            self.assertEqual(plan["acceptance"], list(replay.GROUPS))
+            self.assertEqual(plan["witnesses"], list(witness.SUITES))
+
     def test_witness_groups_cover_every_suite_once(self):
         suites = [suite for group in replay.WITNESS_GROUPS.values() for suite in group]
         self.assertCountEqual(suites, witness.SUITES)
@@ -175,6 +202,7 @@ class WitnessTests(unittest.TestCase):
             "class-header-token-metadata": 32, "comma-argument-factory": 519,
             "ellipsis-comment-metadata": 144, "import-type-attributes": 84,
             "mapped-type-members": 328, "token-comment-phase-metadata": 96,
+            "utf16-identity-recovery": 79, "utf16-review-fix": 25, "utf16-tagged-template": 16,
         })
 
     def test_direct_catalog_rejects_missing_duplicate_and_empty_ids(self):
@@ -216,6 +244,55 @@ class WitnessTests(unittest.TestCase):
         for suites in ([], ["printer"], ["import-type-attributes"] * 2):
             with self.assertRaises(ValueError):
                 witness.emitter_command(suites)
+
+    def test_compiler_utf16_runner_batches_only_selected_targets_and_rejects_partial_success(self):
+        selected = ["utf16-identity-recovery", "utf16-tagged-template"]
+        summary = "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        full = summary.replace("1 passed", "2 passed") + summary
+        def run_with(output, status=0):
+            with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], status, output)) as run:
+                witness.run_compiler_utf16(selected)
+                return run.call_args_list
+        calls = run_with(full)
+        self.assertEqual([call.args[0] for call in calls[:-1]], [
+            ["node", "scripts/observe-utf16-identity-recovery-controls.mjs", "--check"],
+            ["node", "scripts/observe-utf16-noemit-command-controls.mjs", "--check"],
+            ["node", "scripts/observe-utf16-tagged-template-controls.mjs", "--check"],
+        ])
+        command = calls[-1].args[0]
+        self.assertEqual(command, ["cargo", "test", "--manifest-path", "crates/compiler/Cargo.toml",
+                                  "--test", "h2_8a_utf16_identity_recovery_controls",
+                                  "--test", "h2_8a_utf16_tagged_template_controls",
+                                  "--", "--nocapture", "--test-threads=1"])
+        for output in ("", summary, full + summary, full.replace("2 passed", "0 passed", 1),
+                       full.replace("2 passed", "1 passed", 1), full.replace("0 ignored", "1 ignored", 1),
+                       full.replace("0 filtered out", "1 filtered out", 1)):
+            with self.subTest(output=output), self.assertRaises(ValueError):
+                run_with(output)
+        with self.assertRaises(subprocess.CalledProcessError):
+            run_with(full, 101)
+
+    def test_compiler_utf16_observer_failure_stops_before_cargo(self):
+        with patch.object(witness.subprocess, "run", side_effect=subprocess.CalledProcessError(1, ["node"])) as run:
+            with self.assertRaises(subprocess.CalledProcessError):
+                witness.run_compiler_utf16(["utf16-review-fix"])
+            self.assertEqual(run.call_count, 1)
+        for suites in ([], ["printer"], ["utf16-review-fix"] * 2):
+            with self.assertRaises(ValueError):
+                witness.compiler_utf16_command(suites)
+
+    def test_compiler_utf16_catalog_rejects_empty_duplicate_and_changed_memberships(self):
+        for rows in ([], [{"id": "a"}] * 25, [{"id": ""}] * 25, [{"id": str(i)} for i in range(24)]):
+            with patch.object(witness, "read_cases", return_value=rows):
+                with self.assertRaises(ValueError):
+                    witness.case_ids("utf16-review-fix")
+
+    def test_compiler_utf16_list_and_dry_run_never_start_processes(self):
+        with patch.object(witness.subprocess, "run") as run:
+            for suite in witness.COMPILER_UTF16:
+                self.assertEqual(witness.main([suite, "--list"]), 0)
+                self.assertEqual(witness.main([suite, "--all", "--dry-run"]), 0)
+            run.assert_not_called()
 
     def test_declaration_map_cli_runs_only_its_exact_test_and_rejects_zero_success(self):
         command, env = witness.invocation("declaration-map-cli", [], {})
@@ -265,6 +342,11 @@ class WitnessTests(unittest.TestCase):
                 with self.assertRaises(SystemExit) as exit:
                     witness.main(argv)
                 self.assertEqual(exit.exception.code, 2)
+            for suite in witness.COMPILER_UTF16:
+                for argv in ([suite], [suite, "--case", witness.case_ids(suite)[0]]):
+                    with self.assertRaises(SystemExit) as exit:
+                        witness.main(argv)
+                    self.assertEqual(exit.exception.code, 2)
             run.assert_not_called()
 
 

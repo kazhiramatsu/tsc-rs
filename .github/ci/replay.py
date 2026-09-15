@@ -23,7 +23,8 @@ GROUPS = {
 # select just one collection within this job; direct controls share its build.
 WITNESS_GROUPS = {
     "primary": ("primary",),
-    "controls": ("extra", "followup", "followup2", "followup3", "direct", "bundle-sinks", "declaration-map-cli"),
+    "controls": ("extra", "followup", "followup2", "followup3", "direct", "bundle-sinks", "declaration-map-cli",
+                 *witness.COMPILER_UTF16),
     "retained": ("retained",),
     # Reuse this short job's emitter build. Fixture changes select individual
     # direct suites without running unrelated printer failure/owner controls.
@@ -74,6 +75,10 @@ def selection(paths):
         direct_owners = {suite for suite in witness.EMITTER_DIRECT if file in witness.emitter_inputs(suite)}
         if direct_owners:
             witnesses.update(direct_owners)
+            continue
+        compiler_owners = {suite for suite in witness.COMPILER_UTF16 if file in witness.compiler_utf16_inputs(suite)}
+        if compiler_owners:
+            witnesses.update(compiler_owners)
             continue
         if file in PRINTER_INPUTS:
             witnesses.add("printer")
@@ -269,13 +274,16 @@ def main():
         for suite in suites:
             if suite == "printer":
                 printer_witnesses()
-            elif suite in witness.EMITTER_DIRECT:
+            elif suite in witness.EMITTER_DIRECT or suite in witness.COMPILER_UTF16:
                 continue  # Batch selected small targets below, sharing one build.
             else:
                 subprocess.run([sys.executable, "scripts/witness.py", suite, "--all"], cwd=ROOT, check=True)
         direct = [suite for suite in suites if suite in witness.EMITTER_DIRECT]
         if direct:
             witness.run_emitter_direct(direct)
+        compiler = [suite for suite in suites if suite in witness.COMPILER_UTF16]
+        if compiler:
+            witness.run_compiler_utf16(compiler)
     else:
         if args.value not in ("acceptance", "witnesses"):
             parser.error("gate requires acceptance or witnesses")
