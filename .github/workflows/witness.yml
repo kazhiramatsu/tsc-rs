@@ -41,13 +41,17 @@ jobs:
           persist-credentials: false
       - name: Replay all primary decorator witnesses
         if: matrix.group == 'primary'
-        run: cargo xtask test compiler --test decorator_super_contract h2_8a_decorator_super::decorator_super_forms_match_complete_typescript_observations -- --exact --test-threads=1
+        run: >-
+          cargo xtask test compiler --test decorator_super_contract h2_8a_decorator_super::decorator_super_forms_match_complete_typescript_observations -- --exact --test-threads=1
       - name: Replay extra and follow-up decorator witnesses
         if: matrix.group == 'controls'
-        run: cargo xtask test compiler --test decorator_super_contract h2_8a_decorator_super:: -- --skip h2_8a_decorator_super::decorator_super_forms_match_complete_typescript_observations --test-threads=2
+        run: >-
+          cargo xtask test compiler --test decorator_super_contract h2_8a_decorator_super:: -- --skip h2_8a_decorator_super::decorator_super_forms_match_complete_typescript_observations --test-threads=2
       - name: Verify synthetic decorator controls
         if: matrix.group == 'controls'
-        run: cargo xtask test emitter --test decorator_super_direct_contract -- --test-threads=1
+        run: >-
+          cargo xtask test emitter --test decorator_super_direct_contract -- --test-threads=1
       - name: Replay all retained accessor witnesses
         if: matrix.group == 'retained'
-        run: cargo xtask test compiler --test contracts h2_8a_retained_accessor_owners::retained_accessor_owners_match_complete_typescript_observations -- --exact --test-threads=1
+        run: >-
+          cargo xtask test compiler --test contracts h2_8a_retained_accessor_owners::retained_accessor_owners_match_complete_typescript_observations -- --exact --test-threads=1
