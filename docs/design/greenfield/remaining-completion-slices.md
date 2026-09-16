@@ -79,7 +79,7 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 [C03 統合レビュー](slices/h2-8a-printer-failure/INTEGRATION.md)に44 exact / 2保留、
 追加修復・検証・hosted 入口を記録した。その後の [A-INT3-CS](slices/h2-8a-printer-comment-carry/README.md)
 で source をまたぐコメント差を修復し、PR #528 で統合済み。提出25件の残差は C02 / A-INT2 の生成名1件。
-追加対照で観測した hook hint 4件は統合担当 API1.2-HINT に分ける。
+追加対照で観測した hook hint 4件は統合担当 [API1.2-HINT](slices/api1-2-printer-hook-hints.md)で修復し、ローカル完全一致を確認。hosted検証・統合は同記録を参照。
 既知の printer 差分と未到達 API の設計を先に進める。C01/C02 で具体的な差を再現した場合は
 その修復を前へ移す。これは依頼の順序であり、別候補を同時に同じ worktree へ適用する指示ではない。
 
@@ -221,7 +221,7 @@ legacy tsserver を先に実装する条件を付けない。各 query family �
 | API1.0 | public signature ↔ upstream implementation ↔ Rust の converse inventory、Rust-native / optional JS profile | VER-MAP と現行 API。すべての signature に disposition。内部の同名関数を公開互換と数えない |
 | API1.1a | AST/source/factory/printer の公開所有権、identity、error、thread/semver contract | API1.0、H2.8a。signature/behavior と lifetime tests、raw internal ID の露出を防ぐ |
 | API1.1b | Program/Checker/host、cancellation、反復呼出しの公開 contract | API1.1a、H2.8b/d。direct API 観測、取消安全性と lifetime を検証 |
-| API1.2-HINT | 宣言 binding と initializer の hook EmitHint を固定 6.0.3 に揃える（統合担当） | [A-INT3-CS の4既知イベント差分と探索ログ](slices/h2-8a-printer-comment-carry/README.md#残る差分)。公開済み Transformer の hint/order/substitution を新しい source oracle で比較。現在の Claude C01〜C05 とは別作業 |
+| API1.2-HINT | [宣言 binding と initializer の hook EmitHint 修復](slices/api1-2-printer-hook-hints.md)（統合担当） | 新規72 caseと元のcomment-carry24 caseが完全一致×2。hint依存の置換、失敗後の再利用、全eventと出力を比較。hosted検証・統合は同記録を参照。現在のClaude C01〜C05とは別作業 |
 | API1.2 | before / after / afterDeclarations custom transforms、clone/original、callback/write precedence | API1.1、H2.8c/d。callback 順序、mutation/identity、error/repeated emit/cancel が一致 |
 | L3.0 | Go LS / native FourSlash の query inventory、service host/snapshot/modes、typed request と multigeneration harness | VER-MAP、L2.0。採用 query ごとの complete results / span / cancel を固定。調査・harness は H2 終了前から可 |
 | L3-PROJ1 | configured/inferred/external project、open-file overlay、選択、config discovery、lifecycle | L3.0、L2.4、CFG/HOST。旧 L4.1 の必要責務をここへ移す。open/edit/close と project release を比較 |

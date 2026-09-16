@@ -23,6 +23,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [API1.2-HINT printer declaration hooks](api1-2-printer-hook-hints.md) | Integrator implementation and focused validation | Repair the observed binding-name and initializer hint producers; 72 new source-derived direct cases and the four retained comment-carry gaps. No profile/admission change. |
 | [H2.8c C04 transpile prototype](h2-8c-transpile/INTEGRATION.md) | Integrated research prototype, PR #535; hosted passed | Three explicit research routes, 287 original + 14 review inputs, strict exception/known-native guards and controls-job entry. CLI/config activation and full H2.8c qualification remain open. |
 | [OPS-COVER-3C compiler literal witnesses](witness-coverage/compiler-literals/README.md) | CI entry implementation | Dedicated 64 literal commands and additional complete fields for four existing corpus IDs; exact test selection preserves shared acceptance coverage. |
 | [A-INT3-CS printer comment carry](h2-8a-printer-comment-carry/README.md) | C03 integration follow-up; focused validation passed; hosted results recorded in PR | User-authorized repair of the retained cross-source container gap. Source-independent UTF-16 guards, source-bound byte resumptions, 24 frozen direct rows and replacement-arena controls; no profile/admission change. |

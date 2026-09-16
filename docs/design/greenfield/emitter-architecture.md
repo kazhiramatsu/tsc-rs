@@ -251,6 +251,15 @@ type exists.
 | `E-OUTPUT-SCRIPT` | JavaScript artifacts are constructed before the first sink callback; callback order and `emittedFiles` stay independent. | `tsc_emitter::{emit_files_with_activity,EmitArtifact,MemoryOutputSink,FsOutputSink,EmitOutcome}` (public) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile and H1 sink-failure controls |
 | `E-OUTPUT-FUTURE` | Multi-product write/report ordering remains non-compatible. | Dormant product arms in public artifact/plan/outcome types | `dormant`; candidate audit 2026-08-14 | H2.6/H2.7/H2.8 activation |
 
+`E-PRINTER-BASE`'s variable-declaration producer supplies `Unspecified` for
+binding names and `Expression` for initializers, independently of node kind.
+The private `Printer::emit_transformed_node_worker` selects these hints before
+the existing substitution/notification and typed comment pipeline. It retains
+the initializer's `DeferredExpressionSourceComments::leading_only` handoff and
+`DISALLOWED_COMMA` grammar context. [API1.2-HINT](slices/api1-2-printer-hook-hints.md)
+records the 72 new failure/substitution/reuse controls and four repaired
+comment-carry event gaps; this is a producer repair within the existing API.
+
 ### 4.1 Current class-lowering identities and phases
 
 This subsection records the H2.5g candidate that is present now. It is the

@@ -185,7 +185,8 @@ def case_ids(suite):
         cases = read_cases(FIXTURES / "bundle-sinks.json")
     elif suite == "printer":
         cases = []
-        for name in ("printer-failure-hooks", "printer-failure-review", "printer-comment-carry"):
+        for name in ("printer-failure-hooks", "printer-failure-review", "printer-comment-carry",
+                     "printer-hook-hints"):
             cases.extend(read_cases(ROOT / f"crates/emitter/tests/fixtures/{name}.json"))
     else:
         cases = read_cases(ROOT / "crates/emitter/tests/fixtures/decorator-super-direct.json")
@@ -227,7 +228,7 @@ def invocation(suite, needles, environ=None):
         return emitter_command([suite]), env
     if suite == "printer":
         if needles:
-            raise ValueError("printer failure controls run together; use --all (70 small direct rows)")
+            raise ValueError("printer failure controls run together; use --all (142 small direct rows)")
         return ["cargo", "test", "--manifest-path", "crates/emitter/Cargo.toml",
                 "--test", "printer_failure_contract", "--", "--nocapture", "--test-threads=1"], env
     if suite in SUPER:

@@ -1,0 +1,64 @@
+{
+  "base": "d9cfb664ad89898b0b5601d85e7e2abf70e32b18",
+  "inputs": {
+    "crates/emitter/src/printer.rs": "a9043f19c6f2a8e526e7f22c8700ad2131478d34af2e0341197b82d6e044b3be",
+    "crates/emitter/tests/printer_failure_contract.rs": "0f40aeb8ed4e9762866787012e804beafb4ed71ad3169178939798208e418d74",
+    "scripts/observe-printer-hook-hints.mjs": "5ba2063f2cd42b70dadd6c2fedb4487687c50265b2d2e85e18a38a48ce97cb71",
+    "crates/emitter/tests/fixtures/printer-hook-hints.json": "40d33a2dce1b64959f79ae663f5a3c21a1fd65ed2dd44c31a86c78529310fb70",
+    "vendor/typescript-6.0.3/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "upstream_spans": [
+    {
+      "owner": "emit/emitExpression",
+      "start": 117145,
+      "end": 117161,
+      "sha256": "eeb1559a3401d537fc25790b8eb38dcadea9355f3ddf4436264df8e61b3ddf09"
+    },
+    {
+      "owner": "emitVariableDeclaration",
+      "start": 118934,
+      "end": 118940,
+      "sha256": "f7e60332c5befaae55cf6e30cd52807fe00353958f1a4721c717abebf268a57f"
+    },
+    {
+      "owner": "emitInitializer",
+      "start": 119915,
+      "end": 119922,
+      "sha256": "ae5d88a7431fb9468d6238393cda0221d118e7b046bcebef829caaad3bda20f7"
+    },
+    {
+      "owner": "pipeline/notification",
+      "start": 117184,
+      "end": 117222,
+      "sha256": "7aca5471d07cf9279fe4b433e1d4e758671a2790a2e673d1d6640d92207cdc27"
+    }
+  ],
+  "binary": {
+    "path": "target/debug/deps/printer_failure_contract-f36a6d3d26fee24b",
+    "sha256": "7c1c6b48392f00820b0a6f315d62c4995daea744c92636f2f45fc6eb47be9b9a"
+  },
+  "exit": 101,
+  "command": "CARGO_BUILD_JOBS=2 TSC_RS_HOOK_HINT_ACTUAL=target/hook-hints/before.json taskpolicy -b nice -n 15 cargo test --offline --manifest-path crates/emitter/Cargo.toml --test printer_failure_contract declaration_hook_hints_match_typescript_twice -- --exact --nocapture --test-threads=1",
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-printer-hook-hints",
+  "node": "25.2.1",
+  "rustc": "1.93.0 (254b59607 2026-01-19)",
+  "artifacts": {
+    "before.json.gz": {
+      "sha256": "2a8a87f63ebc42a60b61271a35f1332b91acb16f08cfec5a0f44fbbe0a60ca38",
+      "raw_sha256": "c024636e26445edf1999ef0cb441b6034cccd8c6abbd6784fc1c978e97bf726a"
+    },
+    "before.log.gz": {
+      "sha256": "147b83096b485803029dfdba92ef31a22458ba42d2a9fcdd7e47dac8d2d1c55d",
+      "raw_sha256": "d1b87a8ec4e12eea72e6ff468d30b1b0dc1fe8952cb824f8b9f129fd455c44e0"
+    },
+    "comment-carry-before.json.gz": {
+      "sha256": "5e1914286bdc4eab49ac825679f967b0c9fff47b5ae58fffa0b047b992f98043",
+      "raw_sha256": "345e24be7b17c71059d85b61b5999da1f14cd7845bb83d7508bc1d9a15137d75"
+    },
+    "comment-carry-before.log.gz": {
+      "sha256": "9d5692a7de24620c2f28c63ed976acafd8c460d07b43ab1237881cba5a8b8a30",
+      "raw_sha256": "7fbe473762952d56be25a198044561a470848c8b45c05464cfb4295a03e0d22d"
+    }
+  }
+}

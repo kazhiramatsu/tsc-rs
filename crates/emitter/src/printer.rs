@@ -4272,12 +4272,12 @@ impl Printer {
                     container_owned,
                     writer,
                 )?;
-                self.emit_required_identifier_name_with_context(
+                // emitVariableDeclaration calls ordinary `emit(name)`:
+                // binding identifiers are not IdentifierName requests.
+                self.emit_node_with_hint(
                     transformation,
-                    node.source(),
-                    data.name,
-                    SyntaxKind::VariableDeclaration,
-                    "name",
+                    name,
+                    EmitHint::Unspecified,
                     initializer_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
@@ -4335,14 +4335,22 @@ impl Printer {
                         .arena()
                         .node_ref(node.source(), initializer)
                         .ok_or(PrinterError::UnknownStatement(initializer.0))?;
-                    self.emit_child_after_token_with_context(
-                        transformation,
+                    // emitInitializer always uses emitExpression, including
+                    // calls and other non-Identifier initializer nodes.
+                    let deferred = DeferredExpressionSourceComments::leading_only(
                         node,
                         equals,
+                        initializer_context.comments(),
+                    );
+                    let outcome = self.emit_node_with_hint_and_source_comments(
+                        transformation,
                         initializer_node,
+                        EmitHint::Expression,
                         initializer_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
+                        Some(deferred),
                         writer,
                     )?;
+                    debug_assert_eq!(outcome, ExpressionSourceCommentsOutcome::LeadingConsumed);
                 }
                 Ok(())
             }
