@@ -17,6 +17,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT = fileURLToPath(import.meta.url);
@@ -864,7 +865,23 @@ function inputRecord(entry) {
   return record;
 }
 
+// Review metadata may contain isolated UTF-16 units in internal host traces.
+function losslessRecord(value) {
+  if (typeof value === "string" && !value.isWellFormed()) {
+    return { utf16: Array.from({ length: value.length }, (_, index) => value.charCodeAt(index)) };
+  }
+  if (Array.isArray(value)) return value.map(losslessRecord);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, losslessRecord(item)]));
+  return value;
+}
+
 function observe(entry) {
+  entry = { ...entry };
+  if (entry.moduleNameUtf16) entry.moduleName = String.fromCharCode(...entry.moduleNameUtf16);
+  if (entry.renamedDependenciesUtf16) {
+    entry.renamedDependencies = Object.fromEntries(entry.renamedDependenciesUtf16.map(
+      ([from, to]) => [String.fromCharCode(...from), String.fromCharCode(...to)]));
+  }
   if (entry.route === "program-no-check") {
     const { public: pub, internal } = programCommand(entry);
     return { id: entry.id, route: entry.route, observation: pub, internal };
@@ -876,11 +893,30 @@ function observe(entry) {
     id: entry.id,
     route: entry.route,
     observation: pub,
-    internal: { ...replica.internal, replica_public_result_matches: replicaMatches },
+    internal: losslessRecord({ ...replica.internal, replica_public_result_matches: replicaMatches }),
   };
 }
 
 function main(argv) {
+  if (argv.length === 1 && argv[0] === "--check") {
+    requireCondition(process.versions.node === fs.readFileSync(path.join(WORKSPACE, ".node-version"), "utf8").trim(), "Node version drift");
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "transpile-routes-"));
+    try {
+      for (const prefix of ["", "review-"]) {
+        const fixtures = path.join(WORKSPACE, "crates/compiler/tests/fixtures/h2_8c_transpile");
+        const expected = fs.readFileSync(path.join(fixtures, `${prefix}expected.v1.json`));
+        for (let run = 1; run <= 2; run++) {
+          const output = path.join(directory, `${prefix}${run}.json`);
+          main(["--inputs", path.join(fixtures, `${prefix}inputs.v1.json`), "--out", output]);
+          requireCondition(expected.equals(fs.readFileSync(output)), `${prefix || "original-"}oracle bytes differ (run ${run})`);
+        }
+      }
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+    console.log("transpile routes: 287 original + 14 review cases matched twice");
+    return;
+  }
   const args = new Map();
   for (let i = 0; i < argv.length; i += 2) args.set(argv[i], argv[i + 1]);
   if (args.has("--write-inputs")) {
@@ -901,6 +937,8 @@ function main(argv) {
   }
   const inputs = JSON.parse(fs.readFileSync(args.get("--inputs"), "utf8"));
   requireCondition(inputs.schema === "h2-8c-transpile-inputs.v1", "unknown inputs schema");
+  requireCondition(inputs.cases.length === inputs.case_count && inputs.cases.length > 0, "case count drift");
+  requireCondition(new Set(inputs.cases.map((entry) => entry.id)).size === inputs.cases.length, "duplicate case id");
   const results = [];
   for (const entry of inputs.cases) {
     results.push(observe(entry));
@@ -922,6 +960,8 @@ function main(argv) {
     repeat_state_separation: repeatMatches,
     cases: results,
   };
+  requireCondition(repeatMatches.every((entry) => entry.matches), "repeat state separation failed");
+  requireCondition(results.every((entry) => entry.internal.replica_public_result_matches !== false), "replica/public mismatch");
   fs.writeFileSync(args.get("--out"), JSON.stringify(expected, null, 1) + "\n");
   const exceptions = results.filter((r) => r.observation.exception).length;
   const replicaMismatch = results.filter((r) => r.internal.replica_public_result_matches === false).map((r) => r.id);

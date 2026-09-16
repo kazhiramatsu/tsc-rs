@@ -2002,19 +2002,10 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         // moduleName / renamedDependencies to the created SourceFile before
         // createProgram; the parsed pragma value is overridden.
         if let Some(module_name) = &file.module_name {
-            source_file.module_name = Some(module_name.to_string_lossy().into_owned());
+            source_file.module_name = Some(module_name.clone());
         }
         if !file.renamed_dependencies.is_empty() {
-            source_file.renamed_dependencies = file
-                .renamed_dependencies
-                .iter()
-                .map(|(from, to)| {
-                    (
-                        from.to_string_lossy().into_owned(),
-                        to.to_string_lossy().into_owned(),
-                    )
-                })
-                .collect();
+            source_file.renamed_dependencies = file.renamed_dependencies.clone();
         }
         work_counters.record_parse(file.text().len());
         program_sources.push(Arc::new(source_file));

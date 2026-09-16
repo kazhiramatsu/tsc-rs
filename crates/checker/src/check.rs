@@ -304,7 +304,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: calculateNodeCheckFlagWorker @6.0.3
-    /// tsc-hash: 3b3e0a5f5b5c2b6f0e1d4c7a9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b
+    /// tsc-hash: 7b82d130c6cce9b63a376c99b857ceb846dab03dd8533aef173e0035fd0a5ec2
     /// tsc-span: _tsc.js:88131-88230
     ///
     /// For an unchecked source (`noCheck`, or a file excluded by
@@ -312,7 +312,11 @@ impl<'a> CheckerState<'a> {
     /// `hasNodeCheckFlag`; the checker derives just the requested flag
     /// group on demand and records the group in `calculatedFlags` so each
     /// subtree is walked once per group.
-    pub(crate) fn calculate_node_check_flag_worker(&mut self, node: NodeId, flag: NodeCheckFlags) {
+    pub(crate) fn calculate_node_check_flag_worker(
+        &mut self,
+        node: NodeId,
+        flag: NodeCheckFlags,
+    ) -> CheckResult<()> {
         if self.options.no_check != Some(true) {
             let file = ProgramFileId::from_raw(
                 u32::try_from(self.binder.file_index_of_node(node))
@@ -324,11 +328,11 @@ impl<'a> CheckerState<'a> {
                 crate::check_directive(source.text()),
                 self.options,
             ) {
-                return;
+                return Ok(());
             }
         }
         if self.links.node(node).calculated_flags.intersects(flag) {
-            return;
+            return Ok(());
         }
         const SUPER_GROUP: NodeCheckFlags = NodeCheckFlags::from_bits(
             NodeCheckFlags::SUPER_INSTANCE.bits() | NodeCheckFlags::SUPER_STATIC.bits(),
@@ -350,18 +354,18 @@ impl<'a> CheckerState<'a> {
                 | NodeCheckFlags::CAPTURED_BLOCK_SCOPED_BINDING.bits(),
         );
         if flag.intersects(SUPER_GROUP) {
-            self.calculate_single_super_expression(node);
+            self.calculate_single_super_expression(node)?;
         } else if flag.intersects(CHILD_SUPER_GROUP) {
             for descendant in self.descendants_until_calculated(node, flag, CHILD_SUPER_GROUP) {
-                self.calculate_single_super_expression(descendant);
+                self.calculate_single_super_expression(descendant)?;
             }
         } else if flag.intersects(CHILD_IDENTIFIER_GROUP) {
             for descendant in self.descendants_until_calculated(node, flag, CHILD_IDENTIFIER_GROUP)
             {
-                self.calculate_single_identifier(descendant);
+                self.calculate_single_identifier(descendant)?;
             }
         } else if flag.intersects(NodeCheckFlags::CONSTRUCTOR_REFERENCE) {
-            self.calculate_single_identifier(node);
+            self.calculate_single_identifier(node)?;
         } else if flag.intersects(BLOCK_SCOPE_GROUP) {
             // checkContainingBlockScopeBindingUses: walk the enclosing block
             // scope of the declaration name (or the node itself).
@@ -375,14 +379,15 @@ impl<'a> CheckerState<'a> {
                 node
             };
             let Some(scope) = self.get_enclosing_block_scope_container(start) else {
-                return;
+                return Ok(());
             };
             for descendant in self.descendants_until_calculated(scope, flag, BLOCK_SCOPE_GROUP) {
-                self.calculate_single_block_scope_binding(descendant);
+                self.calculate_single_block_scope_binding(descendant)?;
             }
         } else {
             unreachable!("Unhandled node check flag calculation: {:?}", flag);
         }
+        Ok(())
     }
 
     /// forEachNodeRecursively with the per-node `calculatedFlags & flag`
@@ -416,7 +421,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// checkSingleSuperExpression (88180-88186).
-    fn calculate_single_super_expression(&mut self, node: NodeId) {
+    fn calculate_single_super_expression(&mut self, node: NodeId) -> CheckResult<()> {
         self.links.or_calculated_flags(
             node,
             NodeCheckFlags::from_bits(
@@ -424,16 +429,17 @@ impl<'a> CheckerState<'a> {
             ),
         );
         if self.kind_of(node) == SyntaxKind::SuperKeyword {
-            let _ = self.check_super_expression(node);
+            self.check_super_expression(node)?;
         }
+        Ok(())
     }
 
     /// checkSingleIdentifier (88203-88214).
-    fn calculate_single_identifier(&mut self, node: NodeId) {
+    fn calculate_single_identifier(&mut self, node: NodeId) -> CheckResult<()> {
         self.links
             .or_calculated_flags(node, NodeCheckFlags::CONSTRUCTOR_REFERENCE);
         if self.kind_of(node) != SyntaxKind::Identifier {
-            return;
+            return Ok(());
         }
         self.links.or_calculated_flags(
             node,
@@ -456,20 +462,21 @@ impl<'a> CheckerState<'a> {
                 if data.name == Some(node))
         });
         if !is_expression_or_shorthand_name || is_property_access_name {
-            return;
+            return Ok(());
         }
-        if let Ok(Some(symbol)) = self.get_resolved_symbol(node) {
+        if let Some(symbol) = self.get_resolved_symbol(node)? {
             if symbol != self.unknown_symbol {
-                let _ = self.check_identifier_calculate_node_check_flags(node, symbol);
+                self.check_identifier_calculate_node_check_flags(node, symbol)?;
             }
         }
+        Ok(())
     }
 
     /// checkSingleBlockScopeBinding (88221-88229).
-    fn calculate_single_block_scope_binding(&mut self, node: NodeId) {
-        self.calculate_single_identifier(node);
+    fn calculate_single_block_scope_binding(&mut self, node: NodeId) -> CheckResult<()> {
+        self.calculate_single_identifier(node)?;
         if self.kind_of(node) == SyntaxKind::ComputedPropertyName {
-            let _ = self.check_computed_property_name(node);
+            self.check_computed_property_name(node)?;
         }
         if self.kind_of(node) == SyntaxKind::PrivateIdentifier
             && self.parent_of(node).is_some_and(|parent| {
@@ -489,6 +496,7 @@ impl<'a> CheckerState<'a> {
             let parent = self.parent_of(node).expect("class element parent");
             self.set_node_links_for_private_identifier_scope(parent);
         }
+        Ok(())
     }
 
     /// tsc-port: skipTypeCheckingWorker @6.0.3

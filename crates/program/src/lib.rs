@@ -90,7 +90,7 @@ mod config_matcher;
 mod config_options;
 mod error;
 mod js_path;
-pub use js_path::base_file_name;
+pub use js_path::{base_file_name, normalize_path};
 pub use tsc_host::to_file_name_lower_case_js;
 mod js_string_ops;
 mod json;

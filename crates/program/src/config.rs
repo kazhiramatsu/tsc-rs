@@ -6041,8 +6041,9 @@ fn config_named_string_option_choices(descriptor: CompilerOptionListDescriptor) 
         .join(", ")
 }
 
-/// tsc-port: createCompilerDiagnosticForInvalidCustomType (choices) @6.0.3
-/// tsc-span: _tsc.js:37988-37997
+/// tsc-port: createDiagnosticForInvalidCustomType @6.0.3
+/// tsc-hash: b69f5290ca841865e38c6a0bf5f6515d78d3935f2ca4f9ad1eaa65c67c3e3dfd
+/// tsc-span: typescript.js:42341-42345
 /// The `'a', 'b'` choice list for an enum-typed option, as printed by
 /// TS6046. `None` when the option is not enum-typed.
 pub fn compiler_option_named_choices(name: &str) -> Option<String> {

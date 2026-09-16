@@ -16,7 +16,7 @@ pub(crate) fn get_resolved_external_module_name(
     reference_file: Option<&SourceFile>,
 ) -> JsString {
     file.module_name
-        .as_deref()
+        .as_ref()
         .filter(|name| !name.is_empty())
         .map_or_else(
             || {
@@ -26,7 +26,7 @@ pub(crate) fn get_resolved_external_module_name(
                     reference_file.map(|file| file.file_name.as_js()),
                 )
             },
-            JsString::from,
+            Clone::clone,
         )
 }
 
@@ -72,7 +72,7 @@ fn external_module_name_from_path(
 }
 
 /// tsc-port: tryRenameExternalModule @6.0.3
-/// tsc-hash: 1b0c9a3e5d7f2b4c6a8e0d2f4b6a8c0e2d4f6a8b0c2e4d6f8a0b2c4d6e8f0a2c
+/// tsc-hash: 86fd395bde1284aad3de45da47e7de1f6bdafb89d9173fbbd246cc1891395e52
 /// tsc-span: _tsc.js:27720-27723
 ///
 /// API-supplied `renamedDependencies` rewrite a module specifier only when no
@@ -84,8 +84,10 @@ pub(crate) fn try_rename_external_module(
     source
         .renamed_dependencies
         .iter()
-        .find(|(from, _)| JsStr::from_str(from) == module_name)
-        .map(|(_, to)| JsString::from(to.as_str()))
+        .rev()
+        .find(|(from, _)| from.as_js() == module_name)
+        .filter(|(_, to)| !to.is_empty())
+        .map(|(_, to)| to.clone())
 }
 
 /// tsc-port: tryGetModuleNameFromFile @6.0.3
@@ -95,8 +97,8 @@ pub(crate) fn try_get_module_name_from_file(
     host: Option<&dyn EmitHost>,
     file: &SourceFile,
 ) -> Option<JsString> {
-    if let Some(name) = file.module_name.as_deref().filter(|name| !name.is_empty()) {
-        return Some(name.into());
+    if let Some(name) = file.module_name.as_ref().filter(|name| !name.is_empty()) {
+        return Some(name.clone());
     }
     let host = host?;
     (!file.is_declaration_file
@@ -128,7 +130,7 @@ pub(crate) fn resolved_external_module_name_literal(
             .is_some_and(|source| {
                 source
                     .module_name
-                    .as_deref()
+                    .as_ref()
                     .is_some_and(|name| !name.is_empty())
             })
     });

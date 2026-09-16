@@ -38,6 +38,7 @@ use utf16_scalar_json::observe as scalar_json;
 
 const INPUTS: &str = include_str!("fixtures/h2_8c_transpile/inputs.v1.json");
 const EXPECTED: &str = include_str!("fixtures/h2_8c_transpile/expected.v1.json");
+const KNOWN_NATIVE: &str = include_str!("fixtures/h2_8c_transpile/known-native.v1.json");
 const KNOWN_OPEN: &str = include_str!("fixtures/h2_8c_transpile/known-open.v1.json");
 
 fn fixtures() -> (Value, Value, BTreeMap<String, String>) {
@@ -46,10 +47,15 @@ fn fixtures() -> (Value, Value, BTreeMap<String, String>) {
     assert_eq!(inputs["schema"], "h2-8c-transpile-inputs.v1");
     assert_eq!(expected["schema"], "h2-8c-transpile-expected.v1");
     assert_eq!(inputs["typescript"]["version"], "6.0.3");
-    assert_eq!(inputs["case_count"], expected["case_count"]);
+    validate_manifest(&inputs, &expected, INPUTS, 287);
+    assert_eq!(
+        inputs["route_counts"],
+        json!({"transpile-js":150,"transpile-dts":86,"program-no-check":51})
+    );
     let known: Value = serde_json::from_str(KNOWN_OPEN).unwrap();
     assert_eq!(known["schema"], "h2-8c-transpile-known-open.v1");
-    let known = known["rows"]
+    assert_eq!(known["rows"].as_array().unwrap().len(), 22);
+    let known: BTreeMap<String, String> = known["rows"]
         .as_array()
         .unwrap()
         .iter()
@@ -60,6 +66,21 @@ fn fixtures() -> (Value, Value, BTreeMap<String, String>) {
             )
         })
         .collect();
+    assert_eq!(known.len(), 22, "duplicate known-open ID");
+    let native: Value = serde_json::from_str(KNOWN_NATIVE).unwrap();
+    assert_eq!(native["schema"], "h2-8c-transpile-known-native.v1");
+    let native_ids: BTreeSet<_> = native["observations"].as_object().unwrap().keys().collect();
+    assert_eq!(native_ids, known.keys().collect());
+    let ids: BTreeSet<_> = inputs["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|case| case["id"].as_str().unwrap())
+        .collect();
+    assert!(
+        known.keys().all(|id| ids.contains(id.as_str())),
+        "unknown known-open ID"
+    );
     (inputs, expected, known)
 }
 
@@ -173,18 +194,37 @@ fn transpile_options(case: &Value) -> TranspileOptions {
         }),
         file_name: case["fileName"].as_str().map(JsString::from),
         report_diagnostics: case["reportDiagnostics"].as_bool(),
-        module_name: case["moduleName"].as_str().map(JsString::from),
-        renamed_dependencies: case["renamedDependencies"].as_object().map(|object| {
-            object
-                .iter()
-                .map(|(from, to)| {
-                    (
-                        JsString::from(from.as_str()),
-                        JsString::from(to.as_str().unwrap()),
-                    )
-                })
-                .collect()
+        module_name: case["moduleName"].as_str().map(JsString::from).or_else(|| {
+            case["moduleNameUtf16"]
+                .as_array()
+                .map(|units| js_units(units))
         }),
+        renamed_dependencies: case["renamedDependenciesUtf16"]
+            .as_array()
+            .map(|pairs| {
+                pairs
+                    .iter()
+                    .map(|pair| {
+                        (
+                            js_units(pair[0].as_array().unwrap()),
+                            js_units(pair[1].as_array().unwrap()),
+                        )
+                    })
+                    .collect()
+            })
+            .or_else(|| {
+                case["renamedDependencies"].as_object().map(|object| {
+                    object
+                        .iter()
+                        .map(|(from, to)| {
+                            (
+                                JsString::from(from.as_str()),
+                                JsString::from(to.as_str().unwrap()),
+                            )
+                        })
+                        .collect()
+                })
+            }),
         jsdoc_parsing_mode: case["jsDocParsingMode"].as_str().map(|mode| match mode {
             "ParseAll" => JsDocParsingMode::ParseAll,
             "ParseNone" => JsDocParsingMode::ParseNone,
@@ -470,7 +510,7 @@ fn diff_summary(actual: &Value, expected: &Value) -> Value {
                 let render = |value: &Value| {
                     let text = value.to_string();
                     if text.len() > 300 {
-                        format!("{}…", &text[..300])
+                        format!("{}…", text.chars().take(300).collect::<String>())
                     } else {
                         text
                     }
@@ -541,16 +581,18 @@ fn compare_route(route: &str, run: impl Fn(&Value) -> (Value, Value)) -> Report 
                     )
                 }
             };
-        // Thrown TypeScript exceptions carry a source-specific message; the
-        // public contract compares presence, and the message is recorded.
-        let expected_throws = !expected_observation["exception"].is_null();
-        let actual_throws = !actual["exception"].is_null();
-        let exact = if expected_throws || actual_throws {
-            expected_throws && actual_throws
-        } else {
-            actual == *expected_observation
-        };
+        let exact = observations_match(&actual, expected_observation, &evidence);
+        let again = run(case).0;
+        assert_eq!(actual, again, "{id}: repeated observation differs");
         let known_reason = known.get(id);
+        let native: Value = serde_json::from_str(KNOWN_NATIVE).unwrap();
+        if known_reason.is_some() && !exact {
+            assert!(
+                known_native_matches(id, &actual, &evidence, &native),
+                "{id}: known-open native observation changed: {}",
+                diff_summary(&actual, &native["observations"][id]["actual"])
+            );
+        }
         let status = match (exact, known_reason) {
             (true, None) => {
                 report.exact.push(id.to_owned());
@@ -571,6 +613,7 @@ fn compare_route(route: &str, run: impl Fn(&Value) -> (Value, Value)) -> Report 
         };
         report.rows.push(json!({
             "id": id,
+            "actual": actual,
             "status": status,
             "known_open_reason": known_reason,
             "diff": if exact { Value::Null } else { diff_summary(&actual, expected_observation) },
@@ -605,13 +648,13 @@ fn compare_route(route: &str, run: impl Fn(&Value) -> (Value, Value)) -> Report 
     report
 }
 
-fn assert_report(report: &Report, minimum_cases: usize) {
-    assert!(
+fn assert_report(report: &Report, expected_cases: usize) {
+    assert_eq!(
         report.exact.len()
             + report.known_open.len()
             + report.unexpected_open.len()
-            + report.unexpected_exact.len()
-            >= minimum_cases,
+            + report.unexpected_exact.len(),
+        expected_cases,
         "route ran fewer cases than the manifest fixes"
     );
     assert!(
@@ -632,7 +675,7 @@ fn transpile_module_matches_typescript() {
         let result = run_transpile(case);
         (transpile_observation(&result), transpile_evidence(&result))
     });
-    assert_report(&report, 100);
+    assert_report(&report, 150);
 }
 
 #[test]
@@ -641,14 +684,14 @@ fn transpile_declaration_matches_typescript() {
         let result = run_transpile(case);
         (transpile_observation(&result), transpile_evidence(&result))
     });
-    assert_report(&report, 60);
+    assert_report(&report, 86);
 }
 
 #[test]
 fn program_no_check_commands_match_typescript() {
     let libraries = libraries();
     let report = compare_route("program-no-check", |case| run_program(case, &libraries));
-    assert_report(&report, 40);
+    assert_report(&report, 51);
 }
 
 #[test]
@@ -720,5 +763,214 @@ fn repeated_calls_keep_state_separate() {
     assert_eq!(count, 4);
     for row in expected["repeat_state_separation"].as_array().unwrap() {
         assert_eq!(row["matches"], true, "source repeat {}", row["id"]);
+    }
+}
+
+fn js_units(units: &[Value]) -> JsString {
+    JsString::from_code_units(
+        &units
+            .iter()
+            .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+            .collect::<Vec<_>>(),
+    )
+}
+
+#[test]
+fn review_api_facts_match_typescript() {
+    let inputs: Value = serde_json::from_str(include_str!(
+        "fixtures/h2_8c_transpile/review-inputs.v1.json"
+    ))
+    .unwrap();
+    let expected: Value = serde_json::from_str(include_str!(
+        "fixtures/h2_8c_transpile/review-expected.v1.json"
+    ))
+    .unwrap();
+    validate_manifest(
+        &inputs,
+        &expected,
+        include_str!("fixtures/h2_8c_transpile/review-inputs.v1.json"),
+        14,
+    );
+    let mut rows = Vec::new();
+    for (case, expected_case) in inputs["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(expected["cases"].as_array().unwrap())
+    {
+        assert_eq!(case["id"], expected_case["id"]);
+        let result = run_transpile(case);
+        let actual = transpile_observation(&result);
+        assert_eq!(
+            actual,
+            transpile_observation(&run_transpile(case)),
+            "{}: repeat differs",
+            case["id"]
+        );
+        if let Ok(output) = &result {
+            assert_eq!(
+                output.evidence.checked_source_files, 0,
+                "{}: source checked",
+                case["id"]
+            );
+        }
+        rows.push(json!({"id":case["id"], "exact":actual==expected_case["observation"], "actual":actual, "expected":expected_case["observation"], "evidence":transpile_evidence(&result)}));
+    }
+    std::fs::write(
+        evidence_dir().join("native-review.json"),
+        serde_json::to_string_pretty(&rows).unwrap(),
+    )
+    .unwrap();
+    let failed: Vec<_> = rows
+        .iter()
+        .filter(|row| row["exact"] != true)
+        .map(|row| &row["id"])
+        .collect();
+    assert!(failed.is_empty(), "review differences: {failed:?}");
+}
+
+// These guards are part of the contract: changing a failure into another
+// failure is not compatibility, and fixture maps must never discard rows.
+fn validate_manifest(inputs: &Value, expected: &Value, bytes: &str, count: usize) {
+    assert_eq!(inputs["case_count"], count);
+    assert_eq!(expected["case_count"], count);
+    assert_eq!(expected["inputs_sha256"], sha256_hex(bytes.as_bytes()));
+    let ids = |record: &Value| {
+        let cases = record["cases"].as_array().unwrap();
+        assert_eq!(cases.len(), count);
+        let ids: BTreeSet<String> = cases
+            .iter()
+            .map(|case| {
+                let id = case["id"].as_str().unwrap();
+                assert!(!id.is_empty());
+                id.to_owned()
+            })
+            .collect();
+        assert_eq!(ids.len(), count, "duplicate fixture ID");
+        ids
+    };
+    assert_eq!(ids(inputs), ids(expected), "fixture membership drift");
+    let mut routes = BTreeMap::<String, usize>::new();
+    for case in inputs["cases"].as_array().unwrap() {
+        let route = case["route"].as_str().unwrap();
+        assert!(["transpile-js", "transpile-dts", "program-no-check"].contains(&route));
+        *routes.entry(route.to_owned()).or_default() += 1;
+        let oracle = expected["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["id"] == case["id"])
+            .unwrap();
+        assert_eq!(oracle["route"], case["route"]);
+        assert_ne!(oracle["internal"]["replica_public_result_matches"], false);
+    }
+    assert_eq!(inputs["route_counts"], json!(routes));
+}
+
+fn observations_match(actual: &Value, expected: &Value, evidence: &Value) -> bool {
+    if !evidence["panic"].is_null() {
+        return false;
+    }
+    if expected["exception"].is_null() {
+        actual == expected
+    } else {
+        // All three pinned TS exceptions are this specific source failure.
+        expected["exception"]["message"] == "Debug Failure. Output generation failed"
+            && evidence["kind"] == "output-generation-failed"
+            && actual == expected
+    }
+}
+
+fn known_native_matches(id: &str, actual: &Value, evidence: &Value, native: &Value) -> bool {
+    evidence["panic"].is_null()
+        && native["observations"]
+            .get(id)
+            .is_some_and(|row| row["actual"] == *actual && row["kind"] == evidence["kind"])
+}
+
+#[test]
+fn comparator_rejects_rust_refusals_and_panics_as_source_exceptions() {
+    let expected = transpile_observation(&Err(TranspileError::OutputGenerationFailed {
+        writes: vec![],
+    }));
+    assert!(observations_match(
+        &expected,
+        &expected,
+        &json!({"kind":"output-generation-failed"})
+    ));
+    for evidence in [
+        json!({"kind":"rust-driver"}),
+        json!({"kind":"rust-unsupported-option-value"}),
+        json!({"kind":"multiple-outputs"}),
+        json!({"panic":"failed"}),
+    ] {
+        assert!(!observations_match(&expected, &expected, &evidence));
+    }
+    let wrong = json!({"exception":{"message":"unrelated failure"}});
+    assert!(!observations_match(
+        &wrong,
+        &expected,
+        &json!({"kind":"output-generation-failed"})
+    ));
+    let unicode = json!("あ".repeat(150));
+    assert!(!diff_summary(&unicode, &Value::Null)
+        .as_array()
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn known_open_rejects_changed_output_refusal_and_panic() {
+    let native: Value = serde_json::from_str(KNOWN_NATIVE).unwrap();
+    for (id, row) in native["observations"].as_object().unwrap() {
+        let evidence = json!({"kind": row["kind"]});
+        assert!(known_native_matches(id, &row["actual"], &evidence, &native));
+        assert!(!known_native_matches(
+            id,
+            &json!({"exception":{"message":"new failure"}}),
+            &evidence,
+            &native
+        ));
+        assert!(!known_native_matches(
+            id,
+            &row["actual"],
+            &json!({"kind":row["kind"],"panic":"new failure"}),
+            &native
+        ));
+    }
+    assert!(!known_native_matches(
+        "missing",
+        &Value::Null,
+        &Value::Null,
+        &native
+    ));
+}
+
+#[test]
+fn manifest_rejects_missing_duplicate_ids_and_changed_hash() {
+    let inputs: Value = serde_json::from_str(INPUTS).unwrap();
+    let expected: Value = serde_json::from_str(EXPECTED).unwrap();
+    for mutation in 0..5 {
+        let mut changed = expected.clone();
+        match mutation {
+            0 => {
+                changed["cases"].as_array_mut().unwrap().pop();
+            }
+            1 => {
+                changed["cases"][1] = changed["cases"][0].clone();
+            }
+            2 => {
+                changed["cases"][0]["id"] = json!("unknown");
+            }
+            3 => {
+                changed["inputs_sha256"] = json!("changed");
+            }
+            _ => {
+                changed["cases"][0]["route"] = json!("wrong");
+            }
+        }
+        assert!(
+            std::panic::catch_unwind(|| validate_manifest(&inputs, &changed, INPUTS, 287)).is_err()
+        );
     }
 }

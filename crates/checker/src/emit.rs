@@ -503,7 +503,7 @@ impl EmitResolver for CheckerSession<'_> {
     }
 
     /// tsc-port: hasNodeCheckFlag @6.0.3
-    /// tsc-hash: 6d0f7c1b4a2e8d3c5b7a9f1e3d5c7b9a1f3e5d7c9b1a3f5e7d9c1b3a5f7e9d1c
+    /// tsc-hash: 9625b75cf4c5d68d752872a88e9af36590a50b9c8b9c4f2e5fb23f49446afe43
     /// tsc-span: _tsc.js:88127-88130
     /// The unchecked-source branch (calculateNodeCheckFlagWorker) runs
     /// before the links read; checked sources return immediately from it.
@@ -514,14 +514,14 @@ impl EmitResolver for CheckerSession<'_> {
     ) -> Result<bool, EmitResolverError> {
         self.with_resolver_node(EmitResolverMethod::HasNodeCheckFlag, node, |state, node| {
             let flag = tsc_types::NodeCheckFlags::from_bits(flag as i32);
-            state.calculate_node_check_flag_worker(node, flag);
+            state.calculate_node_check_flag_worker(node, flag)?;
             Ok(state.links.node(node).check_flags.intersects(flag))
         })
     }
 
-    /// tsc-port: markLinkedReferences (emitter) @6.0.3
-    /// tsc-hash: 0e7d5d8b0d1c6c1b4d0f0a2a5c3c3e0c3ad3a7a6b48e7a8f6a1d9d1a0f9b5e2c
-    /// tsc-span: _tsc.js:116736-116743
+    /// tsc-port: markLinkedReferences @6.0.3
+    /// tsc-hash: 3b99dce4b11fe63515ea8d8369e8f411cefeac7b3071b3e64de3a13cb9c5332f
+    /// tsc-span: _tsc.js:71662-71732
     fn mark_linked_references(
         &self,
         source: tsc_program::SourceFileId,

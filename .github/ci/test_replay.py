@@ -83,9 +83,9 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(plan["witnesses"], ["followup3", "printer", "literal-value-provenance", "comma-argument-factory"])
         self.assertEqual(len(replay.matrices(plan)["witnesses"]["include"]), 2)
 
-    def test_compiler_utf16_inputs_select_only_their_target_in_controls(self):
-        for suite in witness.COMPILER_UTF16:
-            for path in witness.compiler_utf16_inputs(suite):
+    def test_compiler_direct_inputs_select_only_their_target_in_controls(self):
+        for suite in witness.COMPILER_DIRECT:
+            for path in witness.compiler_direct_inputs(suite):
                 with self.subTest(suite=suite, path=path):
                     self.assertTrue((ROOT / path).is_file(), path)
                     plan = replay.selection([path])
@@ -95,7 +95,7 @@ class SelectionTests(unittest.TestCase):
                         "include": [{"group": "controls", "suites": [suite]}],
                     })
 
-    def test_compiler_utf16_union_and_shared_inputs_retain_other_owners(self):
+    def test_compiler_direct_union_and_shared_inputs_retain_other_owners(self):
         plan = replay.selection([
             "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json",
             "crates/compiler/tests/h2_8a_utf16_review_fix_controls.rs",
@@ -196,7 +196,7 @@ class WitnessTests(unittest.TestCase):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
             "followup3": 48, "retained": 530, "direct": 32, "printer": 70, "bundle-sinks": 10,
-            "declaration-map-cli": 8,
+            "declaration-map-cli": 8, "transpile-routes": 301,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,
             "class-header-token-metadata": 32, "comma-argument-factory": 519,
@@ -205,6 +205,19 @@ class WitnessTests(unittest.TestCase):
             "utf16-identity-recovery": 79, "utf16-review-fix": 25, "utf16-tagged-template": 16,
             "utf16-literal-witnesses": 64, "utf16-original-commands": 4,
         })
+
+    def test_transpile_runner_requires_all_nine_tests_after_both_oracles(self):
+        summary = "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        def fake_run(command, **kwargs):
+            return subprocess.CompletedProcess(command, 0, summary)
+        with patch.object(witness.subprocess, "run", side_effect=fake_run) as run:
+            witness.run_compiler_direct(["transpile-routes"])
+            self.assertEqual(run.call_args_list[0].args[0], ["node", "scripts/observe-transpile-routes.mjs", "--check"])
+            self.assertIn("transpile_routes_contract", run.call_args_list[-1].args[0])
+        for output in (summary.replace("9 passed", "5 passed"), summary.replace("9 passed", "0 passed"), summary.replace("0 ignored", "1 ignored")):
+            with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output)):
+                with self.assertRaises(ValueError):
+                    witness.run_compiler_direct(["transpile-routes"])
 
     def test_direct_catalog_rejects_missing_duplicate_and_empty_ids(self):
         for rows in ([], [{"case_id": "a"}] * 128, [{"case_id": ""}] * 128):
@@ -246,13 +259,13 @@ class WitnessTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 witness.emitter_command(suites)
 
-    def test_compiler_utf16_runner_batches_only_selected_targets_and_rejects_partial_success(self):
+    def test_compiler_direct_runner_batches_only_selected_targets_and_rejects_partial_success(self):
         selected = ["utf16-identity-recovery", "utf16-tagged-template"]
         summary = "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
         full = summary.replace("1 passed", "2 passed") + summary
         def run_with(output, status=0):
             with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], status, output)) as run:
-                witness.run_compiler_utf16(selected)
+                witness.run_compiler_direct(selected)
                 return run.call_args_list
         calls = run_with(full)
         self.assertEqual([call.args[0] for call in calls[:-1]], [
@@ -273,14 +286,14 @@ class WitnessTests(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             run_with(full, 101)
 
-    def test_compiler_utf16_observer_failure_stops_before_cargo(self):
+    def test_compiler_direct_observer_failure_stops_before_cargo(self):
         with patch.object(witness.subprocess, "run", side_effect=subprocess.CalledProcessError(1, ["node"])) as run:
             with self.assertRaises(subprocess.CalledProcessError):
-                witness.run_compiler_utf16(["utf16-review-fix"])
+                witness.run_compiler_direct(["utf16-review-fix"])
             self.assertEqual(run.call_count, 1)
         for suites in ([], ["printer"], ["utf16-review-fix"] * 2):
             with self.assertRaises(ValueError):
-                witness.compiler_utf16_command(suites)
+                witness.compiler_direct_command(suites)
 
     def test_literal_witnesses_keep_shared_helpers_and_qualification_owners(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
@@ -304,7 +317,7 @@ class WitnessTests(unittest.TestCase):
                     return subprocess.CompletedProcess(command, 0)
                 return subprocess.CompletedProcess(command, status, output if "--exact" in command else summary)
             with patch.object(witness.subprocess, "run", side_effect=result) as run:
-                witness.run_compiler_utf16(selected)
+                witness.run_compiler_direct(selected)
                 return run.call_args_list
         calls = run_with()
         self.assertEqual([call.args[0] for call in calls[:4]], [
@@ -326,27 +339,27 @@ class WitnessTests(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             run_with(status=101)
         with self.assertRaises(ValueError):
-            witness.compiler_utf16_command(selected)
+            witness.compiler_direct_command(selected)
 
     def test_literal_suite_clears_inherited_internal_case_selectors(self):
         poisoned = {"TSC_RS_UTF16_LITERAL_WITNESS_SET": "adjacent-probes",
                     "TSC_RS_UTF16_LITERAL_WITNESS_FILTER": "string-escape",
                     "CARGO_BUILD_JOBS": "2"}
-        for suite in witness.COMPILER_UTF16:
+        for suite in witness.COMPILER_DIRECT:
             _, env = witness.invocation(suite, [], poisoned)
             self.assertNotIn("TSC_RS_UTF16_LITERAL_WITNESS_SET", env)
             self.assertNotIn("TSC_RS_UTF16_LITERAL_WITNESS_FILTER", env)
         self.assertEqual(poisoned["TSC_RS_UTF16_LITERAL_WITNESS_SET"], "adjacent-probes")
 
-    def test_compiler_utf16_catalog_rejects_empty_duplicate_and_changed_memberships(self):
+    def test_compiler_direct_catalog_rejects_empty_duplicate_and_changed_memberships(self):
         for rows in ([], [{"id": "a"}] * 25, [{"id": ""}] * 25, [{"id": str(i)} for i in range(24)]):
             with patch.object(witness, "read_cases", return_value=rows):
                 with self.assertRaises(ValueError):
                     witness.case_ids("utf16-review-fix")
 
-    def test_compiler_utf16_list_and_dry_run_never_start_processes(self):
+    def test_compiler_direct_list_and_dry_run_never_start_processes(self):
         with patch.object(witness.subprocess, "run") as run:
-            for suite in witness.COMPILER_UTF16:
+            for suite in witness.COMPILER_DIRECT:
                 self.assertEqual(witness.main([suite, "--list"]), 0)
                 self.assertEqual(witness.main([suite, "--all", "--dry-run"]), 0)
             run.assert_not_called()
@@ -399,7 +412,7 @@ class WitnessTests(unittest.TestCase):
                 with self.assertRaises(SystemExit) as exit:
                     witness.main(argv)
                 self.assertEqual(exit.exception.code, 2)
-            for suite in witness.COMPILER_UTF16:
+            for suite in witness.COMPILER_DIRECT:
                 for argv in ([suite], [suite, "--case", witness.case_ids(suite)[0]]):
                     with self.assertRaises(SystemExit) as exit:
                         witness.main(argv)

@@ -1,0 +1,5262 @@
+{
+ "schema": "h2-8c-transpile-expected.v1",
+ "inputs_sha256": "0d7939d44396f120234b2abeb3407cd7f76a86b5647b03c731510e262440a833",
+ "typescript": {
+  "version": "6.0.3",
+  "bundle": "vendor/typescript-6.0.3/lib/typescript.js",
+  "bundle_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+ },
+ "node": "v25.2.1",
+ "case_count": 14,
+ "repeat_state_separation": [],
+ "cases": [
+  {
+   "id": "h2-8c/review/filename/dot",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 488,
+     "utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpjb25zdCBqc3hfZGV2X3J1bnRpbWVfMSA9IHJlcXVpcmUoInByZWFjdC9qc3gtZGV2LXJ1bnRpbWUiKTsKY29uc3QgX2pzeEZpbGVOYW1lID0gInNyYy9hLnRzeCI7CmNvbnN0IGVsID0gKDAsIGpzeF9kZXZfcnVudGltZV8xLmpzeERFVikoImRpdiIsIHsgY2xhc3NOYW1lOiAiYSIsIGNoaWxkcmVuOiBbMSArIDEsICgwLCBqc3hfZGV2X3J1bnRpbWVfMS5qc3hERVYpKCJzcGFuIiwge30sIHZvaWQgMCwgZmFsc2UsIHsgZmlsZU5hbWU6IF9qc3hGaWxlTmFtZSwgbGluZU51bWJlcjogMSwgY29sdW1uTnVtYmVyOiAzOCB9LCB0aGlzKV0gfSwgdm9pZCAwLCB0cnVlLCB7IGZpbGVOYW1lOiBfanN4RmlsZU5hbWUsIGxpbmVOdW1iZXI6IDEsIGNvbHVtbk51bWJlcjogMTIgfSwgdGhpcyk7CmV4cG9ydHMuZGVmYXVsdCA9IGVsOwo=",
+     "utf8_sha256": "23ef0616186e7188bf2bfbca848ea17b7d088ae1bd94a538cfb8d17b8444ad4d"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "./src/a.tsx",
+    "implied_node_format": null,
+    "script_kind": "TSX",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 5,
+     "jsxImportSource": "preact",
+     "lib": null,
+     "module": 1,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "src/a.tsx"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "src/a.tsx"
+      ],
+      [
+       "directoryExists",
+       "src"
+      ],
+      [
+       "fileExists",
+       "src/package.json"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.ts"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.tsx"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.ts"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.tsx"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.ts"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.tsx"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.ts"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.tsx"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.js"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.jsx"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.js"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.jsx"
+      ],
+      [
+       "directoryExists",
+       "node_modules"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.js"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.jsx"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.js"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.jsx"
+      ],
+      [
+       "writeFile",
+       "src/a.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/filename/parent",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 488,
+     "utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpjb25zdCBqc3hfZGV2X3J1bnRpbWVfMSA9IHJlcXVpcmUoInByZWFjdC9qc3gtZGV2LXJ1bnRpbWUiKTsKY29uc3QgX2pzeEZpbGVOYW1lID0gInNyYy9hLnRzeCI7CmNvbnN0IGVsID0gKDAsIGpzeF9kZXZfcnVudGltZV8xLmpzeERFVikoImRpdiIsIHsgY2xhc3NOYW1lOiAiYSIsIGNoaWxkcmVuOiBbMSArIDEsICgwLCBqc3hfZGV2X3J1bnRpbWVfMS5qc3hERVYpKCJzcGFuIiwge30sIHZvaWQgMCwgZmFsc2UsIHsgZmlsZU5hbWU6IF9qc3hGaWxlTmFtZSwgbGluZU51bWJlcjogMSwgY29sdW1uTnVtYmVyOiAzOCB9LCB0aGlzKV0gfSwgdm9pZCAwLCB0cnVlLCB7IGZpbGVOYW1lOiBfanN4RmlsZU5hbWUsIGxpbmVOdW1iZXI6IDEsIGNvbHVtbk51bWJlcjogMTIgfSwgdGhpcyk7CmV4cG9ydHMuZGVmYXVsdCA9IGVsOwo=",
+     "utf8_sha256": "23ef0616186e7188bf2bfbca848ea17b7d088ae1bd94a538cfb8d17b8444ad4d"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "src/deep/../a.tsx",
+    "implied_node_format": null,
+    "script_kind": "TSX",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 5,
+     "jsxImportSource": "preact",
+     "lib": null,
+     "module": 1,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "src/a.tsx"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "src/a.tsx"
+      ],
+      [
+       "directoryExists",
+       "src"
+      ],
+      [
+       "fileExists",
+       "src/package.json"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.ts"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.tsx"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.ts"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.tsx"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.ts"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.tsx"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.ts"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.tsx"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.js"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.jsx"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.js"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.jsx"
+      ],
+      [
+       "directoryExists",
+       "node_modules"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.js"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.jsx"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.js"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.jsx"
+      ],
+      [
+       "writeFile",
+       "src/a.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/filename/backslash",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 488,
+     "utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpjb25zdCBqc3hfZGV2X3J1bnRpbWVfMSA9IHJlcXVpcmUoInByZWFjdC9qc3gtZGV2LXJ1bnRpbWUiKTsKY29uc3QgX2pzeEZpbGVOYW1lID0gInNyYy9hLnRzeCI7CmNvbnN0IGVsID0gKDAsIGpzeF9kZXZfcnVudGltZV8xLmpzeERFVikoImRpdiIsIHsgY2xhc3NOYW1lOiAiYSIsIGNoaWxkcmVuOiBbMSArIDEsICgwLCBqc3hfZGV2X3J1bnRpbWVfMS5qc3hERVYpKCJzcGFuIiwge30sIHZvaWQgMCwgZmFsc2UsIHsgZmlsZU5hbWU6IF9qc3hGaWxlTmFtZSwgbGluZU51bWJlcjogMSwgY29sdW1uTnVtYmVyOiAzOCB9LCB0aGlzKV0gfSwgdm9pZCAwLCB0cnVlLCB7IGZpbGVOYW1lOiBfanN4RmlsZU5hbWUsIGxpbmVOdW1iZXI6IDEsIGNvbHVtbk51bWJlcjogMTIgfSwgdGhpcyk7CmV4cG9ydHMuZGVmYXVsdCA9IGVsOwo=",
+     "utf8_sha256": "23ef0616186e7188bf2bfbca848ea17b7d088ae1bd94a538cfb8d17b8444ad4d"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "src\\a.tsx",
+    "implied_node_format": null,
+    "script_kind": "TSX",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 5,
+     "jsxImportSource": "preact",
+     "lib": null,
+     "module": 1,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "src/a.tsx"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "src/a.tsx"
+      ],
+      [
+       "directoryExists",
+       "src"
+      ],
+      [
+       "fileExists",
+       "src/package.json"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.ts"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.tsx"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.ts"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.tsx"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/@types/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.ts"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.tsx"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.ts"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.tsx"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/jsx-dev-runtime/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/package.json"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/jsx-dev-runtime.d.ts"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "node_modules/@types/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/@types/preact/jsx-dev-runtime/index.d.ts"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.js"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime.jsx"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "src/node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.js"
+      ],
+      [
+       "fileExists",
+       "src/node_modules/preact/jsx-dev-runtime/index.jsx"
+      ],
+      [
+       "directoryExists",
+       "node_modules"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.js"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime.jsx"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "directoryExists",
+       "node_modules/preact/jsx-dev-runtime"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.js"
+      ],
+      [
+       "fileExists",
+       "node_modules/preact/jsx-dev-runtime/index.jsx"
+      ],
+      [
+       "writeFile",
+       "src/a.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/filename/module-name",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 203,
+     "utf8_base64": "ZGVmaW5lKCJteS9tb2QiLCBbInJlcXVpcmUiLCAiZXhwb3J0cyJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cykgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMuYSA9IHZvaWQgMDsKICAgIGV4cG9ydHMuYSA9IDE7Cn0pOwo=",
+     "utf8_sha256": "a4edc2986dc165b5320be30a6436d0d894aa7970d77acefca40f93ea61a04768"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "./src/a.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 2,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [
+     {
+      "code": 5107,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+      "related_information": null
+     }
+    ],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "src/a.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "src/a.ts"
+      ],
+      [
+       "writeFile",
+       "src/a.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/filename/renamed",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 179,
+     "utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnkgPSB2b2lkIDA7CmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vcmVuYW1lZC1hIik7CnJlcXVpcmUoIi4vcmVuYW1lZC1zaWRlIik7CmV4cG9ydHMueSA9IGFfMS54Owo=",
+     "utf8_sha256": "dee6664e5dfba0b292873c55d01d85019384e5a0ef67e0eb107385d3712d737f"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "./src/a.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 1,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "src/a.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "src/a.ts"
+      ],
+      [
+       "directoryExists",
+       "src"
+      ],
+      [
+       "directoryExists",
+       "src"
+      ],
+      [
+       "fileExists",
+       "src/a.ts"
+      ],
+      [
+       "fileExists",
+       "src/a.tsx"
+      ],
+      [
+       "fileExists",
+       "src/a.d.ts"
+      ],
+      [
+       "fileExists",
+       "src/a.js"
+      ],
+      [
+       "fileExists",
+       "src/a.jsx"
+      ],
+      [
+       "directoryExists",
+       "src/a"
+      ],
+      [
+       "directoryExists",
+       "src/a"
+      ],
+      [
+       "fileExists",
+       "src/a/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/a"
+      ],
+      [
+       "directoryExists",
+       "src/a"
+      ],
+      [
+       "fileExists",
+       "src/a/index.ts"
+      ],
+      [
+       "fileExists",
+       "src/a/index.tsx"
+      ],
+      [
+       "fileExists",
+       "src/a/index.d.ts"
+      ],
+      [
+       "fileExists",
+       "src/a/index.js"
+      ],
+      [
+       "fileExists",
+       "src/a/index.jsx"
+      ],
+      [
+       "directoryExists",
+       "src"
+      ],
+      [
+       "directoryExists",
+       "src"
+      ],
+      [
+       "fileExists",
+       "src/side.ts"
+      ],
+      [
+       "fileExists",
+       "src/side.tsx"
+      ],
+      [
+       "fileExists",
+       "src/side.d.ts"
+      ],
+      [
+       "fileExists",
+       "src/side.js"
+      ],
+      [
+       "fileExists",
+       "src/side.jsx"
+      ],
+      [
+       "directoryExists",
+       "src/side"
+      ],
+      [
+       "directoryExists",
+       "src/side"
+      ],
+      [
+       "fileExists",
+       "src/side/package.json"
+      ],
+      [
+       "directoryExists",
+       "src/side"
+      ],
+      [
+       "directoryExists",
+       "src/side"
+      ],
+      [
+       "fileExists",
+       "src/side/index.ts"
+      ],
+      [
+       "fileExists",
+       "src/side/index.tsx"
+      ],
+      [
+       "fileExists",
+       "src/side/index.d.ts"
+      ],
+      [
+       "fileExists",
+       "src/side/index.js"
+      ],
+      [
+       "fileExists",
+       "src/side/index.jsx"
+      ],
+      [
+       "writeFile",
+       "src/a.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/filename/jsdoc",
+   "route": "transpile-dts",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 98,
+     "utf8_base64": "LyoqIEBwYXJhbSB7c3RyaW5nfSBzICovCmV4cG9ydCBmdW5jdGlvbiBmKHM6IGFueSk6IGFueTsKLyoqIEB0eXBlIHtudW1iZXJ9ICovCmV4cG9ydCBjb25zdCBhOiAxOwo=",
+     "utf8_sha256": "2e417613b00de379ff827453d209668a04aa2fa7b835e29b4d0fd9b32f370da2"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "./src/a.js",
+    "implied_node_format": null,
+    "script_kind": "JS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowJs": true,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": true,
+     "declarationDir": null,
+     "emitDeclarationOnly": true,
+     "incremental": null,
+     "isolatedDeclarations": true,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": false,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [
+     {
+      "code": 5053,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Option 'allowJs' cannot be specified with option 'isolatedDeclarations'.",
+      "related_information": null
+     }
+    ],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "lib.d.ts",
+     "src/a.js"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "src/a.js"
+      ],
+      [
+       "getSourceFile",
+       "lib.d.ts"
+      ],
+      [
+       "writeFile",
+       "src/a.d.ts"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": true
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/utf16/module-name-high",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 205,
+     "utf8_base64": "ZGVmaW5lKCJtL1x1RDgwMCIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hID0gdm9pZCAwOwogICAgZXhwb3J0cy5hID0gMTsKfSk7Cg==",
+     "utf8_sha256": "618264a7a49bf6fe4c15549c18734b393a70e9cd8a52cc15d2435db4d06753f6"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 2,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [
+     {
+      "code": 5107,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+      "related_information": null
+     }
+    ],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "writeFile",
+       "module.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/utf16/renamed-high",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 168,
+     "utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnkgPSB2b2lkIDA7CmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vXHVEODAwIik7CnJlcXVpcmUoIi4vc2lkZSIpOwpleHBvcnRzLnkgPSBhXzEueDsK",
+     "utf8_sha256": "dfce608b9dd68090da298b18808deb333ceea09f82b9657885ed2e78419aef05"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 1,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "a.ts"
+      ],
+      [
+       "fileExists",
+       "a.tsx"
+      ],
+      [
+       "fileExists",
+       "a.d.ts"
+      ],
+      [
+       "fileExists",
+       "a.js"
+      ],
+      [
+       "fileExists",
+       "a.jsx"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "fileExists",
+       "a/package.json"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "fileExists",
+       "a/index.ts"
+      ],
+      [
+       "fileExists",
+       "a/index.tsx"
+      ],
+      [
+       "fileExists",
+       "a/index.d.ts"
+      ],
+      [
+       "fileExists",
+       "a/index.js"
+      ],
+      [
+       "fileExists",
+       "a/index.jsx"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "side.ts"
+      ],
+      [
+       "fileExists",
+       "side.tsx"
+      ],
+      [
+       "fileExists",
+       "side.d.ts"
+      ],
+      [
+       "fileExists",
+       "side.js"
+      ],
+      [
+       "fileExists",
+       "side.jsx"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "fileExists",
+       "side/package.json"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "fileExists",
+       "side/index.ts"
+      ],
+      [
+       "fileExists",
+       "side/index.tsx"
+      ],
+      [
+       "fileExists",
+       "side/index.d.ts"
+      ],
+      [
+       "fileExists",
+       "side/index.js"
+      ],
+      [
+       "fileExists",
+       "side/index.jsx"
+      ],
+      [
+       "writeFile",
+       "module.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/utf16/module-name-low",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 205,
+     "utf8_base64": "ZGVmaW5lKCJtL1x1REMwMCIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hID0gdm9pZCAwOwogICAgZXhwb3J0cy5hID0gMTsKfSk7Cg==",
+     "utf8_sha256": "b2fdda8051754db365b76d622d1c346ba78be2f97acd64cde1d675d138bbd624"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 2,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [
+     {
+      "code": 5107,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+      "related_information": null
+     }
+    ],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "writeFile",
+       "module.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/utf16/renamed-low",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 168,
+     "utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnkgPSB2b2lkIDA7CmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vXHVEQzAwIik7CnJlcXVpcmUoIi4vc2lkZSIpOwpleHBvcnRzLnkgPSBhXzEueDsK",
+     "utf8_sha256": "b08e8d2b8ecbff8d30976d24c743ff43c22e793646c69d4c17e815cbdb7ec395"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 1,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "a.ts"
+      ],
+      [
+       "fileExists",
+       "a.tsx"
+      ],
+      [
+       "fileExists",
+       "a.d.ts"
+      ],
+      [
+       "fileExists",
+       "a.js"
+      ],
+      [
+       "fileExists",
+       "a.jsx"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "fileExists",
+       "a/package.json"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "fileExists",
+       "a/index.ts"
+      ],
+      [
+       "fileExists",
+       "a/index.tsx"
+      ],
+      [
+       "fileExists",
+       "a/index.d.ts"
+      ],
+      [
+       "fileExists",
+       "a/index.js"
+      ],
+      [
+       "fileExists",
+       "a/index.jsx"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "side.ts"
+      ],
+      [
+       "fileExists",
+       "side.tsx"
+      ],
+      [
+       "fileExists",
+       "side.d.ts"
+      ],
+      [
+       "fileExists",
+       "side.js"
+      ],
+      [
+       "fileExists",
+       "side.jsx"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "fileExists",
+       "side/package.json"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "fileExists",
+       "side/index.ts"
+      ],
+      [
+       "fileExists",
+       "side/index.tsx"
+      ],
+      [
+       "fileExists",
+       "side/index.d.ts"
+      ],
+      [
+       "fileExists",
+       "side/index.js"
+      ],
+      [
+       "fileExists",
+       "side/index.jsx"
+      ],
+      [
+       "writeFile",
+       "module.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/utf16/module-name-pair",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 211,
+     "utf8_base64": "ZGVmaW5lKCJtL1x1RDgzRFx1REUwMCIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hID0gdm9pZCAwOwogICAgZXhwb3J0cy5hID0gMTsKfSk7Cg==",
+     "utf8_sha256": "14f6887bb6f8370367df95b51ffd52fd6feda4df4e00d921b9a1504257834c00"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 2,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [
+     {
+      "code": 5107,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+      "related_information": null
+     }
+    ],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "writeFile",
+       "module.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/utf16/renamed-pair",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 174,
+     "utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnkgPSB2b2lkIDA7CmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vXHVEODNEXHVERTAwIik7CnJlcXVpcmUoIi4vc2lkZSIpOwpleHBvcnRzLnkgPSBhXzEueDsK",
+     "utf8_sha256": "8cf5a67bdc6f6b993b9f40b44bfedf151e187b08ea39c01f4c879d6856d1fa8d"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 1,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "a.ts"
+      ],
+      [
+       "fileExists",
+       "a.tsx"
+      ],
+      [
+       "fileExists",
+       "a.d.ts"
+      ],
+      [
+       "fileExists",
+       "a.js"
+      ],
+      [
+       "fileExists",
+       "a.jsx"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "fileExists",
+       "a/package.json"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "fileExists",
+       "a/index.ts"
+      ],
+      [
+       "fileExists",
+       "a/index.tsx"
+      ],
+      [
+       "fileExists",
+       "a/index.d.ts"
+      ],
+      [
+       "fileExists",
+       "a/index.js"
+      ],
+      [
+       "fileExists",
+       "a/index.jsx"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "side.ts"
+      ],
+      [
+       "fileExists",
+       "side.tsx"
+      ],
+      [
+       "fileExists",
+       "side.d.ts"
+      ],
+      [
+       "fileExists",
+       "side.js"
+      ],
+      [
+       "fileExists",
+       "side.jsx"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "fileExists",
+       "side/package.json"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "fileExists",
+       "side/index.ts"
+      ],
+      [
+       "fileExists",
+       "side/index.tsx"
+      ],
+      [
+       "fileExists",
+       "side/index.d.ts"
+      ],
+      [
+       "fileExists",
+       "side/index.js"
+      ],
+      [
+       "fileExists",
+       "side/index.jsx"
+      ],
+      [
+       "writeFile",
+       "module.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/utf16/renamed-key",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 142,
+     "utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnkgPSB2b2lkIDA7CmNvbnN0IF8xID0gcmVxdWlyZSgiLi9yIik7CmV4cG9ydHMueSA9IF8xLng7Cg==",
+     "utf8_sha256": "0ed054161db783e5c88bd188f1ec466b9e2f90e5137353617598ab6b246abf97"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 1,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         46,
+         116,
+         115
+        ]
+       }
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         46,
+         116,
+         115,
+         120
+        ]
+       }
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         46,
+         100,
+         46,
+         116,
+         115
+        ]
+       }
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         46,
+         106,
+         115
+        ]
+       }
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         46,
+         106,
+         115,
+         120
+        ]
+       }
+      ],
+      [
+       "directoryExists",
+       {
+        "utf16": [
+         55296
+        ]
+       }
+      ],
+      [
+       "directoryExists",
+       {
+        "utf16": [
+         55296
+        ]
+       }
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         47,
+         112,
+         97,
+         99,
+         107,
+         97,
+         103,
+         101,
+         46,
+         106,
+         115,
+         111,
+         110
+        ]
+       }
+      ],
+      [
+       "directoryExists",
+       {
+        "utf16": [
+         55296
+        ]
+       }
+      ],
+      [
+       "directoryExists",
+       {
+        "utf16": [
+         55296
+        ]
+       }
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         47,
+         105,
+         110,
+         100,
+         101,
+         120,
+         46,
+         116,
+         115
+        ]
+       }
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         47,
+         105,
+         110,
+         100,
+         101,
+         120,
+         46,
+         116,
+         115,
+         120
+        ]
+       }
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         47,
+         105,
+         110,
+         100,
+         101,
+         120,
+         46,
+         100,
+         46,
+         116,
+         115
+        ]
+       }
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         47,
+         105,
+         110,
+         100,
+         101,
+         120,
+         46,
+         106,
+         115
+        ]
+       }
+      ],
+      [
+       "fileExists",
+       {
+        "utf16": [
+         55296,
+         47,
+         105,
+         110,
+         100,
+         101,
+         120,
+         46,
+         106,
+         115,
+         120
+        ]
+       }
+      ],
+      [
+       "writeFile",
+       "module.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/review/renamed/empty-ignored",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 163,
+     "utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnkgPSB2b2lkIDA7CmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOwpyZXF1aXJlKCIuL3NpZGUiKTsKZXhwb3J0cy55ID0gYV8xLng7Cg==",
+     "utf8_sha256": "881322ddb10820c9fbdb8fcceb8772839daba91297b9519ea9e5044776ed622d"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": false,
+     "utf16_units": null,
+     "utf8_base64": null,
+     "utf8_sha256": null
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 1,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 12,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": null
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "a.ts"
+      ],
+      [
+       "fileExists",
+       "a.tsx"
+      ],
+      [
+       "fileExists",
+       "a.d.ts"
+      ],
+      [
+       "fileExists",
+       "a.js"
+      ],
+      [
+       "fileExists",
+       "a.jsx"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "fileExists",
+       "a/package.json"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "directoryExists",
+       "a"
+      ],
+      [
+       "fileExists",
+       "a/index.ts"
+      ],
+      [
+       "fileExists",
+       "a/index.tsx"
+      ],
+      [
+       "fileExists",
+       "a/index.d.ts"
+      ],
+      [
+       "fileExists",
+       "a/index.js"
+      ],
+      [
+       "fileExists",
+       "a/index.jsx"
+      ],
+      [
+       "directoryExists",
+       ""
+      ],
+      [
+       "fileExists",
+       "side.ts"
+      ],
+      [
+       "fileExists",
+       "side.tsx"
+      ],
+      [
+       "fileExists",
+       "side.d.ts"
+      ],
+      [
+       "fileExists",
+       "side.js"
+      ],
+      [
+       "fileExists",
+       "side.jsx"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "fileExists",
+       "side/package.json"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "directoryExists",
+       "side"
+      ],
+      [
+       "fileExists",
+       "side/index.ts"
+      ],
+      [
+       "fileExists",
+       "side/index.tsx"
+      ],
+      [
+       "fileExists",
+       "side/index.d.ts"
+      ],
+      [
+       "fileExists",
+       "side/index.js"
+      ],
+      [
+       "fileExists",
+       "side/index.jsx"
+      ],
+      [
+       "writeFile",
+       "module.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  }
+ ]
+}

@@ -2211,7 +2211,10 @@ impl Printer {
             return Ok(());
         }
         if let Some(module_name) = &source.module_name {
-            writer.write_comment(&format!("/// <amd-module name=\"{module_name}\" />"));
+            let mut comment = tsc_diagnostics::JsString::from("/// <amd-module name=\"");
+            comment.push_js(module_name.as_js());
+            comment.push_str("\" />");
+            writer.write_comment_utf16(&comment.to_utf16());
             writer.write_line(false);
         }
         for dependency in &source.amd_dependencies {

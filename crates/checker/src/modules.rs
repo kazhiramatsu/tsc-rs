@@ -1196,9 +1196,9 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: markLinkedReferences (Unspecified hint) @6.0.3
-    /// tsc-hash: 9d3f5a7e1c2b4d6f8a0c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f
-    /// tsc-span: _tsc.js:71662-71731
+    /// tsc-port: markLinkedReferences @6.0.3
+    /// tsc-hash: 3b99dce4b11fe63515ea8d8369e8f411cefeac7b3071b3e64de3a13cb9c5332f
+    /// tsc-span: _tsc.js:71662-71732
     ///
     /// The emitter walks an unchecked source (noCheck or a file excluded by
     /// canIncludeBindAndCheckDiagnostics) and calls this front door for
@@ -1385,7 +1385,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: markAsyncFunctionAliasReferenced @6.0.3
-    /// tsc-hash: 5b1c7d9e3f1a5c7e9b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e
+    /// tsc-hash: a9ab88c572baf7efb5904eb94595de4c3316c636d7b18b0c3218c54e6c38d08e
     /// tsc-span: _tsc.js:71828-71835
     fn mark_async_function_alias_referenced(&mut self, location: NodeId) -> CheckResult<()> {
         if self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2015 {

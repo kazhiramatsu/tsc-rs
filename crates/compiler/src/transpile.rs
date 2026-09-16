@@ -1,8 +1,8 @@
 //! H2.8c research prototype: `transpileModule` / `transpileDeclaration`.
 //!
 //! tsc-port: transpileWorker @6.0.3
-//! tsc-span: typescript.js:145985-146152 (transpileModule, transpileDeclaration,
-//! transpileWorker, fixupCompilerOptions)
+//! tsc-hash: 15cd02923bfe29ddb59ffdd59213aaafcd0ae77fabf6d97b87c2b82ee21a17ed
+//! tsc-span: typescript.js:146022-146132
 //!
 //! The pinned TypeScript reaches both public APIs through one worker: it
 //! fixes up enum-typed option strings, applies the transpile defaults and
@@ -160,7 +160,9 @@ impl std::fmt::Display for TranspileError {
 
 impl std::error::Error for TranspileError {}
 
-/// tsc-port: transpileModule @6.0.3 (typescript.js:145985-145992)
+/// tsc-port: transpileModule @6.0.3
+/// tsc-hash: 5be8c9ca2ef415ec3a3d1c814585a44abb6c1c3ce96a52f910ddc132d19b86aa
+/// tsc-span: typescript.js:145985-145992
 pub fn transpile_module(
     input: &str,
     options: &TranspileOptions,
@@ -168,7 +170,9 @@ pub fn transpile_module(
     transpile_worker(input, options, false)
 }
 
-/// tsc-port: transpileDeclaration @6.0.3 (typescript.js:145993-146000)
+/// tsc-port: transpileDeclaration @6.0.3
+/// tsc-hash: 9814448d999703d6fe2557710c5cfe4a13a830b9d68768be3e3ec1bc40ddc1a1
+/// tsc-span: typescript.js:145993-146000
 pub fn transpile_declaration(
     input: &str,
     options: &TranspileOptions,
@@ -199,7 +203,9 @@ pub const FORCED_UNDEFINED_OPTIONS: [&str; 15] = [
     "declarationDir",
 ];
 
-/// tsc-port: transpileWorker @6.0.3 (typescript.js:146022-146133)
+/// tsc-port: transpileWorker @6.0.3
+/// tsc-hash: 15cd02923bfe29ddb59ffdd59213aaafcd0ae77fabf6d97b87c2b82ee21a17ed
+/// tsc-span: typescript.js:146022-146132
 fn transpile_worker(
     input: &str,
     transpile_options: &TranspileOptions,
@@ -243,9 +249,8 @@ fn transpile_worker(
     options.out = None;
     options.no_emit_on_error = None;
     options.declaration_dir = None;
-    // suppressOutputPathCheck / allowNonTsExtensions have no typed Rust
-    // field; the loader's root admission stands in for the latter (see
-    // `allow_js` below).
+    // suppressOutputPathCheck is selected by the emit route. The internal
+    // allowNonTsExtensions option is set before loading the single root.
     if declaration {
         options.declaration = Some(true);
         options.emit_declaration_only = Some(true);
@@ -279,7 +284,8 @@ fn transpile_worker(
                 "module.ts"
             })
         });
-    let input_file_name_text = input_file_name
+    let normalized_file_name = tsc_program::normalize_path(input_file_name.as_js());
+    let input_file_name_text = normalized_file_name
         .as_str()
         .ok_or_else(|| TranspileError::UnsupportedOptionValue {
             name: JsString::from("fileName"),
@@ -351,13 +357,9 @@ fn transpile_worker(
     // sourceFile.fileName / moduleName / renamedDependencies /
     // jsDocParsingMode (146090-146104) are assigned to the created input
     // SourceFile; the barebones lib keeps its defaults.
-    let root_id = prepared
-        .source_files()
-        .iter()
-        .find(|source| source.path().display() == root_path.as_str())
-        .and_then(|source| prepared.source_id(source.path().canonical()));
+    let root_id = prepared.roots().first().and_then(|root| root.source());
     let facts = SourceApiFacts {
-        file_name: Some(input_file_name.clone()),
+        file_name: Some(normalized_file_name),
         // `if (transpileOptions.moduleName)`: the empty string is falsy.
         module_name: transpile_options
             .module_name
@@ -484,7 +486,9 @@ fn project_diagnostic(
     projected
 }
 
-/// tsc-port: fixupCompilerOptions @6.0.3 (typescript.js:146143-146160)
+/// tsc-port: fixupCompilerOptions @6.0.3
+/// tsc-hash: 60647892c006801252dcdd247b97c3f01bc09e50af098063ae2b2bc48f244287
+/// tsc-span: typescript.js:146139-146156
 ///
 /// Enum-typed options given as strings are parsed with TS6046 on failure;
 /// enum-typed numbers outside the map also report TS6046 (and keep their
@@ -537,7 +541,8 @@ pub fn fixup_compiler_options(
 }
 
 /// tsc-port: createCompilerDiagnosticForInvalidCustomType @6.0.3
-/// tsc-span: _tsc.js:37988-37997
+/// tsc-hash: 0330bc27d0b2048dfce2f80180bea27e78fe227e4058973da720817d033fcde3
+/// tsc-span: typescript.js:42338-42340
 fn invalid_custom_type(name: &str) -> Diagnostic {
     let choices = compiler_option_named_choices(name).unwrap_or_default();
     Diagnostic::new(

@@ -268,7 +268,7 @@ fn bundle_shape(result: &TransformationResult<'_>, bundle: &TransformBundle) -> 
         let NodeData::SourceFile(data) = &arena.node(root).unwrap().data else {panic!("source")};
         let array = arena.node_array(TransformNodeArray::new(source, data.statements.unwrap())).unwrap();
         json!({"file_name":scalar_json(&syntax.file_name),"is_declaration_file":syntax.is_declaration_file,
-            "module_name":syntax.module_name,"has_no_default_lib":arena.source(source).unwrap().updated_has_no_default_lib(),
+            "module_name":scalar_json(&syntax.module_name),"has_no_default_lib":arena.source(source).unwrap().updated_has_no_default_lib(),
             "referenced_files":syntax.referenced_files.iter().map(reference).collect::<Vec<_>>(),
             "type_reference_directives":syntax.type_reference_directives.iter().map(type_reference).collect::<Vec<_>>(),
             "lib_reference_directives":syntax.lib_reference_directives.iter().map(reference).collect::<Vec<_>>(),

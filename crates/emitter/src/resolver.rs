@@ -770,9 +770,9 @@ pub trait EmitResolver {
     /// transform: the emitter-side `markLinkedReferences(file)` walk
     /// (skipping non-exported import-equals and import declarations) over the
     /// checker's `markLinkedReferences(node, Unspecified)` front door.
-    /// tsc-port: markLinkedReferences (emitter) @6.0.3
-    /// tsc-hash: 0e7d5d8b0d1c6c1b4d0f0a2a5c3c3e0c3ad3a7a6b48e7a8f6a1d9d1a0f9b5e2c
-    /// tsc-span: _tsc.js:116736-116743
+    /// tsc-port: markLinkedReferences @6.0.3
+    /// tsc-hash: 3b99dce4b11fe63515ea8d8369e8f411cefeac7b3071b3e64de3a13cb9c5332f
+    /// tsc-span: _tsc.js:71662-71732
     fn mark_linked_references(&self, source: SourceFileId) -> Result<(), EmitResolverError> {
         Err(EmitResolverError::UnavailableForSource {
             method: EmitResolverMethod::MarkLinkedReferences,
