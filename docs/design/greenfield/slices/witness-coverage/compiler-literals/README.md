@@ -71,3 +71,12 @@ v5は64 standalone中21 unfiltered / 7 filtered / 36直接入口なし。
   baseとbyte単位で同一。実行後にrunnerのsourceを変更していない。
 - hostedの結果とcontrols全体の時間はPRで確認する。
 製品のruntime admission、H2全体のqualification、既存lint/strict test債務の解消はこの入口追加のclaimに含めない。
+
+## Hosted と統合
+
+[PR #534](https://github.com/kazhiramatsu/tsc-rs/pull/534) は head `99a1739c3d0f231903309f6053ac6a701dca670b` で
+acceptance3 job・witness4 job・両gateが成功し、merge commit で統合した。
+[受領記録](hosted.v1.json)と[compiler実行ログ](hosted-compiler-literals.log)を保存。
+controls全体452秒、compiler5 target / 6 tests、observer49.375秒、Cargo74.546秒。
+追加literal64行は各2回一致（1 pass / 9 filtered）、original4行も各2回一致した。
+wide acceptanceは1659秒、7 replay jobsの合計は4906秒。

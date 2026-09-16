@@ -1,5 +1,7 @@
 # H2.8c 隔離 prototype：段階 B ＋ 段階 C producer の結果報告
 
+受領時の報告。統合担当の再現・修正・最終検証は [INTEGRATION.md](INTEGRATION.md) を参照。
+
 作成日：2026-09-16（同日、段階 C producer まで続行）。base `526c2b37ad9d0ff7e932e1d76e658b8cf139807f`（origin/main、PR #527 含む）。
 設計は [DESIGN.md](DESIGN.md)。本報告は H2.8c の runtime activation を報告するものではない（§5）。
 
