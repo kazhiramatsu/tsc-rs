@@ -32,6 +32,7 @@ struct OpConfig {
     index: usize,
     fault: Option<(String, u16, u32)>,
     substitution: Option<(u16, u32, String)>,
+    substitution_hint: Option<String>,
 }
 
 #[derive(Default)]
@@ -56,6 +57,9 @@ fn kind_from_number(kind: u64) -> SyntaxKind {
         SyntaxKind::Identifier,
         SyntaxKind::ExpressionStatement,
         SyntaxKind::VariableStatement,
+        SyntaxKind::VariableDeclarationList,
+        SyntaxKind::VariableDeclaration,
+        SyntaxKind::CallExpression,
         SyntaxKind::Block,
         SyntaxKind::SourceFile,
     ]
@@ -138,7 +142,16 @@ impl Transformer for FailingHooks {
         let kind = context.arena().node(node)?.kind as u16;
         let replacement = self.state.borrow().config.substitution.clone();
         if let Some((substitute_kind, substitute_occurrence, _)) = replacement {
-            if substitute_kind == kind && substitute_occurrence == occurrence {
+            if substitute_kind == kind
+                && substitute_occurrence == occurrence
+                && self
+                    .state
+                    .borrow()
+                    .config
+                    .substitution_hint
+                    .as_ref()
+                    .is_none_or(|expected| expected == &format!("{hint:?}"))
+            {
                 return Ok(self
                     .state
                     .borrow()
@@ -467,6 +480,7 @@ fn replay(case: &serde_json::Value) -> serde_json::Value {
                         substitution["replacement"].as_str().unwrap().to_owned(),
                     )
                 }),
+                substitution_hint: op["substitution"]["hint"].as_str().map(str::to_owned),
             };
             state.counts.clear();
         }
@@ -850,6 +864,7 @@ fn rust_only_typed_errors_keep_the_printer_usable() {
         index: 1,
         fault: None,
         substitution: Some((SyntaxKind::ExpressionStatement as u16, 1, "y".to_owned())),
+        substitution_hint: None,
     };
     let error = printer
         .print(&mut transformation, PrintRequest::SourceFile(source), None)
@@ -951,45 +966,20 @@ fn comment_containers_match_across_sources() {
         .unwrap();
     }
     println!(
-        "COMMENT CARRY exact {exact}/{}; 24/24 operation results exact; 4 pinned hook-hint gaps",
+        "COMMENT CARRY exact {exact}/{}; complete operation results and hook events",
         cases.len()
     );
-    assert_eq!(exact, 20);
+    assert_eq!(exact, 24);
 }
 
-/// The declaration cases expose an existing binding-name EmitHint difference.
-/// Pin every native event from the unmodified base; an event key alone must
-/// never permit a wider callback-order or position regression. All operation
-/// results still have to match TypeScript exactly. These four rows receive no
-/// complete-exact credit (API1.2-HINT).
+/// API1.2-HINT closes the four declaration-name gaps against the unchanged
+/// TypeScript fixture. Both events and operation results must match exactly.
 fn assert_comment_carry(case: &serde_json::Value, actual: &serde_json::Value) -> bool {
     let id = case["case_id"].as_str().unwrap();
     let found = compare(id, &case["typescript_observation"], actual);
-    let known: serde_json::Value = serde_json::from_slice(include_bytes!(
-        "fixtures/printer-comment-carry-known-native.json"
-    ))
-    .unwrap();
-    let rows = known["cases"].as_array().unwrap();
-    assert_eq!(rows.len(), 4);
-    if let Some(row) = rows.iter().find(|row| row["case_id"] == id) {
-        assert_eq!(
-            found
-                .iter()
-                .map(|(key, _)| key.as_str())
-                .collect::<Vec<_>>(),
-            vec![format!("{id}#events")]
-        );
-        assert_eq!(
-            actual["events"], row["native_events"],
-            "{id}: known hint gap widened"
-        );
-        println!("COMMENT CARRY KNOWN HINT GAP {id}; operation results exact");
-        false
-    } else {
-        assert!(found.is_empty(), "{id}: {found:?}");
-        println!("COMMENT CARRY EXACT x2 {id}");
-        true
-    }
+    assert!(found.is_empty(), "{id}: {found:?}");
+    println!("COMMENT CARRY EXACT x2 {id}");
+    true
 }
 
 #[test]
@@ -1042,6 +1032,7 @@ fn replay_with_replaced_transformations(case: &serde_json::Value) -> serde_json:
                     )
                 }),
                 substitution: None,
+                substitution_hint: None,
             };
         }
         let hooks = FailingHooks {
@@ -1094,7 +1085,45 @@ fn replay_with_replaced_transformations(case: &serde_json::Value) -> serde_json:
 }
 
 #[test]
-fn comment_carry_known_event_controls_reject_widened_gaps() {
+fn declaration_hook_hints_match_typescript_twice() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/printer-hook-hints.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 72);
+    let mut captures = Vec::new();
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let actual = replay(case);
+        assert_eq!(actual, replay(case), "{id}: repetitions");
+        let found = compare(id, &case["typescript_observation"], &actual);
+        if found.is_empty() {
+            println!("HOOK HINT EXACT x2 {id}");
+        } else {
+            println!("HOOK HINT MISMATCH {id}: {found:?}");
+            failures.push(id);
+        }
+        captures.push(serde_json::json!({"case_id":id,"rust_observation":actual}));
+    }
+    if let Ok(path) = std::env::var("TSC_RS_HOOK_HINT_ACTUAL") {
+        std::fs::write(
+            path,
+            serde_json::to_string_pretty(&captures).unwrap() + "\n",
+        )
+        .unwrap();
+    }
+    println!(
+        "HOOK HINT exact {}/{}",
+        cases.len() - failures.len(),
+        cases.len()
+    );
+    assert!(failures.is_empty(), "hook hint failures: {failures:?}");
+}
+
+#[test]
+fn comment_carry_controls_reject_event_and_output_changes() {
     let artifact: serde_json::Value =
         serde_json::from_slice(include_bytes!("fixtures/printer-comment-carry.json")).unwrap();
     let case = artifact["cases"]
@@ -1109,7 +1138,7 @@ fn comment_carry_known_event_controls_reject_widened_gaps() {
         })
         .unwrap();
     let mut actual = replay(case);
-    assert!(!assert_comment_carry(case, &actual));
+    assert!(assert_comment_carry(case, &actual));
     actual["events"][0]["hint"] = "widened gap".into();
     assert!(std::panic::catch_unwind(|| assert_comment_carry(case, &actual)).is_err());
     let mut actual = replay(case);

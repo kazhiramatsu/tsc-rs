@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "base": "d9cfb664ad89898b0b5601d85e7e2abf70e32b18",
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-printer-hook-hints",
+  "node": "25.2.1",
+  "rustc": "1.93.0 (254b59607 2026-01-19)",
+  "inputs": {
+    "crates/emitter/src/printer.rs": "827f08b213c8785c1b87a9d96949ffeb4fb866da1088cfc76304997c2d454429",
+    "crates/emitter/tests/printer_failure_contract.rs": "843ea435be98f99005a53cbb02bb7c7c592331396906f42f3055164eb778004e",
+    "scripts/observe-printer-hook-hints.mjs": "5ba2063f2cd42b70dadd6c2fedb4487687c50265b2d2e85e18a38a48ce97cb71",
+    "crates/emitter/tests/fixtures/printer-hook-hints.json": "40d33a2dce1b64959f79ae663f5a3c21a1fd65ed2dd44c31a86c78529310fb70",
+    "crates/emitter/tests/fixtures/printer-comment-carry.json": "828484275265dbc389df0e388b514766cf7e30a26a580539fa6e50b33f2f19e5",
+    "vendor/typescript-6.0.3/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+    ".github/ci/replay.py": "1f0affdfd0935e0746ba3f3462d32f738e1f0c67254109ad87a98f1d351c977b",
+    ".github/ci/test_replay.py": "006dbf5cd9c159317b5f6aa25b0525f84de5d23a174b0888c3e96d19a1c84049",
+    "scripts/witness.py": "4da1758714902eccc871fd1c3eefaccce54fbd63876d971debd310bfb4aa5ef4",
+    ".github/ci/qualification-policy.v2.json": "912d96f0f230e71985d5bd2310c94cfbf2fa1b04e09d7f4dc2318097fbed3348"
+  },
+  "binary": {
+    "path": "target/debug/deps/printer_failure_contract-f36a6d3d26fee24b",
+    "sha256": "afd8bc9928a1314f2184d390581d5f409f0c3add682c902f319728741aa286fe"
+  },
+  "checks": [
+    {
+      "name": "direct",
+      "command": "CARGO_BUILD_JOBS=2 taskpolicy -b nice -n 15 cargo test --offline --manifest-path crates/emitter/Cargo.toml --test printer_failure_contract -- --nocapture --test-threads=1",
+      "capture_env": {
+        "TSC_RS_HOOK_HINT_ACTUAL": "/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/target/hook-hints/after.json",
+        "TSC_RS_COMMENT_CARRY_ACTUAL": "/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/target/hook-hints/comment-carry-after.json"
+      },
+      "exit": 0,
+      "tests": 10,
+      "new_cases_exact": 72,
+      "comment_carry_exact": 24,
+      "repetitions": 2
+    },
+    {
+      "name": "adjacent",
+      "command": "CARGO_BUILD_JOBS=2 taskpolicy -b nice -n 15 cargo test --offline --manifest-path crates/emitter/Cargo.toml --test emit_pipeline_phases_contract --test comma_list_printer_contract --test list_format_flags_contract --test list_comment_flags_contract --test source_comment_topology_contract --test utf16_writer_contract -- --test-threads=1",
+      "exit": 0,
+      "tests": 24
+    },
+    {
+      "name": "noEmitOnError",
+      "command": "CARGO_BUILD_JOBS=2 taskpolicy -b nice -n 15 cargo test --offline --manifest-path crates/emitter/Cargo.toml --test contracts output_plan_contract::duplicate_output_preflight_reaches_no_sink_and_obeys_no_emit_on_error -- --exact --test-threads=1",
+      "exit": 0,
+      "tests": 1,
+      "filtered": 451
+    },
+    {
+      "name": "clippy",
+      "command": "CARGO_BUILD_JOBS=2 taskpolicy -b nice -n 15 cargo clippy --offline --manifest-path crates/emitter/Cargo.toml --test printer_failure_contract --message-format=json",
+      "exit": 0,
+      "warnings": {
+        "tsc_program": 145,
+        "tsc_emitter": 16
+      },
+      "changed_line_diagnostics": 0
+    },
+    {
+      "name": "planner",
+      "command": "python3 -m unittest discover -s .github/ci -p test_replay.py",
+      "exit": 0,
+      "tests": 36
+    },
+    {
+      "name": "policy",
+      "command": "node --test --test-name-pattern='hosted|execution|policy' .github/ci/qualification.test.mjs",
+      "exit": 0,
+      "tests": 10
+    },
+    {
+      "name": "fmt",
+      "command": "cargo fmt --all -- --check",
+      "exit": 0
+    },
+    {
+      "name": "observers",
+      "commands": [
+        "node scripts/observe-printer-failures.mjs --check",
+        "node scripts/observe-printer-failure-review.mjs --check",
+        "node scripts/observe-printer-comment-carry.mjs --check",
+        "node scripts/observe-printer-hook-hints.mjs --check"
+      ],
+      "exit": 0
+    }
+  ],
+  "artifacts": {
+    "after.json.gz": {
+      "sha256": "f5a4e5131fe0a1e9956b47cc3ff3015c6d27831ae5e1d500f072e463a99e3109",
+      "raw_sha256": "0edf253ab1fd3e0d25fed892449b22e4a8a799ebdcc46f2e1efd3a15614c3192"
+    },
+    "after.log.gz": {
+      "sha256": "2568baba1c6fdce35f21828d0f89636349e75a80d8ad2c7c4db438eff224f061",
+      "raw_sha256": "18c2dc6807f9541140a52c3d7428ff3e8a28429594aa508aa9405d6da54d8bd7"
+    },
+    "comment-carry-after.json.gz": {
+      "sha256": "994a6f2860f9799fa28e09d10f8bd73904dd6372069605552535fd5728019cbe",
+      "raw_sha256": "fa42db44097e1922008d6511616aa1a7f1132f7f0633d9dff73e2dc746c6a595"
+    },
+    "adjacent.log.gz": {
+      "sha256": "9b83ba6326ee925032e76659423189a83c883b2410967aafb409bd6f9a39bd90",
+      "raw_sha256": "eaefaa817aa918e6e6be17be45105cccfb263f393eda4e234ad97dbc688b4342"
+    },
+    "noemit.log.gz": {
+      "sha256": "bd0047042e38b98cc7b2e453327effb2c82669e646444456381aeb2a3e1eaaf2",
+      "raw_sha256": "d8b78a6ae5087dda39b81efc036cb2c7218effd62c633e5edcc81f7405bdaab2"
+    },
+    "clippy.jsonl.gz": {
+      "sha256": "a7d7f1ba76daa2a6cb6e449a35bb0ed224e2ebc256fd0e71e51129824ac2c98a",
+      "raw_sha256": "ca3fb8aec55306021e77fc9df0d754f0f7c644b76f888a758d30e1341555ade3"
+    },
+    "clippy.log.gz": {
+      "sha256": "40a6e7d00df2632dc95568cd98ed390da02128626691f2fa411be237f1ce3427",
+      "raw_sha256": "db502ca1c868c0d0f312f942dea38b6ce315bef448cf1fbe7f19141c53009eda"
+    },
+    "planner.log.gz": {
+      "sha256": "68aa94a45362842eba357d0d4ac19bad725629ffce2c5bf8646f7a23836d82bb",
+      "raw_sha256": "56064f4459af4557251d37a9e95c832d849b9ca75c45086ce7b8154fa88397b1"
+    },
+    "policy.log.gz": {
+      "sha256": "8a5cab6594ba5f56db6f8a904985acd6cbe5a25adc265d3e342bbb19b5540308",
+      "raw_sha256": "6f9320cf3c205e1fad911ee4a560887d8cce720c2688a36b72be11771864fee3"
+    },
+    "fmt.log.gz": {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "observers.log.gz": {
+      "sha256": "3f9fb2042d490f736b272e734acdf117e4e77452f3547ee517b44b738b895e1f",
+      "raw_sha256": "82dc4b9a6b05762c6eb71825e28cb27298d31c4d89103a22d694c31ce2bb8920"
+    }
+  },
+  "hosted": "pending"
+}

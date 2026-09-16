@@ -41,10 +41,11 @@ PRINTER_INPUTS = {
     *(f"crates/emitter/tests/fixtures/{name}.json" for name in (
         "printer-failure-hooks", "printer-failure-probes", "printer-failure-review",
         "printer-failure-known-native", "printer-comment-carry",
-        "printer-comment-carry-known-native", "emit-pipeline-phases", "comma-list-printer",
+        "printer-hook-hints", "emit-pipeline-phases", "comma-list-printer",
         "list-format-flags", "list-comment-flags", "utf16-writer")),
     "scripts/observe-printer-failures.mjs", "scripts/observe-printer-failure-review.mjs",
     "scripts/observe-printer-comment-carry.mjs",
+    "scripts/observe-printer-hook-hints.mjs",
 }
 SUPER_MODULES = {
     "crates/compiler/tests/integration/h2_8a_decorator_super.rs",
@@ -211,7 +212,7 @@ def verify_gate(needs, kind):
 def printer_witnesses():
     """Direct failure/reuse and adjacent owner controls; no compiler/oracle chain."""
     for observer in ("observe-printer-failures.mjs", "observe-printer-failure-review.mjs",
-                     "observe-printer-comment-carry.mjs"):
+                     "observe-printer-comment-carry.mjs", "observe-printer-hook-hints.mjs"):
         subprocess.run(["node", f"scripts/{observer}", "--check"], cwd=ROOT, check=True)
     command = ["cargo", "test", "--manifest-path", "crates/emitter/Cargo.toml"]
     for target in PRINTER_TARGETS:

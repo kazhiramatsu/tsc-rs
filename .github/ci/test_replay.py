@@ -205,7 +205,7 @@ class WitnessTests(unittest.TestCase):
     def test_frozen_input_catalog_counts(self):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
-            "followup3": 48, "retained": 530, "direct": 32, "printer": 70, "bundle-sinks": 10,
+            "followup3": 48, "retained": 530, "direct": 32, "printer": 142, "bundle-sinks": 10,
             "declaration-map-cli": 8, "transpile-routes": 301,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,

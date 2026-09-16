@@ -39,8 +39,8 @@ zero-test, ignored or unexpected filtered target results.
 shared helper tests to be filtered out. Its internal environment selectors are
 cleared so `--all` always covers all 64 promoted inputs.
 They also avoid building the dev-profile xtask executable before the test profile.
-The `printer` target runs together: 70 small direct rows (65 exact, 5 documented
-gaps), plus the same target's probe/safety/negative controls. It takes milliseconds
+The `printer` target runs together: 142 small direct rows (141 exact, one documented
+generated-name gap), plus the same target's probe/safety/negative controls. It takes milliseconds
 after compilation and does not run the Program/oracle chain. `bundle-sinks` runs
 10 complete commands together; normally leave that replay to hosted CI.
 `declaration-map-cli` runs eight existing original CLI cases twice, with output
@@ -79,7 +79,7 @@ fails before replay.
 
 `.github/workflows/witness.yml` owns primary, short controls and retained jobs.
 A separate `printer` job shares one emitter build between the printer failure
-suite (three observers, seven targets and one exact noEmitOnError owner control)
+suite (four observers, seven targets and one exact noEmitOnError owner control)
 and ten individually selectable literal/factory/metadata targets. It retains a
 20-minute limit and two workers. Selected direct targets run in one Cargo call;
 a literal fixture change runs only its owning target and observers, without the
