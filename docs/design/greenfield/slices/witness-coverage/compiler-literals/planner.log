@@ -1,0 +1,416 @@
+...............test result: ok. 0 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;
+test result: ok. 1 passed; 0 failed;.....usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: choose --case or --all; use --list to inspect IDs
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: selection matched no cases
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: direct controls run together; use --all
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: printer failure controls run together; use --all (70 small direct rows)
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: choose --case or --all; use --list to inspect IDs
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: declaration map CLI controls run together; use --all (8 CLI cases)
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: choose --case or --all; use --list to inspect IDs
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: literal-value-provenance: small direct target runs together; use --all
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: choose --case or --all; use --list to inspect IDs
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: utf16-identity-recovery: compiler target runs together; use --all
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: choose --case or --all; use --list to inspect IDs
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: utf16-review-fix: compiler target runs together; use --all
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: choose --case or --all; use --list to inspect IDs
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: utf16-tagged-template: compiler target runs together; use --all
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: choose --case or --all; use --list to inspect IDs
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: utf16-literal-witnesses: compiler target runs together; use --all
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: choose --case or --all; use --list to inspect IDs
+usage: python3.14 -m unittest [-h] [--case ID_SUBSTRING | --all] [--list]
+                              [--dry-run]
+                              {primary,extra,followup,followup2,followup3,retained,direct,printer,bundle-sinks,declaration-map-cli,literal-parent-provenance,literal-value-provenance,string-literal-identifier-source,utf16-literal-escaping,class-header-token-metadata,comma-argument-factory,ellipsis-comment-metadata,import-type-attributes,mapped-type-members,token-comment-phase-metadata,utf16-identity-recovery,utf16-review-fix,utf16-tagged-template,utf16-literal-witnesses,utf16-original-commands}
+python3.14 -m unittest: error: utf16-original-commands: compiler target runs together; use --all
+..utf16-identity-recovery: selected 79 input cases
+utf16-identity-recovery-controls/a1-distinct-and-pair/target-1
+utf16-identity-recovery-controls/a2-object-equivalent/target-1
+utf16-identity-recovery-controls/a2-class-equivalent/target-1
+utf16-identity-recovery-controls/a2-interface-equivalent/target-1
+utf16-identity-recovery-controls/a3-lookup-mapped/target-1
+utf16-identity-recovery-controls/a3-narrowing-context/target-1
+utf16-identity-recovery-controls/a3-reverse-mapped/target-1
+utf16-identity-recovery-controls/a4-late-bound/target-1
+utf16-identity-recovery-controls/a5-enum-pair/target-1
+utf16-identity-recovery-controls/a6-template-types/target-1
+utf16-identity-recovery-controls/a8-name-kinds/target-1
+utf16-identity-recovery-controls/a8-leading-expando/target-1
+utf16-identity-recovery-controls/a9-diagnostic-values/target-1
+utf16-identity-recovery-controls/a9-spelling-suggestion/target-1
+utf16-identity-recovery-controls/a10-literal-type/target-1
+utf16-identity-recovery-controls/a1-distinct-and-pair/target-2
+utf16-identity-recovery-controls/a2-object-equivalent/target-2
+utf16-identity-recovery-controls/a2-class-equivalent/target-2
+utf16-identity-recovery-controls/a2-interface-equivalent/target-2
+utf16-identity-recovery-controls/a3-lookup-mapped/target-2
+utf16-identity-recovery-controls/a3-narrowing-context/target-2
+utf16-identity-recovery-controls/a3-reverse-mapped/target-2
+utf16-identity-recovery-controls/a4-late-bound/target-2
+utf16-identity-recovery-controls/a5-enum-pair/target-2
+utf16-identity-recovery-controls/a6-template-types/target-2
+utf16-identity-recovery-controls/a8-name-kinds/target-2
+utf16-identity-recovery-controls/a8-leading-expando/target-2
+utf16-identity-recovery-controls/a9-diagnostic-values/target-2
+utf16-identity-recovery-controls/a9-spelling-suggestion/target-2
+utf16-identity-recovery-controls/a10-literal-type/target-2
+utf16-identity-recovery-controls/a7-cross-file/module-1
+utf16-identity-recovery-controls/a7-ambient-module/module-1
+utf16-identity-recovery-controls/a7-cross-file/module-99
+utf16-identity-recovery-controls/a7-ambient-module/module-99
+utf16-identity-recovery-controls/a8-private-static-instance
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es5/octal-escape
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/octal-escape
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es5/decimal-escape-8
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/decimal-escape-8
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es5/malformed-hex-escape
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/malformed-hex-escape
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es5/unterminated-extended-escape-control
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/unterminated-extended-escape-control
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es5/out-of-range-extended-escape
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/out-of-range-extended-escape
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es5/unterminated-string
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/unterminated-string
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es5/template-octal-with-surrogate
+utf16-identity-recovery-controls/b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/template-octal-with-surrogate
+utf16-identity-recovery-controls/b2-noEmit-declaration
+utf16-identity-recovery-controls/b3-b4-rejected/missing-initializer
+utf16-identity-recovery-controls/b3-b4-rejected/missing-class
+utf16-identity-recovery-controls/b3-b4-rejected/mixed-literal-structure
+utf16-identity-recovery-controls/b3-b4-rejected/numeric-separator
+utf16-identity-recovery-controls/b3-b4-rejected/hex-digits
+utf16-identity-recovery-controls/b3-b4-rejected/regexp-eof
+utf16-identity-recovery-controls/b3-b4-rejected/comment-eof
+utf16-identity-recovery-controls/b3-b4-rejected/conflict-marker
+utf16-identity-recovery-controls/b3-b4-rejected/keyword-escape
+utf16-identity-recovery-controls/b5-tagged-no-diagnostic
+utf16-identity-recovery-controls/b6-eof-backslash
+utf16-identity-recovery-controls/b6-value-eof-backslash
+utf16-identity-recovery-controls/c1-multiple-spans/target-2
+utf16-identity-recovery-controls/c1-multiple-spans/target-3
+utf16-identity-recovery-controls/c1-multiple-spans/target-4
+utf16-noemit-command-controls/noEmit/none/valid
+utf16-noemit-command-controls/noEmit/js-map/valid
+utf16-noemit-command-controls/noEmit/inline-map/valid
+utf16-noemit-command-controls/noEmit/declaration-map/valid
+utf16-noemit-command-controls/noEmit/inactive-declaration-map/valid
+utf16-noemit-command-controls/noEmit/listing/valid
+utf16-noemit-command-controls/noEmit/noEmitOnError/valid
+utf16-noemit-command-controls/noEmit/none/invalid
+utf16-noemit-command-controls/noEmit/js-map/invalid
+utf16-noemit-command-controls/noEmit/inline-map/invalid
+utf16-noemit-command-controls/noEmit/declaration-map/invalid
+utf16-noemit-command-controls/noEmit/inactive-declaration-map/invalid
+utf16-noemit-command-controls/noEmit/listing/invalid
+utf16-noemit-command-controls/noEmit/noEmitOnError/invalid
+utf16-identity-recovery: selected 79 input cases
+env cargo test --manifest-path crates/compiler/Cargo.toml --test h2_8a_utf16_identity_recovery_controls -- --nocapture --test-threads=1
+node scripts/observe-utf16-identity-recovery-controls.mjs --check
+node scripts/observe-utf16-noemit-command-controls.mjs --check
+utf16-review-fix: selected 25 input cases
+utf16-review-fix-controls/m2-noemit-declaration-ts4094
+utf16-review-fix-controls/m2-noemit-declaration-clean
+utf16-review-fix-controls/m2-noemit-declaration-semantic-first
+utf16-review-fix-controls/m2-noemit-declaration-syntactic-first
+utf16-review-fix-controls/m2-noemit-without-declaration
+utf16-review-fix-controls/m2-noemit-declaration-two-files
+utf16-review-fix-controls/a2-element-access-quoted-candidate
+utf16-review-fix-controls/a2-property-access-quoted-candidate
+utf16-review-fix-controls/a2-excess-property-quoted-candidate
+utf16-review-fix-controls/a2-private-name-candidate
+utf16-review-fix-controls/a2-leading-underscore-candidates
+utf16-review-fix-controls/a2-lone-surrogate-candidate
+utf16-review-fix-controls/a3-record-quoted-name
+utf16-review-fix-controls/a3-record-lone-surrogate-name
+utf16-review-fix-controls/a3-record-identifier-name
+utf16-review-fix-controls/a3-record-negative-numeric-name
+utf16-review-fix-controls/a3-record-numeric-name
+utf16-review-fix-controls/a4-declaration-callback-lone-unit
+utf16-review-fix-controls/a4-declaration-callback-lone-unit-es5
+utf16-review-fix-controls/c1-es2017-optional-property-invalid
+utf16-review-fix-controls/c1-es5-optional-property-valid
+utf16-review-fix-controls/c1-es2015-optional-element-invalid
+utf16-review-fix-controls/c1-es2015-optional-call-invalid
+utf16-review-fix-controls/c1-es2017-optional-chain-long-invalid
+utf16-review-fix-controls/c1-es2015-parenthesized-tag-valid
+utf16-review-fix: selected 25 input cases
+env cargo test --manifest-path crates/compiler/Cargo.toml --test h2_8a_utf16_review_fix_controls -- --nocapture --test-threads=1
+node scripts/observe-utf16-review-fix-controls.mjs --check
+utf16-tagged-template: selected 16 input cases
+utf16-tagged-template-controls/object-spread-tag
+utf16-tagged-template-controls/nested-invalid-tag
+utf16-tagged-template-controls/es5-valid-invalid-valid
+utf16-tagged-template-controls/rest-assignment-valid-tag
+utf16-tagged-template-controls/rest-assignment-invalid-tag
+utf16-tagged-template-controls/rest-assignment-no-tag
+utf16-tagged-template-controls/function-rest-valid
+utf16-tagged-template-controls/function-nested-invalid
+utf16-tagged-template-controls/es2015-mixed
+utf16-tagged-template-controls/es2018-retained-invalid
+utf16-tagged-template-controls/script-invalid
+utf16-tagged-template-controls/raw-cooked-units
+utf16-tagged-template-controls/escaped-valid-rest-tag
+utf16-tagged-template-controls/nested-four-visits
+utf16-tagged-template-controls/function-expression-tag
+utf16-tagged-template-controls/namespace-mixed
+utf16-tagged-template: selected 16 input cases
+env cargo test --manifest-path crates/compiler/Cargo.toml --test h2_8a_utf16_tagged_template_controls -- --nocapture --test-threads=1
+node scripts/observe-utf16-tagged-template-controls.mjs --check
+utf16-literal-witnesses: selected 64 input cases
+utf16-literals-string-literals/utf16-literals/string-literals/es5/extended-high-surrogate
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/extended-high-surrogate
+utf16-literals-string-literals/utf16-literals/string-literals/es5/extended-low-surrogate
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/extended-low-surrogate
+utf16-literals-string-literals/utf16-literals/string-literals/es5/extended-supplementary-pair
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/extended-supplementary-pair
+utf16-literals-string-literals/utf16-literals/string-literals/es5/extended-bmp
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/extended-bmp
+utf16-literals-string-literals/utf16-literals/string-literals/es5/extended-ascii
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/extended-ascii
+utf16-literals-string-literals/utf16-literals/string-literals/es5/short-escape-surrogate-control
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/short-escape-surrogate-control
+utf16-literals-string-literals/utf16-literals/string-literals/es5/short-and-extended-mixed
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/short-and-extended-mixed
+utf16-literals-string-literals/utf16-literals/string-literals/es5/real-replacement-character
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/real-replacement-character
+utf16-literals-string-literals/utf16-literals/string-literals/es5/escaped-backslash-sequence
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/escaped-backslash-sequence
+utf16-literals-string-literals/utf16-literals/string-literals/es5/single-quoted
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/single-quoted
+utf16-literals-string-literals/utf16-literals/string-literals/es5/control-and-quote-escapes
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/control-and-quote-escapes
+utf16-literals-string-literals/utf16-literals/string-literals/es5/null-before-digit
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/null-before-digit
+utf16-literals-string-literals/utf16-literals/string-literals/es5/crlf-line-continuation
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/crlf-line-continuation
+utf16-literals-string-literals/utf16-literals/string-literals/es5/class-member-names
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/class-member-names
+utf16-literals-string-literals/utf16-literals/string-literals/es5/object-literal-names
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/object-literal-names
+utf16-literals-string-literals/utf16-literals/string-literals/es5/export-specifier-name
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/export-specifier-name
+utf16-literals-string-literals/utf16-literals/string-literals/es5/enum-member-names
+utf16-literals-string-literals/utf16-literals/string-literals/es2015/enum-member-names
+utf16-literals-string-literals/utf16-literals/string-literals/esnext/extended-high-surrogate
+utf16-literals-string-literals/utf16-literals/string-literals/esnext/extended-low-surrogate
+utf16-literals-template-literals/utf16-literals/template-literals/es5/no-substitution-high
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/no-substitution-high
+utf16-literals-template-literals/utf16-literals/template-literals/es5/no-substitution-low
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/no-substitution-low
+utf16-literals-template-literals/utf16-literals/template-literals/es5/head-middle-tail
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/head-middle-tail
+utf16-literals-template-literals/utf16-literals/template-literals/es5/empty-tail
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/empty-tail
+utf16-literals-template-literals/utf16-literals/template-literals/es5/short-escape-surrogate
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/short-escape-surrogate
+utf16-literals-template-literals/utf16-literals/template-literals/es5/crlf-and-line-continuation
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/crlf-and-line-continuation
+utf16-literals-template-literals/utf16-literals/template-literals/es5/backtick-dollar-backslash
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/backtick-dollar-backslash
+utf16-literals-template-literals/utf16-literals/template-literals/es5/real-replacement-character
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/real-replacement-character
+utf16-literals-template-literals/utf16-literals/template-literals/es5/tagged-cooked-and-raw
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/tagged-cooked-and-raw
+utf16-literals-template-literals/utf16-literals/template-literals/es5/tagged-no-substitution
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/tagged-no-substitution
+utf16-literals-template-literals/utf16-literals/template-literals/es5/template-literal-type-control
+utf16-literals-template-literals/utf16-literals/template-literals/es2015/template-literal-type-control
+utf16-literals-template-literals/utf16-literals/template-literals/es5/tagged-invalid-cooked
+utf16-literals-template-literals/utf16-literals/template-literals/esnext/no-substitution-high
+utf16-literals-template-literals/utf16-literals/template-literals/esnext/head-middle-tail
+utf16-literals-template-literals/utf16-literals/template-literals/esnext/tagged-cooked-and-raw
+utf16-literals-bundle-prologues/utf16-literals/bundle-prologues/es5/dedupe
+utf16-literals-bundle-prologues/utf16-literals/bundle-prologues/es2015/dedupe
+utf16-literal-witnesses: selected 64 input cases
+env cargo test --manifest-path crates/compiler/Cargo.toml --test h2_5h_utf16_literal_witnesses utf16_literal_witnesses_match_complete_typescript_observations -- --exact --nocapture --test-threads=1
+node scripts/observe-utf16-literal-witnesses.mjs string-literals --check
+node scripts/observe-utf16-literal-witnesses.mjs template-literals --check
+node scripts/observe-utf16-literal-witnesses.mjs bundle-prologues --check
+utf16-original-commands: selected 4 input cases
+utf16-original-rows-complete/typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings10.ts#target%3Des5
+utf16-original-rows-complete/typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings11.ts#target%3Des5
+utf16-original-rows-complete/typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates10.ts#target%3Des5
+utf16-original-rows-complete/typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates11.ts#target%3Des5
+utf16-original-commands: selected 4 input cases
+env cargo test --manifest-path crates/compiler/Cargo.toml --test h2_5h_utf16_original_rows_complete -- --nocapture --test-threads=1
+.node scripts/observe-utf16-original-rows-complete.mjs --check
+utf16-review-fix: 25 fixture rows (including any typed refusal controls)
+.utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+{"compiler_utf16": ["utf16-identity-recovery", "utf16-tagged-template"], "targets": 2, "tests_passed": 3, "observer_seconds": 0.0, "cargo_build_and_replay_seconds": 0.0}
+utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+.test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out;{"declaration_map_cli_cases": 8, "repetitions": 2, "cargo_build_and_replay_seconds": 0.0}
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out;test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 1 filtered out;test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out;..literal-value-provenance: 540 fixture rows (each compared twice)
+import-type-attributes: 84 fixture rows (each compared twice)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+{"emitter_direct": ["literal-value-provenance", "import-type-attributes"], "targets": 2, "tests_passed": 4, "observer_seconds": 0.0, "cargo_build_and_replay_seconds": 0.0}
+literal-value-provenance: 540 fixture rows (each compared twice)
+import-type-attributes: 84 fixture rows (each compared twice)
+literal-value-provenance: 540 fixture rows (each compared twice)
+import-type-attributes: 84 fixture rows (each compared twice)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+literal-value-provenance: 540 fixture rows (each compared twice)
+import-type-attributes: 84 fixture rows (each compared twice)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+literal-value-provenance: 540 fixture rows (each compared twice)
+import-type-attributes: 84 fixture rows (each compared twice)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+literal-value-provenance: 540 fixture rows (each compared twice)
+import-type-attributes: 84 fixture rows (each compared twice)
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out;
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+literal-value-provenance: 540 fixture rows (each compared twice)
+import-type-attributes: 84 fixture rows (each compared twice)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out;
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+literal-value-provenance: 540 fixture rows (each compared twice)
+import-type-attributes: 84 fixture rows (each compared twice)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+.import-type-attributes: 84 fixture rows (each compared twice)
+...utf16-literal-witnesses: 64 fixture rows (including any typed refusal controls)
+utf16-original-commands: 4 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;
+{"compiler_utf16": ["utf16-literal-witnesses", "utf16-original-commands"], "targets": 2, "tests_passed": 2, "observer_seconds": 0.0, "cargo_build_and_replay_seconds": 0.0}
+utf16-literal-witnesses: 64 fixture rows (including any typed refusal controls)
+utf16-original-commands: 4 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+utf16-literal-witnesses: 64 fixture rows (including any typed refusal controls)
+utf16-original-commands: 4 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+utf16-literal-witnesses: 64 fixture rows (including any typed refusal controls)
+utf16-original-commands: 4 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;
+utf16-literal-witnesses: 64 fixture rows (including any typed refusal controls)
+utf16-original-commands: 4 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;
+utf16-literal-witnesses: 64 fixture rows (including any typed refusal controls)
+utf16-original-commands: 4 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;
+utf16-literal-witnesses: 64 fixture rows (including any typed refusal controls)
+utf16-original-commands: 4 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 9 filtered out;
+utf16-literal-witnesses: 64 fixture rows (including any typed refusal controls)
+utf16-original-commands: 4 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;
+utf16-literal-witnesses: 64 fixture rows (including any typed refusal controls)
+utf16-original-commands: 4 fixture rows (including any typed refusal controls)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+...
+----------------------------------------------------------------------
+Ran 34 tests in 0.285s
+
+OK

@@ -131,12 +131,12 @@ class SelectionTests(unittest.TestCase):
     def test_shared_comparator_is_an_acceptance_input(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], ["retained"])
+        self.assertEqual(plan["witnesses"], ["retained", "utf16-literal-witnesses"])
 
     def test_library_snapshot_keeps_all_fresh_program_consumers(self):
         plan = replay.selection(["crates/compiler/tests/support/witness_libraries.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], [*witness.SUPER, "retained"])
+        self.assertEqual(plan["witnesses"], [*witness.SUPER, "retained", "utf16-literal-witnesses"])
 
     def test_common_unknown_and_missing_ranges_keep_complete_coverage(self):
         for paths in (None, [], ["crates/emitter/src/printer.rs"], ["new/tool.rs"],
@@ -203,6 +203,7 @@ class WitnessTests(unittest.TestCase):
             "ellipsis-comment-metadata": 144, "import-type-attributes": 84,
             "mapped-type-members": 328, "token-comment-phase-metadata": 96,
             "utf16-identity-recovery": 79, "utf16-review-fix": 25, "utf16-tagged-template": 16,
+            "utf16-literal-witnesses": 64, "utf16-original-commands": 4,
         })
 
     def test_direct_catalog_rejects_missing_duplicate_and_empty_ids(self):
@@ -280,6 +281,62 @@ class WitnessTests(unittest.TestCase):
         for suites in ([], ["printer"], ["utf16-review-fix"] * 2):
             with self.assertRaises(ValueError):
                 witness.compiler_utf16_command(suites)
+
+    def test_literal_witnesses_keep_shared_helpers_and_qualification_owners(self):
+        plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
+        self.assertEqual(plan["acceptance"], ["late"])
+        self.assertEqual(plan["witnesses"], ["retained", "utf16-literal-witnesses"])
+        for path in ("crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+                     "ratchets/h2-5h-qualification.v1.json",
+                     "crates/oracle/vfs-directory-overlay.mjs",
+                     "crates/compiler/tests/fixtures/utf16-literals-adjacent-probes.json"):
+            plan = replay.selection([path])
+            self.assertEqual(plan["acceptance"], list(replay.GROUPS))
+            self.assertEqual(plan["witnesses"], list(witness.SUITES))
+
+    def test_literal_runner_checks_each_group_and_only_the_dedicated_test(self):
+        selected = ["utf16-literal-witnesses", "utf16-original-commands"]
+        summary = "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        filtered = summary.replace("0 filtered out", "9 filtered out")
+        def run_with(output=filtered, status=0):
+            def result(command, **kwargs):
+                if command[0] == "node":
+                    return subprocess.CompletedProcess(command, 0)
+                return subprocess.CompletedProcess(command, status, output if "--exact" in command else summary)
+            with patch.object(witness.subprocess, "run", side_effect=result) as run:
+                witness.run_compiler_utf16(selected)
+                return run.call_args_list
+        calls = run_with()
+        self.assertEqual([call.args[0] for call in calls[:4]], [
+            ["node", "scripts/observe-utf16-literal-witnesses.mjs", group, "--check"]
+            for group in ("string-literals", "template-literals", "bundle-prologues")
+        ] + [["node", "scripts/observe-utf16-original-rows-complete.mjs", "--check"]])
+        self.assertEqual(len(calls), 6)
+        command = calls[-1].args[0]
+        self.assertEqual(command, ["cargo", "test", "--manifest-path", "crates/compiler/Cargo.toml",
+                                  "--test", "h2_5h_utf16_literal_witnesses",
+                                  "utf16_literal_witnesses_match_complete_typescript_observations",
+                                  "--", "--exact", "--nocapture", "--test-threads=1"])
+        for output in ("", summary, filtered.replace("1 passed", "0 passed"),
+                       filtered.replace("9 filtered", "8 filtered"),
+                       filtered.replace("9 filtered", "10 filtered"),
+                       filtered.replace("0 ignored", "1 ignored"), filtered * 2):
+            with self.subTest(output=output), self.assertRaises(ValueError):
+                run_with(output)
+        with self.assertRaises(subprocess.CalledProcessError):
+            run_with(status=101)
+        with self.assertRaises(ValueError):
+            witness.compiler_utf16_command(selected)
+
+    def test_literal_suite_clears_inherited_internal_case_selectors(self):
+        poisoned = {"TSC_RS_UTF16_LITERAL_WITNESS_SET": "adjacent-probes",
+                    "TSC_RS_UTF16_LITERAL_WITNESS_FILTER": "string-escape",
+                    "CARGO_BUILD_JOBS": "2"}
+        for suite in witness.COMPILER_UTF16:
+            _, env = witness.invocation(suite, [], poisoned)
+            self.assertNotIn("TSC_RS_UTF16_LITERAL_WITNESS_SET", env)
+            self.assertNotIn("TSC_RS_UTF16_LITERAL_WITNESS_FILTER", env)
+        self.assertEqual(poisoned["TSC_RS_UTF16_LITERAL_WITNESS_SET"], "adjacent-probes")
 
     def test_compiler_utf16_catalog_rejects_empty_duplicate_and_changed_memberships(self):
         for rows in ([], [{"id": "a"}] * 25, [{"id": ""}] * 25, [{"id": str(i)} for i in range(24)]):
