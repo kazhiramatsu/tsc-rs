@@ -167,3 +167,13 @@ eight CLI cases through a named-test filter: 41 targets still lack a direct entr
 leaving 38 without a direct entry (compiler18 / other20). Earlier inventory
 snapshots remain as history; entry configuration and successful hosted execution
 are recorded separately in each slice report.
+
+
+[OPS-COVER-3B / PR #532](https://github.com/kazhiramatsu/tsc-rs/pull/532) integrated
+three compiler UTF-16 targets. All seven replay jobs and both gates passed.
+Controls took 11m17s, including 52.206s of new observer checks and 88.968s of new
+Cargo build/replay; all four new Rust tests passed (111 complete commands and
+nine typed refusals, each twice). The longest job took 28m21s. PR replay jobs
+total 90m32s, excluding plan/gates and main-push replay. The detailed
+[receipt](design/greenfield/slices/witness-coverage/compiler-utf16/hosted.v1.json)
+keeps the exact run/head identities and observed timing boundaries.

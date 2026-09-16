@@ -8,7 +8,8 @@
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
 [OPS-COVER-3A](declaration-map-cli/README.md) のCLI追加を記録した [v3](inventory.v3.json)も保持する。
 [OPS-COVER-3B](compiler-utf16/README.md) は3つのUTF-16 targetを追加し、以下をv4に更新した。
-3Bのhosted実行・main統合は未実施。設定された入口と実行済みの証拠を区別する。
+3Bは[PR #532](https://github.com/kazhiramatsu/tsc-rs/pull/532)で統合済み。全7 replay jobと両gateが成功。
+設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
 ## 現在の入口
 
