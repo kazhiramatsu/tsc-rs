@@ -34,7 +34,7 @@ root の loader/session は fresh route のまま変更していない。
 
 | 構成要素 | 行 | 役割 | 本設計での対応 |
 | --- | --- | --- | --- |
-| `resolvedModuleNames` / `resolvedTypeReferenceDirectives` / `resolvedLibraries` | 128152、128158、128166 | containing path ごとの mode-aware 結果 map | `RequestKey{kind, containing_directory, specifier, mode, identity}` の単一 map。kind は畳まない |
+| `resolvedModuleNames` / `resolvedTypeReferenceDirectives` / `resolvedLibraries` | 128152、128158、128166 | containing path ごとの mode-aware 結果 map | `RequestKey{kind, containing_directory, containing_directory_spelling, specifier, mode, identity}` の単一 map。kind は畳まない |
 | `resolvedFileToResolution` | 128141 | resolved file → 依存する解決の逆引き（`invalidateResolutionOfFile` 用） | `Dependency::FileExists/Realpath` に resolved path が含まれるので逆引き map は不要。batch 照合で同じ集合が求まる |
 | `resolutionsWithFailedLookups` / `resolutionsWithOnlyAffectingLocations` | 128139-128140 | 失敗候補 / package.json を持つ解決の watch 対象 | `DependencySet` の負の `FileExists`/`DirectoryExists` と `FileContent` |
 | `watchFailedLookupLocation*` → `failedLookupChecks` / `startsWithPathChecks` / `isInDirectoryChecks` / `affectingPathChecks` | 128570-128650、128908-128940、128947-128998 | watcher event を無効化 predicate に変換 | `ChangeBatch` と `violated_dependency`（§4.5）。`isInvalidatedFailedLookup`（128989-128991）と同じ exact / startsWith / in-directory の 3 判定 |
@@ -163,7 +163,7 @@ config は cache entry ではなく driver 状態：`parse_config_root_plan` を
 
 ### 4.8 上限と常駐 state
 
-統合側のR4追加修正・集計訂正は[統合レビュー](integration/README.md)を参照。
+統合側のR1 path表記保持とR4追加修正・集計訂正は[統合レビュー](integration/README.md)を参照。
 
 `RetentionLimits { max_entries, max_bytes（推定：key＋option identity＋value＋依存 path 長）, max_live_generations, max_eviction_history }`。既定 4096 / 8 MiB / 8 / 4096。
 公開entriesと退避履歴へ `max_bytes` をそれぞれ適用する。共有identityもkeyごとに計上する保守的なpayload推定で、allocator/RSSではない。
@@ -215,3 +215,13 @@ ID は `resolution-cache/<request-kind>/<dependency>/<transition>/<variant>`。�
 ## 8. 段階 C
 
 [INTEGRATION.md](INTEGRATION.md)。Program 再利用・watch・LSP の完成は報告しない。
+
+
+## 統合時のpath identity補足
+
+`ProgramPath` のcanonicalだけでは出力に使われるdisplayを区別できないため、
+OptionsIdentityのtypeRoots/rootDirs/configFilePathは両方を構造的に保持する。
+RequestKeyも正規化されたdirectoryの元の表記を保持し、case-insensitive hostでの
+`/p` と `/P` の解決結果を分ける。依存照合のPathKeyはcanonicalのまま。
+追加2 familyでこの境界と設定の復帰をnative/fresh/cache三者比較し、26 familyへ拡張した。
+元の24 familyのnative expectedは不変。[統合記録](integration/README.md)を参照。

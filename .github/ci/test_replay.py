@@ -131,7 +131,7 @@ class SelectionTests(unittest.TestCase):
             })
         for path in ("crates/program/src/resolution_cache.rs", "crates/program/src/loader.rs"):
             self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
-        self.assertEqual(len(witness.case_ids("resolution-cache")), 24)
+        self.assertEqual(len(witness.case_ids("resolution-cache")), 26)
         with self.assertRaises(ValueError):
             witness.invocation("resolution-cache", ["module/"])
         workflow = (ROOT / ".github/workflows/witness.yml").read_text()
@@ -141,8 +141,8 @@ class SelectionTests(unittest.TestCase):
         command, env = witness.invocation("resolution-cache", [], {})
         self.assertIn("--lib", command)
         self.assertIn("resolution_cache_contract", command)
-        good = "\n".join(f"test result: ok. {n} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;" for n in (56, 9))
-        for output in (good, good.split("\n")[0], good.replace("9 passed", "0 passed"),
+        good = "\n".join(f"test result: ok. {n} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;" for n in (56, 11))
+        for output in (good, good.split("\n")[0], good.replace("11 passed", "0 passed"),
                        good.replace("0 ignored", "1 ignored", 1), good.replace("0 filtered", "1 filtered", 1)):
             with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output)) as run:
                 if output == good:
@@ -242,7 +242,7 @@ class WitnessTests(unittest.TestCase):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
             "followup3": 48, "retained": 530, "direct": 32, "printer": 142, "bundle-sinks": 10,
-            "declaration-map-cli": 8, "transpile-routes": 301, "resolution-cache": 24,
+            "declaration-map-cli": 8, "transpile-routes": 301, "resolution-cache": 26,
             "compact-body-comments": 240, "parameter-temporaries": 68,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,

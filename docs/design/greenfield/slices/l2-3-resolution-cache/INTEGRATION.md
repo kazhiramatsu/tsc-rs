@@ -46,13 +46,13 @@ Program 再利用・LSP の完成は報告しない。
 
 `python3 scripts/witness.py resolution-cache --all` をcontrols jobに登録。
 固定Node25.2.1のnative observerは2回採取の一致と凍結expectedへのbyte一致を確認する。
-続いてProgram lib56件とcache contract9件を実行し、ignored/filtered/欠落を拒否。
+続いてProgram lib56件とcache contract11件を実行し、ignored/filtered/欠落を拒否。
 専用入力は本suite、共有Program sourceは全関連coverageを選択する。
 詳細・実測は[統合レビュー](integration/README.md)。`cargo xtask acceptance`自体の対象には含めない。
 
 ## 5. 統合担当への注意
 
-- [レビュー R1](REVIEW-01-RESPONSE.md) の修正を受領後、統合側でR4のサイズ集計と上限変更適用を追加修正した。レビューの repro.rs は R1/R3 原文のまま pass、R2 は view 経由で同じ不変条件を assert して pass。
+- [レビュー R1](REVIEW-01-RESPONSE.md) の修正を受領後、統合側でR4のサイズ集計・上限変更適用、R1のpath表記保持を追加修正した。レビューの repro.rs は R1/R3 原文のまま pass、R2 は view 経由で同じ不変条件を assert して pass。
 - 本 prototype は root CLI の loader/session を変更していない。`load_program` 系は fresh route のまま。
 - loader の変更は wildcard 名列挙の関数抽出と `implied_node_format` の可視性のみで、`ProgramLoadError` の変換は元の変数ごとに保持した。既存 program contracts 481 件は緑（REPORT §8）。
 - 新規 module は `tsc_program` の公開 API に型を追加する。安定 API の約束ではない。

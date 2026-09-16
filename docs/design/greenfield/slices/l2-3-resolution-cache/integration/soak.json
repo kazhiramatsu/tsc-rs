@@ -7,7 +7,7 @@
   "fresh_after_eviction": 3132,
   "evicted": 2868,
   "max_entries": 8,
-  "max_bytes": 11447,
+  "max_bytes": 11475,
   "max_live_generations": 6,
   "parity_checks": 9408,
   "held_reader_checks": 17168,
@@ -25,12 +25,12 @@
     "cancel": 233
   },
   "final_entries": 8,
-  "final_bytes": 10760,
+  "final_bytes": 10788,
   "resident": {
     "published_entries": 8,
-    "published_bytes": 10760,
+    "published_bytes": 10788,
     "eviction_history_len": 4,
-    "eviction_history_bytes": 3132,
+    "eviction_history_bytes": 3140,
     "eviction_history_dropped": 0,
     "live_generation_records": 5,
     "interned_identity_bytes": 746

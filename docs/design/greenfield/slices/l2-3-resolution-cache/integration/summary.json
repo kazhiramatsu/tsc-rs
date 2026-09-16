@@ -1,17 +1,17 @@
 {
   "schema": "tsc-rs/resolution-cache-summary/v1",
-  "manifest_fnv1a64": "12dbaa22703556cf",
-  "expected_manifest_sha256": "1285785a635b0877f9b3b4cfbaea153b3459f0d1751fa31ff07d84befb9fc0b0",
-  "families": 24,
+  "manifest_fnv1a64": "d430fab64a7f50a1",
+  "expected_manifest_sha256": "b0d9f46ac67e65c405d286f308496f4e22874bc60109029f532419fa1ed39707",
+  "families": 26,
   "totals": {
-    "fresh_equal": 161,
-    "native_equal": 173,
+    "fresh_equal": 178,
+    "native_equal": 190,
     "native_differs": 0,
     "native_locations_uncovered": 0,
-    "reused": 53,
+    "reused": 58,
     "recomputed_changed": 39,
     "recomputed_unchanged": 3,
-    "fresh": 66
+    "fresh": 78
   },
   "rows": [
     {
@@ -301,6 +301,30 @@
       "recomputed_unchanged": 0,
       "fresh": 0,
       "trace": "config__extends__chain.json"
+    },
+    {
+      "family": "resolution-cache/identity/path-spelling/option-inputs",
+      "fresh_equal": 8,
+      "native_equal": 8,
+      "native_differs": 0,
+      "native_locations_uncovered": 0,
+      "reused": 2,
+      "recomputed_changed": 0,
+      "recomputed_unchanged": 0,
+      "fresh": 6,
+      "trace": "identity__path-spelling__option-inputs.json"
+    },
+    {
+      "family": "resolution-cache/identity/path-spelling/containing-and-config",
+      "fresh_equal": 9,
+      "native_equal": 9,
+      "native_differs": 0,
+      "native_locations_uncovered": 0,
+      "reused": 3,
+      "recomputed_changed": 0,
+      "recomputed_unchanged": 0,
+      "fresh": 6,
+      "trace": "identity__path-spelling__containing-and-config.json"
     }
   ]
 }

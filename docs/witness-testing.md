@@ -222,12 +222,12 @@ job 27m32s; the seven jobs total 89m00s, excluding plans/gates and main-push run
 The linked hosted receipt records the candidate/merge identities and timings.
 
 
-C05 adds `resolution-cache` to controls: 24 change families / 105 generations /
-180 requests, nine contract tests and the complete 56-test Program library
+C05 adds `resolution-cache` to controls: 26 change families / 112 generations /
+197 requests, eleven contract tests and the complete 56-test Program library
 (including eight cache unit tests). Its pinned-Node observer compares two fresh
 observations with immutable expected bytes before Rust starts. The entry requires
 both targets, exact nonzero counts, zero ignored and zero filtered tests.
 Dedicated test/fixture/observer changes select this entry; shared Program source
-still selects full related coverage. Inventory v9 has 67 standalone targets:
+still selects full related coverage. Inventory v10 has 67 standalone targets:
 25 unfiltered, seven filtered, 35 without a direct entry, plus one of the 16
 lib/bin harnesses directly registered. See the [integration receipt](design/greenfield/slices/l2-3-resolution-cache/integration/README.md).

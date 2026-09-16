@@ -178,9 +178,9 @@ def case_ids(suite):
         families = manifest["families"]
         ids = [family["id"] for family in families]
         generations = [generation for family in families for generation in family["generations"]]
-        if (len(ids) != 24 or len(set(ids)) != 24 or any(not item.strip() for item in ids)
-                or len(generations) + len(families) != 105
-                or sum(len(family["requests"]) * (1 + len(family["generations"])) for family in families) != 180):
+        if (len(ids) != 26 or len(set(ids)) != 26 or any(not item.strip() for item in ids)
+                or len(generations) + len(families) != 112
+                or sum(len(family["requests"]) * (1 + len(family["generations"])) for family in families) != 197):
             raise ValueError("resolution-cache: changed family/generation/request membership")
         return ids
     if suite in EMITTER_DIRECT or suite in COMPILER_DIRECT:
@@ -414,10 +414,10 @@ def run_resolution_cache(command, env):
     print(result.stdout, end="", flush=True)
     result.check_returncode()
     counts = re.findall(r"test result: ok\. (\d+) passed; 0 failed; (\d+) ignored;.*? (\d+) filtered out;", result.stdout)
-    if sorted(tuple(map(int, row)) for row in counts) != [(9, 0, 0), (56, 0, 0)]:
+    if sorted(tuple(map(int, row)) for row in counts) != [(11, 0, 0), (56, 0, 0)]:
         raise ValueError("resolution-cache: missing, ignored, filtered or changed target results")
-    print(json.dumps({"resolution_cache": {"families": 24, "generations": 105, "requests": 180},
-                      "contract_tests": 9, "program_unit_tests": 56,
+    print(json.dumps({"resolution_cache": {"families": 26, "generations": 112, "requests": 197},
+                      "contract_tests": 11, "program_unit_tests": 56,
                       "observer_seconds": round(oracle_seconds, 3),
                       "cargo_build_and_replay_seconds": round(time.monotonic() - started, 3)}), flush=True)
 

@@ -2,7 +2,7 @@
 
 2026-09-16。統合担当：Codex。**emitter direct10、E-only8のCLIに続き、compiler UTF-16/literalの5 targetとC04 transpile contractの入口を追加。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v9.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v10.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -13,7 +13,7 @@
 C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登録した（v6）。
 初回hostedでNode version不一致を検出し、transpileを含むcontrolsにNode25.2.1を設定したv7へ更新。入口の件数はv6と同じ。
 [A-PC1](../h2-8a-compact-body-comments.md) が新設printer targetと既存parameter targetを登録したv8へ更新。
-[C05](../l2-3-resolution-cache/integration/README.md) がprogram contractと全program libを登録したv9へ更新。
+[C05](../l2-3-resolution-cache/integration/README.md) がprogram contractと全program libを登録したv9、path表記の追加回帰を反映したv10へ更新。
 設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
 ## 現在の入口

@@ -11,10 +11,11 @@ Claude 担当 C01〜C05 と、それ以外の実装・統合・検証・配布�
 本書の5件だけでプロジェクトの残タスクが尽きるわけではありません。
 ③ printer の隔離候補は受領済みで、[A-INT3 の統合レビュー](h2-8a-printer-failure/INTEGRATION.md)へ進みました。
 ④ transpile の候補も [PR #535 で統合済み](h2-8c-transpile/INTEGRATION.md)です。
-⑤ cache は受領・レビュー済みで、[追加修正 R1〜R4](l2-3-resolution-cache-review-01/README.md)の再提出待ちです。
-次の推奨送付順は **⑤ cache追加修正 → ① literal → ② binding**。
+⑤ cache はR1〜R4再提出を受領し、統合側の追加修正と専用CI入口を含む[PR #539](https://github.com/kazhiramatsu/tsc-rs/pull/539)へ進みました。[統合記録](l2-3-resolution-cache/integration/README.md)を参照。
+次の推奨送付順は **① literal → ② binding**。
 [A-INT3-CS](h2-8a-printer-comment-carry/README.md) と
-[API1.2-HINT](api1-2-printer-hook-hints.md) は統合担当が持ちます。
+[API1.2-HINT](api1-2-printer-hook-hints.md) は統合済みです。
+統合担当の[A-PC1](h2-8a-compact-body-comments.md)もPR #538で完了しています。
 ①②は現行実装との対応表から始め、再現した差があれば優先順位を上げます。
 各候補の本番統合と admission は統合担当が持ちます。
 
@@ -51,7 +52,7 @@ CI 改修も [PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) で main
 ①②の最初の成果物は、旧要求と現行 source/既存 witness の対応表です。
 各行を「既存実装で観測済み」「追加対照が必要」「差を再現」「到達前提が未成立」に分け、
 差を再現した範囲を実装候補にします。旧要求の全項目を未実装と仮定してコードを増やしません。
-③④の測定範囲と保留は各統合記録を参照してください。⑤の失敗数は未計測であり、
+③④⑤の測定範囲と保留は各統合記録を参照してください。
 この一覧は完了・未完了の網羅証明ではありません。
 
 ## 共通の読み順と開始点

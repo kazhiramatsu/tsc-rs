@@ -10,7 +10,7 @@ SUPER 統合後の main の SHA を固定し、ローカルは新規失敗・関
 
 **2026-09-16 再提出・統合候補**：[DESIGN](l2-3-resolution-cache/DESIGN.md)、
 [REPORT](l2-3-resolution-cache/REPORT.md)、[INTEGRATION](l2-3-resolution-cache/INTEGRATION.md)を受領。
-R1〜R3の独立再現3件は成功。R4の残るサイズ集計・上限変更適用を統合側で追加修正し、
+R1〜R3の独立再現3件は成功。R4のサイズ集計・上限変更適用、R1のpath表記保持を統合側で追加修正し、
 専用CI入口を登録した。[統合レビューと実測](l2-3-resolution-cache/integration/README.md)を参照。
 元の[レビューR1](l2-3-resolution-cache-review-01/README.md)と提出patchは履歴として保存する。
 Program reuse/watch/LSPのactivationは含まない。

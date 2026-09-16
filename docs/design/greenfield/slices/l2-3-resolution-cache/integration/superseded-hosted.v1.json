@@ -1,0 +1,620 @@
+{
+  "reason": "Stopped by integrator after independent path-spelling counterexamples; not accepted as final hosted validation.",
+  "runs": [
+    {
+      "conclusion": "cancelled",
+      "headSha": "1e2668a36b06030f02fb31a90776126b6fc8bbc5",
+      "jobs": [
+        {
+          "completedAt": "2026-09-16T05:45:46Z",
+          "conclusion": "success",
+          "databaseId": 104680440349,
+          "name": "plan",
+          "startedAt": "2026-09-16T05:45:19Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:45:20Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:45:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:44Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:45:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:45Z",
+              "conclusion": "success",
+              "name": "Select affected replay groups",
+              "number": 3,
+              "startedAt": "2026-09-16T05:45:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:45Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-16T05:45:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:45Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-16T05:45:45Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782841/job/104680440349"
+        },
+        {
+          "completedAt": "2026-09-16T05:52:25Z",
+          "conclusion": "cancelled",
+          "databaseId": 104680543859,
+          "name": "acceptance (late)",
+          "startedAt": "2026-09-16T05:45:49Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:45:50Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:45:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:46:01Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:45:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:22Z",
+              "conclusion": "cancelled",
+              "name": "Run selected acceptance",
+              "number": 3,
+              "startedAt": "2026-09-16T05:46:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:22Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-16T05:52:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-16T05:52:22Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782841/job/104680543859"
+        },
+        {
+          "completedAt": "2026-09-16T05:52:24Z",
+          "conclusion": "cancelled",
+          "databaseId": 104680543965,
+          "name": "acceptance (early)",
+          "startedAt": "2026-09-16T05:46:24Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:46:25Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:46:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:46:30Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:46:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:22Z",
+              "conclusion": "cancelled",
+              "name": "Run selected acceptance",
+              "number": 3,
+              "startedAt": "2026-09-16T05:46:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:22Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-16T05:52:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:22Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-16T05:52:22Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782841/job/104680543965"
+        },
+        {
+          "completedAt": "2026-09-16T05:52:24Z",
+          "conclusion": "cancelled",
+          "databaseId": 104680543967,
+          "name": "acceptance (wide)",
+          "startedAt": "2026-09-16T05:45:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:45:49Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:45:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:58Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:45:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:22Z",
+              "conclusion": "cancelled",
+              "name": "Run selected acceptance",
+              "number": 3,
+              "startedAt": "2026-09-16T05:45:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:22Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-16T05:52:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:22Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-16T05:52:22Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782841/job/104680543967"
+        },
+        {
+          "completedAt": "2026-09-16T05:52:39Z",
+          "conclusion": "failure",
+          "databaseId": 104681896713,
+          "name": "gates",
+          "startedAt": "2026-09-16T05:52:28Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:52:29Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:52:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:37Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:52:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:38Z",
+              "conclusion": "failure",
+              "name": "Require every selected group to succeed",
+              "number": 3,
+              "startedAt": "2026-09-16T05:52:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:38Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-16T05:52:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:38Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-16T05:52:38Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782841/job/104681896713"
+        }
+      ],
+      "status": "completed"
+    },
+    {
+      "conclusion": "cancelled",
+      "headSha": "1e2668a36b06030f02fb31a90776126b6fc8bbc5",
+      "jobs": [
+        {
+          "completedAt": "2026-09-16T05:45:46Z",
+          "conclusion": "success",
+          "databaseId": 104680440434,
+          "name": "plan",
+          "startedAt": "2026-09-16T05:45:19Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:45:22Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:45:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:42Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:45:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:44Z",
+              "conclusion": "success",
+              "name": "Select affected replay groups",
+              "number": 3,
+              "startedAt": "2026-09-16T05:45:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:44Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-16T05:45:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:44Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-16T05:45:44Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782895/job/104680440434"
+        },
+        {
+          "completedAt": "2026-09-16T05:52:26Z",
+          "conclusion": "cancelled",
+          "databaseId": 104680543083,
+          "name": "witnesses (primary)",
+          "startedAt": "2026-09-16T05:45:51Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:45:52Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:45:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:46:01Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:45:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:46:01Z",
+              "conclusion": "skipped",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-16T05:46:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "cancelled",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-16T05:46:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-16T05:52:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-16T05:52:23Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782895/job/104680543083"
+        },
+        {
+          "completedAt": "2026-09-16T05:52:25Z",
+          "conclusion": "cancelled",
+          "databaseId": 104680543116,
+          "name": "witnesses (retained)",
+          "startedAt": "2026-09-16T05:45:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:45:49Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:45:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:58Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:45:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:58Z",
+              "conclusion": "skipped",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-16T05:45:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "cancelled",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-16T05:45:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-16T05:52:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-16T05:52:23Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782895/job/104680543116"
+        },
+        {
+          "completedAt": "2026-09-16T05:48:12Z",
+          "conclusion": "success",
+          "databaseId": 104680543126,
+          "name": "witnesses (printer)",
+          "startedAt": "2026-09-16T05:45:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:45:50Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:45:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:46:00Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:45:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:46:00Z",
+              "conclusion": "skipped",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-16T05:46:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:48:09Z",
+              "conclusion": "success",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-16T05:46:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:48:10Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-16T05:48:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:48:10Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-16T05:48:10Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782895/job/104680543126"
+        },
+        {
+          "completedAt": "2026-09-16T05:52:26Z",
+          "conclusion": "cancelled",
+          "databaseId": 104680543150,
+          "name": "witnesses (controls)",
+          "startedAt": "2026-09-16T05:45:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:45:50Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:45:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:45:58Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:45:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:46:04Z",
+              "conclusion": "success",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-16T05:45:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "cancelled",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-16T05:46:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "skipped",
+              "name": "Post Use the frozen oracle Node version",
+              "number": 7,
+              "startedAt": "2026-09-16T05:52:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-16T05:52:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:23Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-16T05:52:23Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782895/job/104680543150"
+        },
+        {
+          "completedAt": "2026-09-16T05:52:41Z",
+          "conclusion": "failure",
+          "databaseId": 104681899501,
+          "name": "witness-gates",
+          "startedAt": "2026-09-16T05:52:28Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-16T05:52:30Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-16T05:52:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:39Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-16T05:52:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:39Z",
+              "conclusion": "failure",
+              "name": "Require every selected group to succeed",
+              "number": 3,
+              "startedAt": "2026-09-16T05:52:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:40Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-16T05:52:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-16T05:52:40Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-16T05:52:40Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35060782895/job/104681899501"
+        }
+      ],
+      "status": "completed"
+    }
+  ]
+}

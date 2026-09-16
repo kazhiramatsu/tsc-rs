@@ -2,8 +2,14 @@
   "schema": "tsc-rs/resolution-cache-manifest/v1",
   "description": "L2.3 resolution cache change trace. Each family fixes an initial virtual filesystem, a request set, and ordered generations of explicit changes. The native observer replays the same states with the vendored TypeScript 6.0.3 and records fresh results per generation; the Rust contract replays them through the generation cache and compares fresh, reused, and native results.",
   "defaults": {
-    "host": { "current_directory": "/p", "case_sensitive": true },
-    "options": { "moduleResolution": "nodenext", "module": "nodenext" }
+    "host": {
+      "current_directory": "/p",
+      "case_sensitive": true
+    },
+    "options": {
+      "moduleResolution": "nodenext",
+      "module": "nodenext"
+    }
   },
   "families": [
     {
@@ -16,13 +22,64 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./missing", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./unrelated", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./missing",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./unrelated",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "update_file", "path": "/p/unrelated.ts", "text": "export const changed = 1;\n" } ], "expect": { "reused": [0, 1] } },
-        { "id": "g2", "ops": [ { "op": "create_file", "path": "/p/missing.ts", "text": "export {};\n" } ], "expect": { "recomputed": [0], "reused": [1] } },
-        { "id": "g3", "ops": [], "expect": { "reused": [0, 1] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/unrelated.ts",
+              "text": "export const changed = 1;\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/missing.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ],
+            "reused": [
+              1
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        }
       ]
     },
     {
@@ -35,12 +92,58 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./util", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "update_file", "path": "/p/util.ts", "text": "export const changed = 1;\n" } ], "expect": { "reused": [0] } },
-        { "id": "g2", "ops": [ { "op": "delete_file", "path": "/p/util.ts" } ], "expect": { "recomputed": [0] } },
-        { "id": "g3", "ops": [ { "op": "create_file", "path": "/p/util.ts", "text": "export {};\n" } ], "expect": { "recomputed": [0] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/util.ts",
+              "text": "export const changed = 1;\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/util.ts"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/util.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        }
       ]
     },
     {
@@ -53,29 +156,151 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./util", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "create_file", "path": "/p/util.tsx", "text": "export {};\n" } ], "expect": { "recomputed": [0] } },
-        { "id": "g2", "ops": [ { "op": "create_file", "path": "/p/util.ts", "text": "export {};\n" } ], "expect": { "recomputed": [0] } },
-        { "id": "g3", "ops": [ { "op": "create_file", "path": "/p/util.js", "text": "module.exports = {};\n" } ], "expect": { "reused": [0] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/util.tsx",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/util.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/util.js",
+              "text": "module.exports = {};\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/module/negative-lookup/parent-directory/create-then-file",
       "description": "A missing parent directory is a recorded negative dependency: creating the empty directory recomputes (measured over-invalidation), then the file, delete, and recreate transitions each recompute, and an unrelated sibling reuses.",
       "initial": {
-        "files": { "/p/main.ts": "import './lib/index';\n" }
+        "files": {
+          "/p/main.ts": "import './lib/index';\n"
+        }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./lib/index", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./lib/index",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "create_directory", "path": "/p/lib" } ], "expect": { "recomputed": [0] } },
-        { "id": "g2", "ops": [ { "op": "create_file", "path": "/p/lib/index.ts", "text": "export {};\n" } ], "expect": { "recomputed": [0] } },
-        { "id": "g3", "ops": [ { "op": "delete_file", "path": "/p/lib/index.ts" } ], "expect": { "recomputed": [0] } },
-        { "id": "g4", "ops": [ { "op": "create_file", "path": "/p/lib/index.ts", "text": "export {};\n" } ], "expect": { "recomputed": [0] } },
-        { "id": "g5", "ops": [ { "op": "create_file", "path": "/p/other.ts", "text": "export {};\n" } ], "expect": { "reused": [0] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "create_directory",
+              "path": "/p/lib"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/lib/index.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/lib/index.ts"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g4",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/lib/index.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g5",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/other.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ]
+          }
+        }
       ]
     },
     {
@@ -91,24 +316,106 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "pkg", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "pkg",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "update_file", "path": "/p/node_modules/pkg/package.json", "text": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"exports\":{\".\":{\"types\":\"./b.d.ts\",\"default\":\"./b.js\"}}}" } ], "expect": { "recomputed": [0] } },
-        { "id": "g2", "ops": [ { "op": "delete_file", "path": "/p/node_modules/pkg/package.json" } ], "expect": { "recomputed": [0] } },
-        { "id": "g3", "ops": [ { "op": "create_file", "path": "/p/node_modules/pkg/package.json", "text": "{" } ], "expect": { "recomputed": [0] } },
-        { "id": "g4", "ops": [
-            { "op": "delete_directory", "path": "/p/node_modules" },
-            { "op": "create_file", "path": "/p/node_modules/pkg/package.json", "text": "{\"name\":\"pkg\",\"version\":\"2.0.0\",\"exports\":{\".\":{\"types\":\"./c.d.ts\"}}}" },
-            { "op": "create_file", "path": "/p/node_modules/pkg/c.d.ts", "text": "export {};\n" }
-          ], "expect": { "recomputed": [0] } },
-        { "id": "g5", "ops": [ { "op": "update_file", "path": "/p/main.ts", "text": "import 'pkg';\nexport {};\n" } ], "expect": { "reused": [0] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/node_modules/pkg/package.json",
+              "text": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"exports\":{\".\":{\"types\":\"./b.d.ts\",\"default\":\"./b.js\"}}}"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/node_modules/pkg/package.json"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/pkg/package.json",
+              "text": "{"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g4",
+          "ops": [
+            {
+              "op": "delete_directory",
+              "path": "/p/node_modules"
+            },
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/pkg/package.json",
+              "text": "{\"name\":\"pkg\",\"version\":\"2.0.0\",\"exports\":{\".\":{\"types\":\"./c.d.ts\"}}}"
+            },
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/pkg/c.d.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g5",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/main.ts",
+              "text": "import 'pkg';\nexport {};\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/module/package/types-field-and-types-versions/node10",
       "description": "Node10 package `types` field edits and a typesVersions map addition recompute both the package root and a subpath request through the shared package.json content dependency.",
-      "options": { "moduleResolution": "node10", "module": "commonjs" },
+      "options": {
+        "moduleResolution": "node10",
+        "module": "commonjs"
+      },
       "initial": {
         "files": {
           "/p/main.ts": "import 'lib';\nimport 'lib/z';\n",
@@ -119,23 +426,90 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "lib", "mode": "undefined" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "lib/z", "mode": "undefined" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "lib",
+          "mode": "undefined"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "lib/z",
+          "mode": "undefined"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "update_file", "path": "/p/node_modules/lib/package.json", "text": "{\"name\":\"lib\",\"version\":\"1.0.0\",\"types\":\"./y.d.ts\"}" } ], "expect": { "recomputed": [0, 1] } },
-        { "id": "g2", "ops": [
-            { "op": "update_file", "path": "/p/node_modules/lib/package.json", "text": "{\"name\":\"lib\",\"version\":\"1.0.0\",\"types\":\"./y.d.ts\",\"typesVersions\":{\">=3.1\":{\"*\":[\"ts4/*\"]}}}" },
-            { "op": "create_file", "path": "/p/node_modules/lib/ts4/y.d.ts", "text": "export {};\n" }
-          ], "expect": { "recomputed": [0, 1] } },
-        { "id": "g3", "ops": [ { "op": "create_file", "path": "/p/node_modules/lib/other.d.ts", "text": "export {};\n" } ], "expect": { "reused": [0, 1] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/node_modules/lib/package.json",
+              "text": "{\"name\":\"lib\",\"version\":\"1.0.0\",\"types\":\"./y.d.ts\"}"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/node_modules/lib/package.json",
+              "text": "{\"name\":\"lib\",\"version\":\"1.0.0\",\"types\":\"./y.d.ts\",\"typesVersions\":{\">=3.1\":{\"*\":[\"ts4/*\"]}}}"
+            },
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/lib/ts4/y.d.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/lib/other.d.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/module/config-options/identity/switch-and-return",
       "description": "Every option in tsc's affectsModuleResolution set is part of the key: paths, moduleSuffixes, customConditions, and moduleResolution changes start fresh keys, while returning to a previous option identity reuses its retained entries.",
-      "options": { "moduleResolution": "bundler", "module": "esnext" },
-      "program_options": { "paths": { "@shared/*": ["src/shared/*"] }, "pathsBasePath": "/p" },
+      "options": {
+        "moduleResolution": "bundler",
+        "module": "esnext"
+      },
+      "program_options": {
+        "paths": {
+          "@shared/*": [
+            "src/shared/*"
+          ]
+        },
+        "pathsBasePath": "/p"
+      },
       "initial": {
         "files": {
           "/p/main.ts": "import '@shared/util';\n",
@@ -144,24 +518,146 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "@shared/util", "mode": "esnext" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "@shared/util",
+          "mode": "esnext"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [
-            { "op": "set_program_options", "program_options": { "paths": { "@shared/*": ["alt/*"] }, "pathsBasePath": "/p" } },
-            { "op": "create_file", "path": "/p/alt/util.ts", "text": "export {};\n" }
-          ], "expect": { "fresh": [0] } },
-        { "id": "g2", "ops": [ { "op": "set_program_options", "program_options": { "paths": { "@shared/*": ["src/shared/*"] }, "pathsBasePath": "/p" } } ], "expect": { "reused": [0] } },
-        { "id": "g3", "ops": [ { "op": "set_options", "options": { "moduleSuffixes": [".ios", ""] } } ], "expect": { "fresh": [0] } },
-        { "id": "g4", "ops": [ { "op": "set_options", "options": { "customConditions": ["custom"] } } ], "expect": { "fresh": [0] } },
-        { "id": "g5", "ops": [ { "op": "set_options", "options": { "moduleResolution": "node10", "module": "commonjs" } } ], "expect": { "fresh": [0] } },
-        { "id": "g6", "ops": [ { "op": "set_options", "options": { "moduleResolution": "bundler", "module": "esnext" } } ], "expect": { "reused": [0] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "paths": {
+                  "@shared/*": [
+                    "alt/*"
+                  ]
+                },
+                "pathsBasePath": "/p"
+              }
+            },
+            {
+              "op": "create_file",
+              "path": "/p/alt/util.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "paths": {
+                  "@shared/*": [
+                    "src/shared/*"
+                  ]
+                },
+                "pathsBasePath": "/p"
+              }
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "set_options",
+              "options": {
+                "moduleSuffixes": [
+                  ".ios",
+                  ""
+                ]
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g4",
+          "ops": [
+            {
+              "op": "set_options",
+              "options": {
+                "customConditions": [
+                  "custom"
+                ]
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g5",
+          "ops": [
+            {
+              "op": "set_options",
+              "options": {
+                "moduleResolution": "node10",
+                "module": "commonjs"
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g6",
+          "ops": [
+            {
+              "op": "set_options",
+              "options": {
+                "moduleResolution": "bundler",
+                "module": "esnext"
+              }
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/module/config-options/identity/structured-conditions",
       "description": "Review R1: option identity is structural. customConditions [\"a,b\"] and [\"a\",\"b\"], reordering, an empty list and an absent option are distinct identities (each starts fresh, never reusing another identity's entry), moduleSuffixes element boundaries likewise, and returning to an earlier identity reuses its retained entries.",
-      "options": { "customConditions": ["a,b"], "moduleSuffixes": [".a,b", ""] },
+      "options": {
+        "customConditions": [
+          "a,b"
+        ],
+        "moduleSuffixes": [
+          ".a,b",
+          ""
+        ]
+      },
       "initial": {
         "files": {
           "/p/main.ts": "import 'pkg';\nimport './util';\n",
@@ -175,23 +671,159 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "pkg", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./util", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "pkg",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "set_options", "options": { "customConditions": ["a", "b"], "moduleSuffixes": [".a", ".b", ""] } } ], "expect": { "fresh": [0, 1] } },
-        { "id": "g2", "ops": [ { "op": "set_options", "options": { "customConditions": ["b", "a"] } } ], "expect": { "fresh": [0, 1] } },
-        { "id": "g3", "ops": [ { "op": "set_options", "options": { "customConditions": [] } } ], "expect": { "fresh": [0, 1] } },
-        { "id": "g4", "ops": [ { "op": "unset_options", "names": ["customConditions"] } ], "expect": { "fresh": [0, 1] } },
-        { "id": "g5", "ops": [ { "op": "set_options", "options": { "customConditions": ["a", "b"] } } ], "expect": { "reused": [0, 1] } },
-        { "id": "g6", "ops": [ { "op": "set_options", "options": { "customConditions": ["a,b"], "moduleSuffixes": [".a,b", ""] } } ], "expect": { "reused": [0, 1] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "set_options",
+              "options": {
+                "customConditions": [
+                  "a",
+                  "b"
+                ],
+                "moduleSuffixes": [
+                  ".a",
+                  ".b",
+                  ""
+                ]
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "set_options",
+              "options": {
+                "customConditions": [
+                  "b",
+                  "a"
+                ]
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "set_options",
+              "options": {
+                "customConditions": []
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g4",
+          "ops": [
+            {
+              "op": "unset_options",
+              "names": [
+                "customConditions"
+              ]
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g5",
+          "ops": [
+            {
+              "op": "set_options",
+              "options": {
+                "customConditions": [
+                  "a",
+                  "b"
+                ]
+              }
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g6",
+          "ops": [
+            {
+              "op": "set_options",
+              "options": {
+                "customConditions": [
+                  "a,b"
+                ],
+                "moduleSuffixes": [
+                  ".a,b",
+                  ""
+                ]
+              }
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/module/config-options/identity/structured-paths",
       "description": "Review R1: paths substitutions and patterns keep their element boundaries in the identity: one substitution containing a comma is not two substitutions, and a pattern split is a different map.",
-      "options": { "moduleResolution": "bundler", "module": "esnext" },
-      "program_options": { "paths": { "@app/*": ["src,alt/*"] }, "pathsBasePath": "/p" },
+      "options": {
+        "moduleResolution": "bundler",
+        "module": "esnext"
+      },
+      "program_options": {
+        "paths": {
+          "@app/*": [
+            "src,alt/*"
+          ]
+        },
+        "pathsBasePath": "/p"
+      },
       "initial": {
         "files": {
           "/p/main.ts": "import '@app/x';\nimport '@app/y';\n",
@@ -201,13 +833,87 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "@app/x", "mode": "esnext" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "@app/y", "mode": "esnext" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "@app/x",
+          "mode": "esnext"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "@app/y",
+          "mode": "esnext"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "set_program_options", "program_options": { "paths": { "@app/*": ["src/*", "alt/*"] } } } ], "expect": { "fresh": [0, 1] } },
-        { "id": "g2", "ops": [ { "op": "set_program_options", "program_options": { "paths": { "@app/*": ["src,alt/*"] } } } ], "expect": { "reused": [0, 1] } },
-        { "id": "g3", "ops": [ { "op": "set_program_options", "program_options": { "paths": { "@app/x": ["src/x"], "@app/*": ["alt/*"] } } } ], "expect": { "fresh": [0, 1] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "paths": {
+                  "@app/*": [
+                    "src/*",
+                    "alt/*"
+                  ]
+                }
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "paths": {
+                  "@app/*": [
+                    "src,alt/*"
+                  ]
+                }
+              }
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "paths": {
+                  "@app/x": [
+                    "src/x"
+                  ],
+                  "@app/*": [
+                    "alt/*"
+                  ]
+                }
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1
+            ]
+          }
+        }
       ]
     },
     {
@@ -222,18 +928,62 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "dual", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "dual", "mode": "esnext" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "dual",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "dual",
+          "mode": "esnext"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "update_file", "path": "/p/node_modules/dual/package.json", "text": "{\"name\":\"dual\",\"version\":\"1.0.1\",\"exports\":{\".\":{\"import\":{\"types\":\"./cjs.d.cts\"},\"require\":{\"types\":\"./esm.d.mts\"}}}}" } ], "expect": { "recomputed": [0, 1] } },
-        { "id": "g2", "ops": [ { "op": "create_file", "path": "/p/main2.ts", "text": "export {};\n" } ], "expect": { "reused": [0, 1] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/node_modules/dual/package.json",
+              "text": "{\"name\":\"dual\",\"version\":\"1.0.1\",\"exports\":{\".\":{\"import\":{\"types\":\"./cjs.d.cts\"},\"require\":{\"types\":\"./esm.d.mts\"}}}}"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/main2.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/types-libs/automatic-types/default-typeroots",
       "description": "Wildcard automatic @types discovery (types: [\"*\"], the only form 6.0.3 enumerates) depends on the type root directory listing and each candidate package.json; adding, removing, hiding, and null-typings packages change the name set and the per-name resolutions accordingly.",
-      "program_options": { "types": ["*"] },
+      "program_options": {
+        "types": [
+          "*"
+        ]
+      },
       "initial": {
         "files": {
           "/p/main.ts": "export {};\n",
@@ -242,27 +992,113 @@
         }
       },
       "requests": [
-        { "kind": "automatic_type_names" },
-        { "kind": "automatic_type_reference", "containing": "/p/__inferred type names__.ts", "specifier": "node", "mode": "undefined" },
-        { "kind": "automatic_type_reference", "containing": "/p/__inferred type names__.ts", "specifier": "react", "mode": "undefined" }
+        {
+          "kind": "automatic_type_names"
+        },
+        {
+          "kind": "automatic_type_reference",
+          "containing": "/p/__inferred type names__.ts",
+          "specifier": "node",
+          "mode": "undefined"
+        },
+        {
+          "kind": "automatic_type_reference",
+          "containing": "/p/__inferred type names__.ts",
+          "specifier": "react",
+          "mode": "undefined"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [
-            { "op": "create_file", "path": "/p/node_modules/@types/react/package.json", "text": "{\"name\":\"@types/react\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}" },
-            { "op": "create_file", "path": "/p/node_modules/@types/react/index.d.ts", "text": "declare var react: string;\n" }
-          ], "expect": { "reused": [1], "recomputed": [2] } },
-        { "id": "g2", "ops": [ { "op": "delete_directory", "path": "/p/node_modules/@types/node" } ], "expect": { "recomputed": [1], "reused": [2] } },
-        { "id": "g3", "ops": [ { "op": "create_file", "path": "/p/node_modules/@types/.hidden/index.d.ts", "text": "export {};\n" } ], "expect": { "reused": [1, 2] } },
-        { "id": "g4", "ops": [
-            { "op": "create_file", "path": "/p/node_modules/@types/typed-null/package.json", "text": "{\"name\":\"@types/typed-null\",\"version\":\"1.0.0\",\"typings\":null}" },
-            { "op": "create_file", "path": "/p/node_modules/@types/typed-null/index.d.ts", "text": "export {};\n" }
-          ], "expect": { "reused": [1, 2] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/@types/react/package.json",
+              "text": "{\"name\":\"@types/react\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}"
+            },
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/@types/react/index.d.ts",
+              "text": "declare var react: string;\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              1
+            ],
+            "recomputed": [
+              2
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "delete_directory",
+              "path": "/p/node_modules/@types/node"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              1
+            ],
+            "reused": [
+              2
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/@types/.hidden/index.d.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              1,
+              2
+            ]
+          }
+        },
+        {
+          "id": "g4",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/@types/typed-null/package.json",
+              "text": "{\"name\":\"@types/typed-null\",\"version\":\"1.0.0\",\"typings\":null}"
+            },
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/@types/typed-null/index.d.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              1,
+              2
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/types-libs/explicit-typeroots-and-types/custom-root",
       "description": "Explicit typeRoots make the primary lookup authoritative for automatic names: adding a package under the custom root recomputes only that name, removing it yields NotFound, and a package appearing under node_modules/@types is never probed and therefore reused.",
-      "program_options": { "typeRoots": ["/p/typings"], "types": ["foo"] },
+      "program_options": {
+        "typeRoots": [
+          "/p/typings"
+        ],
+        "types": [
+          "foo"
+        ]
+      },
       "initial": {
         "files": {
           "/p/main.ts": "/// <reference types=\"bar\" />\nexport {};\n",
@@ -270,38 +1106,150 @@
         }
       },
       "requests": [
-        { "kind": "automatic_type_reference", "containing": "/p/__inferred type names__.ts", "specifier": "foo", "mode": "undefined" },
-        { "kind": "type_reference", "containing": "/p/main.ts", "specifier": "bar", "mode": "undefined" }
+        {
+          "kind": "automatic_type_reference",
+          "containing": "/p/__inferred type names__.ts",
+          "specifier": "foo",
+          "mode": "undefined"
+        },
+        {
+          "kind": "type_reference",
+          "containing": "/p/main.ts",
+          "specifier": "bar",
+          "mode": "undefined"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "create_file", "path": "/p/typings/bar/index.d.ts", "text": "declare var bar: string;\n" } ], "expect": { "reused": [0], "recomputed": [1] } },
-        { "id": "g2", "ops": [ { "op": "delete_file", "path": "/p/typings/foo/index.d.ts" } ], "expect": { "recomputed": [0], "reused": [1] } },
-        { "id": "g3", "ops": [ { "op": "create_file", "path": "/p/node_modules/@types/foo/index.d.ts", "text": "declare var foo: number;\n" } ], "expect": { "reused": [0, 1] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/typings/bar/index.d.ts",
+              "text": "declare var bar: string;\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ],
+            "recomputed": [
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/typings/foo/index.d.ts"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ],
+            "reused": [
+              1
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/@types/foo/index.d.ts",
+              "text": "declare var foo: number;\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/types-libs/lib-replacement/add-remove-package",
       "description": "libReplacement resolution of @typescript/lib-* from the synthetic containing file is a distinct request kind with tsc's isolated Node10 option set; installing and removing the package recompute it.",
-      "options": { "libReplacement": true },
+      "options": {
+        "libReplacement": true
+      },
       "initial": {
-        "files": { "/p/main.ts": "export {};\n" }
+        "files": {
+          "/p/main.ts": "export {};\n"
+        }
       },
       "requests": [
-        { "kind": "library", "containing": "/p/__lib_node_modules_lookup_lib.dom.d.ts__.ts", "specifier": "@typescript/lib-dom" }
+        {
+          "kind": "library",
+          "containing": "/p/__lib_node_modules_lookup_lib.dom.d.ts__.ts",
+          "specifier": "@typescript/lib-dom"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [
-            { "op": "create_file", "path": "/p/node_modules/@typescript/lib-dom/package.json", "text": "{\"name\":\"@typescript/lib-dom\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}" },
-            { "op": "create_file", "path": "/p/node_modules/@typescript/lib-dom/index.d.ts", "text": "declare var dom: string;\n" }
-          ], "expect": { "recomputed": [0] } },
-        { "id": "g2", "ops": [ { "op": "create_file", "path": "/p/other.ts", "text": "export {};\n" } ], "expect": { "reused": [0] } },
-        { "id": "g3", "ops": [ { "op": "delete_directory", "path": "/p/node_modules/@typescript" } ], "expect": { "recomputed": [0] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/@typescript/lib-dom/package.json",
+              "text": "{\"name\":\"@typescript/lib-dom\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}"
+            },
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/@typescript/lib-dom/index.d.ts",
+              "text": "declare var dom: string;\n"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/other.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "delete_directory",
+              "path": "/p/node_modules/@typescript"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/identity/case-insensitive/folded-keys",
       "description": "On a case-insensitive host the containing directory and dependency paths fold to the TypeScript file-name case fold while the specifier spelling stays exact: two containing spellings share one entry, a differently spelled specifier is a separate entry, and an edit under another spelling still invalidates.",
-      "host": { "current_directory": "/p", "case_sensitive": false },
+      "host": {
+        "current_directory": "/p",
+        "case_sensitive": false
+      },
       "initial": {
         "files": {
           "/p/Main.ts": "import './util';\n",
@@ -309,13 +1257,57 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/Main.ts", "specifier": "./util", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./util", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./Util", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/Main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./Util",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "update_file", "path": "/p/UTIL.ts", "text": "export const changed = 1;\n" } ], "expect": { "reused": [0, 2] } },
-        { "id": "g2", "ops": [ { "op": "delete_file", "path": "/p/UTIL.ts" } ], "expect": { "recomputed": [0, 2] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/UTIL.ts",
+              "text": "export const changed = 1;\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              2
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/UTIL.ts"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0,
+              2
+            ]
+          }
+        }
       ]
     },
     {
@@ -329,16 +1321,79 @@
           "/store/v2/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"2.0.0\",\"types\":\"index.d.ts\"}",
           "/store/v2/pkg/index.d.ts": "export {};\n"
         },
-        "symlinks": { "/p/node_modules/pkg": "/store/v1/pkg" }
+        "symlinks": {
+          "/p/node_modules/pkg": "/store/v1/pkg"
+        }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "pkg", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "pkg",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "set_symlink", "path": "/p/node_modules/pkg", "target": "/store/v2/pkg" } ], "expect": { "recomputed": [0] } },
-        { "id": "g2", "ops": [ { "op": "set_program_options", "program_options": { "preserveSymlinks": true } } ], "expect": { "fresh": [0] } },
-        { "id": "g3", "ops": [ { "op": "set_symlink", "path": "/p/node_modules/pkg", "target": "/store/v1/pkg" } ], "expect": { "recomputed": [0] } },
-        { "id": "g4", "ops": [ { "op": "remove_symlink", "path": "/p/node_modules/pkg" } ], "expect": { "recomputed": [0] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "set_symlink",
+              "path": "/p/node_modules/pkg",
+              "target": "/store/v2/pkg"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "preserveSymlinks": true
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "set_symlink",
+              "path": "/p/node_modules/pkg",
+              "target": "/store/v1/pkg"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g4",
+          "ops": [
+            {
+              "op": "remove_symlink",
+              "path": "/p/node_modules/pkg"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        }
       ]
     },
     {
@@ -353,12 +1408,59 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./util", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/src/main.ts", "specifier": "./util", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/src/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "delete_file", "path": "/p/src/util.ts" } ], "expect": { "reused": [0], "recomputed": [1] } },
-        { "id": "g2", "ops": [ { "op": "delete_file", "path": "/p/src/main.ts" }, { "op": "create_file", "path": "/p/moved/main.ts", "text": "import './util';\n" } ], "expect": { "reused": [0], "recomputed": [1] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/src/util.ts"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ],
+            "recomputed": [
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/src/main.ts"
+            },
+            {
+              "op": "create_file",
+              "path": "/p/moved/main.ts",
+              "text": "import './util';\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ],
+            "recomputed": [
+              1
+            ]
+          }
+        }
       ]
     },
     {
@@ -371,12 +1473,63 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./util", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [], "controls": [ { "control": "hold_reader" } ], "expect": { "reused": [0] } },
-        { "id": "g2", "ops": [ { "op": "delete_file", "path": "/p/util.ts" } ], "expect": { "recomputed": [0] } },
-        { "id": "g3", "ops": [ { "op": "create_file", "path": "/p/util.ts", "text": "export {};\n" } ], "controls": [ { "control": "release_reader", "generation": "g1" } ], "expect": { "recomputed": [0] } }
+        {
+          "id": "g1",
+          "ops": [],
+          "controls": [
+            {
+              "control": "hold_reader"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/util.ts"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/util.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "controls": [
+            {
+              "control": "release_reader",
+              "generation": "g1"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        }
       ]
     },
     {
@@ -391,18 +1544,63 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/a.ts", "specifier": "pkg", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/b.ts", "specifier": "pkg", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/a.ts",
+          "specifier": "pkg",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/b.ts",
+          "specifier": "pkg",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "update_file", "path": "/p/a.ts", "text": "import 'pkg';\nexport {};\n" } ], "expect": { "reused": [0, 1] } },
-        { "id": "g2", "ops": [ { "op": "set_options", "options": { "customConditions": ["project-b"] } } ], "expect": { "fresh": [0, 1] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/a.ts",
+              "text": "import 'pkg';\nexport {};\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "set_options",
+              "options": {
+                "customConditions": [
+                  "project-b"
+                ]
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/generation/source-membership/rebind",
       "description": "Cached host-level rows are rebound to each generation's own source membership: adding an import changes program order and ids while the unchanged row is reused.",
-      "roots": ["/p/main.ts"],
+      "roots": [
+        "/p/main.ts"
+      ],
       "initial": {
         "files": {
           "/p/main.ts": "import './a';\n",
@@ -411,26 +1609,101 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./a", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./b", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./a",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./b",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "update_file", "path": "/p/main.ts", "text": "import './b';\nimport './a';\n" } ], "expect": { "reused": [0, 1] } },
-        { "id": "g2", "ops": [ { "op": "delete_file", "path": "/p/a.ts" } ], "expect": { "recomputed": [0], "reused": [1] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/main.ts",
+              "text": "import './b';\nimport './a';\n"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/a.ts"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ],
+            "reused": [
+              1
+            ]
+          }
+        }
       ]
     },
     {
       "id": "resolution-cache/failure/host-error/normalize",
       "description": "A host I/O failure aborts the candidate without touching the published view or caching a NotFound; once the host recovers the next generation recomputes from the published state.",
       "initial": {
-        "files": { "/p/main.ts": "import './util';\n" }
+        "files": {
+          "/p/main.ts": "import './util';\n"
+        }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./util", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "create_file", "path": "/p/util.ts", "text": "export {};\n" } ], "controls": [ { "control": "host_failure", "operation": "file_exists", "path": "/p/util.ts" } ], "expect": { "aborted": "host_error" } },
-        { "id": "g2", "ops": [], "expect": { "recomputed": [0] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/util.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "controls": [
+            {
+              "control": "host_failure",
+              "operation": "file_exists",
+              "path": "/p/util.ts"
+            }
+          ],
+          "expect": {
+            "aborted": "host_error"
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [],
+          "expect": {
+            "recomputed": [
+              0
+            ]
+          }
+        }
       ]
     },
     {
@@ -445,14 +1718,69 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./a", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./b", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./c", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./a",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./b",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./c",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "delete_file", "path": "/p/a.ts" } ], "controls": [ { "control": "cancel_after_requests", "count": 1 } ], "expect": { "aborted": "cancelled" } },
-        { "id": "g2", "ops": [], "controls": [ { "control": "cancel_before_publish" } ], "expect": { "aborted": "dropped" } },
-        { "id": "g3", "ops": [], "expect": { "recomputed": [0], "reused": [1, 2] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/a.ts"
+            }
+          ],
+          "controls": [
+            {
+              "control": "cancel_after_requests",
+              "count": 1
+            }
+          ],
+          "expect": {
+            "aborted": "cancelled"
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [],
+          "controls": [
+            {
+              "control": "cancel_before_publish"
+            }
+          ],
+          "expect": {
+            "aborted": "dropped"
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [],
+          "expect": {
+            "recomputed": [
+              0
+            ],
+            "reused": [
+              1,
+              2
+            ]
+          }
+        }
       ]
     },
     {
@@ -468,15 +1796,81 @@
         }
       },
       "requests": [
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./a", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./b", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./c", "mode": "commonjs" },
-        { "kind": "module", "containing": "/p/main.ts", "specifier": "./d", "mode": "commonjs" }
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./a",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./b",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./c",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./d",
+          "mode": "commonjs"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [], "controls": [ { "control": "limits", "max_entries": 2 } ], "expect": { "reused": [0, 1, 2, 3] } },
-        { "id": "g2", "ops": [], "expect": { "fresh": [0, 1], "reused": [2, 3] } },
-        { "id": "g3", "ops": [], "controls": [ { "control": "evict_all" } ], "expect": { "fresh": [0, 1, 2, 3] } }
+        {
+          "id": "g1",
+          "ops": [],
+          "controls": [
+            {
+              "control": "limits",
+              "max_entries": 2
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1,
+              2,
+              3
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [],
+          "expect": {
+            "fresh": [
+              0,
+              1
+            ],
+            "reused": [
+              2,
+              3
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [],
+          "controls": [
+            {
+              "control": "evict_all"
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1,
+              2,
+              3
+            ]
+          }
+        }
       ]
     },
     {
@@ -490,13 +1884,67 @@
         }
       },
       "requests": [
-        { "kind": "package_scope", "containing": "/p/main.ts" },
-        { "kind": "package_scope", "containing": "/p/lib/x.ts" }
+        {
+          "kind": "package_scope",
+          "containing": "/p/main.ts"
+        },
+        {
+          "kind": "package_scope",
+          "containing": "/p/lib/x.ts"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "update_file", "path": "/p/package.json", "text": "{\"name\":\"root\",\"version\":\"1.0.0\",\"type\":\"module\"}" } ], "expect": { "recomputed": [0, 1] } },
-        { "id": "g2", "ops": [ { "op": "create_file", "path": "/p/lib/package.json", "text": "{\"type\":\"commonjs\"}" } ], "expect": { "reused": [0], "recomputed": [1] } },
-        { "id": "g3", "ops": [ { "op": "delete_file", "path": "/p/package.json" } ], "expect": { "recomputed": [0], "reused": [1] } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/package.json",
+              "text": "{\"name\":\"root\",\"version\":\"1.0.0\",\"type\":\"module\"}"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/lib/package.json",
+              "text": "{\"type\":\"commonjs\"}"
+            }
+          ],
+          "expect": {
+            "reused": [
+              0
+            ],
+            "recomputed": [
+              1
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/package.json"
+            }
+          ],
+          "expect": {
+            "recomputed": [
+              0
+            ],
+            "reused": [
+              1
+            ]
+          }
+        }
       ]
     },
     {
@@ -511,19 +1959,272 @@
         }
       },
       "requests": [
-        { "kind": "config" }
+        {
+          "kind": "config"
+        }
       ],
       "generations": [
-        { "id": "g1", "ops": [ { "op": "update_file", "path": "/p/base.json", "text": "{\"compilerOptions\":{\"baseUrl\":\".\",\"paths\":{\"@app/*\":[\"lib/*\"]}}}" } ], "expect": { "config": "options_changed" } },
-        { "id": "g2", "ops": [ { "op": "create_file", "path": "/p/src/extra.ts", "text": "export {};\n" } ], "expect": { "config": "roots_changed" } },
-        { "id": "g3", "ops": [ { "op": "create_file", "path": "/p/README.md", "text": "notes\n" } ], "expect": { "config": "reused" } },
-        { "id": "g4", "ops": [ { "op": "delete_file", "path": "/p/base.json" } ], "expect": { "config": "options_changed" } },
-        { "id": "g5", "ops": [
-            { "op": "create_file", "path": "/p/node_modules/@cfg/base/package.json", "text": "{\"name\":\"@cfg/base\",\"version\":\"1.0.0\",\"tsconfig\":\"tsconfig.base.json\"}" },
-            { "op": "create_file", "path": "/p/node_modules/@cfg/base/tsconfig.base.json", "text": "{\"compilerOptions\":{\"baseUrl\":\".\",\"rootDirs\":[\"src\",\"gen\"]}}" },
-            { "op": "update_file", "path": "/p/tsconfig.json", "text": "{\"extends\":\"@cfg/base\",\"compilerOptions\":{\"moduleResolution\":\"bundler\",\"module\":\"esnext\"},\"include\":[\"src\"]}" }
-          ], "expect": { "config": "options_changed" } },
-        { "id": "g6", "ops": [ { "op": "update_file", "path": "/p/node_modules/@cfg/base/tsconfig.base.json", "text": "{\"compilerOptions\":{\"baseUrl\":\".\",\"rootDirs\":[\"src\",\"gen\",\"more\"]}}" } ], "expect": { "config": "options_changed" } }
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/base.json",
+              "text": "{\"compilerOptions\":{\"baseUrl\":\".\",\"paths\":{\"@app/*\":[\"lib/*\"]}}}"
+            }
+          ],
+          "expect": {
+            "config": "options_changed"
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/src/extra.ts",
+              "text": "export {};\n"
+            }
+          ],
+          "expect": {
+            "config": "roots_changed"
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/README.md",
+              "text": "notes\n"
+            }
+          ],
+          "expect": {
+            "config": "reused"
+          }
+        },
+        {
+          "id": "g4",
+          "ops": [
+            {
+              "op": "delete_file",
+              "path": "/p/base.json"
+            }
+          ],
+          "expect": {
+            "config": "options_changed"
+          }
+        },
+        {
+          "id": "g5",
+          "ops": [
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/@cfg/base/package.json",
+              "text": "{\"name\":\"@cfg/base\",\"version\":\"1.0.0\",\"tsconfig\":\"tsconfig.base.json\"}"
+            },
+            {
+              "op": "create_file",
+              "path": "/p/node_modules/@cfg/base/tsconfig.base.json",
+              "text": "{\"compilerOptions\":{\"baseUrl\":\".\",\"rootDirs\":[\"src\",\"gen\"]}}"
+            },
+            {
+              "op": "update_file",
+              "path": "/p/tsconfig.json",
+              "text": "{\"extends\":\"@cfg/base\",\"compilerOptions\":{\"moduleResolution\":\"bundler\",\"module\":\"esnext\"},\"include\":[\"src\"]}"
+            }
+          ],
+          "expect": {
+            "config": "options_changed"
+          }
+        },
+        {
+          "id": "g6",
+          "ops": [
+            {
+              "op": "update_file",
+              "path": "/p/node_modules/@cfg/base/tsconfig.base.json",
+              "text": "{\"compilerOptions\":{\"baseUrl\":\".\",\"rootDirs\":[\"src\",\"gen\",\"more\"]}}"
+            }
+          ],
+          "expect": {
+            "config": "options_changed"
+          }
+        }
+      ]
+    },
+    {
+      "id": "resolution-cache/identity/path-spelling/option-inputs",
+      "description": "A case-insensitive host still returns option-supplied display paths. Preserve both display and canonical typeRoots/rootDirs identities; returning to the original spellings reuses the corresponding entries.",
+      "host": {
+        "case_sensitive": false
+      },
+      "program_options": {
+        "typeRoots": [
+          "/p/types"
+        ],
+        "rootDirs": [
+          "/p/src",
+          "/p/gen"
+        ]
+      },
+      "initial": {
+        "files": {
+          "/p/types/pkg/index.d.ts": "export {};\n",
+          "/p/gen/util.ts": "export {};\n"
+        }
+      },
+      "requests": [
+        {
+          "kind": "type_reference",
+          "containing": "/p/main.ts",
+          "specifier": "pkg",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/p/src/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        }
+      ],
+      "generations": [
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "typeRoots": [
+                  "/p/TYPES"
+                ]
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "rootDirs": [
+                  "/p/src",
+                  "/p/GEN"
+                ]
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "g3",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "typeRoots": [
+                  "/p/types"
+                ],
+                "rootDirs": [
+                  "/p/src",
+                  "/p/gen"
+                ]
+              }
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "resolution-cache/identity/path-spelling/containing-and-config",
+      "description": "Containing directory spelling is a result input even when canonical paths coincide. Config-file display spelling also controls implicit type roots. Distinct spellings must match fresh native/Rust results.",
+      "host": {
+        "case_sensitive": false
+      },
+      "program_options": {
+        "configFilePath": "/p/config/tsconfig.json"
+      },
+      "initial": {
+        "files": {
+          "/p/util.ts": "export {};\n",
+          "/p/config/node_modules/@types/pkg/index.d.ts": "export {};\n"
+        }
+      },
+      "requests": [
+        {
+          "kind": "module",
+          "containing": "/p/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "module",
+          "containing": "/P/main.ts",
+          "specifier": "./util",
+          "mode": "commonjs"
+        },
+        {
+          "kind": "type_reference",
+          "containing": "/p/main.ts",
+          "specifier": "pkg",
+          "mode": "commonjs"
+        }
+      ],
+      "generations": [
+        {
+          "id": "g1",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "configFilePath": "/p/CONFIG/tsconfig.json"
+              }
+            }
+          ],
+          "expect": {
+            "fresh": [
+              0,
+              1,
+              2
+            ]
+          }
+        },
+        {
+          "id": "g2",
+          "ops": [
+            {
+              "op": "set_program_options",
+              "program_options": {
+                "configFilePath": "/p/config/tsconfig.json"
+              }
+            }
+          ],
+          "expect": {
+            "reused": [
+              0,
+              1,
+              2
+            ]
+          }
+        }
       ]
     }
   ]

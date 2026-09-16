@@ -7,6 +7,23 @@
 SUPER 統合後の main の SHA を固定し、ローカルは新規失敗・関連 owner の focused set、
 重い全件 replay は hosted で実行します。以下の技術要件は現行実装と照合し、既実装部分を再実装しません。
 
+
+**2026-09-16 次スライス**：C05再提出の統合後、Claudeへ次に送る依頼は本C01。
+最新mainから新しいworktreeを作り、開始SHAを固定してください。C05の作業treeへ重ねません。
+統合担当のAPI1.2-HINT（PR #537）とA-PC1（PR #538）も開始点に含めます。
+
+再確認した入口は `factory::update_node`（同値なら同一node、変更時はcloneしてpayload更新）、
+`clone_node`（literal propertiesとtemplate flagsを保持）、`LiteralNodeProperties::raw_template_text`
+（正確なraw UTF-16を所有）、`tagged_template::template_fragment_texts`（owned rawを優先）、
+`create_template_cooked`（`IS_INVALID`を消費）です。これらの存在自体は新規失敗の証明ではありません。
+cooked / raw projection / owned raw / flagsの変更操作が交差する境界を追加観測してください。
+
+既存の `literal-value-provenance`、`literal-parent-provenance`、`utf16-literal-escaping`、
+`string-literal-identifier-source`、`utf16-review-fix`、`utf16-tagged-template` は
+`python3 scripts/witness.py <suite> --list`で入口を確認できます。
+新規fixtureはこれらの凍結expectedを書き換えず追加し、最終提出時に専用CI入口の所有path・
+実行件数・想定時間も示してください。全件hostedは統合担当が登録・実行します。
+
 ## 依頼
 
 UTF-16 literal の値を変更したときの AST 更新と、後続 tagged-template 変換への

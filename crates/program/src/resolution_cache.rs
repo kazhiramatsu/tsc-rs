@@ -604,6 +604,16 @@ pub enum IdentityValue {
 }
 
 impl IdentityValue {
+    fn program_path(path: &ProgramPath) -> Self {
+        Self::Entries(vec![
+            ("display".into(), Self::Text(path.display().to_owned())),
+            (
+                "canonical".into(),
+                Self::Text(path.canonical().as_js().to_owned()),
+            ),
+        ])
+    }
+
     fn optional_bool(value: Option<bool>) -> Self {
         value.map_or(Self::Undefined, Self::Bool)
     }
@@ -739,14 +749,9 @@ impl OptionsIdentity {
         program_options: &ProgramOptions,
         host: &dyn CompilerHost,
     ) -> Self {
-        let canonical_list = |paths: Option<&[ProgramPath]>| {
+        let path_list = |paths: Option<&[ProgramPath]>| {
             paths.map_or(IdentityValue::Undefined, |paths| {
-                IdentityValue::List(
-                    paths
-                        .iter()
-                        .map(|path| IdentityValue::Text(path.canonical().as_js().to_owned()))
-                        .collect(),
-                )
+                IdentityValue::List(paths.iter().map(IdentityValue::program_path).collect())
             })
         };
         let paths = program_options
@@ -810,8 +815,8 @@ impl OptionsIdentity {
                 IdentityValue::optional_text(options.base_url.as_ref()),
             ),
             ("paths", paths),
-            ("rootDirs", canonical_list(program_options.root_dirs())),
-            ("typeRoots", canonical_list(program_options.type_roots())),
+            ("rootDirs", path_list(program_options.root_dirs())),
+            ("typeRoots", path_list(program_options.type_roots())),
             ("moduleSuffixes", module_suffixes),
             (
                 "resolvePackageJsonExports",
@@ -885,9 +890,7 @@ impl OptionsIdentity {
                 "configFilePath",
                 program_options
                     .config_file_path()
-                    .map_or(IdentityValue::Undefined, |path| {
-                        IdentityValue::Text(path.canonical().as_js().to_owned())
-                    }),
+                    .map_or(IdentityValue::Undefined, IdentityValue::program_path),
             ),
             (
                 "useCaseSensitiveFileNames",
@@ -973,11 +976,15 @@ impl RequestKind {
 /// vendored per-directory sharing, because the resolver's secondary lookup
 /// differs for that origin. Library requests carry the logical lib file name
 /// and the synthetic resolve-from directory. The options identity is part of
-/// every key so a config change can never alias an old entry.
+/// every key so a config change can never alias an old entry. The normalized
+/// directory spelling is also retained because it reaches resolved display paths;
+/// canonical dependency matching alone is not sufficient for result identity.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct RequestKey {
     kind: RequestKind,
     containing_directory: PathKey,
+    // Resolver results retain this spelling even on a case-insensitive host.
+    containing_directory_spelling: JsString,
     specifier: JsString,
     mode: ResolutionMode,
     identity: Rc<OptionsIdentity>,
@@ -986,14 +993,16 @@ pub struct RequestKey {
 impl RequestKey {
     fn new(
         kind: RequestKind,
-        containing_directory: PathKey,
+        directory: (PathKey, JsString),
         specifier: JsStr<'_>,
         mode: ResolutionMode,
         identity: Rc<OptionsIdentity>,
     ) -> Self {
+        let (containing_directory, containing_directory_spelling) = directory;
         Self {
             kind,
             containing_directory,
+            containing_directory_spelling,
             specifier: specifier.to_owned(),
             mode,
             identity,
@@ -1022,6 +1031,7 @@ impl RequestKey {
 
     fn estimated_bytes(&self) -> usize {
         32 + self.containing_directory.0.as_bytes().len()
+            + self.containing_directory_spelling.as_bytes().len()
             + self.specifier.as_bytes().len()
             + self.identity.estimated_bytes()
     }
@@ -1030,7 +1040,7 @@ impl RequestKey {
         format!(
             "{}:{}:{}:{:?}",
             self.kind.name(),
-            self.containing_directory,
+            self.containing_directory_spelling.to_string_lossy(),
             self.specifier.to_string_lossy(),
             self.mode
         )
@@ -2089,12 +2099,15 @@ impl<'h> Candidate<'h> {
     fn containing_directory_key(
         &self,
         containing_file: JsStr<'_>,
-    ) -> Result<PathKey, ResolutionError> {
+    ) -> Result<(PathKey, JsString), ResolutionError> {
         let current_directory = self.raw_host.current_directory_js()?;
         let normalized =
             normalize_absolute_js_path(containing_file, Some(current_directory.as_js()), true)?;
         let directory = crate::js_path::directory_name(normalized.as_js());
-        Ok(PathKey::new(directory.as_js(), self.case_sensitive))
+        Ok((
+            PathKey::new(directory.as_js(), self.case_sensitive),
+            directory,
+        ))
     }
 
     fn check_cancelled(&self, token: &CancellationToken) -> Result<(), CacheError> {
