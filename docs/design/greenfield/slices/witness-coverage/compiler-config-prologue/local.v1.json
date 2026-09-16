@@ -1,0 +1,325 @@
+{
+  "version": 1,
+  "base_commit": "ccb6661c16f75cd6824e9fedb9281be68d01e542",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "recorded_at": "2026-09-16T10:13:19.787963+00:00",
+  "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "node": "v25.2.1",
+  "slices": [
+    "OPS-COVER-3F",
+    "OPS-COVER-3G",
+    "OPS-DEBT-EMPTY-SOURCE"
+  ],
+  "hosted": "not-yet-run",
+  "runs": [
+    {
+      "phase": "baseline-config-library",
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "contracts",
+        "h2_8b_config_commands::config_commands_match_complete_typescript_observations",
+        "--",
+        "--exact",
+        "h2_8b_config_commands::config_commands_match_ordered_program_facts",
+        "h2_8b_config_conversion_commands::config_conversion_commands_match_complete_typescript_observations",
+        "h2_8b_config_conversion_commands::config_conversion_commands_match_ordered_program_facts",
+        "h2_8b_config_diagnostic_commands::config_diagnostic_commands_match_complete_typescript_observations",
+        "h2_8b_config_diagnostic_commands::config_diagnostic_commands_match_ordered_program_facts",
+        "h2_8b_config_diagnostic_routing::config_diagnostic_routing_match_complete_typescript_observations",
+        "h2_8b_config_diagnostic_routing::config_diagnostic_routing_match_ordered_program_facts",
+        "h2_8b_config_discovery_commands::config_discovery_commands_match_complete_typescript_observations",
+        "h2_8b_config_discovery_commands::config_discovery_commands_match_ordered_program_facts",
+        "h2_8b_config_entity_commands::config_entity_commands_match_complete_typescript_observations",
+        "h2_8b_config_entity_commands::config_entity_commands_match_ordered_program_facts",
+        "h2_8b_config_extension_commands::config_extension_commands_match_complete_typescript_observations",
+        "h2_8b_config_extension_commands::config_extension_commands_match_ordered_program_facts",
+        "h2_8b_config_root_commands::config_root_commands_match_complete_typescript_observations",
+        "h2_8b_config_root_commands::config_root_commands_match_ordered_program_facts",
+        "h2_8b_config_source_commands::config_source_commands_match_observations_and_module_boundaries",
+        "h2_8b_config_source_commands::config_source_commands_match_ordered_program_facts",
+        "h2_8b_config_source_span_commands::config_source_span_commands_match_complete_typescript_observations",
+        "h2_8b_config_source_span_commands::config_source_span_commands_match_ordered_program_facts",
+        "h2_8b_library_replacement::library_replacement_matches_complete_typescript_observations",
+        "h2_8b_library_replacement::library_replacement_matches_program_membership",
+        "h2_8b_library_replacement::library_order_controls_match_complete_typescript_observations",
+        "h2_8b_library_replacement::library_order_controls_match_program_membership",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "seconds": 372.027
+    },
+    {
+      "phase": "baseline-prologue",
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_prologue_only_detached_comments",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 11.024
+    },
+    {
+      "phase": "before-runner",
+      "command": [
+        "python3",
+        ".github/ci/replay.py",
+        "witnesses"
+      ],
+      "env": {
+        "WITNESS_SUITES": "[\"config-library\",\"prologue-comments\"]",
+        "CARGO_BUILD_JOBS": "2"
+      },
+      "exit_code": 1,
+      "seconds": 63.136
+    },
+    {
+      "phase": "after-runner",
+      "command": [
+        "python3",
+        ".github/ci/replay.py",
+        "witnesses"
+      ],
+      "env": {
+        "WITNESS_SUITES": "[\"config-library\",\"prologue-comments\"]",
+        "CARGO_BUILD_JOBS": "2"
+      },
+      "exit_code": 0,
+      "seconds": 185.141
+    },
+    {
+      "phase": "policy-baseline",
+      "cwd": "/Users/hiramatsu/dev/tsc-rs-literal-update-integration",
+      "command": [
+        "node",
+        ".github/ci/qualification.mjs",
+        "check"
+      ],
+      "exit_code": 1,
+      "seconds": 2.095,
+      "first_line": "Error: unsupported JSON schema at #/$defs/diagnostic: cyclic local $ref is not supported"
+    },
+    {
+      "phase": "policy-candidate",
+      "cwd": "/Users/hiramatsu/dev/tsc-rs-compiler-witness-batch",
+      "command": [
+        "node",
+        ".github/ci/qualification.mjs",
+        "check"
+      ],
+      "exit_code": 1,
+      "seconds": 2.066,
+      "first_line": "Error: unsupported JSON schema at #/$defs/diagnostic: cyclic local $ref is not supported"
+    },
+    {
+      "phase": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "phase": "readiness",
+      "command": [
+        "python3",
+        "docs/design/greenfield/slices/witness-coverage/compiler-config-prologue/check_readiness.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "phase": "inventory",
+      "command": [
+        "python3",
+        "docs/design/greenfield/slices/witness-coverage/inventory.py",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "phase": "adjacent-printer",
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--test",
+        "printer_failure_contract",
+        "--test",
+        "emit_pipeline_phases_contract",
+        "--test",
+        "comma_list_printer_contract",
+        "--test",
+        "list_format_flags_contract",
+        "--test",
+        "list_comment_flags_contract",
+        "--test",
+        "source_comment_topology_contract",
+        "--test",
+        "utf16_writer_contract",
+        "--test",
+        "compact_body_comments_contract",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 226.738
+    }
+  ],
+  "after_summary": {
+    "compiler_direct": [
+      "config-library",
+      "prologue-comments"
+    ],
+    "targets": 2,
+    "tests_passed": 25,
+    "observer_seconds": 28.878,
+    "cargo_build_and_replay_seconds": 156.091
+  },
+  "fixture_rows": {
+    "config_library": 96,
+    "complete_commands": 94,
+    "typed_refusals": 2,
+    "ordered_program_facts": 96,
+    "prologue_partial_observations": 8,
+    "repetitions": 2
+  },
+  "before_summary": {
+    "config_library_tests_passed": 22,
+    "config_library_tests_failed": 2,
+    "unique_defects": 1,
+    "failed_case": "h2-8b-config-source-span-commands/forced-empty",
+    "prologue_tests_passed": 1
+  },
+  "native_after_events": {
+    "complete_command": 188,
+    "module_boundary": 4,
+    "program_membership": 192
+  },
+  "baseline_rust_source": "rust-source.v1.json",
+  "changed_rust_build_sources": {
+    "crates/emitter/src/printer.rs": {
+      "before": "f70cdc8cf38b0b0ce070089129a7937b3fbce58b370dbdbe0ae16e85a860fc5d",
+      "after": "0a808712f50b263aba83a3240c1caeea3a941bab269434c1b4ed6de1c0f503a5"
+    }
+  },
+  "source_input_sha256": {
+    ".github/ci/qualification-policy.v2.json": "30125c49e9d55c9d6b76868e4f462a48b6f959a8c928bfcd7e003732f1a2c8ad",
+    ".github/ci/replay.py": "e140fcd561bc099c15ffb03c79d1680a452c24f96afeaad71e8eab54bfc66332",
+    ".github/ci/test_replay.py": "f2d5920b054a499348a8219ace597e609adf1152d35c75352bb47fc5bfc3d6eb",
+    ".github/workflows/witness.yml": "8850254c44b305e50ccc9c4633c962d0fa98f49d3044d82298eff7fe024da933",
+    "crates/compiler/tests/contracts.rs": "851f89e64477724e77293129fe3560c84d5cc7f1ba3953fca3470e4bde5accd4",
+    "crates/compiler/tests/fixtures/h2-8b-config-commands-inputs.json": "4c4208b4e4cbeec6fdfbd4b432b712849d557476e7cd73f9bd508abfecfe6715",
+    "crates/compiler/tests/fixtures/h2-8b-config-commands.json": "41d72b9e2d8e709bb5b85ff781bd0f82961922944e1ad03063e9562f8a129a2e",
+    "crates/compiler/tests/fixtures/h2-8b-config-conversion-commands-inputs.json": "c77a838c69f7433a62cd4bc09561b4d17853d17318469c408d1463d19d6beb03",
+    "crates/compiler/tests/fixtures/h2-8b-config-conversion-commands.json": "10d998eba9c2f5c2676c7f35662fabcc38cbcb30df693c5a459fb25de20b5c61",
+    "crates/compiler/tests/fixtures/h2-8b-config-diagnostic-commands-inputs.json": "a0151a4650cea1c6458d50d08937b9d4823dab3f15330930eae866bc8f7babb7",
+    "crates/compiler/tests/fixtures/h2-8b-config-diagnostic-commands.json": "1ad0c3f595679064a1826a055700fad0cf6354e1dba09cf4cf1161ca8198d7b2",
+    "crates/compiler/tests/fixtures/h2-8b-config-diagnostic-routing-inputs.json": "08bf7c38780f0d3b1c6652237598d580004319738810d0d99561bd48a5addb2c",
+    "crates/compiler/tests/fixtures/h2-8b-config-diagnostic-routing.json": "754d060bb94a63baa11bba54905f34af666706c74933410a5a2edcc0b0f23fc0",
+    "crates/compiler/tests/fixtures/h2-8b-config-discovery-commands-inputs.json": "140dbe890280e3aeb6814404f86fb6e9543cc8b4d149ddf0da8381b1f828fa8f",
+    "crates/compiler/tests/fixtures/h2-8b-config-discovery-commands.json": "e61ffb7446d83c69d60a762c019bf2cceb214cca64111b5f2e38e7cbb2bd28c5",
+    "crates/compiler/tests/fixtures/h2-8b-config-entity-commands-inputs.json": "5f7baa25b6d65af7400a5d10d69cc5e237ef3aed05f7c9e1f8c7ac068c2f3f3e",
+    "crates/compiler/tests/fixtures/h2-8b-config-entity-commands.json": "913c034ad455f477461d2f7a4bdc995cdb4e110af96baa1fe6f3fdffbee1281d",
+    "crates/compiler/tests/fixtures/h2-8b-config-extension-commands-inputs.json": "8de36668d8a98fc67fc92b3360734d336581fca1db9e340fa9920309cde51d04",
+    "crates/compiler/tests/fixtures/h2-8b-config-extension-commands.json": "fdd63c9fb6052b962dbf0a571315a362d217ac1b32d46616f479ecb0129bf1a0",
+    "crates/compiler/tests/fixtures/h2-8b-config-root-commands-inputs.json": "c89508a746f861df3b51f359190760b8f4dd1afe2a296b77f45172a7e943957f",
+    "crates/compiler/tests/fixtures/h2-8b-config-root-commands.json": "abbd8a28c1be8507fb9e359c9064fe11bd0de150dace491be380cd65bfb0a759",
+    "crates/compiler/tests/fixtures/h2-8b-config-source-commands-inputs.json": "760beb9444012f648994a256dd7acdc5f30eb8faf1b63b4a51d8847a5f7bc4f9",
+    "crates/compiler/tests/fixtures/h2-8b-config-source-commands.json": "2314dc891f917eea652024d2c5b7c0a77da1d9f7bedae2eb6fbef4d6f6dedb98",
+    "crates/compiler/tests/fixtures/h2-8b-config-source-span-commands-inputs.json": "68469cb4c021aba55597fee921f738472a86514214557b79a064e8362f2f8b89",
+    "crates/compiler/tests/fixtures/h2-8b-config-source-span-commands.json": "7e70bff631d5bf2c6c40397d4c931d145699c75776ce828380f982a8e9828805",
+    "crates/compiler/tests/fixtures/h2-8b-library-order-inputs.json": "dae839e55f2198abd46c075557bacccd90bb4ad8014976d176670ca6907a29ec",
+    "crates/compiler/tests/fixtures/h2-8b-library-order.json": "76a4bf631795372d3e76ac3505f137d6022c374f0267823339636f120eb368aa",
+    "crates/compiler/tests/fixtures/h2-8b-library-replacement-inputs.json": "26cab27f14d09ec3c5a3164c5f050d1e1dbcece56d20f036342e8390189c7089",
+    "crates/compiler/tests/fixtures/h2-8b-library-replacement.json": "32ee0d8204de1def87d953c685c448467bb9d403080881b7e93c5ca72e48de2d",
+    "crates/compiler/tests/fixtures/prologue-only-detached-comments.json": "65ceacc91bd3fbb4f3260d9f1d4d8fff2971437fa35f0814adc0f80b8f9a27f4",
+    "crates/compiler/tests/h2_8a_prologue_only_detached_comments.rs": "70935f067ecd4534f72f711d51eea4933b48adbb4b630a67e8a44ac5b5772f4f",
+    "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": "88c9b1088a134e7eb7491149e6c503b37905eee0866ae47f4f5c5c21e313d1c6",
+    "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "8cdd9a5ea31923c515d35ae475f54595d116635ea635e685ddb41ecc8d1e6460",
+    "crates/compiler/tests/integration/h2_8b_config_commands.rs": "e1bcd86886928d16b314c95280dfd44aa094b46759fc5addf6e0de9eeb4c9099",
+    "crates/compiler/tests/integration/h2_8b_config_conversion_commands.rs": "7a33d74a28f658090d5c260e519865bec14f63a3192e0899ba8fb0a81aa60071",
+    "crates/compiler/tests/integration/h2_8b_config_diagnostic_commands.rs": "c357066bbe2d896aec6a309ab3ac5aa08cf2789490ef31e8822a333725b5c73d",
+    "crates/compiler/tests/integration/h2_8b_config_diagnostic_routing.rs": "22176dd155336bc90491e8c231a0d843c7d24785dfda5ccbbdade92a4c41d2c9",
+    "crates/compiler/tests/integration/h2_8b_config_discovery_commands.rs": "6b93bf0dac87e21964d8e7391de73d83146076ec125bd6acc7c8c5255b94339e",
+    "crates/compiler/tests/integration/h2_8b_config_entity_commands.rs": "8c89fdf59018e6a147c4cda7a9855d4c7f770e4e2f7d1da2ed995f40633ae23b",
+    "crates/compiler/tests/integration/h2_8b_config_extension_commands.rs": "9452a7d1e33a5b3ba27a0e58e9922fa95d2b57181e1f5f9bf45604c7cbfa44bf",
+    "crates/compiler/tests/integration/h2_8b_config_root_commands.rs": "57adc116cb2c43dcb760dc70c5ef49cd766292bf08795d2b5971447466949c38",
+    "crates/compiler/tests/integration/h2_8b_config_source_commands.rs": "60aea10a9dfc2be93f970b2cbf7a9219a0e465146e8359824220d25dfd18fc63",
+    "crates/compiler/tests/integration/h2_8b_config_source_span_commands.rs": "f40a363e31df448f84f5e3f119d2c721ec46781711fb11d22f75a5195da604df",
+    "crates/compiler/tests/integration/h2_8b_library_replacement.rs": "595b672a68e3497448de98e876ead99afebcfd0d9a4b0c6e5198ea352aff50e1",
+    "crates/compiler/tests/support/witness_libraries.rs": "946901c1cd6af4e1e46ad4ba82d2aece80952ffe3d721e39f76a1ac0f8ea131d",
+    "crates/oracle/vfs-directory-overlay.mjs": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76",
+    "scripts/observe-h2-8b-config-commands.mjs": "8d302d6144b1cef306e9d3b5815be42afd5d30ebc0c301d78d8baf0cf8a93210",
+    "scripts/observe-h2-8b-config-conversion-commands.mjs": "5cda687cfc04fa6ef08fcc9a7c11a33ec8685511e05303e0d256d6bf2e5ae9b2",
+    "scripts/observe-h2-8b-config-diagnostic-commands.mjs": "0e6dd0879066b659042ba32063364edc126fd2c6dee5e14042c0b40dad18deec",
+    "scripts/observe-h2-8b-config-diagnostic-routing.mjs": "cf6fa411d997ea1cbcc3f80ef14a5d57f84658c32c220dcb2845d83747bf54fa",
+    "scripts/observe-h2-8b-config-discovery-commands.mjs": "b39835d8977cb5ba5df65a0abfd0ba33e17a0cd9232a4c467cc634b98baeaaec",
+    "scripts/observe-h2-8b-config-entity-commands.mjs": "c06a8b16a5792fe7539295a80ea098bace588d3c025f6e40b724b2c24862ad9a",
+    "scripts/observe-h2-8b-config-extension-commands.mjs": "82e8ea5fe4c1ac080ab668cdc15a534b3c6497f1b4f835dc7f6d5e0974a359d5",
+    "scripts/observe-h2-8b-config-root-commands.mjs": "96dad1dce82a55e62386450f3f7eac0516040b81491033682411b9b16f691001",
+    "scripts/observe-h2-8b-config-source-commands.mjs": "1e4dc01861b5e36c2458e2fa90535750145030bcaaa87256e681c537bab4b4c9",
+    "scripts/observe-h2-8b-config-source-span-commands.mjs": "bc7ab9000f462fb097bf47c3c1be71101ce905226937ab96ab3a70d70c73d476",
+    "scripts/observe-h2-8b-library-order.mjs": "52df010d7113d477f7032b7c6069e126472f6322b7d75a392f32aed38ceee8cb",
+    "scripts/observe-h2-8b-library-replacement.mjs": "a8d9982a704bedaab872d80bae5a80e882e2ce59cc34ebb501cbb1eeca8f4054",
+    "scripts/observe-prologue-only-detached-comments.mjs": "9b56c27a75e00eb9b77f252ea0e3516e880f58c5f2980e8c7b898e9f349e4e61",
+    "scripts/witness.py": "64dfd88671ad79818202b69fa8f21e1df2a5b10a57be27628be3599f635cd4b9",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "baseline_binaries": {
+    "contracts": {
+      "path": "target/debug/deps/contracts-05a4948cfadf681b",
+      "sha256": "b27beb8032143753c715a02d3baa2951424e3e7e08acb263e0113a5ee582490b"
+    }
+  },
+  "after_binaries": {
+    "h2_8a_prologue_only_detached_comments": {
+      "path": "target/debug/deps/h2_8a_prologue_only_detached_comments-cdb7c3db2d9b2531",
+      "sha256": "99b8a21b4c9ab68226985be27f8fd7b2ea361d2b98774be6a42041b6578eccdf"
+    },
+    "contracts": {
+      "path": "target/debug/deps/contracts-05a4948cfadf681b",
+      "sha256": "14b1f95dc18bbf6717d7da5a502ea1e764aa4d5b2f2fee649c0f43acdaa09060"
+    }
+  },
+  "checks": {
+    "planner_tests": 47,
+    "focused_policy_tests": 3,
+    "fmt_exit_code": 0,
+    "inventory_regeneration": "exact",
+    "local_link_targets": 342,
+    "adjacent_printer_targets": 8,
+    "adjacent_printer_tests": 35
+  },
+  "logs_sha256": {
+    "after-runner.log.gz": "bd09cfdde7f65e355d96387f96f15678632d1d24f6a63e70563f355e8d6ec18e",
+    "baseline-config-library.log.gz": "80b3e8c5d9b9e7393bd4855b20ddaf57bee943fd4773483f77ad223f63125136",
+    "baseline-prologue.log.gz": "d0a5a0904649ee631abf9742ea91ca2f9d2e22cacd35396a6aa5c87e3e434a88",
+    "before-runner.log.gz": "691c61fad67e0850a68f3f68457e15ac99b7cef45a740f54780bb3969db367cb",
+    "contracts-list.log.gz": "762052f9740f0eeaa653cd410b1927a89f87cb539dcf7c6332b85c929929175b",
+    "fmt.log.gz": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "planner.log.gz": "36167650b63bbed7ecab18bc97866ecf7c885587bc58bf47c64adc00cd0c04ab",
+    "policy-baseline.log.gz": "7ee397f4e571d1772a6a47e7331bc7af7b4919a2e2a3a10d8ea07ec22439dc8b",
+    "policy-candidate.log.gz": "ff86685552acf1fed40144bf67ceb3aab0af07cd6a77758a616cacfc45462977",
+    "policy-tests.log.gz": "033cce57f71c6391fe2750d49f9cc416bc653caa8b437533aedf93afa865c8c7",
+    "readiness.log.gz": "48f3fcd8c4e683f47cc6f04e0ba7fb939d5e4ce1287f55905cbaf627839a1207",
+    "inventory.log.gz": "80417bc8ee2e0f456015d06dcd8f95918788690d645cbf3000cdde8243c93b94",
+    "adjacent.log.gz": "596205c24fc16ad53e4aaa8e4c4510e947d19d7c436827feee488a5ab35fcbf7"
+  },
+  "policy_baseline_inputs_match_base": true,
+  "policy_baseline_tree_head": "0e78b77bb73e1e6d3d1363b9e4cdc289f4f905aa"
+}

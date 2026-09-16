@@ -276,3 +276,19 @@ the five synthetic disposal differences remain separately recorded controls.
 names, keeping ten imported/original tests out of that invocation. Each
 observer group is checked before Cargo; inherited internal filters and capture
 settings are cleared. See the [combined integration record](design/greenfield/slices/h2-8a-literal-update/integration/README.md).
+
+## Config/library and prologue witnesses
+
+`config-library` checks twelve frozen observers before selecting exactly 24 tests
+inside the compiler `contracts` binary. Its dedicated module and fixture changes
+select this suite; the shared `contracts.rs` registration still selects broad
+coverage. The shared declaration comparator and library snapshot retain late
+acceptance and their previous witnesses, plus this suite. The 96 inputs contain
+94 complete commands and two typed refusal controls; ordered Program facts are
+checked for all 96, independently of command success.
+
+`prologue-comments` runs the eight existing prologue-only comment controls,
+comparing JS text, write count, exit and diagnostic codes twice. It does not
+claim complete command-tuple coverage. Both suites share the controls build;
+use `--list` or `--all --dry-run` before replay. See the
+[combined scope and validation record](design/greenfield/slices/witness-coverage/compiler-config-prologue/README.md).

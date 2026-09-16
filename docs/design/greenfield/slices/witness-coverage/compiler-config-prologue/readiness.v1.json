@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "slice": "OPS-DEBT-EMPTY-SOURCE",
+  "state": "ready",
+  "base": "ccb6661c16f75cd6824e9fedb9281be68d01e542",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "production_paths": [
+    "crates/emitter/src/printer.rs"
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "f70cdc8cf38b0b0ce070089129a7937b3fbce58b370dbdbe0ae16e85a860fc5d"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8b-config-source-span-commands.json",
+      "sha256": "7e70bff631d5bf2c6c40397d4c931d145699c75776ce828380f982a8e9828805"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/prologue-only-detached-comments.json",
+      "sha256": "65ceacc91bd3fbb4f3260d9f1d4d8fff2971437fa35f0814adc0f80b8f9a27f4"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8b_config_source_span_commands.rs",
+      "sha256": "f40a363e31df448f84f5e3f119d2c721ec46781711fb11d22f75a5195da604df"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_prologue_only_detached_comments.rs",
+      "sha256": "70935f067ecd4534f72f711d51eea4933b48adbb4b630a67e8a44ac5b5772f4f"
+    },
+    {
+      "path": "scripts/observe-h2-8b-config-source-span-commands.mjs",
+      "sha256": "bc7ab9000f462fb097bf47c3c1be71101ce905226937ab96ab3a70d70c73d476"
+    },
+    {
+      "path": "scripts/observe-prologue-only-detached-comments.mjs",
+      "sha256": "9b56c27a75e00eb9b77f252ea0e3516e880f58c5f2980e8c7b898e9f349e4e61"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "emitSourceFileWorker",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start": 119753,
+      "end": 119769,
+      "sha256": "8dfb3b4d8372581bce1739cccac27e886d9260d86756c67ae36c9f462578ef65"
+    },
+    {
+      "owner": "emitNodeListItems",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start": 120068,
+      "end": 120155,
+      "sha256": "ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40"
+    },
+    {
+      "owner": "getClosingLineTerminatorCount",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start": 120330,
+      "end": 120360,
+      "sha256": "30b0be7e1586d76d08caeaa3f4605323147137e9c73a0bd825dd3c92881635dc"
+    },
+    {
+      "owner": "emitBodyWithDetachedComments",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start": 121075,
+      "end": 121104,
+      "sha256": "b07b0634586c6da5ba8ad7422074544deef1969168e79789b065a964b86b6ac7"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PRINTER-BASE",
+      "row": "| `E-PRINTER-BASE` | Printer has no direct checker dependency. It consumes transformed syntax/metadata, drives retained substitution and before/after notification hooks, and applies immutable structural planning. | `tsc_emitter::Printer` (public); `tsc_emitter::TransformationResult::{substitute_node,before_emit_node,after_emit_node}`; `crate::printer::EmissionPlan` and `EmitContext` (private); `crate::factory::NodeFactory::apply_parenthesizer_rules` (private) | `active-qualified`; qualified at validation ref `6acd5d43` (2026-08-21, CS-6 fixture/audit gate); previous ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. The H2.5h-a comment-scope packets reshape the private context carrier into the threaded `EmitContext` (CS-2 landed the root and core pipeline byte-identically); the row's hook-composition, no-checker-dependency, and immutable-planning invariants are preserved; requalified at `6acd5d43`. | H2.5g profile; later packets preserve hook composition and enumerate new expression contexts |"
+    },
+    {
+      "id": "E-COMMENTS-G",
+      "row": "| `E-COMMENTS-G` | Parsed ownership, synthetic comments, relocated owners, token progress, and comment progress are distinct typed facts. `TokenEmission` may hand its cursor plus an optional `CommentResume` only to the immediately following token/child; the resume carries both owner start and next position, requires one source and monotone progress, and can merge only with the same owner. A retained arrow anchors trailing comments at its own comment-range end, not semantic-original provenance, so a synthetic token cannot borrow source comments. The simple parameter's list-owned trailing comments and the retained arrow token's trailing comments remain separate phases, including tsc's observable list/leading replay at a shared range start. `SourceLeadingCommentPhaseVisit` distinguishes an absent/suppressed phase from a visited exact range, so a transitional class-field comment anchor is skipped only after that same range was visited; contextless routes retain the anchor. Token/comment ownership performs no source-wide token search; the position-cursor contract keeps local source work linear. H2.5g qualifies only the direct expression and list routes enumerated by its source-comment topology contracts; it does not claim that tsc's enclosing comment-container state already reaches every nested node route. Comment ownership now distinguishes paired, synthesized, start-only and end-only positions; positional readers and ordinary node-phase extent checks remain separate. | Public `tsc_emitter::SyntheticComment`; `crate::metadata::RelocatedStatementListComments` (`pub(crate)`); `crate::comment_cursor::{CommentCursor,CommentResume,CommentResumeError}` and `crate::token_cursor::{TokenCursor,TokenEmission,TokenAnchor,TokenCommentBoundary,FixedToken,TokenWriteKind,TokenLeadingSpace}` (`pub(crate)`); private `crate::printer::SourceLeadingCommentPhaseVisit` and other comment/list workers | `active-qualified`; qualified at validation ref `6acd5d43` (2026-08-21, CS-6 fixture/audit gate); previous ref `0653e10d` (2026-08-17); candidate-only audit 2026-08-14. The H2.5h-a comment-scope packet CS-3 re-expresses the row's qualified expression/list comment projections on the per-side threaded scope (cursor/resume semantics and the token machinery unchanged); requalified at `6acd5d43`; A6-28-5 retires the obsolete initializer trailing-comment marker; [the shared packet](slices/h2-8a-class-field-initializer-comments.md) qualifies all64 new controls and8 prior repairs in434/556 exact complete commands twice, with all490 units/451 contracts passing; subsequent [A6-28-6](slices/h2-8a-promoted-class-export-maps.md) qualifies all100 selected map repairs plus six ES2022 cases in764/868 exact complete commands twice and all490/451 emitter tests, leaving four original A28 comment targets at that prerequisite; subsequent A6-28-7 qualifies all four; [A6-28-7](slices/h2-8a-one-sided-class-comments.md) qualifies independent comment endpoints on the train candidate: 896/996 complete commands exact twice, all 16 selected repairs and all 880 prior positives, with 494 units/451 contracts passing; historical paired-range qualification remains retained. | Current-code audit, token/comment cursor unit contracts, `position_cursor_2727_statement_work_is_linear_and_scan_free`, source-comment topology and relocated class-field contracts, and arrow replay/resume integration contracts; H2.5g inventory/profile for observable parity |"
+    }
+  ],
+  "witness": {
+    "case_id": "h2-8b-config-source-span-commands/forced-empty",
+    "fixture_cases": 6,
+    "failed_tests": 2,
+    "other_passed_tests": 22,
+    "log_sha256": "e485c31d9dd6218697faaa488fe7ac4cbb834ba7f88d0a99b150ff4e8fe0ec9f"
+  },
+  "after_required": {
+    "config_library_tests": 24,
+    "config_library_inputs": 96,
+    "typed_refusals": 2,
+    "prologue_tests": 1,
+    "prologue_inputs": 8
+  }
+}

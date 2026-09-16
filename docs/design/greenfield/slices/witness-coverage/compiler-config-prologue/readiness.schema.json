@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OPS-DEBT-EMPTY-SOURCE readiness v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "slice",
+    "state",
+    "base",
+    "unresolved",
+    "undispositioned",
+    "production_paths",
+    "baseline_rust",
+    "authorities",
+    "owners",
+    "architecture",
+    "witness",
+    "after_required"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "slice": {
+      "type": "string",
+      "const": "OPS-DEBT-EMPTY-SOURCE"
+    },
+    "state": {
+      "type": "string",
+      "const": "ready"
+    },
+    "base": {
+      "type": "string"
+    },
+    "unresolved": {
+      "type": "integer",
+      "const": 0
+    },
+    "undispositioned": {
+      "type": "integer",
+      "const": 0
+    },
+    "production_paths": {
+      "type": "array"
+    },
+    "baseline_rust": {
+      "type": "array"
+    },
+    "authorities": {
+      "type": "array"
+    },
+    "owners": {
+      "type": "array"
+    },
+    "architecture": {
+      "type": "array"
+    },
+    "witness": {
+      "type": "object"
+    },
+    "after_required": {
+      "type": "object"
+    }
+  }
+}

@@ -55,6 +55,15 @@ changes. The [G5c design](slices/h2-8a-jsdoc-return-design.md) owns these bounde
 claims; the shared profiles remain frozen and hosted integration is recorded
 separately from the component validation refs.
 
+The [OPS-DEBT-EMPTY-SOURCE prerequisite](slices/witness-coverage/compiler-config-prologue/empty-source.md)
+keeps the `E-PRINTER-BASE` / `E-COMMENTS-G` owners and closes the emitted
+statement list before printing original comments from a statementless source.
+`Printer::write_transformed_source_file` now writes that closing newline before
+the original EOF comment branch, including when a module transform inserted
+statements. The existing complete-command source-span fixture protects output
+bytes and map positions; the linked record separates focused validation from
+hosted results. No profile or map representation changes.
+
 Every architecture row uses one lifecycle:
 
 | Lifecycle | Meaning |

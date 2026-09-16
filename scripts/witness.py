@@ -94,9 +94,75 @@ EMITTER_DIRECT = {
         "observers": ("scripts/observe-token-comment-phase-printer-metadata.mjs",),
     },
 }
+CONFIG_LIBRARY_GROUPS = (
+    ("config-commands", 8), ("config-conversion-commands", 8),
+    ("config-diagnostic-commands", 12), ("config-diagnostic-routing", 8),
+    ("config-discovery-commands", 8), ("config-entity-commands", 4),
+    ("config-extension-commands", 4), ("config-root-commands", 12),
+    ("config-source-commands", 8), ("config-source-span-commands", 6),
+    ("library-replacement", 12), ("library-order", 6),
+)
 # These compiler witnesses have dedicated inputs or additional command fields.
 # Shared helper tests stay in acceptance; select the dedicated test where needed.
 COMPILER_DIRECT = {
+    # These exact tests share the large contracts binary. Only their dedicated
+    # modules/fixtures own this suite; contracts.rs remains a shared input.
+    "config-library": {
+        "target": "contracts",
+        "test": (
+            "h2_8b_config_commands::config_commands_match_complete_typescript_observations",
+            "h2_8b_config_commands::config_commands_match_ordered_program_facts",
+            "h2_8b_config_conversion_commands::config_conversion_commands_match_complete_typescript_observations",
+            "h2_8b_config_conversion_commands::config_conversion_commands_match_ordered_program_facts",
+            "h2_8b_config_diagnostic_commands::config_diagnostic_commands_match_complete_typescript_observations",
+            "h2_8b_config_diagnostic_commands::config_diagnostic_commands_match_ordered_program_facts",
+            "h2_8b_config_diagnostic_routing::config_diagnostic_routing_match_complete_typescript_observations",
+            "h2_8b_config_diagnostic_routing::config_diagnostic_routing_match_ordered_program_facts",
+            "h2_8b_config_discovery_commands::config_discovery_commands_match_complete_typescript_observations",
+            "h2_8b_config_discovery_commands::config_discovery_commands_match_ordered_program_facts",
+            "h2_8b_config_entity_commands::config_entity_commands_match_complete_typescript_observations",
+            "h2_8b_config_entity_commands::config_entity_commands_match_ordered_program_facts",
+            "h2_8b_config_extension_commands::config_extension_commands_match_complete_typescript_observations",
+            "h2_8b_config_extension_commands::config_extension_commands_match_ordered_program_facts",
+            "h2_8b_config_root_commands::config_root_commands_match_complete_typescript_observations",
+            "h2_8b_config_root_commands::config_root_commands_match_ordered_program_facts",
+            "h2_8b_config_source_commands::config_source_commands_match_observations_and_module_boundaries",
+            "h2_8b_config_source_commands::config_source_commands_match_ordered_program_facts",
+            "h2_8b_config_source_span_commands::config_source_span_commands_match_complete_typescript_observations",
+            "h2_8b_config_source_span_commands::config_source_span_commands_match_ordered_program_facts",
+            "h2_8b_library_replacement::library_replacement_matches_complete_typescript_observations",
+            "h2_8b_library_replacement::library_replacement_matches_program_membership",
+            "h2_8b_library_replacement::library_order_controls_match_complete_typescript_observations",
+            "h2_8b_library_replacement::library_order_controls_match_program_membership",
+        ),
+        "tests": 24,
+        "filtered_tests": 423,
+        "sources": tuple(f"crates/compiler/tests/integration/{module}.rs" for module in (
+            "h2_8b_config_commands",
+            "h2_8b_config_conversion_commands",
+            "h2_8b_config_diagnostic_commands",
+            "h2_8b_config_diagnostic_routing",
+            "h2_8b_config_discovery_commands",
+            "h2_8b_config_entity_commands",
+            "h2_8b_config_extension_commands",
+            "h2_8b_config_root_commands",
+            "h2_8b_config_source_commands",
+            "h2_8b_config_source_span_commands",
+            "h2_8b_library_replacement",
+        )),
+        "fixtures": tuple((f"crates/compiler/tests/fixtures/h2-8b-{group}.json", count, "case_id")
+                          for group, count in CONFIG_LIBRARY_GROUPS),
+        "observers": tuple((f"scripts/observe-h2-8b-{group}.mjs", group)
+                           for group, _ in CONFIG_LIBRARY_GROUPS),
+        "inputs": tuple(f"crates/compiler/tests/fixtures/h2-8b-{group}-inputs.json"
+                        for group, _ in CONFIG_LIBRARY_GROUPS),
+    },
+    "prologue-comments": {
+        "target": "h2_8a_prologue_only_detached_comments",
+        "tests": 1,
+        "fixtures": (("crates/compiler/tests/fixtures/prologue-only-detached-comments.json", 8, "id"),),
+        "observers": ("scripts/observe-prologue-only-detached-comments.mjs",),
+    },
     "literal-update-pipeline": {
         "target": "literal_update_pipeline_contract",
         "tests": 1,
@@ -377,7 +443,7 @@ def compiler_direct_inputs(suite):
     spec = COMPILER_DIRECT[suite]
     # The identity observer also reads utf16-literals-adjacent-probes-inputs.
     # That shared input keeps full replay via the planner's unknown-input rule.
-    return {f"crates/compiler/tests/{spec['target']}.rs",
+    return {*spec.get("sources", (f"crates/compiler/tests/{spec['target']}.rs",)),
             *(observer[1] for observer in compiler_direct_observers([suite])),
             *(file for file, _, _ in spec["fixtures"]), *spec.get("inputs", ())}
 
