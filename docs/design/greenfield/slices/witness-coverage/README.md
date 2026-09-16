@@ -1,6 +1,6 @@
 # OPS-COVER：PR CI のテスト入口台帳
 
-2026-09-17。統合担当：Codex。**bundleまでPR #546で統合済み。宣言map出力/APIの2スライスをOPS-COVER-3L/3Mで追加。残りは OPS-COVER-3残部〜4。**
+2026-09-17。統合担当：Codex。**宣言map出力/APIまでPR #547で検証・統合済み。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
 [現在の固定台帳](inventory.v17.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
@@ -23,7 +23,7 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 
 [OPS-COVER-3J / 3K](compiler-bundles/README.md) はbundle Programとdeclaration/mapの2 targetを登録したv15。古いnoEmit拒否検査を固定tuple比較へ更新し、PR #546で最終7 testsと両observerを含む全7 hosted replay job・両gateが成功。controls37m51s。
 
-[OPS-COVER-3L / 3M](compiler-declaration-maps/README.md) は宣言map出力とstateful APIの2 target・11 testsを登録したv16。実測6m57sを受け、controlsの37m51sに余裕を残すため専用jobへ分けたv17。共有fixtureとreferenceの重複は個別記録に保持する。
+[OPS-COVER-3L / 3M](compiler-declaration-maps/README.md) は宣言map出力とstateful APIの2 target・11 testsを登録したv16。実測6m57sを受け、controlsの37m51sに余裕を残すため専用jobへ分けたv17。PR #547で全8 replay job・両gateが成功し統合済み。新jobは5m38s、controlsは38m11s。共有fixtureとreferenceの重複は個別記録に保持する。
 
 ## 現在の入口
 
