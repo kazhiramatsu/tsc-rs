@@ -23,6 +23,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [OPS-COVER-3D compiler declaration witnesses](witness-coverage/compiler-declarations/README.md) | CI entry implementation; hosted pending | Three compiler targets, six exact tests and 129 dedicated command inputs. Shared helper coverage retained; original wrappers remain separately inventoried. |
 | [A-PC1 compact body comments](h2-8a-compact-body-comments.md) | Merged PR #538; all hosted jobs passed | Five repaired commands; all 68 existing parameter commands and 240 direct printer cases exact twice, with explicit hosted entries. |
 | [C05 resolution cache integration](l2-3-resolution-cache/integration/README.md) | Integrated in PR #539; dedicated controls entry | R1–R3 independent repros pass. Integration repairs R1 path spelling and R4 identity byte accounting / lowered-limit enforcement; contract11 / unit56, fresh178 / native190, bounded soak/churn. All seven PR jobs and both gates pass. Program/watch/LSP activation remains pending. |
 | [API1.2-HINT printer declaration hooks](api1-2-printer-hook-hints.md) | Merged PR #537; all hosted jobs passed | Repaired binding-name and initializer hint producers; 72 new source-derived direct cases and the four retained comment-carry gaps. No profile/admission change. |

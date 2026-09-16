@@ -1,0 +1,67 @@
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/compiler)
+    Finished `test` profile [unoptimized] target(s) in 2.38s
+     Running tests/h2_8a_jsdoc_return.rs (target/debug/deps/h2_8a_jsdoc_return-1e34fbd233b93df2)
+
+running 1 test
+test jsdoc_return_controls_match_complete_commands_twice ... jsdoc-return EXACT x2 r1-original-d-string
+jsdoc-return EXACT x2 r1-original-e-template-intersection
+jsdoc-return EXACT x2 r1-returns-alias
+jsdoc-return EXACT x2 r1-body-star-without-annotation
+jsdoc-return EXACT x2 r1-plain-body-without-annotation
+jsdoc-return EXACT x2 r2-exports-property
+jsdoc-return EXACT x2 r2-variable-initializer
+jsdoc-return EXACT x2 r2-function-declaration
+jsdoc-return EXACT x2 r2-arrow-expression-body
+jsdoc-return EXACT x2 r2-parenthesized-function
+jsdoc-return EXACT x2 r2-prototype-method
+jsdoc-return EXACT x2 r2-ordinary-property
+jsdoc-return EXACT x2 r2-object-literal-method
+jsdoc-return EXACT x2 r2-property-assignment-function
+jsdoc-return EXACT x2 r2-class-method
+jsdoc-return EXACT x2 r3-inner-tag-before-outer
+jsdoc-return EXACT x2 r3-last-block-owns-tags
+jsdoc-return EXACT x2 r3-last-block-owns-tags-declaration
+jsdoc-return EXACT x2 r3-untyped-return-tag
+jsdoc-return EXACT x2 r3-untyped-then-typed-return-tags
+jsdoc-return EXACT x2 r3-return-tag-over-callable-type-tag
+jsdoc-return EXACT x2 r3-callable-type-tag-only
+jsdoc-return EXACT x2 r3-sibling-jsdoc-not-inherited
+jsdoc-return EXACT x2 r3-type-assertion-parenthesized-owner
+jsdoc-return EXACT x2 r4-template-constraint-default
+jsdoc-return EXACT x2 r4-template-shadows-typedef
+jsdoc-return EXACT x2 r4-typedef-return
+jsdoc-return EXACT x2 r4-import-type-return
+jsdoc-return EXACT x2 r4-same-name-template-two-sources
+jsdoc-return EXACT x2 r5-literal-annotation
+jsdoc-return EXACT x2 r5-union-annotation
+jsdoc-return EXACT x2 r5-callable-type-literal
+jsdoc-return EXACT x2 r5-jsdoc-function-type
+jsdoc-return EXACT x2 r5-async-promise
+jsdoc-return EXACT x2 r5-generator
+jsdoc-return EXACT x2 r5-async-generator-without-annotation
+jsdoc-return EXACT x2 r5-single-return-without-annotation
+jsdoc-return EXACT x2 r5-multiple-returns-without-annotation
+jsdoc-return EXACT x2 r6-ts-direct-type-ignores-jsdoc
+jsdoc-return EXACT x2 r6-accessor-pair
+jsdoc-return EXACT x2 r6-jsdoc-construct-signature
+jsdoc-return EXACT x2 r6-annotation-body-mismatch
+jsdoc-return EXACT x2 r6-unresolved-annotation
+jsdoc-return EXACT x2 r6-asserted-returns-semantic-fallback
+jsdoc-return EXACT x2 r6-asserted-await-returns-semantic-fallback
+jsdoc-return EXACT x2 r7-allowjs-without-checkjs
+jsdoc-return EXACT x2 r7-emit-declaration-only
+jsdoc-return EXACT x2 r7-noemitonerror-blocked
+jsdoc-return EXACT x2 r7-noemit-with-declaration
+jsdoc-return EXACT x2 r7-declaration-map
+jsdoc-return EXACT x2 r7-remove-comments
+jsdoc-return EXACT x2 r8-lone-surrogate-escape-literal
+jsdoc-return EXACT x2 r8-astral-pair-literal
+jsdoc-return EXACT x2 r8-replacement-character-literal
+jsdoc-return EXACT x2 r8-g4a-function-parameter-and-return
+jsdoc-return EXACT x2 r8-g4b-class-method-owned-comment
+jsdoc-return EXACT x2 r8-detached-prefix-with-return
+jsdoc-return EXACT x2 r8-parameter-tag-binding-with-return
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 52.53s
+

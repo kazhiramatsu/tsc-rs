@@ -1,0 +1,113 @@
+   Compiling tsc-rs-diagnostics v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/diagnostics)
+   Compiling libc v0.2.186
+   Compiling serde_core v1.0.228
+   Compiling hashbrown v0.17.1
+   Compiling zmij v1.0.21
+   Compiling equivalent v1.0.2
+   Compiling indexmap v2.14.0
+   Compiling tsc-rs-types v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/types)
+   Compiling serde_json v1.0.150
+   Compiling version_check v0.9.5
+   Compiling generic-array v0.14.7
+   Compiling tsc-rs-syntax v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/syntax)
+   Compiling jobserver v0.1.35
+   Compiling memchr v2.8.3
+   Compiling find-msvc-tools v0.1.9
+   Compiling shlex v2.0.1
+   Compiling itoa v1.0.18
+   Compiling proc-macro2 v1.0.106
+   Compiling cc v1.2.66
+   Compiling tsc-rs-host v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/host)
+   Compiling quote v1.0.46
+   Compiling unicode-ident v1.0.24
+   Compiling pkg-config v0.3.33
+   Compiling typenum v1.20.1
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+   Compiling tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/program)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/emitter)
+   Compiling tsc-rs-binder v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/binder)
+   Compiling tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/checker)
+   Compiling syn v2.0.118
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling zstd-safe v7.2.4
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/compiler)
+   Compiling serde v1.0.228
+   Compiling digest v0.10.7
+   Compiling cpufeatures v0.2.17
+   Compiling serde_derive v1.0.228
+   Compiling cfg-if v1.0.4
+   Compiling sha2 v0.10.9
+   Compiling tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/harness)
+   Compiling zstd v0.13.3
+   Compiling stats_alloc v0.1.10
+   Compiling base64 v0.22.1
+    Finished `test` profile [unoptimized] target(s) in 5m 05s
+     Running tests/h2_8a_declaration_specifiers.rs (target/debug/deps/h2_8a_declaration_specifiers-dbbeab994b28251e)
+
+running 2 tests
+test composition_declaration_specifiers_match_complete_commands ... DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-project-internal-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-project-internal-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-separate-package-scopes repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-separate-package-scopes repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-same-package-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-same-package-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-relative-paths repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-relative-paths repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-absolute-paths repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-absolute-paths repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-no-paths-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-no-paths-control repetition=1
+ok
+test focused_declaration_specifiers_match_complete_commands ... DECLARATION-SPECIFIER EXACT declaration-specifiers/wildcard-base-url repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/wildcard-base-url repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/exact-base-url repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/exact-base-url repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/without-base-url repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/without-base-url repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/empty-paths-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/empty-paths-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/absolute-target repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/absolute-target repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/dot-segment-target repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/dot-segment-target repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/second-substitution repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/second-substitution repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/mapping-order-z-first repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/mapping-order-z-first repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/mapping-order-a-first repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/mapping-order-a-first repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/project-internal-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/project-internal-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/separate-package-scopes repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/separate-package-scopes repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/same-package-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/same-package-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/inherited-paths-origin repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/inherited-paths-origin repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/overridden-paths-origin repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/overridden-paths-origin repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/empty-override-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/empty-override-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/root-dirs-virtual-relative repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/root-dirs-virtual-relative repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/root-dirs-absent-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/root-dirs-absent-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/declaration-map repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/declaration-map repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/declaration-only repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/declaration-only repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/no-emit-on-error-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/no-emit-on-error-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/base-url-only repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/base-url-only repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/unmatched-path-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/unmatched-path-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/direct-program-with-paths repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/direct-program-with-paths repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/direct-program-paths-origin repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/direct-program-paths-origin repetition=1
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 281.53s
+

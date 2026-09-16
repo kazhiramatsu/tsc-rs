@@ -1,0 +1,11 @@
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/compiler)
+    Finished `test` profile [unoptimized] target(s) in 3.22s
+     Running tests/h2_8a_declaration_comment_ranges.rs (target/debug/deps/h2_8a_declaration_comment_ranges-aa958ebe53048ca2)
+
+running 3 tests
+test declaration_comment_detached_prefix_complete_commands ... ok
+test declaration_comment_parameter_tags_complete_commands ... ok
+test declaration_comment_range_focused_complete_commands ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 36.82s
+

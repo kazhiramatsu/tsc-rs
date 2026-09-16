@@ -237,3 +237,14 @@ passed all seven PR replay jobs and both gates. Controls took 831s; the new entr
 took 0.363s for the observer and 6.128s for Cargo build/replay. The seven final jobs
 total 5638s, excluding plans/gates/main push. The earlier cancelled candidate adds
 2486s separately; it is retained as superseded evidence.
+
+## Declaration command witnesses
+
+OPS-COVER-3D registers `declaration-specifiers` (30 inputs),
+`declaration-comments` (41) and `jsdoc-return` (58) in the controls job.
+Use `scripts/witness.py <suite> --list` or `--all --dry-run` to inspect them;
+`--all` runs the complete selected suite. Multiple exact test names form one
+libtest selection per target, keeping imported helper tests out of these runs.
+The runner clears internal filters and checks both passed and filtered counts.
+See the [scope and validation record](design/greenfield/slices/witness-coverage/compiler-declarations/README.md)
+for original-wrapper exclusions, observer boundaries and pending hosted results.

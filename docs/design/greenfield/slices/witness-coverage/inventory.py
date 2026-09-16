@@ -87,7 +87,12 @@ def command_rows(replay):
             if '--exact' in argv:
                 at = argv.index('--test')
                 assert argv.count('--test') == 1 and argv[at + 2] != '--', argv
-                targets = [(argv[at + 1], argv[at + 2])]
+                # Extra libtest exact-name filters follow `--`; retain each
+                # command membership instead of silently reporting only one.
+                names = [argv[at + 2], *(arg for arg in argv[argv.index('--') + 1:]
+                                       if not arg.startswith('--'))]
+                assert len(names) == len(set(names)), argv
+                targets = [(argv[at + 1], name) for name in names]
             else:
                 options = argv[argv.index('--manifest-path') + 2:argv.index('--')]
                 assert options and len(options) % 2 == 0 and options[::2] == ['--test'] * (len(options) // 2), argv
@@ -239,7 +244,7 @@ def main():
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--write', action='store_true', help='write a NEW snapshot only')
     action.add_argument('--check', action='store_true', help='compare current source with the frozen snapshot')
-    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v10.json')
+    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v11.json')
     args = parser.parse_args()
     if args.check:
         source_commit = json.loads(args.output.read_text())['source_commit']

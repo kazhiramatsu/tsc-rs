@@ -128,11 +128,11 @@ def selection(paths):
             continue
         if file == "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs":
             acceptance.add("late")
-            witnesses.update(("retained", "utf16-literal-witnesses"))
+            witnesses.update(("retained", "utf16-literal-witnesses", "declaration-comments"))
             continue
         if file == "crates/compiler/tests/support/witness_libraries.rs":
             acceptance.add("late")
-            witnesses.update((*witness.SUPER, "retained", "utf16-literal-witnesses"))
+            witnesses.update((*witness.SUPER, "retained", "utf16-literal-witnesses", "declaration-comments"))
             continue
         # Shared product code, manifests, vendor, CI, TS corpus, and unknown
         # inputs keep complete coverage. Never infer that tests/ is disconnected:

@@ -90,6 +90,40 @@ EMITTER_DIRECT = {
 # These compiler witnesses have dedicated inputs or additional command fields.
 # Shared helper tests stay in acceptance; select the dedicated test where needed.
 COMPILER_DIRECT = {
+    "declaration-specifiers": {
+        "target": "h2_8a_declaration_specifiers",
+        "test": ("focused_declaration_specifiers_match_complete_commands",
+                 "composition_declaration_specifiers_match_complete_commands"),
+        "tests": 2,
+        "filtered_tests": 9,
+        "fixtures": tuple((f"crates/compiler/tests/fixtures/h2-8a-{group}.json", count, "case_id")
+                          for group, count in (("declaration-specifiers", 24), ("declaration-specifiers-composition", 6))),
+        "observers": tuple((f"scripts/observe-h2-8a-{group}.mjs", group)
+                           for group in ("declaration-specifiers", "declaration-specifiers-composition")),
+        "inputs": tuple(f"crates/compiler/tests/fixtures/h2-8a-{group}-inputs.json"
+                        for group in ("declaration-specifiers", "declaration-specifiers-composition")),
+    },
+    "declaration-comments": {
+        "target": "h2_8a_declaration_comment_ranges",
+        "test": ("declaration_comment_range_focused_complete_commands",
+                 "declaration_comment_detached_prefix_complete_commands",
+                 "declaration_comment_parameter_tags_complete_commands"),
+        "tests": 3,
+        "filtered_tests": 12,
+        "fixtures": tuple((f"crates/compiler/tests/fixtures/declaration-comment-{group}.json", count, "case_id")
+                          for group, count in (("ranges", 17), ("detached-prefixes", 12), ("parameter-tags", 12))),
+        "observers": ("scripts/observe-declaration-comment-commands.mjs",),
+        # The reused observer serves other owners too; its path keeps the
+        # planner's conservative shared-input rule, rather than owning it here.
+    },
+    "jsdoc-return": {
+        "target": "h2_8a_jsdoc_return",
+        "test": "jsdoc_return_controls_match_complete_commands_twice",
+        "tests": 1,
+        "filtered_tests": 1,
+        "fixtures": (("crates/compiler/tests/fixtures/h2-8a-jsdoc-return.json", 58, "id"),),
+        "observers": ("scripts/observe-h2-8a-jsdoc-return.mjs",),
+    },
     "parameter-temporaries": {
         "target": "h2_5h_parameter_temporaries",
         "tests": 2,
@@ -261,6 +295,10 @@ def invocation(suite, needles, environ=None):
         env.pop("TSC_RS_UTF16_LITERAL_WITNESS_FILTER", None)
         env.pop("TSC_RS_H2_5H_PARAMETER_FILTER", None)
         env.pop("TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR", None)
+        for key in ("TSC_RS_DECL_COMMENT_FILTER", "TSC_RS_DECL_COMMENT_CAPTURE_DIR",
+                    "TSC_RS_JSDOC_RETURN_FILTER", "TSC_RS_JSDOC_RETURN_CAPTURE_DIR",
+                    "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR"):
+            env.pop(key, None)
         return compiler_direct_command([suite]), env
     if suite in EMITTER_DIRECT:
         if needles:
@@ -333,7 +371,15 @@ def compiler_direct_command(suites):
     if filtered:
         if len(suites) != 1:
             raise ValueError("filtered compiler target requires its own invocation")
-        return [*command, COMPILER_DIRECT[filtered[0]]["test"], "--", "--exact", "--nocapture", "--test-threads=1"]
+        names = COMPILER_DIRECT[filtered[0]]["test"]
+        names = (names,) if isinstance(names, str) else names
+        if (not names or any(not isinstance(name, str) or not name.strip() for name in names)
+                or len(set(names)) != len(names)
+                or len(names) != COMPILER_DIRECT[filtered[0]]["tests"]):
+            raise ValueError("invalid exact compiler test names")
+        # Cargo accepts one TESTNAME; libtest accepts additional exact names
+        # after `--`. Their union runs once without replaying imported tests.
+        return [*command, names[0], "--", "--exact", *names[1:], "--nocapture", "--test-threads=1"]
     return [*command, "--", "--nocapture", "--test-threads=1"]
 
 

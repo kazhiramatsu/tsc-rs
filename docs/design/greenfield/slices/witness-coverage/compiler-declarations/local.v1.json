@@ -1,0 +1,402 @@
+{
+  "version": 1,
+  "slice": "OPS-COVER-3D",
+  "recorded_at_utc": "2026-09-16T07:21:32.427442+00:00",
+  "base_sha": "6c41a03888b66bb6781e5ef39c253b6200ff44c6",
+  "branch": "work/compiler-declaration-witness-ci",
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci",
+  "toolchain": {
+    "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+    "cargo": "cargo 1.93.0 (083ac5135 2025-12-15)",
+    "node": "v25.2.1",
+    "python": "Python 3.14.2"
+  },
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "priority_wrapper": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15"
+  ],
+  "source_and_input_sha256": {
+    ".github/ci/qualification-policy.v2.json": "4c60f4cab9a6962ba793a5b22c8f5432195d3f1a8a180201d51308fc1f1fc6b8",
+    ".github/ci/replay.py": "755adf8f8f0cc495fe8bd8a74f852bfc0c2a81b092f80ac080537132d7b08456",
+    ".github/ci/test_replay.py": "d7f436b7e11df52e85c697d2841b64cfca78b3bbbf5abcb4258a276446bf62aa",
+    ".github/workflows/witness.yml": "88692a8b8c244ad030720cd73a5118d8e753f030eca78fea20dcafee331a12a8",
+    "crates/compiler/tests/fixtures/declaration-comment-detached-prefixes.json": "73247175cf3b94d0b1f42dab0982119bb0509651e9b655d47e9024db68b0cce6",
+    "crates/compiler/tests/fixtures/declaration-comment-parameter-tags.json": "7065e771ef7e3686f21e6f81e998bae4afe2b731824caa15740eb0f6b4076ad5",
+    "crates/compiler/tests/fixtures/declaration-comment-ranges.json": "d5b0d846188dbe37061e852d62b15e510a26edb252bfcceab3333f0c2daf6b9f",
+    "crates/compiler/tests/fixtures/h2-8a-declaration-specifiers-composition-inputs.json": "903ade6f9e23599d6ee4e0493e1978ec05a478c7f61ab19977d044c5afeac4cb",
+    "crates/compiler/tests/fixtures/h2-8a-declaration-specifiers-composition.json": "961be89e9e3a56d372b8b6afbe0c49262aaca7094aded71a7814f06e4a30ea6c",
+    "crates/compiler/tests/fixtures/h2-8a-declaration-specifiers-inputs.json": "8ada6fd3484cfd2513fc2444c44ead386f6b82d647aa36b4ef72e9049fa3c20c",
+    "crates/compiler/tests/fixtures/h2-8a-declaration-specifiers.json": "21b9daa1c17e4b945efe2704d391e02316b6877328bb6d16b9f70fc0614ebff5",
+    "crates/compiler/tests/fixtures/h2-8a-jsdoc-return.json": "687d28b13459dff3b472515c430f66165c4bdaaec6f07bbbb893ca2997d54ba3",
+    "crates/compiler/tests/h2_8a_declaration_comment_ranges.rs": "51ef353c11b370bd35e9f674a16b2ac677e253e3e633053c818a19e0401c14cd",
+    "crates/compiler/tests/h2_8a_declaration_specifiers.rs": "4fe103961f2ca4a33675998cab55c771a82d41ceee686e39ebed99728787f842",
+    "crates/compiler/tests/h2_8a_jsdoc_return.rs": "9084cae7eed4a2d16dd6435d0f00443099d2f6c922491a95bf89fef6d50b83bb",
+    "crates/oracle/vfs-directory-overlay.mjs": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76",
+    "docs/design/greenfield/slices/witness-coverage/inventory.py": "462f068d4c3c66d8420c96702ab0118214b2d5392dc721e5d3a98ed63e13e732",
+    "scripts/observe-declaration-comment-commands.mjs": "7397ac14a7293c8bc346f6ae8c01bc22dbac1f576442560f18a5086657b0ec3a",
+    "scripts/observe-h2-8a-declaration-specifiers-composition.mjs": "2cb5ff14244648c5de30626b6e9446c1a073d458643cdb22ffd3f0eb8461675f",
+    "scripts/observe-h2-8a-declaration-specifiers.mjs": "dd6cd7fd83d046c042bf56c01395d3c4c72aa130a53181fc97902858843a4ab1",
+    "scripts/observe-h2-8a-jsdoc-return.mjs": "c4509d3ee09a929163974bb9ef35caa3927e9e026e7031b8aef36df1e716ae50",
+    "scripts/observe-jsdoc-block-scope-container.mjs": "cee190bee2cdca35a5fc9c6702e98cd5a089a53dd43c542723b588ce8fc2201f",
+    "scripts/witness.py": "880e4d73c769297839d8dbe8b7ee8eea5fbf107850c8ca8a719d27d28711f32d",
+    "vendor/typescript-6.0.3/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "rust_build_source_manifest": {
+    "path": "rust-source.v1.json",
+    "files": 768,
+    "sha256": "9214edc7d550ac59b73af6f4489ffc9975ca8ec15e1bd4fd89a0ceb3d4aa93ce",
+    "unchanged_during_runs": true,
+    "crates_vendor_and_cargo_match_base": true
+  },
+  "input_ids": {
+    "declaration-specifiers": [
+      "h2-8a-declaration-specifiers/declaration-specifiers/wildcard-base-url",
+      "h2-8a-declaration-specifiers/declaration-specifiers/exact-base-url",
+      "h2-8a-declaration-specifiers/declaration-specifiers/without-base-url",
+      "h2-8a-declaration-specifiers/declaration-specifiers/empty-paths-control",
+      "h2-8a-declaration-specifiers/declaration-specifiers/absolute-target",
+      "h2-8a-declaration-specifiers/declaration-specifiers/dot-segment-target",
+      "h2-8a-declaration-specifiers/declaration-specifiers/second-substitution",
+      "h2-8a-declaration-specifiers/declaration-specifiers/mapping-order-z-first",
+      "h2-8a-declaration-specifiers/declaration-specifiers/mapping-order-a-first",
+      "h2-8a-declaration-specifiers/declaration-specifiers/project-internal-control",
+      "h2-8a-declaration-specifiers/declaration-specifiers/separate-package-scopes",
+      "h2-8a-declaration-specifiers/declaration-specifiers/same-package-control",
+      "h2-8a-declaration-specifiers/declaration-specifiers/inherited-paths-origin",
+      "h2-8a-declaration-specifiers/declaration-specifiers/overridden-paths-origin",
+      "h2-8a-declaration-specifiers/declaration-specifiers/empty-override-control",
+      "h2-8a-declaration-specifiers/declaration-specifiers/root-dirs-virtual-relative",
+      "h2-8a-declaration-specifiers/declaration-specifiers/root-dirs-absent-control",
+      "h2-8a-declaration-specifiers/declaration-specifiers/declaration-map",
+      "h2-8a-declaration-specifiers/declaration-specifiers/declaration-only",
+      "h2-8a-declaration-specifiers/declaration-specifiers/no-emit-on-error-control",
+      "h2-8a-declaration-specifiers/declaration-specifiers/base-url-only",
+      "h2-8a-declaration-specifiers/declaration-specifiers/unmatched-path-control",
+      "h2-8a-declaration-specifiers/declaration-specifiers/direct-program-with-paths",
+      "h2-8a-declaration-specifiers/declaration-specifiers/direct-program-paths-origin",
+      "h2-8a-declaration-specifiers-composition/declaration-specifiers-composition/valid-project-internal-control",
+      "h2-8a-declaration-specifiers-composition/declaration-specifiers-composition/valid-separate-package-scopes",
+      "h2-8a-declaration-specifiers-composition/declaration-specifiers-composition/valid-same-package-control",
+      "h2-8a-declaration-specifiers-composition/declaration-specifiers-composition/bundle-relative-paths",
+      "h2-8a-declaration-specifiers-composition/declaration-specifiers-composition/bundle-absolute-paths",
+      "h2-8a-declaration-specifiers-composition/declaration-specifiers-composition/bundle-no-paths-control"
+    ],
+    "declaration-comments": [
+      "declaration-comment-ranges/declaration-comment-range/module-exports",
+      "declaration-comment-ranges/declaration-comment-range/exports-property",
+      "declaration-comment-ranges/declaration-comment-range/module-exports-property",
+      "declaration-comment-ranges/declaration-comment-range/ordinary-property",
+      "declaration-comment-ranges/declaration-comment-range/variable",
+      "declaration-comment-ranges/declaration-comment-range/function-declaration",
+      "declaration-comment-ranges/declaration-comment-range/prototype-dot",
+      "declaration-comment-ranges/declaration-comment-range/prototype-element",
+      "declaration-comment-ranges/declaration-comment-range/static-method",
+      "declaration-comment-ranges/declaration-comment-range/this-property",
+      "declaration-comment-ranges/declaration-comment-range/ordinary-method",
+      "declaration-comment-ranges/declaration-comment-range/prototype-parenthesized",
+      "declaration-comment-ranges/declaration-comment-range/remove-comments",
+      "declaration-comment-ranges/declaration-comment-range/declaration-only",
+      "declaration-comment-ranges/declaration-comment-range/lf-bom-listings",
+      "declaration-comment-ranges/declaration-comment-range/esnext",
+      "declaration-comment-ranges/declaration-comment-range/blocked-semantic",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/module-header",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/exports-header",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/variable-expando",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/function-expando",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/class-header",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/plain-variable",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/erased-interface",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/typedef-separated",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/removed-header",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/pinned-header",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/comment-only",
+      "declaration-comment-detached-prefixes/declaration-comment-detached-prefix/prologue-header",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/binding-object",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/binding-array",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/binding-index",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/qualified-tag-negative",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/missing-name",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/last-block",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/first-typed",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/type-tag-precedence",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/inline-function",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/untyped",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/ts-direct-type",
+      "declaration-comment-parameter-tags/declaration-comment-parameter-tags/parenthesized-function"
+    ],
+    "jsdoc-return": [
+      "h2-8a-jsdoc-return/r1-original-d-string",
+      "h2-8a-jsdoc-return/r1-original-e-template-intersection",
+      "h2-8a-jsdoc-return/r1-returns-alias",
+      "h2-8a-jsdoc-return/r1-body-star-without-annotation",
+      "h2-8a-jsdoc-return/r1-plain-body-without-annotation",
+      "h2-8a-jsdoc-return/r2-exports-property",
+      "h2-8a-jsdoc-return/r2-variable-initializer",
+      "h2-8a-jsdoc-return/r2-function-declaration",
+      "h2-8a-jsdoc-return/r2-arrow-expression-body",
+      "h2-8a-jsdoc-return/r2-parenthesized-function",
+      "h2-8a-jsdoc-return/r2-prototype-method",
+      "h2-8a-jsdoc-return/r2-ordinary-property",
+      "h2-8a-jsdoc-return/r2-object-literal-method",
+      "h2-8a-jsdoc-return/r2-property-assignment-function",
+      "h2-8a-jsdoc-return/r2-class-method",
+      "h2-8a-jsdoc-return/r3-inner-tag-before-outer",
+      "h2-8a-jsdoc-return/r3-last-block-owns-tags",
+      "h2-8a-jsdoc-return/r3-last-block-owns-tags-declaration",
+      "h2-8a-jsdoc-return/r3-untyped-return-tag",
+      "h2-8a-jsdoc-return/r3-untyped-then-typed-return-tags",
+      "h2-8a-jsdoc-return/r3-return-tag-over-callable-type-tag",
+      "h2-8a-jsdoc-return/r3-callable-type-tag-only",
+      "h2-8a-jsdoc-return/r3-sibling-jsdoc-not-inherited",
+      "h2-8a-jsdoc-return/r3-type-assertion-parenthesized-owner",
+      "h2-8a-jsdoc-return/r4-template-constraint-default",
+      "h2-8a-jsdoc-return/r4-template-shadows-typedef",
+      "h2-8a-jsdoc-return/r4-typedef-return",
+      "h2-8a-jsdoc-return/r4-import-type-return",
+      "h2-8a-jsdoc-return/r4-same-name-template-two-sources",
+      "h2-8a-jsdoc-return/r5-literal-annotation",
+      "h2-8a-jsdoc-return/r5-union-annotation",
+      "h2-8a-jsdoc-return/r5-callable-type-literal",
+      "h2-8a-jsdoc-return/r5-jsdoc-function-type",
+      "h2-8a-jsdoc-return/r5-async-promise",
+      "h2-8a-jsdoc-return/r5-generator",
+      "h2-8a-jsdoc-return/r5-async-generator-without-annotation",
+      "h2-8a-jsdoc-return/r5-single-return-without-annotation",
+      "h2-8a-jsdoc-return/r5-multiple-returns-without-annotation",
+      "h2-8a-jsdoc-return/r6-ts-direct-type-ignores-jsdoc",
+      "h2-8a-jsdoc-return/r6-accessor-pair",
+      "h2-8a-jsdoc-return/r6-jsdoc-construct-signature",
+      "h2-8a-jsdoc-return/r6-annotation-body-mismatch",
+      "h2-8a-jsdoc-return/r6-unresolved-annotation",
+      "h2-8a-jsdoc-return/r6-asserted-returns-semantic-fallback",
+      "h2-8a-jsdoc-return/r6-asserted-await-returns-semantic-fallback",
+      "h2-8a-jsdoc-return/r7-allowjs-without-checkjs",
+      "h2-8a-jsdoc-return/r7-emit-declaration-only",
+      "h2-8a-jsdoc-return/r7-noemitonerror-blocked",
+      "h2-8a-jsdoc-return/r7-noemit-with-declaration",
+      "h2-8a-jsdoc-return/r7-declaration-map",
+      "h2-8a-jsdoc-return/r7-remove-comments",
+      "h2-8a-jsdoc-return/r8-lone-surrogate-escape-literal",
+      "h2-8a-jsdoc-return/r8-astral-pair-literal",
+      "h2-8a-jsdoc-return/r8-replacement-character-literal",
+      "h2-8a-jsdoc-return/r8-g4a-function-parameter-and-return",
+      "h2-8a-jsdoc-return/r8-g4b-class-method-owned-comment",
+      "h2-8a-jsdoc-return/r8-detached-prefix-with-return",
+      "h2-8a-jsdoc-return/r8-parameter-tag-binding-with-return"
+    ]
+  },
+  "baseline": [
+    {
+      "name": "specifiers",
+      "argv": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_declaration_specifiers",
+        "focused_declaration_specifiers_match_complete_commands",
+        "--",
+        "--exact",
+        "composition_declaration_specifiers_match_complete_commands",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 587.56
+    },
+    {
+      "name": "comments",
+      "argv": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_declaration_comment_ranges",
+        "declaration_comment_range_focused_complete_commands",
+        "--",
+        "--exact",
+        "declaration_comment_detached_prefix_complete_commands",
+        "declaration_comment_parameter_tags_complete_commands",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 40.654
+    },
+    {
+      "name": "jsdoc",
+      "argv": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_jsdoc_return",
+        "jsdoc_return_controls_match_complete_commands_twice",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 55.6
+    }
+  ],
+  "after": {
+    "argv": [
+      "python3",
+      ".github/ci/replay.py",
+      "witnesses"
+    ],
+    "environment": {
+      "CARGO_BUILD_JOBS": "2",
+      "WITNESS_SUITES": "[\"declaration-specifiers\", \"declaration-comments\", \"jsdoc-return\"]",
+      "TSC_RS_DECL_COMMENT_FILTER": "no-matching-case",
+      "TSC_RS_JSDOC_RETURN_FILTER": "no-matching-case",
+      "TSC_RS_DECL_COMMENT_CAPTURE_DIR": "/nonexistent/ops-cover-stale",
+      "TSC_RS_JSDOC_RETURN_CAPTURE_DIR": "/nonexistent/ops-cover-stale",
+      "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/nonexistent/ops-cover-stale"
+    },
+    "exit": 0,
+    "seconds": 537.798,
+    "baseline_binaries": {
+      "h2_8a_declaration_specifiers": {
+        "path": "target/debug/deps/h2_8a_declaration_specifiers-dbbeab994b28251e",
+        "sha256": "59a525188f9ec8181f97b0c715bf6fdd1907e198d869d08476bfb80d89f6d997"
+      },
+      "h2_8a_declaration_comment_ranges": {
+        "path": "target/debug/deps/h2_8a_declaration_comment_ranges-aa958ebe53048ca2",
+        "sha256": "4e2f61d6e165bab8ec3a2de571aa3e3f9037404c6d9a4935354f184d359c976e"
+      },
+      "h2_8a_jsdoc_return": {
+        "path": "target/debug/deps/h2_8a_jsdoc_return-1e34fbd233b93df2",
+        "sha256": "ac1d7161a40fb3369a6a74c815050050dddc97f15d9f9843842cfc395b34f7fb"
+      }
+    },
+    "after_binaries": {
+      "h2_8a_declaration_specifiers": {
+        "path": "target/debug/deps/h2_8a_declaration_specifiers-dbbeab994b28251e",
+        "sha256": "59a525188f9ec8181f97b0c715bf6fdd1907e198d869d08476bfb80d89f6d997"
+      },
+      "h2_8a_declaration_comment_ranges": {
+        "path": "target/debug/deps/h2_8a_declaration_comment_ranges-aa958ebe53048ca2",
+        "sha256": "4e2f61d6e165bab8ec3a2de571aa3e3f9037404c6d9a4935354f184d359c976e"
+      },
+      "h2_8a_jsdoc_return": {
+        "path": "target/debug/deps/h2_8a_jsdoc_return-1e34fbd233b93df2",
+        "sha256": "ac1d7161a40fb3369a6a74c815050050dddc97f15d9f9843842cfc395b34f7fb"
+      }
+    },
+    "binaries_unchanged": true
+  },
+  "runner_summary": {
+    "compiler_direct": [
+      "declaration-specifiers",
+      "declaration-comments",
+      "jsdoc-return"
+    ],
+    "targets": 3,
+    "tests_passed": 6,
+    "observer_seconds": 133.094,
+    "cargo_build_and_replay_seconds": 404.471
+  },
+  "negative_controls": [
+    {
+      "name": "observer-write-rejected",
+      "argv": [
+        "node",
+        "scripts/observe-declaration-comment-commands.mjs",
+        "--write"
+      ],
+      "exit": 1,
+      "expected_nonzero": true,
+      "seconds": 0.179
+    },
+    {
+      "name": "observer-fixture-drift",
+      "argv": [
+        "node",
+        "--import",
+        "/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/target/ops-cover-3d/tamper-fixture.mjs",
+        "scripts/observe-declaration-comment-commands.mjs",
+        "--check"
+      ],
+      "exit": 1,
+      "expected_nonzero": true,
+      "seconds": 0.181
+    }
+  ],
+  "structural_checks": {
+    "planner_tests": 42,
+    "policy_boundary_tests": 3,
+    "policy_check": "passed",
+    "inventory_regeneration": "v11 exact",
+    "diff_whitespace": {
+      "source_and_docs": "passed",
+      "raw_logs": "Cargo output preserved byte-for-byte, including terminal blank lines"
+    }
+  },
+  "logs": {
+    "baseline-specifiers.log": {
+      "sha256": "44ff26a35847aa0c6a30c38b64446addedc14f2fc8982c040bd44fc3be57169b",
+      "bytes": 7900
+    },
+    "baseline-comments.log": {
+      "sha256": "ce5f26820c06b2a90f74ec342b3a5692e97fc3fd138bd1512111c16cab3ef9c5",
+      "bytes": 610
+    },
+    "baseline-jsdoc.log": {
+      "sha256": "aa58c43fd2c7ce8196838f3b17ed1eb92c658f79460f2ee77ebde87a768b6e2d",
+      "bytes": 3320
+    },
+    "after.log": {
+      "sha256": "a79bbac6907160450a4a4b1dfb6bd0e2ffdd26241c6311ad09efccd32ee6a83a",
+      "bytes": 19825
+    },
+    "planner.log": {
+      "sha256": "89b678a6402ed697c5c735fb3f22682e4cc3115f10b6718d89d73ae04d884604",
+      "bytes": 91126
+    },
+    "policy.log": {
+      "sha256": "5a410dae8571b57481d5a80e08f858a77bd074bd7690d8a2a23fc555fe084afb",
+      "bytes": 44
+    },
+    "policy-tests.log": {
+      "sha256": "15c104038a64e71d5a6581777956cf807b6841763248fbbcea68d705996b5e71",
+      "bytes": 367
+    },
+    "observer-write-rejected.log": {
+      "sha256": "0e3001d7f1162746a907b2641f9174c45860139907e240c54e4ef49f637aeb46",
+      "bytes": 743
+    },
+    "observer-fixture-drift.log": {
+      "sha256": "211c6e099a15791358e94ef990cb6eee90dbe8df0f157674b5725bd4c25e43b8",
+      "bytes": 969
+    }
+  },
+  "hosted": {
+    "status": "not-run",
+    "entry": ".github/ci/replay.py witnesses",
+    "group": "controls",
+    "suites": [
+      "declaration-specifiers",
+      "declaration-comments",
+      "jsdoc-return"
+    ],
+    "workers": 2,
+    "split_review_minutes": 45,
+    "hard_limit_minutes": 60
+  },
+  "scope_limits": [
+    "Original wrappers and imported helper tests remain excluded from these three dedicated selections.",
+    "Declaration comment internal prefix/parameter traces were not replayed.",
+    "This registers CI entries; it does not change product behavior or qualify all H2 output."
+  ]
+}

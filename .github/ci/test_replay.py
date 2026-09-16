@@ -177,12 +177,12 @@ class SelectionTests(unittest.TestCase):
     def test_shared_comparator_is_an_acceptance_input(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], ["retained", "utf16-literal-witnesses"])
+        self.assertEqual(plan["witnesses"], ["retained", "declaration-comments", "utf16-literal-witnesses"])
 
     def test_library_snapshot_keeps_all_fresh_program_consumers(self):
         plan = replay.selection(["crates/compiler/tests/support/witness_libraries.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], [*witness.SUPER, "retained", "utf16-literal-witnesses"])
+        self.assertEqual(plan["witnesses"], [*witness.SUPER, "retained", "declaration-comments", "utf16-literal-witnesses"])
 
     def test_common_unknown_and_missing_ranges_keep_complete_coverage(self):
         for paths in (None, [], ["crates/emitter/src/printer.rs"], ["new/tool.rs"],
@@ -244,6 +244,7 @@ class WitnessTests(unittest.TestCase):
             "followup3": 48, "retained": 530, "direct": 32, "printer": 142, "bundle-sinks": 10,
             "declaration-map-cli": 8, "transpile-routes": 301, "resolution-cache": 26,
             "compact-body-comments": 240, "parameter-temporaries": 68,
+            "declaration-specifiers": 30, "declaration-comments": 41, "jsdoc-return": 58,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,
             "class-header-token-metadata": 32, "comma-argument-factory": 519,
@@ -345,7 +346,7 @@ class WitnessTests(unittest.TestCase):
     def test_literal_witnesses_keep_shared_helpers_and_qualification_owners(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], ["retained", "utf16-literal-witnesses"])
+        self.assertEqual(plan["witnesses"], ["retained", "declaration-comments", "utf16-literal-witnesses"])
         for path in ("crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
                      "ratchets/h2-5h-qualification.v1.json",
                      "crates/oracle/vfs-directory-overlay.mjs",
@@ -393,14 +394,97 @@ class WitnessTests(unittest.TestCase):
                     "TSC_RS_UTF16_LITERAL_WITNESS_FILTER": "string-escape",
                     "TSC_RS_H2_5H_PARAMETER_FILTER": "comments-lf/es2015",
                     "TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR": "/tmp/stale-captures",
+                    "TSC_RS_DECL_COMMENT_FILTER": "module-exports",
+                    "TSC_RS_DECL_COMMENT_CAPTURE_DIR": "/tmp/stale-comment-captures",
+                    "TSC_RS_JSDOC_RETURN_FILTER": "no-match",
+                    "TSC_RS_JSDOC_RETURN_CAPTURE_DIR": "/tmp/stale-jsdoc-captures",
+                    "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/tmp/stale-specifier-captures",
                     "CARGO_BUILD_JOBS": "2"}
         for suite in witness.COMPILER_DIRECT:
             _, env = witness.invocation(suite, [], poisoned)
+            self.assertEqual(env, {"CARGO_BUILD_JOBS": "2"})
             self.assertNotIn("TSC_RS_UTF16_LITERAL_WITNESS_SET", env)
             self.assertNotIn("TSC_RS_UTF16_LITERAL_WITNESS_FILTER", env)
             self.assertNotIn("TSC_RS_H2_5H_PARAMETER_FILTER", env)
             self.assertNotIn("TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR", env)
         self.assertEqual(poisoned["TSC_RS_UTF16_LITERAL_WITNESS_SET"], "adjacent-probes")
+
+    def test_declaration_runner_keeps_exact_names_and_checks_all_result_counts(self):
+        selected = ["declaration-specifiers", "declaration-comments", "jsdoc-return"]
+        expected = {
+            "h2_8a_declaration_specifiers": (2, 9),
+            "h2_8a_declaration_comment_ranges": (3, 12),
+            "h2_8a_jsdoc_return": (1, 1),
+        }
+        def run_with(bad_target=None, bad_output=None, status=0):
+            def result(command, **kwargs):
+                if command[0] == "node":
+                    return subprocess.CompletedProcess(command, 0)
+                target = command[command.index("--test") + 1]
+                passed, filtered = expected[target]
+                output = f"test result: ok. {passed} passed; 0 failed; 0 ignored; 0 measured; {filtered} filtered out;\n"
+                if target == bad_target:
+                    output = bad_output
+                return subprocess.CompletedProcess(command, status, output)
+            with patch.object(witness.subprocess, "run", side_effect=result) as run:
+                witness.run_compiler_direct(selected)
+                return run.call_args_list
+        calls = run_with()
+        self.assertEqual(len(calls), 7)  # four observers, three exact target invocations
+        self.assertEqual([call.args[0] for call in calls[:4]], [
+            ["node", "scripts/observe-h2-8a-declaration-specifiers.mjs", "declaration-specifiers", "--check"],
+            ["node", "scripts/observe-h2-8a-declaration-specifiers-composition.mjs", "declaration-specifiers-composition", "--check"],
+            ["node", "scripts/observe-declaration-comment-commands.mjs", "--check"],
+            ["node", "scripts/observe-h2-8a-jsdoc-return.mjs", "--check"],
+        ])
+        for suite, call in zip(selected, calls[4:]):
+            spec = witness.COMPILER_DIRECT[suite]
+            names = spec["test"]
+            names = (names,) if isinstance(names, str) else names
+            self.assertEqual(call.args[0], ["cargo", "test", "--manifest-path", "crates/compiler/Cargo.toml",
+                                          "--test", spec["target"], names[0], "--", "--exact",
+                                          *names[1:], "--nocapture", "--test-threads=1"])
+            self.assertEqual(len(witness.case_ids(suite)), {"declaration-specifiers": 30, "declaration-comments": 41, "jsdoc-return": 58}[suite])
+            with self.assertRaises(ValueError):
+                witness.invocation(suite, ["a"])
+        good = "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out;\n"
+        for output in ("", good * 2, good.replace("3 passed", "0 passed"),
+                       good.replace("3 passed", "2 passed"), good.replace("0 ignored", "1 ignored"),
+                       good.replace("12 filtered", "11 filtered"), good.replace("12 filtered", "13 filtered")):
+            with self.subTest(output=output), self.assertRaises(ValueError):
+                run_with("h2_8a_declaration_comment_ranges", output)
+        with self.assertRaises(subprocess.CalledProcessError):
+            run_with(status=101)
+        with self.assertRaises(ValueError):
+            witness.compiler_direct_command(selected)
+
+    def test_declaration_shared_observer_and_helpers_keep_all_consumers(self):
+        for path in ("scripts/observe-jsdoc-block-scope-container.mjs",
+                     "crates/oracle/vfs-directory-overlay.mjs",
+                     "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+                     "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs"):
+            self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
+        plan = replay.selection(["crates/compiler/tests/fixtures/declaration-comment-ranges.json",
+                                 "crates/compiler/tests/fixtures/h2-8a-jsdoc-return.json"])
+        self.assertEqual(plan["acceptance"], [])
+        self.assertEqual(plan["witnesses"], ["declaration-comments", "jsdoc-return"])
+
+    def test_compiler_exact_name_lists_reject_empty_duplicate_or_count_drift(self):
+        spec = witness.COMPILER_DIRECT["declaration-comments"]
+        for names in ((), ("one", "one", "two"), ("one", "", "two"), ("one", "two")):
+            with patch.dict(spec, {"test": names}), self.assertRaises(ValueError):
+                witness.compiler_direct_command(["declaration-comments"])
+
+    def test_coverage_inventory_retains_every_exact_name_in_a_command(self):
+        spec = importlib.util.spec_from_file_location(
+            "coverage_inventory", ROOT / "docs/design/greenfield/slices/witness-coverage/inventory.py")
+        inventory = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(inventory)
+        rows = inventory.command_rows(replay)
+        for suite in ("declaration-specifiers", "declaration-comments", "jsdoc-return"):
+            names = witness.COMPILER_DIRECT[suite]["test"]
+            names = (names,) if isinstance(names, str) else names
+            self.assertEqual([row["filter"] for row in rows if row["suite"] == suite], list(names))
 
     def test_compiler_direct_catalog_rejects_empty_duplicate_and_changed_memberships(self):
         for rows in ([], [{"id": "a"}] * 25, [{"id": ""}] * 25, [{"id": str(i)} for i in range(24)]):
