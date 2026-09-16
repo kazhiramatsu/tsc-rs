@@ -21,6 +21,13 @@ SUPER = {
 # selection. Each fixture tuple is (path, row count, ID key). These counts are
 # input memberships, not a claim about complete compiler command equivalence.
 EMITTER_DIRECT = {
+    "literal-update": {
+        "target": "literal_update_contract",
+        "fixtures": tuple((f"crates/emitter/tests/fixtures/literal-update-{group}.json", count, "case_id")
+                          for group, count in (("factory", 987), ("transform", 399), ("lifetime", 10))),
+        "observers": tuple(("scripts/observe-literal-update.mjs", group)
+                           for group in ("factory", "transform", "lifetime")),
+    },
     "compact-body-comments": {
         "target": "compact_body_comments_contract",
         "fixtures": (("crates/emitter/tests/fixtures/compact-body-comments.json", 240, "case_id"),),
@@ -90,6 +97,25 @@ EMITTER_DIRECT = {
 # These compiler witnesses have dedicated inputs or additional command fields.
 # Shared helper tests stay in acceptance; select the dedicated test where needed.
 COMPILER_DIRECT = {
+    "literal-update-pipeline": {
+        "target": "literal_update_pipeline_contract",
+        "tests": 1,
+        "fixtures": (("crates/compiler/tests/fixtures/literal-update-pipeline.json", 22, "case_id"),),
+        "observers": (("scripts/observe-literal-update.mjs", "pipeline"),),
+    },
+    "require-rewrite": {
+        "target": "h2_8a_require_rewrite",
+        "test": tuple(f"require_rewrite_{group}_complete_commands"
+                      for group in ("focused", "composition", "substitution", "dynamic")),
+        "tests": 4,
+        "filtered_tests": 10,
+        "fixtures": tuple((f"crates/compiler/tests/fixtures/h2-8a-require-rewrite{suffix}.json", count, "case_id")
+                          for suffix, count in (("", 60), ("-composition", 4), ("-substitution", 4), ("-dynamic", 6))),
+        "observers": tuple((f"scripts/observe-require-rewrite{suffix}.mjs", f"require-rewrite{suffix}")
+                           for suffix in ("", "-composition", "-substitution", "-dynamic")),
+        "inputs": tuple(f"crates/compiler/tests/fixtures/h2-8a-require-rewrite{suffix}-inputs.json"
+                        for suffix in ("", "-composition", "-substitution", "-dynamic")),
+    },
     "declaration-specifiers": {
         "target": "h2_8a_declaration_specifiers",
         "test": ("focused_declaration_specifiers_match_complete_commands",
@@ -280,6 +306,7 @@ def invocation(suite, needles, environ=None):
         env.pop(key, None)
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_FILTER", None)
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_SET", None)
+    env.pop("TSC_RS_LITERAL_UPDATE_REPORT_DIR", None)
     env.setdefault("CARGO_BUILD_JOBS", "2")
     if suite == "resolution-cache":
         if needles:
@@ -297,7 +324,8 @@ def invocation(suite, needles, environ=None):
         env.pop("TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR", None)
         for key in ("TSC_RS_DECL_COMMENT_FILTER", "TSC_RS_DECL_COMMENT_CAPTURE_DIR",
                     "TSC_RS_JSDOC_RETURN_FILTER", "TSC_RS_JSDOC_RETURN_CAPTURE_DIR",
-                    "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR"):
+                    "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR",
+                    "TSC_RS_REQUIRE_REWRITE_FILTER", "TSC_RS_H2_8A_CAPTURE_WRITES_DIR"):
             env.pop(key, None)
         return compiler_direct_command([suite]), env
     if suite in EMITTER_DIRECT:
@@ -340,7 +368,8 @@ def invocation(suite, needles, environ=None):
 
 def emitter_inputs(suite):
     spec = EMITTER_DIRECT[suite]
-    return {f"crates/emitter/tests/{spec['target']}.rs", *spec["observers"],
+    return {f"crates/emitter/tests/{spec['target']}.rs",
+            *(observer[1] for observer in direct_observers(EMITTER_DIRECT, [suite])),
             *(file for file, _, _ in spec["fixtures"]), *spec.get("inputs", ())}
 
 
@@ -354,11 +383,15 @@ def compiler_direct_inputs(suite):
 
 
 def compiler_direct_observers(suites):
+    return direct_observers(COMPILER_DIRECT, suites)
+
+
+def direct_observers(catalog, suites):
     # An observer may take a group before --check. Deduplicate commands, not
     # paths: the three literal groups use the same script with distinct inputs.
     return list(dict.fromkeys(
         ("node", *((observer,) if isinstance(observer, str) else observer), "--check")
-        for suite in suites for observer in COMPILER_DIRECT[suite]["observers"]))
+        for suite in suites for observer in catalog[suite]["observers"]))
 
 
 def compiler_direct_command(suites):
@@ -429,9 +462,8 @@ def run_emitter_direct(suites):
     for suite in suites:
         print(f"{suite}: {len(case_ids(suite))} fixture rows (each compared twice)", flush=True)
     started = time.monotonic()
-    observers = dict.fromkeys(observer for suite in suites for observer in EMITTER_DIRECT[suite]["observers"])
-    for observer in observers:
-        subprocess.run(["node", observer, "--check"], cwd=ROOT, check=True)
+    for observer in direct_observers(EMITTER_DIRECT, suites):
+        subprocess.run(list(observer), cwd=ROOT, check=True)
     oracle_seconds = time.monotonic() - started
     _, env = invocation(suites[0], [])
     started = time.monotonic()

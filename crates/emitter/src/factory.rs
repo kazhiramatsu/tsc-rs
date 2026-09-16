@@ -10,7 +10,7 @@ use tsc_syntax::{
     for_each_observable_field, try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData,
     NodeDataChildVisitor, NodeId, ObservableField, SourceFile, SyntaxKind, TypeReferenceDirective,
 };
-use tsc_types::{JsStr, JsString, ModifierFlags, NodeFlags};
+use tsc_types::{JsStr, JsString, ModifierFlags, NodeFlags, TokenFlags};
 
 use crate::{
     transform::GeneratedBindingId, EmitFlags, EmitMetadata, EmitResolverNode, JavaScriptString,
@@ -618,6 +618,60 @@ impl TransformArena {
     fn copy_literal_properties(&mut self, original: TransformNode, cloned: TransformNode) {
         if let Some(properties) = self.literal_properties.get(&original).cloned() {
             self.literal_properties.insert(cloned, properties);
+        }
+    }
+
+    /// A generic payload replacement on a literal node keeps the constructor
+    /// semantics of the value change (C01 §4.3). A changed string value drops
+    /// the spelling source: `createStringLiteral(text, node.singleQuote)` has
+    /// no `textSourceNode`, while the quote preference travels with the value.
+    /// A changed raw projection replaces the owned raw text, and an absent
+    /// projection clears it (`rawText === undefined`); an unchanged projection
+    /// keeps the exact owned units, so a lossy projection never rewrites them.
+    fn reconcile_literal_properties(
+        &mut self,
+        node: TransformNode,
+        previous: &NodeData,
+        current: &NodeData,
+    ) {
+        fn raw_projection(data: &NodeData) -> Option<Option<&str>> {
+            match data {
+                NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.raw_text.as_deref()),
+                NodeData::TemplateHead(data) => Some(data.raw_text.as_deref()),
+                NodeData::TemplateMiddle(data) => Some(data.raw_text.as_deref()),
+                NodeData::TemplateTail(data) => Some(data.raw_text.as_deref()),
+                _ => None,
+            }
+        }
+        if let (NodeData::StringLiteral(previous), NodeData::StringLiteral(current)) =
+            (previous, current)
+        {
+            if previous.text != current.text {
+                if let Some(properties) = self.literal_properties.get_mut(&node) {
+                    properties.string_literal_text_source = None;
+                }
+            }
+            return;
+        }
+        let (Some(previous_raw), Some(current_raw)) =
+            (raw_projection(previous), raw_projection(current))
+        else {
+            return;
+        };
+        if previous_raw == current_raw {
+            return;
+        }
+        match current_raw {
+            Some(raw) => self
+                .literal_properties
+                .entry(node)
+                .or_default()
+                .set_raw_template_text(JavaScriptString::from_rust_str(raw)),
+            None => {
+                if let Some(properties) = self.literal_properties.get_mut(&node) {
+                    properties.clear_raw_template_text();
+                }
+            }
         }
     }
 
@@ -2095,6 +2149,166 @@ impl<'arena> NodeFactory<'arena> {
             properties.set_raw_template_text(JavaScriptString::from_code_units(raw.to_vec()));
         }
         Ok(literal)
+    }
+
+    /// createTemplateLiteralLikeNode with its `templateFlags` argument: the
+    /// flags are masked with TemplateLiteralLikeFlags and select the ES2018
+    /// transform facet (getTransformFlagsOfTemplateLiteralLike, 22862-22868).
+    /// tsc-port: createTemplateLiteralLikeNode @6.0.3
+    /// tsc-hash: 4d36f6cd637eb6babb29850129ab9b8a3bfea4f9e238b375705907258faf9a2b
+    /// tsc-span: _tsc.js:22885-22890
+    pub fn create_template_literal_like_node(
+        &mut self,
+        source: TransformSourceId,
+        kind: SyntaxKind,
+        text: &[u16],
+        raw: Option<&[u16]>,
+        template_flags: TokenFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let template_flags = TokenFlags::from_bits(
+            template_flags.bits() & TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits(),
+        );
+        let literal = self.create_template_literal_like_from_code_units(source, kind, text, raw)?;
+        if !template_flags.is_empty() {
+            self.arena
+                .source_mut(source)?
+                .source
+                .arena
+                .node_mut(literal.node)
+                .template_flags = template_flags.bits();
+            let flags = self.arena.transform_flags(literal) | TransformFlags::CONTAINS_ES_2018;
+            self.arena.set_transform_flags(literal, flags);
+        }
+        Ok(literal)
+    }
+
+    /// Typed value update of a template fragment: upstream
+    /// `update(createTemplateLiteralLikeNode(kind, text, rawText, templateFlags), node)`
+    /// (the `update` helper at 24995-25001 sets the original and the text
+    /// range). The same value — exact code units, the same raw channel
+    /// (absent and empty differ; the current raw is the owned units, else the
+    /// parsed projection) and the same masked flags — returns the same node.
+    /// A change creates a fresh node (never a clone), so no property of the
+    /// original travels except through setOriginalNode's emit-metadata merge.
+    /// tsc-port: createTemplateLiteralLikeNode/update @6.0.3
+    /// tsc-hash: 4d36f6cd637eb6babb29850129ab9b8a3bfea4f9e238b375705907258faf9a2b
+    /// tsc-span: _tsc.js:22885-22890, 24995-25001
+    pub fn update_template_literal_like_node(
+        &mut self,
+        original: TransformNode,
+        text: &[u16],
+        raw: Option<&[u16]>,
+        template_flags: TokenFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let record = self.arena.node(original)?.clone();
+        let (current_text, current_projection) = match &record.data {
+            NodeData::NoSubstitutionTemplateLiteral(data) => (&data.text, &data.raw_text),
+            NodeData::TemplateHead(data) => (&data.text, &data.raw_text),
+            NodeData::TemplateMiddle(data) => (&data.text, &data.raw_text),
+            NodeData::TemplateTail(data) => (&data.text, &data.raw_text),
+            _ => return Err(TransformError::FactoryTokenKindExpected(record.kind)),
+        };
+        let mask = TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits();
+        let requested_flags = template_flags.bits() & mask;
+        let current_raw: Option<Vec<u16>> = match self
+            .arena
+            .literal_properties(original)
+            .and_then(LiteralNodeProperties::raw_template_text)
+        {
+            Some(owned) => Some(owned.code_units().to_vec()),
+            None => current_projection
+                .as_deref()
+                .map(|projection| projection.encode_utf16().collect()),
+        };
+        if current_text.to_utf16() == text
+            && current_raw.as_deref() == raw
+            && record.template_flags & mask == requested_flags
+        {
+            return Ok(original);
+        }
+        let updated = self.create_template_literal_like_node(
+            original.source,
+            record.kind,
+            text,
+            raw,
+            TokenFlags::from_bits(requested_flags),
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// createStringLiteral with its optional `isSingleQuote` and
+    /// `hasExtendedUnicodeEscape` arguments: an absent quote preference stays
+    /// absent (no property), and an extended escape selects ContainsES2015.
+    /// tsc-port: createStringLiteral @6.0.3
+    /// tsc-hash: 2bf21e80bf4e61e4e1af7273cc968a2d4423ba01535d7cedc31a7ed35ebc1c2e
+    /// tsc-span: _tsc.js:21529-21534
+    pub fn create_string_literal_node(
+        &mut self,
+        source: TransformSourceId,
+        text: &[u16],
+        single_quote: Option<bool>,
+        has_extended_unicode_escape: Option<bool>,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = if has_extended_unicode_escape == Some(true) {
+            TransformFlags::CONTAINS_ES_2015
+        } else {
+            TransformFlags::NONE
+        };
+        let literal = self.create_node(
+            source,
+            NodeData::StringLiteral(StringLiteralData {
+                text: JsString::from_code_units(text),
+                has_extended_unicode_escape,
+            }),
+            flags,
+        )?;
+        if let Some(single_quote) = single_quote {
+            self.arena
+                .literal_properties_mut(literal)?
+                .set_string_literal_single_quote(single_quote);
+        }
+        Ok(literal)
+    }
+
+    /// Typed value update of a string literal: upstream
+    /// `update(createStringLiteral(text, isSingleQuote, hasExtendedUnicodeEscape), node)`
+    /// (rewriteModuleSpecifier, 93242-93248, passes `node.singleQuote`). The
+    /// same value, quote preference and escape marker return the same node; a
+    /// change creates a fresh literal with no textSourceNode.
+    /// tsc-port: createStringLiteral/update @6.0.3
+    /// tsc-hash: 2bf21e80bf4e61e4e1af7273cc968a2d4423ba01535d7cedc31a7ed35ebc1c2e
+    /// tsc-span: _tsc.js:21529-21534, 24995-25001
+    pub fn update_string_literal(
+        &mut self,
+        original: TransformNode,
+        text: &[u16],
+        single_quote: Option<bool>,
+        has_extended_unicode_escape: Option<bool>,
+    ) -> Result<TransformNode, TransformError> {
+        let record = self.arena.node(original)?.clone();
+        let NodeData::StringLiteral(data) = &record.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::StringLiteral,
+                actual: record.kind,
+            });
+        };
+        let current_quote = self
+            .arena
+            .literal_properties(original)
+            .and_then(LiteralNodeProperties::string_literal_single_quote);
+        if data.text.to_utf16() == text
+            && current_quote == single_quote
+            && data.has_extended_unicode_escape == has_extended_unicode_escape
+        {
+            return Ok(original);
+        }
+        let updated = self.create_string_literal_node(
+            original.source,
+            text,
+            single_quote,
+            has_extended_unicode_escape,
+        )?;
+        self.finish_update(updated, original)
     }
 
     /// tsc-port: createTemplateHead @6.0.3
@@ -5396,6 +5610,15 @@ impl<'arena> NodeFactory<'arena> {
         }
         self.apply_parenthesizer_rules(original.source, &mut data)?;
         let (pos, end) = (record.pos, record.end);
+        let literal_payload = matches!(
+            record.kind,
+            SyntaxKind::StringLiteral
+                | SyntaxKind::NoSubstitutionTemplateLiteral
+                | SyntaxKind::TemplateHead
+                | SyntaxKind::TemplateMiddle
+                | SyntaxKind::TemplateTail
+        )
+        .then(|| data.clone());
         let updated = self.clone_node(original)?;
         let updated_record = self
             .arena
@@ -5407,6 +5630,10 @@ impl<'arena> NodeFactory<'arena> {
         updated_record.pos = pos;
         updated_record.end = end;
         self.arena.set_transform_flags(updated, transform_flags);
+        if let Some(current) = literal_payload {
+            self.arena
+                .reconcile_literal_properties(updated, &record.data, &current);
+        }
         Ok(updated)
     }
 

@@ -466,6 +466,13 @@ impl LiteralNodeProperties {
     pub fn set_raw_template_text(&mut self, value: JavaScriptString) {
         self.raw_template_text = Some(value);
     }
+
+    /// The raw channel becomes absent (upstream `rawText === undefined`):
+    /// printing and tagged-template lowering fall back to the cooked text or
+    /// the source range.
+    pub(crate) fn clear_raw_template_text(&mut self) {
+        self.raw_template_text = None;
+    }
 }
 
 /// Session-owned `emitNode` equivalent. Parsed nodes remain unchanged.

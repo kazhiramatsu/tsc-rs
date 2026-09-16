@@ -12,7 +12,8 @@ Claude 担当 C01〜C05 と、それ以外の実装・統合・検証・配布�
 ③ printer の隔離候補は受領済みで、[A-INT3 の統合レビュー](h2-8a-printer-failure/INTEGRATION.md)へ進みました。
 ④ transpile の候補も [PR #535 で統合済み](h2-8c-transpile/INTEGRATION.md)です。
 ⑤ cache はR1〜R4再提出を受領し、統合側の追加修正と専用CI入口を含む[PR #539](https://github.com/kazhiramatsu/tsc-rs/pull/539)で統合済みです。[統合記録](l2-3-resolution-cache/integration/README.md)を参照。
-次の推奨送付順は **① literal → ② binding**。
+① literal は候補を受領し、[A-INT1統合](h2-8a-literal-update/integration/README.md)でCI入口追加と最終検証を進めています。
+次の推奨送付先は **② binding**。
 [A-INT3-CS](h2-8a-printer-comment-carry/README.md) と
 [API1.2-HINT](api1-2-printer-hook-hints.md) は統合済みです。
 統合担当の[A-PC1](h2-8a-compact-body-comments.md)もPR #538で完了しています。

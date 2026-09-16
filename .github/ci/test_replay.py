@@ -63,6 +63,8 @@ class SelectionTests(unittest.TestCase):
     def test_emitter_direct_inputs_select_only_their_target_and_share_printer_build(self):
         for suite in witness.EMITTER_DIRECT:
             for path in witness.emitter_inputs(suite):
+                if path == "scripts/observe-literal-update.mjs":
+                    continue  # covered by the explicit cross-crate ownership contract below
                 with self.subTest(suite=suite, path=path):
                     self.assertTrue((ROOT / path).is_file(), path)
                     plan = replay.selection([path])
@@ -71,6 +73,21 @@ class SelectionTests(unittest.TestCase):
                     self.assertEqual(replay.matrices(plan)["witnesses"], {
                         "include": [{"group": "printer", "suites": [suite]}],
                     })
+
+    def test_literal_update_shared_observer_selects_both_crates(self):
+        plan = replay.selection(["scripts/observe-literal-update.mjs"])
+        self.assertEqual(plan["acceptance"], [])
+        self.assertEqual(plan["witnesses"], ["literal-update", "literal-update-pipeline"])
+        self.assertEqual(replay.matrices(plan)["witnesses"], {"include": [
+            {"group": "controls", "suites": ["literal-update-pipeline"]},
+            {"group": "printer", "suites": ["literal-update"]},
+        ]})
+        workflow = (ROOT / ".github/workflows/witness.yml").read_text()
+        for suite in plan["witnesses"]:
+            self.assertIn(f"contains(matrix.suites, '{suite}')", workflow)
+        for path in ("crates/emitter/src/factory.rs", "crates/emitter/src/builtins/tagged_template.rs",
+                     "crates/emitter/src/builtins/relative_imports.rs"):
+            self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
 
     def test_changed_direct_inputs_union_with_other_owners_without_full_replay(self):
         plan = replay.selection([
@@ -86,6 +103,8 @@ class SelectionTests(unittest.TestCase):
     def test_compiler_direct_inputs_select_only_their_target_in_controls(self):
         for suite in witness.COMPILER_DIRECT:
             for path in witness.compiler_direct_inputs(suite):
+                if path == "scripts/observe-literal-update.mjs":
+                    continue  # covered by the explicit cross-crate ownership contract below
                 with self.subTest(suite=suite, path=path):
                     self.assertTrue((ROOT / path).is_file(), path)
                     plan = replay.selection([path])
@@ -177,12 +196,12 @@ class SelectionTests(unittest.TestCase):
     def test_shared_comparator_is_an_acceptance_input(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], ["retained", "declaration-comments", "utf16-literal-witnesses"])
+        self.assertEqual(plan["witnesses"], ["retained", "require-rewrite", "declaration-comments", "utf16-literal-witnesses"])
 
     def test_library_snapshot_keeps_all_fresh_program_consumers(self):
         plan = replay.selection(["crates/compiler/tests/support/witness_libraries.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], [*witness.SUPER, "retained", "declaration-comments", "utf16-literal-witnesses"])
+        self.assertEqual(plan["witnesses"], [*witness.SUPER, "retained", "require-rewrite", "declaration-comments", "utf16-literal-witnesses"])
 
     def test_common_unknown_and_missing_ranges_keep_complete_coverage(self):
         for paths in (None, [], ["crates/emitter/src/printer.rs"], ["new/tool.rs"],
@@ -244,6 +263,7 @@ class WitnessTests(unittest.TestCase):
             "followup3": 48, "retained": 530, "direct": 32, "printer": 142, "bundle-sinks": 10,
             "declaration-map-cli": 8, "transpile-routes": 301, "resolution-cache": 26,
             "compact-body-comments": 240, "parameter-temporaries": 68,
+            "literal-update": 1396, "literal-update-pipeline": 22, "require-rewrite": 74,
             "declaration-specifiers": 30, "declaration-comments": 41, "jsdoc-return": 58,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,
@@ -298,6 +318,47 @@ class WitnessTests(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             run_with(full, 101)
 
+    def test_literal_update_observer_groups_are_all_checked_before_cargo(self):
+        summary = "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        commands = [["node", "scripts/observe-literal-update.mjs", group, "--check"]
+                    for group in ("factory", "transform", "lifetime")]
+        with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, summary)) as run:
+            witness.run_emitter_direct(["literal-update"])
+            self.assertEqual([call.args[0] for call in run.call_args_list[:-1]], commands)
+            self.assertIn("literal_update_contract", run.call_args_list[-1].args[0])
+        for failed_group in ("factory", "transform", "lifetime"):
+            def result(command, **kwargs):
+                if failed_group in command:
+                    raise subprocess.CalledProcessError(1, command)
+                return subprocess.CompletedProcess(command, 0)
+            with patch.object(witness.subprocess, "run", side_effect=result) as run:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    witness.run_emitter_direct(["literal-update"])
+                self.assertTrue(all(call.args[0][0] == "node" for call in run.call_args_list))
+        self.assertEqual(witness.direct_observers(witness.EMITTER_DIRECT, ["literal-update"] * 2),
+                         [tuple(command) for command in commands])
+        _, env = witness.invocation("literal-update", [], {"TSC_RS_LITERAL_UPDATE_REPORT_DIR": "/tmp/stale"})
+        self.assertNotIn("TSC_RS_LITERAL_UPDATE_REPORT_DIR", env)
+
+    def test_require_rewrite_runs_only_four_dedicated_commands_and_rejects_missing_results(self):
+        summary = "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n"
+        for output in (summary, "", summary.replace("4 passed", "3 passed"),
+                       summary.replace("10 filtered", "9 filtered"), summary.replace("0 ignored", "1 ignored")):
+            with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output)) as run:
+                if output != summary:
+                    with self.assertRaises(ValueError):
+                        witness.run_compiler_direct(["require-rewrite"])
+                    continue
+                witness.run_compiler_direct(["require-rewrite"])
+                calls = [call.args[0] for call in run.call_args_list]
+                self.assertEqual(calls[:-1], [["node", f"scripts/observe-require-rewrite{suffix}.mjs",
+                                              f"require-rewrite{suffix}", "--check"]
+                                             for suffix in ("", "-composition", "-substitution", "-dynamic")])
+                self.assertEqual(calls[-1], ["cargo", "test", "--manifest-path", "crates/compiler/Cargo.toml",
+                    "--test", "h2_8a_require_rewrite", "require_rewrite_focused_complete_commands", "--", "--exact",
+                    "require_rewrite_composition_complete_commands", "require_rewrite_substitution_complete_commands",
+                    "require_rewrite_dynamic_complete_commands", "--nocapture", "--test-threads=1"])
+
     def test_direct_runner_propagates_observer_failure_before_cargo(self):
         with patch.object(witness.subprocess, "run", side_effect=subprocess.CalledProcessError(1, ["node"])) as run:
             with self.assertRaises(subprocess.CalledProcessError):
@@ -346,7 +407,7 @@ class WitnessTests(unittest.TestCase):
     def test_literal_witnesses_keep_shared_helpers_and_qualification_owners(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], ["retained", "declaration-comments", "utf16-literal-witnesses"])
+        self.assertEqual(plan["witnesses"], ["retained", "require-rewrite", "declaration-comments", "utf16-literal-witnesses"])
         for path in ("crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
                      "ratchets/h2-5h-qualification.v1.json",
                      "crates/oracle/vfs-directory-overlay.mjs",
@@ -399,6 +460,9 @@ class WitnessTests(unittest.TestCase):
                     "TSC_RS_JSDOC_RETURN_FILTER": "no-match",
                     "TSC_RS_JSDOC_RETURN_CAPTURE_DIR": "/tmp/stale-jsdoc-captures",
                     "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/tmp/stale-specifier-captures",
+                    "TSC_RS_REQUIRE_REWRITE_FILTER": "no-match",
+                    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/tmp/stale-rewrite-captures",
+                    "TSC_RS_LITERAL_UPDATE_REPORT_DIR": "/tmp/stale-update-reports",
                     "CARGO_BUILD_JOBS": "2"}
         for suite in witness.COMPILER_DIRECT:
             _, env = witness.invocation(suite, [], poisoned)

@@ -1,0 +1,15 @@
+utf16-tagged-template: selected 16 input cases
+env cargo test --manifest-path crates/compiler/Cargo.toml --test h2_8a_utf16_tagged_template_controls -- --nocapture --test-threads=1
+utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+{"output":"/Users/hiramatsu/dev/tsc-rs-literal-update/crates/compiler/tests/fixtures/utf16-tagged-template-controls.json","sha256":"e8d6d1fa07d16d1887df1cb26dbbd51c150f42407a73e495239f7ccfd2a62688","cases":16,"direct_executions":32,"complete_command_executions":32}
+    Blocking waiting for file lock on artifact directory
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-literal-update/crates/compiler)
+    Finished `test` profile [unoptimized] target(s) in 1m 52s
+     Running tests/h2_8a_utf16_tagged_template_controls.rs (target/debug/deps/h2_8a_utf16_tagged_template_controls-7e0634dd41550795)
+
+running 1 test
+test tagged_template_controls_match_complete_commands_twice ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.49s
+
+{"compiler_direct": ["utf16-tagged-template"], "targets": 1, "tests_passed": 1, "observer_seconds": 10.361, "cargo_build_and_replay_seconds": 127.773}

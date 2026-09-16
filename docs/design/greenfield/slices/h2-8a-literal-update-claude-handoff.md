@@ -26,6 +26,12 @@ cooked / raw projection / owned raw / flagsの変更操作が交差する境界�
 実行件数・想定時間も示してください。全件hostedは統合担当が登録・実行します。
 
 
+**2026-09-16 提出状態**：本依頼の隔離候補を [h2-8a-literal-update/](h2-8a-literal-update/DESIGN.md) に提出済み
+（[REPORT.md](h2-8a-literal-update/REPORT.md)、[INTEGRATION.md](h2-8a-literal-update/INTEGRATION.md)、
+[inputs.v1.json](h2-8a-literal-update/inputs.v1.json)、[records/](h2-8a-literal-update/records/)）。
+開始 SHA `6c41a03888b66bb6781e5ef39c253b6200ff44c6`、worktree `~/dev/tsc-rs-literal-update`、branch `draft/h2-8a-literal-update`（未 commit）。
+commit / PR / hosted 入口の登録は統合担当（A-INT1）。
+
 ## Claudeへの送付用要約
 
 次のスライスとして **C01 / A40-LITERAL-UPDATE：UTF-16リテラル更新とtemplate伝播の残経路監査・修復** をお願いします。

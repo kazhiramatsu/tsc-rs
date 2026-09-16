@@ -1,0 +1,570 @@
+{
+  "group": "lifetime",
+  "cases": 10,
+  "rows": [
+    {
+      "case_id": "literal-update/lifetime/StringLiteral/parsed/dispose/lone-high-no-ascii",
+      "problems": [],
+      "emit_flags_agree": true,
+      "actual": {
+        "printed_before_dispose": {
+          "text_utf16": [
+            34,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            34
+          ],
+          "utf8_base64": "Ilx1RDgwMCI=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        },
+        "survived": {
+          "text_utf16": [
+            55296
+          ],
+          "raw_text_utf16": null,
+          "single_quote": null
+        },
+        "emit_flags_after_dispose": 0,
+        "after_dispose": {
+          "error": "Transform(InvalidLifecycle { operation: \"query substitution\", state: Disposed })"
+        },
+        "expected_emit_flags_after_dispose": 0,
+        "expected_printed_after_dispose": {
+          "text_utf16": [
+            34,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            34
+          ],
+          "utf8_base64": "Ilx1RDgwMCI=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/StringLiteral/synthetic/dispose/lone-high-no-ascii",
+      "problems": [],
+      "emit_flags_agree": false,
+      "actual": {
+        "printed_before_dispose": {
+          "text_utf16": [
+            34,
+            55296,
+            34
+          ],
+          "utf8_base64": "Iu+/vSI=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        },
+        "survived": {
+          "text_utf16": [
+            55296
+          ],
+          "raw_text_utf16": null,
+          "single_quote": false
+        },
+        "emit_flags_after_dispose": 0,
+        "after_dispose": {
+          "error": "Transform(InvalidLifecycle { operation: \"query substitution\", state: Disposed })"
+        },
+        "expected_emit_flags_after_dispose": 16777216,
+        "expected_printed_after_dispose": {
+          "text_utf16": [
+            34,
+            55296,
+            34
+          ],
+          "utf8_base64": "Iu+/vSI=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/NoSubstitutionTemplateLiteral/parsed/dispose/lone-high-no-ascii",
+      "problems": [],
+      "emit_flags_agree": true,
+      "actual": {
+        "printed_before_dispose": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "YFx1RDgwMGA=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        },
+        "survived": {
+          "text_utf16": [
+            55296
+          ],
+          "raw_text_utf16": [
+            92,
+            117,
+            68,
+            56,
+            48,
+            48
+          ],
+          "single_quote": null
+        },
+        "emit_flags_after_dispose": 0,
+        "after_dispose": {
+          "error": "Transform(InvalidLifecycle { operation: \"query substitution\", state: Disposed })"
+        },
+        "expected_emit_flags_after_dispose": 0,
+        "expected_printed_after_dispose": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "YFx1RDgwMGA=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/NoSubstitutionTemplateLiteral/synthetic/dispose/lone-high-no-ascii",
+      "problems": [],
+      "emit_flags_agree": false,
+      "actual": {
+        "printed_before_dispose": {
+          "text_utf16": [
+            96,
+            55296,
+            96
+          ],
+          "utf8_base64": "YO+/vWA=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        },
+        "survived": {
+          "text_utf16": [
+            55296
+          ],
+          "raw_text_utf16": [
+            55296
+          ],
+          "single_quote": null
+        },
+        "emit_flags_after_dispose": 0,
+        "after_dispose": {
+          "error": "Transform(InvalidLifecycle { operation: \"query substitution\", state: Disposed })"
+        },
+        "expected_emit_flags_after_dispose": 16777216,
+        "expected_printed_after_dispose": {
+          "text_utf16": [
+            96,
+            55296,
+            96
+          ],
+          "utf8_base64": "YO+/vWA=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateHead/parsed/dispose/lone-high-no-ascii",
+      "problems": [],
+      "emit_flags_agree": true,
+      "actual": {
+        "printed_before_dispose": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "YFx1RDgwMCR7",
+          "utf8_bytes": 9,
+          "end_utf16": {
+            "position": 9,
+            "line": 0,
+            "column": 9
+          }
+        },
+        "survived": {
+          "text_utf16": [
+            55296
+          ],
+          "raw_text_utf16": [
+            92,
+            117,
+            68,
+            56,
+            48,
+            48
+          ],
+          "single_quote": null
+        },
+        "emit_flags_after_dispose": 0,
+        "after_dispose": {
+          "error": "Transform(InvalidLifecycle { operation: \"query substitution\", state: Disposed })"
+        },
+        "expected_emit_flags_after_dispose": 0,
+        "expected_printed_after_dispose": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "YFx1RDgwMCR7",
+          "utf8_bytes": 9,
+          "end_utf16": {
+            "position": 9,
+            "line": 0,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateHead/synthetic/dispose/lone-high-no-ascii",
+      "problems": [],
+      "emit_flags_agree": false,
+      "actual": {
+        "printed_before_dispose": {
+          "text_utf16": [
+            96,
+            55296,
+            36,
+            123
+          ],
+          "utf8_base64": "YO+/vSR7",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 4,
+            "line": 0,
+            "column": 4
+          }
+        },
+        "survived": {
+          "text_utf16": [
+            55296
+          ],
+          "raw_text_utf16": [
+            55296
+          ],
+          "single_quote": null
+        },
+        "emit_flags_after_dispose": 0,
+        "after_dispose": {
+          "error": "Transform(InvalidLifecycle { operation: \"query substitution\", state: Disposed })"
+        },
+        "expected_emit_flags_after_dispose": 16777216,
+        "expected_printed_after_dispose": {
+          "text_utf16": [
+            96,
+            55296,
+            36,
+            123
+          ],
+          "utf8_base64": "YO+/vSR7",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 4,
+            "line": 0,
+            "column": 4
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateMiddle/parsed/dispose/lone-high-no-ascii",
+      "problems": [],
+      "emit_flags_agree": true,
+      "actual": {
+        "printed_before_dispose": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "fVx1RDgwMCR7",
+          "utf8_bytes": 9,
+          "end_utf16": {
+            "position": 9,
+            "line": 0,
+            "column": 9
+          }
+        },
+        "survived": {
+          "text_utf16": [
+            55296
+          ],
+          "raw_text_utf16": [
+            92,
+            117,
+            68,
+            56,
+            48,
+            48
+          ],
+          "single_quote": null
+        },
+        "emit_flags_after_dispose": 0,
+        "after_dispose": {
+          "error": "Transform(InvalidLifecycle { operation: \"query substitution\", state: Disposed })"
+        },
+        "expected_emit_flags_after_dispose": 0,
+        "expected_printed_after_dispose": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "fVx1RDgwMCR7",
+          "utf8_bytes": 9,
+          "end_utf16": {
+            "position": 9,
+            "line": 0,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateMiddle/synthetic/dispose/lone-high-no-ascii",
+      "problems": [],
+      "emit_flags_agree": false,
+      "actual": {
+        "printed_before_dispose": {
+          "text_utf16": [
+            125,
+            55296,
+            36,
+            123
+          ],
+          "utf8_base64": "fe+/vSR7",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 4,
+            "line": 0,
+            "column": 4
+          }
+        },
+        "survived": {
+          "text_utf16": [
+            55296
+          ],
+          "raw_text_utf16": [
+            55296
+          ],
+          "single_quote": null
+        },
+        "emit_flags_after_dispose": 0,
+        "after_dispose": {
+          "error": "Transform(InvalidLifecycle { operation: \"query substitution\", state: Disposed })"
+        },
+        "expected_emit_flags_after_dispose": 16777216,
+        "expected_printed_after_dispose": {
+          "text_utf16": [
+            125,
+            55296,
+            36,
+            123
+          ],
+          "utf8_base64": "fe+/vSR7",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 4,
+            "line": 0,
+            "column": 4
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateTail/parsed/dispose/lone-high-no-ascii",
+      "problems": [],
+      "emit_flags_agree": true,
+      "actual": {
+        "printed_before_dispose": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "fVx1RDgwMGA=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        },
+        "survived": {
+          "text_utf16": [
+            55296
+          ],
+          "raw_text_utf16": [
+            92,
+            117,
+            68,
+            56,
+            48,
+            48
+          ],
+          "single_quote": null
+        },
+        "emit_flags_after_dispose": 0,
+        "after_dispose": {
+          "error": "Transform(InvalidLifecycle { operation: \"query substitution\", state: Disposed })"
+        },
+        "expected_emit_flags_after_dispose": 0,
+        "expected_printed_after_dispose": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "fVx1RDgwMGA=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateTail/synthetic/dispose/lone-high-no-ascii",
+      "problems": [],
+      "emit_flags_agree": false,
+      "actual": {
+        "printed_before_dispose": {
+          "text_utf16": [
+            125,
+            55296,
+            96
+          ],
+          "utf8_base64": "fe+/vWA=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        },
+        "survived": {
+          "text_utf16": [
+            55296
+          ],
+          "raw_text_utf16": [
+            55296
+          ],
+          "single_quote": null
+        },
+        "emit_flags_after_dispose": 0,
+        "after_dispose": {
+          "error": "Transform(InvalidLifecycle { operation: \"query substitution\", state: Disposed })"
+        },
+        "expected_emit_flags_after_dispose": 16777216,
+        "expected_printed_after_dispose": {
+          "text_utf16": [
+            125,
+            55296,
+            96
+          ],
+          "utf8_base64": "fe+/vWA=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        }
+      }
+    }
+  ]
+}
