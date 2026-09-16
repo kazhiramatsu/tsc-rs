@@ -180,7 +180,7 @@ impl TransformSource {
 
 /// Emit-only mutable syntax copies plus sparse transform/emit side tables.
 /// Parsed `SourceFile` values and their identity leases are never mutated.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TransformArena {
     /// Process-unique arena identity: node handles are only meaningful
     /// inside the arena that allocated them, so any checker-side cache of
@@ -212,6 +212,14 @@ impl TransformArena {
     /// The process-unique identity of this arena (see the `id` field).
     pub fn id(&self) -> u64 {
         self.id
+    }
+}
+
+/// `Default` is `new()`: every arena, however it is built, takes a fresh
+/// process-unique identity (a printer's carried name tables key on it).
+impl Default for TransformArena {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -685,6 +693,17 @@ impl TransformArena {
     pub fn generated_binding_base(&self, node: TransformNode) -> Option<&str> {
         self.metadata(node)
             .and_then(EmitMetadata::generated_binding_base)
+    }
+
+    /// The generated binding identity an identifier carries, as an opaque
+    /// number. Two identifiers with the same identity are named alike by the
+    /// print-time finalizer; the number itself has no meaning beyond one
+    /// transformation, so callers use it only to project declaration →
+    /// reference relations (identity traces), never to assign names.
+    pub fn generated_binding_identity(&self, node: TransformNode) -> Option<u64> {
+        self.metadata(node)
+            .and_then(EmitMetadata::generated_binding_id)
+            .map(crate::transform::GeneratedBindingId::raw)
     }
 
     pub fn metadata_mut(&mut self, node: TransformNode) -> &mut EmitMetadata {

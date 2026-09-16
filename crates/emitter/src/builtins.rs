@@ -5571,7 +5571,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let target = self.create_export_access("default")?;
                 let assignment = self.create_assignment(target, value)?;
                 let emitted = self.create_expression_statement(assignment)?;
-                self.set_original_and_range(emitted, statement)?;
+                // createExportStatement: `setTextRange(statement, node)` only.
+                // No `setOriginalNode`, so a synthesized `export default
+                // default_1;` (the standard-decorator lowering of a decorated
+                // default class) carries neither positions nor the source-map
+                // range its original holds: the statement prints unmapped
+                // (_tsc.js:111792-111803).
+                self.context.factory()?.set_text_range(emitted, statement)?;
                 Ok(vec![emitted])
             }
             NodeData::FunctionDeclaration(mut data) => {

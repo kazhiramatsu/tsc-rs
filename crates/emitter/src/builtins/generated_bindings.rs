@@ -60,6 +60,14 @@ impl GeneratedBindings {
 #[derive(Debug)]
 pub(super) struct GeneratedBindingScopes {
     reserved_source_names: BTreeSet<String>,
+    /// tsc `generatedNames` (`_tsc.js:116934`, cleared by `reset()` at
+    /// 117121): every name `makeUniqueName` returned without `scoped` /
+    /// `privateName` — file-level optimistic, file-wide optimistic and
+    /// numbered names — for the whole print (`writeBundle` keeps it across
+    /// sources). `isUniqueName` consults it, so scoped optimistic names,
+    /// temps, private temps and numbered names avoid it;
+    /// `isFileLevelUniqueName` does not (_tsc.js:120638-120640, 120665-120667).
+    generated_names: BTreeSet<String>,
     ancestor_policy: AncestorBindingPolicy,
     scopes: Vec<GeneratedBindingScope>,
     current: GeneratedBindingScopeId,
@@ -75,6 +83,7 @@ impl GeneratedBindingScopes {
     ) -> Self {
         Self {
             reserved_source_names,
+            generated_names: BTreeSet::new(),
             ancestor_policy,
             scopes: vec![GeneratedBindingScope {
                 owner: GeneratedBindingOwner::Source,
@@ -92,6 +101,40 @@ impl GeneratedBindingScopes {
             current: GeneratedBindingScopeId(0),
             node_names: BTreeMap::new(),
         }
+    }
+
+    /// Seeds tsc's `generatedNames` with the names of the earlier sources of
+    /// a bundle (`writeBundle` resets the set once after the whole bundle,
+    /// `_tsc.js:117058-117071`).
+    pub(super) fn seed_generated_names(&mut self, names: impl IntoIterator<Item = String>) {
+        self.generated_names.extend(names);
+    }
+
+    /// The `generatedNames` set at the end of this print, handed to the next
+    /// bundle source.
+    pub(super) fn generated_names(&self) -> &BTreeSet<String> {
+        &self.generated_names
+    }
+
+    /// Seeds the root scope's `reservedNames` with the scoped names a failed
+    /// print generated at its root (`reserveNameInNestedScopes`): visible to
+    /// the root and every nested scope.
+    pub(super) fn seed_root_reserved_names(&mut self, names: impl IntoIterator<Item = String>) {
+        for name in names {
+            self.scopes[0].names.push(name.clone());
+            self.scopes[0].names_reserved_in_descendants.push(name);
+        }
+    }
+
+    /// Seeds the root scope's `tempFlags` with the temp ordinals a failed
+    /// print consumed, so the next ordinary temp continues after them.
+    pub(super) fn seed_root_temp_ordinal(&mut self, ordinal: usize) {
+        let root = &mut self.scopes[0];
+        root.next_temp_ordinal = root.next_temp_ordinal.max(ordinal);
+    }
+
+    pub(super) fn current_temp_ordinal(&self) -> usize {
+        self.scopes[self.counter_owner(self.current).0].next_temp_ordinal
     }
 
     pub(super) fn enter(
@@ -475,6 +518,9 @@ impl GeneratedBindingScopes {
                     self.scopes[0]
                         .names_reserved_in_descendants
                         .push(candidate.clone());
+                } else {
+                    // makeUniqueName(scoped = false): generatedNames.add.
+                    self.generated_names.insert(candidate.clone());
                 }
                 return candidate;
             }
@@ -544,8 +590,9 @@ impl GeneratedBindingScopes {
             return false;
         }
         if self.current != GeneratedBindingScopeId(0) {
-            self.scopes[self.current.0].names.push(candidate);
+            self.scopes[self.current.0].names.push(candidate.clone());
         }
+        self.generated_names.insert(candidate);
         true
     }
 
@@ -564,6 +611,12 @@ impl GeneratedBindingScopes {
         planned: String,
         reserve_in_nested_scopes: bool,
     ) -> String {
+        // makeUniqueName(isFileLevelUniqueNameInCurrentFile, scoped = false)
+        // still records the spelling in generatedNames: a later scoped or
+        // numbered candidate of the same spelling (`_classThis` of a class
+        // with static private members after a file-level `_classThis`)
+        // must advance, while a later file-level peer may share it.
+        self.generated_names.insert(planned.clone());
         let current = &mut self.scopes[self.current.0];
         current.names.push(planned.clone());
         if reserve_in_nested_scopes {
@@ -609,6 +662,7 @@ impl GeneratedBindingScopes {
         reserve_in_nested_scopes: bool,
     ) -> bool {
         if self.reserved_source_names.contains(&candidate)
+            || self.generated_names.contains(&candidate)
             || self.current_scope_contains(&candidate)
             || self.ancestor_scope_contains(
                 &candidate,
@@ -632,6 +686,7 @@ impl GeneratedBindingScopes {
 
     fn reserve_in_source(&mut self, candidate: String) -> bool {
         if self.reserved_source_names.contains(&candidate)
+            || self.generated_names.contains(&candidate)
             || self.scopes[0].names.iter().any(|name| name == &candidate)
         {
             return false;

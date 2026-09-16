@@ -20,12 +20,7 @@ use tsc_types::NodeFlags;
 /// Divergences that remain after the candidate, keyed by `case_id#opN` or
 /// `case_id#events`. Each entry names its design boundary; the test is green
 /// only when the observed mismatch set equals this list exactly.
-const KNOWN_DIVERGENCES: &[(&str, &str)] = &[(
-    "printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op2",
-    "tsc generates names lazily inside the print and keeps generatedNames after a \
-         failure (x_2); Rust finalizes generated binding names eagerly per print on the \
-         transformation, so a later print restarts at x_1",
-)];
+const KNOWN_DIVERGENCES: &[(&str, &str)] = &[];
 
 #[derive(Clone, Debug, Default)]
 struct OpConfig {
@@ -702,6 +697,12 @@ fn known_native_controls_reject_widened_gaps() {
         .map(|case| (case["case_id"].as_str().unwrap().to_owned(), replay(case)))
         .collect::<Vec<_>>();
     assert_known_native_results(&observations);
+    if observations.is_empty() {
+        // No divergence is registered (the generated-name carry of C02 closed
+        // the last one): the fixture must be empty too, which
+        // assert_known_native_results verified; nothing to widen.
+        return;
+    }
     // The mismatch remains at the SAME registered op, but its native tuple
     // has changed. A set-of-mismatch-keys check alone used to accept this.
     observations[0].1["results"][2]["text"] = "widened gap".into();

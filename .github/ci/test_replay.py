@@ -18,6 +18,68 @@ witness = replay.witness
 
 
 class SelectionTests(unittest.TestCase):
+    def test_binding_dependencies_and_dedicated_pipeline_job(self):
+        suite = "decorator-binding-pipeline"
+        for path in witness.binding_inputs(suite):
+            self.assertTrue((ROOT / path).is_file(), path)
+            expected = ["decorator-binding", suite] if path == "scripts/observe-decorator-bindings.mjs" else [suite]
+            plan = replay.selection([path])
+            self.assertEqual(plan["acceptance"], [])
+            self.assertEqual(plan["witnesses"], expected)
+        plan = replay.selection(["scripts/observe-decorator-bindings.mjs"])
+        self.assertEqual(replay.matrices(plan)["witnesses"]["include"], [
+            {"group": suite, "suites": [suite]},
+            {"group": "printer", "suites": ["decorator-binding"]},
+        ])
+        workflow = (ROOT / ".github/workflows/witness.yml").read_text()
+        for selected in plan["witnesses"]:
+            self.assertIn(f"contains(matrix.suites, '{selected}')", workflow)
+
+    def test_binding_runner_requires_requested_membership_and_propagates_failure(self):
+        suite = "decorator-binding-pipeline"
+        command, env = witness.invocation(suite, [], {})
+        good = "decorator binding SUMMARY exact=758 known=9 failed=0 selected=767\n" \
+               "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        def invoke(output=good, status=0, observer_failure=False, needles=()):
+            def run(argv, **kwargs):
+                if argv[0] == "node":
+                    if observer_failure:
+                        raise subprocess.CalledProcessError(1, argv)
+                    return subprocess.CompletedProcess(argv, 0, "")
+                return subprocess.CompletedProcess(argv, status, output)
+            with patch.object(witness.subprocess, "run", side_effect=run) as calls, redirect_stdout(io.StringIO()):
+                witness.run_binding(suite, command, env, needles)
+            return calls
+        calls = invoke()
+        self.assertEqual(calls.call_args_list[0].args[0],
+                         ["node", "scripts/observe-decorator-bindings.mjs", "pipeline", "--check"])
+        self.assertEqual(calls.call_args_list[0].kwargs["env"], env)
+        self.assertEqual(calls.call_args_list[1].args[0], command)
+        for output in ("", good.replace("1 passed", "0 passed"), good.replace("0 ignored", "1 ignored"),
+                       good.replace("failed=0", "failed=1"), good.replace("exact=758", "exact=757"),
+                       good.replace("exact=758 known=9", "exact=759 known=8"),
+                       good.replace("exact=758", "exact=1").replace("selected=767", "selected=10")):
+            with self.subTest(output=output), self.assertRaises(ValueError):
+                invoke(output)
+        with self.assertRaises(subprocess.CalledProcessError):
+            invoke(status=101)
+        with self.assertRaises(subprocess.CalledProcessError):
+            invoke(observer_failure=True)
+        focused = good.replace("exact=758 known=9", "exact=28 known=0").replace("selected=767", "selected=28")
+        invoke(focused, needles=("/reserved/esnext/set/",))
+        with self.assertRaises(ValueError), patch.object(witness.subprocess, "run") as calls:
+            witness.run_binding(suite, command, env, [witness.BINDING[suite]["upstream_exceptions"][0]])
+        calls.assert_not_called()
+
+    def test_binding_selection_and_capture_environment_cannot_narrow_other_suites(self):
+        dirty = {key: "stale" for key in ("TSC_RS_H2_8A_CAPTURE_WRITES_DIR",
+                 "TSC_RS_DECORATOR_BINDING_REPORT_DIR", "TSC_RS_H2_8A_KNOWN_NATIVE_DUMP_DIR",
+                 "TSC_RS_DECORATOR_BINDING_CASE_SET")}
+        for suite in witness.SUITES:
+            _, env = witness.invocation(suite, [], dirty)
+            for key in dirty:
+                self.assertEqual(env.get(key), "all" if suite in witness.BINDING and key.endswith("CASE_SET") else None)
+
     def test_declaration_map_dependencies_keep_shared_and_adjacent_owners(self):
         for path in ("crates/compiler/tests/fixtures/declaration-map-apis.json",
                      "scripts/observe-declaration-map-apis.mjs"):
@@ -228,7 +290,7 @@ class SelectionTests(unittest.TestCase):
     def test_emitter_direct_inputs_select_only_their_target_and_share_printer_build(self):
         for suite in witness.EMITTER_DIRECT:
             for path in witness.emitter_inputs(suite):
-                if path == "scripts/observe-literal-update.mjs":
+                if path in ("scripts/observe-literal-update.mjs", "scripts/observe-decorator-bindings.mjs"):
                     continue  # covered by the explicit cross-crate ownership contract below
                 with self.subTest(suite=suite, path=path):
                     self.assertTrue((ROOT / path).is_file(), path)
@@ -268,7 +330,7 @@ class SelectionTests(unittest.TestCase):
     def test_compiler_direct_inputs_select_only_their_target_in_owning_job(self):
         for suite in witness.COMPILER_DIRECT:
             for path in witness.compiler_direct_inputs(suite):
-                if path == "scripts/observe-literal-update.mjs":
+                if path in ("scripts/observe-literal-update.mjs", "scripts/observe-decorator-bindings.mjs"):
                     continue  # covered by the explicit cross-crate ownership contract below
                 if path in ("scripts/observe-bundle-declarations.mjs",
                             "crates/emitter/tests/fixtures/bundle-declarations.json"):
@@ -413,7 +475,7 @@ class SelectionTests(unittest.TestCase):
     def test_library_snapshot_keeps_all_fresh_program_consumers(self):
         plan = replay.selection(["crates/compiler/tests/support/witness_libraries.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], [*witness.SUPER, "retained", "config-library", "require-rewrite", "declaration-comments", "utf16-literal-witnesses"])
+        self.assertEqual(plan["witnesses"], [*witness.SUPER, "retained", "config-library", "require-rewrite", "declaration-comments", "utf16-literal-witnesses", *witness.BINDING])
 
     def test_common_unknown_and_missing_ranges_keep_complete_coverage(self):
         for paths in (None, [], ["crates/emitter/src/printer.rs"], ["new/tool.rs"],
@@ -540,6 +602,7 @@ class WitnessTests(unittest.TestCase):
             "bundle-program": 27, "bundle-declarations": 56,
             "declaration-map-apis": 75, "declaration-maps": 84,
             "literal-update": 1396, "literal-update-pipeline": 22, "require-rewrite": 74,
+            "decorator-binding": 156, "decorator-binding-pipeline": 768,
             "declaration-specifiers": 30, "declaration-comments": 41, "jsdoc-return": 58,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,

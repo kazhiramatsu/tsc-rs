@@ -103,9 +103,16 @@ impl Printer {
                 helpers,
             });
         }
-        transformation
-            .finalize_bundle_generated_names_for_print(bundle.sources(), global_name_oracle)?;
+        let carried = self.carried_names_for_source_file_print();
+        transformation.finalize_bundle_generated_names_for_print(
+            bundle.sources(),
+            global_name_oracle,
+            carried.as_ref(),
+        )?;
         self.start_print();
+        // Every bundle source names its root declarations at its own
+        // emitSourceFileWorker entry (`write_transformed_source_file`); a
+        // failure leaves exactly the ones reached so far.
         // writeBundle with a caller-owned writer versus printBundle into the
         // printer-owned writer (see print_transformed_source_file).
         let own_writer = recording.is_none();

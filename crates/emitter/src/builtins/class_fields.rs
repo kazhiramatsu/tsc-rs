@@ -1716,6 +1716,37 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         if !self.should_transform_retained_auto_accessors() {
             return Ok(());
         }
+        // Private names an earlier transform already generated for members
+        // of this class (the standard-decorator lowering of a private
+        // auto-accessor leaves a `#a_accessor_storage` field) live in the
+        // printer's reserved private names when tsc generates this
+        // transform's storage names (`generateMemberNames`, member order), so
+        // a public `accessor a` next to a decorated `accessor #a` becomes
+        // `#a_1_accessor_storage`. Seed the class scope with every
+        // synthesized private member name. (The decorator's own name is fixed
+        // at its transform time, so the reverse member order — public accessor
+        // first — still names the decorator's field without the ordinal.)
+        for member in self.array_nodes(members)? {
+            let name = match &self.context.arena().node(member)?.data {
+                NodeData::PropertyDeclaration(data) => data.name,
+                NodeData::MethodDeclaration(data) => data.name,
+                NodeData::GetAccessor(data) => data.name,
+                NodeData::SetAccessor(data) => data.name,
+                _ => None,
+            };
+            let Some(name) = name.map(|name| self.node(name)) else {
+                continue;
+            };
+            let record = self.context.arena().node(name)?;
+            if let NodeData::PrivateIdentifier(data) = &record.data {
+                if record.pos == u32::MAX {
+                    let text = data.text.clone();
+                    if let Some(scope) = self.private_name_scopes.last_mut() {
+                        scope.allocated.insert(text);
+                    }
+                }
+            }
+        }
         // Printer generateMemberNames precedes emitting any constructor/body.
         // Heritage visitation must finish before entering this private scope.
         for member in self.array_nodes(members)? {

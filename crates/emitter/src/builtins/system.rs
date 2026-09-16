@@ -306,6 +306,38 @@ fn push_unique<'a>(values: &mut Vec<JsString>, value: impl Into<JsStr<'a>>) {
     }
 }
 
+/// The identifier nodes of a binding name, in declaration order (the
+/// node-carrying counterpart of [`collect_binding_names`]).
+fn collect_binding_name_nodes(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    name: Option<NodeId>,
+    output: &mut Vec<TransformNode>,
+) -> Result<(), TransformError> {
+    let Some(name) = name.and_then(|id| arena.node_ref(source, id)) else {
+        return Ok(());
+    };
+    match &arena.node(name)?.data {
+        NodeData::Identifier(_) => output.push(name),
+        NodeData::ObjectBindingPattern(data) => {
+            for element in node_array_nodes(arena, source, data.elements)? {
+                if let NodeData::BindingElement(data) = &arena.node(element)?.data {
+                    collect_binding_name_nodes(arena, source, data.name, output)?;
+                }
+            }
+        }
+        NodeData::ArrayBindingPattern(data) => {
+            for element in node_array_nodes(arena, source, data.elements)? {
+                if let NodeData::BindingElement(data) = &arena.node(element)?.data {
+                    collect_binding_name_nodes(arena, source, data.name, output)?;
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 fn collect_binding_names(
     arena: &TransformArena,
     source: TransformSourceId,
@@ -875,13 +907,57 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     self.push_hoisted_name(&temp);
                 }
                 let mut names = Vec::new();
-                collect_binding_names(self.context.arena(), self.source, data.name, &mut names)?;
+                collect_binding_name_nodes(
+                    self.context.arena(),
+                    self.source,
+                    data.name,
+                    &mut names,
+                )?;
                 for name in names {
-                    self.push_hoisted_name(&name);
+                    let text = identifier_text_owned(self.context.arena(), name)?;
+                    if text == "default" {
+                        continue;
+                    }
+                    // A hoisted declaration whose name is a generated binding
+                    // (a decorated default class's `default_1` reference, a
+                    // lowered class alias) keeps that identity: the `var`
+                    // list re-creates the identifier through
+                    // `create_identifier`, which writes the binding metadata
+                    // so the print-time finalizer names every occurrence
+                    // alike (tsc hoists the same generated identifier node).
+                    if let Some(binding) = self.generated_binding_of_identifier(name) {
+                        self.generated_bindings
+                            .entry(text.clone())
+                            .or_insert(binding);
+                    }
+                    self.push_hoisted_name(&text);
                 }
             }
         }
         Ok(())
+    }
+
+    /// The generated binding an identifier already carries, projected the
+    /// way the standard-decorator visitor projects its own identifiers.
+    fn generated_binding_of_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
+        let metadata = self.context.arena().metadata(name)?;
+        let id = metadata.generated_binding_id()?;
+        let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
+            return None;
+        };
+        Some(TargetBinding::from_existing(
+            id,
+            identifier.text.clone(),
+            metadata.generated_binding_base().map(str::to_owned),
+            metadata
+                .generated_binding_preferred_base()
+                .map(str::to_owned),
+            metadata.generated_binding_role_suffix().map(str::to_owned),
+            metadata.generated_binding_is_file_level_optimistic(),
+            metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_reserved_in_nested_scopes(),
+            metadata.generated_binding_is_private_temp(),
+        ))
     }
 
     fn push_hoisted_name(&mut self, name: &str) {
