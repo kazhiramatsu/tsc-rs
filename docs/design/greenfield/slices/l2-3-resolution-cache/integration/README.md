@@ -10,7 +10,7 @@ Claude の再提出 base は `d9cfb664a`、patch SHA-256 は
 
 R1〜R3 は独立した元の再現テスト3件が成功。R2だけ削除された entry accessor を
 `held.view().last_used(original.key())` に置換し、同じ不変条件を確認した。
-[再現 source](review-02-repro.rs) と [修正前ログ](review-02-before.log) を保持する。
+[再現 source](review-02-repro.rs) と [修正前ログ](review-02-before.log.gz) を保持する。
 元の22 familyの native expected は再提出でも構造的に同一。新しい2 familyだけが追加された。
 
 R4 の件数上限は直ったが、統合時に次の2点が残っていた。
