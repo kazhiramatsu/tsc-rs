@@ -47,6 +47,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Use the transpile oracle Node version
+        if: contains(matrix.suites, 'transpile-routes')
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
       - name: Run selected witnesses
         run: python3 .github/ci/replay.py witnesses
 

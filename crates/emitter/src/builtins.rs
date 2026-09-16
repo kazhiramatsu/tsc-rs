@@ -9050,12 +9050,22 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .node(*argument)
                     .is_ok_and(|node| node.kind == SyntaxKind::StringLiteral)
             }) {
-                crate::external_module_names::resolved_external_module_name_literal(
+                let resolved = crate::external_module_names::resolved_external_module_name_literal(
                     self.host,
                     self.resolver,
                     self.context.arena(),
                     original,
-                )?
+                )?;
+                match resolved {
+                    Some(name) => Some(name),
+                    // tryRenameExternalModule (27716) for dynamic imports.
+                    None => string_literal_text(self.context.arena(), arguments[0])
+                        .ok()
+                        .and_then(|text| {
+                            let source = self.context.arena().source(self.source).ok()?.syntax();
+                            crate::external_module_names::try_rename_external_module(source, text)
+                        }),
+                }
             } else {
                 None
             };
@@ -10224,7 +10234,18 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             declaration,
         )?;
         if let Some(module_name) = module_name {
-            self.create_string_literal(&module_name)
+            return self.create_string_literal(&module_name);
+        }
+        // tryRenameExternalModule (27716): API renamedDependencies apply
+        // after the resolved-file branch and before the clone.
+        let renamed = string_literal_text(self.context.arena(), fallback)
+            .ok()
+            .and_then(|text| {
+                let source = self.context.arena().source(self.source).ok()?.syntax();
+                crate::external_module_names::try_rename_external_module(source, text)
+            });
+        if let Some(renamed) = renamed {
+            self.create_string_literal(&renamed)
         } else {
             self.context.factory()?.clone_node(fallback)
         }

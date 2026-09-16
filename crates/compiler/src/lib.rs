@@ -58,10 +58,13 @@ use tsc_program::{
 mod cli;
 mod declaration_diagnostics;
 mod no_emit_canary;
+pub mod transpile;
 
 pub use cli::{run_cli, CliOutput};
 pub use declaration_diagnostics::DeclarationSession;
 pub use no_emit_canary::NoEmitActivityCounters;
+pub use tsc_checker::JSDocParsingMode;
+pub use tsc_emitter::EmitRouteKind;
 
 /// A one-shot owner for one mode-validated prepared program.
 ///
@@ -71,6 +74,27 @@ pub use no_emit_canary::NoEmitActivityCounters;
 #[derive(Debug)]
 pub struct ProgramSession {
     prepared: PreparedProgram,
+    /// H2.8c research route (see [`EmitRouteKind`]); ordinary sessions keep
+    /// the Program route and every existing option refusal.
+    emit_route: EmitRouteKind,
+    /// API-supplied per-source facts (see [`SourceApiFacts`]); empty for
+    /// ordinary sessions.
+    source_api_facts: BTreeMap<SourceFileId, SourceApiFacts>,
+}
+
+/// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
+/// in `transpileWorker` (typescript.js:146090-146104): the caller's file-name
+/// spelling (`sourceFile.fileName`), `moduleName`, `renamedDependencies` and
+/// the `createSourceFile` `jsDocParsingMode`. They reach only the parsed
+/// syntax and the checker-edge input name; Program identity, resolution rows
+/// and output paths keep the prepared spelling.
+/// tsrs-native: typed carrier for the H2.8c transpile adapter.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct SourceApiFacts {
+    pub file_name: Option<JsString>,
+    pub module_name: Option<JsString>,
+    pub renamed_dependencies: Vec<(JsString, JsString)>,
+    pub js_doc_parsing_mode: Option<JSDocParsingMode>,
 }
 
 pub(crate) struct CliEmitSessionOutcome {
@@ -85,6 +109,8 @@ pub(crate) struct CliEmitSessionOutcome {
     /// _tsc.js:129433-129440). Emitting programs leave this empty.
     pub(crate) declaration_diagnostics: DiagnosticList,
     pub(crate) work_counters: NoEmitWorkCounters,
+    /// H2.8c evidence: source files whose checkSourceFileWorker body ran.
+    pub(crate) checked_source_files: u32,
 }
 
 impl CliEmitSessionOutcome {
@@ -136,10 +162,12 @@ pub struct EmitCommandOutcome {
     diagnostics: DiagnosticList,
     status_writes: Vec<JsString>,
     exit_code: i32,
+    checked_source_files: u32,
 }
 
 impl EmitCommandOutcome {
     fn new(outcome: CliEmitSessionOutcome, current_directory: JsStr<'_>) -> Self {
+        let checked_source_files = outcome.checked_source_files;
         let (emit, diagnostics, _) = outcome.into_reported(&[]);
         let (status_writes, exit_code) =
             cli::emit_command_status(current_directory, &emit, &diagnostics);
@@ -148,7 +176,14 @@ impl EmitCommandOutcome {
             diagnostics,
             status_writes,
             exit_code,
+            checked_source_files,
         }
+    }
+
+    /// H2.8c evidence: how many source files ran the checker's
+    /// checkSourceFileWorker body (0 under an admitted `noCheck`).
+    pub fn checked_source_files(&self) -> u32 {
+        self.checked_source_files
     }
 
     pub fn emit(&self) -> &EmitOutcome {
@@ -220,6 +255,7 @@ impl ProgramDiagnostics {
             semantic_diagnostics: self.semantic,
             declaration_diagnostics: DiagnosticList::new(),
             work_counters,
+            checked_source_files: 0,
         }
     }
 }
@@ -234,10 +270,22 @@ struct PreparedEmitHost<'program> {
     source_files: Vec<SourceFileId>,
     common_source_directory: JsString,
     symlinks: tsc_program::SymlinkFacts,
+    emit_route: EmitRouteKind,
+    /// Caller file-name spellings (SourceApiFacts::file_name): the parsed
+    /// syntax carries this name, so the checked host matches documents by it.
+    display_names: BTreeMap<SourceFileId, JsString>,
 }
 
 impl<'program> PreparedEmitHost<'program> {
-    fn new(prepared: &'program PreparedProgram) -> Result<Self, DriverError> {
+    fn new_for_route(
+        prepared: &'program PreparedProgram,
+        emit_route: EmitRouteKind,
+        source_api_facts: &BTreeMap<SourceFileId, SourceApiFacts>,
+    ) -> Result<Self, DriverError> {
+        let display_names = source_api_facts
+            .iter()
+            .filter_map(|(id, facts)| Some((*id, facts.file_name.clone()?)))
+            .collect();
         let source_files = prepared
             .source_files()
             .iter()
@@ -255,6 +303,8 @@ impl<'program> PreparedEmitHost<'program> {
             source_files,
             common_source_directory: prepared.current_directory().display().to_owned(),
             symlinks,
+            emit_route,
+            display_names,
         };
         // getCommonSourceDirectory2 first applies ordinary sourceFileMayBeEmitted
         // (_tsc.js:123142-123157), including noEmitForJsFiles, before comparing
@@ -281,6 +331,10 @@ impl<'program> PreparedEmitHost<'program> {
 impl EmitHost for PreparedEmitHost<'_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
+    }
+
+    fn emit_route(&self) -> EmitRouteKind {
+        self.emit_route
     }
 
     fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
@@ -341,6 +395,10 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
         self.prepared.compiler_options()
     }
 
+    fn emit_route(&self) -> EmitRouteKind {
+        self.prepared.emit_route()
+    }
+
     fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
         self.prepared.symlinked_files()
     }
@@ -371,7 +429,11 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
 
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
         let source = self.prepared.prepared.source_file(id)?;
-        let expected_name = source.path().display();
+        let expected_name = self
+            .prepared
+            .display_names
+            .get(&id)
+            .map_or_else(|| source.path().display(), JsString::as_js);
         let syntax = self
             .snapshot
             .documents()
@@ -760,7 +822,31 @@ fn map_authoritative_failure(
 
 impl ProgramSession {
     pub fn new(prepared: PreparedProgram) -> Self {
-        Self { prepared }
+        Self {
+            prepared,
+            emit_route: EmitRouteKind::Program,
+            source_api_facts: BTreeMap::new(),
+        }
+    }
+
+    /// Attach API-supplied facts to one prepared source (transpile adapter).
+    /// tsrs-native: see [`SourceApiFacts`].
+    pub fn with_source_api_facts(mut self, source: SourceFileId, facts: SourceApiFacts) -> Self {
+        self.source_api_facts.insert(source, facts);
+        self
+    }
+
+    /// Select an H2.8c research route. Only the emit option admission
+    /// changes (`noCheck`, and the transpile-forced isolated-module
+    /// options); the checker, planner and printer are the production ones.
+    /// tsrs-native: typed route plan for the no-check prototypes.
+    pub fn with_emit_route(mut self, emit_route: EmitRouteKind) -> Self {
+        self.emit_route = emit_route;
+        self
+    }
+
+    pub fn emit_route(&self) -> EmitRouteKind {
+        self.emit_route
     }
 
     /// Consume the prepared program and execute the no-emit diagnostic pass.
@@ -827,11 +913,15 @@ impl ProgramSession {
         check_semantics: bool,
         operation: impl FnOnce(&mut DeclarationSession<'_, '_>, &[Diagnostic]) -> Result<R, DriverError>,
     ) -> Result<R, DriverError> {
-        let prepared = self.prepared;
-        let emit_host = PreparedEmitHost::new(&prepared)?;
+        let ProgramSession {
+            prepared,
+            emit_route,
+            source_api_facts,
+        } = self;
+        let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
             .map_err(DriverError::Emit)?;
-        let inputs = project_checker_inputs(&prepared)?;
+        let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let provider = PreparedModuleProvider {
             prepared: &prepared,
             request_plans: RefCell::new(BTreeMap::new()),
@@ -900,7 +990,7 @@ impl ProgramSession {
     #[doc(hidden)]
     pub fn prepare_harness_lib_bundle(&self) -> Result<Option<OwnedHarnessLibBundle>, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
-        let inputs = project_checker_inputs(&self.prepared)?;
+        let inputs = project_checker_inputs(&self.prepared, &self.source_api_facts)?;
         Ok(prepare_authoritative_harness_lib_bundle(
             &inputs.libs,
             &inputs.files,
@@ -978,6 +1068,7 @@ impl ProgramSession {
                 semantic_diagnostics: outcome.semantic_diagnostics,
                 declaration_diagnostics,
                 work_counters: outcome.work_counters,
+                checked_source_files: 0,
             };
             return Ok(EmitCommandOutcome::new(reported, current_directory.as_js()));
         }
@@ -1026,9 +1117,13 @@ impl ProgramSession {
         ) -> Result<R, DriverError>,
     ) -> Result<(Option<R>, CheckResult), DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
-        let prepared = self.prepared;
-        let emit_host = PreparedEmitHost::new(&prepared)?;
-        let inputs = project_checker_inputs(&prepared)?;
+        let ProgramSession {
+            prepared,
+            emit_route,
+            source_api_facts,
+        } = self;
+        let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
+        let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         // The eager checker currently harvests authoritative failures before
         // its emit callback. Preserve failures from first-time emit queries as
         // well: the delegate owns every resolution rule, this wrapper only
@@ -1128,12 +1223,16 @@ impl ProgramSession {
         recording_inputs_for: &dyn Fn(JsStr<'_>) -> Option<SourceMapRecordingInputs>,
     ) -> Result<Vec<(JsString, PrintedText)>, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
-        let prepared = self.prepared;
-        let emit_host = PreparedEmitHost::new(&prepared)?;
+        let ProgramSession {
+            prepared,
+            emit_route,
+            source_api_facts,
+        } = self;
+        let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
         let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
 
-        let inputs = project_checker_inputs(&prepared)?;
+        let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let provider = PreparedModuleProvider {
             prepared: &prepared,
             request_plans: RefCell::new(BTreeMap::new()),
@@ -1187,22 +1286,58 @@ impl ProgramSession {
         sink: &mut dyn OutputSink,
         harness_lib_bundle: Option<&OwnedHarnessLibBundle>,
     ) -> Result<CliEmitSessionOutcome, DriverError> {
+        self.emit_with_command_outcome_for_route(sink, harness_lib_bundle, false)
+    }
+
+    /// H2.8c transpileDeclaration adapter: the same checked session as an
+    /// ordinary command (syntactic/options/global/semantic buckets retained
+    /// for the caller's diagnostic selection) but executing
+    /// `program.emit(undefined, undefined, undefined, /*emitOnlyDtsFiles*/ true,
+    /// undefined, /*forceDtsEmit*/ true)` (typescript.js:146112-146121):
+    /// handleNoEmitOptions is skipped and declaration output is forced.
+    /// tsrs-native: route adapter over emit_forced_declarations_with_activity.
+    pub(crate) fn emit_forced_declarations_command_for_transpile(
+        self,
+        sink: &mut dyn OutputSink,
+    ) -> Result<CliEmitSessionOutcome, DriverError> {
+        self.emit_with_command_outcome_for_route(sink, None, true)
+    }
+
+    fn emit_with_command_outcome_for_route(
+        self,
+        sink: &mut dyn OutputSink,
+        harness_lib_bundle: Option<&OwnedHarnessLibBundle>,
+        forced_declarations: bool,
+    ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
-        let prepared = self.prepared;
+        let ProgramSession {
+            prepared,
+            emit_route,
+            source_api_facts,
+        } = self;
         let mut h2_activity = H2ActivityCanary::h2_7e_profile();
         h2_activity.construct_emit_session();
-        let emit_host = PreparedEmitHost::new(&prepared)?;
-        validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
+        let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
+        if forced_declarations {
+            tsc_emitter::validate_forced_declaration_request(&emit_host)
+                .map_err(DriverError::Emit)?;
+        } else {
+            validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
+        }
         let selection = EmitSelection::WholeProgram;
         h2_activity.construct_output_plan();
-        let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
+        let preflight = if forced_declarations {
+            None
+        } else {
+            Some(preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?)
+        };
 
-        let inputs = project_checker_inputs(&prepared)?;
+        let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let provider = PreparedModuleProvider {
             prepared: &prepared,
             request_plans: RefCell::new(BTreeMap::new()),
         };
-        let mut pending_preflight = Some(preflight);
+        let mut pending_preflight = preflight;
         let mut emit_result: Option<Result<CliEmitSessionOutcome, DriverError>> = None;
         let mut operation =
             |snapshot: &ProgramSnapshot, checker: &CheckerSession<'_>, checked: &CheckResult| {
@@ -1226,22 +1361,37 @@ impl ProgramSession {
                     prepared: &emit_host,
                     snapshot,
                 };
-                let preflight = pending_preflight
-                    .take()
-                    .expect("checked emit callback runs once");
-                let preflight_diagnostics = preflight.diagnostics().to_vec();
+                let preflight = pending_preflight.take();
+                let preflight_diagnostics = preflight
+                    .as_ref()
+                    .map(|preflight| preflight.diagnostics().to_vec())
+                    .unwrap_or_default();
                 h2_activity.borrow_emit_resolver();
                 emit_result = Some(checker.with_emit_resolver(|resolver| {
-                    emit_files_with_activity(
-                        resolver,
-                        &checked_host,
-                        preflight,
-                        selection,
-                        &diagnostic_gate,
-                        sink,
-                        &mut h2_activity,
-                    )
-                    .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
+                    match preflight {
+                        Some(preflight) => emit_files_with_activity(
+                            resolver,
+                            &checked_host,
+                            preflight,
+                            selection,
+                            &diagnostic_gate,
+                            sink,
+                            &mut h2_activity,
+                        ),
+                        None => tsc_emitter::emit_forced_declarations_with_activity(
+                            resolver,
+                            &checked_host,
+                            selection,
+                            sink,
+                            &mut h2_activity,
+                        ),
+                    }
+                    .map(|emit| {
+                        let mut outcome =
+                            diagnostics.with_emit(&preflight_diagnostics, emit, work_counters);
+                        outcome.checked_source_files = checker.checked_source_files();
+                        outcome
+                    })
                     .map_err(DriverError::Emit)
                 }));
             };
@@ -1282,7 +1432,18 @@ impl ProgramSession {
         let diagnostics = emit_session_diagnostics(&prepared, &checked);
         let diagnostic_gate = diagnostics.gate();
         let work_counters = check_work_counters(&checked);
-        let preflight = pending_preflight.expect("empty Program did not consume preflight");
+        let Some(preflight) = pending_preflight else {
+            // Empty forced-declaration Program: no source can reach a resolver.
+            return tsc_emitter::emit_forced_declarations_with_activity(
+                &UnavailableEmitResolver,
+                &emit_host,
+                selection,
+                sink,
+                &mut h2_activity,
+            )
+            .map(|emit| diagnostics.with_emit(&[], emit, work_counters))
+            .map_err(DriverError::Emit);
+        };
         let preflight_diagnostics = preflight.diagnostics().to_vec();
         emit_files_with_activity(
             &UnavailableEmitResolver,
@@ -1362,7 +1523,7 @@ impl ProgramSession {
         library_prefix: LibraryPrefixCompletion,
         _no_emit_canary: &mut no_emit_canary::NoEmitCanary,
     ) -> Result<NoEmitOutcome, DriverError> {
-        let inputs = project_checker_inputs(&self.prepared)?;
+        let inputs = project_checker_inputs(&self.prepared, &self.source_api_facts)?;
         let has_roots = !self.prepared.roots().is_empty();
         let provider = PreparedModuleProvider {
             prepared: &self.prepared,
@@ -1772,6 +1933,7 @@ struct ProjectedCheckerInputs {
 
 fn project_checker_inputs(
     prepared: &PreparedProgram,
+    source_api_facts: &BTreeMap<SourceFileId, SourceApiFacts>,
 ) -> Result<ProjectedCheckerInputs, DriverError> {
     let sources = prepared.source_files();
     let library_ids = prepared.library_files();
@@ -1788,7 +1950,8 @@ fn project_checker_inputs(
         let source = prepared
             .source_file(source_file)
             .ok_or(DriverError::MissingPreparedSource { source_file })?;
-        let (input, metadata) = project_source(source, source_file)?;
+        let (input, metadata) =
+            project_source(source, source_file, source_api_facts.get(&source_file))?;
         libs.push(input);
         lib_metadata.push(metadata);
     }
@@ -1801,7 +1964,8 @@ fn project_checker_inputs(
             .ok_or_else(|| DriverError::MissingPreparedSourceIdentity {
                 path: source.path().display().to_owned(),
             })?;
-        let (input, metadata) = project_source(source, source_file)?;
+        let (input, metadata) =
+            project_source(source, source_file, source_api_facts.get(&source_file))?;
         files.push(input);
         file_metadata.push(metadata);
     }
@@ -1829,9 +1993,14 @@ fn project_checker_inputs(
 fn project_source(
     source: &PreparedSourceFile,
     source_file: SourceFileId,
+    facts: Option<&SourceApiFacts>,
 ) -> Result<(InputFile, AuthoritativeSourceMetadata), DriverError> {
     let display_path = source.path().display();
-    let name = display_path.to_owned();
+    // transpileWorker: `sourceFile.fileName` is the caller's spelling even
+    // though the host resolves it at its own root.
+    let name = facts
+        .and_then(|facts| facts.file_name.clone())
+        .unwrap_or_else(|| display_path.to_owned());
     let metadata = AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(source_file.raw()),
         file_name: name.clone(),
@@ -1841,10 +2010,14 @@ fn project_source(
             .implied_node_format_for_emit()
             .map(checker_resolution_mode),
     };
-    Ok((
-        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),
-        metadata,
-    ))
+    let mut input = InputFile::from_snapshot(name, Arc::clone(source.snapshot()));
+    if let Some(facts) = facts {
+        input = input
+            .with_module_name(facts.module_name.clone())
+            .with_renamed_dependencies(facts.renamed_dependencies.clone())
+            .with_js_doc_parsing_mode(facts.js_doc_parsing_mode);
+    }
+    Ok((input, metadata))
 }
 
 const fn checker_resolution_mode(mode: ResolutionMode) -> AuthoritativeResolutionMode {

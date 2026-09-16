@@ -2418,7 +2418,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// getEntityNameFromTypeNode (14623-14635).
-    fn get_entity_name_from_type_node(&self, node: NodeId) -> Option<NodeId> {
+    pub(crate) fn get_entity_name_from_type_node(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::TypeReference(data) => data.type_name,
             NodeData::ExpressionWithTypeArguments(data) => data
@@ -2871,7 +2871,7 @@ impl<'a> CheckerState<'a> {
     /// placement facts consumed by class-field emit. Private storage for a
     /// class expression created on each iteration must be declared inside the
     /// loop body rather than once in the enclosing source/function scope.
-    fn set_node_links_for_private_identifier_scope(&mut self, node: NodeId) {
+    pub(crate) fn set_node_links_for_private_identifier_scope(&mut self, node: NodeId) {
         let Some(name) = self.name_of_node(node) else {
             return;
         };

@@ -16,7 +16,7 @@ pub(crate) fn get_resolved_external_module_name(
     reference_file: Option<&SourceFile>,
 ) -> JsString {
     file.module_name
-        .as_deref()
+        .as_ref()
         .filter(|name| !name.is_empty())
         .map_or_else(
             || {
@@ -26,7 +26,7 @@ pub(crate) fn get_resolved_external_module_name(
                     reference_file.map(|file| file.file_name.as_js()),
                 )
             },
-            JsString::from,
+            Clone::clone,
         )
 }
 
@@ -71,6 +71,25 @@ fn external_module_name_from_path(
     }
 }
 
+/// tsc-port: tryRenameExternalModule @6.0.3
+/// tsc-hash: 86fd395bde1284aad3de45da47e7de1f6bdafb89d9173fbbd246cc1891395e52
+/// tsc-span: _tsc.js:27720-27723
+///
+/// API-supplied `renamedDependencies` rewrite a module specifier only when no
+/// resolved-file name (outFile / explicit moduleName) claimed it first.
+pub(crate) fn try_rename_external_module(
+    source: &SourceFile,
+    module_name: JsStr<'_>,
+) -> Option<JsString> {
+    source
+        .renamed_dependencies
+        .iter()
+        .rev()
+        .find(|(from, _)| from.as_js() == module_name)
+        .filter(|(_, to)| !to.is_empty())
+        .map(|(_, to)| to.clone())
+}
+
 /// tsc-port: tryGetModuleNameFromFile @6.0.3
 /// tsc-hash: 303add929c042f86af9ebd622cf3c6374a0dedeb0a3b3a9e24d636e90f1b84fa
 /// tsc-span: _tsc.js:27724-27735
@@ -78,8 +97,8 @@ pub(crate) fn try_get_module_name_from_file(
     host: Option<&dyn EmitHost>,
     file: &SourceFile,
 ) -> Option<JsString> {
-    if let Some(name) = file.module_name.as_deref().filter(|name| !name.is_empty()) {
-        return Some(name.into());
+    if let Some(name) = file.module_name.as_ref().filter(|name| !name.is_empty()) {
+        return Some(name.clone());
     }
     let host = host?;
     (!file.is_declaration_file
@@ -111,7 +130,7 @@ pub(crate) fn resolved_external_module_name_literal(
             .is_some_and(|source| {
                 source
                     .module_name
-                    .as_deref()
+                    .as_ref()
                     .is_some_and(|name| !name.is_empty())
             })
     });

@@ -182,6 +182,7 @@ impl<'a> CheckerState<'a> {
         if self.skip_type_checking(root) {
             return;
         }
+        self.checked_source_files += 1;
         self.check_grammar_source_file(root);
         // 87010-87014: the five per-file accumulators clear at worker
         // entry (the PartiallyTypeChecked restore stays elided).
@@ -300,6 +301,202 @@ impl<'a> CheckerState<'a> {
         }
         self.links
             .or_node_check_flags(self.speculation_depth, root, NodeCheckFlags::TYPE_CHECKED);
+    }
+
+    /// tsc-port: calculateNodeCheckFlagWorker @6.0.3
+    /// tsc-hash: 7b82d130c6cce9b63a376c99b857ceb846dab03dd8533aef173e0035fd0a5ec2
+    /// tsc-span: _tsc.js:88131-88230
+    ///
+    /// For an unchecked source (`noCheck`, or a file excluded by
+    /// canIncludeBindAndCheckDiagnostics) the transformers still ask
+    /// `hasNodeCheckFlag`; the checker derives just the requested flag
+    /// group on demand and records the group in `calculatedFlags` so each
+    /// subtree is walked once per group.
+    pub(crate) fn calculate_node_check_flag_worker(
+        &mut self,
+        node: NodeId,
+        flag: NodeCheckFlags,
+    ) -> CheckResult<()> {
+        if self.options.no_check != Some(true) {
+            let file = ProgramFileId::from_raw(
+                u32::try_from(self.binder.file_index_of_node(node))
+                    .expect("Program file index overflow"),
+            );
+            let source = self.binder.source(file.index());
+            if crate::can_include_bind_and_check_diagnostics(
+                crate::is_js_file_name(&source.file_name),
+                crate::check_directive(source.text()),
+                self.options,
+            ) {
+                return Ok(());
+            }
+        }
+        if self.links.node(node).calculated_flags.intersects(flag) {
+            return Ok(());
+        }
+        const SUPER_GROUP: NodeCheckFlags = NodeCheckFlags::from_bits(
+            NodeCheckFlags::SUPER_INSTANCE.bits() | NodeCheckFlags::SUPER_STATIC.bits(),
+        );
+        const CHILD_SUPER_GROUP: NodeCheckFlags = NodeCheckFlags::from_bits(
+            NodeCheckFlags::METHOD_WITH_SUPER_PROPERTY_ACCESS_IN_ASYNC.bits()
+                | NodeCheckFlags::METHOD_WITH_SUPER_PROPERTY_ASSIGNMENT_IN_ASYNC.bits()
+                | NodeCheckFlags::CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER.bits(),
+        );
+        const CHILD_IDENTIFIER_GROUP: NodeCheckFlags = NodeCheckFlags::from_bits(
+            NodeCheckFlags::CAPTURE_ARGUMENTS.bits()
+                | NodeCheckFlags::CONTAINS_CAPTURED_BLOCK_SCOPE_BINDING.bits()
+                | NodeCheckFlags::NEEDS_LOOP_OUT_PARAMETER.bits()
+                | NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits(),
+        );
+        const BLOCK_SCOPE_GROUP: NodeCheckFlags = NodeCheckFlags::from_bits(
+            NodeCheckFlags::LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING.bits()
+                | NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits()
+                | NodeCheckFlags::CAPTURED_BLOCK_SCOPED_BINDING.bits(),
+        );
+        if flag.intersects(SUPER_GROUP) {
+            self.calculate_single_super_expression(node)?;
+        } else if flag.intersects(CHILD_SUPER_GROUP) {
+            for descendant in self.descendants_until_calculated(node, flag, CHILD_SUPER_GROUP) {
+                self.calculate_single_super_expression(descendant)?;
+            }
+        } else if flag.intersects(CHILD_IDENTIFIER_GROUP) {
+            for descendant in self.descendants_until_calculated(node, flag, CHILD_IDENTIFIER_GROUP)
+            {
+                self.calculate_single_identifier(descendant)?;
+            }
+        } else if flag.intersects(NodeCheckFlags::CONSTRUCTOR_REFERENCE) {
+            self.calculate_single_identifier(node)?;
+        } else if flag.intersects(BLOCK_SCOPE_GROUP) {
+            // checkContainingBlockScopeBindingUses: walk the enclosing block
+            // scope of the declaration name (or the node itself).
+            let is_declaration_name = self
+                .parent_of(node)
+                .and_then(|parent| self.name_of_node(parent))
+                .is_some_and(|name| name == node);
+            let start = if is_declaration_name {
+                self.parent_of(node).unwrap_or(node)
+            } else {
+                node
+            };
+            let Some(scope) = self.get_enclosing_block_scope_container(start) else {
+                return Ok(());
+            };
+            for descendant in self.descendants_until_calculated(scope, flag, BLOCK_SCOPE_GROUP) {
+                self.calculate_single_block_scope_binding(descendant)?;
+            }
+        } else {
+            unreachable!("Unhandled node check flag calculation: {:?}", flag);
+        }
+        Ok(())
+    }
+
+    /// forEachNodeRecursively with the per-node `calculatedFlags & flag`
+    /// skip: yields root and descendants in pre-order, marking the group on
+    /// every visited node and pruning subtrees already marked.
+    fn descendants_until_calculated(
+        &mut self,
+        root: NodeId,
+        flag: NodeCheckFlags,
+        group: NodeCheckFlags,
+    ) -> Vec<NodeId> {
+        let mut visited = Vec::new();
+        let mut stack = vec![root];
+        while let Some(current) = stack.pop() {
+            if self.links.node(current).calculated_flags.intersects(flag) {
+                continue;
+            }
+            self.links.or_calculated_flags(current, group);
+            visited.push(current);
+            let source = self.binder.source_of_node(current);
+            let mut children = Vec::new();
+            for_each_child(&source.arena, source.arena.node(current), |child| {
+                children.push(child);
+                false
+            });
+            for child in children.into_iter().rev() {
+                stack.push(child);
+            }
+        }
+        visited
+    }
+
+    /// checkSingleSuperExpression (88180-88186).
+    fn calculate_single_super_expression(&mut self, node: NodeId) -> CheckResult<()> {
+        self.links.or_calculated_flags(
+            node,
+            NodeCheckFlags::from_bits(
+                NodeCheckFlags::SUPER_INSTANCE.bits() | NodeCheckFlags::SUPER_STATIC.bits(),
+            ),
+        );
+        if self.kind_of(node) == SyntaxKind::SuperKeyword {
+            self.check_super_expression(node)?;
+        }
+        Ok(())
+    }
+
+    /// checkSingleIdentifier (88203-88214).
+    fn calculate_single_identifier(&mut self, node: NodeId) -> CheckResult<()> {
+        self.links
+            .or_calculated_flags(node, NodeCheckFlags::CONSTRUCTOR_REFERENCE);
+        if self.kind_of(node) != SyntaxKind::Identifier {
+            return Ok(());
+        }
+        self.links.or_calculated_flags(
+            node,
+            NodeCheckFlags::from_bits(
+                NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits()
+                    | NodeCheckFlags::CAPTURED_BLOCK_SCOPED_BINDING.bits(),
+            ),
+        );
+        let source = self.binder.source_of_node(node);
+        let parent = self.parent_of(node);
+        let is_expression_or_shorthand_name = node_util::is_expression_node(source, node)
+            || parent.is_some_and(|parent| match self.data_of(parent) {
+                NodeData::ShorthandPropertyAssignment(data) => {
+                    data.object_assignment_initializer.or(data.name) == Some(node)
+                }
+                _ => false,
+            });
+        let is_property_access_name = parent.is_some_and(|parent| {
+            matches!(self.data_of(parent), NodeData::PropertyAccessExpression(data)
+                if data.name == Some(node))
+        });
+        if !is_expression_or_shorthand_name || is_property_access_name {
+            return Ok(());
+        }
+        if let Some(symbol) = self.get_resolved_symbol(node)? {
+            if symbol != self.unknown_symbol {
+                self.check_identifier_calculate_node_check_flags(node, symbol)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// checkSingleBlockScopeBinding (88221-88229).
+    fn calculate_single_block_scope_binding(&mut self, node: NodeId) -> CheckResult<()> {
+        self.calculate_single_identifier(node)?;
+        if self.kind_of(node) == SyntaxKind::ComputedPropertyName {
+            self.check_computed_property_name(node)?;
+        }
+        if self.kind_of(node) == SyntaxKind::PrivateIdentifier
+            && self.parent_of(node).is_some_and(|parent| {
+                matches!(
+                    self.kind_of(parent),
+                    SyntaxKind::PropertyDeclaration
+                        | SyntaxKind::MethodDeclaration
+                        | SyntaxKind::GetAccessor
+                        | SyntaxKind::SetAccessor
+                        | SyntaxKind::Constructor
+                        | SyntaxKind::ClassStaticBlockDeclaration
+                        | SyntaxKind::IndexSignature
+                        | SyntaxKind::SemicolonClassElement
+                )
+            })
+        {
+            let parent = self.parent_of(node).expect("class element parent");
+            self.set_node_links_for_private_identifier_scope(parent);
+        }
+        Ok(())
     }
 
     /// tsc-port: skipTypeCheckingWorker @6.0.3

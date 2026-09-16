@@ -1,8 +1,8 @@
 # OPS-COVER：PR CI のテスト入口台帳
 
-2026-09-16。統合担当：Codex。**emitter direct10、E-only8のCLIに続き、compiler UTF-16/literalの5 targetの入口を追加。残りは OPS-COVER-3残部〜4。**
+2026-09-16。統合担当：Codex。**emitter direct10、E-only8のCLIに続き、compiler UTF-16/literalの5 targetとC04 transpile contractの入口を追加。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v5.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v7.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -10,18 +10,20 @@
 [OPS-COVER-3B](compiler-utf16/README.md) は3つのUTF-16 targetを追加し、以下をv4に更新した。
 3Bは[PR #532](https://github.com/kazhiramatsu/tsc-rs/pull/532)で統合済み。全7 replay jobと両gateが成功。
 [OPS-COVER-3C](compiler-literals/README.md) は64専用入力と4原本の追加比較を接続し、v5に更新した。
+C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登録した（v6）。
+初回hostedでNode version不一致を検出し、transpileを含むcontrolsにNode25.2.1を設定したv7へ更新。入口の件数はv6と同じ。
 設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
 ## 現在の入口
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
-| standalone target（filter なし） | 21 | printer job の7 targetとdirect10、controls jobのcompiler UTF-16/literalの4 target。ignored/cfg-disabled test の実行までは意味しない |
+| standalone target（filter なし） | 22 | printer job の7 targetとdirect10、controls jobのcompiler UTF-16/literalの4 targetとtranspile contract。ignored/cfg-disabled test の実行までは意味しない |
 | standalone target（名前で filter） | 7 | compiler5 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
 | standalone target の直接呼出しなし | 36 | compiler16 / その他20 |
 | lib/bin の test harness | 16 | この2 workflowからの `cargo test` による直接実行なし |
 
-**64 standalone target を列挙した。36件を「挙動が未検証」とは数えない。**
+**65 standalone target を列挙した。36件を「挙動が未検証」とは数えない。**
 acceptance が同じ比較 helper を Rust の `#[path]` で取り込み、関数を直接呼ぶ場合がある。
 台帳は source の共有関係10 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
 helper の共有から、その target の全テスト・新しい入力集合の実行まで推論しない。

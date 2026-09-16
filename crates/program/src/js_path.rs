@@ -466,3 +466,39 @@ mod tests {
         }
     }
 }
+
+/// TypeScript normalizePath (_tsc.js:5568-5576), including relative names
+/// and the caller's trailing directory separator. No host or case folding.
+pub fn normalize_path(path: JsStr<'_>) -> JsString {
+    let path = normalize_slashes(path);
+    if let Some(simple) = simple_normalize(path.as_js()) {
+        return simple;
+    }
+    let mut normalized = normalized_absolute_path(path.as_js(), JsStr::from_str(""));
+    if !normalized.is_empty() && path.ends_with("/") && !normalized.ends_with("/") {
+        normalized.push('/');
+    }
+    normalized
+}
+
+#[test]
+fn relative_api_names_match_typescript_normalize_path() {
+    // Observed with the pinned TypeScript 6.0.3 normalizePath, including
+    // its final-dotdot behavior; do not substitute host path semantics.
+    for (input, expected) in [
+        ("./", ""),
+        ("a/../", "a/"),
+        ("a/./", "a/"),
+        ("a//", "a/"),
+        ("../", "../"),
+        ("a/..", "a"),
+        ("./src/a.tsx", "src/a.tsx"),
+        ("src/deep/../a.tsx", "src/a.tsx"),
+    ] {
+        assert_eq!(
+            normalize_path(input.into()),
+            JsString::from(expected),
+            "{input}"
+        );
+    }
+}

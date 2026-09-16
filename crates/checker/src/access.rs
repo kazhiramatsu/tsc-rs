@@ -1145,7 +1145,7 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    fn is_method_access_for_call(&self, node: NodeId) -> bool {
+    pub(crate) fn is_method_access_for_call(&self, node: NodeId) -> bool {
         let mut node = node;
         while let Some(parent) = self.parent_of(node) {
             if self.kind_of(parent) == SyntaxKind::ParenthesizedExpression {

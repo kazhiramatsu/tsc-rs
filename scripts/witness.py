@@ -84,7 +84,16 @@ EMITTER_DIRECT = {
 }
 # These compiler witnesses have dedicated inputs or additional command fields.
 # Shared helper tests stay in acceptance; select the dedicated test where needed.
-COMPILER_UTF16 = {
+COMPILER_DIRECT = {
+    "transpile-routes": {
+        "target": "transpile_routes_contract",
+        "tests": 9,
+        "fixtures": (("crates/compiler/tests/fixtures/h2_8c_transpile/inputs.v1.json", 287, "id"),
+                     ("crates/compiler/tests/fixtures/h2_8c_transpile/review-inputs.v1.json", 14, "id")),
+        "observers": ("scripts/observe-transpile-routes.mjs",),
+        "inputs": tuple(f"crates/compiler/tests/fixtures/h2_8c_transpile/{name}.v1.json"
+                        for name in ("expected", "known-open", "known-native", "review-expected")),
+    },
     "utf16-identity-recovery": {
         "target": "h2_8a_utf16_identity_recovery_controls",
         "tests": 2,
@@ -127,7 +136,7 @@ COMPILER_UTF16 = {
     },
 }
 SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks", "declaration-map-cli",
-          *EMITTER_DIRECT, *COMPILER_UTF16)
+          *EMITTER_DIRECT, *COMPILER_DIRECT)
 RETAINED_FIXTURES = (
     "retained-accessor-owners", "class-helper-accessor-producers",
     "class-field-alias-map-positions", "decorator-receiver-context",
@@ -141,8 +150,8 @@ def read_cases(file):
 
 
 def case_ids(suite):
-    if suite in EMITTER_DIRECT or suite in COMPILER_UTF16:
-        spec = EMITTER_DIRECT[suite] if suite in EMITTER_DIRECT else COMPILER_UTF16[suite]
+    if suite in EMITTER_DIRECT or suite in COMPILER_DIRECT:
+        spec = EMITTER_DIRECT[suite] if suite in EMITTER_DIRECT else COMPILER_DIRECT[suite]
         ids = []
         for file, expected, key in spec["fixtures"]:
             rows = read_cases(ROOT / file)
@@ -204,14 +213,14 @@ def invocation(suite, needles, environ=None):
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_FILTER", None)
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_SET", None)
     env.setdefault("CARGO_BUILD_JOBS", "2")
-    if suite in COMPILER_UTF16:
+    if suite in COMPILER_DIRECT:
         if needles:
             raise ValueError(f"{suite}: compiler target runs together; use --all")
         # The literal target has an internal selector which Cargo's test count
         # cannot detect. The registered suite always owns all promoted inputs.
         env.pop("TSC_RS_UTF16_LITERAL_WITNESS_SET", None)
         env.pop("TSC_RS_UTF16_LITERAL_WITNESS_FILTER", None)
-        return compiler_utf16_command([suite]), env
+        return compiler_direct_command([suite]), env
     if suite in EMITTER_DIRECT:
         if needles:
             raise ValueError(f"{suite}: small direct target runs together; use --all")
@@ -256,63 +265,63 @@ def emitter_inputs(suite):
             *(file for file, _, _ in spec["fixtures"]), *spec.get("inputs", ())}
 
 
-def compiler_utf16_inputs(suite):
-    spec = COMPILER_UTF16[suite]
+def compiler_direct_inputs(suite):
+    spec = COMPILER_DIRECT[suite]
     # The identity observer also reads utf16-literals-adjacent-probes-inputs.
     # That shared input keeps full replay via the planner's unknown-input rule.
     return {f"crates/compiler/tests/{spec['target']}.rs",
-            *(observer[1] for observer in compiler_utf16_observers([suite])),
+            *(observer[1] for observer in compiler_direct_observers([suite])),
             *(file for file, _, _ in spec["fixtures"]), *spec.get("inputs", ())}
 
 
-def compiler_utf16_observers(suites):
+def compiler_direct_observers(suites):
     # An observer may take a group before --check. Deduplicate commands, not
     # paths: the three literal groups use the same script with distinct inputs.
     return list(dict.fromkeys(
         ("node", *((observer,) if isinstance(observer, str) else observer), "--check")
-        for suite in suites for observer in COMPILER_UTF16[suite]["observers"]))
+        for suite in suites for observer in COMPILER_DIRECT[suite]["observers"]))
 
 
-def compiler_utf16_command(suites):
-    if not suites or len(set(suites)) != len(suites) or any(suite not in COMPILER_UTF16 for suite in suites):
-        raise ValueError("invalid compiler UTF-16 selection")
+def compiler_direct_command(suites):
+    if not suites or len(set(suites)) != len(suites) or any(suite not in COMPILER_DIRECT for suite in suites):
+        raise ValueError("invalid compiler direct selection")
     command = ["cargo", "test", "--manifest-path", "crates/compiler/Cargo.toml"]
     for suite in suites:
-        command.extend(("--test", COMPILER_UTF16[suite]["target"]))
-    filtered = [suite for suite in suites if "test" in COMPILER_UTF16[suite]]
+        command.extend(("--test", COMPILER_DIRECT[suite]["target"]))
+    filtered = [suite for suite in suites if "test" in COMPILER_DIRECT[suite]]
     if filtered:
         if len(suites) != 1:
             raise ValueError("filtered compiler target requires its own invocation")
-        return [*command, COMPILER_UTF16[filtered[0]]["test"], "--", "--exact", "--nocapture", "--test-threads=1"]
+        return [*command, COMPILER_DIRECT[filtered[0]]["test"], "--", "--exact", "--nocapture", "--test-threads=1"]
     return [*command, "--", "--nocapture", "--test-threads=1"]
 
 
-def run_compiler_utf16(suites):
+def run_compiler_direct(suites):
     """Check selected frozen oracles and replay their complete standalone targets."""
-    if not suites or len(set(suites)) != len(suites) or any(suite not in COMPILER_UTF16 for suite in suites):
-        raise ValueError("invalid compiler UTF-16 selection")
-    unfiltered = [suite for suite in suites if "test" not in COMPILER_UTF16[suite]]
-    batches = ([unfiltered] if unfiltered else []) + [[suite] for suite in suites if "test" in COMPILER_UTF16[suite]]
+    if not suites or len(set(suites)) != len(suites) or any(suite not in COMPILER_DIRECT for suite in suites):
+        raise ValueError("invalid compiler direct selection")
+    unfiltered = [suite for suite in suites if "test" not in COMPILER_DIRECT[suite]]
+    batches = ([unfiltered] if unfiltered else []) + [[suite] for suite in suites if "test" in COMPILER_DIRECT[suite]]
     for suite in suites:
         print(f"{suite}: {len(case_ids(suite))} fixture rows (including any typed refusal controls)", flush=True)
     started = time.monotonic()
-    for command in compiler_utf16_observers(suites):
+    for command in compiler_direct_observers(suites):
         subprocess.run(list(command), cwd=ROOT, check=True)
     oracle_seconds = time.monotonic() - started
     _, env = invocation(suites[0], [])
     started = time.monotonic()
     tests_passed = 0
     for batch in batches:
-        result = subprocess.run(compiler_utf16_command(batch), cwd=ROOT, env=env, text=True,
+        result = subprocess.run(compiler_direct_command(batch), cwd=ROOT, env=env, text=True,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
         print(result.stdout, end="", flush=True)
         result.check_returncode()
         counts = re.findall(r"test result: ok\. (\d+) passed; 0 failed; (\d+) ignored;.*? (\d+) filtered out;", result.stdout)
-        expected = sorted((COMPILER_UTF16[suite]["tests"], 0, COMPILER_UTF16[suite].get("filtered_tests", 0)) for suite in batch)
+        expected = sorted((COMPILER_DIRECT[suite]["tests"], 0, COMPILER_DIRECT[suite].get("filtered_tests", 0)) for suite in batch)
         if sorted(tuple(map(int, row)) for row in counts) != expected:
-            raise ValueError("compiler UTF-16 target omitted, ignored, filtered or selected zero tests")
+            raise ValueError("compiler direct target omitted, ignored, filtered or selected zero tests")
         tests_passed += sum(int(row[0]) for row in counts)
-    print(json.dumps({"compiler_utf16": suites, "targets": len(suites),
+    print(json.dumps({"compiler_direct": suites, "targets": len(suites),
                       "tests_passed": tests_passed,
                       "observer_seconds": round(oracle_seconds, 3),
                       "cargo_build_and_replay_seconds": round(time.monotonic() - started, 3)}), flush=True)
@@ -395,12 +404,12 @@ def main(argv=None):
         if args.suite in EMITTER_DIRECT:
             for observer in EMITTER_DIRECT[args.suite]["observers"]:
                 print(shlex.join(["node", observer, "--check"]))
-        if args.suite in COMPILER_UTF16:
-            for command in compiler_utf16_observers([args.suite]):
+        if args.suite in COMPILER_DIRECT:
+            for command in compiler_direct_observers([args.suite]):
                 print(shlex.join(command))
         return 0
-    if args.suite in COMPILER_UTF16:
-        run_compiler_utf16([args.suite])
+    if args.suite in COMPILER_DIRECT:
+        run_compiler_direct([args.suite])
         return 0
     if args.suite in EMITTER_DIRECT:
         run_emitter_direct([args.suite])
