@@ -107,6 +107,36 @@ CONFIG_LIBRARY_GROUPS = (
 # These compiler witnesses have dedicated inputs or additional command fields.
 # Shared helper tests stay in acceptance; select the dedicated test where needed.
 COMPILER_DIRECT = {
+    "declaration-map-apis": {
+        "target": "h2_7e_declaration_map_apis",
+        "tests": 3,
+        "fixtures": (("crates/compiler/tests/fixtures/declaration-map-apis.json", 54, "case_id"),
+                     ("crates/compiler/tests/fixtures/declaration-reference-paths.json", 8, "case_id")),
+        "fixture_sections": (
+            ("crates/compiler/tests/fixtures/declaration-map-apis.json",
+             "adjacent_ordinary_api_observations", 2, "case_id"),
+            ("crates/compiler/tests/fixtures/declaration-reference-paths.json",
+             "supplemental_reference_targets", 3, "case_id"),
+            ("crates/compiler/tests/fixtures/declaration-reference-paths.json",
+             "adjacent_out_dir_observations", 8, "case_id"),
+        ),
+        "observers": ("scripts/observe-declaration-map-apis.mjs",
+                      "scripts/observe-declaration-reference-paths.mjs"),
+    },
+    "declaration-maps": {
+        "target": "h2_7e_declaration_maps",
+        "tests": 8,
+        "fixtures": (("crates/compiler/tests/fixtures/declaration-maps.json", 24, "case_id"),
+                     ("crates/compiler/tests/fixtures/declaration-maps-runtime.json", 3, "case_id"),
+                     ("crates/compiler/tests/fixtures/declaration-maps-disabled-declaration.json", 2, "case_id"),
+                     ("crates/compiler/tests/fixtures/declaration-map-bundle-boundary.json", 1, "case_id"),
+                     ("crates/compiler/tests/fixtures/declaration-map-apis.json", 54, "case_id")),
+        "observers": ("scripts/observe-declaration-maps.mjs",
+                      ("scripts/observe-declaration-maps.mjs", "--runtime"),
+                      ("scripts/observe-declaration-maps.mjs", "--disabled-declaration"),
+                      ("scripts/observe-declaration-maps.mjs", "--bundle-boundary"),
+                      "scripts/observe-declaration-map-apis.mjs"),
+    },
     "bundle-program": {
         "target": "h2_7d_bundle_program",
         "tests": 4,

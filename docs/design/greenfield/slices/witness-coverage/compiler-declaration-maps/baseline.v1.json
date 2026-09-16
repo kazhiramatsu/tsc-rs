@@ -1,0 +1,74 @@
+{
+  "base": "3e8f582cb",
+  "phase": "baseline",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "source_manifest": "baseline-source.v1.json",
+  "source_manifest_sha256": "7c72769fc307d73140765a3111309382941714e94809a1bf3f81b4f66c3ba4be",
+  "node": "v25.2.1",
+  "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": ""
+  },
+  "runs": [
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_7e_declaration_map_apis",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 468.284,
+      "log": "baseline-0.log.gz",
+      "log_sha256": "877aa15ff0c0bb4a126d23dcecc060805a0e3732e86f0700df9ec80b6c051cab",
+      "summaries": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.35s"
+      ],
+      "binaries_sha256": {
+        "target/debug/deps/h2_7e_declaration_map_apis-077e4cc472cefeb8": "84bf37ee995e298b34f83f6d8a54b2daeb67e7600eb27514376870c62763e2f1"
+      }
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_7e_declaration_maps",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 101,
+      "seconds": 87.869,
+      "log": "baseline-1.log.gz",
+      "log_sha256": "d3e874cb553230d63181e30a72cc0f0d1fe85c5260a0cac5059a0d9cb7fd827d",
+      "summaries": [
+        "test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 85.28s"
+      ],
+      "binaries_sha256": {
+        "target/debug/deps/h2_7e_declaration_map_apis-077e4cc472cefeb8": "84bf37ee995e298b34f83f6d8a54b2daeb67e7600eb27514376870c62763e2f1",
+        "target/debug/deps/h2_7e_declaration_maps-4c3acddd6f8d2532": "63194cfb47687a75331c6351b9e5b5745b8b86650c35d3ca53ff053427c3f353"
+      }
+    }
+  ]
+}

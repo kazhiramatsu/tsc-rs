@@ -1,0 +1,72 @@
+{
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".github/ci",
+        "-p",
+        "test_replay.py"
+      ],
+      "exit": 0,
+      "log": "check-0.log.gz",
+      "sha256": "e057839d1ab4af9cff3a2f443bafbf1d20883223c52b997f0bbe6307c3bffd5b"
+    },
+    {
+      "command": [
+        "node",
+        ".github/ci/qualification.mjs",
+        "check-policy"
+      ],
+      "exit": 0,
+      "log": "check-1.log.gz",
+      "sha256": "effecafb28867c0ea68b4399c8a67335fbbf81aa945acda2f25b35a66933ff50"
+    },
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern=policy",
+        ".github/ci/qualification.test.mjs"
+      ],
+      "exit": 0,
+      "log": "check-2.log.gz",
+      "sha256": "d3d33aab47208404a2ef5cd7b002a46a0c1134880d4ef216f73ea0f8194df28d"
+    },
+    {
+      "command": [
+        "python3",
+        "docs/design/greenfield/slices/witness-coverage/inventory.py",
+        "--check"
+      ],
+      "exit": 0,
+      "log": "check-3.log.gz",
+      "sha256": "f9a36af2cc5c3a2fb49b4c46568e41d6961c79a9690ce967e41df866c956e9af"
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit": 0,
+      "log": "check-4.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "log": "check-5.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    }
+  ]
+}
