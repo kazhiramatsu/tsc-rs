@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "base": "5903caabbdaf0a2653bb0631dd910ce9fb5670d5",
+  "submitted_patch_sha256": "fa2cf8d3aab1bf00735320aa098dc5f8bb00fb5ec51e91251d8750e980bbc3b1",
+  "source_sha256": {
+    "crates/program/src/lib.rs": "9d639d50abef46eb697053b332127d1e3b85315754f49677a937842b99e6f92a",
+    "crates/program/src/loader.rs": "feb0999c1c8648433b4b4b566f8cfa7765fc7a31a78c54640fcfed4d02ca0050",
+    "crates/program/src/resolution_cache.rs": "f79828d1bcfd1dd9a8f32fe1bdd03267c8bc98247712b674a94332d95624e16f",
+    "crates/program/tests/resolution_cache_contract.rs": "34027d58514899519140f96ff5b9c9b1bd94f8892943c9f42c65fe3d07e68c8a",
+    "crates/program/tests/fixtures/resolution_cache/manifest.v1.json": "1285785a635b0877f9b3b4cfbaea153b3459f0d1751fa31ff07d84befb9fc0b0",
+    "crates/program/tests/fixtures/resolution_cache/expected.v1.json": "1733c25affeda552f797d2950ce43e07312167339f08551f15ac9054f3fe8234",
+    "scripts/observe-resolution-cache.mjs": "5a5278d1b080c320595efc649d04774c3ff427154279cb24ee1ce859959e3ff2",
+    "scripts/witness.py": "4b135302d240e34a973e1e98932efdc5ed6cb37635a8cab529c6691a41b5ec98",
+    ".github/ci/replay.py": "32eb3fe42a5f4c4e6028b1353ac68e61997c02787ec59d20089bbc76cb3f64bb",
+    ".github/ci/test_replay.py": "d5578b2944912675a504684bee2cab0e4e6a4522c97a017e5f2421063abe9c0b",
+    ".github/workflows/witness.yml": "88692a8b8c244ad030720cd73a5118d8e753f030eca78fea20dcafee331a12a8"
+  },
+  "local": {
+    "original_repros_pass": 3,
+    "contract_tests_pass": 9,
+    "program_unit_pass": 56,
+    "existing_program_contracts_pass": 481,
+    "existing_program_ignored": 5,
+    "planner_tests_pass": 38,
+    "policy_tests_pass": 10,
+    "fmt": "pass",
+    "diff_check": "pass",
+    "clippy": "exit0; inherited warnings, no new file findings"
+  },
+  "hosted": "pending"
+}

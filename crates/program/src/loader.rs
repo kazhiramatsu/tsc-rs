@@ -1786,82 +1786,25 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     error,
                 )
             })?;
-        let mut matches = Vec::new();
-        for root in roots {
-            let root_path: JsStr<'_> = (&root).into();
-            if !self.host.directory_exists_js(root_path).map_err(|error| {
-                ProgramLoadError::host_js(
-                    ProgramLoadOperation::DiscoverAutomaticTypes,
-                    Some(root_path.to_owned()),
-                    error,
-                )
-            })? {
-                continue;
-            }
-            let directories = self.host.get_directories_js(root_path).map_err(|error| {
-                ProgramLoadError::host_js(
-                    ProgramLoadOperation::DiscoverAutomaticTypes,
-                    Some(root_path.to_owned()),
-                    error,
-                )
-            })?;
-            for directory in directories {
-                let name = crate::js_path::base_file_name(directory.as_js());
-                if name.is_empty() {
-                    return Err(ProgramLoadError::invalid_data_js(
-                        ProgramLoadOperation::DiscoverAutomaticTypes,
-                        Some(directory),
-                        "automatic type directory has no base name",
-                    ));
-                }
-                let package_directory = crate::js_path::combine_paths(root_path, name.as_js());
-                let package_json =
-                    crate::js_path::combine_paths(package_directory.as_js(), "package.json".into());
-                if self.automatic_package_has_null_typings(package_json.as_js())? {
-                    continue;
-                }
-                // TypeScript probes package.json before applying the hidden
-                // directory filter, so retain that observable failure order.
-                if !name.starts_with(".") {
-                    matches.push(name);
-                }
-            }
-        }
-        Ok(matches)
-    }
-
-    fn automatic_package_has_null_typings(
-        &self,
-        package_json: JsStr<'_>,
-    ) -> Result<bool, ProgramLoadError> {
-        if !self.host.file_exists_js(package_json).map_err(|error| {
-            ProgramLoadError::host_js(
+        discover_wildcard_type_directive_names(self.host, &roots).map_err(|error| match error {
+            WildcardDiscoveryError::Host { path, error } => ProgramLoadError::host_js(
                 ProgramLoadOperation::DiscoverAutomaticTypes,
-                Some(package_json.to_owned()),
+                Some(path),
                 error,
-            )
-        })? {
-            return Ok(false);
-        }
-        let Some(bytes) = self.host.read_file_js(package_json).map_err(|error| {
-            ProgramLoadError::host_js(
+            ),
+            WildcardDiscoveryError::Decode { path, source } => ProgramLoadError::decode_js(
                 ProgramLoadOperation::DiscoverAutomaticTypes,
-                Some(package_json.to_owned()),
-                error,
-            )
-        })?
-        else {
-            return Ok(false);
-        };
-        let text = decode_host_text(bytes).map_err(|source| {
-            ProgramLoadError::decode_js(
-                ProgramLoadOperation::DiscoverAutomaticTypes,
-                package_json.to_owned(),
+                path,
                 source,
-            )
-        })?;
-        let (_, object) = parse_json_object(package_json, text);
-        Ok(json_object_get(&object, "typings").is_some_and(crate::JsonValue::is_null))
+            ),
+            WildcardDiscoveryError::InvalidData { path, detail } => {
+                ProgramLoadError::invalid_data_js(
+                    ProgramLoadOperation::DiscoverAutomaticTypes,
+                    Some(path),
+                    detail,
+                )
+            }
+        })
     }
 
     fn automatic_types_containing_file(&self) -> Result<ProgramPath, ProgramLoadError> {
@@ -3702,7 +3645,110 @@ fn package_map_from_facts<'a>(
     packages
 }
 
-fn implied_node_format(
+/// A wildcard automatic-type discovery failure, retained with the exact
+/// path so the loader can map it to its established `ProgramLoadError`
+/// variants and the L2.3 cache can map it to a `ResolutionError`.
+pub(crate) enum WildcardDiscoveryError {
+    Host {
+        path: JsString,
+        error: tsc_host::HostError,
+    },
+    Decode {
+        path: JsString,
+        source: crate::text::HostTextDecodeError,
+    },
+    InvalidData {
+        path: JsString,
+        detail: &'static str,
+    },
+}
+
+/// Enumerate wildcard automatic type directive names below the effective
+/// type roots with the vendored host-operation order: a missing root is
+/// skipped, every immediate directory is a candidate, a `package.json` with a
+/// null `typings` field is excluded, and the hidden-directory filter applies
+/// only after that manifest probe.
+///
+/// tsc-port: getAutomaticTypeDirectiveNames @6.0.3
+/// tsc-hash: db3bfa1a221287c533bc20917feaad712bfe322265c8c09aaded542ab0ab4461
+/// tsc-span: _tsc.js:40294-40320
+pub(crate) fn discover_wildcard_type_directive_names(
+    host: &dyn CompilerHost,
+    roots: &[JsString],
+) -> Result<Vec<JsString>, WildcardDiscoveryError> {
+    let mut matches = Vec::new();
+    for root in roots {
+        let root_path: JsStr<'_> = root.into();
+        if !host
+            .directory_exists_js(root_path)
+            .map_err(|error| WildcardDiscoveryError::Host {
+                path: root_path.to_owned(),
+                error,
+            })?
+        {
+            continue;
+        }
+        let directories =
+            host.get_directories_js(root_path)
+                .map_err(|error| WildcardDiscoveryError::Host {
+                    path: root_path.to_owned(),
+                    error,
+                })?;
+        for directory in directories {
+            let name = crate::js_path::base_file_name(directory.as_js());
+            if name.is_empty() {
+                return Err(WildcardDiscoveryError::InvalidData {
+                    path: directory,
+                    detail: "automatic type directory has no base name",
+                });
+            }
+            let package_directory = crate::js_path::combine_paths(root_path, name.as_js());
+            let package_json =
+                crate::js_path::combine_paths(package_directory.as_js(), "package.json".into());
+            if wildcard_package_has_null_typings(host, package_json.as_js())? {
+                continue;
+            }
+            // TypeScript probes package.json before applying the hidden
+            // directory filter, so retain that observable failure order.
+            if !name.starts_with(".") {
+                matches.push(name);
+            }
+        }
+    }
+    Ok(matches)
+}
+
+fn wildcard_package_has_null_typings(
+    host: &dyn CompilerHost,
+    package_json: JsStr<'_>,
+) -> Result<bool, WildcardDiscoveryError> {
+    if !host
+        .file_exists_js(package_json)
+        .map_err(|error| WildcardDiscoveryError::Host {
+            path: package_json.to_owned(),
+            error,
+        })?
+    {
+        return Ok(false);
+    }
+    let Some(bytes) =
+        host.read_file_js(package_json)
+            .map_err(|error| WildcardDiscoveryError::Host {
+                path: package_json.to_owned(),
+                error,
+            })?
+    else {
+        return Ok(false);
+    };
+    let text = decode_host_text(bytes).map_err(|source| WildcardDiscoveryError::Decode {
+        path: package_json.to_owned(),
+        source,
+    })?;
+    let (_, object) = parse_json_object(package_json, text);
+    Ok(json_object_get(&object, "typings").is_some_and(crate::JsonValue::is_null))
+}
+
+pub(crate) fn implied_node_format(
     file_name: JsStr<'_>,
     package_scope: Option<&PackageMetadata>,
     options: &CompilerOptions,

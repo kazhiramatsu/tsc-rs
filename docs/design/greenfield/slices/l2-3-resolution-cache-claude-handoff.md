@@ -8,11 +8,12 @@ L2 全体、watch/LSP、Program 再利用 runtime の activation を許可する
 SUPER 統合後の main の SHA を固定し、ローカルは新規失敗・関連 owner の focused set、
 重い全件 replay は hosted で実行します。以下の技術要件は現行実装と照合し、既実装部分を再実装しません。
 
-**2026-09-16 受領・追加修正依頼**：`draft/l2-3-resolution-cache` の候補を別 worktreeで検証し、
-元の139/151比較と1000世代soakを再現しました。一方、option identity衝突、破棄candidateの
-公開済みentry変更、別cache candidateの受理、上限外の退避履歴を確認しています。
-[追加修正依頼 R1〜R4](l2-3-resolution-cache-review-01/README.md)を先に実施してください。
-提出時のpatch原本、3件＋2件の反証テスト、実行記録を同資料に保持しています。現候補は未統合です。
+**2026-09-16 再提出・統合候補**：[DESIGN](l2-3-resolution-cache/DESIGN.md)、
+[REPORT](l2-3-resolution-cache/REPORT.md)、[INTEGRATION](l2-3-resolution-cache/INTEGRATION.md)を受領。
+R1〜R3の独立再現3件は成功。R4の残るサイズ集計・上限変更適用を統合側で追加修正し、
+専用CI入口を登録した。[統合レビューと実測](l2-3-resolution-cache/integration/README.md)を参照。
+元の[レビューR1](l2-3-resolution-cache-review-01/README.md)と提出patchは履歴として保存する。
+Program reuse/watch/LSPのactivationは含まない。
 
 ## 依頼
 

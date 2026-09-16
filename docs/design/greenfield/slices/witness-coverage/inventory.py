@@ -79,6 +79,11 @@ def command_rows(replay):
                 continue
             argv, _ = replay.witness.invocation(suite, [], {})
             owner = argv[argv.index('--manifest-path') + 1].split('/')[1]
+            if '--lib' in argv:
+                rows.append({'group': group, 'suite': suite, 'package': f'tsc-rs-{owner}',
+                             'target': f'tsc_{owner}', 'kind': 'lib', 'filter': None,
+                             'evidence': 'scripts/witness.py:invocation'})
+                argv = [arg for arg in argv if arg != '--lib']
             if '--exact' in argv:
                 at = argv.index('--test')
                 assert argv.count('--test') == 1 and argv[at + 2] != '--', argv
@@ -181,7 +186,7 @@ def inventory(source_commit):
                 if target['test']:
                     harnesses.append({'package': package['name'], 'target': target['name'],
                                       'kind': target['kind'], 'source': relative(source),
-                                      'direct_pr_test_command': False})
+                                      'direct_pr_test_command': any(row['package'] == package['name'] and row['target'] == target['name'] and row.get('kind') == 'lib' for row in commands)})
                 continue
             sources = closure(source)
             selected = [row for row in commands if row['package'] == package['name'] and row['target'] == target['name']]
@@ -198,6 +203,7 @@ def inventory(source_commit):
                             'literal_fixture_files': literals,
                             'unresolved_or_dynamic_fixture_spellings': unresolved})
     keys = {(row['package'], row['target']) for row in targets}
+    keys.update((row['package'], row['target']) for row in harnesses)
     assert all((row['package'], row['target']) in keys for row in commands)
     for path in ('Cargo.toml', 'Cargo.lock', 'crates/xtask/src/acceptance_plan.rs'):
         read(ROOT / path)
@@ -213,9 +219,10 @@ def inventory(source_commit):
             'Only literal #[path] Rust module edges are followed; macro/generated/default-path modules need separate review.',
             'Literal fixture paths are source references, not dynamic fixture discovery or row membership proof.',
             'No direct target command does not mean its production behavior or shared acceptance helper is untested.',
-            'lib/bin entries report absence of cargo test harness commands in these two PR workflows, not behavior coverage.',
+            'lib/bin entries report configured cargo test harness commands in these two PR workflows, not behavior coverage.',
         ],
         'summary': {'standalone_targets': len(targets), 'lib_bin_harness_targets': len(harnesses),
+                    'lib_bin_harnesses_with_direct_command': sum(row['direct_pr_test_command'] for row in harnesses),
                     'unfiltered_target_commands': count('unfiltered-target-command'),
                     'filtered_target_commands': count('filtered-target-command'),
                     'no_direct_target_command': count('no-direct-target-command'),
@@ -232,7 +239,7 @@ def main():
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--write', action='store_true', help='write a NEW snapshot only')
     action.add_argument('--check', action='store_true', help='compare current source with the frozen snapshot')
-    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v8.json')
+    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v9.json')
     args = parser.parse_args()
     if args.check:
         source_commit = json.loads(args.output.read_text())['source_commit']

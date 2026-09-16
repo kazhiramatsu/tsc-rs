@@ -24,7 +24,7 @@ GROUPS = {
 WITNESS_GROUPS = {
     "primary": ("primary",),
     "controls": ("extra", "followup", "followup2", "followup3", "direct", "bundle-sinks", "declaration-map-cli",
-                 *witness.COMPILER_DIRECT),
+                 *witness.COMPILER_DIRECT, "resolution-cache"),
     "retained": ("retained",),
     # Reuse this short job's emitter build. Fixture changes select individual
     # direct suites without running unrelated printer failure/owner controls.
@@ -78,6 +78,9 @@ def selection(paths):
         compiler_owners = {suite for suite in witness.COMPILER_DIRECT if file in witness.compiler_direct_inputs(suite)}
         if compiler_owners:
             witnesses.update(compiler_owners)
+            continue
+        if file in witness.RESOLUTION_INPUTS:
+            witnesses.add("resolution-cache")
             continue
         # Frozen executable selections can live under docs/. Check explicit
         # witness ownership before treating documentation as disconnected.

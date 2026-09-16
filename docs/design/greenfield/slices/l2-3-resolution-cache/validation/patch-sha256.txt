@@ -1,0 +1,1 @@
+candidate.patch.gz sha256: fa2cf8d3aab1bf00735320aa098dc5f8bb00fb5ec51e91251d8750e980bbc3b1

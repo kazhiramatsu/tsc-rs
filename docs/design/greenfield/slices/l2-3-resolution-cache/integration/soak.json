@@ -1,0 +1,45 @@
+{
+  "generations": 717,
+  "reused": 5548,
+  "recomputed_changed": 511,
+  "recomputed_unchanged": 205,
+  "fresh": 3144,
+  "fresh_after_eviction": 3132,
+  "evicted": 2868,
+  "max_entries": 8,
+  "max_bytes": 11447,
+  "max_live_generations": 6,
+  "parity_checks": 9408,
+  "held_reader_checks": 17168,
+  "host_calls": 26073,
+  "memo_hits": 19120,
+  "cancelled": 216,
+  "publish_refused_live_limit": 67,
+  "ops": {
+    "create": 282,
+    "update": 503,
+    "delete": 267,
+    "noop": 334,
+    "hold": 201,
+    "release": 192,
+    "cancel": 233
+  },
+  "final_entries": 8,
+  "final_bytes": 10760,
+  "resident": {
+    "published_entries": 8,
+    "published_bytes": 10760,
+    "eviction_history_len": 4,
+    "eviction_history_bytes": 3132,
+    "eviction_history_dropped": 0,
+    "live_generation_records": 5,
+    "interned_identity_bytes": 746
+  },
+  "limits": {
+    "max_entries": 8,
+    "max_bytes": 65536,
+    "max_live_generations": 6,
+    "max_eviction_history": 16
+  },
+  "seed": "5eed1234abcd0001"
+}

@@ -1,0 +1,59 @@
+# C05 再提出の統合レビュー
+
+2026-09-16。統合先 base `5903caabbdaf0a2653bb0631dd910ce9fb5670d5`。
+Claude の再提出 base は `d9cfb664a`、patch SHA-256 は
+`fa2cf8d3aab1bf00735320aa098dc5f8bb00fb5ec51e91251d8750e980bbc3b1`。
+[提出 patch](../validation/candidate.patch.gz) と `validation/` は提出時の原本を保存した。
+本書と `integration/` が統合側の追加修正・実測を記録する。
+
+## レビュー結果と追加修正
+
+R1〜R3 は独立した元の再現テスト3件が成功。R2だけ削除された entry accessor を
+`held.view().last_used(original.key())` に置換し、同じ不変条件を確認した。
+[再現 source](review-02-repro.rs) と [修正前ログ](review-02-before.log) を保持する。
+元の22 familyの native expected は再提出でも構造的に同一。新しい2 familyだけが追加された。
+
+R4 の件数上限は直ったが、統合時に次の2点が残っていた。
+
+| 再現 | 提出 bytes での結果 | 統合側の修正 |
+| --- | --- | --- |
+| option text 65536 bytes、`max_bytes=4096` | 1 entryを公開、報告174 bytes | keyの推定サイズに option identity全体を含める。共有identityでもkeyごとに計上し、過小集計を避ける |
+| 履歴1件の後 `max_eviction_history=0`、新規requestなしでpublish | 履歴1件が残る | publish / evict_allの双方で、victimがなくても変更された履歴上限を適用 |
+
+`max_bytes` は公開entriesと退避履歴のそれぞれに適用する推定payload上限。
+履歴は件数・bytesの両方を満たすまで古いkeyを忘れる。
+intern slotは`Weak`に変更し、過大・破棄されたidentityを単独では保持しない。
+`interned_identity_bytes` は最新の生存identityの別名で、所有keyの計上に含まれる。
+これはallocatorの実使用量やRSSではない。外部reader / candidateの寿命は別管理。
+
+2件の回帰を既存contractへ追加。修正後は過大entryと履歴がともに0、intern slotも0になる。
+元の公開API再現3件、program単体56件（cache単体8件を含む）、contract9件が成功。
+
+## 検証
+
+| 検証 | 結果 / 証跡 |
+| --- | --- |
+| 独立レビュー3件＋Program単体＋cache contract | 3 / 56 / 9 pass、[focused.log.gz](focused.log.gz) |
+| 専用CI入口 `python3 scripts/witness.py resolution-cache --all` | frozen nativeを2回採取してbyte照合、unit56 / contract9 pass。[witness-entry.log.gz](witness-entry.log.gz)。observer0.680s、Cargo build/replay6.385s |
+| fresh Rust / native TypeScript / 未被覆依存 | 161 / 173 / 0、[summary.json](summary.json) |
+| 1000世代seeded soak | 9408 parity、deterministic、max公開11447推定bytes。[soak.json](soak.json) |
+| 2000世代identity/key churn | 履歴最大32件 / 25888推定bytes、live最大6、evict_all拒否11/42。[churn.json](churn.json) |
+| 既存Program contracts | 481 pass / 5 ignored、[program-contracts.log.gz](program-contracts.log.gz) |
+| planner / policy | 38 / 10 pass、[planner-tests.log.gz](planner-tests.log.gz)、[policy-tests.log.gz](policy-tests.log.gz) |
+| clippy（program libと新contract、通常warnings） | exit0、既存lib144 warnings、新規2 Rust fileのwarningなし。[clippy.log.gz](clippy.log.gz)。`-D warnings`成功とは報告しない |
+
+提出時の履歴1472 bytesはidentityを含まない旧集計。統合後は25888 bytesであり、
+メモリが増えたという測定ではなく計上範囲の訂正。soakの比較・reuse・拒否件数は同一。
+
+## Hosted入口
+
+controls jobの `resolution-cache` が、固定Node25.2.1でobserverの`--check`を実行し、
+続いて `cargo test --manifest-path crates/program/Cargo.toml --lib --test resolution_cache_contract -- --nocapture --test-threads=1` を実行する。
+unit56 / contract9、ignored0 / filtered0を要求し、欠落・0件・部分実行を拒否。
+manifest24 family /105世代 /180 requestも入口で検査する。
+専用test・fixture・observer変更はこのsuiteだけを選択。
+cache本体を含むProgram production変更は従来の全関連replayと本suiteを選択する。
+`cargo xtask acceptance`へ混在させず、専用witnessとして実行する。
+
+Hosted結果とmerge identityは、実行完了後に追記する。
+Program reuse、watch/LSP activation、実FS I/O / heap測定は本統合の対象外。

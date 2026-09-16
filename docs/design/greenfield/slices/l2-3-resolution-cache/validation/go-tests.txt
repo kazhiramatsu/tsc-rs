@@ -1,0 +1,29 @@
+Go reference tests (pin microsoft/TypeScript@1f70213d4922b434345f639b441681e470c7cfc1, checkout /Users/hiramatsu/dev/tsc-rs/target/typescript7/upstream)
+These are the upstream package's own tests for the files consulted in DESIGN.md §2.4. Their success is NOT a parity claim for the Rust prototype.
+
+command (run from the tsc-rs root, serially, with the helper's environment):
+  env GOTOOLCHAIN=go1.26.0 GOCACHE=/Users/hiramatsu/dev/tsc-rs/target/typescript7/go-build GOMODCACHE=/Users/hiramatsu/dev/tsc-rs/target/typescript7/go-mod GOPATH=/Users/hiramatsu/dev/tsc-rs/target/typescript7/go GOMAXPROCS=2 CGO_ENABLED=0 GOFLAGS= GOWORK=/Users/hiramatsu/dev/tsc-rs/target/typescript7/upstream/go.work \
+    taskpolicy -b nice -n 15 go -C /Users/hiramatsu/dev/tsc-rs/target/typescript7/upstream/tsc test ./internal/project/ \
+    -run '^(TestExtendedConfigCacheOwnership|TestRefCountingCaches|TestParseCacheBindsBeforePublishing|TestSnapshotFSBuilder|TestSnapshotFS|TestSourceFS|TestRealpathAliasLifecycle|TestExpandAndFilterWatchEvents|TestSnapshot|TestConfigFileChanges)$' \
+    -count=1 -p 1 -json
+
+system go: go version go1.25.6 darwin/arm64; GOTOOLCHAIN selected go1.26.0 (helper pin)
+exit: go test exit: 0
+upstream status --short after run: 0 lines (clean)
+
+top-level tests selected: 10 (extendedconfigcache_test.go 1, refcountcache_test.go 4 of which 3 selected: TestRefCountingCaches, TestParseCacheBindsBeforePublishing + TestExtendedConfigCacheOwnership; snapshotfs_test.go 6; snapshot_test.go 1; configfilechanges_test.go 1)
+terminal pass events (top-level + subtests): 80; fail 0; skip 0
+package github.com/microsoft/TypeScript/tsc/internal/project: pass, 1.577s
+
+top-level results:
+  TestParseCacheBindsBeforePublishing: pass (0s)
+  TestSnapshotFS: pass (0s)
+  TestExtendedConfigCacheOwnership: pass (0s)
+  TestConfigFileChanges: pass (0s)
+  TestSnapshotFSBuilder: pass (0s)
+  TestExpandAndFilterWatchEvents: pass (0s)
+  TestSnapshot: pass (0s)
+  TestRealpathAliasLifecycle: pass (0s)
+  TestSourceFS: pass (0s)
+  TestRefCountingCaches: pass (0.73s)
+  subtests passed: 70

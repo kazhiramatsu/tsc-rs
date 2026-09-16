@@ -148,7 +148,18 @@ COMPILER_DIRECT = {
     },
 }
 SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks", "declaration-map-cli",
-          *EMITTER_DIRECT, *COMPILER_DIRECT)
+          *EMITTER_DIRECT, *COMPILER_DIRECT, "resolution-cache")
+RESOLUTION_INPUTS = {
+    "crates/program/tests/resolution_cache_contract.rs",
+    "crates/program/tests/fixtures/resolution_cache/manifest.v1.json",
+    "crates/program/tests/fixtures/resolution_cache/expected.v1.json",
+    "scripts/observe-resolution-cache.mjs",
+}
+RESOLUTION_OBSERVER = [
+    "node", "scripts/observe-resolution-cache.mjs", "--manifest",
+    "crates/program/tests/fixtures/resolution_cache/manifest.v1.json", "--check",
+    "crates/program/tests/fixtures/resolution_cache/expected.v1.json",
+]
 RETAINED_FIXTURES = (
     "retained-accessor-owners", "class-helper-accessor-producers",
     "class-field-alias-map-positions", "decorator-receiver-context",
@@ -162,6 +173,16 @@ def read_cases(file):
 
 
 def case_ids(suite):
+    if suite == "resolution-cache":
+        manifest = json.loads((ROOT / "crates/program/tests/fixtures/resolution_cache/manifest.v1.json").read_text())
+        families = manifest["families"]
+        ids = [family["id"] for family in families]
+        generations = [generation for family in families for generation in family["generations"]]
+        if (len(ids) != 24 or len(set(ids)) != 24 or any(not item.strip() for item in ids)
+                or len(generations) + len(families) != 105
+                or sum(len(family["requests"]) * (1 + len(family["generations"])) for family in families) != 180):
+            raise ValueError("resolution-cache: changed family/generation/request membership")
+        return ids
     if suite in EMITTER_DIRECT or suite in COMPILER_DIRECT:
         spec = EMITTER_DIRECT[suite] if suite in EMITTER_DIRECT else COMPILER_DIRECT[suite]
         ids = []
@@ -226,6 +247,11 @@ def invocation(suite, needles, environ=None):
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_FILTER", None)
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_SET", None)
     env.setdefault("CARGO_BUILD_JOBS", "2")
+    if suite == "resolution-cache":
+        if needles:
+            raise ValueError("resolution-cache: complete trace and controls run together; use --all")
+        return ["cargo", "test", "--manifest-path", "crates/program/Cargo.toml",
+                "--lib", "--test", "resolution_cache_contract", "--", "--nocapture", "--test-threads=1"], env
     if suite in COMPILER_DIRECT:
         if needles:
             raise ValueError(f"{suite}: compiler target runs together; use --all")
@@ -377,6 +403,25 @@ def run_emitter_direct(suites):
                       "cargo_build_and_replay_seconds": round(time.monotonic() - started, 3)}), flush=True)
 
 
+def run_resolution_cache(command, env):
+    case_ids("resolution-cache")
+    started = time.monotonic()
+    subprocess.run(RESOLUTION_OBSERVER, cwd=ROOT, check=True)
+    oracle_seconds = time.monotonic() - started
+    started = time.monotonic()
+    result = subprocess.run(command, cwd=ROOT, env=env, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, check=False)
+    print(result.stdout, end="", flush=True)
+    result.check_returncode()
+    counts = re.findall(r"test result: ok\. (\d+) passed; 0 failed; (\d+) ignored;.*? (\d+) filtered out;", result.stdout)
+    if sorted(tuple(map(int, row)) for row in counts) != [(9, 0, 0), (56, 0, 0)]:
+        raise ValueError("resolution-cache: missing, ignored, filtered or changed target results")
+    print(json.dumps({"resolution_cache": {"families": 24, "generations": 105, "requests": 180},
+                      "contract_tests": 9, "program_unit_tests": 56,
+                      "observer_seconds": round(oracle_seconds, 3),
+                      "cargo_build_and_replay_seconds": round(time.monotonic() - started, 3)}), flush=True)
+
+
 def run_declaration_map_cli(command, env):
     started = time.monotonic()
     result = subprocess.run(command, cwd=ROOT, env=env, text=True, stdout=subprocess.PIPE,
@@ -416,12 +461,17 @@ def main(argv=None):
                    if key.startswith("TSC_RS_") and (key.endswith("CASE_SET") or key.endswith("CASE_FILTER"))}
     print(shlex.join(["env", *[f"{key}={value}" for key, value in sorted(assignments.items())], *command]), flush=True)
     if args.dry_run:
+        if args.suite == "resolution-cache":
+            print(shlex.join(RESOLUTION_OBSERVER))
         if args.suite in EMITTER_DIRECT:
             for observer in EMITTER_DIRECT[args.suite]["observers"]:
                 print(shlex.join(["node", observer, "--check"]))
         if args.suite in COMPILER_DIRECT:
             for command in compiler_direct_observers([args.suite]):
                 print(shlex.join(command))
+        return 0
+    if args.suite == "resolution-cache":
+        run_resolution_cache(command, env)
         return 0
     if args.suite in COMPILER_DIRECT:
         run_compiler_direct([args.suite])

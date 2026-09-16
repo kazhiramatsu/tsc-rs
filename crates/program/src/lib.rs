@@ -104,6 +104,7 @@ mod output_directories;
 mod path;
 mod prepared;
 mod resolution;
+mod resolution_cache;
 mod resolution_error;
 mod symlinks;
 mod text;
@@ -174,6 +175,13 @@ pub use resolution::{
     ResolutionErrorKind, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolutionRequestKind,
     ResolvedModule, ResolvedModuleTarget, ResolvedTypeReferenceDirective, TypeReferenceResolution,
     TypeReferenceResolutionKey, TypeReferenceResolutionOrigin, UnloadedModuleReason,
+};
+pub use resolution_cache::{
+    content_digest, CacheEntry, CacheError, CachedValue, CancellationToken, Candidate, ChangeBatch,
+    Dependency, DependencySet, Disposition, GenerationHandle, GenerationStats, GenerationView,
+    HostTrafficStats, IdentityValue, InvalidationReport, ObservationHost, OptionsIdentity,
+    PackageScopeFacts, PathKey, RequestKey, RequestKind, ResidentStats, ResolutionCache,
+    RetentionLimits, TraceRow,
 };
 pub use symlinks::{discover_symlink_facts, SymlinkFacts};
 pub use text::{decode_host_text, HostTextDecodeError, HostTextEncoding};
