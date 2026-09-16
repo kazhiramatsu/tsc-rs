@@ -16,6 +16,92 @@ witness = replay.witness
 
 
 class SelectionTests(unittest.TestCase):
+    def test_recovery_census_archive_matches_frozen_selection(self):
+        spec = witness.COMPILER_DIRECT["utf16-recovery-corpus"]
+        source, destination, digest = spec["staged_inputs"][0]
+        fixture = json.loads((ROOT / spec["fixtures"][0][0]).read_text())
+        archive = (ROOT / source).read_bytes()
+        self.assertEqual(witness.hashlib.sha256(archive).hexdigest(), digest)
+        self.assertEqual(fixture["census"]["sha256"], digest)
+        self.assertEqual(fixture["census"]["path"], destination)
+        self.assertEqual([row["case_id"] for row in json.loads(archive)["newly_admitted"]],
+                         [row["case_id"] for row in fixture["cases"]])
+        self.assertEqual(fixture["skipped"], [])
+        self.assertIn(destination, witness.compiler_direct_observers(["utf16-recovery-corpus"])[0])
+
+    def test_staged_input_preserves_existing_files_and_cleans_up_after_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = b"frozen input"
+            source = root / "archive.json"
+            source.write_bytes(data)
+            target = root / "target/staged.json"
+            spec = {"staged_inputs": ((source.name, "target/staged.json", witness.hashlib.sha256(data).hexdigest()),)}
+            with patch.object(witness, "ROOT", root), patch.dict(witness.COMPILER_DIRECT, {"stage-test": spec}):
+                with self.assertRaisesRegex(RuntimeError, "observer failed"):
+                    with witness.staged_compiler_inputs(["stage-test"]):
+                        self.assertEqual(target.read_bytes(), data)
+                        raise RuntimeError("observer failed")
+                self.assertFalse(target.exists())
+                target.write_bytes(data)
+                with witness.staged_compiler_inputs(["stage-test"]):
+                    self.assertEqual(target.read_bytes(), data)
+                self.assertEqual(target.read_bytes(), data)
+                target.write_bytes(b"user data")
+                with self.assertRaisesRegex(ValueError, "existing staged input differs"):
+                    with witness.staged_compiler_inputs(["stage-test"]):
+                        self.fail("mismatched existing input was accepted")
+                self.assertEqual(target.read_bytes(), b"user data")
+                target.unlink()
+                source.write_bytes(b"drift")
+                with self.assertRaisesRegex(ValueError, "archived input hash drift"):
+                    with witness.staged_compiler_inputs(["stage-test"]):
+                        self.fail("drifted archive was accepted")
+                self.assertFalse(target.exists())
+
+    def test_recovery_observer_failure_stops_before_cargo_and_removes_staged_census(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            spec = witness.COMPILER_DIRECT["utf16-recovery-corpus"]
+            source, destination, _ = spec["staged_inputs"][0]
+            (root / source).parent.mkdir(parents=True)
+            (root / source).write_bytes((ROOT / source).read_bytes())
+            fixture = spec["fixtures"][0][0]
+            (root / fixture).write_bytes((ROOT / fixture).read_bytes())
+            with patch.object(witness, "ROOT", root), patch.object(
+                    witness.subprocess, "run", side_effect=subprocess.CalledProcessError(9, "observer")) as run:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    witness.run_compiler_direct(["utf16-recovery-corpus"])
+                self.assertEqual(run.call_count, 1)
+                self.assertEqual(run.call_args.args[0][0], "node")
+                self.assertFalse((root / destination).exists())
+
+    def test_map_projection_runs_exact_tests_and_keeps_shared_artifacts_broad(self):
+        spec = witness.COMPILER_DIRECT["map-option-projection"]
+        source = (ROOT / f"crates/compiler/tests/{spec['target']}.rs").read_text()
+        self.assertEqual(set(re.findall(r"#\[test\]\s*fn (\w+)", source)), set(spec["test"]))
+        command, env = witness.invocation("map-option-projection", [], {"TSRS_MAP_OPTION_CAPTURE": "/bad"})
+        self.assertIn("--exact", command)
+        self.assertTrue(all(name in command for name in spec["test"]))
+        self.assertNotIn("existing_witness_route_census", command)
+        self.assertNotIn("TSRS_MAP_OPTION_CAPTURE", env)
+        for path in ("ratchets/h2-6a-qualification.v1.json", "ratchets/h2-5h-qualification.v1.json",
+                     "crates/harness/src/upstream_suites/execution.rs", "crates/oracle/vfs-directory-overlay.mjs"):
+            self.assertEqual(replay.selection([path])["acceptance"], list(replay.GROUPS))
+            self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
+        self.assertEqual(len(witness.case_ids("map-option-projection")), 31)
+        good = "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out;"
+        with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, good)) as run:
+            witness.run_compiler_direct(["map-option-projection"])
+            self.assertEqual(run.call_count, 2)
+            self.assertEqual(run.call_args.args[0], command)
+        for output in ("", "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out;",
+                       good.replace("2 filtered", "1 filtered"),
+                       "test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out;"):
+            with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output)):
+                with self.assertRaises(ValueError):
+                    witness.run_compiler_direct(["map-option-projection"])
+
     def test_partition_covers_canonical_full_acceptance_once(self):
         replay.validate_partition()
         self.assertEqual(sum(map(len, replay.GROUPS.values())), 31)
@@ -304,6 +390,7 @@ class WitnessTests(unittest.TestCase):
             "declaration-map-cli": 8, "transpile-routes": 301, "resolution-cache": 26,
             "compact-body-comments": 240, "parameter-temporaries": 68,
             "config-library": 96, "prologue-comments": 8,
+            "utf16-recovery-corpus": 50, "map-option-projection": 31,
             "literal-update": 1396, "literal-update-pipeline": 22, "require-rewrite": 74,
             "declaration-specifiers": 30, "declaration-comments": 41, "jsdoc-return": 58,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,

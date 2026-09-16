@@ -292,3 +292,27 @@ comparing JS text, write count, exit and diagnostic codes twice. It does not
 claim complete command-tuple coverage. Both suites share the controls build;
 use `--list` or `--all --dry-run` before replay. See the
 [combined scope and validation record](design/greenfield/slices/witness-coverage/compiler-config-prologue/README.md).
+
+
+## Recovery census and map option witnesses
+
+OPS-COVER-3H/3I adds two compiler suites to the controls job:
+
+```sh
+python3 scripts/witness.py utf16-recovery-corpus --all
+python3 scripts/witness.py map-option-projection --all
+```
+
+The first replays 50 complete command comparisons twice. The runner verifies the
+archived census hash and stages it at the historical path only while the frozen
+observer runs. It preserves an identical pre-existing file, rejects a conflicting
+file, and removes only its own staged file even when the observer fails.
+The archive is historical selection evidence; no new parser census is implied.
+
+The map suite selects three exact tests. Its 31 dedicated inputs use both qualified
+and recorded adapters twice; five original IDs overlap existing acceptance.
+Three originals also compare the old option floor with the map-family floor.
+The ignored historical census remains unselected. The Rust test derives status
+and exit fields from emit results, so this is not an additional CLI execution.
+See the [slice record](design/greenfield/slices/witness-coverage/compiler-recovery-map/README.md)
+for observations, input hashes, coverage and measured time.
