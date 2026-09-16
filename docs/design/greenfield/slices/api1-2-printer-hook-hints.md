@@ -1,7 +1,9 @@
 # API1.2-HINT: declaration names and initializer hook hints
 
 2026-09-16. Integrator: Codex. Base: `d9cfb664a` (PR #536).
-Implementation and focused validation in `work/printer-hook-hints`.
+**Merged in [PR #537](https://github.com/kazhiramatsu/tsc-rs/pull/537)** as
+`e69a5837354731e32f6a95574ce73863765d0d42` on 2026-09-16.
+Implementation and focused validation used `work/printer-hook-hints`.
 
 This slice repairs the two already-observed producer differences assigned to
 the integrator in [A-INT3-CS](h2-8a-printer-comment-carry/README.md#残る差分)
@@ -81,5 +83,27 @@ Local validation at the final native bytes:
   on a changed line; the existing program145/emitter16 warnings remain.
 
 The [local receipt](api1-2-printer-hook-hints/records/local.v1.json) records
-commands, hashes, exits, captures and compressed logs. Full related acceptance
-and witness jobs are required on the PR head; their result is pending.
+commands, hashes, exits, captures and compressed logs.
+
+## Hosted validation and landing
+
+All seven replay jobs and both aggregate gates passed at `dfed2b7d3`.
+The tested merge tree and the final merged tree are byte-identical to that
+candidate. The [hosted receipt](api1-2-printer-hook-hints/records/hosted.v1.json)
+retains exact heads, run/job URLs, times and the printer log hash.
+
+- [Acceptance run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35053108148):
+  early 630s, wide 1708s, late 1027s.
+- [Witness run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35053108194):
+  printer 110s, retained 514s, primary 629s, controls 886s.
+
+Replay jobs total 5504 seconds, excluding planning/aggregation and any main-push
+run. These are observed runner durations, not performance qualification.
+The printer log confirms new72 and existing comment-carry24 complete exact,
+plus the selected adjacent and literal/factory controls.
+
+The before harness source was reconstructed from the base and the original
+test additions, then verified byte-identical to the hash recorded before native
+execution. Its compressed bytes are retained with the hosted receipt, allowing
+the before comparison to be reproduced without reconstructing the test edits.
+The TypeScript fixture and observer remain the original captured bytes.

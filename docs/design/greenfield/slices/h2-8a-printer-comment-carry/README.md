@@ -12,6 +12,11 @@ Claude の元 worktree と提出成果物は変更しない。
 本書はこの source 修復・対照・CI 所有関係の範囲を扱う。profile/admission の変更は含まない。
 ③を再依頼する必要はなく、Claude は④ noCheck / transpile を並行して開始できる。
 
+2026-09-16 follow-up：[API1.2-HINT / PR #537](../api1-2-printer-hook-hints.md)で、
+下記4件のdeclaration hook hint差分を修復・統合した。元の24 caseは完全一致×2、
+新規72 caseも完全一致×2、全hosted jobと両gateが成功。以下の20/24と4 gapは
+本スライス時点の履歴として保持する。生成名1件はC02のまま。
+
 ## 上流・現在の型・変更境界
 
 固定 TypeScript 6.0.3 の `_tsc.js`：
