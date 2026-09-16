@@ -14,20 +14,27 @@ python3 scripts/witness.py literal-value-provenance --all
 python3 scripts/witness.py comma-argument-factory --all
 python3 scripts/witness.py declaration-map-cli --all
 python3 scripts/witness.py utf16-review-fix --all
+python3 scripts/witness.py utf16-literal-witnesses --all
+python3 scripts/witness.py utf16-original-commands --all
 ```
 
 Suites: `primary`, `extra`, `followup`, `followup2`, `followup3`, `retained`, `direct`,
 `printer`, `bundle-sinks`, `declaration-map-cli`, plus the ten small
 [emitter direct suites](design/greenfield/slices/witness-coverage/emitter-direct/README.md)
 and three [compiler UTF-16 suites](design/greenfield/slices/witness-coverage/compiler-utf16/README.md):
-`utf16-identity-recovery`, `utf16-review-fix`, `utf16-tagged-template`.
+`utf16-identity-recovery`, `utf16-review-fix`, `utf16-tagged-template`, plus
+[compiler literal suites](design/greenfield/slices/witness-coverage/compiler-literals/README.md)
+`utf16-literal-witnesses` and `utf16-original-commands`.
 `--all` explicitly requests the whole suite, normally on hosted CI. `--list` and
 `--dry-run` neither build Rust nor run tests. Commands use a manifest path and an
 exact test name for the large shared comparator targets. Small emitter direct
-suites and compiler UTF-16 suites run their whole target, with `--all`;
+suites and unfiltered compiler UTF-16 suites run their whole target, with `--all`;
 `--case` is rejected for those suites.
 Their entry checks only the selected fixture observers and rejects missing,
-zero-test, ignored or filtered target results.
+zero-test, ignored or unexpected filtered target results.
+`utf16-literal-witnesses` selects its one dedicated test and requires exactly nine
+shared helper tests to be filtered out. Its internal environment selectors are
+cleared so `--all` always covers all 64 promoted inputs.
 They also avoid building the dev-profile xtask executable before the test profile.
 The `printer` target runs together: 70 small direct rows (65 exact, 5 documented
 gaps), plus the same target's probe/safety/negative controls. It takes milliseconds
@@ -81,6 +88,10 @@ The three compiler UTF-16 targets also share the controls build. Their selected
 observers run first, followed by one Cargo call for only the selected targets.
 The 120 fixture rows contain 111 complete-command comparisons and nine typed
 refusal controls, each repeated twice; refusals are not reported as exact matches.
+OPS-COVER-3C adds 64 literal witnesses and complete-command fields for four existing
+corpus IDs. The original-command target joins the unfiltered Cargo batch; the
+literal target uses a separate exact-test invocation sharing the same build.
+Its three observer groups are checked separately, including on fixture-only changes.
 Printer fixtures/targets/observers select only the printer job; the bundle sink
 fixture/target selects only its ten commands in controls. Common printer source
 changes retain all related acceptance and witness coverage. The printer runner
@@ -164,7 +175,8 @@ emitter direct targets: the remaining count is 42 standalone targets without a
 direct entry at that step (compiler22 / other20). OPS-COVER-3A then registers the
 eight CLI cases through a named-test filter: 41 targets still lack a direct entry
 (compiler21 / other20). OPS-COVER-3B registers three compiler UTF-16 targets,
-leaving 38 without a direct entry (compiler18 / other20). Earlier inventory
+leaving 38 without a direct entry (compiler18 / other20). OPS-COVER-3C adds two
+more, leaving 36 (compiler16 / other20). Earlier inventory
 snapshots remain as history; entry configuration and successful hosted execution
 are recorded separately in each slice report.
 

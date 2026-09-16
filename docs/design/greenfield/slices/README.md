@@ -23,6 +23,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [OPS-COVER-3C compiler literal witnesses](witness-coverage/compiler-literals/README.md) | CI entry implementation | Dedicated 64 literal commands and additional complete fields for four existing corpus IDs; exact test selection preserves shared acceptance coverage. |
 | [A-INT3-CS printer comment carry](h2-8a-printer-comment-carry/README.md) | C03 integration follow-up; focused validation passed; hosted results recorded in PR | User-authorized repair of the retained cross-source container gap. Source-independent UTF-16 guards, source-bound byte resumptions, 24 frozen direct rows and replacement-arena controls; no profile/admission change. |
 | [G5c / parameter repair integration](h2-8a-g5c-parameter-integration.md) | Landed in PR #522; hosted acceptance passed | One train for the two disjoint components below; H2.5h manifest removes only the four repaired ES5 rows, 16 → 12. Profiles and CI remain unchanged. |
 | [H2.5h parameter temporary handoff](h2-5h-parameter-temporaries-design.md) | Original four repairs verified; shared producer has a separate printer residual | Original12 and new51 controls exact twice, five new controls remain strict failures in the pre-existing compact-body comment phase. Emitter505, relevant contracts381, static-this/super, UTF-16 originals and map regressions pass. [Report](h2-5h-parameter-temporaries-report.md) records the two cause commits and OUT-OF-SCOPE printer owner. |

@@ -1,0 +1,283 @@
+utf16-literal-witnesses: 64 fixture rows (including any typed refusal controls)
+utf16-original-commands: 4 fixture rows (including any typed refusal controls)
+{"case_id":"utf16-literals/string-literals/es5/extended-high-surrogate","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/extended-high-surrogate","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/extended-low-surrogate","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/extended-low-surrogate","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/extended-supplementary-pair","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/extended-supplementary-pair","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/extended-bmp","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/extended-bmp","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/extended-ascii","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/extended-ascii","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/short-escape-surrogate-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/short-escape-surrogate-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/short-and-extended-mixed","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/short-and-extended-mixed","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/real-replacement-character","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/real-replacement-character","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/escaped-backslash-sequence","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/escaped-backslash-sequence","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/single-quoted","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/single-quoted","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/control-and-quote-escapes","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/control-and-quote-escapes","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/null-before-digit","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/null-before-digit","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/crlf-line-continuation","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/crlf-line-continuation","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/class-member-names","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/class-member-names","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/object-literal-names","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/object-literal-names","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/export-specifier-name","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/export-specifier-name","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/es5/enum-member-names","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/string-literals/es2015/enum-member-names","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/esnext/extended-high-surrogate","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/string-literals/esnext/extended-low-surrogate","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"destination":"/Users/hiramatsu/dev/tsc-rs-compiler-literal-witness-ci/crates/compiler/tests/fixtures/utf16-literals-string-literals.json","cases":36,"upstream_failure_cases":0,"complete_program_executions":72,"program_attempts":72,"exception_attempts":0,"native_executions":0,"sha256":"5f888508f7bc35cb48fcf564c4e1bbf0da4f42c4731016d98c611519b8d45261"}
+{"case_id":"utf16-literals/template-literals/es5/no-substitution-high","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/no-substitution-high","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/no-substitution-low","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/no-substitution-low","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/head-middle-tail","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/head-middle-tail","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/empty-tail","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/empty-tail","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/short-escape-surrogate","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/short-escape-surrogate","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/crlf-and-line-continuation","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/crlf-and-line-continuation","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/backtick-dollar-backslash","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/backtick-dollar-backslash","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/real-replacement-character","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/real-replacement-character","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/tagged-cooked-and-raw","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/tagged-cooked-and-raw","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/tagged-no-substitution","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/tagged-no-substitution","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/template-literal-type-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/es2015/template-literal-type-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/es5/tagged-invalid-cooked","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"utf16-literals/template-literals/esnext/no-substitution-high","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/esnext/head-middle-tail","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"utf16-literals/template-literals/esnext/tagged-cooked-and-raw","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"destination":"/Users/hiramatsu/dev/tsc-rs-compiler-literal-witness-ci/crates/compiler/tests/fixtures/utf16-literals-template-literals.json","cases":26,"upstream_failure_cases":0,"complete_program_executions":52,"program_attempts":52,"exception_attempts":0,"native_executions":0,"sha256":"c7bb9e799d0e74fcd808105e4bc5fe3ce727010b1222e6207bf0bb55609c45a5"}
+{"case_id":"utf16-literals/bundle-prologues/es5/dedupe","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":3,"writes":4,"exit_code":2}
+{"case_id":"utf16-literals/bundle-prologues/es2015/dedupe","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":2,"writes":4,"exit_code":2}
+{"destination":"/Users/hiramatsu/dev/tsc-rs-compiler-literal-witness-ci/crates/compiler/tests/fixtures/utf16-literals-bundle-prologues.json","cases":2,"upstream_failure_cases":0,"complete_program_executions":4,"program_attempts":4,"exception_attempts":0,"native_executions":0,"sha256":"99efea8103d5d5d89980c733479128229d0465a524cd25905c4dddc1d151ebc4"}
+typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings10.ts#target%3Des5: complete x2; every frozen field unchanged
+typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings11.ts#target%3Des5: complete x2; every frozen field unchanged
+typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates10.ts#target%3Des5: complete x2; every frozen field unchanged
+typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates11.ts#target%3Des5: complete x2; every frozen field unchanged
+crates/compiler/tests/fixtures/utf16-original-rows-complete.json: 0aad290c08c7825cee90bc5bcd96fc7258f020f0ba6f496b7c400be4e825b217
+    Finished `test` profile [unoptimized] target(s) in 0.07s
+     Running tests/h2_5h_utf16_original_rows_complete.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_5h_utf16_original_rows_complete-2ac1c1651ed6308a)
+
+running 1 test
+test utf16_original_rows_match_complete_commands ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.62s
+
+    Finished `test` profile [unoptimized] target(s) in 0.07s
+     Running tests/h2_5h_utf16_literal_witnesses.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_5h_utf16_literal_witnesses-a93674d4a72b7f29)
+
+running 1 test
+test utf16_literal_witnesses_match_complete_typescript_observations ... utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/extended-high-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/extended-high-surrogate
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/extended-high-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/extended-high-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/extended-high-surrogate
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/extended-high-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/extended-low-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/extended-low-surrogate
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/extended-low-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/extended-low-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/extended-low-surrogate
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/extended-low-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/extended-supplementary-pair
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/extended-supplementary-pair
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/extended-supplementary-pair
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/extended-supplementary-pair
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/extended-supplementary-pair
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/extended-supplementary-pair
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/extended-bmp
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/extended-bmp
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/extended-bmp
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/extended-bmp
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/extended-bmp
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/extended-bmp
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/extended-ascii
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/extended-ascii
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/extended-ascii
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/extended-ascii
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/extended-ascii
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/extended-ascii
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/short-escape-surrogate-control
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/short-escape-surrogate-control
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/short-escape-surrogate-control
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/short-escape-surrogate-control
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/short-escape-surrogate-control
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/short-escape-surrogate-control
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/short-and-extended-mixed
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/short-and-extended-mixed
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/short-and-extended-mixed
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/short-and-extended-mixed
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/short-and-extended-mixed
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/short-and-extended-mixed
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/real-replacement-character
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/real-replacement-character
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/real-replacement-character
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/real-replacement-character
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/real-replacement-character
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/real-replacement-character
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/escaped-backslash-sequence
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/escaped-backslash-sequence
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/escaped-backslash-sequence
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/escaped-backslash-sequence
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/escaped-backslash-sequence
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/escaped-backslash-sequence
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/single-quoted
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/single-quoted
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/single-quoted
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/single-quoted
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/single-quoted
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/single-quoted
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/control-and-quote-escapes
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/control-and-quote-escapes
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/control-and-quote-escapes
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/control-and-quote-escapes
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/control-and-quote-escapes
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/control-and-quote-escapes
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/null-before-digit
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/null-before-digit
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/null-before-digit
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/null-before-digit
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/null-before-digit
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/null-before-digit
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/crlf-line-continuation
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/crlf-line-continuation
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/crlf-line-continuation
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/crlf-line-continuation
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/crlf-line-continuation
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/crlf-line-continuation
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/class-member-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/class-member-names
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/class-member-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/class-member-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/class-member-names
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/class-member-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/object-literal-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/object-literal-names
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/object-literal-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/object-literal-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/object-literal-names
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/object-literal-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/export-specifier-name
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/export-specifier-name
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/export-specifier-name
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/export-specifier-name
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/export-specifier-name
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/export-specifier-name
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/enum-member-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es5/enum-member-names
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es5/enum-member-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/enum-member-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/es2015/enum-member-names
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/es2015/enum-member-names
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/esnext/extended-high-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/esnext/extended-high-surrogate
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/esnext/extended-high-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/esnext/extended-low-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/string-literals/esnext/extended-low-surrogate
+utf16 literal witnesses EXACT x2 utf16-literals/string-literals/esnext/extended-low-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/no-substitution-high
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/no-substitution-high
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/no-substitution-high
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/no-substitution-high
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/no-substitution-high
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/no-substitution-high
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/no-substitution-low
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/no-substitution-low
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/no-substitution-low
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/no-substitution-low
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/no-substitution-low
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/no-substitution-low
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/head-middle-tail
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/head-middle-tail
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/head-middle-tail
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/head-middle-tail
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/head-middle-tail
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/head-middle-tail
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/empty-tail
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/empty-tail
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/empty-tail
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/empty-tail
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/empty-tail
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/empty-tail
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/short-escape-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/short-escape-surrogate
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/short-escape-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/short-escape-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/short-escape-surrogate
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/short-escape-surrogate
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/crlf-and-line-continuation
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/crlf-and-line-continuation
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/crlf-and-line-continuation
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/crlf-and-line-continuation
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/crlf-and-line-continuation
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/crlf-and-line-continuation
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/backtick-dollar-backslash
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/backtick-dollar-backslash
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/backtick-dollar-backslash
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/backtick-dollar-backslash
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/backtick-dollar-backslash
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/backtick-dollar-backslash
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/real-replacement-character
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/real-replacement-character
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/real-replacement-character
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/real-replacement-character
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/real-replacement-character
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/real-replacement-character
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/tagged-cooked-and-raw
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/tagged-cooked-and-raw
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/tagged-cooked-and-raw
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/tagged-cooked-and-raw
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/tagged-cooked-and-raw
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/tagged-cooked-and-raw
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/tagged-no-substitution
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/tagged-no-substitution
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/tagged-no-substitution
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/tagged-no-substitution
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/tagged-no-substitution
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/tagged-no-substitution
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/template-literal-type-control
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/template-literal-type-control
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/template-literal-type-control
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/template-literal-type-control
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es2015/template-literal-type-control
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es2015/template-literal-type-control
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/tagged-invalid-cooked
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/es5/tagged-invalid-cooked
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/es5/tagged-invalid-cooked
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/esnext/no-substitution-high
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/esnext/no-substitution-high
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/esnext/no-substitution-high
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/esnext/head-middle-tail
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/esnext/head-middle-tail
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/esnext/head-middle-tail
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/esnext/tagged-cooked-and-raw
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/template-literals/esnext/tagged-cooked-and-raw
+utf16 literal witnesses EXACT x2 utf16-literals/template-literals/esnext/tagged-cooked-and-raw
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/bundle-prologues/es5/dedupe
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/bundle-prologues/es5/dedupe
+utf16 literal witnesses EXACT x2 utf16-literals/bundle-prologues/es5/dedupe
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/bundle-prologues/es2015/dedupe
+utf16 literal witnesses PRIMARY ATTEMPT utf16-literals/bundle-prologues/es2015/dedupe
+utf16 literal witnesses EXACT x2 utf16-literals/bundle-prologues/es2015/dedupe
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 61.51s
+
+{"compiler_utf16": ["utf16-literal-witnesses", "utf16-original-commands"], "targets": 2, "tests_passed": 2, "observer_seconds": 40.536, "cargo_build_and_replay_seconds": 66.468}

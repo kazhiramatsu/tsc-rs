@@ -1,0 +1,15 @@
+✔ artifact-to-schema mapping is fixed and immutable (0.955583ms)
+✔ slice-readiness schema rejects malformed envelopes fail-closed (1.110125ms)
+✔ JSON schema subset validates local refs and every H2.5g keyword family (0.228708ms)
+✔ JSON schema subset rejects invalid artifact values fail-closed (1.4315ms)
+✔ JSON schema subset rejects unsafe or unsupported schemas (0.473375ms)
+✔ policy and every qualification schema boundary are valid (115.598083ms)
+✔ local evidence classification remains fail-closed for policy inputs (5.797333ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 195.350334

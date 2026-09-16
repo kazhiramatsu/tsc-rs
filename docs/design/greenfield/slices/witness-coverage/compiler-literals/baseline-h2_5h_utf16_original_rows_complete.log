@@ -1,0 +1,9 @@
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-compiler-literal-witness-ci/crates/compiler)
+    Finished `test` profile [unoptimized] target(s) in 1.40s
+     Running tests/h2_5h_utf16_original_rows_complete.rs (/Users/hiramatsu/dev/tsc-rs-printer-failure/target/debug/deps/h2_5h_utf16_original_rows_complete-2ac1c1651ed6308a)
+
+running 1 test
+test utf16_original_rows_match_complete_commands ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.29s
+
