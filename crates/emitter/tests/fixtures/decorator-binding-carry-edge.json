@@ -1,0 +1,329 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "3c4bdf295b2d518ed4874e1144f1b2da541f63c27c58ee2c5bd921cb99ddc169",
+  "cases": [
+    {
+      "case_id": "decorator-binding-direct/lifecycle/temp-ordinal/collision/before",
+      "group": "lifecycle",
+      "op": "failure",
+      "kind": "temp",
+      "base": null,
+      "phase": "before",
+      "source": "let _a = 1;\n_a;\n_a;\n",
+      "typescript_observation": {
+        "results": [
+          {
+            "op": 0,
+            "status": "returned",
+            "text": "const _b = 1;"
+          },
+          {
+            "op": 1,
+            "status": "threw",
+            "error": "injected"
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "const _b = 1;"
+          },
+          {
+            "op": 3,
+            "status": "returned",
+            "text": "const _b = 1;"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "decorator-binding-direct/lifecycle/temp-ordinal/collision/after",
+      "group": "lifecycle",
+      "op": "failure",
+      "kind": "temp",
+      "base": null,
+      "phase": "after",
+      "source": "let _a = 1;\n_a;\n_a;\n",
+      "typescript_observation": {
+        "results": [
+          {
+            "op": 0,
+            "status": "returned",
+            "text": "const _b = 1;"
+          },
+          {
+            "op": 1,
+            "status": "threw",
+            "error": "injected"
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "const _b = 1;const _c = 1;"
+          },
+          {
+            "op": 3,
+            "status": "returned",
+            "text": "const _b = 1;"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "decorator-binding-direct/lifecycle/temp-ordinal/skip-i/before",
+      "group": "lifecycle",
+      "op": "failure",
+      "kind": "temp",
+      "base": null,
+      "phase": "before",
+      "source": "let _a = 1;\n_a;\n_a;\n_b;\n_c;\n_d;\n_e;\n_f;\n_g;\n_h;\n",
+      "typescript_observation": {
+        "results": [
+          {
+            "op": 0,
+            "status": "returned",
+            "text": "const _j = 1;"
+          },
+          {
+            "op": 1,
+            "status": "threw",
+            "error": "injected"
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "const _j = 1;"
+          },
+          {
+            "op": 3,
+            "status": "returned",
+            "text": "const _j = 1;"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "decorator-binding-direct/lifecycle/temp-ordinal/skip-i/after",
+      "group": "lifecycle",
+      "op": "failure",
+      "kind": "temp",
+      "base": null,
+      "phase": "after",
+      "source": "let _a = 1;\n_a;\n_a;\n_b;\n_c;\n_d;\n_e;\n_f;\n_g;\n_h;\n",
+      "typescript_observation": {
+        "results": [
+          {
+            "op": 0,
+            "status": "returned",
+            "text": "const _j = 1;"
+          },
+          {
+            "op": 1,
+            "status": "threw",
+            "error": "injected"
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "const _j = 1;const _k = 1;"
+          },
+          {
+            "op": 3,
+            "status": "returned",
+            "text": "const _j = 1;"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "decorator-binding-direct/lifecycle/temp-ordinal/skip-n/before",
+      "group": "lifecycle",
+      "op": "failure",
+      "kind": "temp",
+      "base": null,
+      "phase": "before",
+      "source": "let _a = 1;\n_a;\n_a;\n_b;\n_c;\n_d;\n_e;\n_f;\n_g;\n_h;\n_i;\n_j;\n_k;\n_l;\n_m;\n",
+      "typescript_observation": {
+        "results": [
+          {
+            "op": 0,
+            "status": "returned",
+            "text": "const _o = 1;"
+          },
+          {
+            "op": 1,
+            "status": "threw",
+            "error": "injected"
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "const _o = 1;"
+          },
+          {
+            "op": 3,
+            "status": "returned",
+            "text": "const _o = 1;"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "decorator-binding-direct/lifecycle/temp-ordinal/skip-n/after",
+      "group": "lifecycle",
+      "op": "failure",
+      "kind": "temp",
+      "base": null,
+      "phase": "after",
+      "source": "let _a = 1;\n_a;\n_a;\n_b;\n_c;\n_d;\n_e;\n_f;\n_g;\n_h;\n_i;\n_j;\n_k;\n_l;\n_m;\n",
+      "typescript_observation": {
+        "results": [
+          {
+            "op": 0,
+            "status": "returned",
+            "text": "const _o = 1;"
+          },
+          {
+            "op": 1,
+            "status": "threw",
+            "error": "injected"
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "const _o = 1;const _p = 1;"
+          },
+          {
+            "op": 3,
+            "status": "returned",
+            "text": "const _o = 1;"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "decorator-binding-direct/lifecycle/temp-ordinal/numeric/before",
+      "group": "lifecycle",
+      "op": "failure",
+      "kind": "temp",
+      "base": null,
+      "phase": "before",
+      "source": "let _a = 1;\n_a;\n_a;\n_b;\n_c;\n_d;\n_e;\n_f;\n_g;\n_h;\n_i;\n_j;\n_k;\n_l;\n_m;\n_n;\n_o;\n_p;\n_q;\n_r;\n_s;\n_t;\n_u;\n_v;\n_w;\n_x;\n_y;\n_z;\n",
+      "typescript_observation": {
+        "results": [
+          {
+            "op": 0,
+            "status": "returned",
+            "text": "const _0 = 1;"
+          },
+          {
+            "op": 1,
+            "status": "threw",
+            "error": "injected"
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "const _0 = 1;"
+          },
+          {
+            "op": 3,
+            "status": "returned",
+            "text": "const _0 = 1;"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "decorator-binding-direct/lifecycle/temp-ordinal/numeric/after",
+      "group": "lifecycle",
+      "op": "failure",
+      "kind": "temp",
+      "base": null,
+      "phase": "after",
+      "source": "let _a = 1;\n_a;\n_a;\n_b;\n_c;\n_d;\n_e;\n_f;\n_g;\n_h;\n_i;\n_j;\n_k;\n_l;\n_m;\n_n;\n_o;\n_p;\n_q;\n_r;\n_s;\n_t;\n_u;\n_v;\n_w;\n_x;\n_y;\n_z;\n",
+      "typescript_observation": {
+        "results": [
+          {
+            "op": 0,
+            "status": "returned",
+            "text": "const _0 = 1;"
+          },
+          {
+            "op": 1,
+            "status": "threw",
+            "error": "injected"
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "const _0 = 1;const _1 = 1;"
+          },
+          {
+            "op": 3,
+            "status": "returned",
+            "text": "const _0 = 1;"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "decorator-binding-direct/lifecycle/scope-entry/temp/unprinted-declaration",
+      "group": "lifecycle",
+      "op": "scope-fault",
+      "kind": "temp",
+      "base": null,
+      "fault": "inside-nested",
+      "extra_nested": true,
+      "typescript_observation": {
+        "results": [
+          {
+            "op": 0,
+            "status": "threw",
+            "error": "injected"
+          },
+          {
+            "op": 1,
+            "status": "returned",
+            "text": "const _a = 1;\r\nconst _b = 1;\r\nfunction f() {\r\n    const _a = 1;const _c = 1;"
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "const _a = 1;"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "decorator-binding-direct/lifecycle/scope-entry/scoped/unprinted-declaration",
+      "group": "lifecycle",
+      "op": "scope-fault",
+      "kind": "scoped",
+      "base": "_s",
+      "fault": "inside-nested",
+      "extra_nested": true,
+      "typescript_observation": {
+        "results": [
+          {
+            "op": 0,
+            "status": "threw",
+            "error": "injected"
+          },
+          {
+            "op": 1,
+            "status": "returned",
+            "text": "const _s = 1;\r\nconst _s_1 = 1;\r\nfunction f() {\r\n    const _s_3 = 1;const _s_5 = 1;"
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "const _s = 1;"
+          }
+        ]
+      }
+    }
+  ]
+}

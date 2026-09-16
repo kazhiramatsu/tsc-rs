@@ -1,0 +1,20 @@
+    Finished `test` profile [unoptimized] target(s) in 0.15s
+     Running tests/decorator_binding_pipeline_contract.rs (target/debug/deps/decorator_binding_pipeline_contract-6441a05f1df13e98)
+
+running 1 test
+test decorator_binding_forms_match_complete_typescript_observations ... decorator binding UPSTREAM EXCEPTION decorator-binding/computed/esnext/set/static-accessor-decorated
+decorator binding SELECTION "bundle-file-level-then-scoped-across-files,/esnext/define/script-let-default_1,/esnext/define/bundle-default-two-files,/esnext/define/bundle-computed-temps-two-files" -> 9 cases
+decorator binding KNOWN x2 decorator-binding/lifecycle/es2015/set/bundle-file-level-then-scoped-across-files
+decorator binding KNOWN x2 decorator-binding/lifecycle/es2015/define/bundle-file-level-then-scoped-across-files
+decorator binding KNOWN x2 decorator-binding/lifecycle/es2022/set/bundle-file-level-then-scoped-across-files
+decorator binding KNOWN x2 decorator-binding/lifecycle/es2022/define/bundle-file-level-then-scoped-across-files
+decorator binding KNOWN x2 decorator-binding/lifecycle/esnext/set/bundle-file-level-then-scoped-across-files
+decorator binding KNOWN x2 decorator-binding/global/esnext/define/script-let-default_1
+decorator binding KNOWN x2 decorator-binding/lifecycle/esnext/define/bundle-default-two-files
+decorator binding KNOWN x2 decorator-binding/lifecycle/esnext/define/bundle-file-level-then-scoped-across-files
+decorator binding KNOWN x2 decorator-binding/lifecycle/esnext/define/bundle-computed-temps-two-files
+decorator binding SUMMARY exact=0 known=9 failed=0 selected=9
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 16.00s
+

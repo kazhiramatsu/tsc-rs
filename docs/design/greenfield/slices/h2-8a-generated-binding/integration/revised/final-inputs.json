@@ -1,0 +1,6 @@
+{
+  "scripts/observe-decorator-bindings.mjs": "6d05f2bbe6d92612d9b4f8cce682e35b3b6f1d2b7c5f59114ef028b7f48e5327",
+  "crates/compiler/tests/fixtures/decorator-binding.json.zst": "be52ec87a5cdcfa407ccd0729b1eaa020f4c6e71b159dabbb507efbc70915ab7",
+  "scripts/observe-decorator-binding-carry.mjs": "3c4bdf295b2d518ed4874e1144f1b2da541f63c27c58ee2c5bd921cb99ddc169",
+  "crates/emitter/tests/fixtures/decorator-binding-carry-edge.json": "591eed56dc10c7bc365a2cfbcf78a4a56fcf6626d2cc9fb1473f1272cdd71b87"
+}

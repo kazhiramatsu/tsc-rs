@@ -1,0 +1,18 @@
+    Finished `test` profile [unoptimized] target(s) in 0.02s
+     Running unittests src/lib.rs (target/debug/deps/tsc_emitter-6021388bac73fbc5)
+
+running 11 tests
+test printer::bundle::bundle_printer_tests::declaration_and_untransformed_external_module_members_require_their_printers ... ok
+test printer::bundle::bundle_printer_tests::global_script_bundles_match_complete_typescript_output_bytes_twice ... ok
+test printer::comment_scope_predicate_tests::at_zero_start_with_positive_end_claims_both_sides ... ok
+test printer::comment_scope_predicate_tests::jsx_one_sided_ranges_require_present_suppressed_side ... ok
+test printer::comment_scope_predicate_tests::jsx_text_claims_exactly_the_flagged_side ... ok
+test printer::comment_scope_predicate_tests::jsx_text_without_flags_claims_neither_side ... ok
+test printer::comment_scope_predicate_tests::one_sided_comment_ranges_claim_present_endpoint_and_inherit_other ... ok
+test printer::comment_scope_predicate_tests::one_sided_zero_position_has_no_comment_extent ... ok
+test printer::comment_scope_predicate_tests::ordinary_original_range_claims_both_sides ... ok
+test printer::comment_scope_predicate_tests::suppression_flags_claim_while_suppressing_emission ... ok
+test printer::comment_scope_predicate_tests::synthesized_and_zero_width_ranges_claim_nothing_so_the_scope_inherits ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 495 filtered out; finished in 0.02s
+

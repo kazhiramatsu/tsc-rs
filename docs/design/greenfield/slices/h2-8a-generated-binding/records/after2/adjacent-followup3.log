@@ -1,0 +1,63 @@
+followup3: selected 48 input cases
+env TSC_RS_DECORATOR_SUPER_FOLLOWUP3_CASE_SET=all cargo test --manifest-path crates/compiler/Cargo.toml --test decorator_super_contract h2_8a_decorator_super::decorator_super_followup3_forms_match_complete_typescript_observations -- --exact --nocapture --test-threads=1
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/emitter)
+   Compiling tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/checker)
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/compiler)
+   Compiling tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/harness)
+    Finished `test` profile [unoptimized] target(s) in 1m 09s
+     Running tests/decorator_super_contract.rs (target/debug/deps/decorator_super_contract-a552933c534748b0)
+
+running 1 test
+test h2_8a_decorator_super::decorator_super_followup3_forms_match_complete_typescript_observations ... decorator super EXACT x2 decorator-super-followup3/es2015/set/helper-order/plain-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/es2015/set/helper-order/plain-static-blocks-in-then-get
+decorator super EXACT x2 decorator-super-followup3/es2015/set/helper-order/plain-static-field-get-then-block-in
+decorator super EXACT x2 decorator-super-followup3/es2015/set/helper-order/plain-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/es2015/set/helper-order/plain-nested-class-in-static-block
+decorator super EXACT x2 decorator-super-followup3/es2015/set/helper-order/decorated-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/es2015/set/helper-order/decorated-instance-then-private-static-method
+decorator super EXACT x2 decorator-super-followup3/es2015/set/helper-order/decorated-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/es2015/define/helper-order/plain-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/es2015/define/helper-order/plain-static-blocks-in-then-get
+decorator super EXACT x2 decorator-super-followup3/es2015/define/helper-order/plain-static-field-get-then-block-in
+decorator super EXACT x2 decorator-super-followup3/es2015/define/helper-order/plain-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/es2015/define/helper-order/plain-nested-class-in-static-block
+decorator super EXACT x2 decorator-super-followup3/es2015/define/helper-order/decorated-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/es2015/define/helper-order/decorated-instance-then-private-static-method
+decorator super EXACT x2 decorator-super-followup3/es2015/define/helper-order/decorated-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/es2022/set/helper-order/plain-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/es2022/set/helper-order/plain-static-blocks-in-then-get
+decorator super EXACT x2 decorator-super-followup3/es2022/set/helper-order/plain-static-field-get-then-block-in
+decorator super EXACT x2 decorator-super-followup3/es2022/set/helper-order/plain-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/es2022/set/helper-order/plain-nested-class-in-static-block
+decorator super EXACT x2 decorator-super-followup3/es2022/set/helper-order/decorated-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/es2022/set/helper-order/decorated-instance-then-private-static-method
+decorator super EXACT x2 decorator-super-followup3/es2022/set/helper-order/decorated-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/es2022/define/helper-order/plain-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/es2022/define/helper-order/plain-static-blocks-in-then-get
+decorator super EXACT x2 decorator-super-followup3/es2022/define/helper-order/plain-static-field-get-then-block-in
+decorator super EXACT x2 decorator-super-followup3/es2022/define/helper-order/plain-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/es2022/define/helper-order/plain-nested-class-in-static-block
+decorator super EXACT x2 decorator-super-followup3/es2022/define/helper-order/decorated-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/es2022/define/helper-order/decorated-instance-then-private-static-method
+decorator super EXACT x2 decorator-super-followup3/es2022/define/helper-order/decorated-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/esnext/set/helper-order/plain-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/esnext/set/helper-order/plain-static-blocks-in-then-get
+decorator super EXACT x2 decorator-super-followup3/esnext/set/helper-order/plain-static-field-get-then-block-in
+decorator super EXACT x2 decorator-super-followup3/esnext/set/helper-order/plain-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/esnext/set/helper-order/plain-nested-class-in-static-block
+decorator super EXACT x2 decorator-super-followup3/esnext/set/helper-order/decorated-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/esnext/set/helper-order/decorated-instance-then-private-static-method
+decorator super EXACT x2 decorator-super-followup3/esnext/set/helper-order/decorated-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/esnext/define/helper-order/plain-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/esnext/define/helper-order/plain-static-blocks-in-then-get
+decorator super EXACT x2 decorator-super-followup3/esnext/define/helper-order/plain-static-field-get-then-block-in
+decorator super EXACT x2 decorator-super-followup3/esnext/define/helper-order/plain-instance-get-then-static-in
+decorator super EXACT x2 decorator-super-followup3/esnext/define/helper-order/plain-nested-class-in-static-block
+decorator super EXACT x2 decorator-super-followup3/esnext/define/helper-order/decorated-static-in-then-method-get
+decorator super EXACT x2 decorator-super-followup3/esnext/define/helper-order/decorated-instance-then-private-static-method
+decorator super EXACT x2 decorator-super-followup3/esnext/define/helper-order/decorated-instance-get-then-static-in
+decorator super SUMMARY exact=48 failed=0 selected=48
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 46.52s
+

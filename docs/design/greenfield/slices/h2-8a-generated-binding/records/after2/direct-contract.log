@@ -1,0 +1,155 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 2m 02s
+     Running tests/decorator_binding_contract.rs (target/debug/deps/decorator_binding_contract-a2a4c3e3f4ca7c3e)
+
+running 1 test
+test decorator_binding_direct_controls_match_typescript ... decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-_classThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-_classThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-_a#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-_a#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-_outerThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-_outerThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-class_1#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/injected-class_1#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/parsed-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/parsed-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/parsed-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/set/parsed-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-_classThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-_classThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-_a#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-_a#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-_outerThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-_outerThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-class_1#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/injected-class_1#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/parsed-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/parsed-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/parsed-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2015/define/parsed-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-_classThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-_classThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-_a#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-_a#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-_outerThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-_outerThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-class_1#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/injected-class_1#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/parsed-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/parsed-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/parsed-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/set/parsed-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-_classThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-_classThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-_a#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-_a#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-_outerThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-_outerThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-class_1#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/injected-class_1#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/parsed-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/parsed-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/parsed-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/es2022/define/parsed-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-_classThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-_classThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-_a#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-_a#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-_outerThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-_outerThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-class_1#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/injected-class_1#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/parsed-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/parsed-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/parsed-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/set/parsed-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-_classThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-_classThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-_a#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-_a#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-_outerThis#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-_outerThis#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-class_1#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/injected-class_1#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/parsed-_metadata#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/parsed-_metadata#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/parsed-_x_decorators#plain
+decorator binding direct EXACT x2 decorator-binding-direct/synthetic/esnext/define/parsed-_x_decorators#oracle
+decorator binding direct EXACT x2 decorator-binding-direct/global/file-level/miss#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/file-level/hit#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/file-level/hit-chain#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/file-level/error#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/scoped/miss#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/scoped/hit#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/scoped/hit-chain#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/scoped/error#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/file-wide/miss#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/file-wide/hit#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/file-wide/hit-chain#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/file-wide/error#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/numbered/miss#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/numbered/hit#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/numbered/hit-chain#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/numbered/error#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/temp/miss#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/temp/hit#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/temp/hit-chain#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/temp/error#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/file-level/parsed-and-hit#direct
+decorator binding direct EXACT x2 decorator-binding-direct/global/scoped/parsed-and-hit#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/reprint/numbered#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/clone/numbered#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/failure/numbered/before-statement-1#direct
+MISMATCH decorator-binding-direct/lifecycle/failure/numbered/after-statement-1#direct#op2: expected {"status":"returned","text":"const x_1 = 1;const x_2 = 1;"} actual {"status":"returned","text":"const x_1 = 1;const x_1 = 1;"}
+MISMATCH decorator-binding-direct/lifecycle/dispose/numbered#direct#after_dispose: expected {"status":"returned","text":"const x_1 = 1;\r\n"} actual {"status":"threw","text":null}
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/reprint/file-level#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/clone/file-level#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/failure/file-level/before-statement-1#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/failure/file-level/after-statement-1#direct
+MISMATCH decorator-binding-direct/lifecycle/dispose/file-level#direct#after_dispose: expected {"status":"returned","text":"const _m = 1;\r\n"} actual {"status":"threw","text":null}
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/reprint/scoped#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/clone/scoped#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/failure/scoped/before-statement-1#direct
+MISMATCH decorator-binding-direct/lifecycle/failure/scoped/after-statement-1#direct#op2: expected {"status":"returned","text":"const _s = 1;const _s_1 = 1;"} actual {"status":"returned","text":"const _s = 1;const _s = 1;"}
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/reprint/file-wide#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/clone/file-wide#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/failure/file-wide/before-statement-1#direct
+MISMATCH decorator-binding-direct/lifecycle/failure/file-wide/after-statement-1#direct#op2: expected {"status":"returned","text":"const _o = 1;const _o_1 = 1;"} actual {"status":"returned","text":"const _o = 1;const _o = 1;"}
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/reprint/temp#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/clone/temp#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/failure/temp/before-statement-1#direct
+MISMATCH decorator-binding-direct/lifecycle/failure/temp/after-statement-1#direct#op2: expected {"status":"returned","text":"const _a = 1;const _b = 1;"} actual {"status":"returned","text":"const _a = 1;const _a = 1;"}
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/failure/node-derived-same-node/before-statement-1#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/failure/node-derived-same-node/after-statement-1#direct
+decorator binding direct EXACT x2 decorator-binding-direct/lifecycle/failure/node-derived-other-node/before-statement-1#direct
+MISMATCH decorator-binding-direct/lifecycle/failure/node-derived-other-node/after-statement-1#direct#op2: expected {"status":"returned","text":"const x_1 = 1;const x_2 = 1;"} actual {"status":"returned","text":"const x_1 = 1;const x_1 = 1;"}
+decorator binding direct SUMMARY exact=137 compared=144 mismatching=7
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+

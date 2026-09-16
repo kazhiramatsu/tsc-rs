@@ -1,0 +1,22 @@
+literal-update: selected 1396 input cases
+env cargo test --manifest-path crates/emitter/Cargo.toml --test literal_update_contract -- --nocapture --test-threads=1
+literal-update: 1396 fixture rows (each compared twice)
+{"group":"factory","output":"crates/emitter/tests/fixtures/literal-update-factory.json","cases":987,"repetitions":2,"sha256":"3621c2cc530a314d66f70e6e9a6f60e7e97a2bfb1d40199b8aaac36c6deb729f"}
+{"group":"transform","output":"crates/emitter/tests/fixtures/literal-update-transform.json","cases":399,"repetitions":2,"sha256":"10682686acb5f4196557125ebdd0c80a0132fdb2066d7108696c2a458191ce88"}
+{"group":"lifetime","output":"crates/emitter/tests/fixtures/literal-update-lifetime.json","cases":10,"repetitions":2,"sha256":"1d078e88c24956229dd73dbac70296cc0de7990ee6282eb285c66fff9357831f"}
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 6.17s
+     Running tests/literal_update_contract.rs (target/debug/deps/literal_update_contract-73632340a81bf88e)
+
+running 3 tests
+test factory_literal_updates_match_typescript ... factory/generic: exact 782, divergent 0, errors 0, not expressible 205
+factory/typed: exact 987, divergent 0, errors 0, not expressible 0
+ok
+test lifetime_controls_keep_literal_properties_across_disposal ... ok
+test transform_routes_match_typescript ... transform/generic: exact 315, divergent 0, errors 0, not expressible 84
+transform/typed: exact 399, divergent 0, errors 0, not expressible 0
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+
+{"emitter_direct": ["literal-update"], "targets": 1, "tests_passed": 3, "observer_seconds": 22.852, "cargo_build_and_replay_seconds": 7.242}

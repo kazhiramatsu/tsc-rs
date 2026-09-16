@@ -541,6 +541,10 @@ pub struct EmitMetadata {
     /// generated lexical binding. The printable spelling is finalized after
     /// target-pass composition has fixed declaration order.
     pub(crate) generated_binding_id: Option<GeneratedBindingId>,
+    /// Counter after an ordinary temp's final allocation, including rejected
+    /// candidates and the reserved `_i` / `_n` slots. Print failure carry
+    /// reads this allocation fact instead of counting emitted bindings.
+    pub(crate) generated_binding_temp_ordinal: Option<usize>,
     /// Source-derived base for generated names such as `env_1` or `e_2`.
     /// Absence denotes the target ladder's ordinal temporary class (`_a`,
     /// `_b`, ...).
@@ -881,6 +885,7 @@ impl EmitMetadata {
         }
         if source.generated_binding_id.is_some() {
             self.generated_binding_id = source.generated_binding_id;
+            self.generated_binding_temp_ordinal = source.generated_binding_temp_ordinal;
         }
         if source.generated_binding_base.is_some() {
             self.generated_binding_base = source.generated_binding_base.clone();

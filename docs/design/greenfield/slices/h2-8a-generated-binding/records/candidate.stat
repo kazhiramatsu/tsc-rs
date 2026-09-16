@@ -1,0 +1,25 @@
+ .../tests/decorator_binding_pipeline_contract.rs   |   576 +
+ .../tests/fixtures/decorator-binding-inputs.json   | 24074 +++++++++++++++++++
+ .../fixtures/decorator-binding-known-native.json   |   217 +
+ .../tests/fixtures/decorator-binding.json.zst      |   Bin 0 -> 124355 bytes
+ crates/emitter/src/builtins.rs                     |     8 +-
+ crates/emitter/src/builtins/class_fields.rs        |    31 +
+ .../emitter/src/builtins/class_fields/downlevel.rs |    79 +-
+ crates/emitter/src/builtins/generated_bindings.rs  |    53 +-
+ crates/emitter/src/builtins/standard_decorators.rs |    51 +-
+ crates/emitter/src/builtins/system.rs              |    80 +-
+ crates/emitter/src/builtins/target_bindings.rs     |   179 +-
+ crates/emitter/src/factory.rs                      |    21 +-
+ crates/emitter/src/factory/parsed_metadata.rs      |    13 +-
+ crates/emitter/src/printer.rs                      |   292 +-
+ crates/emitter/src/printer/bundle.rs               |    11 +-
+ crates/emitter/src/transform.rs                    |    86 +-
+ crates/emitter/tests/decorator_binding_contract.rs |  1213 +
+ .../tests/fixtures/decorator-binding-direct.json   |  3874 +++
+ .../fixtures/printer-failure-known-native.json     |    20 +-
+ crates/emitter/tests/printer_failure_contract.rs   |    13 +-
+ scripts/decorator-binding-capture-diff.py          |    49 +
+ scripts/generate-decorator-binding-inputs.mjs      |   258 +
+ scripts/observe-decorator-bindings.mjs             |   556 +
+ scripts/witness.py                                 |    84 +-
+ 24 files changed, 31748 insertions(+), 90 deletions(-)

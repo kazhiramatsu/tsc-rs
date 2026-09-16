@@ -2442,10 +2442,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     // Inline placement replaces transformProperty's name
                     // range with the complete property range after modifiers.
                     if let Some(range) = self.property_source_map_range(original)? {
-                        self.context
-                            .arena_mut()?
-                            .metadata_mut(expression)
-                            .set_source_map_range(range);
+                        let leading_synthesized = self.property_name_is_synthesized(original)?;
+                        let metadata = self.context.arena_mut()?.metadata_mut(expression);
+                        metadata.set_source_map_range(range);
+                        if leading_synthesized {
+                            metadata.add_flags(EmitFlags::NO_LEADING_SOURCE_MAP);
+                        }
                     }
                     // A comma-expression child does not pass through the
                     // statement/list leading-comment phase. This typed source
@@ -7174,10 +7176,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .metadata_mut(statement)
                 .set_source_map_range(source_map_range);
         } else if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
-            self.context
-                .arena_mut()?
-                .metadata_mut(statement)
-                .set_source_map_range(source_map_range);
+            let leading_synthesized = self.property_name_is_synthesized(operation.original)?;
+            let metadata = self.context.arena_mut()?.metadata_mut(statement);
+            metadata.set_source_map_range(source_map_range);
+            if leading_synthesized {
+                metadata.add_flags(EmitFlags::NO_LEADING_SOURCE_MAP);
+            }
         }
         // transformPropertyOrClassStaticBlock gives synthetic comments to
         // the statement after the expression inherits the property metadata.
@@ -7346,10 +7350,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let statement = self.create_expression_statement(call)?;
         self.set_original_and_range(statement, operation.original)?;
         if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
-            self.context
-                .arena_mut()?
-                .metadata_mut(statement)
-                .set_source_map_range(source_map_range);
+            let leading_synthesized = self.property_name_is_synthesized(operation.original)?;
+            let metadata = self.context.arena_mut()?.metadata_mut(statement);
+            metadata.set_source_map_range(source_map_range);
+            if leading_synthesized {
+                metadata.add_flags(EmitFlags::NO_LEADING_SOURCE_MAP);
+            }
         }
         self.context
             .arena_mut()?
@@ -7431,9 +7437,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let statement = self.create_expression_statement(assignment)?;
         self.set_original_and_range(statement, operation.original)?;
         if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
+            let leading_synthesized = self.property_name_is_synthesized(operation.original)?;
             let metadata = self.context.arena_mut()?.metadata_mut(statement);
             metadata.set_source_map_range(source_map_range);
-            if generated_backing_in_static_block {
+            if generated_backing_in_static_block || leading_synthesized {
                 metadata.add_flags(EmitFlags::NO_LEADING_SOURCE_MAP);
             }
         }
@@ -7566,6 +7573,43 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }
             })?;
         Ok(Some(SourceMapRange::new(original.source(), range)))
+    }
+
+    /// `moveRangePastModifiers(property)` starts a property's range at
+    /// `property.name.pos` of the node class-fields is given. A backing
+    /// field an EARLIER transform produced (the standard-decorator lowering
+    /// of a private auto-accessor: `#a_accessor_storage`, a
+    /// `getGeneratedPrivateNameForNode` name) reaches this transform with a
+    /// synthesized name position, so tsc's range has `pos < 0` and
+    /// `emitSourceMapsBeforeNode` skips the leading mapping while the
+    /// trailing mapping at the property end remains (_tsc.js:17311-17317,
+    /// 118940-118960). The Rust range keeps the parsed original's span, so
+    /// the leading half is suppressed with `NO_LEADING_SOURCE_MAP`. The
+    /// backing fields this transform generates itself are excluded: tsc
+    /// lowers those from the original accessor member, whose parsed name
+    /// keeps the leading mapping (the ES2022+ static-block path is
+    /// `generated_backing_in_static_block`).
+    fn property_name_is_synthesized(
+        &self,
+        property: TransformNode,
+    ) -> Result<bool, TransformError> {
+        if self
+            .generated_auto_accessor_backings
+            .contains(&property.node())
+        {
+            return Ok(false);
+        }
+        let record = self.context.arena().node(property)?;
+        let name = match &record.data {
+            NodeData::PropertyDeclaration(data) => data.name,
+            _ => return Ok(false),
+        };
+        let Some(name) =
+            name.and_then(|name| self.context.arena().node_ref(property.source(), name))
+        else {
+            return Ok(false);
+        };
+        Ok(self.context.arena().node(name)?.pos == u32::MAX)
     }
 
     fn private_property_name_source_map_range(
@@ -7703,8 +7747,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             self.context.arena().node(receiver)?.kind,
             SyntaxKind::Identifier | SyntaxKind::ThisKeyword | SyntaxKind::SuperKeyword
         ) {
+            // createCallBinding reuses the very receiver node for both the
+            // target and `thisArg` (`shouldBeCapturedInTempVariable` is false
+            // for identifiers and keywords, _tsc.js:24691-24740), so both
+            // occurrences print with the receiver's source positions. The
+            // tree here holds a clone, which keeps those positions.
+            let read = self.context.factory()?.clone_node(receiver)?;
+            self.set_original_and_range(read, receiver)?;
             return Ok(StabilizedReceiver {
-                read: self.context.factory()?.clone_node(receiver)?,
+                read,
                 initialized: None,
             });
         }

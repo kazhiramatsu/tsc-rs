@@ -1,0 +1,195 @@
+printer: selected 142 input cases
+env cargo test --manifest-path crates/emitter/Cargo.toml --test printer_failure_contract -- --nocapture --test-threads=1
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 0.80s
+     Running tests/printer_failure_contract.rs (target/debug/deps/printer_failure_contract-f36a6d3d26fee24b)
+
+running 10 tests
+test cloning_a_failed_printer_keeps_independent_continuations ... ok
+test comment_carry_controls_reject_event_and_output_changes ... COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/declaration-list-end/lf/before
+
+thread 'comment_carry_controls_reject_event_and_output_changes' (18075628) panicked at crates/emitter/tests/printer_failure_contract.rs:981:5:
+printer-failure/printNode/comment-carry/declaration-list-end/lf/before: [("printer-failure/printNode/comment-carry/declaration-list-end/lf/before#events", "expected 58 events, actual 58; first difference at 0: expected {\"op\":0,\"phase\":\"substitute\",\"hint\":\"Unspecified\",\"kind\":244,\"pos\":0,\"end\":23} actual {\"op\":0,\"phase\":\"substitute\",\"hint\":\"widened gap\",\"kind\":244,\"pos\":0,\"end\":23}")]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'comment_carry_controls_reject_event_and_output_changes' (18075628) panicked at crates/emitter/tests/printer_failure_contract.rs:981:5:
+printer-failure/printNode/comment-carry/declaration-list-end/lf/before: [("printer-failure/printNode/comment-carry/declaration-list-end/lf/before#op2", "expected {\"op\":2,\"status\":\"returned\",\"text\":\"/*old*/ const a = f(/*new*/ const b = g(y); //next\\n\",\"utf8_base64\":\"LypvbGQqLyBjb25zdCBhID0gZigvKm5ldyovIGNvbnN0IGIgPSBnKHkpOyAvL25leHQK\",\"utf8_bytes\":51,\"end_utf16\":{\"position\":51,\"line\":1,\"column\":0}} actual {\"op\":2,\"status\":\"returned\",\"text\":\"widened output gap\",\"utf8_base64\":\"LypvbGQqLyBjb25zdCBhID0gZigvKm5ldyovIGNvbnN0IGIgPSBnKHkpOyAvL25leHQK\",\"utf8_bytes\":51,\"end_utf16\":{\"position\":51,\"line\":1,\"column\":0}}")]
+ok
+test comment_containers_match_across_sources ... COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/declaration-list-end/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/declaration-list-end/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/declaration-list-end/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/declaration-list-end/crlf/after
+COMMENT CARRY exact 24/24; complete operation results and hook events
+ok
+test comment_containers_survive_replaced_transformations ... COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-ascii/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-utf16-different-bytes/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/equal-bytes-different-utf16/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/different-offset/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/short-source-then-original/crlf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/declaration-list-end/lf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/declaration-list-end/lf/after
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/declaration-list-end/crlf/before
+COMMENT CARRY EXACT x2 printer-failure/printNode/comment-carry/declaration-list-end/crlf/after
+ok
+test declaration_hook_hints_match_typescript_twice ... HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/binding-name/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/binding-name/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/binding-name/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/binding-name/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/binding-name/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/binding-name/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/initializer/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/initializer/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/initializer/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/initializer/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/initializer/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/lf/initializer/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/binding-name/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/binding-name/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/binding-name/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/binding-name/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/binding-name/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/binding-name/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/initializer/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/initializer/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/initializer/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/initializer/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/initializer/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/const/crlf/initializer/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/binding-name/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/binding-name/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/binding-name/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/binding-name/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/binding-name/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/binding-name/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/initializer/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/initializer/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/initializer/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/initializer/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/initializer/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/lf/initializer/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/binding-name/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/binding-name/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/binding-name/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/binding-name/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/binding-name/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/binding-name/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/initializer/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/initializer/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/initializer/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/initializer/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/initializer/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/let-multiple/crlf/initializer/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/binding-name/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/binding-name/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/binding-name/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/binding-name/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/binding-name/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/binding-name/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/initializer/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/initializer/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/initializer/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/initializer/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/initializer/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/lf/initializer/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/binding-name/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/binding-name/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/binding-name/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/binding-name/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/binding-name/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/binding-name/replace-after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/initializer/success
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/initializer/before
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/initializer/substitute
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/initializer/after
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/initializer/replace
+HOOK HINT EXACT x2 printer-failure/printNode/hook-hints/array-binding/crlf/initializer/replace-after
+HOOK HINT exact 72/72
+ok
+test known_native_controls_reject_widened_gaps ... ok
+test printer_failure_hooks_match_typescript ... printer failure hooks: 25/25 cases exact; 0 mismatching keys; 0 known
+THREW printer-failure/printNode/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-same-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-statement#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/identifier-2/recover-other-source-same-positions#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitute/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/identifier-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/after/statement-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/nested-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/remove-comments/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/substitution-y/after/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/non-bmp/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-crlf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/block-indent/identifier-2/recover-other-block-lf#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/before/list-item-3/cursor-array#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printNode/unique-name/after/statement-1/recover-new-unique#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/identifier-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/source-file-1/prologue/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/after/source-file-1/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printFile/before/statement-2/recover-other-file#op1: "Transform(Unsupported(CustomTransformers))"
+THREW printer-failure/printBundle/before/statement-2/recover-same#op1: "Transform(Unsupported(CustomTransformers))"
+ok
+test printer_failure_probes_are_recorded_upstream_only_evidence ... ok
+test review_entry_carry_controls ... REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printFile/before
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printFile/after
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printBundle/before
+REVIEW EXACT x2 printer-failure/printNode/review/printNode-to-printBundle/after
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printNode/before
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printNode/after
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printBundle/before
+REVIEW EXACT x2 printer-failure/printNode/review/printFile-to-printBundle/after
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printNode/before
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printNode/after
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printFile/before
+REVIEW EXACT x2 printer-failure/printNode/review/printBundle-to-printFile/after
+REVIEW EXACT x2 printer-failure/printNode/review/success-failure-failure-success
+REVIEW EXACT x2 printer-failure/printNode/review/sticky-comments-to-printFile
+REVIEW EXACT x2 printer-failure/printNode/review/sticky-comments-to-printBundle
+REVIEW EXACT x2 printer-failure/printNode/review/nested-comments-with-trivia
+REVIEW EXACT x2 printer-failure/printNode/review/bundled-helpers/success
+REVIEW EXACT x2 printer-failure/printNode/review/bundled-helpers/before
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/high
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/low
+REVIEW EXACT x2 printer-failure/printNode/review/surrogate/pair-across-failure
+REVIEW exact 21/21
+ok
+test rust_only_typed_errors_keep_the_printer_usable ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+

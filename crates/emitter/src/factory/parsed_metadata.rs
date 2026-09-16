@@ -7,6 +7,7 @@ use tsc_syntax::{NodeId, SourceFile};
 use tsc_types::IdentityLease;
 
 use super::{TransformArena, TransformNode, TransformSourceId};
+use crate::metadata::InternalEmitFlags;
 use crate::{EmitConstantValue, EmitFlags, EmitHost, EmitMetadata, TransformError};
 
 /// Metadata actually attached to original parse nodes by a completed
@@ -16,8 +17,12 @@ use crate::{EmitConstantValue, EmitFlags, EmitHost, EmitMetadata, TransformError
 /// start empty.
 ///
 /// Synthetic nodes and their `original` chains are never projected into this
-/// snapshot. The portable packet covers the observed flags/typeNode/constantValue
-/// mutations; other metadata is a typed refusal, never silently discarded.
+/// snapshot. The portable packet covers the observed flags / internal flags /
+/// typeNode / constantValue mutations (tsc keeps a bundle's parse-node
+/// `emitNode`s, including `InternalEmitFlags.TransformPrivateStaticElements`
+/// stamped on a decorated class's static private members, because a Bundle
+/// root has no parse SourceFile to dispose); other metadata is a typed
+/// refusal, never silently discarded.
 #[derive(Debug, Default)]
 pub struct ParsedEmitMetadata {
     sources: BTreeMap<SourceFileId, ParsedSourceIdentity>,
@@ -53,6 +58,7 @@ impl ParsedSourceIdentity {
 #[derive(Debug)]
 struct ParsedNodeMetadata {
     flags: EmitFlags,
+    internal_flags: InternalEmitFlags,
     type_node: Option<(SourceFileId, NodeId)>,
     constant_value: Option<EmitConstantValue>,
 }
@@ -73,6 +79,7 @@ impl TransformArena {
             // channels cannot quietly disappear at this boundary.
             let mut remainder = metadata.clone();
             remainder.flags = EmitFlags::NONE;
+            remainder.internal_flags = InternalEmitFlags::NONE;
             remainder.type_node = None;
             remainder.constant_value = None;
             if remainder != EmitMetadata::default() {
@@ -89,6 +96,7 @@ impl TransformArena {
                     identity,
                     ParsedNodeMetadata {
                         flags: metadata.flags(),
+                        internal_flags: metadata.internal_flags(),
                         type_node,
                         constant_value: metadata.constant_value().cloned(),
                     },
@@ -142,6 +150,7 @@ impl TransformArena {
             }
             let value = EmitMetadata {
                 flags: metadata.flags,
+                internal_flags: metadata.internal_flags,
                 constant_value: metadata.constant_value.clone(),
                 type_node: metadata
                     .type_node

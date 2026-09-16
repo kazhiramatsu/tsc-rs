@@ -29,6 +29,7 @@ WITNESS_GROUPS = {
                  *(suite for suite in witness.COMPILER_DIRECT if suite not in DECLARATION_MAP_SUITES),
                  "resolution-cache"),
     "declaration-maps": DECLARATION_MAP_SUITES,
+    "decorator-binding-pipeline": tuple(witness.BINDING),
     "retained": ("retained",),
     # Reuse this short job's emitter build. Fixture changes select individual
     # direct suites without running unrelated printer failure/owner controls.
@@ -81,8 +82,9 @@ def selection(paths):
             return full_selection(f"shared declaration reference input: {file}")
         direct_owners = {suite for suite in witness.EMITTER_DIRECT if file in witness.emitter_inputs(suite)}
         compiler_owners = {suite for suite in witness.COMPILER_DIRECT if file in witness.compiler_direct_inputs(suite)}
-        if direct_owners or compiler_owners:
-            witnesses.update(direct_owners | compiler_owners)
+        binding_owners = {suite for suite in witness.BINDING if file in witness.binding_inputs(suite)}
+        if direct_owners or compiler_owners or binding_owners:
+            witnesses.update(direct_owners | compiler_owners | binding_owners)
             continue
         if file in witness.RESOLUTION_INPUTS:
             witnesses.add("resolution-cache")
@@ -137,7 +139,7 @@ def selection(paths):
             continue
         if file == "crates/compiler/tests/support/witness_libraries.rs":
             acceptance.add("late")
-            witnesses.update((*witness.SUPER, "retained", "utf16-literal-witnesses", "declaration-comments", "require-rewrite", "config-library"))
+            witnesses.update((*witness.SUPER, *witness.BINDING, "retained", "utf16-literal-witnesses", "declaration-comments", "require-rewrite", "config-library"))
             continue
         # Shared product code, manifests, vendor, CI, TS corpus, and unknown
         # inputs keep complete coverage. Never infer that tests/ is disconnected:

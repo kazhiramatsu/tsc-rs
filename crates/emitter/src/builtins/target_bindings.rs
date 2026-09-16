@@ -11,8 +11,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 
 use crate::{
-    transform::GeneratedBindingId, EmitFlags, GlobalNameOracle, TransformArena, TransformError,
-    TransformNode, TransformSourceId, TransformationContext,
+    transform::{CarriedBindingKey, CarriedGeneratedNames, CarriedNodeKey, GeneratedBindingId},
+    EmitFlags, GlobalNameOracle, TransformArena, TransformError, TransformNode, TransformSourceId,
+    TransformationContext,
 };
 
 use super::generated_bindings::{
@@ -603,7 +604,33 @@ pub(crate) fn finalize_generated_binding_names(
         GeneratedNameReservedSetPolicy::TransformerRoot,
         None,
         None,
+        None,
     )
+}
+
+impl TransformationContext {
+    /// The generated identifiers a print names at its root scope entry, in
+    /// the `generateNames(sourceFile)` order
+    /// (`collect_function_body_declaration_name_events`).
+    pub(crate) fn root_declaration_generated_identifiers(
+        &self,
+        root: TransformNode,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let mut events = Vec::new();
+        collect_function_body_declaration_name_events(
+            self.arena(),
+            root.source(),
+            root,
+            &mut events,
+        )?;
+        Ok(events
+            .into_iter()
+            .filter_map(|event| match event {
+                BindingNameEvent::Identifier { node, .. } => Some(node),
+                _ => None,
+            })
+            .collect())
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -619,6 +646,7 @@ fn finalize_generated_binding_names_with_policy(
     reserved_set_policy: GeneratedNameReservedSetPolicy<'_>,
     global_name_oracle: Option<&dyn GlobalNameOracle>,
     mut bundle_generated_names: Option<&mut BTreeSet<String>>,
+    carried: Option<&CarriedGeneratedNames>,
 ) -> Result<(), TransformError> {
     let mut events = Vec::new();
     collect_binding_name_events(context.arena(), source, root, true, &mut events)?;
@@ -626,24 +654,56 @@ fn finalize_generated_binding_names_with_policy(
         return Ok(());
     }
 
+    // tsc names generated identifiers against `SourceFile.identifiers` (the
+    // parsed census) in every domain: an identifier synthesized by an earlier
+    // transform never shifts a generated name (isUniqueName /
+    // isFileLevelUniqueName, _tsc.js:120638-120640, 120665-120667). The
+    // transformer-time finalize therefore uses the same census as the print;
+    // the eagerly assigned spellings then survive the print-time
+    // reconciliation unchanged instead of leaking a synthetic-identifier
+    // collision into the planned spelling.
     let reserved = match reserved_set_policy {
         GeneratedNameReservedSetPolicy::TransformerRoot => {
-            collect_untagged_identifier_texts(context.arena(), source, root)?
+            ParsedSourceIdentifierNames::collect(context.arena(), source)?.into_names()
         }
         GeneratedNameReservedSetPolicy::PrintSource(reserved) => reserved.clone(),
     };
     // writeBundle retains the printer's generatedNames set between sources;
-    // setSourceFile only changes the parsed identifier collision table. Keep
-    // those domains separate: file-level optimistic names intentionally ignore
-    // generated peers, whereas ordinary numbered names must avoid them.
-    let mut scope_reserved = reserved.clone();
-    if let Some(generated) = bundle_generated_names.as_deref() {
-        scope_reserved.extend(generated.iter().cloned());
-    }
+    // setSourceFile only changes the parsed identifier collision table. The
+    // scope model keeps those domains separate (`generated_names`): file-level
+    // optimistic names intentionally ignore generated peers, whereas scoped,
+    // temp and numbered names must avoid them.
     let mut scopes =
-        GeneratedBindingScopes::new(scope_reserved, AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(reserved.clone(), AncestorBindingPolicy::AllowShadow);
+    if let Some(generated) = bundle_generated_names.as_deref() {
+        scopes.seed_generated_names(generated.iter().cloned());
+    }
+    // A failed earlier print on the same printer left its tables behind
+    // (tsc never resets them on a throw); the new print continues them.
+    if let Some(carried) = carried {
+        scopes.seed_generated_names(carried.generated.iter().cloned());
+        scopes.seed_root_reserved_names(carried.reserved.iter().cloned());
+        scopes.seed_root_temp_ordinal(carried.temp_ordinal);
+    }
+    // `generateName` caches every generated identifier's spelling by its
+    // autoGenerateId (_tsc.js:120624-120632): a binding the failed print
+    // named keeps that spelling, and allocates nothing again. Bindings are
+    // identified with their arena, as the node cache below is.
+    let arena_id = context.arena().id();
+    let cached_binding = |binding: GeneratedBindingId| -> Option<String> {
+        carried.and_then(|carried| {
+            carried
+                .binding_names
+                .get(&CarriedBindingKey {
+                    arena: arena_id,
+                    binding: binding.raw(),
+                })
+                .cloned()
+        })
+    };
     let mut scope_stack = Vec::new();
     let mut assigned = BTreeMap::<GeneratedBindingId, String>::new();
+    let mut temp_ordinals = BTreeMap::<GeneratedBindingId, usize>::new();
     let mut node_names = BTreeMap::<TransformNode, String>::new();
     // Source-numbered assignment order: upstream names a scope's own
     // declarations in that scope's pass, parents before children
@@ -656,6 +716,7 @@ fn finalize_generated_binding_names_with_policy(
     struct NumberedAssignment {
         moment_path: Vec<u32>,
         sequence: usize,
+        node: TransformNode,
         binding: GeneratedBindingId,
         base: String,
         reserve_in_nested_scopes: bool,
@@ -675,6 +736,7 @@ fn finalize_generated_binding_names_with_policy(
                 scope_path.pop();
             }
             BindingNameEvent::Identifier {
+                node,
                 binding,
                 numbered_base: Some(base),
                 preferred_base: None,
@@ -700,6 +762,7 @@ fn finalize_generated_binding_names_with_policy(
                     numbered_order.push(NumberedAssignment {
                         moment_path: scope_path.clone(),
                         sequence,
+                        node: *node,
                         binding: *binding,
                         base: base.clone(),
                         reserve_in_nested_scopes: *reserve_in_nested_scopes,
@@ -717,7 +780,6 @@ fn finalize_generated_binding_names_with_policy(
     });
     let printed_numbered_bindings: BTreeSet<_> =
         numbered_order.iter().map(|entry| entry.binding).collect();
-    let mut shared_numbered_bindings = BTreeSet::new();
     for entry in &numbered_order {
         // A derived binding appends its ordinal to the base binding's
         // FINALIZED spelling (`getGeneratedNameForNode`); the recorded
@@ -730,7 +792,9 @@ fn finalize_generated_binding_names_with_policy(
             .filter(|parent| !printed_numbered_bindings.contains(parent))
         {
             if let std::collections::btree_map::Entry::Vacant(entry) = assigned.entry(parent) {
-                if let Some(base) = context.generated_binding_numbered_base(parent) {
+                if let Some(name) = cached_binding(parent) {
+                    entry.insert(name);
+                } else if let Some(base) = context.generated_binding_numbered_base(parent) {
                     let name = allocate_numbered_name_with_global_oracle(
                         &mut scopes,
                         base,
@@ -738,7 +802,6 @@ fn finalize_generated_binding_names_with_policy(
                         global_name_oracle,
                     )?;
                     entry.insert(name);
-                    shared_numbered_bindings.insert(parent);
                 }
             }
         }
@@ -746,16 +809,37 @@ fn finalize_generated_binding_names_with_policy(
             .derived_from
             .and_then(|parent| assigned.get(&parent).cloned())
             .unwrap_or_else(|| entry.base.clone());
-        let name = allocate_numbered_name_with_global_oracle(
-            &mut scopes,
-            &base,
-            entry.reserve_in_nested_scopes,
-            global_name_oracle,
-        )?;
+        // The binding's own cached spelling first; then
+        // `generateNameCached`: a node-derived name generated by a failed
+        // print resolves to its cached spelling (`nodeIdToGeneratedName`,
+        // keyed by the node of this arena), while a fresh
+        // `createUniqueName` of the same text advances.
+        let cached = cached_binding(entry.binding).or_else(|| {
+            carried.and_then(|carried| {
+                let original = context.arena().get_original_node(entry.node);
+                (original != entry.node)
+                    .then(|| {
+                        carried
+                            .node_names
+                            .get(&CarriedNodeKey {
+                                arena: arena_id,
+                                node: original,
+                            })
+                            .cloned()
+                    })
+                    .flatten()
+            })
+        });
+        let name = match cached {
+            Some(name) => name,
+            None => allocate_numbered_name_with_global_oracle(
+                &mut scopes,
+                &base,
+                entry.reserve_in_nested_scopes,
+                global_name_oracle,
+            )?,
+        };
         assigned.insert(entry.binding, name);
-        if !entry.reserve_in_nested_scopes {
-            shared_numbered_bindings.insert(entry.binding);
-        }
     }
     let mut naming_moment_stack = Vec::new();
     for event in events {
@@ -788,8 +872,46 @@ fn finalize_generated_binding_names_with_policy(
                 reserve_in_nested_scopes,
                 derived_from: _,
             } => {
+                // Print-time naming starts every print from the base
+                // spelling, as tsc's makeUniqueName does: neither the
+                // transform-time planner's provisional spelling nor the
+                // result a previous print wrote back into the node decides
+                // it (a fresh printer after a failed one prints `_s`, not
+                // the `_s_1` the failed printer's tables produced). The
+                // transformer-time finalize keeps the planned spelling.
+                let planned_name = match (
+                    reserved_set_policy,
+                    &numbered_base,
+                    &preferred_base,
+                    &preferred_role_suffix,
+                    preferred_name_domain,
+                ) {
+                    (
+                        GeneratedNameReservedSetPolicy::PrintSource(_),
+                        None,
+                        Some(base),
+                        None,
+                        Some(
+                            PreferredNameDomain::FileLevelOptimistic
+                            | PreferredNameDomain::ScopedOptimistic,
+                        ),
+                    ) => base.clone(),
+                    (
+                        GeneratedNameReservedSetPolicy::PrintSource(_),
+                        None,
+                        Some(base),
+                        Some(suffix),
+                        Some(PreferredNameDomain::ScopedOptimistic),
+                    ) => format!("{base}{suffix}"),
+                    _ => planned_name,
+                };
                 let name = if let Some(name) = assigned.get(&binding) {
                     name.clone()
+                } else if let Some(name) = cached_binding(binding) {
+                    // Named by the failed print: its spelling is already in
+                    // the seeded tables, so nothing is allocated again.
+                    assigned.insert(binding, name.clone());
+                    name
                 } else {
                     let name = loop {
                         let planned_name = planned_name.clone();
@@ -884,6 +1006,12 @@ fn finalize_generated_binding_names_with_policy(
                         }
                         break candidate;
                     };
+                    if numbered_base.is_none()
+                        && preferred_base.is_none()
+                        && ordinary_temp_name_policy == OrdinaryTempNamePolicy::FinalizerTraversal
+                    {
+                        temp_ordinals.insert(binding, scopes.current_temp_ordinal());
+                    }
                     assigned.insert(binding, name.clone());
                     name
                 };
@@ -909,9 +1037,9 @@ fn finalize_generated_binding_names_with_policy(
     }
     let _ = scopes.source_bindings();
     if let Some(generated) = bundle_generated_names.as_mut() {
-        for binding in shared_numbered_bindings {
-            generated.insert(assigned[&binding].clone());
-        }
+        // The whole generatedNames set (file-level, file-wide and numbered
+        // names) carries into the next bundle source, as tsc's does.
+        generated.extend(scopes.generated_names().iter().cloned());
     }
     for (binding, name) in &assigned {
         context.record_generated_binding_name(*binding, name);
@@ -919,6 +1047,13 @@ fn finalize_generated_binding_names_with_policy(
     let arena = context.arena_mut()?;
     for (node, name) in node_names {
         arena.set_generated_identifier_text(node, &name)?;
+        let metadata = arena.metadata_mut(node);
+        if let Some(ordinal) = metadata
+            .generated_binding_id()
+            .and_then(|binding| temp_ordinals.get(&binding))
+        {
+            metadata.generated_binding_temp_ordinal = Some(*ordinal);
+        }
     }
     Ok(())
 }
@@ -980,13 +1115,16 @@ impl TransformationContext {
         &mut self,
         root: TransformNode,
         global_name_oracle: Option<&dyn GlobalNameOracle>,
+        carried: Option<&CarriedGeneratedNames>,
     ) -> Result<(), TransformError> {
         let source = root.source();
         let mut events = Vec::new();
         collect_binding_name_events(self.arena(), source, root, true, &mut events)?;
         // Transformer-time finalization has no checker oracle. An actual
-        // print with an oracle must reconcile even eagerly named bindings.
+        // print with an oracle must reconcile even eagerly named bindings,
+        // and so must a print that continues a failed print's tables.
         let requires_print_finalization = global_name_oracle.is_some()
+            || carried.is_some()
             || events.iter().any(|event| {
                 matches!(
                     event,
@@ -1007,6 +1145,7 @@ impl TransformationContext {
             GeneratedNameReservedSetPolicy::PrintSource(&reserved),
             global_name_oracle,
             None,
+            carried,
         )?;
         for event in events {
             if let BindingNameEvent::Identifier { binding, .. } = event {
@@ -1020,6 +1159,7 @@ impl TransformationContext {
         &mut self,
         sources: &[TransformSourceId],
         global_name_oracle: Option<&dyn GlobalNameOracle>,
+        carried: Option<&CarriedGeneratedNames>,
     ) -> Result<(), TransformError> {
         // TypeScript resets generatedNames once after writeBundle, while
         // writeFile resets it after each standalone source (_tsc.js:
@@ -1035,6 +1175,7 @@ impl TransformationContext {
                 GeneratedNameReservedSetPolicy::PrintSource(&reserved),
                 global_name_oracle,
                 Some(&mut generated_names),
+                carried,
             )?;
             let mut events = Vec::new();
             collect_binding_name_events(self.arena(), source, root, true, &mut events)?;

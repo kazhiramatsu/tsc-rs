@@ -95,6 +95,15 @@ EMITTER_DIRECT = {
         "fixtures": (("crates/emitter/tests/fixtures/token-comment-phase-printer-metadata.json", 96, "case_id"),),
         "observers": ("scripts/observe-token-comment-phase-printer-metadata.mjs",),
     },
+    # A41-BINDING (C02): synthetic-census, global-oracle and lifecycle controls
+    # of the generated-name domains (printed text only).
+    "decorator-binding": {
+        "target": "decorator_binding_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/decorator-binding-direct.json", 146, "case_id"),
+                     ("crates/emitter/tests/fixtures/decorator-binding-carry-edge.json", 10, "case_id")),
+        "observers": (("scripts/observe-decorator-bindings.mjs", "direct"),
+                      "scripts/observe-decorator-binding-carry.mjs"),
+    },
 }
 CONFIG_LIBRARY_GROUPS = (
     ("config-commands", 8), ("config-conversion-commands", 8),
@@ -352,8 +361,28 @@ COMPILER_DIRECT = {
         "observers": ("scripts/observe-utf16-original-rows-complete.mjs",),
     },
 }
+# A41-BINDING (C02): 768 complete commands selected like the SUPER sets
+# (`TSC_RS_DECORATOR_BINDING_CASE_SET`), observed by
+# `scripts/observe-decorator-bindings.mjs pipeline` (its `--check` runs
+# before every replay, like the direct observers). The known-native fixture
+# freezes the remaining owner-classified native divergences; the comparator
+# counts them as `known`, never exact, and a `--all` run must report exactly
+# that many.
+BINDING = {
+    "decorator-binding-pipeline": {
+        "target": "decorator_binding_pipeline_contract",
+        "test": "decorator_binding_forms_match_complete_typescript_observations",
+        "env": "TSC_RS_DECORATOR_BINDING_CASE_SET",
+        "inputs": "crates/compiler/tests/fixtures/decorator-binding-inputs.json",
+        "cases": 768,
+        "upstream_exceptions": ("decorator-binding/computed/esnext/set/static-accessor-decorated",),
+        "observation": "crates/compiler/tests/fixtures/decorator-binding.json.zst",
+        "known": "crates/compiler/tests/fixtures/decorator-binding-known-native.json",
+        "observers": (("scripts/observe-decorator-bindings.mjs", "pipeline"),),
+    },
+}
 SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks", "declaration-map-cli",
-          *EMITTER_DIRECT, *COMPILER_DIRECT, "resolution-cache")
+          *EMITTER_DIRECT, *COMPILER_DIRECT, *BINDING, "resolution-cache")
 RESOLUTION_INPUTS = {
     "crates/program/tests/resolution_cache_contract.rs",
     "crates/program/tests/fixtures/resolution_cache/manifest.v1.json",
@@ -416,6 +445,10 @@ def case_ids(suite):
         # Input IDs include the two primary upstream exceptions. The Rust
         # comparator reports those separately and requires a native match.
         cases = read_cases(FIXTURES / f"decorator-super{suffix}-inputs.json")
+    elif suite in BINDING:
+        cases = read_cases(ROOT / BINDING[suite]["inputs"])
+        if len(cases) != BINDING[suite]["cases"]:
+            raise ValueError(f"{suite}: changed input manifest membership")
     elif suite == "retained":
         cases = []
         for name in RETAINED_FIXTURES:
@@ -453,9 +486,16 @@ def invocation(suite, needles, environ=None):
     # Explicit CLI selection owns the entire selection, including --all.
     for _, key in SUPER.values():
         env.pop(key, None)
+    for spec in BINDING.values():
+        env.pop(spec["env"], None)
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_FILTER", None)
     env.pop("TSC_RS_RETAINED_ACCESSOR_CASE_SET", None)
     env.pop("TSC_RS_LITERAL_UPDATE_REPORT_DIR", None)
+    # Capture, report and known-native dump directories are never inherited:
+    # a registered replay compares, it does not write evidence.
+    for key in ("TSC_RS_H2_8A_CAPTURE_WRITES_DIR", "TSC_RS_DECORATOR_BINDING_REPORT_DIR",
+                "TSC_RS_H2_8A_KNOWN_NATIVE_DUMP_DIR"):
+        env.pop(key, None)
     env.setdefault("CARGO_BUILD_JOBS", "2")
     if suite == "resolution-cache":
         if needles:
@@ -492,6 +532,10 @@ def invocation(suite, needles, environ=None):
         name = f"decorator_super{suffix.replace('-', '_')}_forms_match_complete_typescript_observations"
         target, test = "decorator_super_contract", f"h2_8a_decorator_super::{name}"
         env[key] = ",".join(needle.strip() for needle in needles) if needles else "all"
+    elif suite in BINDING:
+        spec = BINDING[suite]
+        target, test = spec["target"], spec["test"]
+        env[spec["env"]] = ",".join(needle.strip() for needle in needles) if needles else "all"
     elif suite == "bundle-sinks":
         if needles:
             raise ValueError("bundle sink controls run together; use --all (10 complete commands)")
@@ -536,6 +580,43 @@ def compiler_direct_inputs(suite):
 
 def compiler_direct_observers(suites):
     return direct_observers(COMPILER_DIRECT, suites)
+
+
+def binding_inputs(suite):
+    spec = BINDING[suite]
+    return {f"crates/compiler/tests/{spec['target']}.rs", spec["inputs"], spec["observation"],
+            spec["known"], *(observer[1] for observer in direct_observers(BINDING, [suite]))}
+
+
+def run_binding(suite, command, env, needles):
+    """Check the frozen pipeline observation, replay, and require exact + known == selected."""
+    known_rows = read_cases(ROOT / BINDING[suite]["known"])
+    selected_ids = set(select_cases(case_ids(suite), needles)) - set(BINDING[suite]["upstream_exceptions"])
+    expected_known = sum(row["case_id"] in selected_ids for row in known_rows)
+    if not selected_ids:
+        raise ValueError(f"{suite}: selection contains no complete command")
+    started = time.monotonic()
+    for observer in direct_observers(BINDING, [suite]):
+        subprocess.run(list(observer), cwd=ROOT, env=env, check=True)
+    oracle_seconds = time.monotonic() - started
+    started = time.monotonic()
+    result = subprocess.run(command, cwd=ROOT, env=env, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, check=False)
+    print(result.stdout, end="", flush=True)
+    result.check_returncode()
+    summary = re.findall(r"decorator binding SUMMARY exact=(\d+) known=(\d+) failed=(\d+) selected=(\d+)", result.stdout)
+    if len(summary) != 1 or "test result: ok. 1 passed; 0 failed; 0 ignored;" not in result.stdout:
+        raise ValueError(f"{suite}: missing or zero-test comparator summary")
+    exact, known, failed, selected = map(int, summary[0])
+    if failed or exact + known != selected or selected == 0:
+        raise ValueError(f"{suite}: {failed} failed, {exact} exact + {known} known of {selected}")
+    if selected != len(selected_ids) or known != expected_known:
+        raise ValueError(f"{suite}: replay membership differs from the requested complete commands")
+    if not needles and known != len(known_rows):
+        raise ValueError(f"{suite}: {known} known divergences replayed, {len(known_rows)} frozen")
+    print(json.dumps({"suite": suite, "exact": exact, "known": known, "selected": selected,
+                      "known_frozen": len(known_rows), "observer_seconds": round(oracle_seconds, 3),
+                      "cargo_build_and_replay_seconds": round(time.monotonic() - started, 3)}), flush=True)
 
 
 def direct_observers(catalog, suites):
@@ -722,10 +803,13 @@ def main(argv=None):
         if args.suite == "resolution-cache":
             print(shlex.join(RESOLUTION_OBSERVER))
         if args.suite in EMITTER_DIRECT:
-            for observer in EMITTER_DIRECT[args.suite]["observers"]:
-                print(shlex.join(["node", observer, "--check"]))
+            for command in direct_observers(EMITTER_DIRECT, [args.suite]):
+                print(shlex.join(command))
         if args.suite in COMPILER_DIRECT:
             for command in compiler_direct_observers([args.suite]):
+                print(shlex.join(command))
+        if args.suite in BINDING:
+            for command in direct_observers(BINDING, [args.suite]):
                 print(shlex.join(command))
         return 0
     if args.suite == "resolution-cache":
@@ -739,6 +823,9 @@ def main(argv=None):
         return 0
     if args.suite == "declaration-map-cli":
         run_declaration_map_cli(command, env)
+        return 0
+    if args.suite in BINDING:
+        run_binding(args.suite, command, env, args.case)
         return 0
     return subprocess.run(command, cwd=ROOT, env=env, check=False).returncode
 

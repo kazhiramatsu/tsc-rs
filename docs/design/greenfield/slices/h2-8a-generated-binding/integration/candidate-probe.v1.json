@@ -1,0 +1,158 @@
+{
+  "root": "/Users/hiramatsu/dev/tsc-rs-generated-binding",
+  "rows": 7,
+  "repetitions": 2,
+  "exact": 1,
+  "mismatches": 6,
+  "typescript_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "commands": [
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "node",
+        "/Users/hiramatsu/dev/tsc-rs-binding-integration/docs/design/greenfield/slices/h2-8a-generated-binding/integration/observe-failure-name-probe.mjs",
+        "/Users/hiramatsu/dev/tsc-rs-generated-binding"
+      ],
+      "exit": 0,
+      "seconds": 0.733
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "run",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "/Users/hiramatsu/dev/tsc-rs-binding-integration/target/c02-review-candidate/package/Cargo.toml"
+      ],
+      "exit": 0,
+      "seconds": 1.211
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "node",
+        "/Users/hiramatsu/dev/tsc-rs-binding-integration/docs/design/greenfield/slices/h2-8a-generated-binding/integration/observe-failure-name-probe.mjs",
+        "/Users/hiramatsu/dev/tsc-rs-generated-binding"
+      ],
+      "exit": 0,
+      "seconds": 0.609
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "run",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "/Users/hiramatsu/dev/tsc-rs-binding-integration/target/c02-review-candidate/package/Cargo.toml"
+      ],
+      "exit": 0,
+      "seconds": 0.327
+    }
+  ],
+  "comparison": [
+    {
+      "key": "let x = 1;\nx;\n",
+      "exact": false,
+      "expected": {
+        "status": "returned",
+        "text": "const x_1 = 1;const x_2 = 1;"
+      },
+      "actual": {
+        "status": "returned",
+        "text": "const x_1 = 1;const x_1 = 1;"
+      }
+    },
+    {
+      "key": "let y = 1;\ny;\n",
+      "exact": false,
+      "expected": {
+        "status": "returned",
+        "text": "const x_1 = 1;const y_1 = 1;"
+      },
+      "actual": {
+        "status": "returned",
+        "text": "const x_1 = 1;const x_1 = 1;"
+      }
+    },
+    {
+      "key": "numbered",
+      "exact": false,
+      "expected": {
+        "status": "returned",
+        "text": "const x_1 = 1;const x_1 = 1;"
+      },
+      "actual": {
+        "status": "returned",
+        "text": "const x_1 = 1;const x_2 = 1;"
+      }
+    },
+    {
+      "key": "scoped",
+      "exact": false,
+      "expected": {
+        "status": "returned",
+        "text": "const _s = 1;const _s = 1;"
+      },
+      "actual": {
+        "status": "returned",
+        "text": "const _s = 1;const _s_1 = 1;"
+      }
+    },
+    {
+      "key": "file-wide",
+      "exact": false,
+      "expected": {
+        "status": "returned",
+        "text": "const _o = 1;const _o = 1;"
+      },
+      "actual": {
+        "status": "returned",
+        "text": "const _o = 1;const _o_1 = 1;"
+      }
+    },
+    {
+      "key": "file-level",
+      "exact": true,
+      "expected": {
+        "status": "returned",
+        "text": "const _m = 1;const _m = 1;"
+      },
+      "actual": {
+        "status": "returned",
+        "text": "const _m = 1;const _m = 1;"
+      }
+    },
+    {
+      "key": "temp",
+      "exact": false,
+      "expected": {
+        "status": "returned",
+        "text": "const _a = 1;const _a = 1;"
+      },
+      "actual": {
+        "status": "returned",
+        "text": "const _a = 1;const _b = 1;"
+      }
+    }
+  ]
+}

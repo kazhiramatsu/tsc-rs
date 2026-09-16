@@ -1,0 +1,6 @@
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/emitter)
+   Compiling tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/checker)
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/compiler)
+   Compiling tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/harness)
+    Finished `test` profile [unoptimized] target(s) in 3m 54s
+  Executable tests/decorator_binding_pipeline_contract.rs (target/debug/deps/decorator_binding_pipeline_contract-6441a05f1df13e98)

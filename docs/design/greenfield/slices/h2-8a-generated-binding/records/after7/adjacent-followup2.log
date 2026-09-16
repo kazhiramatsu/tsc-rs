@@ -1,0 +1,48 @@
+followup2: selected 36 input cases
+env TSC_RS_DECORATOR_SUPER_FOLLOWUP2_CASE_SET=private-name/ cargo test --manifest-path crates/compiler/Cargo.toml --test decorator_super_contract h2_8a_decorator_super::decorator_super_followup2_forms_match_complete_typescript_observations -- --exact --nocapture --test-threads=1
+    Finished `test` profile [unoptimized] target(s) in 0.09s
+     Running tests/decorator_super_contract.rs (target/debug/deps/decorator_super_contract-a552933c534748b0)
+
+running 1 test
+test h2_8a_decorator_super::decorator_super_followup2_forms_match_complete_typescript_observations ... decorator super SELECTION "private-name/" -> 36 cases
+decorator super EXACT x2 decorator-super-followup2/es2015/set/private-name/private-method-escape
+decorator super EXACT x2 decorator-super-followup2/es2015/set/private-name/private-field-escape
+decorator super EXACT x2 decorator-super-followup2/es2015/set/private-name/private-getter-escape
+decorator super EXACT x2 decorator-super-followup2/es2015/set/private-name/private-setter-escape
+decorator super EXACT x2 decorator-super-followup2/es2015/set/private-name/private-accessor-escape
+decorator super EXACT x2 decorator-super-followup2/es2015/set/private-name/private-plain-control
+decorator super EXACT x2 decorator-super-followup2/es2015/define/private-name/private-method-escape
+decorator super EXACT x2 decorator-super-followup2/es2015/define/private-name/private-field-escape
+decorator super EXACT x2 decorator-super-followup2/es2015/define/private-name/private-getter-escape
+decorator super EXACT x2 decorator-super-followup2/es2015/define/private-name/private-setter-escape
+decorator super EXACT x2 decorator-super-followup2/es2015/define/private-name/private-accessor-escape
+decorator super EXACT x2 decorator-super-followup2/es2015/define/private-name/private-plain-control
+decorator super EXACT x2 decorator-super-followup2/es2022/set/private-name/private-method-escape
+decorator super EXACT x2 decorator-super-followup2/es2022/set/private-name/private-field-escape
+decorator super EXACT x2 decorator-super-followup2/es2022/set/private-name/private-getter-escape
+decorator super EXACT x2 decorator-super-followup2/es2022/set/private-name/private-setter-escape
+decorator super EXACT x2 decorator-super-followup2/es2022/set/private-name/private-accessor-escape
+decorator super EXACT x2 decorator-super-followup2/es2022/set/private-name/private-plain-control
+decorator super EXACT x2 decorator-super-followup2/es2022/define/private-name/private-method-escape
+decorator super EXACT x2 decorator-super-followup2/es2022/define/private-name/private-field-escape
+decorator super EXACT x2 decorator-super-followup2/es2022/define/private-name/private-getter-escape
+decorator super EXACT x2 decorator-super-followup2/es2022/define/private-name/private-setter-escape
+decorator super EXACT x2 decorator-super-followup2/es2022/define/private-name/private-accessor-escape
+decorator super EXACT x2 decorator-super-followup2/es2022/define/private-name/private-plain-control
+decorator super EXACT x2 decorator-super-followup2/esnext/set/private-name/private-method-escape
+decorator super EXACT x2 decorator-super-followup2/esnext/set/private-name/private-field-escape
+decorator super EXACT x2 decorator-super-followup2/esnext/set/private-name/private-getter-escape
+decorator super EXACT x2 decorator-super-followup2/esnext/set/private-name/private-setter-escape
+decorator super EXACT x2 decorator-super-followup2/esnext/set/private-name/private-accessor-escape
+decorator super EXACT x2 decorator-super-followup2/esnext/set/private-name/private-plain-control
+decorator super EXACT x2 decorator-super-followup2/esnext/define/private-name/private-method-escape
+decorator super EXACT x2 decorator-super-followup2/esnext/define/private-name/private-field-escape
+decorator super EXACT x2 decorator-super-followup2/esnext/define/private-name/private-getter-escape
+decorator super EXACT x2 decorator-super-followup2/esnext/define/private-name/private-setter-escape
+decorator super EXACT x2 decorator-super-followup2/esnext/define/private-name/private-accessor-escape
+decorator super EXACT x2 decorator-super-followup2/esnext/define/private-name/private-plain-control
+decorator super SUMMARY exact=36 failed=0 selected=36
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 41.35s
+

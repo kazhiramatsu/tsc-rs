@@ -1,0 +1,16 @@
+slice: C02 / A41-BINDING (h2-8a-generated-binding)
+created: 2026-09-16T09:55:42Z
+worktree: /Users/hiramatsu/dev/tsc-rs-generated-binding
+branch: draft/h2-8a-generated-binding
+HEAD: ccb6661c16f75cd6824e9fedb9281be68d01e542
+origin/main at start: ccb6661c16f75cd6824e9fedb9281be68d01e542
+contains C01 merge 7df1a8ed1: yes
+contains SUPER PR#523 head f64443300: yes
+git status --short: 1 entries
+rustc: rustc 1.93.0 (254b59607 2026-01-19)
+cargo: cargo 1.93.0 (083ac5135 2025-12-15)
+node: v25.2.1
+python3: Python 3.14.2
+uname: Darwin hiramatsunoMacBook-Pro.local 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:39:29 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T8142 arm64
+vendor _tsc.js sha256: 1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3
+vendor typescript.js sha256: 569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39

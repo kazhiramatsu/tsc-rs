@@ -244,7 +244,7 @@ def main():
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--write', action='store_true', help='write a NEW snapshot only')
     action.add_argument('--check', action='store_true', help='compare current source with the frozen snapshot')
-    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v17.json')
+    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v18.json')
     args = parser.parse_args()
     if args.check:
         source_commit = json.loads(args.output.read_text())['source_commit']

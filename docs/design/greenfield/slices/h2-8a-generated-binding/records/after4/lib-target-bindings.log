@@ -1,0 +1,14 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 55.72s
+     Running unittests src/lib.rs (target/debug/deps/tsc_emitter-6021388bac73fbc5)
+
+running 5 tests
+test builtins::target_bindings::tests::authoritative_temp_policy_falls_back_on_collision ... ok
+test builtins::target_bindings::tests::authoritative_temp_policy_retains_available_planned_spelling ... ok
+test builtins::target_bindings::tests::declaration_names_precede_uses_in_source_module_and_function_scopes ... ok
+test builtins::target_bindings::tests::parsed_identifier_snapshot_retains_erased_file_level_collisions ... ok
+test builtins::target_bindings::tests::traversal_temp_policy_uses_final_scope_cursor ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 501 filtered out; finished in 0.00s
+

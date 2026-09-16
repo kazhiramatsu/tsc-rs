@@ -1,0 +1,26 @@
+    Finished `test` profile [unoptimized] target(s) in 0.12s
+     Running unittests src/lib.rs (target/debug/deps/tsc_emitter-6021388bac73fbc5)
+
+running 19 tests
+test builtins::generated_bindings::tests::active_ancestor_bindings_stay_reserved_in_descendants ... ok
+test builtins::generated_bindings::tests::descendant_reserved_preferred_bindings_still_reuse_in_siblings ... ok
+test builtins::generated_bindings::tests::duplicate_planned_temp_in_same_scope_falls_back_to_temp_sequence ... ok
+test builtins::generated_bindings::tests::eager_local_preferred_reservations_are_not_hoisted_bindings ... ok
+test builtins::generated_bindings::tests::file_level_optimistic_peers_share_text_but_reserve_descendants ... ok
+test builtins::generated_bindings::tests::formatted_private_temps_have_a_role_local_sequence ... ok
+test builtins::generated_bindings::tests::generated_name_state_starts_fresh_for_each_print ... ok
+test builtins::generated_bindings::tests::generated_private_names_reserve_ancestors_but_reuse_in_siblings ... ok
+test builtins::generated_bindings::tests::loop_variable_prefers_the_dedicated_slot_once_per_scope ... ok
+test builtins::generated_bindings::tests::node_keyed_allocation_is_stable_per_node_and_advances_per_source_name ... ok
+test builtins::generated_bindings::tests::occupied_loop_slot_falls_through_to_the_temp_sequence ... ok
+test builtins::generated_bindings::tests::planned_temp_can_be_reused_in_sibling_scopes ... ok
+test builtins::generated_bindings::tests::planned_temp_is_retained_when_available ... ok
+test builtins::generated_bindings::tests::preferred_reconciliation_advances_from_the_planned_suffix ... ok
+test builtins::generated_bindings::tests::print_generated_name_ignores_an_ordinary_synthetic_sibling ... ok
+test builtins::generated_bindings::tests::print_generated_name_reserves_identifiers_outside_the_printed_node ... ok
+test builtins::generated_bindings::tests::print_generated_name_starts_with_first_suffix_without_a_source_collision ... ok
+test builtins::generated_bindings::tests::sibling_scopes_reuse_the_loop_variable_spelling ... ok
+test builtins::generated_bindings::tests::source_occupied_allocator_pushes_past_the_reserved_names ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 487 filtered out; finished in 0.00s
+

@@ -1,0 +1,73 @@
+primary: selected 60 input cases
+Primary upstream exceptions are reported separately by the comparator.
+env TSC_RS_DECORATOR_SUPER_CASE_SET=handoff/ cargo test --manifest-path crates/compiler/Cargo.toml --test decorator_super_contract h2_8a_decorator_super::decorator_super_forms_match_complete_typescript_observations -- --exact --nocapture --test-threads=1
+    Finished `test` profile [unoptimized] target(s) in 0.05s
+     Running tests/decorator_super_contract.rs (target/debug/deps/decorator_super_contract-a552933c534748b0)
+
+running 1 test
+test h2_8a_decorator_super::decorator_super_forms_match_complete_typescript_observations ... decorator super UPSTREAM EXCEPTION decorator-super/esnext/set/handoff/static-private-accessor
+decorator super UPSTREAM EXCEPTION decorator-super/esnext/set/handoff/static-public-accessor
+decorator super SELECTION "handoff/" -> 58 cases
+decorator super EXACT x2 decorator-super/es2015/set/handoff/class-replacement
+decorator super EXACT x2 decorator-super/es2015/set/handoff/static-private-field
+decorator super EXACT x2 decorator-super/es2015/set/handoff/static-private-accessor
+decorator super EXACT x2 decorator-super/es2015/set/handoff/static-public-accessor
+decorator super EXACT x2 decorator-super/es2015/set/handoff/member-only-decorator
+decorator super EXACT x2 decorator-super/es2015/set/handoff/undecorated-control
+decorator super EXACT x2 decorator-super/es2015/set/handoff/legacy-control
+decorator super EXACT x2 decorator-super/es2015/set/handoff/export-default-anonymous
+decorator super EXACT x2 decorator-super/es2015/set/handoff/class-expression
+decorator super EXACT x2 decorator-super/es2015/set/handoff/no-super-decorated-control
+decorator super EXACT x2 decorator-super/es2015/define/handoff/class-replacement
+decorator super EXACT x2 decorator-super/es2015/define/handoff/static-private-field
+decorator super EXACT x2 decorator-super/es2015/define/handoff/static-private-accessor
+decorator super EXACT x2 decorator-super/es2015/define/handoff/static-public-accessor
+decorator super EXACT x2 decorator-super/es2015/define/handoff/member-only-decorator
+decorator super EXACT x2 decorator-super/es2015/define/handoff/undecorated-control
+decorator super EXACT x2 decorator-super/es2015/define/handoff/legacy-control
+decorator super EXACT x2 decorator-super/es2015/define/handoff/export-default-anonymous
+decorator super EXACT x2 decorator-super/es2015/define/handoff/class-expression
+decorator super EXACT x2 decorator-super/es2015/define/handoff/no-super-decorated-control
+decorator super EXACT x2 decorator-super/es2022/set/handoff/class-replacement
+decorator super EXACT x2 decorator-super/es2022/set/handoff/static-private-field
+decorator super EXACT x2 decorator-super/es2022/set/handoff/static-private-accessor
+decorator super EXACT x2 decorator-super/es2022/set/handoff/static-public-accessor
+decorator super EXACT x2 decorator-super/es2022/set/handoff/member-only-decorator
+decorator super EXACT x2 decorator-super/es2022/set/handoff/undecorated-control
+decorator super EXACT x2 decorator-super/es2022/set/handoff/legacy-control
+decorator super EXACT x2 decorator-super/es2022/set/handoff/export-default-anonymous
+decorator super EXACT x2 decorator-super/es2022/set/handoff/class-expression
+decorator super EXACT x2 decorator-super/es2022/set/handoff/no-super-decorated-control
+decorator super EXACT x2 decorator-super/es2022/define/handoff/class-replacement
+decorator super EXACT x2 decorator-super/es2022/define/handoff/static-private-field
+decorator super EXACT x2 decorator-super/es2022/define/handoff/static-private-accessor
+decorator super EXACT x2 decorator-super/es2022/define/handoff/static-public-accessor
+decorator super EXACT x2 decorator-super/es2022/define/handoff/member-only-decorator
+decorator super EXACT x2 decorator-super/es2022/define/handoff/undecorated-control
+decorator super EXACT x2 decorator-super/es2022/define/handoff/legacy-control
+decorator super EXACT x2 decorator-super/es2022/define/handoff/export-default-anonymous
+decorator super EXACT x2 decorator-super/es2022/define/handoff/class-expression
+decorator super EXACT x2 decorator-super/es2022/define/handoff/no-super-decorated-control
+decorator super EXACT x2 decorator-super/esnext/set/handoff/class-replacement
+decorator super EXACT x2 decorator-super/esnext/set/handoff/static-private-field
+decorator super EXACT x2 decorator-super/esnext/set/handoff/member-only-decorator
+decorator super EXACT x2 decorator-super/esnext/set/handoff/undecorated-control
+decorator super EXACT x2 decorator-super/esnext/set/handoff/legacy-control
+decorator super EXACT x2 decorator-super/esnext/set/handoff/export-default-anonymous
+decorator super EXACT x2 decorator-super/esnext/set/handoff/class-expression
+decorator super EXACT x2 decorator-super/esnext/set/handoff/no-super-decorated-control
+decorator super EXACT x2 decorator-super/esnext/define/handoff/class-replacement
+decorator super EXACT x2 decorator-super/esnext/define/handoff/static-private-field
+decorator super EXACT x2 decorator-super/esnext/define/handoff/static-private-accessor
+decorator super EXACT x2 decorator-super/esnext/define/handoff/static-public-accessor
+decorator super EXACT x2 decorator-super/esnext/define/handoff/member-only-decorator
+decorator super EXACT x2 decorator-super/esnext/define/handoff/undecorated-control
+decorator super EXACT x2 decorator-super/esnext/define/handoff/legacy-control
+decorator super EXACT x2 decorator-super/esnext/define/handoff/export-default-anonymous
+decorator super EXACT x2 decorator-super/esnext/define/handoff/class-expression
+decorator super EXACT x2 decorator-super/esnext/define/handoff/no-super-decorated-control
+decorator super SUMMARY exact=58 failed=0 selected=58
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 70.86s
+

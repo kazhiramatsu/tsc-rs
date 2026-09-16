@@ -1,0 +1,156 @@
+{
+ "note": "frozen upstream main.js executed with node (candidate JS is byte-identical for these rows); key/key2 = evaluation counts of the computed keys",
+ "node": "v25.2.1",
+ "rows": [
+  {
+   "case_id": "decorator-binding/computed/esnext/set/instance-accessor-decorated",
+   "outcome": "not-executable",
+   "stderr": "file:///private/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tmp8kh_i3sn/instance-accessor-decorated.mjs:64\n        accessor [(_member_decorators = [dec], _a"
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/method-decorated",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 0,
+   "decorated": [
+    "x",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/static-method-decorated",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 0,
+   "decorated": [
+    "x",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/getter-setter-decorated",
+   "outcome": "executed",
+   "key": 2,
+   "key2": 0,
+   "decorated": [
+    "x",
+    "x",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/field-decorated",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 0,
+   "decorated": [
+    "x",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/static-field-decorated",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 0,
+   "decorated": [
+    "x",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/multiple-keys",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 1,
+   "decorated": [
+    "y",
+    "x",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/user-identifier-_a",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 1,
+   "decorated": [
+    "y",
+    "x",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/undecorated-computed-between",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 0,
+   "decorated": [
+    "p",
+    "q",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/undecorated-computed-method-after",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 0,
+   "decorated": [
+    "x",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/class-expression-computed",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 0,
+   "decorated": [
+    "x",
+    "E"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/member-only-decorators-computed",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 1,
+   "decorated": [
+    "y",
+    "x"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/computed-literal-and-expression",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 0,
+   "decorated": [
+    "lit",
+    "x",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/computed-with-decorator-temp",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 0,
+   "decorated": [
+    "x",
+    "K"
+   ]
+  },
+  {
+   "case_id": "decorator-binding/computed/esnext/set/computed-in-static-block-nested-class",
+   "outcome": "executed",
+   "key": 1,
+   "key2": 0,
+   "decorated": [
+    "x",
+    "Inner"
+   ]
+  }
+ ]
+}

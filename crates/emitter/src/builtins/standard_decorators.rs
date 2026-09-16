@@ -709,6 +709,14 @@ struct StandardDecoratorVisitor<'context> {
     expanded_classes: BTreeMap<NodeId, Vec<NodeId>>,
     used_names: BTreeSet<String>,
     generated_reference_names: BTreeSet<String>,
+    /// Generated private names (`#a_accessor_storage`) of the decorated
+    /// classes enclosing the class being transformed. tsc reserves every
+    /// generated private name in nested name-generation scopes
+    /// (`makeUniqueName(..., privateName)` → `reservePrivateNameInNestedScopes`,
+    /// `_tsc.js:120741-120779`), so a nested class with the same private
+    /// accessor name advances to `#a_1_accessor_storage` while a sibling
+    /// class reuses `#a_accessor_storage`.
+    reserved_private_generated_names: BTreeSet<String>,
     should_transform_private_static_elements_in_file: bool,
     /// Source-level identifier texts: the only collision set tsc consults
     /// for `GeneratedIdentifierFlags.FileLevel` helper names
@@ -788,12 +796,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
         source: TransformSourceId,
         target: ScriptTarget,
     ) -> Self {
-        let used_names = collect_identifier_texts(context.arena(), source);
-        // isFileLevelUniqueName consults `SourceFile.identifiers`: the parsed
-        // identifier census, not the transform arena's synthetic nodes.
+        // isFileLevelUniqueName and isUniqueName both consult
+        // `SourceFile.identifiers`: the parsed identifier census, not the
+        // transform arena's synthetic nodes (a plain identifier synthesized
+        // by an earlier transform never shifts a generated name). The planner
+        // starts from that census and adds only the names it plans itself;
+        // the finalizer reconciles the planned spellings with the generated
+        // bindings of the other passes.
         let file_level_names = ParsedSourceIdentifierNames::collect(context.arena(), source)
             .map(ParsedSourceIdentifierNames::into_names)
-            .unwrap_or_else(|_| used_names.clone());
+            .unwrap_or_else(|_| collect_identifier_texts(context.arena(), source));
+        let used_names = file_level_names.clone();
         Self {
             context,
             source,
@@ -806,6 +819,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             expanded_classes: BTreeMap::new(),
             used_names,
             generated_reference_names: BTreeSet::new(),
+            reserved_private_generated_names: BTreeSet::new(),
             should_transform_private_static_elements_in_file: false,
             file_level_names,
             receiver_frames: Vec::new(),
@@ -1623,7 +1637,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let original_members = self.array_nodes(data.members)?;
         let mut plans = Vec::new();
         let mut method_plans = Vec::new();
+        let enclosing_private_generated_names = self.reserved_private_generated_names.clone();
         let mut used_private = self.collect_private_names(data.members)?;
+        used_private.extend(enclosing_private_generated_names.iter().cloned());
         for member in &original_members {
             match self.context.arena().node(*member)?.data.clone() {
                 NodeData::PropertyDeclaration(member_data) => {
@@ -1739,6 +1755,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let mut class_definition_bindings = DecoratorDefinitionBindings::default();
         if let Some(class_plan) = class_decoration.as_mut() {
             class_plan.decorators = self.transform_decorator_expressions(&class_plan.decorators)?;
+        }
+        // The private storage names allocated above stay reserved for every
+        // class nested in this one (tsc's private name-generation stack).
+        for plan in &plans {
+            if let Some(backing_name) = &plan.backing_name {
+                self.reserved_private_generated_names
+                    .insert(backing_name.clone());
+            }
         }
         let class_super = self.prepare_class_super(&mut data.heritage_clauses)?;
         // The class-this identity exists before any class element is
@@ -2209,6 +2233,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.set_original_only(call, original)?;
         }
         self.used_names = class_scope_names;
+        self.reserved_private_generated_names = enclosing_private_generated_names;
         Ok(call)
     }
 
@@ -4044,7 +4069,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
             TransformFlags::CONTAINS_CLASS_FIELDS,
         )?;
         self.set_original_and_range(field, plan.original)?;
-        self.set_source_map_range_past_decorators(field, plan.original, plan.data.modifiers)?;
+        // `setSourceMapRange(backingField, getSourceMapRange(node))` and
+        // `setSourceMapRange(backingField.name, node.name)`: the field keeps
+        // the whole member range (its own `pos`, before the decorators) and
+        // the generated private name maps to the source name
+        // (_tsc.js:100105, 100126-100128).
+        self.set_source_map_range_from(field, plan.original)?;
+        self.set_source_map_range_from(backing, original_name)?;
         self.context
             .arena_mut()?
             .metadata_mut(field)
@@ -4078,10 +4109,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
             plan.descriptor_name.as_ref(),
             static_receiver,
         )?;
+        // `setSourceMapRange(getter, sourceMapRange)` and
+        // `setSourceMapRange(setter, sourceMapRange)` with
+        // `sourceMapRange = getSourceMapRange(node)`: the descriptor forwarders
+        // keep the whole member range, decorators included, unlike
+        // `finishClassElement`'s `moveRangePastModifiers`
+        // (_tsc.js:100103-100133).
         self.set_original_and_range(getter, plan.original)?;
-        self.set_source_map_range_past_decorators(getter, plan.original, plan.data.modifiers)?;
+        self.set_source_map_range_from(getter, plan.original)?;
         self.set_original_and_range(setter, plan.original)?;
-        self.set_source_map_range_past_decorators(setter, plan.original, plan.data.modifiers)?;
+        self.set_source_map_range_from(setter, plan.original)?;
         self.context
             .arena_mut()?
             .metadata_mut(setter)
