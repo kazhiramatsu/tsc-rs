@@ -177,3 +177,7 @@ nine typed refusals, each twice). The longest job took 28m21s. PR replay jobs
 total 90m32s, excluding plan/gates and main-push replay. The detailed
 [receipt](design/greenfield/slices/witness-coverage/compiler-utf16/hosted.v1.json)
 keeps the exact run/head identities and observed timing boundaries.
+
+The merge's [main-push acceptance](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35040745901)
+also passed. Its three replay jobs total 54m12s separately; PR plus main push
+total 144m44s, still excluding planning/gates. The receipt retains both runs.

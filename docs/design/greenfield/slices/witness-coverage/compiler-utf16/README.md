@@ -103,3 +103,19 @@ retainedは530 exact ×2を維持。wideも9,027 candidates / 8,511 exact /
 H2.8a deferred 6 / H2.9 deferred 510を維持した。111を既存corpusのexact件数へ加算しない。
 台帳v4は64 standalone中20 unfiltered / 6 filtered / 38入口なし。
 残るcompiler18 targetとfiltered targetの未選択部分はOPS-COVER-3残部、その他20とlib/binは4へ残す。
+
+
+### main pushの確認
+
+[統合mergeのmain push CI](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35040745901)も
+3 acceptance jobとgateが成功した。PRの実行とは別に採取した同じmerge `8cb4a3bf8` の結果。
+
+| Job | 所要時間 |
+| --- | ---: |
+| acceptance (early) | 11分43秒 |
+| acceptance (wide) | 28分22秒 |
+| acceptance (late) | 14分07秒 |
+
+main pushの3 replay jobは計**54分12秒**。PRと合計すると**144分44秒**
+（いずれもplan/gateを除外）。この重複コストを含めて記録し、PRの成功をmain実行の代用にしていない。
+記録PR #533はdocsだけの変更として両gateを確認し、Rust replayは不要と判定される。
