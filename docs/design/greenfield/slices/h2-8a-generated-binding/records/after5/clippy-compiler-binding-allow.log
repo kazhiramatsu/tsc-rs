@@ -1,0 +1,3633 @@
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/config.rs:1315:6
+     |
+1183 |     Program(ProgramLoadError),
+     |     ------------------------- the largest variant contains at least 168 bytes
+...
+1315 | ) -> Result<PreparedProgram, ConfigProgramLoadError> {
+     |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `config::ConfigProgramLoadError`, for example by boxing large elements or replacing it with `Box<config::ConfigProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+     = note: `#[warn(clippy::result_large_err)]` on by default
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/config.rs:1336:6
+     |
+1183 |     Program(ProgramLoadError),
+     |     ------------------------- the largest variant contains at least 168 bytes
+...
+1336 | ) -> Result<PreparedProgram, ConfigProgramLoadError> {
+     |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `config::ConfigProgramLoadError`, for example by boxing large elements or replacing it with `Box<config::ConfigProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/config.rs:1355:6
+     |
+1183 |     Program(ProgramLoadError),
+     |     ------------------------- the largest variant contains at least 168 bytes
+...
+1355 | ) -> Result<PreparedProgram, ConfigProgramLoadError> {
+     |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `config::ConfigProgramLoadError`, for example by boxing large elements or replacing it with `Box<config::ConfigProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/config.rs:1373:6
+     |
+1183 |     Program(ProgramLoadError),
+     |     ------------------------- the largest variant contains at least 168 bytes
+...
+1373 | ) -> Result<PreparedProgram, ConfigProgramLoadError> {
+     |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `config::ConfigProgramLoadError`, for example by boxing large elements or replacing it with `Box<config::ConfigProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/config.rs:1391:6
+     |
+1183 |     Program(ProgramLoadError),
+     |     ------------------------- the largest variant contains at least 168 bytes
+...
+1391 | ) -> Result<PreparedProgram, ConfigProgramLoadError> {
+     |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `config::ConfigProgramLoadError`, for example by boxing large elements or replacing it with `Box<config::ConfigProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/config.rs:1408:6
+     |
+1183 |     Program(ProgramLoadError),
+     |     ------------------------- the largest variant contains at least 168 bytes
+...
+1408 | ) -> Result<PreparedProgram, ConfigProgramLoadError> {
+     |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `config::ConfigProgramLoadError`, for example by boxing large elements or replacing it with `Box<config::ConfigProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/config.rs:1426:55
+     |
+1183 |     Program(ProgramLoadError),
+     |     ------------------------- the largest variant contains at least 168 bytes
+...
+1426 | pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLoadError> {
+     |                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `config::ConfigProgramLoadError`, for example by boxing large elements or replacing it with `Box<config::ConfigProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/config.rs:1434:6
+     |
+1183 |     Program(ProgramLoadError),
+     |     ------------------------- the largest variant contains at least 168 bytes
+...
+1434 | ) -> Result<(), ConfigProgramLoadError> {
+     |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `config::ConfigProgramLoadError`, for example by boxing large elements or replacing it with `Box<config::ConfigProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/config.rs:1492:6
+     |
+1183 |     Program(ProgramLoadError),
+     |     ------------------------- the largest variant contains at least 168 bytes
+...
+1492 | ) -> Result<PreparedProgram, ConfigProgramLoadError> {
+     |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `config::ConfigProgramLoadError`, for example by boxing large elements or replacing it with `Box<config::ConfigProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/config.rs:1911:76
+     |
+1911 |         let path = crate::js_path::normalized_absolute_path(original_path, config_base_path.into());
+     |                                                                            ^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `config_base_path`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+     = note: `#[warn(clippy::useless_conversion)]` on by default
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/config.rs:2297:35
+     |
+2297 |         match self.host.read_file(path.into()) {
+     |                                   ^^^^^^^^^^^ help: consider removing `.into()`: `path`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/config.rs:2690:59
+     |
+2690 | ...                   .map(|spec| Value::String(spec.text.clone().into()))
+     |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `spec.text.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/config.rs:2799:32
+     |
+2799 |             current_directory: base_path.into(),
+     |                                ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `base_path`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/config.rs:4507:13
+     |
+4507 |             base_path.into(),
+     |             ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `base_path`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/config.rs:4706:48
+     |
+4706 |                     .map(|value| Value::String(value.into()))
+     |                                                ^^^^^^^^^^^^ help: consider removing `.into()`: `value`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/config.rs:6365:38
+     |
+6365 |                   let mut difference = JsString::from(relative_directory_path(
+     |  ______________________________________^
+6366 | |                     base_path,
+6367 | |                     &spec.base_path,
+6368 | |                     case_sensitive,
+6369 | |                 )?);
+     | |___________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+help: consider removing `JsString::from()`
+     |
+6365 ~                 let mut difference = relative_directory_path(
+6366 +                     base_path,
+6367 +                     &spec.base_path,
+6368 +                     case_sensitive,
+6369 ~                 )?;
+     |
+
+warning: comparison to empty slice
+  --> crates/program/src/js_path.rs:57:13
+   |
+57 |         && (authority == "" || authority == "localhost")
+   |             ^^^^^^^^^^^^^^^ help: using `is_empty` is clearer and more explicit: `authority.is_empty()`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#comparison_to_empty
+   = note: `#[warn(clippy::comparison_to_empty)]` on by default
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/loader.rs:576:6
+    |
+240 | /     Host {
+241 | |         operation: ProgramLoadOperation,
+242 | |         path: Option<PathBuf>,
+243 | |         js_path: Option<JsString>,
+244 | |         source: HostError,
+245 | |     },
+    | |_____- the variant `Host` contains at least 129 bytes
+...
+252 | /     Resolution {
+253 | |         operation: ProgramLoadOperation,
+254 | |         path: Option<PathBuf>,
+255 | |         js_path: Option<JsString>,
+256 | |         specifier: Option<JsString>,
+257 | |         source: ResolutionError,
+258 | |     },
+    | |_____- the variant `Resolution` contains at least 153 bytes
+259 | /     Preparation {
+260 | |         operation: ProgramLoadOperation,
+261 | |         source: PreparationError,
+262 | |     },
+    | |_____- the largest variant contains at least 161 bytes
+...
+576 |   ) -> Result<PreparedProgram, ProgramLoadError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/loader.rs:609:6
+    |
+240 | /     Host {
+241 | |         operation: ProgramLoadOperation,
+242 | |         path: Option<PathBuf>,
+243 | |         js_path: Option<JsString>,
+244 | |         source: HostError,
+245 | |     },
+    | |_____- the variant `Host` contains at least 129 bytes
+...
+252 | /     Resolution {
+253 | |         operation: ProgramLoadOperation,
+254 | |         path: Option<PathBuf>,
+255 | |         js_path: Option<JsString>,
+256 | |         specifier: Option<JsString>,
+257 | |         source: ResolutionError,
+258 | |     },
+    | |_____- the variant `Resolution` contains at least 153 bytes
+259 | /     Preparation {
+260 | |         operation: ProgramLoadOperation,
+261 | |         source: PreparationError,
+262 | |     },
+    | |_____- the largest variant contains at least 161 bytes
+...
+609 |   ) -> Result<PreparedProgram, ProgramLoadError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/loader.rs:638:6
+    |
+240 | /     Host {
+241 | |         operation: ProgramLoadOperation,
+242 | |         path: Option<PathBuf>,
+243 | |         js_path: Option<JsString>,
+244 | |         source: HostError,
+245 | |     },
+    | |_____- the variant `Host` contains at least 129 bytes
+...
+252 | /     Resolution {
+253 | |         operation: ProgramLoadOperation,
+254 | |         path: Option<PathBuf>,
+255 | |         js_path: Option<JsString>,
+256 | |         specifier: Option<JsString>,
+257 | |         source: ResolutionError,
+258 | |     },
+    | |_____- the variant `Resolution` contains at least 153 bytes
+259 | /     Preparation {
+260 | |         operation: ProgramLoadOperation,
+261 | |         source: PreparationError,
+262 | |     },
+    | |_____- the largest variant contains at least 161 bytes
+...
+638 |   ) -> Result<PreparedProgram, ProgramLoadError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/loader.rs:678:6
+    |
+240 | /     Host {
+241 | |         operation: ProgramLoadOperation,
+242 | |         path: Option<PathBuf>,
+243 | |         js_path: Option<JsString>,
+244 | |         source: HostError,
+245 | |     },
+    | |_____- the variant `Host` contains at least 129 bytes
+...
+252 | /     Resolution {
+253 | |         operation: ProgramLoadOperation,
+254 | |         path: Option<PathBuf>,
+255 | |         js_path: Option<JsString>,
+256 | |         specifier: Option<JsString>,
+257 | |         source: ResolutionError,
+258 | |     },
+    | |_____- the variant `Resolution` contains at least 153 bytes
+259 | /     Preparation {
+260 | |         operation: ProgramLoadOperation,
+261 | |         source: PreparationError,
+262 | |     },
+    | |_____- the largest variant contains at least 161 bytes
+...
+678 |   ) -> Result<PreparedProgram, ProgramLoadError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/loader.rs:707:6
+    |
+240 | /     Host {
+241 | |         operation: ProgramLoadOperation,
+242 | |         path: Option<PathBuf>,
+243 | |         js_path: Option<JsString>,
+244 | |         source: HostError,
+245 | |     },
+    | |_____- the variant `Host` contains at least 129 bytes
+...
+252 | /     Resolution {
+253 | |         operation: ProgramLoadOperation,
+254 | |         path: Option<PathBuf>,
+255 | |         js_path: Option<JsString>,
+256 | |         specifier: Option<JsString>,
+257 | |         source: ResolutionError,
+258 | |     },
+    | |_____- the variant `Resolution` contains at least 153 bytes
+259 | /     Preparation {
+260 | |         operation: ProgramLoadOperation,
+261 | |         source: PreparationError,
+262 | |     },
+    | |_____- the largest variant contains at least 161 bytes
+...
+707 |   ) -> Result<PreparedProgram, ProgramLoadError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/loader.rs:743:36
+    |
+240 | /     Host {
+241 | |         operation: ProgramLoadOperation,
+242 | |         path: Option<PathBuf>,
+243 | |         js_path: Option<JsString>,
+244 | |         source: HostError,
+245 | |     },
+    | |_____- the variant `Host` contains at least 129 bytes
+...
+252 | /     Resolution {
+253 | |         operation: ProgramLoadOperation,
+254 | |         path: Option<PathBuf>,
+255 | |         js_path: Option<JsString>,
+256 | |         specifier: Option<JsString>,
+257 | |         source: ResolutionError,
+258 | |     },
+    | |_____- the variant `Resolution` contains at least 153 bytes
+259 | /     Preparation {
+260 | |         operation: ProgramLoadOperation,
+261 | |         source: PreparationError,
+262 | |     },
+    | |_____- the largest variant contains at least 161 bytes
+...
+743 |       fn name(self, index: usize) -> Result<JsStr<'a>, ProgramLoadError> {
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/loader.rs:756:6
+    |
+240 | /     Host {
+241 | |         operation: ProgramLoadOperation,
+242 | |         path: Option<PathBuf>,
+243 | |         js_path: Option<JsString>,
+244 | |         source: HostError,
+245 | |     },
+    | |_____- the variant `Host` contains at least 129 bytes
+...
+252 | /     Resolution {
+253 | |         operation: ProgramLoadOperation,
+254 | |         path: Option<PathBuf>,
+255 | |         js_path: Option<JsString>,
+256 | |         specifier: Option<JsString>,
+257 | |         source: ResolutionError,
+258 | |     },
+    | |_____- the variant `Resolution` contains at least 153 bytes
+259 | /     Preparation {
+260 | |         operation: ProgramLoadOperation,
+261 | |         source: PreparationError,
+262 | |     },
+    | |_____- the largest variant contains at least 161 bytes
+...
+756 |   ) -> Result<JsStr<'_>, ProgramLoadError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/loader.rs:777:6
+    |
+240 | /     Host {
+241 | |         operation: ProgramLoadOperation,
+242 | |         path: Option<PathBuf>,
+243 | |         js_path: Option<JsString>,
+244 | |         source: HostError,
+245 | |     },
+    | |_____- the variant `Host` contains at least 129 bytes
+...
+252 | /     Resolution {
+253 | |         operation: ProgramLoadOperation,
+254 | |         path: Option<PathBuf>,
+255 | |         js_path: Option<JsString>,
+256 | |         specifier: Option<JsString>,
+257 | |         source: ResolutionError,
+258 | |     },
+    | |_____- the variant `Resolution` contains at least 153 bytes
+259 | /     Preparation {
+260 | |         operation: ProgramLoadOperation,
+261 | |         source: PreparationError,
+262 | |     },
+    | |_____- the largest variant contains at least 161 bytes
+...
+777 |   ) -> Result<PreparedProgram, ProgramLoadError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/loader.rs:891:6
+    |
+240 | /     Host {
+241 | |         operation: ProgramLoadOperation,
+242 | |         path: Option<PathBuf>,
+243 | |         js_path: Option<JsString>,
+244 | |         source: HostError,
+245 | |     },
+    | |_____- the variant `Host` contains at least 129 bytes
+...
+252 | /     Resolution {
+253 | |         operation: ProgramLoadOperation,
+254 | |         path: Option<PathBuf>,
+255 | |         js_path: Option<JsString>,
+256 | |         specifier: Option<JsString>,
+257 | |         source: ResolutionError,
+258 | |     },
+    | |_____- the variant `Resolution` contains at least 153 bytes
+259 | /     Preparation {
+260 | |         operation: ProgramLoadOperation,
+261 | |         source: PreparationError,
+262 | |     },
+    | |_____- the largest variant contains at least 161 bytes
+...
+891 |   ) -> Result<Vec<(ProgramPath, ProgramPath)>, ProgramLoadError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+   --> crates/program/src/loader.rs:930:30
+    |
+930 |                         Some((name.clone()).into()),
+    |                              ^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(name.clone())`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: redundant closure
+   --> crates/program/src/loader.rs:963:33
+    |
+963 |                     .filter_map(|key| crate::json::decode_user_object_key(key))
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the function itself: `crate::json::decode_user_object_key`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#redundant_closure
+    = note: `#[warn(clippy::redundant_closure)]` on by default
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/loader.rs:977:6
+    |
+240 | /     Host {
+241 | |         operation: ProgramLoadOperation,
+242 | |         path: Option<PathBuf>,
+243 | |         js_path: Option<JsString>,
+244 | |         source: HostError,
+245 | |     },
+    | |_____- the variant `Host` contains at least 129 bytes
+...
+252 | /     Resolution {
+253 | |         operation: ProgramLoadOperation,
+254 | |         path: Option<PathBuf>,
+255 | |         js_path: Option<JsString>,
+256 | |         specifier: Option<JsString>,
+257 | |         source: ResolutionError,
+258 | |     },
+    | |_____- the variant `Resolution` contains at least 153 bytes
+259 | /     Preparation {
+260 | |         operation: ProgramLoadOperation,
+261 | |         source: PreparationError,
+262 | |     },
+    | |_____- the largest variant contains at least 161 bytes
+...
+977 |   ) -> Result<(), ProgramLoadError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1041:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1041 |   ) -> Result<ProgramPath, ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1074:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1074 |   ) -> Result<ProgramPath, ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1116:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1116 |   ) -> Result<(), ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1162:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1162 |   ) -> Result<(), ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1479:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1479 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1544:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1544 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1635:53
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1635 |       fn load_automatic_type_directives(&mut self) -> Result<(), ProgramLoadError> {
+     |                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/loader.rs:1674:34
+     |
+1674 | ...                   Some((name.clone()).into()),
+     |                            ^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(name.clone())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1747:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1747 |       ) -> Result<(Vec<JsString>, bool), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/loader.rs:1759:25
+     |
+1759 |                .into_iter()
+     |   _________________________^
+     |  |_________________________|
+1760 | ||             .map(JsString::from)
+     | ||________________________________^
+1761 | |              .collect();
+     | |_____________- help: consider removing
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1778:56
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1778 |       fn discover_wildcard_type_directives(&mut self) -> Result<Vec<JsString>, ProgramLoadError> {
+     |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1810:50
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1810 |       fn automatic_types_containing_file(&self) -> Result<ProgramPath, ProgramLoadError> {
+     |                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/loader.rs:1813:18
+     |
+1813 |             Some(self.resolver.type_root_base_directory().into()),
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `self.resolver.type_root_base_directory()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:1838:46
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+1838 |       fn load_selected_libraries(&mut self) -> Result<(), ProgramLoadError> {
+     |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2210:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2210 |       ) -> Result<Option<usize>, ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2465:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2465 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2550:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2550 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2557:62
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2557 |       fn drain_source_reprocesses(&mut self, source: usize) -> Result<(), ProgramLoadError> {
+     |                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2588:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2588 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2625:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2625 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2633:56
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2633 |       fn catalog_library_path(&self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
+     |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2677:61
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2677 |       fn resolved_library_path(&mut self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
+     |                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2743:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2743 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2818:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2818 |       ) -> Result<bool, ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:2854:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+2854 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/loader.rs:2861:17
+     |
+2861 |                 reference.file_name().into(),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `reference.file_name()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/loader.rs:2869:26
+     |
+2869 |                     Some((reference.file_name().to_owned()).into()),
+     |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(reference.file_name().to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/loader.rs:2890:26
+     |
+2890 |                     Some((reference.file_name().to_owned()).into()),
+     |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(reference.file_name().to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/loader.rs:2968:26
+     |
+2968 |                     Some((reference.file_name().to_owned()).into()),
+     |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(reference.file_name().to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:3018:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+3018 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/loader.rs:3040:34
+     |
+3040 | ...                   Some((key.specifier().to_owned()).into()),
+     |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(key.specifier().to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:3132:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+3132 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/loader.rs:3169:34
+     |
+3169 | ...                   Some((key.specifier().to_owned()).into()),
+     |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(key.specifier().to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:3322:10
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+3322 |       ) -> Result<(), ProgramLoadError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:3375:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+3375 |   ) -> Result<PreparedProgram, ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/loader.rs:3495:22
+     |
+3495 |                 Some((specifier).into()),
+     |                      ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(specifier)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/loader.rs:3514:26
+     |
+3514 |                     Some((specifier).into()),
+     |                          ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(specifier)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:3926:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+3926 |   ) -> Result<Diagnostic, ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:3970:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+3970 |   ) -> Result<Diagnostic, ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:4121:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+4121 |   ) -> Result<Diagnostic, ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/loader.rs:4458:15
+     |
+4458 |             &[specifier.clone().into(), parent.clone()],
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `specifier.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:4499:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+4499 |   ) -> Result<Diagnostic, ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:4523:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+4523 |   ) -> Result<PreparedProgram, ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/loader.rs:4545:6
+     |
+ 240 | /     Host {
+ 241 | |         operation: ProgramLoadOperation,
+ 242 | |         path: Option<PathBuf>,
+ 243 | |         js_path: Option<JsString>,
+ 244 | |         source: HostError,
+ 245 | |     },
+     | |_____- the variant `Host` contains at least 129 bytes
+...
+ 252 | /     Resolution {
+ 253 | |         operation: ProgramLoadOperation,
+ 254 | |         path: Option<PathBuf>,
+ 255 | |         js_path: Option<JsString>,
+ 256 | |         specifier: Option<JsString>,
+ 257 | |         source: ResolutionError,
+ 258 | |     },
+     | |_____- the variant `Resolution` contains at least 153 bytes
+ 259 | /     Preparation {
+ 260 | |         operation: ProgramLoadOperation,
+ 261 | |         source: PreparationError,
+ 262 | |     },
+     | |_____- the largest variant contains at least 161 bytes
+...
+4545 |   ) -> Result<PreparedProgram, ProgramLoadError> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: try reducing the size of `loader::ProgramLoadError`, for example by boxing large elements or replacing it with `Box<loader::ProgramLoadError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+   --> crates/program/src/module_resolution.rs:637:21
+    |
+637 |                     base_path.into(),
+    |                     ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `base_path`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+   --> crates/program/src/module_resolution.rs:731:33
+    |
+731 |                 .file_exists_js(JsStr::from(file_name))
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `file_name`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+   --> crates/program/src/module_resolution.rs:744:45
+    |
+744 |                 if self.host.file_exists_js(JsStr::from(file_name))? {
+    |                                             ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `file_name`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+   --> crates/program/src/module_resolution.rs:855:13
+    |
+855 |             JsStr::from(containing_file),
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `containing_file`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+   --> crates/program/src/module_resolution.rs:856:18
+    |
+856 |             Some(JsStr::from(current_directory)),
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `current_directory`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+   --> crates/program/src/module_resolution.rs:938:13
+    |
+938 |             JsStr::from(containing_file),
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `containing_file`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+   --> crates/program/src/module_resolution.rs:939:18
+    |
+939 |             Some(JsStr::from(self.current_directory_text())),
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `self.current_directory_text()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:1092:33
+     |
+1092 | ...                   JsStr::from(specifier).substring(capture.start, capture.end);
+     |                       ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `specifier`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:1210:17
+     |
+1210 |                 JsStr::from(specifier),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `specifier`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:1211:22
+     |
+1211 |                 Some(JsStr::from(containing_directory)),
+     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `containing_directory`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:1398:62
+     |
+1398 |         let candidate_exists = self.host.directory_exists_js(JsStr::from(candidate))?;
+     |                                                              ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `candidate`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:1486:18
+     |
+1486 |             Some(JsStr::from(self.current_directory_text())),
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `self.current_directory_text()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:1609:25
+     |
+1609 |                         JsStr::from(specifier),
+     |                         ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `specifier`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:2136:13
+     |
+2136 |             JsStr::from(containing_file),
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `containing_file`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:2199:13
+     |
+2199 |             JsStr::from(containing_directory),
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `containing_directory`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:2200:18
+     |
+2200 |             Some(JsStr::from(self.current_directory_text())),
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `self.current_directory_text()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:2301:30
+     |
+2301 |                         Some(JsStr::from(self.current_directory_text())),
+     |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `self.current_directory_text()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:3717:43
+     |
+3717 |         if !self.host.directory_exists_js(JsStr::from(type_root))? {
+     |                                           ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `type_root`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:3837:17
+     |
+3837 |                 JsStr::from(specifier),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `specifier`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:3959:17
+     |
+3959 |                 JsStr::from(specifier),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `specifier`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:3960:22
+     |
+3960 |                 Some(JsStr::from(containing_directory)),
+     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `containing_directory`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:4087:62
+     |
+4087 |         let candidate_exists = self.host.directory_exists_js(JsStr::from(candidate))?;
+     |                                                              ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `candidate`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:4261:34
+     |
+4261 |             .directory_exists_js(JsStr::from(candidate_directory))?;
+     |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `candidate_directory`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:4424:68
+     |
+4424 |             only_record_failures || !self.host.directory_exists_js(JsStr::from(base_directory))?
+     |                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `base_directory`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/module_resolution.rs:4577:62
+     |
+4577 |         let candidate_exists = self.host.directory_exists_js(JsStr::from(candidate))?;
+     |                                                              ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsStr::from()`: `candidate`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: redundant closure
+    --> crates/program/src/module_resolution.rs:5035:60
+     |
+5035 |                 let mut own_keys = table.keys().filter_map(|key| decode_user_object_key(key));
+     |                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the function itself: `decode_user_object_key`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#redundant_closure
+
+warning: called `skip(..).next()` on an iterator
+    --> crates/program/src/module_resolution.rs:6037:33
+     |
+6037 |       let package_end = separators
+     |  _________________________________^
+6038 | |         .skip(usize::from(specifier.starts_with("@")))
+6039 | |         .next()
+     | |_______________^ help: use `nth` instead: `.nth(usize::from(specifier.starts_with("@")))`
+     |
+help: for this change `separators` has to be mutable
+    --> crates/program/src/module_resolution.rs:6032:9
+     |
+6032 |     let separators = specifier
+     |         ^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#iter_skip_next
+     = note: `#[warn(clippy::iter_skip_next)]` on by default
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/module_resolution.rs:6853:64
+     |
+6853 |         Value::Array(values) => js_json_array_to_string(values).map(JsString::from),
+     |                                                                ^^^^^^^^^^^^^^^^^^^^ help: consider removing
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/program/src/module_resolution.rs:6857:59
+     |
+6857 |                   js_json_object_array_join_to_string(value).map(JsString::from)
+     |  ___________________________________________________________-^^^^^^^^^^^^^^^^^^^
+6858 | |             }
+     | |____________- help: consider removing
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: redundant closure
+    --> crates/program/src/module_resolution.rs:7377:21
+     |
+7377 |         .filter_map(|key| decode_user_object_key(key))
+     |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the function itself: `decode_user_object_key`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#redundant_closure
+
+warning: the `Err`-variant returned from this function is very large
+  --> crates/program/src/path.rs:21:65
+   |
+21 |     pub fn from_trusted_normalized(path: impl Into<PathBuf>) -> Result<Self, PreparationError> {
+   |                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+   |
+   = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+  --> crates/program/src/path.rs:29:51
+   |
+29 |     pub fn from_js_normalized(path: JsStr<'_>) -> Result<Self, PreparationError> {
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+   |
+   = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+  --> crates/program/src/path.rs:59:10
+   |
+59 |     ) -> Result<Self, PreparationError> {
+   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+   |
+   = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+  --> crates/program/src/path.rs:76:10
+   |
+76 |     ) -> Result<Self, PreparationError> {
+   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+   |
+   = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+  --> crates/program/src/path.rs:97:57
+   |
+97 | fn native_path_text<'p>(path: &'p Path, label: &str) -> Result<&'p str, PreparationError> {
+   |                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+   |
+   = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/program/src/path.rs:109:54
+    |
+109 | fn validate_js_path(path: JsStr<'_>, label: &str) -> Result<(), PreparationError> {
+    |                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+    |
+    = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1550:10
+     |
+1550 |     ) -> Result<SourceFileId, PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1559:10
+     |
+1559 |     ) -> Result<SourceFileId, PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1639:10
+     |
+1639 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1695:55
+     |
+1695 |     pub fn add_root(&mut self, root: PreparedRoot) -> Result<(), PreparationError> {
+     |                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1701:55
+     |
+1701 |     fn try_add_root(&mut self, root: PreparedRoot) -> Result<(), PreparationError> {
+     |                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1735:10
+     |
+1735 |     ) -> Result<bool, PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1763:64
+     |
+1763 |     fn root_request_has_source(&self, root: &CanonicalPath) -> Result<bool, PreparationError> {
+     |                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1781:62
+     |
+1781 |     pub fn add_root_file(&mut self, source: SourceFileId) -> Result<(), PreparationError> {
+     |                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1790:65
+     |
+1790 |     pub fn add_library_file(&mut self, source: SourceFileId) -> Result<(), PreparationError> {
+     |                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1806:10
+     |
+1806 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1815:10
+     |
+1815 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1845:10
+     |
+1845 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1854:10
+     |
+1854 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1885:10
+     |
+1885 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1895:10
+     |
+1895 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1921:10
+     |
+1921 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1931:10
+     |
+1931 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:1953:27
+     |
+1953 |     pub fn build(self) -> Result<PreparedProgram, PreparationError> {
+     |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2029:33
+     |
+2029 |     fn ensure_healthy(&self) -> Result<(), PreparationError> {
+     |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2039:10
+     |
+2039 |     ) -> Result<T, PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2058:10
+     |
+2058 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2078:46
+     |
+2078 |     fn validate_diagnostic_sources(&self) -> Result<(), PreparationError> {
+     |                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2110:52
+     |
+2110 |     fn validate_missing_root_diagnostics(&self) -> Result<(), PreparationError> {
+     |                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2132:33
+     |
+2132 |     fn validate_roots(&self) -> Result<(), PreparationError> {
+     |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2157:40
+     |
+2157 |     fn validate_case_profile(&self) -> Result<(), PreparationError> {
+     |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2221:64
+     |
+2221 |     fn validate_canonical_case(&self, path: &CanonicalPath) -> Result<(), PreparationError> {
+     |                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2241:10
+     |
+2241 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsStr<'_>`
+    --> crates/program/src/prepared.rs:2283:18
+     |
+2283 |             Some(file_name.into()),
+     |                  ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `file_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2292:10
+     |
+2292 |     ) -> Result<&PreparedSourceFile, PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2307:10
+     |
+2307 |     ) -> Result<SourceFileId, PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2327:10
+     |
+2327 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2367:10
+     |
+2367 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2479:10
+     |
+2479 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2517:10
+     |
+2517 |     ) -> Result<(), PreparationError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: the `Err`-variant returned from this function is very large
+    --> crates/program/src/prepared.rs:2629:6
+     |
+2629 | ) -> Result<(), PreparationError> {
+     |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 160 bytes
+     |
+     = help: try reducing the size of `error::PreparationError`, for example by boxing large elements or replacing it with `Box<error::PreparationError>`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#result_large_err
+
+warning: `tsc-rs-program` (lib) generated 144 warnings (run `cargo clippy --fix --lib -p tsc-rs-program` to apply 52 suggestions)
+    Checking tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/emitter)
+warning: this function has too many arguments (8/7)
+   --> crates/emitter/src/builtins/class_fields/downlevel.rs:926:1
+    |
+926 | / pub(super) fn transform_source(
+927 | |     context: &mut TransformationContext,
+928 | |     source: TransformSourceId,
+929 | |     resolver: &dyn EmitResolver,
+...   |
+934 | |     static_emit_environments: &mut BTreeMap<(u32, u32), Rc<StaticEmitEnvironment>>,
+935 | | ) -> Result<bool, TransformError> {
+    | |_________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#too_many_arguments
+    = note: `#[warn(clippy::too_many_arguments)]` on by default
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/emitter/src/builtins/class_fields/downlevel.rs:2774:49
+     |
+2774 |                 Some(AssignedClassName::Literal(data.text.clone().into()))
+     |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `data.text.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+     = note: `#[warn(clippy::useless_conversion)]` on by default
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/emitter/src/builtins/class_fields/downlevel.rs:2777:49
+     |
+2777 |                 Some(AssignedClassName::Literal(data.text.clone().into()))
+     |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `data.text.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/emitter/src/builtins/class_fields/downlevel.rs:2811:49
+     |
+2811 |                 Some(AssignedClassName::Literal(data.text.clone().into()))
+     |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `data.text.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/emitter/src/builtins/class_fields/downlevel.rs:6841:49
+     |
+6841 |                 Some(AssignedClassName::Literal(data.text.clone().into()))
+     |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `data.text.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/emitter/src/builtins/class_fields/downlevel.rs:6844:49
+     |
+6844 |                 Some(AssignedClassName::Literal(data.text.clone().into()))
+     |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `data.text.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: casting to the same type is unnecessary (`i32` -> `i32`)
+   --> crates/emitter/src/builtins/class_fields.rs:523:42
+    |
+523 |                         && (node.flags & NodeFlags::SYNTHESIZED.bits() as i32) == 0 =>
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `NodeFlags::SYNTHESIZED.bits()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unnecessary_cast
+    = note: `#[warn(clippy::unnecessary_cast)]` on by default
+
+warning: casting to the same type is unnecessary (`i32` -> `i32`)
+    --> crates/emitter/src/builtins/class_fields.rs:2314:32
+     |
+2314 |             && (record.flags & NodeFlags::SYNTHESIZED.bits() as i32) != 0
+     |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `NodeFlags::SYNTHESIZED.bits()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unnecessary_cast
+
+warning: very complex type used. Consider factoring parts into `type` definitions
+    --> crates/emitter/src/builtins/class_fields.rs:3754:10
+     |
+3754 |     ) -> Result<(Option<NodeArrayId>, Option<NodeId>, Option<NodeId>), TransformError> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#type_complexity
+     = note: `#[warn(clippy::type_complexity)]` on by default
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+   --> crates/emitter/src/builtins/system.rs:210:19
+    |
+210 |                    )?
+    |   ___________________^
+    |  |___________________|
+211 | ||                 .map(JsString::from)
+    | ||____________________________________^
+212 | |                  // tryRenameExternalModule (27716): API renamedDependencies.
+    | |_________________- help: consider removing
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+    --> crates/emitter/src/builtins.rs:5235:24
+     |
+5235 |             let path = JsString::from(dependency.path);
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsString::from()`: `dependency.path`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: called `iter().cloned().collect()` on a slice to create a `Vec`. Calling `to_vec()` is both faster and more readable
+   --> crates/emitter/src/declaration_map.rs:133:32
+    |
+133 |         generator.raw_sources().iter().cloned().collect(),
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `.to_vec()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#iter_cloned_collect
+    = note: `#[warn(clippy::iter_cloned_collect)]` on by default
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+   --> crates/emitter/src/execute.rs:609:22
+    |
+609 |         source_root: source_root_field(options).into(),
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `source_root_field(options)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+   --> crates/emitter/src/execute.rs:610:33
+    |
+610 |           sources_directory_path: source_map_directory_for_output(
+    |  _________________________________^
+611 | |             lane,
+612 | |             options,
+613 | |             javascript_path,
+...   |
+616 | |         .into(),
+    | |_______________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+help: consider removing `.into()`
+    |
+610 ~         sources_directory_path: source_map_directory_for_output(
+611 +             lane,
+612 +             options,
+613 +             javascript_path,
+614 +             source_path,
+615 ~         ),
+    |
+
+warning: useless conversion to the same type: `tsc_diagnostics::JsString`
+   --> crates/emitter/src/execute.rs:617:28
+    |
+617 |         current_directory: lane.current_directory.clone().into(),
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `lane.current_directory.clone()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: called `iter().cloned().collect()` on a slice to create a `Vec`. Calling `to_vec()` is both faster and more readable
+    --> crates/emitter/src/execute.rs:1092:48
+     |
+1092 |                         generator.raw_sources().iter().cloned().collect(),
+     |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `.to_vec()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#iter_cloned_collect
+
+warning: `tsc-rs-emitter` (lib) generated 16 warnings (run `cargo clippy --fix --lib -p tsc-rs-emitter` to apply 14 suggestions)
+    Checking tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/checker)
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/access.rs:3382:53
+     |
+3382 |                         &[missing_property.clone(), subtype_name.into()],
+     |                                                     ^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `subtype_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+     = note: `#[warn(clippy::useless_conversion)]` on by default
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/access.rs:3397:45
+     |
+3397 |                 &[missing_property.clone(), type_name.into(), suggestion],
+     |                                             ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `type_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/access.rs:3411:49
+     |
+3411 |                     &[missing_property.clone(), type_name.into()],
+     |                                                 ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `type_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/access.rs:3450:53
+     |
+3450 |                         &[missing_property.clone(), container.into(), lib.into()],
+     |                                                     ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `container`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/access.rs:3471:33
+     |
+3471 | ...                   container.into(),
+     |                       ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `container`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/access.rs:3487:57
+     |
+3487 | ...                   &[missing_property.clone(), container.into()],
+     |                                                   ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `container`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/access.rs:3502:57
+     |
+3502 | ...                   &[missing_property.clone(), container.into()],
+     |                                                   ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `container`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/access.rs:4123:31
+     |
+4123 | ...                   &[(display).into()],
+     |                         ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(display)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/annotate.rs:5983:23
+     |
+5983 |                     &[(text).into()],
+     |                       ^^^^^^^^^^^^^ help: consider removing `.into()`: `(text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/calls.rs:4322:33
+     |
+4322 | ...                   (signature_text.clone()).into(),
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(signature_text.clone())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/check.rs:5485:30
+     |
+5485 |             Some(text) => Ok(text.into()),
+     |                              ^^^^^^^^^^^ help: consider removing `.into()`: `text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: this expression creates a reference which is immediately dereferenced by the compiler
+     --> crates/checker/src/check.rs:11960:49
+      |
+11960 |             text.push_js((&crate::join_js_texts(&type_arguments, ", ")).into());
+      |                                                 ^^^^^^^^^^^^^^^ help: change this to: `type_arguments`
+      |
+      = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#needless_borrow
+      = note: `#[warn(clippy::needless_borrow)]` on by default
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+     --> crates/checker/src/check.rs:13079:30
+      |
+13079 |             Some(text) => Ok(text.into()),
+      |                              ^^^^^^^^^^^ help: consider removing `.into()`: `text`
+      |
+      = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+     --> crates/checker/src/check.rs:13413:30
+      |
+13413 |             Some(text) => Ok(text.into()),
+      |                              ^^^^^^^^^^^ help: consider removing `.into()`: `text`
+      |
+      = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/display_clone.rs:1987:22
+     |
+1987 |         text.push_js((fragment).into());
+     |                      ^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(fragment)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+   --> crates/checker/src/elaboration.rs:475:17
+    |
+475 |                 display.into()
+    |                 ^^^^^^^^^^^^^^ help: consider removing `.into()`: `display`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: large size difference between variants
+    --> crates/checker/src/engine.rs:1038:1
+     |
+1038 | / pub(crate) enum ExcessPropertyOutcome {
+1039 | |     None,
+     | |     ---- the second-largest variant carries no data at all
+1040 | |     UnknownProperty { diagnostic: Option<Diagnostic> },
+     | |     -------------------------------------------------- the largest variant contains at least 208 bytes
+1041 | |     Incompatible,
+1042 | | }
+     | |_^ the entire enum is at least 208 bytes
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#large_enum_variant
+     = note: `#[warn(clippy::large_enum_variant)]` on by default
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+     |
+1040 -     UnknownProperty { diagnostic: Option<Diagnostic> },
+1040 +     UnknownProperty { diagnostic: Box<Option<Diagnostic>> },
+     |
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:1657:18
+     |
+1657 |             vec![(source_text).into(), (target_text).into()],
+     |                  ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:1657:40
+     |
+1657 |             vec![(source_text).into(), (target_text).into()],
+     |                                        ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:1673:25
+     |
+1673 |                         target_text.into(),
+     |                         ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2044:26
+     |
+2044 |                       vec![(if needs_original_source {
+     |  __________________________^
+2045 | |                             source_text.clone()
+2046 | |                         } else {
+2047 | |                             generalized_source_text.clone()
+2048 | |                         }).into(), (target_text.clone()).into(), (constraint_text).into()],
+     | |_________________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+help: consider removing `.into()`
+     |
+2044 ~                     vec![(if needs_original_source {
+2045 +                             source_text.clone()
+2046 +                         } else {
+2047 +                             generalized_source_text.clone()
+2048 ~                         }), (target_text.clone()).into(), (constraint_text).into()],
+     |
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2048:36
+     |
+2048 |                         }).into(), (target_text.clone()).into(), (constraint_text).into()],
+     |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text.clone())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2048:66
+     |
+2048 |                         }).into(), (target_text.clone()).into(), (constraint_text).into()],
+     |                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(constraint_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2056:26
+     |
+2056 |                     vec![(target_text.clone()).into(), (generalized_source_text.clone()).into()],
+     |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text.clone())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2056:56
+     |
+2056 |                     vec![(target_text.clone()).into(), (generalized_source_text.clone()).into()],
+     |                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(generalized_source_text.clone())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2084:33
+     |
+2084 | ...                   (generalized_source_text).into(),
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(generalized_source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2085:33
+     |
+2085 | ...                   (target_text).into(),
+     |                       ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2086:33
+     |
+2086 | ...                   (suggested_text).into(),
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(suggested_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2097:18
+     |
+2097 |             vec![(generalized_source_text).into(), (target_text).into()],
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(generalized_source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2097:52
+     |
+2097 |             vec![(generalized_source_text).into(), (target_text).into()],
+     |                                                    ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2123:22
+     |
+2123 |                 vec![(target_text).into(), (source_text).into()],
+     |                      ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2123:44
+     |
+2123 |                 vec![(target_text).into(), (source_text).into()],
+     |                                            ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2465:38
+     |
+2465 |                         &[prop_text, target_text.clone().into(), suggestion],
+     |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2469:38
+     |
+2469 |                         &[prop_text, target_text.clone().into()],
+     |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2526:37
+     |
+2526 |                     vec![prop_text, target_text.into(), suggestion],
+     |                                     ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2530:37
+     |
+2530 |                     vec![prop_text, target_text.into()],
+     |                                     ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2541:41
+     |
+2541 |                         vec![prop_text, target_text.into(), suggestion],
+     |                                         ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/engine.rs:2545:41
+     |
+2545 |                         vec![prop_text, target_text.into()],
+     |                                         ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/indexed.rs:1613:19
+     |
+1613 |                 &[(display).into(), (&object_display).into()],
+     |                   ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(display)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/indexed.rs:1678:33
+     |
+1678 | ...                   (name).into(),
+     |                       ^^^^^^^^^^^^^ help: consider removing `.into()`: `(name)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/indexed.rs:1705:41
+     |
+1705 | ...                   (crate::concat_js(&[&"[", &index_display, &"]"])).into(),
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(crate::concat_js(&[&"[", &index_display, &"]"]))`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/indexed.rs:1706:41
+     |
+1706 | ...                   (object_display).into(),
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(object_display)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/indexed.rs:1725:41
+     |
+1725 | ...                   (crate::concat_js(&[&"[", &symbol_name, &"]"])).into(),
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(crate::concat_js(&[&"[", &symbol_name, &"]"]))`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/indexed.rs:1726:41
+     |
+1726 | ...                   (object_display).into(),
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(object_display)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/indexed.rs:1738:46
+     |
+1738 | ...                   &[value, object_display.into()],
+     |                                ^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `object_display`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/indexed.rs:1746:39
+     |
+1746 | ...                   &[(index_display).into(), (object_display).into()],
+     |                         ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(index_display)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/indexed.rs:1746:63
+     |
+1746 | ...                   &[(index_display).into(), (object_display).into()],
+     |                                                 ^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(object_display)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/indexed.rs:1753:35
+     |
+1753 | ...                   &[(full_display).into(), (object_display).into()],
+     |                         ^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(full_display)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/indexed.rs:1753:58
+     |
+1753 | ...                   &[(full_display).into(), (object_display).into()],
+     |                                                ^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(object_display)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+   --> crates/checker/src/jsx.rs:544:31
+    |
+544 | ...                   &[(display).into()],
+    |                         ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(display)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+   --> crates/checker/src/jsx.rs:890:23
+    |
+890 |                     &[(source_text).into(), (target_text).into()],
+    |                       ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+   --> crates/checker/src/jsx.rs:890:45
+    |
+890 |                     &[(source_text).into(), (target_text).into()],
+    |                                             ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/jsx.rs:1809:27
+     |
+1809 |                         &[(display).into()],
+     |                           ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(display)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/jsx.rs:1980:19
+     |
+1980 |                 &[(display).into()],
+     |                   ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(display)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/modules.rs:3910:23
+     |
+3910 |                     &[(without_prefix).into(), (module_reference).into()],
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(without_prefix)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/modules.rs:3910:48
+     |
+3910 |                     &[(without_prefix).into(), (module_reference).into()],
+     |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/modules.rs:3948:23
+     |
+3948 |                     &[(module_reference).into(), (&diagnostic_file_name).into()],
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/modules.rs:4034:31
+     |
+4034 | ...                   &[(extension).into()],
+     |                         ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(extension)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/modules.rs:4118:33
+     |
+4118 | ...                   (module_reference).into(),
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/modules.rs:4134:31
+     |
+4134 | ...                   &[(module_reference).into(), (&resolved_file_name).into()],
+     |                         ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/modules.rs:4146:27
+     |
+4146 |                         &[(module_reference).into(), (&untyped.resolved_file_name).into()],
+     |                           ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:4264:23
+     |
+4264 |                     &[(module_reference.to_owned()).into()],
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference.to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/modules.rs:4274:23
+     |
+4274 |                     &[(module_reference).into()],
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/modules.rs:4318:19
+     |
+4318 |                 &[(module_reference).into()],
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:4339:61
+     |
+4339 |             let mut chain = MessageChain::new_js(message, &[(module_reference.to_owned()).into()]);
+     |                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference.to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:4449:35
+     |
+4449 |                 module_reference: module_reference.to_owned().into(),
+     |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `module_reference.to_owned()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: called `filter(..).next_back()` on an `DoubleEndedIterator`. This is more succinctly expressed by calling `.rfind(..)` instead
+    --> crates/checker/src/modules.rs:4579:19
+     |
+4579 |           let end = source
+     |  ___________________^
+4580 | |             .as_bytes()
+4581 | |             .windows(marker.as_bytes().len())
+4582 | |             .enumerate()
+...    |
+4585 | |             .filter(|&end| source.as_bytes().get(end).is_none_or(|&byte| byte == b'/'))
+4586 | |             .next_back()?;
+     | |________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#filter_next
+     = note: `#[warn(clippy::filter_next)]` on by default
+help: try
+     |
+4579 ~         let end = source
+4580 +             .as_bytes()
+4581 +             .windows(marker.as_bytes().len())
+4582 +             .enumerate()
+4583 +             .filter(|(_, bytes)| *bytes == marker.as_bytes())
+4584 ~             .map(|(position, _)| position + marker.as_bytes().len()).rfind(|&end| source.as_bytes().get(end).is_none_or(|&byte| byte == b'/'))?;
+     |
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/modules.rs:4855:24
+     |
+4855 |             specifier: module_reference.into(),
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `module_reference`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:4896:40
+     |
+4896 | ...                   specifier: module_reference.to_owned().into(),
+     |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `module_reference.to_owned()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:4925:36
+     |
+4925 |                         specifier: module_reference.to_owned().into(),
+     |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `module_reference.to_owned()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5039:53
+     |
+5039 | ...                   resolved_file_name: probed.clone().into(),
+     |                                           ^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `probed.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5061:57
+     |
+5061 | ...                   resolved_file_name: probed.clone().into(),
+     |                                           ^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `probed.clone()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5411:19
+     |
+5411 |                 &[(alternate_result.to_owned()).into()],
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(alternate_result.to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5424:15
+     |
+5424 |             &[(alternate_result.to_owned()).into(), (library_name).into()],
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(alternate_result.to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5424:53
+     |
+5424 |             &[(alternate_result.to_owned()).into(), (library_name).into()],
+     |                                                     ^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(library_name)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5462:27
+     |
+5462 |                         &[(package_name.clone()).into(), (Self::mangle_scoped_package_name(package_name)).into()],
+     |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(package_name.clone())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5462:58
+     |
+5462 |                         &[(package_name.clone()).into(), (Self::mangle_scoped_package_name(package_name)).into()],
+     |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(Self::mangle_scoped_package_name(package_name))`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5467:27
+     |
+5467 |                         &[(package_name.clone()).into(), (module_reference.to_owned()).into()],
+     |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(package_name.clone())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5467:58
+     |
+5467 |                         &[(package_name.clone()).into(), (module_reference.to_owned()).into()],
+     |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference.to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5472:27
+     |
+5472 |                         &[(module_reference.to_owned()).into(), (Self::mangle_scoped_package_name(package_name)).into()],
+     |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference.to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5472:65
+     |
+5472 |                         &[(module_reference.to_owned()).into(), (Self::mangle_scoped_package_name(package_name)).into()],
+     |                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(Self::mangle_scoped_package_name(package_name))`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5478:15
+     |
+5478 |             &[(module_reference.to_owned()).into(), (resolution.resolved_file_name.clone()).into()],
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(module_reference.to_owned())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5478:53
+     |
+5478 |             &[(module_reference.to_owned()).into(), (resolution.resolved_file_name.clone()).into()],
+     |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(resolution.resolved_file_name.clone())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5590:37
+     |
+5590 |                 resolved_file_name: resolved_file_name.into(),
+     |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `resolved_file_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5601:37
+     |
+5601 |                 resolved_file_name: resolved_file_name.into(),
+     |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `resolved_file_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5656:33
+     |
+5656 |             resolved_file_name: resolved_file_name.into(),
+     |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `resolved_file_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5916:62
+     |
+5916 |         let typed = |path: JsString| HostModuleTarget::Typed(path.into());
+     |                                                              ^^^^^^^^^^^ help: consider removing `.into()`: `path`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:5917:66
+     |
+5917 |         let untyped = |path: JsString| HostModuleTarget::Untyped(path.into());
+     |                                                                  ^^^^^^^^^^^ help: consider removing `.into()`: `path`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:6443:37
+     |
+6443 |                 resolved_file_name: path.to_owned().into(),
+     |                                     ^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `path.to_owned()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/modules.rs:6478:49
+     |
+6478 | ...                   resolved_file_name: twin.into(),
+     |                                           ^^^^^^^^^^^ help: consider removing `.into()`: `twin`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+   --> crates/checker/src/node_builder/chains.rs:406:33
+    |
+406 |         let current_directory = JsString::from(checker.host_current_directory.clone());
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `JsString::from()`: `checker.host_current_directory.clone()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/node_builder/specifier.rs:1078:32
+     |
+1078 |                     specifier: specifier.into(),
+     |                                ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `specifier`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/node_builder/specifier.rs:1518:84
+     |
+1518 |     if let Some(directory) = host.get_nearest_ancestor_directory_with_package_json(file_name.into())
+     |                                                                                    ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `file_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/node_builder/specifier.rs:1549:50
+     |
+1549 |         .is_source_of_project_reference_redirect(imported_file_name.into())
+     |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `imported_file_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsStr<'_>`
+    --> crates/checker/src/node_builder/specifier.rs:1550:53
+     |
+1550 |         .then(|| host.get_redirect_from_source_file(imported_file_name.into()))
+     |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `imported_file_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/node_builder/specifier.rs:1557:30
+     |
+1557 |     imported_file_names.push(imported_file_name.to_owned().into());
+     |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `imported_file_name.to_owned()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: redundant closure
+    --> crates/checker/src/node_builder/specifier.rs:1563:63
+     |
+1563 |     let mut should_filter_ignored_paths = !targets.iter().all(|path| contains_ignored_path(path));
+     |                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the function itself: `contains_ignored_path`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#redundant_closure
+     = note: `#[warn(clippy::redundant_closure)]` on by default
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/operators.rs:4751:31
+     |
+4751 | ...                   &[(type_text).into(), (this_text).into()],
+     |                         ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(type_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/operators.rs:4751:51
+     |
+4751 | ...                   &[(type_text).into(), (this_text).into()],
+     |                                             ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(this_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2138:34
+     |
+2138 | ...                   vec![name.into()],
+     |                            ^^^^^^^^^^^ help: consider removing `.into()`: `name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2161:34
+     |
+2161 | ...                   vec![name.into(), private_text.into(), public_text.into()],
+     |                            ^^^^^^^^^^^ help: consider removing `.into()`: `name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2161:47
+     |
+2161 | ...                   vec![name.into(), private_text.into(), public_text.into()],
+     |                                         ^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `private_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2161:68
+     |
+2161 | ...                   vec![name.into(), private_text.into(), public_text.into()],
+     |                                                              ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `public_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2181:30
+     |
+2181 |                         vec![name.into(), source_text.into(), target_text.into()],
+     |                              ^^^^^^^^^^^ help: consider removing `.into()`: `name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2181:43
+     |
+2181 |                         vec![name.into(), source_text.into(), target_text.into()],
+     |                                           ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `source_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2181:63
+     |
+2181 |                         vec![name.into(), source_text.into(), target_text.into()],
+     |                                                               ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2194:26
+     |
+2194 |                     vec![name.into(), source_text.into(), target_text.into()],
+     |                          ^^^^^^^^^^^ help: consider removing `.into()`: `name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2194:39
+     |
+2194 |                     vec![name.into(), source_text.into(), target_text.into()],
+     |                                       ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `source_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2194:59
+     |
+2194 |                     vec![name.into(), source_text.into(), target_text.into()],
+     |                                                           ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2241:26
+     |
+2241 |                     vec![name.into(), source_text.into(), target_text.into()],
+     |                          ^^^^^^^^^^^ help: consider removing `.into()`: `name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2241:39
+     |
+2241 |                     vec![name.into(), source_text.into(), target_text.into()],
+     |                                       ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `source_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2241:59
+     |
+2241 |                     vec![name.into(), source_text.into(), target_text.into()],
+     |                                                           ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2554:34
+     |
+2554 | ...                   vec![prop_name.into(), target_text.into()],
+     |                            ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `prop_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2554:52
+     |
+2554 | ...                   vec![prop_name.into(), target_text.into()],
+     |                                              ^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `target_text`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2749:21
+     |
+2749 |                     (name.clone()).into(),
+     |                     ^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(name.clone())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2750:21
+     |
+2750 |                     (source_text).into(),
+     |                     ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2751:21
+     |
+2751 |                     (target_text).into(),
+     |                     ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2797:22
+     |
+2797 |                 vec![(source_text).into(), (target_text).into(), (names).into(), ((properties.len() - 4).to_string()).into()],
+     |                      ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2797:44
+     |
+2797 |                 vec![(source_text).into(), (target_text).into(), (names).into(), ((properties.len() - 4).to_string()).into()],
+     |                                            ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2797:66
+     |
+2797 |                 vec![(source_text).into(), (target_text).into(), (names).into(), ((properties.len() - 4).to_string()).into()],
+     |                                                                  ^^^^^^^^^^^^^^ help: consider removing `.into()`: `(names)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2802:22
+     |
+2802 |                 vec![(source_text).into(), (target_text).into(), (names).into()],
+     |                      ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2802:44
+     |
+2802 |                 vec![(source_text).into(), (target_text).into(), (names).into()],
+     |                                            ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2802:66
+     |
+2802 |                 vec![(source_text).into(), (target_text).into(), (names).into()],
+     |                                                                  ^^^^^^^^^^^^^^ help: consider removing `.into()`: `(names)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2829:30
+     |
+2829 |                         vec![(source_text).into(), (target_text).into()],
+     |                              ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2829:52
+     |
+2829 |                         vec![(source_text).into(), (target_text).into()],
+     |                                                    ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2842:26
+     |
+2842 |                     vec![(source_text).into(), (target_text).into()],
+     |                          ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:2842:48
+     |
+2842 |                     vec![(source_text).into(), (target_text).into()],
+     |                                                ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:3137:30
+     |
+3137 |                         vec![(source_text).into(), (target_text).into()],
+     |                              ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:3137:52
+     |
+3137 |                         vec![(source_text).into(), (target_text).into()],
+     |                                                    ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:3174:30
+     |
+3174 |                         vec![(source_text).into(), (signature_text).into()],
+     |                              ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:3174:52
+     |
+3174 |                         vec![(source_text).into(), (signature_text).into()],
+     |                                                    ^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(signature_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:3968:34
+     |
+3968 | ...                   vec![(source_text).into()],
+     |                            ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:4024:30
+     |
+4024 |                         vec![(source_text).into(), (target_text).into()],
+     |                              ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:4024:52
+     |
+4024 |                         vec![(source_text).into(), (target_text).into()],
+     |                                                    ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:4234:30
+     |
+4234 |                         vec![name.into()],
+     |                              ^^^^^^^^^^^ help: consider removing `.into()`: `name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:4282:26
+     |
+4282 |                     vec![(source_key).into()],
+     |                          ^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_key)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:4290:26
+     |
+4290 |                     vec![(source_key).into(), (target_key).into()],
+     |                          ^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_key)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:4290:47
+     |
+4290 |                     vec![(source_key).into(), (target_key).into()],
+     |                                               ^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(target_key)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:4393:22
+     |
+4393 |                 vec![(key).into(), (source_text).into()],
+     |                      ^^^^^^^^^^^^ help: consider removing `.into()`: `(key)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:4393:36
+     |
+4393 |                 vec![(key).into(), (source_text).into()],
+     |                                    ^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `(source_text)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:5118:23
+     |
+5118 |                     &[type_name.into(), prop_name],
+     |                       ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `type_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/structural.rs:5128:23
+     |
+5128 |                     &[type_name.into(), prop_name],
+     |                       ^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `type_name`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: useless conversion to the same type: `tsc_types::JsString`
+    --> crates/checker/src/lib.rs:2120:40
+     |
+2120 |         state.host_current_directory = host_current_directory.into();
+     |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `host_current_directory`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion
+
+warning: `tsc-rs-checker` (lib) generated 143 warnings (run `cargo clippy --fix --lib -p tsc-rs-checker` to apply 142 suggestions)
+    Checking tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/harness)
+    Checking tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/compiler)
+warning: called `iter().cloned().collect()` on a slice to create a `Vec`. Calling `to_vec()` is both faster and more readable
+   --> crates/harness/src/upstream_suites/execution/project.rs:120:30
+    |
+120 |                   .file_names()
+    |  ______________________________^
+121 | |                 .iter()
+122 | |                 .cloned()
+123 | |                 .collect::<Vec<_>>();
+    | |____________________________________^ help: try: `.to_vec()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#iter_cloned_collect
+    = note: `#[warn(clippy::iter_cloned_collect)]` on by default
+
+warning: called `iter().cloned().collect()` on a slice to create a `Vec`. Calling `to_vec()` is both faster and more readable
+   --> crates/harness/src/upstream_suites/execution/project.rs:153:30
+    |
+153 |                   .file_names()
+    |  ______________________________^
+154 | |                 .iter()
+155 | |                 .cloned()
+156 | |                 .collect::<Vec<_>>();
+    | |____________________________________^ help: try: `.to_vec()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#iter_cloned_collect
+
+warning: called `iter().cloned().collect()` on a slice to create a `Vec`. Calling `to_vec()` is both faster and more readable
+   --> crates/harness/src/upstream_suites/execution/project.rs:286:30
+    |
+286 |                   .file_names()
+    |  ______________________________^
+287 | |                 .iter()
+288 | |                 .cloned()
+289 | |                 .collect::<Vec<_>>();
+    | |____________________________________^ help: try: `.to_vec()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#iter_cloned_collect
+
+warning: called `iter().cloned().collect()` on a slice to create a `Vec`. Calling `to_vec()` is both faster and more readable
+   --> crates/harness/src/upstream_suites/execution/project.rs:323:30
+    |
+323 |                   .file_names()
+    |  ______________________________^
+324 | |                 .iter()
+325 | |                 .cloned()
+326 | |                 .collect::<Vec<_>>();
+    | |____________________________________^ help: try: `.to_vec()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#iter_cloned_collect
+
+warning: `tsc-rs-harness` (lib) generated 4 warnings (run `cargo clippy --fix --lib -p tsc-rs-harness` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 47.26s

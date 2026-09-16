@@ -1,0 +1,3 @@
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/compiler)
+    Finished `test` profile [unoptimized] target(s) in 3.49s
+  Executable tests/decorator_super_contract.rs (target/debug/deps/decorator_super_contract-a552933c534748b0)

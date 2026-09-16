@@ -1,0 +1,296 @@
+[
+ {
+  "name": "isFileLevelUniqueName",
+  "start": 12907,
+  "end": 12909,
+  "sha256": "86b2e1d4e23cbbeaf4dd2fcc55e3ad9ed916572715f43ae013b2aeff94710c50"
+ },
+ {
+  "name": "createBaseGeneratedIdentifier",
+  "start": 21598,
+  "end": 21608,
+  "sha256": "ebf2399948410fb69ba34208716c2c69d0cc353db1d632c04d19e4a727d8f863"
+ },
+ {
+  "name": "createTempVariable",
+  "start": 21626,
+  "end": 21634,
+  "sha256": "ec6638a1aefe18f37dcb5f4364a39014ab26756d23cf58a60456826775574f88"
+ },
+ {
+  "name": "createLoopVariable",
+  "start": 21635,
+  "end": 21646,
+  "sha256": "2bf7a1a2170a15e2facd4ebef90f40423c8fef6da9cdfb23ab49a850dda4416a"
+ },
+ {
+  "name": "createUniqueName",
+  "start": 21647,
+  "end": 21651,
+  "sha256": "435d2c5a71fc6e167f19ae15cbd5130c0f073abf60f348f4969f03240efaef8a"
+ },
+ {
+  "name": "getGeneratedNameForNode",
+  "start": 21652,
+  "end": 21666,
+  "sha256": "1953cada220809cdfb0c778c4ba0aa3ef4a45880a6e7973b5c2101882addf781"
+ },
+ {
+  "name": "createUniquePrivateName",
+  "start": 21688,
+  "end": 21692,
+  "sha256": "7e3230d0370b4602da922f13828bd8d3a383a9d2405369b7587d008422b4a6dd"
+ },
+ {
+  "name": "getGeneratedPrivateNameForNode",
+  "start": 21693,
+  "end": 21706,
+  "sha256": "df9752959d0646c15b450272ea9233bf7784b87a96ab7a3e1df6096dfb142878"
+ },
+ {
+  "name": "getNodeForGeneratedName",
+  "start": 28084,
+  "end": 28102,
+  "sha256": "15fe0551d80fa459b9b6c61273b353e7c29158a19c898a88f2929d1ef0934308"
+ },
+ {
+  "name": "formatGeneratedNamePart",
+  "start": 28103,
+  "end": 28112,
+  "sha256": "56f6b2070c603bf9e4e08af1b316249f56929531f4208f0d8b75882f73080ccc"
+ },
+ {
+  "name": "formatGeneratedName",
+  "start": 28119,
+  "end": 28124,
+  "sha256": "6554f97e86964e34fa25c7dff49e287618f938f374de7dc5960d4ecc71479230"
+ },
+ {
+  "name": "hasGlobalName",
+  "start": 88396,
+  "end": 88398,
+  "sha256": "8522b19ce36e625df13f5c429c43c7d77a05ccbb4e09bf270e72afdde70a88e1"
+ },
+ {
+  "name": "getHelperVariableName",
+  "start": 99214,
+  "end": 99221,
+  "sha256": "f7a46976b189a9644894310373df8879abd3e6f59b7d68c166de6ceb82718548"
+ },
+ {
+  "name": "createHelperVariable",
+  "start": 99222,
+  "end": 99224,
+  "sha256": "d5cb7376dbdffdd13b9c1eb8e0e92bd7cd6f59302e1b8673c90ecd6ae2af2839"
+ },
+ {
+  "name": "createClassInfo",
+  "start": 99241,
+  "end": 99318,
+  "sha256": "9df4966871c15c88efa77e6ae779a2523c66e61626f7623195962de472e8a517"
+ },
+ {
+  "name": "transformClassLike",
+  "start": 99319,
+  "end": 99616,
+  "sha256": "52ad986c5f808ec793c01995cfe8503ffb9a3209755c8f169406714a13c23e14"
+ },
+ {
+  "name": "visitReferencedPropertyName",
+  "start": 100345,
+  "end": 100362,
+  "sha256": "480f124559721622f16afd3778477fcccae81a757a048faa3915d7b324a355bd"
+ },
+ {
+  "name": "visitComputedPropertyName",
+  "start": 100369,
+  "end": 100375,
+  "sha256": "4676f56ef719a62c54f980e44cbd2a77b01e27a0d6e5f394c6a13b08e2ecf743"
+ },
+ {
+  "name": "transformDecorator",
+  "start": 100554,
+  "end": 100569,
+  "sha256": "98ffa88aa2a9fe00ee6847463a3838d60d6dbdb69e6394639ce67e043e348586"
+ },
+ {
+  "name": "writeBundle",
+  "start": 117058,
+  "end": 117071,
+  "sha256": "9296d49978401c91c2c80b395f329755f949e60146b688eb1bec7e2d2b024ef9"
+ },
+ {
+  "name": "writeFile2",
+  "start": 117072,
+  "end": 117081,
+  "sha256": "9deeb25a93b0e8198356e70751d06afd35019601a7e15ed88aef0a09f10b5afa"
+ },
+ {
+  "name": "beginPrint",
+  "start": 117082,
+  "end": 117084,
+  "sha256": "a3e60017c3d312ed48ef043bc2b1fcaaddab425c1c97aa3da507084bfedfa092"
+ },
+ {
+  "name": "endPrint",
+  "start": 117085,
+  "end": 117089,
+  "sha256": "e94d00a44500fd4fc8fae5652d90ba113b73f025b0223df29574a9147886ee29"
+ },
+ {
+  "name": "reset",
+  "start": 117117,
+  "end": 117141,
+  "sha256": "88bcd8c0391f9585d0f2c88b28adbf120ddd316bf9da0afb49b0640d98783288"
+ },
+ {
+  "name": "pushNameGenerationScope",
+  "start": 120480,
+  "end": 120492,
+  "sha256": "e1fa362147667c498c5244c26eefa000571438e78fca62f81cdf1074af33b48d"
+ },
+ {
+  "name": "popNameGenerationScope",
+  "start": 120493,
+  "end": 120502,
+  "sha256": "9285b617947c4c38479d2240b8f86b7ced19aff5415adc7456f1072facc09a90"
+ },
+ {
+  "name": "reserveNameInNestedScopes",
+  "start": 120503,
+  "end": 120508,
+  "sha256": "25232240e2f0c1e4e53982baf6d4284ab1c5863a52d1e0e95725d279001bc0be"
+ },
+ {
+  "name": "reservePrivateNameInNestedScopes",
+  "start": 120509,
+  "end": 120514,
+  "sha256": "b1d3d7074e5186aa83ad4bdeb9d0f5cc4f1a3cad11727e516c766239c977fb13"
+ },
+ {
+  "name": "generateNames",
+  "start": 120515,
+  "end": 120599,
+  "sha256": "6cbf565498a22f9181a3ac5c9afca398f0dc9594c5421138b8fedf705df39a79"
+ },
+ {
+  "name": "generateMemberNames",
+  "start": 120600,
+  "end": 120614,
+  "sha256": "cbbb4181555bd319b81528589bb9e3b08be83f828590f76531a1d7c0d041f639"
+ },
+ {
+  "name": "generateNameIfNeeded",
+  "start": 120615,
+  "end": 120623,
+  "sha256": "ec28b61c02d9715700ba1c4f8e9bd1ca8bf0c3181643aa39b36177110e2dbac7"
+ },
+ {
+  "name": "generateName",
+  "start": 120624,
+  "end": 120632,
+  "sha256": "80cad260d417933c0647d7dc0190a152abc4fb0e3bd3ef09eb67777cc9212de2"
+ },
+ {
+  "name": "generateNameCached",
+  "start": 120633,
+  "end": 120637,
+  "sha256": "f9eefc1a56d9084c2de0e8aa2efd7d85357c437cde5d3608db8929b8b2f0ac44"
+ },
+ {
+  "name": "isUniqueName",
+  "start": 120638,
+  "end": 120640,
+  "sha256": "9313bd45283d2066c69cb8d9f720279be3aca8f947a00729764b4b5a211f7b59"
+ },
+ {
+  "name": "isReservedName",
+  "start": 120641,
+  "end": 120664,
+  "sha256": "321a51c5f131eff232ca7ed1a4dd25d93bc768b0ce889eca91de05f4e435596f"
+ },
+ {
+  "name": "isFileLevelUniqueNameInCurrentFile",
+  "start": 120665,
+  "end": 120667,
+  "sha256": "cdfb9e1e2524e9ef834b0781805b52d82b31fe48f7e26ea3105820cc11f96980"
+ },
+ {
+  "name": "isUniqueLocalName",
+  "start": 120668,
+  "end": 120678,
+  "sha256": "cb6668cf96909d7c15e50ba10c8aa2ee8ed94fbc077fa925d37da70d738ccea3"
+ },
+ {
+  "name": "getTempFlags",
+  "start": 120679,
+  "end": 120688,
+  "sha256": "17fbdd3f39ab9c3d86df8a78d1184e6cbfd1cab3e05603491f5091a735104d41"
+ },
+ {
+  "name": "setTempFlags",
+  "start": 120689,
+  "end": 120702,
+  "sha256": "f396da619c82bded3397bef9aaaae9d9e58c4cc17651e30432f9594a2a1edf79"
+ },
+ {
+  "name": "makeTempVariableName",
+  "start": 120703,
+  "end": 120740,
+  "sha256": "6928789997987359f4447f53606b24130f943c383c0b9450d20f4c7b9b820998"
+ },
+ {
+  "name": "makeUniqueName",
+  "start": 120741,
+  "end": 120779,
+  "sha256": "5015e05e44403f4e276198ff8c5fb7693dd8fe6b6fb9c40661d208ffe867e2f7"
+ },
+ {
+  "name": "makeFileLevelOptimisticUniqueName",
+  "start": 120780,
+  "end": 120795,
+  "sha256": "b92012a553ccb8323f64dd50e3efbd45a5c13db1c914bb13f69afd1ebc1df0ca"
+ },
+ {
+  "name": "generateNameForModuleOrEnum",
+  "start": 120796,
+  "end": 120812,
+  "sha256": "a01bf8ac4308d6d0ea62e21c34f771c97cd8de5c62ed121309bfc7e516c175c3"
+ },
+ {
+  "name": "generateNameForImportOrExportDeclaration",
+  "start": 120813,
+  "end": 120830,
+  "sha256": "fc1d76cd5291df9dba4665cb3fbc6ccf2c7103d858e04873997920cef3840fc5"
+ },
+ {
+  "name": "generateNameForExportDefault",
+  "start": 120831,
+  "end": 120846,
+  "sha256": "e0d46985017a202f485c22e86c5d17029649dd57650a6b3a701f5f11a04ccb06"
+ },
+ {
+  "name": "generateNameForClassExpression",
+  "start": 120847,
+  "end": 120862,
+  "sha256": "8e63b3cd852e60787b16bc36a907d63294ec29205184b5f68fd8b97c5d8cdea5"
+ },
+ {
+  "name": "generateNameForMethodOrAccessor",
+  "start": 120863,
+  "end": 120875,
+  "sha256": "8af56ec913ce9a254de53d0d1ddfa0a9ec1749a58abe3369139266f1395f9e05"
+ },
+ {
+  "name": "generateNameForNode",
+  "start": 120876,
+  "end": 120942,
+  "sha256": "07482e59be2df33699056f2671859e1b9e24f231d311b381e7028560faa911c7"
+ },
+ {
+  "name": "makeName",
+  "start": 120943,
+  "end": 120977,
+  "sha256": "bee33a4f128a364108c22c9ee47a0dd76bff31c325656b30dbd4d79261a12c2b"
+ }
+]

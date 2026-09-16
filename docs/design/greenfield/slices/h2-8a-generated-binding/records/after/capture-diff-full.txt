@@ -1,0 +1,113 @@
+== decorator-binding/global/esnext/define/script-let-default_1
+    /project/out/main.js:
+      -class default_2 {
+      +class default_1 {
+== decorator-binding/lifecycle/es2015/define/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+== decorator-binding/lifecycle/es2015/define/cjs-default-export
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2015/set/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+== decorator-binding/lifecycle/es2015/set/cjs-default-export
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2022/define/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+== decorator-binding/lifecycle/es2022/define/cjs-default-export
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2022/set/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+== decorator-binding/lifecycle/es2022/set/cjs-default-export
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/esnext/define/bundle-computed-temps-two-files
+    /project/out/bundle.js.map: source map bytes differ
+== decorator-binding/lifecycle/esnext/define/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+      -            default_2 = 
+      +            default_1 = 
+      -            class default_2 {
+      +            class default_1 {
+      -            exports_2("default", default_2);
+      +            exports_2("default", default_1);
+== decorator-binding/lifecycle/esnext/define/bundle-file-level-then-scoped-across-files
+    /project/out/bundle.js.map: source map bytes differ
+== decorator-binding/lifecycle/esnext/set/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+== decorator-binding/lifecycle/esnext/set/cjs-default-export
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/file-level-then-static-private-method
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/private-accessor-storage-nested
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/private-and-public-same-stem
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/static-private-method-then-file-level
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/file-level-then-static-private-method
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/private-accessor-storage-nested
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/private-and-public-same-stem
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/static-private-method-then-file-level
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/file-level-then-static-private-method
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/private-accessor-storage-nested
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/private-and-public-same-stem
+    /project/out/main.js:
+      -        #a_1_accessor_storage = (__runInitializers(this, _private_a_extraInitializers), __runInitializers(this, _a_initializers, 2));
+      -        get a() { return this.#a_1_accessor_storage; }
+      -        set a(value) { this.#a_1_accessor_storage = value; }
+      +        #a_accessor_storage = (__runInitializers(this, _private_a_extraInitializers), __runInitializers(this, _a_initializers, 2));
+      +        get a() { return this.#a_accessor_storage; }
+      +        set a(value) { this.#a_accessor_storage = value; }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/static-private-method-then-file-level
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/file-level-then-static-private-method
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/private-accessor-storage-nested
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/private-and-public-same-stem
+    /project/out/main.js:
+      -        #a_1_accessor_storage = (__runInitializers(this, _private_a_extraInitializers), __runInitializers(this, _a_initializers, 2));
+      -        get a() { return this.#a_1_accessor_storage; }
+      -        set a(value) { this.#a_1_accessor_storage = value; }
+      +        #a_accessor_storage = (__runInitializers(this, _private_a_extraInitializers), __runInitializers(this, _a_initializers, 2));
+      +        get a() { return this.#a_accessor_storage; }
+      +        set a(value) { this.#a_accessor_storage = value; }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/static-private-method-then-file-level
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/file-level-then-static-private-method
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/private-accessor-storage-nested
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/private-and-public-same-stem
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/static-private-method-then-file-level
+    /project/out/main.js.map: source map bytes differ
+39 cases with differences (of 762 captured)

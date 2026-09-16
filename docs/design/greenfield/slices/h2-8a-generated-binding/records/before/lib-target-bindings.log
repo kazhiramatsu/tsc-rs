@@ -1,0 +1,26 @@
+   Compiling zmij v1.0.21
+   Compiling tsc-rs-diagnostics v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/diagnostics)
+   Compiling serde_core v1.0.228
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.2
+   Compiling serde_json v1.0.150
+   Compiling indexmap v2.14.0
+   Compiling tsc-rs-types v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/types)
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling tsc-rs-syntax v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/syntax)
+   Compiling tsc-rs-host v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/host)
+   Compiling tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/program)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 3m 11s
+     Running unittests src/lib.rs (target/debug/deps/tsc_emitter-6021388bac73fbc5)
+
+running 5 tests
+test builtins::target_bindings::tests::authoritative_temp_policy_falls_back_on_collision ... ok
+test builtins::target_bindings::tests::authoritative_temp_policy_retains_available_planned_spelling ... ok
+test builtins::target_bindings::tests::declaration_names_precede_uses_in_source_module_and_function_scopes ... ok
+test builtins::target_bindings::tests::parsed_identifier_snapshot_retains_erased_file_level_collisions ... ok
+test builtins::target_bindings::tests::traversal_temp_policy_uses_final_scope_cursor ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 501 filtered out; finished in 0.00s
+

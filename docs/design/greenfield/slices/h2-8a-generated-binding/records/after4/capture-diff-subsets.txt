@@ -1,0 +1,23 @@
+== decorator-binding/global/esnext/define/script-let-default_1
+    /project/out/main.js:
+      -class default_2 {
+      +class default_1 {
+== decorator-binding/reserved/es2022/define/private-accessor-storage-nested
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/private-and-public-same-stem
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/private-accessor-storage-nested
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/private-and-public-same-stem
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/private-accessor-storage-nested
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/private-and-public-same-stem
+    /project/out/main.js.map: source map bytes differ
+10 cases with differences (of 404 captured)

@@ -1,0 +1,696 @@
+== decorator-binding/global/esnext/define/script-let-default_1
+    /project/out/main.js:
+      -class default_2 {
+      +class default_1 {
+== decorator-binding/lifecycle/es2015/define/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+== decorator-binding/lifecycle/es2015/define/bundle-outer-this-two-files
+    /project/out/bundle.js:
+      -                    let _outerThis_1 = this;
+      +                    let _outerThis = this;
+      -                        _static_n_decorators = [(_outerThis_1.dec.bind(_outerThis_1))];
+      +                        _static_n_decorators = [(_outerThis.dec.bind(_outerThis))];
+    /project/out/bundle.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2015/define/cjs-default-export
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2015/define/cjs-sibling-file-level-then-scoped
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static readP() { return __classPrivateFieldGet(B, _classThis_1, "f", _B_p); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static readP() { return __classPrivateFieldGet(B, _classThis, "f", _B_p); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+      -        if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +        __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2015/set/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+== decorator-binding/lifecycle/es2015/set/bundle-outer-this-two-files
+    /project/out/bundle.js:
+      -                    let _outerThis_1 = this;
+      +                    let _outerThis = this;
+      -                        _static_n_decorators = [(_outerThis_1.dec.bind(_outerThis_1))];
+      +                        _static_n_decorators = [(_outerThis.dec.bind(_outerThis))];
+    /project/out/bundle.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2015/set/cjs-default-export
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2015/set/cjs-sibling-file-level-then-scoped
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static readP() { return __classPrivateFieldGet(B, _classThis_1, "f", _B_p); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static readP() { return __classPrivateFieldGet(B, _classThis, "f", _B_p); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+      -        if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +        __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2022/define/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+== decorator-binding/lifecycle/es2022/define/bundle-outer-this-two-files
+    /project/out/bundle.js:
+      -                    let _outerThis_1 = this;
+      +                    let _outerThis = this;
+      -                            _static_n_decorators = [(_outerThis_1.dec.bind(_outerThis_1))];
+      +                            _static_n_decorators = [(_outerThis.dec.bind(_outerThis))];
+    /project/out/bundle.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2022/define/cjs-default-export
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2022/define/cjs-sibling-file-level-then-scoped
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        static readP() { return __classPrivateFieldGet(B, _classThis_1, "f", _B_p); }
+      +        static readP() { return __classPrivateFieldGet(B, _classThis, "f", _B_p); }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2022/set/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+== decorator-binding/lifecycle/es2022/set/bundle-outer-this-two-files
+    /project/out/bundle.js:
+      -                    let _outerThis_1 = this;
+      +                    let _outerThis = this;
+      -                            _static_n_decorators = [(_outerThis_1.dec.bind(_outerThis_1))];
+      +                            _static_n_decorators = [(_outerThis.dec.bind(_outerThis))];
+    /project/out/bundle.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2022/set/cjs-default-export
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/es2022/set/cjs-sibling-file-level-then-scoped
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        static readP() { return __classPrivateFieldGet(B, _classThis_1, "f", _B_p); }
+      +        static readP() { return __classPrivateFieldGet(B, _classThis, "f", _B_p); }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/esnext/define/bundle-computed-temps-two-files
+    /project/out/bundle.js.map: source map bytes differ
+== decorator-binding/lifecycle/esnext/define/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+      -            default_2 = 
+      +            default_1 = 
+      -            class default_2 {
+      +            class default_1 {
+      -            exports_2("default", default_2);
+      +            exports_2("default", default_1);
+== decorator-binding/lifecycle/esnext/define/bundle-file-level-then-scoped-across-files
+    /project/out/bundle.js.map: source map bytes differ
+== decorator-binding/lifecycle/esnext/set/bundle-default-two-files
+    /project/out/bundle.js:
+      -    var events, ns, keys, default_2, tail;
+      +    var events, ns, keys, default_1, tail;
+== decorator-binding/lifecycle/esnext/set/bundle-outer-this-two-files
+    /project/out/bundle.js:
+      -                    let _outerThis_1 = this;
+      +                    let _outerThis = this;
+      -                            _static_n_decorators = [(_outerThis_1.dec.bind(_outerThis_1))];
+      +                            _static_n_decorators = [(_outerThis.dec.bind(_outerThis))];
+    /project/out/bundle.js.map: source map bytes differ
+== decorator-binding/lifecycle/esnext/set/cjs-default-export
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/lifecycle/esnext/set/cjs-sibling-file-level-then-scoped
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        static readP() { return __classPrivateFieldGet(B, _classThis_1, "f", _B_p); }
+      +        static readP() { return __classPrivateFieldGet(B, _classThis, "f", _B_p); }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/file-level-then-decorated-static-private-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static readA() { return __classPrivateFieldGet(B, _classThis_1, "a", _B_a_get); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static readA() { return __classPrivateFieldGet(B, _classThis, "a", _B_a_get); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(_classThis_1, _static_private_a_descriptor = { get: __setFunctionName(function () { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); }, "#a", "set") }, _static_private_a_decorators, { kind: "accessor", name: "#a", static: true, private: true, access: { has: obj => __classPrivateFieldIn(_classThis_1, obj), get: obj => __classPrivateFieldGet(obj, _classThis_1, "a", _B_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _classThis_1, value, "a", _B_a_set); } }, metadata: _metadata }, _static_private_a_initializers, _static_private_a_extraInitializers);
+      +        __esDecorate(_classThis, _static_private_a_descriptor = { get: __setFunctionName(function () { return __classPrivateFieldGet(_classThis, _classThis, "f", _B_a_accessor_storage); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(_classThis, _classThis, value, "f", _B_a_accessor_storage); }, "#a", "set") }, _static_private_a_decorators, { kind: "accessor", name: "#a", static: true, private: true, access: { has: obj => __classPrivateFieldIn(_classThis, obj), get: obj => __classPrivateFieldGet(obj, _classThis, "a", _B_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _classThis, value, "a", _B_a_set); } }, metadata: _metadata }, _static_private_a_initializers, _static_private_a_extraInitializers);
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/file-level-then-static-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static get a() { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); }
+      -        static set a(value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static get a() { return __classPrivateFieldGet(_classThis, _classThis, "f", _B_a_accessor_storage); }
+      +        static set a(value) { __classPrivateFieldSet(_classThis, _classThis, value, "f", _B_a_accessor_storage); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/file-level-then-static-private-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static readG() { return __classPrivateFieldGet(B, _classThis_1, "a", _B_g_get); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static readG() { return __classPrivateFieldGet(B, _classThis, "a", _B_g_get); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+      -        if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        __runInitializers(_classThis_1, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/file-level-then-static-private-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static readA() { return __classPrivateFieldGet(B, _classThis_1, "a", _B_a_get); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static readA() { return __classPrivateFieldGet(B, _classThis, "a", _B_a_get); }
+      -    _B_a_get = function _B_a_get() { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); };
+      -    _B_a_set = function _B_a_set(value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); };
+      -    __setFunctionName(_classThis_1, "B");
+      +    _B_a_get = function _B_a_get() { return __classPrivateFieldGet(_classThis, _classThis, "f", _B_a_accessor_storage); };
+      +    _B_a_set = function _B_a_set(value) { __classPrivateFieldSet(_classThis, _classThis, value, "f", _B_a_accessor_storage); };
+      +    __setFunctionName(_classThis, "B");
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/file-level-then-static-private-field
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static readP() { return __classPrivateFieldGet(B, _classThis_1, "f", _B_p); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static readP() { return __classPrivateFieldGet(B, _classThis, "f", _B_p); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+      -        if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +        __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/file-level-then-static-private-method
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static callM() { return __classPrivateFieldGet(B, _classThis_1, "m", _B_m).call(B); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static callM() { return __classPrivateFieldGet(B, _classThis, "m", _B_m).call(B); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+      -        if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        __runInitializers(_classThis_1, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/private-accessor-storage-nested
+    /project/out/main.js:
+      -            var _D_instances, _D_a_1_accessor_storage, _D_a_get, _D_a_set;
+      +            var _D_instances, _D_a_accessor_storage, _D_a_get, _D_a_set;
+      -                    _D_a_1_accessor_storage.set(this, __runInitializers(this, _private_a_initializers_1, 2));
+      +                    _D_a_accessor_storage.set(this, __runInitializers(this, _private_a_initializers_1, 2));
+      -            _D_a_1_accessor_storage = new WeakMap();
+      +            _D_a_accessor_storage = new WeakMap();
+      -                __esDecorate(_classThis, _private_a_descriptor_1 = { get: __setFunctionName(function () { return __classPrivateFieldGet(this, _D_a_1_accessor_storage, "f"); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(this, _D_a_1_accessor_storage, value, "f"); }, "#a", "set") }, _private_a_decorators_1, { kind: "accessor", name: "#a", static: false, private: true, access: { has: obj => __classPrivateFieldIn(_D_instances, obj), get: obj => __classPrivateFieldGet(obj, _D_instances, "a", _D_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _D_instances, value, "a", _D_a_set); } }, metadata: _metadata }, _private_a_initializers_1, _private_a_extraInitializers_1);
+      +                __esDecorate(_classThis, _private_a_descriptor_1 = { get: __setFunctionName(function () { return __classPrivateFieldGet(this, _D_a_accessor_storage, "f"); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(this, _D_a_accessor_storage, value, "f"); }, "#a", "set") }, _private_a_decorators_1, { kind: "accessor", name: "#a", static: false, private: true, access: { has: obj => __classPrivateFieldIn(_D_instances, obj), get: obj => __classPrivateFieldGet(obj, _D_instances, "a", _D_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _D_instances, value, "a", _D_a_set); } }, metadata: _metadata }, _private_a_initializers_1, _private_a_extraInitializers_1);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/private-and-public-same-stem
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/define/static-private-method-then-file-level
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/file-level-then-decorated-static-private-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static readA() { return __classPrivateFieldGet(B, _classThis_1, "a", _B_a_get); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static readA() { return __classPrivateFieldGet(B, _classThis, "a", _B_a_get); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(_classThis_1, _static_private_a_descriptor = { get: __setFunctionName(function () { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); }, "#a", "set") }, _static_private_a_decorators, { kind: "accessor", name: "#a", static: true, private: true, access: { has: obj => __classPrivateFieldIn(_classThis_1, obj), get: obj => __classPrivateFieldGet(obj, _classThis_1, "a", _B_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _classThis_1, value, "a", _B_a_set); } }, metadata: _metadata }, _static_private_a_initializers, _static_private_a_extraInitializers);
+      +        __esDecorate(_classThis, _static_private_a_descriptor = { get: __setFunctionName(function () { return __classPrivateFieldGet(_classThis, _classThis, "f", _B_a_accessor_storage); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(_classThis, _classThis, value, "f", _B_a_accessor_storage); }, "#a", "set") }, _static_private_a_decorators, { kind: "accessor", name: "#a", static: true, private: true, access: { has: obj => __classPrivateFieldIn(_classThis, obj), get: obj => __classPrivateFieldGet(obj, _classThis, "a", _B_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _classThis, value, "a", _B_a_set); } }, metadata: _metadata }, _static_private_a_initializers, _static_private_a_extraInitializers);
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/file-level-then-static-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static get a() { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); }
+      -        static set a(value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static get a() { return __classPrivateFieldGet(_classThis, _classThis, "f", _B_a_accessor_storage); }
+      +        static set a(value) { __classPrivateFieldSet(_classThis, _classThis, value, "f", _B_a_accessor_storage); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/file-level-then-static-private-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static readG() { return __classPrivateFieldGet(B, _classThis_1, "a", _B_g_get); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static readG() { return __classPrivateFieldGet(B, _classThis, "a", _B_g_get); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+      -        if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        __runInitializers(_classThis_1, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/file-level-then-static-private-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static readA() { return __classPrivateFieldGet(B, _classThis_1, "a", _B_a_get); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static readA() { return __classPrivateFieldGet(B, _classThis, "a", _B_a_get); }
+      -    _B_a_get = function _B_a_get() { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); };
+      -    _B_a_set = function _B_a_set(value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); };
+      -    __setFunctionName(_classThis_1, "B");
+      +    _B_a_get = function _B_a_get() { return __classPrivateFieldGet(_classThis, _classThis, "f", _B_a_accessor_storage); };
+      +    _B_a_set = function _B_a_set(value) { __classPrivateFieldSet(_classThis, _classThis, value, "f", _B_a_accessor_storage); };
+      +    __setFunctionName(_classThis, "B");
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/file-level-then-static-private-field
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static readP() { return __classPrivateFieldGet(B, _classThis_1, "f", _B_p); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static readP() { return __classPrivateFieldGet(B, _classThis, "f", _B_p); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+      -        if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +        __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/file-level-then-static-private-method
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -    var B = _classThis_1 = class extends _classSuper {
+      -        static callM() { return __classPrivateFieldGet(B, _classThis_1, "m", _B_m).call(B); }
+      +    var B = _classThis = class extends _classSuper {
+      +        static callM() { return __classPrivateFieldGet(B, _classThis, "m", _B_m).call(B); }
+      -    __setFunctionName(_classThis_1, "B");
+      +    __setFunctionName(_classThis, "B");
+      -        __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -        B = _classThis_1 = _classDescriptor.value;
+      -        if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        __runInitializers(_classThis_1, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/private-accessor-storage-nested
+    /project/out/main.js:
+      -            var _D_instances, _D_a_1_accessor_storage, _D_a_get, _D_a_set;
+      +            var _D_instances, _D_a_accessor_storage, _D_a_get, _D_a_set;
+      -                    _D_a_1_accessor_storage.set(this, __runInitializers(this, _private_a_initializers_1, 2));
+      +                    _D_a_accessor_storage.set(this, __runInitializers(this, _private_a_initializers_1, 2));
+      -            _D_a_1_accessor_storage = new WeakMap();
+      +            _D_a_accessor_storage = new WeakMap();
+      -                __esDecorate(_classThis, _private_a_descriptor_1 = { get: __setFunctionName(function () { return __classPrivateFieldGet(this, _D_a_1_accessor_storage, "f"); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(this, _D_a_1_accessor_storage, value, "f"); }, "#a", "set") }, _private_a_decorators_1, { kind: "accessor", name: "#a", static: false, private: true, access: { has: obj => __classPrivateFieldIn(_D_instances, obj), get: obj => __classPrivateFieldGet(obj, _D_instances, "a", _D_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _D_instances, value, "a", _D_a_set); } }, metadata: _metadata }, _private_a_initializers_1, _private_a_extraInitializers_1);
+      +                __esDecorate(_classThis, _private_a_descriptor_1 = { get: __setFunctionName(function () { return __classPrivateFieldGet(this, _D_a_accessor_storage, "f"); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(this, _D_a_accessor_storage, value, "f"); }, "#a", "set") }, _private_a_decorators_1, { kind: "accessor", name: "#a", static: false, private: true, access: { has: obj => __classPrivateFieldIn(_D_instances, obj), get: obj => __classPrivateFieldGet(obj, _D_instances, "a", _D_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _D_instances, value, "a", _D_a_set); } }, metadata: _metadata }, _private_a_initializers_1, _private_a_extraInitializers_1);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/private-and-public-same-stem
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2015/set/static-private-method-then-file-level
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/file-level-then-decorated-static-private-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(this, _static_private_a_descriptor = { get: __setFunctionName(function () { return __classPrivateFieldGet(this, _classThis_1, "f", _B_a_accessor_storage); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(this, _classThis_1, value, "f", _B_a_accessor_storage); }, "#a", "set") }, _static_private_a_decorators, { kind: "accessor", name: "#a", static: true, private: true, access: { has: obj => __classPrivateFieldIn(_classThis_1, obj), get: obj => __classPrivateFieldGet(obj, _classThis_1, "a", _B_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _classThis_1, value, "a", _B_a_set); } }, metadata: _metadata }, _static_private_a_initializers, _static_private_a_extraInitializers);
+      +            __esDecorate(this, _static_private_a_descriptor = { get: __setFunctionName(function () { return __classPrivateFieldGet(this, _classThis, "f", _B_a_accessor_storage); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(this, _classThis, value, "f", _B_a_accessor_storage); }, "#a", "set") }, _static_private_a_decorators, { kind: "accessor", name: "#a", static: true, private: true, access: { has: obj => __classPrivateFieldIn(_classThis, obj), get: obj => __classPrivateFieldGet(obj, _classThis, "a", _B_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _classThis, value, "a", _B_a_set); } }, metadata: _metadata }, _static_private_a_initializers, _static_private_a_extraInitializers);
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/file-level-then-static-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        static get a() { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); }
+      -        static set a(value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/file-level-then-static-private-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -            __runInitializers(_classThis_1, _classExtraInitializers);
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __runInitializers(_classThis, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/file-level-then-static-private-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -        static { _B_a_get = function _B_a_get() { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); }, _B_a_set = function _B_a_set(value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); }; }
+      +        static { _B_a_get = function _B_a_get() { return __classPrivateFieldGet(_classThis, _classThis, "f", _B_a_accessor_storage); }, _B_a_set = function _B_a_set(value) { __classPrivateFieldSet(_classThis, _classThis, value, "f", _B_a_accessor_storage); }; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/file-level-then-static-private-field
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        static readP() { return __classPrivateFieldGet(B, _classThis_1, "f", _B_p); }
+      +        static readP() { return __classPrivateFieldGet(B, _classThis, "f", _B_p); }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/file-level-then-static-private-method
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -            __runInitializers(_classThis_1, _classExtraInitializers);
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __runInitializers(_classThis, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/private-accessor-storage-nested
+    /project/out/main.js:
+      -                        __esDecorate(this, _private_a_descriptor_1 = { get: __setFunctionName(function () { return this.#a_1_accessor_storage; }, "#a", "get"), set: __setFunctionName(function (value) { this.#a_1_accessor_storage = value; }, "#a", "set") }, _private_a_decorators_1, { kind: "accessor", name: "#a", static: false, private: true, access: { has: obj => #a in obj, get: obj => obj.#a, set: (obj, value) => { obj.#a = value; } }, metadata: _metadata }, _private_a_initializers_1, _private_a_extraInitializers_1);
+      +                        __esDecorate(this, _private_a_descriptor_1 = { get: __setFunctionName(function () { return this.#a_accessor_storage; }, "#a", "get"), set: __setFunctionName(function (value) { this.#a_accessor_storage = value; }, "#a", "set") }, _private_a_decorators_1, { kind: "accessor", name: "#a", static: false, private: true, access: { has: obj => #a in obj, get: obj => obj.#a, set: (obj, value) => { obj.#a = value; } }, metadata: _metadata }, _private_a_initializers_1, _private_a_extraInitializers_1);
+      -                    #a_1_accessor_storage = __runInitializers(this, _private_a_initializers_1, 2);
+      +                    #a_accessor_storage = __runInitializers(this, _private_a_initializers_1, 2);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/private-and-public-same-stem
+    /project/out/main.js:
+      -        #a_1_accessor_storage = (__runInitializers(this, _private_a_extraInitializers), __runInitializers(this, _a_initializers, 2));
+      -        get a() { return this.#a_1_accessor_storage; }
+      -        set a(value) { this.#a_1_accessor_storage = value; }
+      +        #a_accessor_storage = (__runInitializers(this, _private_a_extraInitializers), __runInitializers(this, _a_initializers, 2));
+      +        get a() { return this.#a_accessor_storage; }
+      +        set a(value) { this.#a_accessor_storage = value; }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/define/static-private-method-then-file-level
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/file-level-then-decorated-static-private-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(this, _static_private_a_descriptor = { get: __setFunctionName(function () { return __classPrivateFieldGet(this, _classThis_1, "f", _B_a_accessor_storage); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(this, _classThis_1, value, "f", _B_a_accessor_storage); }, "#a", "set") }, _static_private_a_decorators, { kind: "accessor", name: "#a", static: true, private: true, access: { has: obj => __classPrivateFieldIn(_classThis_1, obj), get: obj => __classPrivateFieldGet(obj, _classThis_1, "a", _B_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _classThis_1, value, "a", _B_a_set); } }, metadata: _metadata }, _static_private_a_initializers, _static_private_a_extraInitializers);
+      +            __esDecorate(this, _static_private_a_descriptor = { get: __setFunctionName(function () { return __classPrivateFieldGet(this, _classThis, "f", _B_a_accessor_storage); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(this, _classThis, value, "f", _B_a_accessor_storage); }, "#a", "set") }, _static_private_a_decorators, { kind: "accessor", name: "#a", static: true, private: true, access: { has: obj => __classPrivateFieldIn(_classThis, obj), get: obj => __classPrivateFieldGet(obj, _classThis, "a", _B_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _classThis, value, "a", _B_a_set); } }, metadata: _metadata }, _static_private_a_initializers, _static_private_a_extraInitializers);
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/file-level-then-static-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        static get a() { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); }
+      -        static set a(value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/file-level-then-static-private-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -            __runInitializers(_classThis_1, _classExtraInitializers);
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __runInitializers(_classThis, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/file-level-then-static-private-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -        static { _B_a_get = function _B_a_get() { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); }, _B_a_set = function _B_a_set(value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); }; }
+      +        static { _B_a_get = function _B_a_get() { return __classPrivateFieldGet(_classThis, _classThis, "f", _B_a_accessor_storage); }, _B_a_set = function _B_a_set(value) { __classPrivateFieldSet(_classThis, _classThis, value, "f", _B_a_accessor_storage); }; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/file-level-then-static-private-field
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        static readP() { return __classPrivateFieldGet(B, _classThis_1, "f", _B_p); }
+      +        static readP() { return __classPrivateFieldGet(B, _classThis, "f", _B_p); }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/file-level-then-static-private-method
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -            __runInitializers(_classThis_1, _classExtraInitializers);
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __runInitializers(_classThis, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/private-accessor-storage-nested
+    /project/out/main.js:
+      -                        __esDecorate(this, _private_a_descriptor_1 = { get: __setFunctionName(function () { return this.#a_1_accessor_storage; }, "#a", "get"), set: __setFunctionName(function (value) { this.#a_1_accessor_storage = value; }, "#a", "set") }, _private_a_decorators_1, { kind: "accessor", name: "#a", static: false, private: true, access: { has: obj => #a in obj, get: obj => obj.#a, set: (obj, value) => { obj.#a = value; } }, metadata: _metadata }, _private_a_initializers_1, _private_a_extraInitializers_1);
+      +                        __esDecorate(this, _private_a_descriptor_1 = { get: __setFunctionName(function () { return this.#a_accessor_storage; }, "#a", "get"), set: __setFunctionName(function (value) { this.#a_accessor_storage = value; }, "#a", "set") }, _private_a_decorators_1, { kind: "accessor", name: "#a", static: false, private: true, access: { has: obj => #a in obj, get: obj => obj.#a, set: (obj, value) => { obj.#a = value; } }, metadata: _metadata }, _private_a_initializers_1, _private_a_extraInitializers_1);
+      -                    #a_1_accessor_storage = __runInitializers(this, _private_a_initializers_1, 2);
+      +                    #a_accessor_storage = __runInitializers(this, _private_a_initializers_1, 2);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/private-and-public-same-stem
+    /project/out/main.js:
+      -        #a_1_accessor_storage = (__runInitializers(this, _private_a_extraInitializers), __runInitializers(this, _a_initializers, 2));
+      -        get a() { return this.#a_1_accessor_storage; }
+      -        set a(value) { this.#a_1_accessor_storage = value; }
+      +        #a_accessor_storage = (__runInitializers(this, _private_a_extraInitializers), __runInitializers(this, _a_initializers, 2));
+      +        get a() { return this.#a_accessor_storage; }
+      +        set a(value) { this.#a_accessor_storage = value; }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/es2022/set/static-private-method-then-file-level
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/file-level-then-decorated-static-private-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(this, _static_private_a_descriptor = { get: __setFunctionName(function () { return __classPrivateFieldGet(this, _classThis_1, "f", _B_a_accessor_storage); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(this, _classThis_1, value, "f", _B_a_accessor_storage); }, "#a", "set") }, _static_private_a_decorators, { kind: "accessor", name: "#a", static: true, private: true, access: { has: obj => __classPrivateFieldIn(_classThis_1, obj), get: obj => __classPrivateFieldGet(obj, _classThis_1, "a", _B_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _classThis_1, value, "a", _B_a_set); } }, metadata: _metadata }, _static_private_a_initializers, _static_private_a_extraInitializers);
+      +            __esDecorate(this, _static_private_a_descriptor = { get: __setFunctionName(function () { return __classPrivateFieldGet(this, _classThis, "f", _B_a_accessor_storage); }, "#a", "get"), set: __setFunctionName(function (value) { __classPrivateFieldSet(this, _classThis, value, "f", _B_a_accessor_storage); }, "#a", "set") }, _static_private_a_decorators, { kind: "accessor", name: "#a", static: true, private: true, access: { has: obj => __classPrivateFieldIn(_classThis, obj), get: obj => __classPrivateFieldGet(obj, _classThis, "a", _B_a_get), set: (obj, value) => { __classPrivateFieldSet(obj, _classThis, value, "a", _B_a_set); } }, metadata: _metadata }, _static_private_a_initializers, _static_private_a_extraInitializers);
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/file-level-then-static-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        static get a() { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); }
+      -        static set a(value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/file-level-then-static-private-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -            __runInitializers(_classThis_1, _classExtraInitializers);
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __runInitializers(_classThis, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/file-level-then-static-private-auto-accessor
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -        static { _B_a_get = function _B_a_get() { return __classPrivateFieldGet(_classThis_1, _classThis_1, "f", _B_a_accessor_storage); }, _B_a_set = function _B_a_set(value) { __classPrivateFieldSet(_classThis_1, _classThis_1, value, "f", _B_a_accessor_storage); }; }
+      +        static { _B_a_get = function _B_a_get() { return __classPrivateFieldGet(_classThis, _classThis, "f", _B_a_accessor_storage); }, _B_a_set = function _B_a_set(value) { __classPrivateFieldSet(_classThis, _classThis, value, "f", _B_a_accessor_storage); }; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/file-level-then-static-private-field
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -        static readP() { return __classPrivateFieldGet(B, _classThis_1, "f", _B_p); }
+      +        static readP() { return __classPrivateFieldGet(B, _classThis, "f", _B_p); }
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/file-level-then-static-private-method
+    /project/out/main.js:
+      -    let _classThis_1;
+      +    let _classThis;
+      -        static { _classThis_1 = this; }
+      +        static { _classThis = this; }
+      -            __esDecorate(null, _classDescriptor = { value: _classThis_1 }, _classDecorators, { kind: "class", name: _classThis_1.name, metadata: _metadata }, null, _classExtraInitializers);
+      -            B = _classThis_1 = _classDescriptor.value;
+      -            if (_metadata) Object.defineProperty(_classThis_1, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      -            __runInitializers(_classThis_1, _classExtraInitializers);
+      +            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+      +            B = _classThis = _classDescriptor.value;
+      +            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+      +            __runInitializers(_classThis, _classExtraInitializers);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/private-accessor-storage-nested
+    /project/out/main.js:
+      -                        __esDecorate(this, _private_a_descriptor_1 = { get: __setFunctionName(function () { return this.#a_1_accessor_storage; }, "#a", "get"), set: __setFunctionName(function (value) { this.#a_1_accessor_storage = value; }, "#a", "set") }, _private_a_decorators_1, { kind: "accessor", name: "#a", static: false, private: true, access: { has: obj => #a in obj, get: obj => obj.#a, set: (obj, value) => { obj.#a = value; } }, metadata: _metadata }, _private_a_initializers_1, _private_a_extraInitializers_1);
+      +                        __esDecorate(this, _private_a_descriptor_1 = { get: __setFunctionName(function () { return this.#a_accessor_storage; }, "#a", "get"), set: __setFunctionName(function (value) { this.#a_accessor_storage = value; }, "#a", "set") }, _private_a_decorators_1, { kind: "accessor", name: "#a", static: false, private: true, access: { has: obj => #a in obj, get: obj => obj.#a, set: (obj, value) => { obj.#a = value; } }, metadata: _metadata }, _private_a_initializers_1, _private_a_extraInitializers_1);
+      -                    #a_1_accessor_storage = __runInitializers(this, _private_a_initializers_1, 2);
+      +                    #a_accessor_storage = __runInitializers(this, _private_a_initializers_1, 2);
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/private-accessor-storage-siblings
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/private-and-public-same-stem
+    /project/out/main.js.map: source map bytes differ
+== decorator-binding/reserved/esnext/set/static-private-method-then-file-level
+    /project/out/main.js.map: source map bytes differ
+74 cases with differences (of 762 captured)

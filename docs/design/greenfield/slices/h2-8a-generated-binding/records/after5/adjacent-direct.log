@@ -1,0 +1,44 @@
+direct: selected 32 input cases
+env cargo test --manifest-path crates/emitter/Cargo.toml --test decorator_super_direct_contract decorator_super_direct_controls_match_typescript -- --exact --nocapture --test-threads=1
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-generated-binding/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 0.67s
+     Running tests/decorator_super_direct_contract.rs (target/debug/deps/decorator_super_direct_contract-33404c250148a994)
+
+running 1 test
+test decorator_super_direct_controls_match_typescript ... decorator super direct EXACT x2 decorator-super-direct/es2015/set/comma-list-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2015/define/comma-list-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2022/set/comma-list-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2022/define/comma-list-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2015/set/comma-list-used
+decorator super direct EXACT x2 decorator-super-direct/es2015/define/comma-list-used
+decorator super direct EXACT x2 decorator-super-direct/es2022/set/comma-list-used
+decorator super direct EXACT x2 decorator-super-direct/es2022/define/comma-list-used
+decorator super direct EXACT x2 decorator-super-direct/es2015/set/comma-list-used-assignment-last
+decorator super direct EXACT x2 decorator-super-direct/es2015/define/comma-list-used-assignment-last
+decorator super direct EXACT x2 decorator-super-direct/es2022/set/comma-list-used-assignment-last
+decorator super direct EXACT x2 decorator-super-direct/es2022/define/comma-list-used-assignment-last
+decorator super direct EXACT x2 decorator-super-direct/es2015/set/comma-list-nested-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2015/define/comma-list-nested-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2022/set/comma-list-nested-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2022/define/comma-list-nested-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2015/set/shared-node-discarded-then-used
+decorator super direct EXACT x2 decorator-super-direct/es2015/define/shared-node-discarded-then-used
+decorator super direct EXACT x2 decorator-super-direct/es2022/set/shared-node-discarded-then-used
+decorator super direct EXACT x2 decorator-super-direct/es2022/define/shared-node-discarded-then-used
+decorator super direct EXACT x2 decorator-super-direct/es2015/set/shared-node-used-then-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2015/define/shared-node-used-then-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2022/set/shared-node-used-then-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2022/define/shared-node-used-then-discarded
+decorator super direct EXACT x2 decorator-super-direct/es2015/set/shared-node-update-discarded-then-used
+decorator super direct EXACT x2 decorator-super-direct/es2015/define/shared-node-update-discarded-then-used
+decorator super direct EXACT x2 decorator-super-direct/es2022/set/shared-node-update-discarded-then-used
+decorator super direct EXACT x2 decorator-super-direct/es2022/define/shared-node-update-discarded-then-used
+decorator super direct DIVERGENCE RECORDED x2 decorator-super-direct/es2015/set/shared-node-used-twice (memoized required-value lowering; no credit)
+decorator super direct DIVERGENCE RECORDED x2 decorator-super-direct/es2015/define/shared-node-used-twice (memoized required-value lowering; no credit)
+decorator super direct DIVERGENCE RECORDED x2 decorator-super-direct/es2022/set/shared-node-used-twice (memoized required-value lowering; no credit)
+decorator super direct DIVERGENCE RECORDED x2 decorator-super-direct/es2022/define/shared-node-used-twice (memoized required-value lowering; no credit)
+decorator super direct SUMMARY exact=28 recorded_divergences=4 failed=0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
