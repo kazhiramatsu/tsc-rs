@@ -15,7 +15,7 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 [A-PC1](../h2-8a-compact-body-comments.md) が新設printer targetと既存parameter targetを登録したv8へ更新。
 [C05](../l2-3-resolution-cache/integration/README.md) がprogram contractと全program libを登録したv9、path表記の追加回帰を反映したv10へ更新。
 [OPS-COVER-3D](compiler-declarations/README.md) はdeclaration specifier / comment / JSDocの3 target・129専用入力を登録したv11へ更新。[PR #540](https://github.com/kazhiramatsu/tsc-rs/pull/540)で統合済み。全7 replay job・両gate成功、controls22分14秒。
-[C01](../h2-8a-literal-update/integration/README.md)の新規2 targetと[OPS-COVER-3E](compiler-require-rewrite/README.md)のrequire-rewrite専用74入力を登録したv12へ更新。複数スライスをまとめて検証中。
+[C01](../h2-8a-literal-update/integration/README.md)の新規2 targetと[OPS-COVER-3E](compiler-require-rewrite/README.md)のrequire-rewrite専用74入力を登録したv12へ更新。[PR #542](https://github.com/kazhiramatsu/tsc-rs/pull/542)で複数スライスをまとめて検証・統合済み。全7 hosted jobと両gateが成功。
 設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
 ## 現在の入口
@@ -67,7 +67,7 @@ metadata6：`class_header_token_metadata_contract`、`comma_argument_factory_con
 `mapped_type_members_contract`、`token_comment_phase_metadata_contract`。
 
 これらは Claude の新しい6件目の大規模依頼にはしない。C01/C02/C04 等の提出時に必要な対照を
-照合し、登録と本番統合は統合担当が行う。C01は受領・統合中。次のClaude推奨はC02。
+照合し、登録と本番統合は統合担当が行う。C01はPR #542で統合済み。次のClaude推奨はC02。
 
 `ci.yml` は PRに加えてmain pushでも動く。たとえば #527 の PR acceptance の後、
 merge `526c2b37a` に [main push run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34987714601)

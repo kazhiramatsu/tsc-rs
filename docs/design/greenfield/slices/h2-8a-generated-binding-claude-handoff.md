@@ -1,5 +1,11 @@
 # Claude 実装依頼②：A41-BINDING — decorator の生成名と binding identity
 
+**2026-09-16 次のClaude担当：C02。** C01は[PR #542](https://github.com/kazhiramatsu/tsc-rs/pull/542)で統合済み。
+開始時にorigin/mainを取得し、merge `7df1a8ed138ec8060fdd8bfc33cb539d92b8302e` を含む実際の開始SHAを固定してください。
+C01で追加したtyped literal updateと既存のbinding/finalizerを基準にし、旧候補patchを重ねて適用しません。
+まず下記のprinter failure/reuseの `x_2` / `x_1` 差を再現し、関連する命名状態の寿命を調べます。
+ローカルは新規・隣接ownerのfocused比較、全件hosted検証・PR・mergeは統合担当が行います。
+
 作成日：2026-09-14。親：H2.8a / A6-41。状態：隔離候補の research。
 
 **2026-09-15 具体的な追加入力**：[C03 統合レビュー](h2-8a-printer-failure/INTEGRATION.md)の

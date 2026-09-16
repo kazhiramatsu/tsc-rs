@@ -50,4 +50,34 @@ CI選択・failure propagation 45 testsは成功。policy suiteは40 pass / 1 in
 `registered h2 artifact labels follow the chain-walk ORDER`。
 変更前のmainと同じpolicy関連sourceでも同じassertが失敗し、期待配列末尾のH2.8a二項目が現行ORDERに無い。
 提出者が確認したemitter contractsのcompact private-body comment failureも本修復の完了へ含めない。
-hostedのPR head・run・各jobの結果と実測は統合完了後に追記する。
+hosted結果とmainへの統合を以下に記録する。ローカル受領記録のpendingは採取時点の履歴として保持する。
+
+## Hostedとmain統合
+
+[PR #542](https://github.com/kazhiramatsu/tsc-rs/pull/542)をmainへ統合した。
+head `8610f3a735ba5dc76f7921a53bd4949d9594f7de`、merge `7df1a8ed138ec8060fdd8bfc33cb539d92b8302e`。
+全7 replay jobと両gateが成功し、candidate / tested merge / landed mergeのtreeは同一。
+[受領記録](hosted.v1.json)、[printerログ](hosted-printer.log.gz)、[controlsログ](hosted-controls.log.gz)を保存した。
+
+[acceptance](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35076082072)と
+[witnesses](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35076082024)が同じheadを検証した。
+CIでもfactory generic 782 / typed 987、transform generic 315 / typed 399が一致し、各routeに差分・errorは無い。
+C01 pipeline 22 commandとrequire-rewrite74専用commandの二重比較も成功。
+printerのemitter direct batch全体は12 target / 17 tests、observer 24.85秒、build/replay 17.169秒。
+controlsのcompiler direct batch全体は12 target / 28 tests、observer 355.586秒、build/replay 1090.67秒。
+これらのbatch時間には既存suiteを含め、追加suiteだけの費用とはしない。
+
+| PR replay job | 実時間 |
+| --- | ---: |
+| acceptance (early) | 12分03秒 |
+| acceptance (late) | 17分58秒 |
+| acceptance (wide) | 20分33秒 |
+| witnesses (controls) | 33分29秒 |
+| witnesses (retained) | 8分57秒 |
+| witnesses (primary) | 8分25秒 |
+| witnesses (printer) | 2分51秒 |
+
+7 jobの合計は104分16秒。plan/gate/main pushは含めない。
+controlsは33分29秒。45分の分割検討目安・60分の上限内で完了した。
+PR結果からmain pushの成功を推論しない。C01 / A-INT1とOPS-COVER-3Eの実装・統合は完了。
+synthetic dispose metadata、既存のpolicy ORDER testとcompact-body comment failure、runtime admissionは既述の境界に残る。

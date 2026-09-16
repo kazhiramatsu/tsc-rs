@@ -18,3 +18,5 @@ focused 60、composition 4、substitution 4、dynamic 6、計74完全commandを�
 C01の22 commandと本suiteの74 commandは入力経路と比較面を分けて記録し、製品のexact総数へ加算しない。
 入口台帳v12は69 standalone中27 unfiltered / 11 filtered / 31直接入口なし。
 残る直接入口なしはcompiler11 / その他20、lib/binは15。
+
+[PR #542](https://github.com/kazhiramatsu/tsc-rs/pull/542)でC01とともにmainへ統合済み。全7 hosted jobと両gate成功。controlsは33分29秒。
