@@ -1,0 +1,32 @@
+2026-09-16T00:16:27.9329890Z utf16-identity-recovery: 79 fixture rows (including any typed refusal controls)
+2026-09-16T00:16:27.9368442Z utf16-review-fix: 25 fixture rows (including any typed refusal controls)
+2026-09-16T00:16:27.9404658Z utf16-tagged-template: 16 fixture rows (including any typed refusal controls)
+2026-09-16T00:16:55.8377851Z {"output":"/home/runner/work/tsc-rs/tsc-rs/crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json","sha256":"0605b71cafcffa559630bf891158a18441a5d00b84e359f9897407248c25e343","cases":65,"complete_command_executions":130}
+2026-09-16T00:17:01.6115920Z {"output":"/home/runner/work/tsc-rs/tsc-rs/crates/compiler/tests/fixtures/utf16-noemit-command-controls.json","sha256":"240b8d67c357b4268574d29031263a7984956cc6bc1fd7b675be0eaf82c577a0","cases":14,"complete_command_executions":28}
+2026-09-16T00:17:12.5830966Z {"output":"/home/runner/work/tsc-rs/tsc-rs/crates/compiler/tests/fixtures/utf16-review-fix-controls.json","sha256":"2d55c50860edb446eb8fe9165431906adadf07f6ec49f6fdf0530bd4eddd5e52","cases":25,"complete_command_executions":50}
+2026-09-16T00:17:20.1064733Z {"output":"/home/runner/work/tsc-rs/tsc-rs/crates/compiler/tests/fixtures/utf16-tagged-template-controls.json","sha256":"e8d6d1fa07d16d1887df1cb26dbbd51c150f42407a73e495239f7ccfd2a62688","cases":16,"direct_executions":32,"complete_command_executions":32}
+2026-09-16T00:18:49.1136813Z    Compiling tsc-rs-compiler v0.1.0 (/home/runner/work/tsc-rs/tsc-rs/crates/compiler)
+2026-09-16T00:18:49.1137622Z     Finished `test` profile [unoptimized] target(s) in 0.91s
+2026-09-16T00:18:49.1138599Z      Running tests/h2_8a_utf16_identity_recovery_controls.rs (target/debug/deps/h2_8a_utf16_identity_recovery_controls-663aeb2f3f5a1dbe)
+2026-09-16T00:18:49.1139695Z 
+2026-09-16T00:18:49.1139802Z running 2 tests
+2026-09-16T00:18:49.1140136Z test identity_and_recovery_controls_match_complete_commands_twice ... ok
+2026-09-16T00:18:49.1140587Z test no_emit_controls_match_complete_commands_twice ... ok
+2026-09-16T00:18:49.1140831Z 
+2026-09-16T00:18:49.1141080Z test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 57.42s
+2026-09-16T00:18:49.1141439Z 
+2026-09-16T00:18:49.1142169Z      Running tests/h2_8a_utf16_review_fix_controls.rs (target/debug/deps/h2_8a_utf16_review_fix_controls-d40e38211c636a7e)
+2026-09-16T00:18:49.1142636Z 
+2026-09-16T00:18:49.1142722Z running 1 test
+2026-09-16T00:18:49.1143005Z test review_fix_controls_match_complete_commands_twice ... ok
+2026-09-16T00:18:49.1143266Z 
+2026-09-16T00:18:49.1143512Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.38s
+2026-09-16T00:18:49.1143853Z 
+2026-09-16T00:18:49.1144245Z      Running tests/h2_8a_utf16_tagged_template_controls.rs (target/debug/deps/h2_8a_utf16_tagged_template_controls-c3817c04a3bc6200)
+2026-09-16T00:18:49.1144729Z 
+2026-09-16T00:18:49.1144806Z running 1 test
+2026-09-16T00:18:49.1145098Z test tagged_template_controls_match_complete_commands_twice ... ok
+2026-09-16T00:18:49.1145377Z 
+2026-09-16T00:18:49.1145613Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.21s
+2026-09-16T00:18:49.1145956Z 
+2026-09-16T00:18:49.1160561Z {"compiler_utf16": ["utf16-identity-recovery", "utf16-review-fix", "utf16-tagged-template"], "targets": 3, "tests_passed": 4, "observer_seconds": 52.206, "cargo_build_and_replay_seconds": 88.968}

@@ -59,7 +59,7 @@ baselineは4 tests成功。111 complete commandsと9 typed refusalsを各2回確
 111 complete commandsと9 typed refusalsが各2回通過した。TypeScript observerは4本全て一致。
 observer 77.301秒、Cargo build＋replay 145.823秒、
 合計 223.324秒。3つのtest binaryはbaselineと同じSHA-256だった。
-hosted実行・main統合は未実施で、controls job全体の所要時間は未計測。
+Hosted実行・main統合の結果は下記に記録した。
 これはローカルの追加分の実測であり、hostedやcold buildの所要時間へ換算しない。
 
 plannerの31 tests、`qualification.mjs check-policy`、policy/schema境界test、
@@ -70,3 +70,52 @@ plannerの31 tests、`qualification.mjs check-policy`、policy/schema境界test�
 全suite greenとは記録しない。
 
 この入口追加によって、Rustの製品admissionやprofile qualificationを変更しない。
+
+
+## Hosted検証・main統合 — 完了
+
+[PR #532](https://github.com/kazhiramatsu/tsc-rs/pull/532) は `8cb4a3bf8` としてmainへ統合済み。
+検証headは `5b619816fd54148fddb7546492e83893e666e229`。
+[acceptance](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35038620754) と
+[witness](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35038620769) の全7 replay job・
+両aggregate gateが成功した。[Hosted記録](hosted.v1.json)には各job/stepの実結果と時刻、
+入力hashを含むobserver receipt、追加分の[実ログ](hosted-compiler-utf16.log)を保存した。
+mergeが検証headを含み、local receiptの全input/execution source hashも一致することを確認済み。
+
+| Job | 所要時間 |
+| --- | ---: |
+| acceptance (early) | 11分27秒 |
+| acceptance (late) | 17分47秒 |
+| acceptance (wide) | 28分21秒 |
+| witnesses (controls) | 11分17秒 |
+| witnesses (printer) | 2分25秒 |
+| witnesses (retained) | 8分37秒 |
+| witnesses (primary) | 10分38秒 |
+
+追加3 targetは4 tests成功。111 complete commandsと9 typed refusalsを各2回確認し、
+4 observerも一致。追加分はoracle **52.206秒**、Cargo build＋replay **88.968秒**、
+合計 **141.174秒**。Cargoの内訳はcompile 0.91秒、test計88.01秒だった。
+controls全体は11分17秒、最長のwideも28分21秒で、45分の分割検討目安と60分上限内。
+7 replay jobの総runner時間は**90分32秒**。plan/gateとmain pushはこの合計へ含めない。
+runner差やbuild差を含むため、以前のPRとの差を追加suiteの純粋な性能差と扱わない。
+
+retainedは530 exact ×2を維持。wideも9,027 candidates / 8,511 exact /
+H2.8a deferred 6 / H2.9 deferred 510を維持した。111を既存corpusのexact件数へ加算しない。
+台帳v4は64 standalone中20 unfiltered / 6 filtered / 38入口なし。
+残るcompiler18 targetとfiltered targetの未選択部分はOPS-COVER-3残部、その他20とlib/binは4へ残す。
+
+
+### main pushの確認
+
+[統合mergeのmain push CI](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35040745901)も
+3 acceptance jobとgateが成功した。PRの実行とは別に採取した同じmerge `8cb4a3bf8` の結果。
+
+| Job | 所要時間 |
+| --- | ---: |
+| acceptance (early) | 11分43秒 |
+| acceptance (wide) | 28分22秒 |
+| acceptance (late) | 14分07秒 |
+
+main pushの3 replay jobは計**54分12秒**。PRと合計すると**144分44秒**
+（いずれもplan/gateを除外）。この重複コストを含めて記録し、PRの成功をmain実行の代用にしていない。
+記録PR #533はdocsだけの変更として両gateを確認し、Rust replayは不要と判定される。
