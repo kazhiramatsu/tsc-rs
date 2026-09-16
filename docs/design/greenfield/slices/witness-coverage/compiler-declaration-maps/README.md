@@ -26,7 +26,8 @@ existing ratchet, overlapping the disabled-declaration fixture. CLI config input
 directory. Each CLI command now compares stdout, stderr, exit and the complete
 recursive file set/bytes against the pinned `_tsc.js`, twice. The directory is
 rebuilt from pristine inputs at the identical path before the reference runs;
-there is no output/path normalization and no previous output can satisfy a write. Raw declaration/map
+stdout, stderr and file bytes are compared without normalization, and no
+previous output can satisfy a write. Raw declaration/map
 bytes, diagnostics, write order, BOM, metadata and Program map structures retain
 their existing comparisons. The bundle-boundary test now compares its original input against a new
 frozen Program observation, twice.
@@ -124,4 +125,38 @@ Both have 69 standalone targets: 32 unfiltered, 13 filtered, 24 with no direct
 entry (compiler4 / other20). Job splitting changes no runtime test/observer bytes
 or selected witness command; no duplicate local Rust replay is claimed.
 
-Pending: hosted results and merge.
+## Hosted validation and merge: PR #547
+
+Candidate `6cfd82ca224b01c61764ae5ccf78457841027324` passed all eight replay jobs and both
+aggregate gates. [PR #547](https://github.com/kazhiramatsu/tsc-rs/pull/547) merged
+as `0e3852509fbdd13205159033a700decf6234ee4c`. [The merge receipt](merge.v1.json) verifies
+that the merged tree is identical to the tested candidate tree.
+[The hosted receipt](hosted.v1.json) retains run/job identities and log hashes.
+
+| Job | Duration | Result |
+| --- | --- | --- |
+| [acceptance (wide)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35119769009/job/104874440768) | 28m05s | success |
+| [acceptance (early)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35119769009/job/104874440772) | 9m26s | success |
+| [acceptance (late)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35119769009/job/104874440902) | 19m00s | success |
+| [witnesses (primary)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35119768954/job/104874674368) | 8m58s | success |
+| [witnesses (printer)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35119768954/job/104874674369) | 2m55s | success |
+| [witnesses (retained)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35119768954/job/104874674402) | 9m42s | success |
+| [witnesses (controls)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35119768954/job/104874674443) | 38m11s | success |
+| [witnesses (declaration-maps)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35119768954/job/104874674715) | 5m38s | success |
+
+The new job executed all 11 tests and 70 fresh CLI comparison pairs on hosted
+Linux. All six frozen observer commands passed (35.504s); Cargo build/replay
+took 267.979s. Controls retained its original 18 compiler-direct suites and
+64 tests. The optional macOS outFile CLI probe remains separately recorded.
+
+The eight replay jobs total 121m55s; the
+longest job, controls, took 38m11s, below
+the 45-minute review threshold. The new dedicated job took 5m38s including its
+extra compiler build. These are whole-job observations, not an isolated estimate
+of the split's performance benefit. Totals exclude plans, aggregate gates and
+main-push runs. All jobs retain two workers and their existing timeout policy.
+
+OPS-COVER-3L/3M are complete for these registered observations. The 24 remaining
+standalone targets without direct entries (compiler4 / other20), named-filter
+residuals and other product slices remain open. The documentation follow-up
+contains these receipts and progress updates; it does not claim a new Rust replay.
