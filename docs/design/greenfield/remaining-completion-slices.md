@@ -147,7 +147,7 @@ A-CLOSE と該当 artifact の前提を確認してから行う。監査・oracl
 
 ### 4.3 H2.8c：noCheck / transpile
 
-C04 の研究用 noCheck/transpile 経路と301入力の専用 witness を[統合](slices/h2-8c-transpile/INTEGRATION.md)する。
+C04 の研究用 noCheck/transpile 経路と301入力の専用 witness は[PR #535で統合済み](slices/h2-8c-transpile/INTEGRATION.md)。
 通常 Program の noCheck / isolatedModules / verbatimModuleSyntax guard と CLI/config activation は残る。
 この bounded prototype を基に
 それぞれ本番 packet を作る。custom transforms は API1.2、incremental は BLD1 に残す。

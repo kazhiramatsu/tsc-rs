@@ -8,7 +8,7 @@ source 42 files・patch・実行記録を退避した。供給候補は `ddf4caf
 ## 範囲
 
 `transpile_module`、`transpile_declaration` と `ProgramNoCheck` の明示的な研究用入口、
-そのための lazy checker flags / linked references / single-file API facts を統合する。
+そのための lazy checker flags / linked references / single-file API facts を統合した。
 CLI/config の noCheck activation、builder の checkPending、custom transformers、
 H2.8c 全体の qualification と性能測定は残る。[供給報告](REPORT.md) §1–8 は受領時の記録。
 通常 Program の admission を、この prototype の観測結果で緩和しない。
@@ -53,15 +53,55 @@ known-open22は inherited emitter14、H2.9 recovery7、範囲外targetのRust拒
 互換実装済みとはしない。研究用 Rust API の公開形は安定 API の約束ではない。
 追加14と既存287を、既存 corpus の exact 総数に加算しない。
 
-修正後の最初の replay は9/9 tests成功。元287は265 exact / 22 known-open、
-追加14は14/14 exact。TypeScript期待値も両集合で2回一致した。
-planner36 testsとpolicy/schemaの選択3 testsも成功。
-source anchor とnormalizePathの末尾境界を最終訂正した head の通常経路回帰・
-最終route replay、およびhosted head/runは実行中。結果はPRで確定し、受領記録を追記する。
+## 最終検証と統合
 
+[PR #535](https://github.com/kazhiramatsu/tsc-rs/pull/535) を merge commit で統合した。
+最終 hosted head は `e86ed768f5b3adbba886130205df30d1d72cb44f`。
+ローカルで検証した native bytes は `e010bc875` と同一で、後続 commit はCI runtime設定・検証・記録のみ。
+[ローカル受領記録](validation/local.v1.json)にsource/binary hash、command、exit、全観測と圧縮ログを保存した。
 
-初回hostedのcontrolsはNode22.23.2で起動し、oracleのNode25.2.1要求で採取前に停止した。
-`transpile-routes`を含むwitness jobだけ、固定SHAのsetup-nodeで`.node-version`を設定する。
-期待値・Node pin・比較条件は保持し、runtime設定後のheadで全hosted検証を再実行する。
-通常経路のlibrary testsはsyntax175、program48、emitter506、checker1738が全成功。
-宣言bundleも4 tests（visitor/printer、map、forced metadata lifetime、原本JS）が成功した。
+| 最終集合 | 結果 |
+| --- | --- |
+| transpile-js 原287の内訳 | 138/150一致（出力生成失敗2含む）、既知差分12 |
+| transpile-dts 原287の内訳 | 86/86一致（出力生成失敗1含む） |
+| Program noCheck 原287の内訳 | 41/51一致、既知差分10 |
+| 追加review | 14/14一致、候補で異なった12を修正 |
+| syntax / program / emitter / checker library | 175 / 48 / 506 / 1738 tests成功 |
+| declaration bundles | 4 tests成功（visitor/printer、map、forced metadata lifetime、原本JS） |
+| route contract | 9 tests成功。原287と追加14をそれぞれ2回比較 |
+| planner / selected policy-schema | 36 / 3 tests成功 |
+| clippy / fmt / diff | clippy exit 0、変更行警告0。既存警告は残る。fmt/diff clean |
+
+全301ケースは正常結果276、TypeScriptと同じ出力生成失敗3、固定した既知差分22。
+新しいRust-only拒否・panicを互換性に加点していない。
+[候補の追加ケース](validation/candidate-review.json.gz)と
+[修正後の追加ケース](validation/native-review.json.gz)を比較できる。
+元のinputs/expected/known-openの3ファイルは受領bytesのまま。
+
+ローカルwallはlibrary 692.377秒、bundle 138.412秒、route 338.16秒、clippy 94.399秒（build込み、background priority・2 workers）。
+
+[Hosted受領記録](validation/hosted.v1.json)と
+[compiler direct実行ログ](validation/hosted-compiler-direct.log.gz)も保存した。
+[acceptance](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35049768614)の3 job、
+[witness](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35049768606)の4 jobと両集約gateが成功。
+controlsは945秒（15m45s）。compiler6 target / 15 tests、observer106.626秒、Cargo256.307秒。
+追加したtranspile targetはhostedでも9/9成功し、元287の265一致/22既知差分と追加14一致を保持した。
+
+| hosted job | 秒 |
+| --- | ---: |
+| acceptance (wide) | 1404 |
+| acceptance (early) | 738 |
+| acceptance (late) | 1062 |
+| witnesses (controls) | 945 |
+| witnesses (primary) | 516 |
+| witnesses (printer) | 136 |
+| witnesses (retained) | 526 |
+
+7 replay jobの合計は5327秒。入口追加の実行記録であり、H2.8c全体の性能qualificationではない。
+
+初回hosted controlsはNode22.23.2で起動し、oracleが要求する25.2.1と異なるため採取前に停止した
+（[失敗ログ](validation/first-hosted-controls.log.gz)）。`transpile-routes`を含むwitness jobだけ、
+固定SHAのsetup-nodeで`.node-version`を設定した。期待値・runtime pin・比較条件を保持して全jobを再実行した。
+
+CLI/configのnoCheck activation、builder checkPending、H2.9 recovery、inherited emitter、
+custom transformersおよびH2.8c全体のqualificationは§範囲のとおり残る。

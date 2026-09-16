@@ -1,0 +1,273 @@
+{
+  "schema": "h2-8c-integration-local.v1",
+  "head": "e86ed768f5b3adbba886130205df30d1d72cb44f",
+  "native_source_head": "e010bc875bd7c4a1f58772562863985ce471d3aa",
+  "native_bytes_unchanged": true,
+  "supplied_base": "526c2b37ad9d0ff7e932e1d76e658b8cf139807f",
+  "candidate_commit": "ddf4caf6d",
+  "priority": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15"
+  ],
+  "cargo_build_jobs": 2,
+  "source_sha256": {
+    ".github/ci/qualification-policy.v2.json": "acd4798ef315aaab64459f0f45f80690db784c020f81c82f14ef32d6f2beb5ea",
+    ".github/ci/replay.py": "f5baeb92eee83f362c1e15c050d53f84c6d39fbe4c6814719a06f2d86b6d053e",
+    ".github/ci/test_replay.py": "746d9c9902ec9f2850e82d7f96b17af5b70bfb4a89039ed1b2c7565d4733cff7",
+    ".github/workflows/witness.yml": "d024243ebf35f33da718e917ca92f3364a96c00f7d1db030cf9111aae8f240fc",
+    "crates/checker/src/access.rs": "7a1878aee7bc1641c4a6fcf50263f730fdbe53f8c0b6279a3645fd1f3196c497",
+    "crates/checker/src/calls.rs": "428234689bd13d5ac2b24c3b2bad9f1e606345e50132636a582a8b1b8237bfba",
+    "crates/checker/src/check.rs": "6204a3a30e282884278d29b37fd8eefed122a557a330625bdaa3d5f0dbdaa08f",
+    "crates/checker/src/emit.rs": "7a32c2cfc8cc56c7ef4370fd9846e4ff646ba63ccb7862ebeffc6c4dc6a40fde",
+    "crates/checker/src/expr.rs": "efb7a075315bca3e289122f4c9c6cf6adabc1cfb00c9b5fb78b181eae0f68fc6",
+    "crates/checker/src/functions.rs": "cc78033e470aadbf8fbafcafcd17ee2e71cfdbde2f91dfe44ac1c140b5775746",
+    "crates/checker/src/jsx.rs": "7cf85a0a592066366bd51bb94bf63d8443ccb4f364745d2074f47c49f84f7e28",
+    "crates/checker/src/lib.rs": "dd2b48339a01cd79cd4675f797aa8c7085e77910777e2f158616d4535dcdabc3",
+    "crates/checker/src/links.rs": "a6885dd02b9677233c93c4cd97ad27adf7c32e20a88b6c9ddad63bd0e8827028",
+    "crates/checker/src/modules.rs": "3ba19e530a2f5616481c18348f1addbb3f7922891d94ce0e47fe7546e32a191f",
+    "crates/checker/src/node_builder/specifier.rs": "7f716ef23e393f73cf19e2ebbb5e337ee6ef951a05a35bd1d5ec6eeb1e373af2",
+    "crates/checker/src/state.rs": "1ddee3b09bb0bd26902ca1a8372fe3c34a78f948bdb508b8e85b07d239466f84",
+    "crates/compiler/src/lib.rs": "4dbd3497d3fdef61f3de2e8501b95dea0306c740dca018790c1c4b689c0ff58d",
+    "crates/compiler/src/transpile.rs": "1a02fb5ac9d1a3e20fff285d1f234bfab05f3a064599f2a6f77014d5cc3ffd4d",
+    "crates/compiler/tests/fixtures/h2_8c_transpile/expected.v1.json": "ebd10a1122f6a311a38cccab46cb538313a0c792b1187064b14b9130d5e66819",
+    "crates/compiler/tests/fixtures/h2_8c_transpile/inputs.v1.json": "cfec84eebb013708d458e7841ffcef262d95519b094a5b9381ae8f5e66967573",
+    "crates/compiler/tests/fixtures/h2_8c_transpile/known-native.v1.json": "25575e9a5e90fb83807c1fe540516330599b0d01ee260677bdeacadc20d9b5d1",
+    "crates/compiler/tests/fixtures/h2_8c_transpile/known-open.v1.json": "e5ca11db56cc0000ad4bb0da712c3b9a513cde095f3c7fa5abbb3eac7b4c1e65",
+    "crates/compiler/tests/fixtures/h2_8c_transpile/review-expected.v1.json": "89691b93efb288febeae42872592da1193a0d60a6b9ef20a696c29f39d305df2",
+    "crates/compiler/tests/fixtures/h2_8c_transpile/review-inputs.v1.json": "0d7939d44396f120234b2abeb3407cd7f76a86b5647b03c731510e262440a833",
+    "crates/compiler/tests/h2_7d_declaration_bundles.rs": "d7a30de656afc691056b0161a8b95c8c7d72495ecf3aeae4da42d587600a781d",
+    "crates/compiler/tests/transpile_routes_contract.rs": "e9e419813ee987bf9486ab266337cd80059d12865dafe42b0e97a410061c14e1",
+    "crates/compiler/tests/unit/lib/tests.rs": "46968431081ec0117fc175b296b8f24e338325f32e4156a515394e7c9b4a68dc",
+    "crates/emitter/src/builtins.rs": "2f82806edc63502e300b5ac08ba7c5b0288a352406c3037cb9d85a4eb3319292",
+    "crates/emitter/src/builtins/system.rs": "151e695ea8d7cdaf720dabc76bec322d6ab7d4f908cd0ee24044f11f8277cb3d",
+    "crates/emitter/src/execute.rs": "8cc90b22b9301c6a3802dde60c4639279d8d8b935699f94c67d8beb027b6e032",
+    "crates/emitter/src/external_module_names.rs": "aba6ef0ef7fd1bc14497466a452349da037b6375f25ffc9cc288faa9ab94c500",
+    "crates/emitter/src/host.rs": "d3e3a0ef35bc50a06a0c8a9680a221dc2d19e803af967c0f5da29b95c4776dae",
+    "crates/emitter/src/lib.rs": "d566f0393f6136f606ed65f230e09b84ba4c4c4eb4495a87cd8b74b9c99f6012",
+    "crates/emitter/src/plan.rs": "c0270680f15d1a72292b01b23b5c5fdd97483bf9becc70fa9fe9ed5018e98baf",
+    "crates/emitter/src/printer.rs": "a9043f19c6f2a8e526e7f22c8700ad2131478d34af2e0341197b82d6e044b3be",
+    "crates/emitter/src/resolver.rs": "e9b2a32ac8f816449528f46b2d4a0912cb5cef4e68a1db089452c36907dac4ba",
+    "crates/emitter/src/route.rs": "e02af8c1fea42bd9f79523f3ab729a36da016f337a0b8031ad641c9c97c62b18",
+    "crates/emitter/tests/unit/external_module_names/tests.rs": "4d816d32cb194ce46008e3f8cbff77b89af2fb108ea09b6834f817d85959bd98",
+    "crates/harness/src/lib.rs": "48de8b606404c177d3a61882cb55baa61ec1a7e7a4b90e5fa8de6a2a1ffb54e8",
+    "crates/program/src/config.rs": "bbeb4fd2c0264a94973bf07f85ea94b1c9941a42c6d2bc85656156eec0de2709",
+    "crates/program/src/js_path.rs": "5d0aaeef2a97b42302967b2cf3045212c6c716019b36fa030e565dcdd5dbed32",
+    "crates/program/src/lib.rs": "8babcaeef561d8f048919d21d1efe34c22daafd32107ba0ba189178bb19b8036",
+    "crates/program/src/loader.rs": "5a2c87a1c5968954feb43b50a2777dee710e61c29dc8bb67f39c097224a99418",
+    "crates/program/src/prepared.rs": "8d06da73848e491dfbd7323d1cd7b0740a17e4038cf13a3cec3daeb551eb82ee",
+    "crates/syntax/src/lib.rs": "5405649504f34725eff7a90832b712b3728e49d2e8a24df9ebd2e8241336feb1",
+    "crates/syntax/src/parser.rs": "6c931066ade6ddddb14a42f7d660ef80b703c85422905b1a7243bbbfac71b58d",
+    "crates/syntax/tests/unit/parser/tests.rs": "9b33b89cd5b612c4632f90d548648e53c453209d2236b077339f42a75cbf8d15",
+    "crates/types/src/options.rs": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde",
+    "scripts/observe-transpile-routes.mjs": "4387b9aadaeaec20639b044e5ee1e134d116023636ab84e4db64963f0842532b",
+    "scripts/witness.py": "e0deecb146d45fde76b9d94ff5fc53b49e1c971dace23719a8e77b6130a5ff78"
+  },
+  "test_binary_sha256": {
+    "transpile_routes_contract": "f410a27ee03c17d93a7cf1e2795090b239300735d2876679a31d6881b89faebe",
+    "h2_7d_declaration_bundles": "b43974c8727e61086c305a1b89ce275d7f882dabfae28736b1e06761f4a74818"
+  },
+  "checks": [
+    {
+      "name": "libraries",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-syntax",
+        "-p",
+        "tsc-rs-program",
+        "-p",
+        "tsc-rs-emitter",
+        "-p",
+        "tsc-rs-checker",
+        "--lib",
+        "--no-fail-fast"
+      ],
+      "exit_code": 0,
+      "seconds": 692.377,
+      "log": "libraries.log",
+      "log_sha256": "24187287e3f7ac8fde4b0064451452b2b681c47ff5bfe9aec53e2defe2795d24"
+    },
+    {
+      "name": "declaration-bundles",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "h2_7d_declaration_bundles",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 138.412,
+      "log": "declaration-bundles.log",
+      "log_sha256": "458ea354d18f3e9bff558ce422e902ac856c5727e0da2acbfc883f073c64c953"
+    },
+    {
+      "name": "final-route",
+      "command": [
+        "python3",
+        "scripts/witness.py",
+        "transpile-routes",
+        "--all"
+      ],
+      "exit_code": 0,
+      "seconds": 338.16,
+      "log": "final-route.log",
+      "log_sha256": "1024d72cc7d2dbb69e802c70076c68b87902a2d74e883813ffb8efd8d8ac600b"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "-p",
+        "tsc-rs-syntax",
+        "-p",
+        "tsc-rs-program",
+        "-p",
+        "tsc-rs-emitter",
+        "-p",
+        "tsc-rs-checker",
+        "-p",
+        "tsc-rs-compiler",
+        "--lib",
+        "--test",
+        "transpile_routes_contract"
+      ],
+      "exit_code": 0,
+      "seconds": 94.399,
+      "log": "clippy.log",
+      "log_sha256": "afbc78dc3a409160cc3d1f244b7fc09d6d190f528d930861ecaa6dad68275167"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "libraries.log.gz",
+      "sha256": "cd89ad031ae04a8c377b1956d70b44a5c82084b1ef8a95b0f4179141501e084b",
+      "uncompressed_sha256": "24187287e3f7ac8fde4b0064451452b2b681c47ff5bfe9aec53e2defe2795d24",
+      "bytes": 206095
+    },
+    {
+      "path": "declaration-bundles.log.gz",
+      "sha256": "7f4e77da762d30f597f9b00ff4d190b9c173919d19a4086f60c13ed78996ecec",
+      "uncompressed_sha256": "458ea354d18f3e9bff558ce422e902ac856c5727e0da2acbfc883f073c64c953",
+      "bytes": 1166
+    },
+    {
+      "path": "final-route.log.gz",
+      "sha256": "523eb562e6a57ae040783f4422bb5fc2af6771d8c7503a304b77dc96d6238839",
+      "uncompressed_sha256": "1024d72cc7d2dbb69e802c70076c68b87902a2d74e883813ffb8efd8d8ac600b",
+      "bytes": 39850
+    },
+    {
+      "path": "clippy.log.gz",
+      "sha256": "cb725337bee5eb5eaf1e90ef71db7812ab4b037b10b095c8026061df87d28153",
+      "uncompressed_sha256": "afbc78dc3a409160cc3d1f244b7fc09d6d190f528d930861ecaa6dad68275167",
+      "bytes": 191129
+    },
+    {
+      "path": "candidate-baseline.log.gz",
+      "sha256": "c27e678ca203e3aefc3d86fbdaf06fcf71f233c682f79b7435e3f65237614cc5",
+      "uncompressed_sha256": "b0eadd3aa1ba5575c756c11f1723f3a1b0a2ce6282b81d477a8df7393a10c6e6",
+      "bytes": 3146
+    },
+    {
+      "path": "review-fixed.log.gz",
+      "sha256": "4af95f0de79d5298187d6ab8653da3b2a03bb51be3f1567a83826f0e25e20906",
+      "uncompressed_sha256": "3f3549a7b63395fb3eba83196f1e988d886a85b194182d4891876ea9a277006d",
+      "bytes": 40459
+    },
+    {
+      "path": "planner.log.gz",
+      "sha256": "1bc2fe5faf3a9f0f33322f5ea3601eebb9502278c9a50d066f17a51af5bbd49e",
+      "uncompressed_sha256": "dc5f5f2a40705e564ced0737e97b30ab0d05297b2033b1e10386cc0f4e1928a0",
+      "bytes": 60633
+    },
+    {
+      "path": "policy-tests.log.gz",
+      "sha256": "d0743de2620dee78972432cbfa82118a2537da7308cea8d195c03977c71317f6",
+      "uncompressed_sha256": "6e626ac721304d51c132205f41ddca54009cfff3618000b8ce7abbadf3b79529",
+      "bytes": 345
+    },
+    {
+      "path": "candidate-review.json.gz",
+      "sha256": "83911be1b4f84b0d3a6c9ef46e10ede573fc54c64a54a62ea6fb39b84347c88e",
+      "uncompressed_sha256": "c84ea0b73b519f0836a500c47cedf2fef89922b85d20b24d6590b766bc5289d8",
+      "bytes": 46060
+    },
+    {
+      "path": "native-transpile-js.json.gz",
+      "sha256": "76489be082a21b7958d6cd9b7fc30203de64e0dea89499626d2aca62e57fc9b2",
+      "uncompressed_sha256": "cae8f4cd9ea8304fc65db360bfecbab8a34ca4a588607f6898ca308c348b8bb2",
+      "bytes": 740669
+    },
+    {
+      "path": "native-transpile-dts.json.gz",
+      "sha256": "ac0c7564503a2390161ff1f190efc3a9d5430d729bf238af2c0a7e69e89c146a",
+      "uncompressed_sha256": "724b17fec6735c93264e0362379930ea2a8f339d677662361b50ce85dbd39bae",
+      "bytes": 190222
+    },
+    {
+      "path": "native-program-no-check.json.gz",
+      "sha256": "dc3eda1b47d43c81691ed984ea6511bef000d9076d6610f73a0a59d17ba4eed8",
+      "uncompressed_sha256": "e8ef0dc5dc5d90da685fedce18324f06846e3615a9dde3c1d467c214165c7416",
+      "bytes": 214677
+    },
+    {
+      "path": "native-review.json.gz",
+      "sha256": "67e74f2d68746dd73485797a8e95d922137b54236d7f39ee91682e295ea1b813",
+      "uncompressed_sha256": "a070bc366d7091cd108ce28bf284d7e3d6dca68a9db81e0639f87fbd99152557",
+      "bytes": 66380
+    }
+  ],
+  "routes": [
+    {
+      "route": "transpile-js",
+      "cases": 150,
+      "exact": 138,
+      "known_open": 12,
+      "source_exceptions": 2
+    },
+    {
+      "route": "transpile-dts",
+      "cases": 86,
+      "exact": 86,
+      "known_open": 0,
+      "source_exceptions": 1
+    },
+    {
+      "route": "program-no-check",
+      "cases": 51,
+      "exact": 41,
+      "known_open": 10,
+      "source_exceptions": 0
+    }
+  ],
+  "review_cases": 14,
+  "review_exact": 14,
+  "original_successful_results": 262,
+  "source_exceptions": 3,
+  "known_open": 22,
+  "oracle_repetitions": 2,
+  "native_repetitions": 2,
+  "clippy_changed_lines": {
+    "warning_blocks": 312,
+    "warnings_on_changed_lines": []
+  },
+  "planner_tests": 36,
+  "selected_policy_tests": 3,
+  "format_and_diff_check": "passed",
+  "initial_hosted_failure": {
+    "head": "e010bc875bd7c4a1f58772562863985ce471d3aa",
+    "job_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35048909244/job/104644895267",
+    "reason": "Node v22.23.2 differs from pinned oracle v25.2.1; failure before observation",
+    "log": "first-hosted-controls.log.gz",
+    "sha256": "1e8a2bf49df8ea496bf14622673734d25a92151d2a4d8f878203c01c79e6ef73"
+  }
+}
