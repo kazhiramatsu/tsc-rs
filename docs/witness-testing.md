@@ -214,3 +214,9 @@ case selectors and captures so `--all` cannot silently select a subset. Its
 frozen selection under `docs/` is an executable input, explicitly matched before
 the ordinary documentation skip. Inventory v8 records 66 standalone targets:
 24 unfiltered, seven filtered, 35 without a direct entry (compiler15 / other20).
+
+[A-PC1 / PR #538](design/greenfield/slices/h2-8a-compact-body-comments.md) passed
+all seven PR replay jobs and both gates. New240 printer cases and all68 parameter
+commands compare exactly twice. Printer took 1m58s, controls 16m45s, and the longest
+job 27m32s; the seven jobs total 89m00s, excluding plans/gates and main-push runs.
+The linked hosted receipt records the candidate/merge identities and timings.

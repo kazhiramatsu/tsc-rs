@@ -1,0 +1,47 @@
+{
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "cases": [
+    {
+      "customConditions": [
+        "a,b"
+      ],
+      "result": {
+        "resolvedModule": {
+          "resolvedFileName": "/p/node_modules/pkg/joined.d.ts",
+          "extension": ".d.ts",
+          "isExternalLibraryImport": true,
+          "resolvedUsingTsExtension": false
+        },
+        "failedLookupLocations": [
+          "/p/package.json",
+          "/package.json"
+        ],
+        "affectingLocations": [
+          "/p/node_modules/pkg/package.json"
+        ]
+      }
+    },
+    {
+      "customConditions": [
+        "a",
+        "b"
+      ],
+      "result": {
+        "resolvedModule": {
+          "resolvedFileName": "/p/node_modules/pkg/split.d.ts",
+          "extension": ".d.ts",
+          "isExternalLibraryImport": true,
+          "resolvedUsingTsExtension": false
+        },
+        "failedLookupLocations": [
+          "/p/package.json",
+          "/package.json"
+        ],
+        "affectingLocations": [
+          "/p/node_modules/pkg/package.json"
+        ]
+      }
+    }
+  ]
+}

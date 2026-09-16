@@ -11,7 +11,8 @@ Claude 担当 C01〜C05 と、それ以外の実装・統合・検証・配布�
 本書の5件だけでプロジェクトの残タスクが尽きるわけではありません。
 ③ printer の隔離候補は受領済みで、[A-INT3 の統合レビュー](h2-8a-printer-failure/INTEGRATION.md)へ進みました。
 ④ transpile の候補も [PR #535 で統合済み](h2-8c-transpile/INTEGRATION.md)です。
-次の推奨送付順は **⑤ cache → ① literal → ② binding**。
+⑤ cache は受領・レビュー済みで、[追加修正 R1〜R4](l2-3-resolution-cache-review-01/README.md)の再提出待ちです。
+次の推奨送付順は **⑤ cache追加修正 → ① literal → ② binding**。
 [A-INT3-CS](h2-8a-printer-comment-carry/README.md) と
 [API1.2-HINT](api1-2-printer-hook-hints.md) は統合担当が持ちます。
 ①②は現行実装との対応表から始め、再現した差があれば優先順位を上げます。

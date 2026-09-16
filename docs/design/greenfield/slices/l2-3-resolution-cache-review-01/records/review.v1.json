@@ -1,0 +1,169 @@
+{
+  "submitted_base": "d9cfb664ad89898b0b5601d85e7e2abf70e32b18",
+  "submission_patch_sha256": "ff4f60211981fca2211987e124396f7d673250db7d9660669db04f9fa5e3a80e",
+  "reproduction_worktree": "../tsc-rs-resolution-cache-review",
+  "production_changed_for_review": false,
+  "patch_reproduces_all_15_included_source_and_document_files": true,
+  "submitted_file_sha256": {
+    "crates/program/src/lib.rs": "0f43b5c24488fde48dd6d971be7a2f488467e473962c590d8b2937b358d15131",
+    "crates/program/src/loader.rs": "feb0999c1c8648433b4b4b566f8cfa7765fc7a31a78c54640fcfed4d02ca0050",
+    "crates/program/src/resolution_cache.rs": "ba4441bca430ecaa79feb1c5d14aff66ffbd4b71ad0e911e79b0878a2b141641",
+    "crates/program/tests/fixtures/resolution_cache/expected.v1.json": "f6c8639dcc440f7e5aaf2f25e5f1ec5770bd256903c9c8819436061b2eee533a",
+    "crates/program/tests/fixtures/resolution_cache/manifest.v1.json": "710ede4b2f1f4d29e147a2fd8477354e42bf1286b5c343d5b5dbc12bd65d3226",
+    "crates/program/tests/resolution_cache_contract.rs": "9209802dbecc962fcc568a54a0752490752bf7d9b80fe0ed570a832974f9accc",
+    "docs/design/greenfield/slices/README.md": "f0cf596a885a0b4a5f28fe0c3d2ca7ca1fff1ba7070be4336a23397b3dd3f310",
+    "docs/design/greenfield/slices/l2-3-resolution-cache-claude-handoff.md": "185c9c78a21577188c542b8cd2b97550f04a0a1d729c5e1f9fa2335d57f38fc7",
+    "docs/design/greenfield/slices/l2-3-resolution-cache/DESIGN.md": "194f136bc22039f08c028b3ca7312b43ab35498e5b156d2df66d27217b301721",
+    "docs/design/greenfield/slices/l2-3-resolution-cache/INTEGRATION.md": "3081131551c7e7a31b5ba5be8006de17f36fb84f003703c194f54f423c1444c1",
+    "docs/design/greenfield/slices/l2-3-resolution-cache/REPORT.md": "7b5e486cafc1f581136f6af57156ed3c50c50f2c404fe45802607dee7e43fc7b",
+    "docs/design/greenfield/slices/l2-3-resolution-cache/validation/clippy-base-compare.txt": "04c5e9c902f9b19248fa78abc5fad4b45fdddf921c59af816827a8d9b21fd085",
+    "docs/design/greenfield/slices/l2-3-resolution-cache/validation/go-tests.txt": "d225c3b9db04059100f024745cc53615b3d10a5a303d9d3e4b15b97a5a7c8c84",
+    "docs/design/greenfield/slices/l2-3-resolution-cache/validation/start.txt": "1f6965176e9d99f9d545cb5f52f1c4a6ed522e9d8b0f6ca424603dd0e59146c5",
+    "scripts/observe-resolution-cache.mjs": "bffbf92c95c1b2d13aa292a6719354a6522f563ad0a1ac951d727801d5bd601f"
+  },
+  "commands": [
+    {
+      "name": "review",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/program/Cargo.toml",
+        "--test",
+        "resolution_cache_review_contract",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "2"
+      },
+      "exit": 101,
+      "seconds": 36.30437945900485
+    },
+    {
+      "name": "original",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/program/Cargo.toml",
+        "--test",
+        "resolution_cache_contract",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "2"
+      },
+      "exit": 0,
+      "seconds": 7.86592054204084
+    }
+  ],
+  "upstream_observer": {
+    "command": "node scripts/observe-resolution-cache.mjs --manifest crates/program/tests/fixtures/resolution_cache/manifest.v1.json --out target/review/expected.json",
+    "exit": 0,
+    "byte_equal_to_submitted_expected": true
+  },
+  "original_summary_and_soak_equal_submitted": true,
+  "additional_tests": {
+    "passed": 0,
+    "failed": 3,
+    "status": "expected failures demonstrating review findings"
+  },
+  "repro_rs_sha256": "15805d3aa2fec9b39adb9600ebddad002e7de21ef5c7cdeeba89a57d835716ab",
+  "preliminary_existing_rlib_reproduction": {
+    "command": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "rustc",
+      "--edition=2021",
+      "--test",
+      "target/review/repro.rs",
+      "-L",
+      "dependency=/Users/hiramatsu/dev/tsc-rs-resolution-cache/target/debug/deps",
+      "-o",
+      "target/review/repro",
+      "--extern",
+      "tsc_program=/Users/hiramatsu/dev/tsc-rs-resolution-cache/target/debug/deps/libtsc_program-f2267fac85119f14.rlib",
+      "--extern",
+      "tsc_host=/Users/hiramatsu/dev/tsc-rs-resolution-cache/target/debug/deps/libtsc_host-b40ac1fcbe4595ba.rlib",
+      "--extern",
+      "tsc_diagnostics=/Users/hiramatsu/dev/tsc-rs-resolution-cache/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib"
+    ],
+    "rlib_sha256": {
+      "/Users/hiramatsu/dev/tsc-rs-resolution-cache/target/debug/deps/libtsc_program-f2267fac85119f14.rlib": "025525ecfec72aceec4f262532400450ff69db3f196d30d88fadb0bfce58e036",
+      "/Users/hiramatsu/dev/tsc-rs-resolution-cache/target/debug/deps/libtsc_host-b40ac1fcbe4595ba.rlib": "4babce0421fd676f1dabc0ae167a0de9a8e17aaca87f5600473a6279323b0972",
+      "/Users/hiramatsu/dev/tsc-rs-resolution-cache/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib": "737c77626a0b79a43ad1921ffd92e77bdb64028159b031aa436b8244ba789ca6"
+    },
+    "repro_sha256": "15805d3aa2fec9b39adb9600ebddad002e7de21ef5c7cdeeba89a57d835716ab"
+  },
+  "records_sha256": {
+    "review-cargo.log.gz": "1592ca674705263d4b77207d918f65506316e1b49edb4316df18358bb840aa59",
+    "observer.log.gz": "63292496fa0f42f21446835b355ada80bd547642c4fc048c1a850959fca83489",
+    "repro.log.gz": "d522efbf248edbeede16c566135e50678da932beb9fd8b065b70f9d80e552f13",
+    "original-cargo.log.gz": "f0399e040e966027c2f3b100fac8d556c6fd045b41911d7d8d69f07d4da62c42",
+    "retention.log.gz": "81277acdc909197674e90be72437c4fab9b8f73a0f76b8735bf412d39cdbdf2e",
+    "submitted-candidate.patch.gz": "ff4f60211981fca2211987e124396f7d673250db7d9660669db04f9fa5e3a80e"
+  },
+  "native_conditions": {
+    "command": "node docs/design/greenfield/slices/l2-3-resolution-cache-review-01/native-conditions.mjs",
+    "exit": 0,
+    "repetitions": 2,
+    "script_sha256": "25b989042286957fe8d6b6d0abc49687a2a8d461ca4c09577a41f41f95d22e3a",
+    "capture_sha256": "84059159d330cbaa46695652f705715d3a9f93e3026a6f40fe033566004abcba"
+  },
+  "retention_boundary_tests": {
+    "command": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "crates/program/Cargo.toml",
+      "--lib",
+      "review_retention_boundaries",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "seconds": 9.650089709088206,
+    "original_source_sha256": "ba4441bca430ecaa79feb1c5d14aff66ffbd4b71ad0e911e79b0878a2b141641",
+    "appended_cfg_test_sha256": "08df5c076ab589ea0065cd8b2539d177ea88397891563adb0e3e683c108c303b",
+    "instrumented_source_sha256": "d9626056bcdf5167272892839313fac78666dc1094bd9c1dcbdb74a6a58b5743",
+    "production_logic_changed": false,
+    "passed": 0,
+    "failed": 2,
+    "generation_1000": {
+      "published_entries": 1,
+      "reported_bytes": 174,
+      "evicted_keys": 999,
+      "history_option_string_bytes": 747142
+    },
+    "evict_all_1000": {
+      "actual_live": 1,
+      "weak_records": 1001
+    }
+  }
+}

@@ -1,7 +1,8 @@
 # A-PC1: compact function-body comment ownership
 
 2026-09-16. Integrator: Codex. Base: `e677f87385d87e97d972ad8423d0670778596a9b`.
-Branch: `work/compact-body-comments`. Status: local validation passed; hosted validation pending.
+Branch: `work/compact-body-comments`. **Merged in [PR #538](https://github.com/kazhiramatsu/tsc-rs/pull/538)** as
+`de92c3cd788a9a7cec3cc40252f1f0fa3a6cdbf9`; all related PR jobs and both gates passed.
 
 The ES2015 parameter transform inserts temporary declarations and default-value
 guards before the original body. The compact printer visits the list-owned
@@ -81,5 +82,30 @@ repeated with an absolute path before editing production. Both paths are recorde
 The explicit hosted entries cover all 240 new printer cases and all 68 existing
 parameter commands. [Inventory v8](witness-coverage/inventory.v8.json) records
 66 standalone targets, 24 unfiltered, seven filtered and 35 without a direct
-entry. Hosted execution and timings will be recorded separately from this local
+entry. Hosted execution and timings are recorded below, separately from local
 and static-entry evidence.
+
+## Hosted validation and landing
+
+All seven replay jobs and both aggregate gates passed at
+`fb3f5c58da20abd3fb9454a0cfefef22672d1ded`.
+The tested merge `6b4e40d108aa62356052eb96f0df2cb2996ee1d2`, candidate and landed
+merge have identical trees. The [hosted receipt](h2-8a-compact-body-comments/records/hosted.v1.json)
+retains run/job identities, step timing and compressed printer/controls logs.
+
+| Run | Job durations |
+| --- | --- |
+| [Acceptance](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35056514180) | early 692s; wide 1652s; late 877s |
+| [Witnesses](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35056514182) | printer 118s; primary 653s; retained 343s; controls 1005s |
+
+The printer log confirms **240/240 direct cases exact twice** and all selected
+adjacent targets. Controls checks the immutable upstream 68-case artifact
+(136 Program executions), then passes both original/focused native comparator
+tests with inherited filters cleared: **68/68 complete commands exact twice**.
+This includes all five repaired ES2015 cases and their ES5 neighbors.
+
+Replay jobs total **5340 seconds**, excluding planning/gates and main-push runs.
+The longest job takes 27m32s. Controls takes 16m45s; its seven direct compiler
+targets share 134.732s of observer checks and 316.979s of Cargo build/replay.
+These are observed grouped durations, not an isolated cache or I/O benchmark.
+The new entries remain within the existing worker and timeout limits.

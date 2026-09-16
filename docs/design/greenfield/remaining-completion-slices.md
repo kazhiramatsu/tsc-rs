@@ -25,7 +25,7 @@ CI 改修も main `bb2d51c89` にマージ済み。
 | H2.5h、H2.6a〜c | 実装済みだが shrink-only の既知差分が残る | 下記 A-RES / VER-MAP で個別に解消・移行 |
 | UTF-16 の値・template flags、generated binding | `JsString` / `TargetBinding` は main に導入済み | C01/C02 は残経路監査。全面再実装を依頼しない |
 | A41-SUPER after-18 | [PR #523](https://github.com/kazhiramatsu/tsc-rs/pull/523) で統合済み。primary 670、controls 408、retained 530 が各 2 回 exact。primary の upstream 例外 2、direct の 28 exact / 4 known は別集計 | 旧「retained 53 失敗」を現状として使わない。8 patch と receipt は凍結保存 |
-| G5c / parameter | [PR #522 の統合記録](slices/h2-8a-g5c-parameter-integration.md)。G5c と ES5 parameter 4 行を修復 | ES2015 parameter/comment 対照の 5 差分は残る |
+| G5c / parameter | [PR #522 の統合記録](slices/h2-8a-g5c-parameter-integration.md)。G5c と ES5 parameter 4 行を修復 | ES2015 parameter/comment の5差分は [A-PC1 / PR #538](slices/h2-8a-compact-body-comments.md)で解消。元68 commandsが完全一致×2 |
 | declaration module specifier | [DECL-SPEC1](slices/h2-8a-declaration-specifiers-report.md)：focused 30＋元の monorepo 1 command が各 2 回一致 | 全 declaration/specifier 組合せの完了と混同しない |
 | H2.8b-LR1 / H2.8b-LR2 | [library order](slices/h2-8b-library-order-report.md)：18 complete commands と順序観測が各 2 回一致 | 任意の非 library root と library membership が交差する残経路は B-LR3 |
 | H2.8b-CFG1a〜g | [config completion](slices/h2-8b-config-completion-report.md)：conversion / extends / provenance / cache / discovery / option metadata の bounded scope は完了 | HOST/SYS、世代をまたぐ invalidation、B 全体の admission は未完了 |
@@ -75,7 +75,8 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 ### Claude に依頼するもの（5 件）
 
 依頼入口は [Claude handoff index](slices/claude-high-difficulty-handoffs.md)。
-**C03/C04 は候補を受領済み。C04 は[統合記録](slices/h2-8c-transpile/INTEGRATION.md)を参照。次の推奨送付順は C05 → C01 → C02**。
+**C03/C04 は候補を受領済み。C04 は[統合記録](slices/h2-8c-transpile/INTEGRATION.md)を参照。次の推奨送付順は C05追加修正 → C01 → C02**。
+C05の候補も受領したが、[追加レビュー R1〜R4](slices/l2-3-resolution-cache-review-01/README.md)の修正・再提出待ち。元139/151比較とsoakは再現済み、追加3 API testsと2 resource testsが失敗。候補は未統合。
 [C03 統合レビュー](slices/h2-8a-printer-failure/INTEGRATION.md)に44 exact / 2保留、
 追加修復・検証・hosted 入口を記録した。その後の [A-INT3-CS](slices/h2-8a-printer-comment-carry/README.md)
 で source をまたぐコメント差を修復し、PR #528 で統合済み。提出25件の残差は C02 / A-INT2 の生成名1件。
@@ -121,7 +122,7 @@ OPS は各製品 slice の追加対象に追随する作業でもある。新規
 
 | ID | 作業と成果物 | 依存・終了条件 |
 | --- | --- | --- |
-| H2.8a-A-PC1 | 既知の ES2015 parameter/comment 5 対照の printer owner を閉じる | PLAN-BASE。C03 との source 境界を確定。5 対照＋必要な ES5/コメント隣接集合が complete exact ×2 |
+| H2.8a-A-PC1 — 完了 | [短い本文のコメント owner修復](slices/h2-8a-compact-body-comments.md)、PR #538 | 既知5件を解消。元のparameter68 commandsと新規printer240 casesが完全一致×2。全7 PR jobと両gate成功。 |
 | H2.8a-A-INT1 | C01 の監査を受領し、必要な literal 修復を本番へ統合 | C01 と現行 architecture / packet。変更がない場合も対応表を記録して閉じる。raw/UTF-16/flags の退行なし |
 | H2.8a-A-INT2 | C02 の binding 修復・追加対照を統合 | C02、SUPER。helper order / default runtime name / retained の必要集合が一致 |
 | H2.8a-A-INT3 | C03 の printer failure / continuation 修復を統合 | C03。INT1 と source が重なる場合は順次 rebase。失敗した呼出しと次の正常呼出しを両方比較 |
