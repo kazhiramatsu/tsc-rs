@@ -3,18 +3,26 @@
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 
 HERE = Path(__file__).resolve().parent
+# The submission files have since been replaced by the revised handoff.
+# Validate v1 against its immutable received tree, not the current candidate.
+SNAPSHOT = "77519222c"
+ROOT = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip())
+def historical(path):
+    return subprocess.check_output(["git", "show", f"{SNAPSHOT}:{path.relative_to(ROOT)}"], cwd=ROOT)
+
 receipt = json.loads((HERE / "received.v1.json").read_text())
 assert receipt["status"] == "changes-required"
 assert not receipt["production_applied"] and not receipt["hosted_registration_applied"]
 for row in receipt["submission_files"]:
     path = HERE.parent / row["path"]
-    content = path.read_bytes()
+    content = historical(path)
     assert len(content) == row["bytes"], path
     assert hashlib.sha256(content).hexdigest() == row["sha256"], path
 for row in receipt["review_files"]:
-    assert hashlib.sha256((HERE / row["path"]).read_bytes()).hexdigest() == row["sha256"], row
+    assert hashlib.sha256(historical(HERE / row["path"])).hexdigest() == row["sha256"], row
 comparisons = {}
 for label, expected_exact in (("baseline", 6), ("candidate", 1)):
     probe = json.loads((HERE / f"{label}-probe.v1.json").read_text())
@@ -31,6 +39,7 @@ assert comparisons["baseline"].keys() == comparisons["candidate"].keys()
 regressions = [key for key in comparisons["baseline"]
                if comparisons["baseline"][key] and not comparisons["candidate"][key]]
 assert len(regressions) == receipt["controls"]["new_regressions"] == 5
-print(json.dumps({"receipt": "valid", "production_admission": "blocked",
+print(json.dumps({"receipt": "valid historical v1", "snapshot": SNAPSHOT,
+                  "historical_production_admission": "blocked",
                   "submission_files": len(receipt["submission_files"]),
                   "new_regressions": len(regressions)}))

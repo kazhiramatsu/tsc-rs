@@ -1,5 +1,9 @@
 # C02 / A41-BINDING — 受領レビュー
 
+**2026-09-17 更新：以下は旧提出物の受領レビューです。修正版の再レビュー・統合結果は
+[revised/README.md](revised/README.md) を参照してください。v1 receipt は commit `77519222c` の
+bytes を検証し、現在の統合候補に旧 blocker 判定を適用しません。**
+
 2026-09-16。提出最終 patch は受領したが、決定 4 の failure carry に新しい回帰があるため、
 この bytes の production 取り込みと hosted 登録は保留する。提出 worktree は変更していない。
 このディレクトリは受領・レビューの記録であり、implementation-ready や runtime admission の宣言ではない。

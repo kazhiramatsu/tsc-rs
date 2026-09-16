@@ -1,0 +1,16 @@
+[
+  {
+    "name": "makeTempVariableName",
+    "file": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "start": 120703,
+    "end": 120740,
+    "sha256": "6928789997987359f4447f53606b24130f943c383c0b9450d20f4c7b9b820998"
+  },
+  {
+    "name": "emitBlockFunctionBody",
+    "file": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "start": 119021,
+    "end": 119033,
+    "sha256": "2622c7f814ec800974fdb4a513f96a49fa03311a6231c4eca3771daddac1d1c8"
+  }
+]

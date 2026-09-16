@@ -1,0 +1,127 @@
+{
+  "source_commit": "d8d37bd0b796600f945efe1a15f849e2c480457f",
+  "checks": [
+    {
+      "name": "adjacent-final",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--test",
+        "printer_failure_contract",
+        "--test",
+        "decorator_super_direct_contract",
+        "--test",
+        "literal_update_contract",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {},
+      "exit": 0,
+      "passed": 14,
+      "expected_passed": 14,
+      "seconds": 24.249
+    },
+    {
+      "name": "unit-final-target_bindings",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--lib",
+        "target_bindings",
+        "--",
+        "--test-threads=1"
+      ],
+      "env": {},
+      "exit": 0,
+      "passed": 5,
+      "expected_passed": 5,
+      "seconds": 232.467
+    },
+    {
+      "name": "unit-final-generated_bindings",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--lib",
+        "generated_bindings",
+        "--",
+        "--test-threads=1"
+      ],
+      "env": {},
+      "exit": 0,
+      "passed": 19,
+      "expected_passed": 19,
+      "seconds": 0.277
+    },
+    {
+      "name": "unit-final-printer",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--lib",
+        "printer::",
+        "--",
+        "--test-threads=1"
+      ],
+      "env": {},
+      "exit": 0,
+      "passed": 11,
+      "expected_passed": 11,
+      "seconds": 0.206
+    },
+    {
+      "name": "pipeline-focused-final",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "decorator_binding_pipeline_contract",
+        "decorator_binding_forms_match_complete_typescript_observations",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "TSC_RS_DECORATOR_BINDING_CASE_SET": "/reserved/esnext/set/,decorator-binding/global/esnext/define/script-let-default_1,decorator-binding/lifecycle/es2015/define/bundle-file-level-then-scoped-across-files,decorator-binding/lifecycle/es2015/set/bundle-file-level-then-scoped-across-files,decorator-binding/lifecycle/es2022/define/bundle-file-level-then-scoped-across-files,decorator-binding/lifecycle/es2022/set/bundle-file-level-then-scoped-across-files,decorator-binding/lifecycle/esnext/define/bundle-computed-temps-two-files,decorator-binding/lifecycle/esnext/define/bundle-default-two-files,decorator-binding/lifecycle/esnext/define/bundle-file-level-then-scoped-across-files,decorator-binding/lifecycle/esnext/set/bundle-file-level-then-scoped-across-files"
+      },
+      "exit": 0,
+      "passed": 1,
+      "expected_passed": 1,
+      "seconds": 475.2
+    }
+  ],
+  "direct": {
+    "exact": 202,
+    "typed_known": 2,
+    "compared": 204,
+    "inputs": 156,
+    "supplemental_inputs": 10
+  },
+  "pipeline_focused": {
+    "exact": 28,
+    "known": 9,
+    "failed": 0,
+    "selected": 37
+  },
+  "planner_tests": 59,
+  "fmt_exit": 0,
+  "qualification_policy_exit": 0,
+  "hosted": "pending PR run"
+}

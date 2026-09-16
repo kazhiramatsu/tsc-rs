@@ -75,7 +75,7 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 ### Claude に依頼するもの（5 件）
 
 依頼入口は [Claude handoff index](slices/claude-high-difficulty-handoffs.md)。
-**C01/C03/C04 は候補を受領済み。C01は[統合記録](slices/h2-8a-literal-update/integration/README.md)でPR #542の統合完了を記録。C04 は[統合記録](slices/h2-8c-transpile/INTEGRATION.md)を参照。次の推奨送付先は C02**。
+**C01/C03/C04 は候補を受領済み。C01は[統合記録](slices/h2-8a-literal-update/integration/README.md)でPR #542の統合完了を記録。C04 は[統合記録](slices/h2-8c-transpile/INTEGRATION.md)を参照。C02修正版も受領し、[再レビュー・統合候補](slices/h2-8a-generated-binding/integration/revised/README.md)でF1/F2確認と追加temp ordinal修復・CI登録を記録。hosted検証待ち**。
 C05は再提出を受領し、R4の残る2件とR1のpath表記衝突を統合側で修正し、PR #539で統合した[prototype](slices/l2-3-resolution-cache/integration/README.md)。専用CI入口を登録し、fresh178/native190と回帰を確認。全7 hosted jobと両gateが成功し、mergeと実測は同記録に保存した。Program本番統合はL2.3a/bへ残す。
 [C03 統合レビュー](slices/h2-8a-printer-failure/INTEGRATION.md)に44 exact / 2保留、
 追加修復・検証・hosted 入口を記録した。その後の [A-INT3-CS](slices/h2-8a-printer-comment-carry/README.md)

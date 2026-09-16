@@ -374,3 +374,21 @@ observers took 35.504s and Cargo build/replay 267.979s. Controls retained all
 whole-job timing and the additional build; it is not an isolated performance
 comparison. Inventory v17 leaves 24 standalone targets without a direct entry
 (compiler4 / other20).
+
+
+## Generated binding integration
+
+`decorator-binding` shares the printer job and checks 146 submitted direct inputs
+plus ten failure-carry controls (204 route comparisons: 202 exact,
+two typed `InvalidLifecycle` known divergences). Both direct observers run before
+Cargo. `decorator-binding-pipeline` has its own 60-minute job and runs the shared
+pipeline observer's `--check` before replaying 767 complete commands; one upstream
+exception stays recorded separately. The frozen nine native divergences must
+match on both passes and must be retired when exact. The runner checks requested
+membership, `exact + known == selected`, and the selected known count, including
+758 exact + 9 known for `--all`.
+
+The shared observer selects both suites; dedicated fixtures select their owner.
+Both jobs use `.node-version`. Capture/report/dump and inherited selection
+variables are cleared. Local focused checks and admission status are recorded in
+[the integration review](design/greenfield/slices/h2-8a-generated-binding/integration/revised/README.md).

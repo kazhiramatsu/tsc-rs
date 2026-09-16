@@ -1,5 +1,7 @@
 # C02 / A41-BINDING — 結果報告（before / after、残差、未完了）
 
+**統合側の追加修正・検証は [revised/README.md](integration/revised/README.md)。以下の after7 数値は提出 patch `3583cb82…` の観測として保持する。**
+
 作成日：2026-09-16。設計と対応表は [DESIGN.md](DESIGN.md)、統合仕様は [INTEGRATION.md](INTEGRATION.md)。
 全件 replay は hosted の担当（[共通手順](../claude-high-difficulty-handoffs.md)）。本書のローカル数値は
 focused 集合と、最終 bytes での 1 回の全件 replay である。
@@ -11,7 +13,7 @@ focused 集合と、最終 bytes での 1 回の全件 replay である。
 | direct `synthetic` | 48 row × 2 route（`print` / `print_javascript_with_global_names`） | JS text、各 2 回 | §2.1 | §2.1 |
 | direct `global` | 22 row | printer text + status、各 2 回 | §2.1 | §2.1 |
 | direct `lifecycle` | 26 row | op ごとの status + text、各 2 回 | §2.1 | §2.1 |
-| pipeline 複合 command | 767 complete + 1 upstream exception | 複合 command tuple（writes / diagnostics / emit result / status / exit）、2 pass × 2 Program 構築 | 688 / 767（§2.2） | 723 / 767（§2.2.2；残 44 は owner 明記） |
+| pipeline 複合 command | 767 complete + 1 upstream exception | 複合 command tuple（writes / diagnostics / emit result / status / exit）、pass ごとに Program 1 個 × 2 pass | 688 / 767（§2.2） | 723 / 767（§2.2.2；残 44 は owner 明記） |
 | 隣接 focused | `--lib target_bindings` 5、`--lib generated_bindings` 19、`witness.py printer --all` 10 | 既存 | 全 green | §2.3 |
 
 before の pipeline replay は開始 SHA production で build した binary
@@ -23,21 +25,30 @@ before の pipeline replay は開始 SHA production で build した binary
 ### 2.1 direct
 
 （[records/before/direct-contract.log](records/before/direct-contract.log)、
-[records/after/direct-contract.log](records/after/direct-contract.log)、
-native 観測は各 `direct/decorator-binding-direct-native.json`）
+[records/after/direct-contract.log](records/after/direct-contract.log)、最終は
+[records/after7/direct-contract.log](records/after7/direct-contract.log)；native 観測は各
+`direct/decorator-binding-direct-native.json`）
 
-| group | route | before exact | after（第 1 候補、3 file） | after（最終、分離差分込み） | 差の内訳 |
+統合レビュー（`../h2-8a-generated-binding/integration/README.md`、別 worktree）の後、direct 行を
+96 → 146 に増やした：failure-carry の identity 25 row（`reprint-after-failure` 6 kind × before / after、
+`cross-arena` 8、`double-failure` 5；レビューの F1 / F2）と scope 25 row（`scope-fault` 5 kind ×
+inside-nested / after-nested / after-tail、`file-after-failure` 5、`bundle-fault` 5；レビュー項目 2）。
+既存 96 row の凍結観測は byte 一致のまま（observer の再採取で確認）。
+
+| group | route | before exact | 第 1 候補（3 file） | 最終（分離差分込み、146 row） | 差の内訳 |
 | --- | --- | ---: | ---: | ---: | --- |
 | synthetic | plain | 18 / 48 | 48 / 48 | 48 / 48 | before：`_x_decorators` 5、`_outerThis` 5、`_a` 5、`class_1` 5（esnext/define は native decorator で自明一致） |
 | synthetic | oracle | 38 / 48 | 48 / 48 | 48 / 48 | before：`_x_decorators` 5、`_outerThis` 5 |
 | global | direct | 22 / 22 | 22 / 22 | 22 / 22 | hit / hit-chain / miss / error × 5 domain、parsed+hit 2：before から一致 |
-| lifecycle | direct | 19 / 26 | 19 / 26 | 24 / 26 | before：failure after-fault 5 + dispose 2。最終候補は failure carry（DESIGN §6.4、決定 4・14）で after-fault 5 row を閉じ、dispose 2 row だけが typed KNOWN |
-| 合計 | | 107 / 144 | 137 / 144 | **142 / 144** | 37 → 7 → 2（dispose、typed KNOWN） |
+| lifecycle | direct | 19 / 26 | 19 / 26 | 74 / 76 | before：failure after-fault 5 + dispose 2。最終候補は failure carry（決定 4・14・16・17）で after-fault 5 row と新規 50 row（レビュー時点で 6 row が回帰、6 row が近似外れ）を閉じ、dispose 2 row だけが typed KNOWN（`InvalidLifecycle` を assert） |
+| 合計 | | 107 / 144 | 137 / 144 | **192 / 194** | 37 → 7 → 2（dispose、typed KNOWN） |
 
 synthetic group の各 row は `identity_trace`（binding ごとの宣言 / 参照 occurrence と綴り、決定 12）を
-`records/after4/direct/decorator-binding-direct-native.json` に保存し、1 binding = 1 綴りを assert する。
-最終候補では C03 の printer suite も `recover-new-unique#op2` が exact になり、25 / 25、KNOWN 0
-（[records/after4/adjacent-printer.log](records/after4/adjacent-printer.log)）。
+`records/after7/direct/decorator-binding-direct-native.json` に保存し、1 binding = 1 綴りを assert する。
+C03 の printer suite も `recover-new-unique#op2` が exact のまま、25 / 25、KNOWN 0。統合レビューの
+probe（7 row、別 program）は修正後の worktree で 7 / 7 exact
+（[records/after6/integration-probe/receipt.json](records/after6/integration-probe/receipt.json)；
+レビュー時点は 1 / 7）。
 
 ### 2.2 pipeline（複合 command）
 
@@ -46,7 +57,7 @@ synthetic group の各 row は `identity_trace`（binding ごとの宣言 / 参�
 の出力。生の capture は 69 MB のため repo 外へ退避、`TSC_RS_H2_8A_CAPTURE_WRITES_DIR` で再生成可）、
 after は [records/after/](records/after/)）
 
-before（開始 SHA の binary、767 complete、2 pass × 2 Program）：**exact 688 / failed 79**。
+before（開始 SHA の binary、767 complete、pass ごとに Program 1 個 × 2 pass）：**exact 688 / failed 79**。
 失敗の内訳（class は §3）：
 
 | class | variant（× combo） | 件数 |
@@ -115,21 +126,41 @@ exception、ordering 36、reserved 168、lifecycle 71 が exact）：
 修復した class：R1 35、R2 5、R3 5、R5 5、R6 32 のうち 30（残り 2 は R12 として再分類）、R10、R11 9 —— before の
 79 件のうち 70 件が閉じ、typed error の第 1 原因も閉じた。
 
-### 2.3 隣接 focused（最終候補 bytes、records/after5；第 1 候補の同じ表は records/after）
+#### 2.2.4 統合レビュー後の最終候補（records/after7）
+
+決定 16・17（持ち越し表の identity と scope）と `decorator-binding-known-native.json` を加えた最終 bytes で
+全件 1 回（[records/after7/pipeline-contract-full.log](records/after7/pipeline-contract-full.log)、binary
+[records/after7/pipeline-binary.sha256](records/after7/pipeline-binary.sha256)、要約
+[records/after7/capture-diff-full.txt](records/after7/capture-diff-full.txt)）：
+**exact 758 / known 9 / failed 0、exit 0**。known 9 は §2.2.3 の表の 9 row（T1 5、R9 2、R12 2）で、
+それぞれの native 観測が凍結値と両 pass で一致した（`KNOWN x2`）。生成名に関わる 758 row は §2.2.3 と
+同じ集合で exact。`witness.py decorator-binding-pipeline --case /reserved/esnext/set/`（runner 経路：
+pipeline observer `--check` → replay → `exact + known == selected`）は
+[records/after7/witness-binding-pipeline.log](records/after7/witness-binding-pipeline.log)：observer
+`--check` 一致（621 s）、28 / 28 exact、known 0（選択内）、凍結 known 9、exit 0。
+
+pipeline の凍結 artifact は共有 observer（direct 行の追加）の自己 hash `observer_sha256` を含むため、
+runner の `--check` に合わせて再採取した（[records/observer-pipeline-write-2.log](records/observer-pipeline-write-2.log)、
+`decorator-binding.json.zst` sha256 `be52ec87…`、旧 `2d3ead66…`）。767 case + 1 upstream exception の
+per-case 観測は旧 artifact と byte 一致（差は envelope の `observer_sha256` のみ、比較 script は
+scratchpad `compare-pipeline-fixtures.py`）。上の全件 replay は旧 envelope の artifact に対して走った
+（comparator は case ごとの観測を比較し、`inputs.sha256` は不変）ので、期待値としては同一である。
+
+### 2.3 隣接 focused（最終候補 bytes、records/after7；レビュー前の最終は records/after5、第 1 候補は records/after）
 
 | 入口 | 結果 | 記録 |
 | --- | --- | --- |
-| `cargo test --lib generated_bindings` | 19 passed | [records/after5/lib-generated-bindings.log](records/after5/lib-generated-bindings.log) |
-| `cargo test --lib target_bindings` | 5 passed | [records/after5/lib-target-bindings.log](records/after5/lib-target-bindings.log) |
-| `cargo test --lib printer` | 11 passed | [records/after5/lib-printer.log](records/after5/lib-printer.log) |
-| `witness.py decorator-binding --all`（observer `--check` + replay） | 1 test、142 exact / 144、2 KNOWN（dispose） | [records/after5/adjacent-decorator-binding.log](records/after5/adjacent-decorator-binding.log) |
-| `witness.py direct --all`（SUPER direct 32） | 28 exact、4 recorded divergence（従来どおり）、0 failed | [records/after5/adjacent-direct.log](records/after5/adjacent-direct.log) |
-| `witness.py printer --all`（C03 / A-INT3-CS / API1.2-HINT の 142 row） | 10 tests passed、hooks 25 / 25 exact、KNOWN 0（C03 の `x_2` 行が閉じた）、REVIEW 21 / 21 | [records/after5/adjacent-printer.log](records/after5/adjacent-printer.log) |
-| `witness.py literal-update --all`（C01） | 3 tests passed：generic exact 315 / divergent 0、typed exact 399 / divergent 0 | [records/after5/adjacent-literal-update.log](records/after5/adjacent-literal-update.log) |
-| `cargo test --test contracts`（emitter 452） | 451 passed、1 failed = 開始 SHA から継承の `compact_private_function_body_emits_inter_statement_comment_once`（C01 記録と同一） | [records/after5/adjacent-emitter-contracts.log](records/after5/adjacent-emitter-contracts.log) |
-| SUPER 複合 subset（`followup3 --all`、`extra --case phase-order/`、`followup2 --case private-name/`、`primary --case handoff/`） | 48 / 48、24 / 24、36 / 36、58 / 58 exact ×2（0 failed） | [records/after5/adjacent-followup3.log](records/after5/adjacent-followup3.log) 等 |
-| `cargo fmt --all -- --check` | exit 0 | [records/after5/fmt-check.log](records/after5/fmt-check.log) |
-| clippy（emitter all-targets、compiler の新 target、deny 無し） | exit 0 / 0。emitter 168 warning は全て既存（program 144、downlevel 6 / class_fields 3 / system 1 / builtins 1 は本候補の hunk 外の行）、compiler 311 warning に新 target への指摘 0。`-D warnings` は開始 SHA と同じく program の既存 warning で停止する（C03 と同じ） | [records/after5/clippy-emitter-allow.log](records/after5/clippy-emitter-allow.log)、[records/after5/clippy-compiler-binding-allow.log](records/after5/clippy-compiler-binding-allow.log) |
+| `cargo test --lib generated_bindings` | 19 passed | [records/after7/lib-generated-bindings.log](records/after7/lib-generated-bindings.log) |
+| `cargo test --lib target_bindings` | 5 passed | [records/after7/lib-target-bindings.log](records/after7/lib-target-bindings.log) |
+| `cargo test --lib printer` | 11 passed | [records/after7/lib-printer.log](records/after7/lib-printer.log) |
+| `witness.py decorator-binding --all`（observer `--check` + replay） | 1 test、146 row：192 exact / 194、2 KNOWN（dispose） | [records/after7/adjacent-decorator-binding.log](records/after7/adjacent-decorator-binding.log) |
+| `witness.py direct --all`（SUPER direct 32） | 28 exact、4 recorded divergence（従来どおり）、0 failed | [records/after7/adjacent-direct.log](records/after7/adjacent-direct.log) |
+| `witness.py printer --all`（C03 / A-INT3-CS / API1.2-HINT の 142 row） | 10 tests passed、hooks 25 / 25 exact、KNOWN 0（C03 の `x_2` 行が閉じた）、REVIEW 21 / 21 | [records/after7/adjacent-printer.log](records/after7/adjacent-printer.log) |
+| `witness.py literal-update --all`（C01） | 3 tests passed：generic exact 315 / divergent 0、typed exact 399 / divergent 0 | [records/after7/adjacent-literal-update.log](records/after7/adjacent-literal-update.log) |
+| `cargo test --test contracts`（emitter 452） | 451 passed、1 failed = 開始 SHA から継承の `compact_private_function_body_emits_inter_statement_comment_once`（C01 記録と同一） | [records/after7/adjacent-emitter-contracts.log](records/after7/adjacent-emitter-contracts.log) |
+| SUPER 複合 subset（`followup3 --all`、`extra --case phase-order/`、`followup2 --case private-name/`、`primary --case handoff/`） | 48 / 48、24 / 24、36 / 36、58 / 58 exact ×2（0 failed） | [records/after7/adjacent-followup3.log](records/after7/adjacent-followup3.log) 等 |
+| `cargo fmt --all -- --check` | exit 0 | [records/after7/fmt-check.log](records/after7/fmt-check.log) |
+| clippy（emitter all-targets、compiler の新 target、deny 無し） | exit 0 / 0。新規 test file（`decorator_binding_contract.rs`、`decorator_binding_pipeline_contract.rs`）への指摘 0、production の変更 hunk への指摘 0（downlevel 6 / class_fields 3 / system 1 / builtins 1 は hunk 外の既存行、program 144 は既存）。`-D warnings` は開始 SHA と同じく program の既存 warning で停止する（C03 と同じ） | [records/after7/clippy-emitter-allow.log](records/after7/clippy-emitter-allow.log)、[records/after7/clippy-compiler-binding-allow.log](records/after7/clippy-compiler-binding-allow.log) |
 
 530 retained / 672 primary / 156+162 follow-up の全件は hosted の担当（INTEGRATION.md §2）。
 
@@ -152,6 +183,8 @@ before で再現した差の全 class と、最終候補後の扱い。件数は
 | R11 descriptor forwarder の leading map | ES2022 / ESNext × set の `private-accessor-storage-*`、`private-and-public-same-stem` 9 row | `get #a()` / `set #a(value)` の先頭 mapping が decorator の後ろ（上流は member 全体） | `standard_decorators.rs` `create_auto_accessor_members` | **修復**（決定 15） |
 | R12 System bundle（native）の文末 map | esnext/define の `lifecycle/bundle-computed-temps-two-files`、`bundle-file-level-then-scoped-across-files` | decorated export class を閉じる `};` の `;` と行末の 2 segment（class 終端）が無い | `builtins/system.rs` の export 文 range（native decorator 経路、decorator 生成名ではない） | **OUT-OF-SCOPE**（記録のみ） |
 | T1 bundle 内の static private の typed error | `lifecycle/bundle-file-level-then-scoped-across-files`（lowered combo） | before / after とも `ParsedEmitMetadataNotPortable` | bundle × parse-node metadata 可搬性（H2.7d / A-INT3-CS） | **部分修復**：第 1 原因（`InternalEmitFlags` 32）は決定 7 で閉じ、第 2 原因（parsed Identifier に printer の comment ownership が書く `comment_range: EndOnly` を snapshot が拒む）が残る。**OUT-OF-SCOPE**（生成名ではない、開始 SHA から同じ typed error） |
+| R13 持ち越し表の identity（統合レビュー F1 / F2） | direct `cross-arena/*`、`reprint-after-failure/*`、`double-failure/*`、レビュー probe 7 row | 別 transformation の同番号 node が前の綴りを引く（`y_1` → `x_1`、`x_2` → `x_1`）；同じ binding の再印字が `x_2` / `_s_1` / `_o_1` / `_b` に進む（上流は cache） | 決定 4 の持ち越し（`transform.rs` / `printer.rs` / `target_bindings.rs` / `factory.rs`） | **修復**（決定 16：arena id を含む key、`binding_names`、`Default` の一意 id） |
+| R14 持ち越し表の scope（統合レビュー項目 2） | direct `scope-fault/{temp,scoped}/*`、`file-after-failure/temp`、`bundle-fault/*` | root 集約の近似：関数内 / 関数後の失敗で temp が `_e`（上流 `_b` / `_d`）、scoped が `_s_4`（上流 `_s_3`）、失敗後の source file print の temp が `_b`（上流 `_a`）、bundle で後続 source の名前まで先行記録 | 同上（printer の scope 追跡） | **修復**（決定 17：scope stack、最内 scope の `tempFlags`、open scope の `reservedNames`、source ごとの記録） |
 | U1 upstream exception | `computed/esnext/set/static-accessor-decorated` | tsc `Debug Failure: Undeclared private name for property declaration`（SUPER `handoff/static-*-accessor` と同じ上流不具合） | 上流 | 記録のみ、加点なし |
 
 before で **一致していた**面（追加対照が確認した既存 owner）：parse census の全 29 variant
@@ -181,6 +214,11 @@ direct `global` 22 row。これらは既存 code が正しい証拠として維�
 | 4 / 14 | `printer.rs` / `printer/bundle.rs` / `transform.rs` / `target_bindings.rs` / `generated_bindings.rs` | failure 後の名前表の持ち越し（`CarriedGeneratedNames`、`note_generated_identifier`、`finish_print`、finalizer の seed と node cache）；print 時の optimistic 名は base から決め直す |
 | — | `standard_decorators.rs` | decorated private accessor の backing field：`setSourceMapRange(backingField, getSourceMapRange(node))` と `setSourceMapRange(backingField.name, node.name)`（ES2022+ の member の mapping） |
 | 15 | `standard_decorators.rs` | descriptor forwarder（`get #a()` / `set #a(value)`）は member 全体の range（decorator を含む）。`moveRangePastModifiers` は非 descriptor 経路のみ |
+| 16 | `transform.rs` / `printer.rs` / `target_bindings.rs` / `factory.rs` | 持ち越し表の key に arena id（`CarriedNodeKey` / `CarriedBindingKey`）、`autoGeneratedIdToGeneratedName` に当たる `binding_names`（cache hit は集合・ordinal を進めない、temp は binding ごとに 1 回）、`TransformArena::default()` = `new()` |
+| 17 | `printer.rs` / `printer/bundle.rs` / `transform.rs` | tsc の name-generation scope stack を print 中に追跡（push 点は function-like / class / static block / module block / object・type literal / interface / source file、`ReuseTempVariableScope` は除く、完了時だけ pop）；失敗時の `temp_ordinal` = 最内 scope、`reserved` = open scope の和；source file / bundle の print は temp を 0 から；bundle の root 宣言名は source ごとに記録 |
+| test | `decorator_binding_contract.rs` / `decorator-binding-direct.json` | 96 → 146 row（failure-carry identity 25、scope 25）；dispose は `InvalidLifecycle` を assert |
+| test | `decorator_binding_pipeline_contract.rs` / `decorator-binding-known-native.json` | 残差 9 row の native 観測（typed error / write の SHA-256・exit・status・diagnostics）を凍結し、`known` として両 pass で assert（exact になれば retire を要求して fail、未観測 id は load で fail）。`SUMMARY exact=… known=… failed=…`、exit 0。`TSC_RS_H2_8A_KNOWN_NATIVE_DUMP_DIR` で失敗行の projection を書き出せる |
+| runner | `scripts/witness.py` | `decorator-binding-pipeline` は pipeline observer の `--check` を先に実行し、`exact + known == selected`、`--all` では `known == 凍結 row 数` を要求；capture / report / dump の環境変数を消去 |
 
 ## 5. 未完了・引き継ぎ
 
@@ -188,7 +226,13 @@ direct `global` 22 row。これらは既存 code が正しい証拠として維�
   export class の文末 map、esnext/define 2 row）、**T1 第 2 原因**（bundle snapshot が parsed Identifier の
   `comment_range: EndOnly` を拒む、lowered 5 row）は owner を明記して残す（§3）。いずれも decorator の
   生成名ではなく、`es_next.rs` / `system.rs` / bundle の parse-node metadata 可搬性の面。
-- **R8** dispose 2 row は typed KNOWN（session model）。
+- **R8** dispose 2 row は typed KNOWN（session model；`InvalidLifecycle` を assert）。
+- 複合 command の残差 9 row は `decorator-binding-known-native.json` に native 観測を凍結した known
+  divergence（§4 の test 行）。修復した owner は fixture から retire する（残したままだと comparator が
+  fail する）。
+- 統合レビュー（別 worktree `integration/README.md`）への回答は [REVIEW-RESPONSE.md](REVIEW-RESPONSE.md)。
+  統合担当に残るのは hosted 登録（現在の registry への `witness.py` 差分の移植、planner の共有 observer
+  選択、planner tests と台帳）と ready の判断。
 - hosted 入口（INTEGRATION.md §2）は未登録。SUPER 全件（672 / 530 / 156 / 162 / 48）と H2.5h 等の
   全件 regression は hosted で確認する（決定 2 は全 transform の transformer-time finalize に、決定 4 は
   printer の全 print に及ぶ）。

@@ -1,0 +1,42 @@
+{
+  "submission_base": "ccb6661c16f75cd6824e9fedb9281be68d01e542",
+  "submission_patch_sha256": "3583cb82d0ad934ee035e07e76e361316cb488213ffb934c33f03afca2b5aeb1",
+  "upstream_spans_verified": 49,
+  "integration_main": "ecf2401b7392e886c3afc8df27fda0ff14a6a428",
+  "original_probe": {
+    "exact": 7,
+    "mismatches": 0,
+    "repetitions": 2
+  },
+  "additional_finding": {
+    "id": "F3",
+    "trigger": "parsed _a; fail after first standalone temp declaration; print another binding",
+    "typescript": "const _b = 1;const _c = 1;",
+    "submitted_native": "const _b = 1;const _b = 1;"
+  },
+  "additional_scope_finding": {
+    "id": "F4",
+    "controls": [
+      "scope-entry/temp/unprinted-declaration",
+      "scope-entry/scoped/unprinted-declaration"
+    ],
+    "typescript_next_names": [
+      "_c",
+      "_s_5"
+    ],
+    "native_before_next_names": [
+      "_b",
+      "_s_4"
+    ],
+    "upstream_owner": "emitBlockFunctionBody.generateNames(body), _tsc.js:119021-119032"
+  },
+  "integration_implementation_commit": "d8d37bd0b796600f945efe1a15f849e2c480457f",
+  "final_direct": {
+    "input_rows": 156,
+    "route_comparisons": 204,
+    "exact": 202,
+    "typed_known": 2,
+    "extra_controls": 10,
+    "repetitions": 2
+  }
+}
