@@ -48,7 +48,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Use the frozen oracle Node version
-        if: contains(matrix.suites, 'transpile-routes') || contains(matrix.suites, 'resolution-cache')
+        if: contains(matrix.suites, 'transpile-routes') || contains(matrix.suites, 'resolution-cache') || contains(matrix.suites, 'literal-update') || contains(matrix.suites, 'literal-update-pipeline')
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .node-version

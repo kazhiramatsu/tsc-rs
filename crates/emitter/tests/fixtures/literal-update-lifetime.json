@@ -1,0 +1,575 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "group": "lifetime",
+  "route": "direct-session-lifetime",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "37de9af566609803fe6c9a3a698f0938d65fc3e2a25a76f8daab93b394a4e88e",
+  "cases": [
+    {
+      "case_id": "literal-update/lifetime/StringLiteral/parsed/dispose/lone-high-no-ascii",
+      "group": "lifetime",
+      "kind": "StringLiteral",
+      "origin": "parsed",
+      "value": [
+        55296
+      ],
+      "source": "\"\\uD800\";",
+      "typescript_observation": {
+        "emit_flags_before_dispose": 16777216,
+        "emit_flags_after_dispose": 0,
+        "text_utf16": [
+          55296
+        ],
+        "raw_text_utf16": null,
+        "single_quote": null,
+        "printed_before_dispose": {
+          "text_utf16": [
+            34,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            34
+          ],
+          "utf8_base64": "Ilx1RDgwMCI=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        },
+        "printed_after_dispose": {
+          "text_utf16": [
+            34,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            34
+          ],
+          "utf8_base64": "Ilx1RDgwMCI=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/StringLiteral/synthetic/dispose/lone-high-no-ascii",
+      "group": "lifetime",
+      "kind": "StringLiteral",
+      "origin": "synthetic",
+      "value": [
+        55296
+      ],
+      "source": null,
+      "typescript_observation": {
+        "emit_flags_before_dispose": 16777216,
+        "emit_flags_after_dispose": 16777216,
+        "text_utf16": [
+          55296
+        ],
+        "raw_text_utf16": null,
+        "single_quote": false,
+        "printed_before_dispose": {
+          "text_utf16": [
+            34,
+            55296,
+            34
+          ],
+          "utf8_base64": "Iu+/vSI=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        },
+        "printed_after_dispose": {
+          "text_utf16": [
+            34,
+            55296,
+            34
+          ],
+          "utf8_base64": "Iu+/vSI=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/NoSubstitutionTemplateLiteral/parsed/dispose/lone-high-no-ascii",
+      "group": "lifetime",
+      "kind": "NoSubstitutionTemplateLiteral",
+      "origin": "parsed",
+      "value": [
+        55296
+      ],
+      "source": "`\\uD800`;",
+      "typescript_observation": {
+        "emit_flags_before_dispose": 16777216,
+        "emit_flags_after_dispose": 0,
+        "text_utf16": [
+          55296
+        ],
+        "raw_text_utf16": [
+          92,
+          117,
+          68,
+          56,
+          48,
+          48
+        ],
+        "single_quote": null,
+        "printed_before_dispose": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "YFx1RDgwMGA=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        },
+        "printed_after_dispose": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "YFx1RDgwMGA=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/NoSubstitutionTemplateLiteral/synthetic/dispose/lone-high-no-ascii",
+      "group": "lifetime",
+      "kind": "NoSubstitutionTemplateLiteral",
+      "origin": "synthetic",
+      "value": [
+        55296
+      ],
+      "source": null,
+      "typescript_observation": {
+        "emit_flags_before_dispose": 16777216,
+        "emit_flags_after_dispose": 16777216,
+        "text_utf16": [
+          55296
+        ],
+        "raw_text_utf16": [
+          55296
+        ],
+        "single_quote": null,
+        "printed_before_dispose": {
+          "text_utf16": [
+            96,
+            55296,
+            96
+          ],
+          "utf8_base64": "YO+/vWA=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        },
+        "printed_after_dispose": {
+          "text_utf16": [
+            96,
+            55296,
+            96
+          ],
+          "utf8_base64": "YO+/vWA=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateHead/parsed/dispose/lone-high-no-ascii",
+      "group": "lifetime",
+      "kind": "TemplateHead",
+      "origin": "parsed",
+      "value": [
+        55296
+      ],
+      "source": "`\\uD800${x}`;",
+      "typescript_observation": {
+        "emit_flags_before_dispose": 16777216,
+        "emit_flags_after_dispose": 0,
+        "text_utf16": [
+          55296
+        ],
+        "raw_text_utf16": [
+          92,
+          117,
+          68,
+          56,
+          48,
+          48
+        ],
+        "single_quote": null,
+        "printed_before_dispose": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "YFx1RDgwMCR7",
+          "utf8_bytes": 9,
+          "end_utf16": {
+            "position": 9,
+            "line": 0,
+            "column": 9
+          }
+        },
+        "printed_after_dispose": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "YFx1RDgwMCR7",
+          "utf8_bytes": 9,
+          "end_utf16": {
+            "position": 9,
+            "line": 0,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateHead/synthetic/dispose/lone-high-no-ascii",
+      "group": "lifetime",
+      "kind": "TemplateHead",
+      "origin": "synthetic",
+      "value": [
+        55296
+      ],
+      "source": null,
+      "typescript_observation": {
+        "emit_flags_before_dispose": 16777216,
+        "emit_flags_after_dispose": 16777216,
+        "text_utf16": [
+          55296
+        ],
+        "raw_text_utf16": [
+          55296
+        ],
+        "single_quote": null,
+        "printed_before_dispose": {
+          "text_utf16": [
+            96,
+            55296,
+            36,
+            123
+          ],
+          "utf8_base64": "YO+/vSR7",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 4,
+            "line": 0,
+            "column": 4
+          }
+        },
+        "printed_after_dispose": {
+          "text_utf16": [
+            96,
+            55296,
+            36,
+            123
+          ],
+          "utf8_base64": "YO+/vSR7",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 4,
+            "line": 0,
+            "column": 4
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateMiddle/parsed/dispose/lone-high-no-ascii",
+      "group": "lifetime",
+      "kind": "TemplateMiddle",
+      "origin": "parsed",
+      "value": [
+        55296
+      ],
+      "source": "`${x}\\uD800${y}`;",
+      "typescript_observation": {
+        "emit_flags_before_dispose": 16777216,
+        "emit_flags_after_dispose": 0,
+        "text_utf16": [
+          55296
+        ],
+        "raw_text_utf16": [
+          92,
+          117,
+          68,
+          56,
+          48,
+          48
+        ],
+        "single_quote": null,
+        "printed_before_dispose": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "fVx1RDgwMCR7",
+          "utf8_bytes": 9,
+          "end_utf16": {
+            "position": 9,
+            "line": 0,
+            "column": 9
+          }
+        },
+        "printed_after_dispose": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "fVx1RDgwMCR7",
+          "utf8_bytes": 9,
+          "end_utf16": {
+            "position": 9,
+            "line": 0,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateMiddle/synthetic/dispose/lone-high-no-ascii",
+      "group": "lifetime",
+      "kind": "TemplateMiddle",
+      "origin": "synthetic",
+      "value": [
+        55296
+      ],
+      "source": null,
+      "typescript_observation": {
+        "emit_flags_before_dispose": 16777216,
+        "emit_flags_after_dispose": 16777216,
+        "text_utf16": [
+          55296
+        ],
+        "raw_text_utf16": [
+          55296
+        ],
+        "single_quote": null,
+        "printed_before_dispose": {
+          "text_utf16": [
+            125,
+            55296,
+            36,
+            123
+          ],
+          "utf8_base64": "fe+/vSR7",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 4,
+            "line": 0,
+            "column": 4
+          }
+        },
+        "printed_after_dispose": {
+          "text_utf16": [
+            125,
+            55296,
+            36,
+            123
+          ],
+          "utf8_base64": "fe+/vSR7",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 4,
+            "line": 0,
+            "column": 4
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateTail/parsed/dispose/lone-high-no-ascii",
+      "group": "lifetime",
+      "kind": "TemplateTail",
+      "origin": "parsed",
+      "value": [
+        55296
+      ],
+      "source": "`${x}\\uD800`;",
+      "typescript_observation": {
+        "emit_flags_before_dispose": 16777216,
+        "emit_flags_after_dispose": 0,
+        "text_utf16": [
+          55296
+        ],
+        "raw_text_utf16": [
+          92,
+          117,
+          68,
+          56,
+          48,
+          48
+        ],
+        "single_quote": null,
+        "printed_before_dispose": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "fVx1RDgwMGA=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        },
+        "printed_after_dispose": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "fVx1RDgwMGA=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        }
+      }
+    },
+    {
+      "case_id": "literal-update/lifetime/TemplateTail/synthetic/dispose/lone-high-no-ascii",
+      "group": "lifetime",
+      "kind": "TemplateTail",
+      "origin": "synthetic",
+      "value": [
+        55296
+      ],
+      "source": null,
+      "typescript_observation": {
+        "emit_flags_before_dispose": 16777216,
+        "emit_flags_after_dispose": 16777216,
+        "text_utf16": [
+          55296
+        ],
+        "raw_text_utf16": [
+          55296
+        ],
+        "single_quote": null,
+        "printed_before_dispose": {
+          "text_utf16": [
+            125,
+            55296,
+            96
+          ],
+          "utf8_base64": "fe+/vWA=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        },
+        "printed_after_dispose": {
+          "text_utf16": [
+            125,
+            55296,
+            96
+          ],
+          "utf8_base64": "fe+/vWA=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+slice: C01 / A40-LITERAL-UPDATE
+branch: draft/h2-8a-literal-update
+worktree: /Users/hiramatsu/dev/tsc-rs-literal-update
+start_head: 6c41a03888b66bb6781e5ef39c253b6200ff44c6
+origin_main_at_start: 6c41a03888b66bb6781e5ef39c253b6200ff44c6
+contains_c05_merge_5f6e681af: yes
+contains_super_f644433: yes
+contains_pr537_538_via_c05_merge_lineage: see git log
+date: 2026-09-16T06:58:01Z
+git_status_short_lines: 1
+rustc: rustc 1.93.0 (254b59607 2026-01-19)
+cargo: cargo 1.93.0 (083ac5135 2025-12-15)
+node: v25.2.1
+uname: Darwin hiramatsunoMacBook-Pro.local 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:39:29 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T8142 arm64
+1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3  vendor/typescript-6.0.3/lib/_tsc.js
+569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39  vendor/typescript-6.0.3/lib/typescript.js

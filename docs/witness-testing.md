@@ -263,3 +263,16 @@ libtest selection per target, keeping imported helper tests out of these runs.
 The runner clears internal filters and checks both passed and filtered counts.
 See the [scope and validation record](design/greenfield/slices/witness-coverage/compiler-declarations/README.md)
 for original-wrapper exclusions, observer boundaries and hosted results.
+
+## Literal updates and require rewriting
+
+`literal-update` checks the factory, transform and lifetime groups (1,396 IDs)
+before running the emitter target in the printer job. `literal-update-pipeline`
+checks 22 complete commands in controls. Both use the pinned Node version;
+a shared observer change selects both suites. Generic inexpressible rows and
+the five synthetic disposal differences remain separately recorded controls.
+
+`require-rewrite` checks 74 dedicated complete commands with four exact test
+names, keeping ten imported/original tests out of that invocation. Each
+observer group is checked before Cargo; inherited internal filters and capture
+settings are cleared. See the [combined integration record](design/greenfield/slices/h2-8a-literal-update/integration/README.md).

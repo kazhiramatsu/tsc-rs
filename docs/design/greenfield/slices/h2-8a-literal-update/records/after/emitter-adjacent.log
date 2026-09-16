@@ -1,0 +1,47 @@
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-literal-update/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 8.89s
+     Running tests/decorator_super_direct_contract.rs (target/debug/deps/decorator_super_direct_contract-33404c250148a994)
+
+running 1 test
+test decorator_super_direct_controls_match_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/literal_parent_provenance_contract.rs (target/debug/deps/literal_parent_provenance_contract-f2d079fe996fade8)
+
+running 1 test
+test literal_parent_provenance_matches_typescript ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/literal_value_provenance_contract.rs (target/debug/deps/literal_value_provenance_contract-9a9f9a536934cc93)
+
+running 2 tests
+test string_property_provenance_matches_typescript ... ok
+test template_raw_provenance_matches_typescript ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/string_literal_identifier_source_contract.rs (target/debug/deps/string_literal_identifier_source_contract-d1cf4136622bc846)
+
+running 1 test
+test string_literal_identifier_source_matches_typescript_printer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/utf16_literal_escaping_contract.rs (target/debug/deps/utf16_literal_escaping_contract-64acb114c5a73ef2)
+
+running 2 tests
+test declaration_literal_type_no_ascii_flag_preserves_callback_units_until_utf8_output ... ok
+test utf16_literal_escaping_matches_typescript ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/utf16_writer_contract.rs (target/debug/deps/utf16_writer_contract-e0e2048ce1b3f93d)
+
+running 2 tests
+test utf16_writer_matches_typescript ... ok
+test writer_value_equality_survives_chunking_and_clone_clear ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+

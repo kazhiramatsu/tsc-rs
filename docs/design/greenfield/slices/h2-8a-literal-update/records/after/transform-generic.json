@@ -1,0 +1,2091 @@
+{
+  "group": "transform",
+  "route": "generic",
+  "cases": 399,
+  "exact": 315,
+  "divergent": [],
+  "errors": [],
+  "not_expressible": [
+    "literal-update/transform/tagged-spans/raw/lone-high/es5",
+    "literal-update/transform/tagged-spans/raw/lone-high/es2015",
+    "literal-update/transform/tagged-spans/raw/lone-high/esnext",
+    "literal-update/transform/tagged-spans/flags/ascii/es5",
+    "literal-update/transform/tagged-spans/flags/ascii/es2015",
+    "literal-update/transform/tagged-spans/flags/ascii/esnext",
+    "literal-update/transform/tagged-spans/flags/lone-high/es5",
+    "literal-update/transform/tagged-spans/flags/lone-high/es2015",
+    "literal-update/transform/tagged-spans/flags/lone-high/esnext",
+    "literal-update/transform/tagged-spans/flags/astral/es5",
+    "literal-update/transform/tagged-spans/flags/astral/es2015",
+    "literal-update/transform/tagged-spans/flags/astral/esnext",
+    "literal-update/transform/tagged-spans/flags/crlf/es5",
+    "literal-update/transform/tagged-spans/flags/crlf/es2015",
+    "literal-update/transform/tagged-spans/flags/crlf/esnext",
+    "literal-update/transform/tagged-spans/flags/invalid/es5",
+    "literal-update/transform/tagged-spans/flags/invalid/es2015",
+    "literal-update/transform/tagged-spans/flags/invalid/esnext",
+    "literal-update/transform/tagged-nosub/raw/lone-high/es5",
+    "literal-update/transform/tagged-nosub/raw/lone-high/es2015",
+    "literal-update/transform/tagged-nosub/raw/lone-high/esnext",
+    "literal-update/transform/tagged-nosub/flags/ascii/es5",
+    "literal-update/transform/tagged-nosub/flags/ascii/es2015",
+    "literal-update/transform/tagged-nosub/flags/ascii/esnext",
+    "literal-update/transform/tagged-nosub/flags/lone-high/es5",
+    "literal-update/transform/tagged-nosub/flags/lone-high/es2015",
+    "literal-update/transform/tagged-nosub/flags/lone-high/esnext",
+    "literal-update/transform/tagged-nosub/flags/astral/es5",
+    "literal-update/transform/tagged-nosub/flags/astral/es2015",
+    "literal-update/transform/tagged-nosub/flags/astral/esnext",
+    "literal-update/transform/tagged-nosub/flags/crlf/es5",
+    "literal-update/transform/tagged-nosub/flags/crlf/es2015",
+    "literal-update/transform/tagged-nosub/flags/crlf/esnext",
+    "literal-update/transform/tagged-nosub/flags/invalid/es5",
+    "literal-update/transform/tagged-nosub/flags/invalid/es2015",
+    "literal-update/transform/tagged-nosub/flags/invalid/esnext",
+    "literal-update/transform/untagged-spans/raw/lone-high/es5",
+    "literal-update/transform/untagged-spans/raw/lone-high/es2015",
+    "literal-update/transform/untagged-spans/raw/lone-high/esnext",
+    "literal-update/transform/untagged-spans/flags/ascii/es5",
+    "literal-update/transform/untagged-spans/flags/ascii/es2015",
+    "literal-update/transform/untagged-spans/flags/ascii/esnext",
+    "literal-update/transform/untagged-spans/flags/lone-high/es5",
+    "literal-update/transform/untagged-spans/flags/lone-high/es2015",
+    "literal-update/transform/untagged-spans/flags/lone-high/esnext",
+    "literal-update/transform/untagged-spans/flags/astral/es5",
+    "literal-update/transform/untagged-spans/flags/astral/es2015",
+    "literal-update/transform/untagged-spans/flags/astral/esnext",
+    "literal-update/transform/untagged-spans/flags/crlf/es5",
+    "literal-update/transform/untagged-spans/flags/crlf/es2015",
+    "literal-update/transform/untagged-spans/flags/crlf/esnext",
+    "literal-update/transform/untagged-nosub/raw/lone-high/es5",
+    "literal-update/transform/untagged-nosub/raw/lone-high/es2015",
+    "literal-update/transform/untagged-nosub/raw/lone-high/esnext",
+    "literal-update/transform/untagged-nosub/flags/ascii/es5",
+    "literal-update/transform/untagged-nosub/flags/ascii/es2015",
+    "literal-update/transform/untagged-nosub/flags/ascii/esnext",
+    "literal-update/transform/untagged-nosub/flags/lone-high/es5",
+    "literal-update/transform/untagged-nosub/flags/lone-high/es2015",
+    "literal-update/transform/untagged-nosub/flags/lone-high/esnext",
+    "literal-update/transform/untagged-nosub/flags/astral/es5",
+    "literal-update/transform/untagged-nosub/flags/astral/es2015",
+    "literal-update/transform/untagged-nosub/flags/astral/esnext",
+    "literal-update/transform/untagged-nosub/flags/crlf/es5",
+    "literal-update/transform/untagged-nosub/flags/crlf/es2015",
+    "literal-update/transform/untagged-nosub/flags/crlf/esnext",
+    "literal-update/transform/tagged-spans/raw/lone-high/es5/module",
+    "literal-update/transform/tagged-spans/raw/lone-high/es2015/module",
+    "literal-update/transform/tagged-spans/raw/lone-high/esnext/module",
+    "literal-update/transform/tagged-spans/flags/lone-high/es5/module",
+    "literal-update/transform/tagged-spans/flags/lone-high/es2015/module",
+    "literal-update/transform/tagged-spans/flags/lone-high/esnext/module",
+    "literal-update/transform/tagged-spans/flags/invalid/es5/module",
+    "literal-update/transform/tagged-spans/flags/invalid/es2015/module",
+    "literal-update/transform/tagged-spans/flags/invalid/esnext/module",
+    "literal-update/transform/tagged-nosub/raw/lone-high/es5/module",
+    "literal-update/transform/tagged-nosub/raw/lone-high/es2015/module",
+    "literal-update/transform/tagged-nosub/raw/lone-high/esnext/module",
+    "literal-update/transform/tagged-nosub/flags/lone-high/es5/module",
+    "literal-update/transform/tagged-nosub/flags/lone-high/es2015/module",
+    "literal-update/transform/tagged-nosub/flags/lone-high/esnext/module",
+    "literal-update/transform/tagged-nosub/flags/invalid/es5/module",
+    "literal-update/transform/tagged-nosub/flags/invalid/es2015/module",
+    "literal-update/transform/tagged-nosub/flags/invalid/esnext/module"
+  ],
+  "rows": [
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/lone-high/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/lone-high/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/lone-high/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-absent/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw-empty/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/ascii/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/ascii/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/ascii/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/lone-high/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/lone-high/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/lone-high/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/astral/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/astral/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/astral/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/crlf/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/crlf/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/crlf/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/invalid/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/invalid/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/invalid/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/lone-high/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/lone-high/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/lone-high/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-absent/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw-empty/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/ascii/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/ascii/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/ascii/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/lone-high/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/lone-high/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/lone-high/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/astral/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/astral/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/astral/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/crlf/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/crlf/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/crlf/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/invalid/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/invalid/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/invalid/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/same/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/cooked/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/lone-high/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/lone-high/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/lone-high/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-absent/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/raw-empty/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/ascii/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/ascii/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/ascii/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/lone-high/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/lone-high/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/lone-high/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/astral/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/astral/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/astral/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/crlf/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/crlf/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/flags/crlf/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/same/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/cooked/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/lone-high/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/lone-high/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/lone-high/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-absent/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/raw-empty/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/ascii/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/ascii/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/ascii/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/lone-high/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/lone-high/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/lone-high/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/astral/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/astral/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/astral/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/crlf/es5",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/crlf/es2015",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-nosub/flags/crlf/esnext",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/invalid/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/invalid/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/children/invalid/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/ascii/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/ascii/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/ascii/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/lone-high/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/lone-high/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/lone-high/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/astral/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/astral/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/astral/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/crlf/es5",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/crlf/es2015",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/untagged-spans/children/crlf/esnext",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/lone-high/es5/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/lone-high/es2015/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/lone-high/esnext/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/invalid/es5/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/invalid/es2015/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/same/invalid/esnext/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/lone-high/es5/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/lone-high/es2015/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/lone-high/esnext/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/invalid/es5/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/invalid/es2015/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/cooked/invalid/esnext/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/lone-high/es5/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/lone-high/es2015/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/lone-high/esnext/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/invalid/es5/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/invalid/es2015/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/raw/invalid/esnext/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/lone-high/es5/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/lone-high/es2015/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/lone-high/esnext/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/invalid/es5/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/invalid/es2015/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-spans/flags/invalid/esnext/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/lone-high/es5/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/lone-high/es2015/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/lone-high/esnext/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/invalid/es5/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/invalid/es2015/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/same/invalid/esnext/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/lone-high/es5/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/lone-high/es2015/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/lone-high/esnext/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/invalid/es5/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/invalid/es2015/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/cooked/invalid/esnext/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/lone-high/es5/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/lone-high/es2015/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/lone-high/esnext/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/invalid/es5/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/invalid/es2015/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/raw/invalid/esnext/module",
+      "status": "exact",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/lone-high/es5/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/lone-high/es2015/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/lone-high/esnext/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/invalid/es5/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/invalid/es2015/module",
+      "status": "na",
+      "detail": null
+    },
+    {
+      "case_id": "literal-update/transform/tagged-nosub/flags/invalid/esnext/module",
+      "status": "na",
+      "detail": null
+    }
+  ]
+}

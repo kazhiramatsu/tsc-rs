@@ -144,15 +144,17 @@ pub(super) fn rewrite_literal(
     if preserve_jsx && literal.text.ends_with(".tsx") {
         text.push('x');
     }
-    let flags = context.arena().transform_flags(node);
-    context.factory()?.update_node(
-        node,
-        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-            text,
-            has_extended_unicode_escape: literal.has_extended_unicode_escape,
-        }),
-        flags,
-    )
+    // `setOriginalNode(setTextRange(factory.createStringLiteral(updatedText,
+    // node.singleQuote), node), node)`: a fresh literal carrying only the quote
+    // preference — no textSourceNode and no hasExtendedUnicodeEscape marker.
+    let single_quote = context
+        .arena()
+        .literal_properties(node)
+        .and_then(crate::LiteralNodeProperties::string_literal_single_quote);
+    let text = text.to_utf16();
+    context
+        .factory()?
+        .update_string_literal(node, &text, single_quote, None)
 }
 
 /// tsc-port: createRewriteRelativeImportExtensionsHelper @6.0.3

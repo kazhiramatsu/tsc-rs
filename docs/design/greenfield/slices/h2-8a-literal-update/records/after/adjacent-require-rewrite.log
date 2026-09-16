@@ -1,0 +1,23 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-literal-update/crates/compiler)
+    Finished `test` profile [unoptimized] target(s) in 49.65s
+     Running tests/h2_8a_require_rewrite.rs (target/debug/deps/h2_8a_require_rewrite-b2b7fe7def2fd7cd)
+
+running 14 tests
+test h2_7b_w4a_controls::commonjs_symbol_positions_use_the_assignment_left_hand_side ... ok
+test h2_7b_w4a_controls::core_context_and_reference_match_upstream ... ok
+test h2_7b_w4a_controls::error_bases_use_any_singleton_identity ... ok
+test h2_7b_w4a_controls::expando_scope_matches_upstream ... ok
+test h2_7b_w4a_controls::import_equals_keeps_a_separate_export_declaration ... ok
+test h2_7b_w4a_controls::overload_diagnostics_share_the_completed_cumulative_prefix ... ok
+test h2_7b_w4a_controls::property_alias_liveness_resolves_a_cold_identifier_cache ... ok
+test h2_7b_w4a_controls::source_module_serializes_its_own_export_table ... ok
+test h2_7c_declaration_blocking::declaration_blocking_matches_complete_typescript_observations ... ok
+test require_rewrite_composition_complete_commands ... ok
+test require_rewrite_dynamic_complete_commands ... ok
+test require_rewrite_focused_complete_commands ... ok
+test require_rewrite_original_complete_commands ... ok
+test require_rewrite_substitution_complete_commands ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 822.69s
+

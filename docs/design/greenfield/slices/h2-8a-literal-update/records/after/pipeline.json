@@ -1,0 +1,162 @@
+{
+  "group": "pipeline",
+  "cases": 22,
+  "exact": 22,
+  "divergent": [],
+  "rows": [
+    {
+      "case_id": "literal-update/pipeline/children/es5/untagged-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es2015/untagged-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/esnext/untagged-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es5/tagged-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es2015/tagged-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/esnext/tagged-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es5/tagged-invalid-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es2015/tagged-invalid-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/esnext/tagged-invalid-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es5/tagged-nested-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es2015/tagged-nested-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/esnext/tagged-nested-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es5/tagged-crlf-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es2015/tagged-crlf-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/esnext/tagged-crlf-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es5/untagged-crlf-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/es2015/untagged-crlf-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/children/esnext/untagged-crlf-nullish",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/rewrite/es5/esnext",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/rewrite/es2015/esnext",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/rewrite/es5/commonjs",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "case_id": "literal-update/pipeline/rewrite/es2015/commonjs",
+      "status": "exact",
+      "error": null,
+      "actual": null,
+      "expected": null
+    }
+  ]
+}

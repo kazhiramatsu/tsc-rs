@@ -1,0 +1,45 @@
+   Compiling serde_core v1.0.228
+   Compiling zmij v1.0.21
+   Compiling tsc-rs-diagnostics v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/crates/diagnostics)
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.2
+   Compiling serde_json v1.0.150
+   Compiling indexmap v2.14.0
+   Compiling tsc-rs-types v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/crates/types)
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling tsc-rs-syntax v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/crates/syntax)
+   Compiling tsc-rs-host v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/crates/host)
+   Compiling tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/crates/program)
+   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/crates/emitter)
+    Finished `test` profile [unoptimized] target(s) in 3m 05s
+     Running tests/contracts.rs (/private/tmp/claude-501/-Users-hiramatsu-dev-tsc-rs/d19f9fa4-d93e-4f8a-b971-19e5dadc3c1e/scratchpad/baseline-target/debug/deps/contracts-6f4d81d7b835d614)
+
+running 1 test
+test active_transform_contract::compact_private_function_body_emits_inter_statement_comment_once ... FAILED
+
+failures:
+
+---- active_transform_contract::compact_private_function_body_emits_inter_statement_comment_once stdout ----
+
+thread 'active_transform_contract::compact_private_function_body_emits_inter_statement_comment_once' (17756277) panicked at crates/emitter/tests/integration/active_transform_contract.rs:12721:5:
+assertion `left == right` failed: var _A_instances, _A_method;
+class A {
+    constructor() {
+        _A_instances.add(this);
+    }
+}
+_A_instances = new WeakSet(), _A_method = function _A_method() { first(); /* PRIVATE_BODY_BETWEEN */ /* PRIVATE_BODY_BETWEEN */ second(); };
+
+  left: 2
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    active_transform_contract::compact_private_function_body_emits_inter_statement_comment_once
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--test contracts`
+baseline single test exit: 101

@@ -1,0 +1,200 @@
+{
+  "base": "a2413610a2cbffd38156cfb337b00f20ce9eee06",
+  "runs": [
+    {
+      "name": "fmt",
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 12.039,
+      "log": "fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "emitter-witnesses",
+      "argv": [
+        "python3",
+        "-c",
+        "import sys; sys.path.insert(0,'scripts'); import witness; witness.run_emitter_direct(['literal-update','literal-value-provenance','literal-parent-provenance','string-literal-identifier-source','utf16-literal-escaping'])"
+      ],
+      "exit_code": 0,
+      "seconds": 201.424,
+      "log": "emitter-witnesses.log",
+      "sha256": "cd3bc8aa25639a3d4c502cf2666e5f884f6304ec99b02e2f881ffa8f9833dafb"
+    },
+    {
+      "name": "compiler-witnesses",
+      "argv": [
+        "python3",
+        "-c",
+        "import sys; sys.path.insert(0,'scripts'); import witness; witness.run_compiler_direct(['literal-update-pipeline','require-rewrite','utf16-tagged-template','utf16-literal-witnesses'])"
+      ],
+      "exit_code": 0,
+      "seconds": 1385.137,
+      "log": "compiler-witnesses.log",
+      "sha256": "7b2aa063b5180587ab8adeba29d688a9418b1d004ce7da936c9a46836547a754"
+    },
+    {
+      "name": "emitter-lib",
+      "argv": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--lib",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 151.921,
+      "log": "emitter-lib.log",
+      "sha256": "6101ea3843579480aa29a0364455d30d4c39a922eacf317ee672f97313631ea3"
+    }
+  ],
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_NET_OFFLINE": "true",
+    "RUSTC_WRAPPER": ""
+  },
+  "binary_sha256": {
+    "target/debug/deps/literal_update_contract-32c3de3488273e47": "b93d15316f9209f876f3b26a84782e8a28e0c4316212f3ddcfcfbf0caa2f9ccf",
+    "target/debug/deps/literal_update_pipeline_contract-e81aec6b026e9505": "8909d3faeebba8f9c4673c4b7173e0c7062253fce5715e8b251fce1930334696",
+    "target/debug/deps/h2_8a_require_rewrite-f34879524e316338": "15d3b0f4fce6d6c93286e12beebce04d891a8e2c3985246c2a6ad06c545bccb8"
+  },
+  "source_unchanged_during_validation": true,
+  "rust_source": {
+    "path": "rust-source.v1.json",
+    "sha256": "08d4e48b5392ba85e87f79e68c38dc336fced06c2b0cb7a1d56e9eab959ebb6c"
+  },
+  "execution_prefix": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15"
+  ],
+  "emitter_final": {
+    "argv": [
+      "cargo",
+      "test",
+      "--manifest-path",
+      "crates/emitter/Cargo.toml",
+      "--test",
+      "literal_update_contract",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 7.737,
+    "source_sha256": "5f0879d540fcd67dbfe810c0c73ff3f9389d1294e8f93641a064607349d383a8",
+    "log_sha256": "2a511aa32294e8a7094fe96b993163b46d6544bbb1cfc2797ca319e64eb02e68",
+    "env": {
+      "CARGO_BUILD_JOBS": "2",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "CARGO_NET_OFFLINE": "true",
+      "RUSTC_WRAPPER": "",
+      "TSC_RS_LITERAL_UPDATE_REPORT_DIR": "/Users/hiramatsu/dev/tsc-rs-literal-update-integration/target/literal-update-integration/routes"
+    }
+  },
+  "test_source_sha256": {
+    "crates/emitter/tests/literal_update_contract.rs": "5f0879d540fcd67dbfe810c0c73ff3f9389d1294e8f93641a064607349d383a8",
+    "crates/compiler/tests/literal_update_pipeline_contract.rs": "1f04d906f21f7d5c42210cfdf24bc07894972dee5626266737589a4bac9ceca4",
+    "crates/compiler/tests/h2_8a_require_rewrite.rs": "0a73cbef41ca17a815a53f8434b195193c71732f8441819c473eb2d44d5656d1"
+  },
+  "logs": {
+    "compiler-witnesses.log": {
+      "path": "compiler-witnesses.log.gz",
+      "sha256": "7b2aa063b5180587ab8adeba29d688a9418b1d004ce7da936c9a46836547a754",
+      "compressed_sha256": "224baf45f484e50d16b2fe1838c37bb34b094dcabe6098ef1bc8c7e34559f7d2",
+      "bytes": 48537
+    },
+    "emitter-final.log": {
+      "path": "emitter-final.log.gz",
+      "sha256": "2a511aa32294e8a7094fe96b993163b46d6544bbb1cfc2797ca319e64eb02e68",
+      "compressed_sha256": "4d8071a7557e95900bf4f8d48e4ce729090696130497a9235a459c447f881c9c",
+      "bytes": 836
+    },
+    "emitter-lib.log": {
+      "path": "emitter-lib.log.gz",
+      "sha256": "6101ea3843579480aa29a0364455d30d4c39a922eacf317ee672f97313631ea3",
+      "compressed_sha256": "ad1dc2602a42e610d6fa4bd29f3520d6088daaf1b4b0da897c0085068e809709",
+      "bytes": 42191
+    },
+    "emitter-witnesses.log": {
+      "path": "emitter-witnesses.log.gz",
+      "sha256": "cd3bc8aa25639a3d4c502cf2666e5f884f6304ec99b02e2f881ffa8f9833dafb",
+      "compressed_sha256": "7d73561205203a05732e5384113cc57be3ef2f52468a6a99340d4acf5144a18a",
+      "bytes": 9916
+    },
+    "final-fmt.log": {
+      "path": "final-fmt.log.gz",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compressed_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 0
+    },
+    "fmt.log": {
+      "path": "fmt.log.gz",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compressed_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 0
+    },
+    "planner.log": {
+      "path": "planner.log.gz",
+      "sha256": "8a799fb2c40dbc008b2277d61fd1be874c8cf4647b6ea1c82837d1d63e8858e7",
+      "compressed_sha256": "7fb2f719f93409db82db15585e501acec8cd7279d09b4402047caa927e61fb37",
+      "bytes": 104736
+    },
+    "policy-baseline.log": {
+      "path": "policy-baseline.log.gz",
+      "sha256": "12200197d1979fc9479271d2d30b45e93b15989e9f1e3124c946a4a36e1a392e",
+      "compressed_sha256": "cf4877282b687d6e42ff853f2a9c8ee98b58409c2b716e6bf793788dbbb273d0",
+      "bytes": 2538
+    },
+    "policy.log": {
+      "path": "policy.log.gz",
+      "sha256": "064a160ab8f083c3df7e9835669c346985dd9d8614195ccd9cfecb67ecbd7e09",
+      "compressed_sha256": "42a77581b781f406d782c8b2743672c3e0378dc763fe145146469816f9dbe9e1",
+      "bytes": 5721
+    }
+  },
+  "route_summary": {
+    "factory-generic": 782,
+    "factory-typed": 987,
+    "transform-generic": 315,
+    "transform-typed": 399
+  },
+  "baseline_policy_failure": {
+    "baseline_source_commit": "7327def874aed92b6c7f30205e9c28ddda962f23",
+    "policy_related_source_identical_to_integration_base": true,
+    "test": "registered h2 artifact labels follow the chain-walk ORDER",
+    "exit_code": 1,
+    "current_passed": 40,
+    "current_failed": 1
+  },
+  "planner_tests": {
+    "passed": 45,
+    "failed": 0
+  },
+  "final_fmt": {
+    "argv": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "log": "final-fmt.log.gz"
+  },
+  "diff_check": "Source and documents pass; submitted records retain original patch/log bytes, including their original whitespace.",
+  "hosted": "pending at local validation capture"
+}

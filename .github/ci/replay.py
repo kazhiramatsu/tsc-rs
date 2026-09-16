@@ -72,12 +72,9 @@ def selection(paths):
     acceptance, witnesses = set(), set()
     for file in paths:
         direct_owners = {suite for suite in witness.EMITTER_DIRECT if file in witness.emitter_inputs(suite)}
-        if direct_owners:
-            witnesses.update(direct_owners)
-            continue
         compiler_owners = {suite for suite in witness.COMPILER_DIRECT if file in witness.compiler_direct_inputs(suite)}
-        if compiler_owners:
-            witnesses.update(compiler_owners)
+        if direct_owners or compiler_owners:
+            witnesses.update(direct_owners | compiler_owners)
             continue
         if file in witness.RESOLUTION_INPUTS:
             witnesses.add("resolution-cache")
@@ -128,11 +125,11 @@ def selection(paths):
             continue
         if file == "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs":
             acceptance.add("late")
-            witnesses.update(("retained", "utf16-literal-witnesses", "declaration-comments"))
+            witnesses.update(("retained", "utf16-literal-witnesses", "declaration-comments", "require-rewrite"))
             continue
         if file == "crates/compiler/tests/support/witness_libraries.rs":
             acceptance.add("late")
-            witnesses.update((*witness.SUPER, "retained", "utf16-literal-witnesses", "declaration-comments"))
+            witnesses.update((*witness.SUPER, "retained", "utf16-literal-witnesses", "declaration-comments", "require-rewrite"))
             continue
         # Shared product code, manifests, vendor, CI, TS corpus, and unknown
         # inputs keep complete coverage. Never infer that tests/ is disconnected:

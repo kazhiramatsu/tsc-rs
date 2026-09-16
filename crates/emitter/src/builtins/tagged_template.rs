@@ -7,8 +7,8 @@ use tsc_types::{JsString, TokenFlags};
 
 use super::{helpers, target_bindings::TargetBinding};
 use crate::{
-    factory::EmitHelperName, TransformError, TransformNode, TransformNodeArray, TransformSourceId,
-    TransformationContext,
+    factory::EmitHelperName, SourceRange, TransformError, TransformNode, TransformNodeArray,
+    TransformSourceId, TransformationContext,
 };
 
 /// The transformer owns visitation, binding allocation and declaration lifetime.
@@ -250,11 +250,10 @@ fn create_template_cooked(
 /// tsc-span: _tsc.js:94022-94033
 ///
 /// Parsed fragments always carry `raw_text` (the parser stores exactly
-/// upstream's delimiter-stripped source slice, parser.rs:7258-7270), so
-/// the upstream source-file substring fallback collapses to the stored
-/// bytes; a synthesized fragment without `raw_text` is a typed error
-/// (upstream asserts and slices garbage positions there — "Possibly bad
-/// transform").
+/// upstream's delimiter-stripped source slice, parser.rs:7258-7270). A
+/// fragment without any raw channel — a fresh node whose update gave it the
+/// original's range, or a range-less synthetic — takes upstream's
+/// source-file substring fallback ([`raw_from_source_range`]).
 fn get_raw_literal(
     host: &mut impl TaggedTemplateHost,
     node: TransformNode,
@@ -299,22 +298,66 @@ fn template_fragment_texts(
             });
         }
     };
-    let raw =
-        match host
-            .context()
-            .arena()
-            .literal_properties(node)
-            .and_then(|properties| properties.raw_template_text())
-        {
-            Some(raw) => JsString::from_code_units(raw.code_units()),
-            None => raw_text.as_deref().map(JsString::from).ok_or(
-                TransformError::RequiredChildRemoved {
-                    parent: record.kind,
-                    field: "template literal raw text",
-                },
-            )?,
-        };
+    let raw = match host
+        .context()
+        .arena()
+        .literal_properties(node)
+        .and_then(|properties| properties.raw_template_text())
+    {
+        Some(raw) => JsString::from_code_units(raw.code_units()),
+        None => match raw_text.as_deref() {
+            Some(raw) => JsString::from(raw),
+            None => raw_from_source_range(host, node, record)?,
+        },
+    };
     Ok((text.clone(), raw))
+}
+
+/// getRawLiteral's fallback for a fragment whose `rawText` is undefined:
+/// `getSourceTextOfNodeFromSourceFile(currentSourceFile, node)` (the token
+/// text from `skipTrivia(pos)` to `end`; a synthesized position yields "")
+/// followed by `text.substring(1, text.length - (isLast ? 1 : 2))` with
+/// JavaScript's argument clamping and swapping. Upstream asserts only that a
+/// source file exists, which the transform host always has.
+/// tsc-port: getRawLiteral/getTextOfNodeFromSourceText @6.0.3
+/// tsc-span: _tsc.js:94022-94032, 13017-13044
+fn raw_from_source_range(
+    host: &impl TaggedTemplateHost,
+    node: TransformNode,
+    record: &tsc_syntax::Node,
+) -> Result<JsString, TransformError> {
+    let syntax = host.context().arena().source(node.source())?.syntax();
+    let token: Vec<u16> = match SourceRange::from_raw(record.pos, record.end, syntax.positions())
+        .map_err(|error| TransformError::InvalidSourceRange { node, error })?
+    {
+        SourceRange::Original(range) => {
+            let range = range
+                .without_leading_trivia(syntax.text(), syntax.positions())
+                .map_err(|error| TransformError::InvalidSourceRange { node, error })?;
+            let (start, end) = (range.start().value() as usize, range.end().value() as usize);
+            syntax
+                .text()
+                .get(start..end)
+                .unwrap_or_default()
+                .encode_utf16()
+                .collect()
+        }
+        SourceRange::Synthesized => Vec::new(),
+    };
+    let is_last = matches!(
+        record.kind,
+        SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::TemplateTail
+    );
+    let length = i64::try_from(token.len()).expect("token length fits i64");
+    let strip = if is_last { 1 } else { 2 };
+    let clamp = |index: i64| index.clamp(0, length);
+    let (mut from, mut to) = (clamp(1), clamp(length - strip));
+    if from > to {
+        std::mem::swap(&mut from, &mut to);
+    }
+    Ok(JsString::from_code_units(
+        &token[from as usize..to as usize],
+    ))
 }
 
 /// tsc `hasInvalidEscape` over the template's fragments: any fragment
