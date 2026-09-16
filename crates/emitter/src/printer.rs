@@ -7544,15 +7544,13 @@ impl Printer {
                         } else if index != 0 {
                             writer.write_space(" ");
                         }
-                        // tsc's `SingleLineFunctionBodyStatements` list phase
-                        // owns the boundary immediately after the opening
-                        // brace. Later same-line boundaries are already owned
-                        // by the preceding statement's trailing phase; asking
-                        // both phases to visit them would duplicate a comment.
-                        // The synthetic function shell must not replace the
-                        // first retained statement's source provenance, but
-                        // it must supply this one missing list phase.
-                        if function_body && index == 0 {
+                        // tsc's emitNodeListItems (_tsc.js:120068-120140)
+                        // visits each child's comment range, including a
+                        // retained statement after synthetic prefixes. A
+                        // separating line terminator skips this list phase.
+                        // The previous sibling's trailing phase is independent:
+                        // tsc can intentionally print the same comment twice.
+                        if function_body && (index == 0 || !starts_on_new_line) {
                             self.emit_leading_comments_for_delimited_list_start(
                                 transformation,
                                 statement_node,
