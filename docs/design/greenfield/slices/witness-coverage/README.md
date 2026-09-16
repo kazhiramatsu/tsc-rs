@@ -1,8 +1,8 @@
 # OPS-COVER：PR CI のテスト入口台帳
 
-2026-09-16。統合担当：Codex。**recovery・map-optionまで既存テストのCI入口を追加し、PR #545で検証・統合済み。残りは OPS-COVER-3残部〜4。**
+2026-09-17。統合担当：Codex。**bundleまでPR #546で統合済み。宣言map出力/APIの2スライスをOPS-COVER-3L/3Mで追加。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v15.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v17.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -23,25 +23,27 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 
 [OPS-COVER-3J / 3K](compiler-bundles/README.md) はbundle Programとdeclaration/mapの2 targetを登録したv15。古いnoEmit拒否検査を固定tuple比較へ更新し、PR #546で最終7 testsと両observerを含む全7 hosted replay job・両gateが成功。controls37m51s。
 
+[OPS-COVER-3L / 3M](compiler-declaration-maps/README.md) は宣言map出力とstateful APIの2 target・11 testsを登録したv16。実測6m57sを受け、controlsの37m51sに余裕を残すため専用jobへ分けたv17。共有fixtureとreferenceの重複は個別記録に保持する。
+
 ## 現在の入口
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
-| standalone target（filter なし） | 30 | printer job の7 targetとdirect12、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・recovery-corpus・bundle-program・resolution cache contract。ignored/cfg-disabled test の実行までは意味しない |
+| standalone target（filter なし） | 32 | printer job の7 targetとdirect12、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・recovery-corpus・bundle-program・resolution cache contractと専用declaration-maps jobの2 target。ignored/cfg-disabled test の実行までは意味しない |
 | standalone target（名前で filter） | 13 | compiler11 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
-| standalone target の直接呼出しなし | 26 | compiler6 / その他20 |
+| standalone target の直接呼出しなし | 24 | compiler4 / その他20 |
 | lib/bin の test harness | 16 | Program lib 1件に直接入口、残り15件は直接実行なし |
 
-**69 standalone target を列挙した。26件を「挙動が未検証」とは数えない。**
+**69 standalone target を列挙した。24件を「挙動が未検証」とは数えない。**
 acceptance が同じ比較 helper を Rust の `#[path]` で取り込み、関数を直接呼ぶ場合がある。
 台帳は source の共有関係10 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
 helper の共有から、その target の全テスト・新しい入力集合の実行まで推論しない。
 
-現在、直接入口のない26 targetの source を単独変更すると、planner は unknown input として
+現在、直接入口のない24 targetの source を単独変更すると、planner は unknown input として
 **全 acceptance / witness グループを選択するが、その standalone target 自身は追加しない**。
 v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では専用 target のみを選ぶ。共有 production の安全策としての
 全体 replay と、変更した専用 contract の実行が別物であることを示す。
-残る26件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
+残る24件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
 
 ### 実例：shared helper と target 全体は違う
 

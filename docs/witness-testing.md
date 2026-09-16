@@ -345,3 +345,20 @@ passed all seven hosted replay jobs and both gates at `160161683`. Controls ran
 these are whole-group measurements. The seven jobs total 118m36s, excluding
 plans, aggregate gates and main-push runs. Controls remains below the 45-minute
 split-review threshold.
+
+
+## Declaration map output and stateful API witnesses
+
+OPS-COVER-3L/3M registers `declaration-maps` and `declaration-map-apis` in a
+dedicated `declaration-maps` job. Their 6m57s local entry plus the previous
+37m51s controls job left little margin below the 45-minute review threshold,
+so the split adds one compiler build while retaining every suite. All eight
+replay jobs and both gates are required.
+Use `scripts/witness.py <suite> --list` or `--all --dry-run` to inspect the
+84 and 75 fixture memberships, including shared and reference rows. `--all`
+runs the selected complete target harness, or both in the selected compiler batch:
+eight output tests and three stateful API tests. The shared API observer runs
+once per batch; all four map observer modes and reference-path checks run
+before Cargo. Both suites select the frozen Node version even on their own.
+The shared reference-path fixture retains full acceptance/witness selection.
+See the [scope and validation record](design/greenfield/slices/witness-coverage/compiler-declaration-maps/README.md).

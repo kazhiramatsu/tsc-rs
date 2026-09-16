@@ -23,6 +23,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [OPS-COVER-3L / 3M declaration map output and stateful API witnesses](witness-coverage/compiler-declaration-maps/README.md) | Combined local validation | Register 8 output and 3 API tests; replace the obsolete outFile refusal and compare pristine actual CLI invocations with pinned TypeScript. Preserve original Program fixtures and scoped noEmit boundaries. |
 | [OPS-COVER-3J / 3K bundle Program and declaration/map witnesses](witness-coverage/compiler-bundles/README.md) | PR #546 candidate verified; all seven hosted replay jobs and both gates passed | Register 4 Program and 3 visitor/map tests, including supplemental section membership and the bounded stale noEmit assertion repair. Frozen expected bytes are preserved. |
 | [OPS-COVER-3H / 3I recovery and map option witnesses](witness-coverage/compiler-recovery-map/README.md) | Merged PR #545; all seven replay jobs and both gates passed | Restore the exact archived recovery census for 50 command inputs; select three map-option tests with 31 dedicated inputs and five original IDs. Existing observations remain unchanged. |
 | [OPS-DEBT-EMPTY-SOURCE](witness-coverage/compiler-config-prologue/empty-source.md) | Merged with OPS-COVER-3F/3G in PR #544; all hosted jobs passed | Repair the closing statement-list newline before original EOF comments in `Printer::write_transformed_source_file`; one existing forced-empty command, immutable six-input fixture and adjacent controls. |

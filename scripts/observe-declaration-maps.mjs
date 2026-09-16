@@ -8,8 +8,9 @@ import { createHermeticDirectoryOverlay } from "../crates/oracle/vfs-directory-o
 const root = path.resolve(import.meta.dirname, "..");
 const runtime = process.argv.includes("--runtime");
 const disabled = process.argv.includes("--disabled-declaration");
-assert.ok(!(runtime && disabled));
-const output = path.join(root, "crates/compiler/tests/fixtures", disabled ? "declaration-maps-disabled-declaration.json" : runtime ? "declaration-maps-runtime.json" : "declaration-maps.json");
+const bundleBoundary = process.argv.includes("--bundle-boundary");
+assert.ok([runtime, disabled, bundleBoundary].filter(Boolean).length <= 1);
+const output = path.join(root, "crates/compiler/tests/fixtures", bundleBoundary ? "declaration-map-bundle-boundary.json" : disabled ? "declaration-maps-disabled-declaration.json" : runtime ? "declaration-maps-runtime.json" : "declaration-maps.json");
 const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
 assert.equal(process.versions.node, fs.readFileSync(path.join(root, ".node-version"), "utf8").trim());
@@ -96,10 +97,13 @@ const disabledInputs = disabled ? [undefined, false].map(declaration => ({
   options: {...originalWithoutDeclaration.effective_options, ...(declaration === undefined ? {} : {declaration})},
   source: originalWithoutDeclaration.source,
 })) : [];
-const cases=(disabled ? disabledInputs : runtime ? runtimeInputs : inputs).map(input=>{const first=observe(input);assert.deepEqual(observe(input),first,input.case_id);return {...input,typescript_observation:first};});
+// Preserve the exact input of the former Rust outFile refusal assertion.
+const bundleInputs = [{...inputs[0], case_id: "bundle/former-typed-boundary",
+  options: {...inputs[0].options, declaration: true, outFile: "/project/bundle.js"}}];
+const cases=(bundleBoundary ? bundleInputs : disabled ? disabledInputs : runtime ? runtimeInputs : inputs).map(input=>{const first=observe(input);assert.deepEqual(observe(input),first,input.case_id);return {...input,typescript_observation:first};});
 const artifact={version:1,typescript:ts.version,source_commit:"050880ce59e30b356b686bd3144efe24f875ebc8",compiler_sha256:sha256(fs.readFileSync(path.join(root,"vendor/typescript-6.0.3/lib/typescript.js"))),repetitions:2,cases};
 const rendered=JSON.stringify(artifact,null,2)+"\n";
-const mode = process.argv.slice(2).filter(arg => arg !== "--runtime" && arg !== "--disabled-declaration");
+const mode = process.argv.slice(2).filter(arg => !["--runtime", "--disabled-declaration", "--bundle-boundary"].includes(arg));
 assert.ok(mode.length <= 1 && (mode[0] === undefined || mode[0] === "--write" || mode[0] === "--check"));
 if(mode[0] === "--write")fs.writeFileSync(output,rendered);else assert.equal(fs.readFileSync(output,"utf8"),rendered);
 console.log(`H2.7e non-bundle declaration map observations: ${cases.length}, twice each`);

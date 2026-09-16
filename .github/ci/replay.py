@@ -19,12 +19,16 @@ GROUPS = {
     "wide": ("h2-5g",),
     "late": ("h2-5h", "h2-6a", "h2-6b", "h2-6c", "h2-7b", "h2-7c", "h2-7de"),
 }
-# One compiler build serves all four short collections. A changed fixture may
-# select just one collection within this job; direct controls share its build.
+# Keep the map API/CLI replay separate: adding its measured seven minutes to
+# the previous 37m51s controls job would exhaust the 45-minute review margin.
+DECLARATION_MAP_SUITES = ("declaration-map-apis", "declaration-maps")
+# A changed fixture selects its collection; related suites share a job's build.
 WITNESS_GROUPS = {
     "primary": ("primary",),
     "controls": ("extra", "followup", "followup2", "followup3", "direct", "bundle-sinks", "declaration-map-cli",
-                 *witness.COMPILER_DIRECT, "resolution-cache"),
+                 *(suite for suite in witness.COMPILER_DIRECT if suite not in DECLARATION_MAP_SUITES),
+                 "resolution-cache"),
+    "declaration-maps": DECLARATION_MAP_SUITES,
     "retained": ("retained",),
     # Reuse this short job's emitter build. Fixture changes select individual
     # direct suites without running unrelated printer failure/owner controls.
@@ -71,6 +75,10 @@ def selection(paths):
         return full_selection("missing or empty change range")
     acceptance, witnesses = set(), set()
     for file in paths:
+        # The forced-declaration acceptance helper also consumes this fixture.
+        # Registering its API witness must preserve the existing shared replay.
+        if file == "crates/compiler/tests/fixtures/declaration-reference-paths.json":
+            return full_selection(f"shared declaration reference input: {file}")
         direct_owners = {suite for suite in witness.EMITTER_DIRECT if file in witness.emitter_inputs(suite)}
         compiler_owners = {suite for suite in witness.COMPILER_DIRECT if file in witness.compiler_direct_inputs(suite)}
         if direct_owners or compiler_owners:
