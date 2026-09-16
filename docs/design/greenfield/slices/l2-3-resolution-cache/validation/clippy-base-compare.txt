@@ -1,0 +1,41 @@
+clippy comparison: cargo clippy --offline -p tsc-rs-program --all-targets -- -D warnings (rustc 1.93.0)
+base d9cfb664a exit: clippy base exit: 101
+candidate (resubmission after review R1) exit: clippy exit: 101
+
+findings per file (base):
+  58 crates/program/src/loader.rs
+  35 crates/program/src/prepared.rs
+  31 crates/program/src/module_resolution.rs
+  16 crates/program/src/config.rs
+   6 crates/program/src/path.rs
+   1 crates/program/src/js_path.rs
+   1 crates/program/src/../tests/unit/json/tests.rs
+
+findings per file (candidate):
+  57 crates/program/src/loader.rs
+  35 crates/program/src/prepared.rs
+  31 crates/program/src/module_resolution.rs
+  16 crates/program/src/config.rs
+   6 crates/program/src/path.rs
+   1 crates/program/src/js_path.rs
+   1 crates/program/src/../tests/unit/json/tests.rs
+
+lint kinds (base):
+  92 error: the `_`-variant returned from this function is very large
+  48 error: useless conversion to the same type: `_`
+   5 error: redundant closure
+   1 error: could not compile `_` (lib) due to 145 previous errors
+   1 error: could not compile `_` (lib test) due to 146 previous errors
+   1 error: comparison to empty slice
+   1 error: called `_` on an iterator
+
+lint kinds (candidate):
+  91 error: the `_`-variant returned from this function is very large
+  48 error: useless conversion to the same type: `_`
+   5 error: redundant closure
+   1 error: could not compile `_` (lib) due to 144 previous errors
+   1 error: could not compile `_` (lib test) due to 145 previous errors
+   1 error: comparison to empty slice
+   1 error: called `_` on an iterator
+
+findings in new files (candidate): 0

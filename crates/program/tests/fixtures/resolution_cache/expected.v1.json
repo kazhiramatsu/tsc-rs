@@ -1,0 +1,4247 @@
+{
+  "schema": "tsc-rs/resolution-cache-expected/v1",
+  "typescript": "6.0.3",
+  "typescript_bundle_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "manifest_sha256": "b0d9f46ac67e65c405d286f308496f4e22874bc60109029f532419fa1ed39707",
+  "node": "v25.2.1",
+  "counts": {
+    "families": 26,
+    "generations": 112,
+    "requests": 197
+  },
+  "families": {
+    "resolution-cache/module/negative-lookup/create-file/minimal": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/missing.ts",
+                "/p/missing.tsx",
+                "/p/missing.d.ts",
+                "/p/missing.js",
+                "/p/missing.jsx",
+                "/p/missing/package.json",
+                "/p/missing/index.ts",
+                "/p/missing/index.tsx",
+                "/p/missing/index.d.ts",
+                "/p/missing/index.js",
+                "/p/missing/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/unrelated.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/missing.ts",
+                "/p/missing.tsx",
+                "/p/missing.d.ts",
+                "/p/missing.js",
+                "/p/missing.jsx",
+                "/p/missing/package.json",
+                "/p/missing/index.ts",
+                "/p/missing/index.tsx",
+                "/p/missing/index.d.ts",
+                "/p/missing/index.js",
+                "/p/missing/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/unrelated.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/missing.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/unrelated.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/missing.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/unrelated.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/module/positive-file/content-change/reuse": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/util.ts",
+                "/p/util.tsx",
+                "/p/util.d.ts",
+                "/p/util.js",
+                "/p/util.jsx",
+                "/p/util/package.json",
+                "/p/util/index.ts",
+                "/p/util/index.tsx",
+                "/p/util/index.d.ts",
+                "/p/util/index.js",
+                "/p/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/module/positive-file/priority-extension/add": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/util.ts",
+                "/p/util.tsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.tsx",
+                "extension": ".tsx",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/util.ts"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/module/negative-lookup/parent-directory/create-then-file": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/lib/index.ts",
+                "/p/lib/index.tsx",
+                "/p/lib/index.d.ts",
+                "/p/lib/index.js",
+                "/p/lib/index.jsx",
+                "/p/lib/index/package.json",
+                "/p/lib/index/index.ts",
+                "/p/lib/index/index.tsx",
+                "/p/lib/index/index.d.ts",
+                "/p/lib/index/index.js",
+                "/p/lib/index/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/lib/index.ts",
+                "/p/lib/index.tsx",
+                "/p/lib/index.d.ts",
+                "/p/lib/index.js",
+                "/p/lib/index.jsx",
+                "/p/lib/index/package.json",
+                "/p/lib/index/index.ts",
+                "/p/lib/index/index.tsx",
+                "/p/lib/index/index.d.ts",
+                "/p/lib/index/index.js",
+                "/p/lib/index/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/lib/index.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/lib/index.ts",
+                "/p/lib/index.tsx",
+                "/p/lib/index.d.ts",
+                "/p/lib/index.js",
+                "/p/lib/index.jsx",
+                "/p/lib/index/package.json",
+                "/p/lib/index/index.ts",
+                "/p/lib/index/index.tsx",
+                "/p/lib/index/index.d.ts",
+                "/p/lib/index/index.js",
+                "/p/lib/index/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g4": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/lib/index.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g5": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/lib/index.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/module/package/exports/update-delete-invalid-swap": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/a.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/a.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/b.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/b.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts",
+                "/p/node_modules/pkg/index.ts",
+                "/p/node_modules/pkg/index.tsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts",
+                "/p/node_modules/pkg/index.ts",
+                "/p/node_modules/pkg/index.tsx"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g4": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/c.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@2.0.0/c.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g5": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/c.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@2.0.0/c.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/module/package/types-field-and-types-versions/node10": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/lib/x.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "lib@1.0.0/x.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/lib.ts",
+                "/p/node_modules/lib.tsx",
+                "/p/node_modules/lib.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/lib/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/lib/z/package.json",
+                "/p/node_modules/lib/z.ts",
+                "/p/node_modules/lib/z.tsx",
+                "/p/node_modules/lib/z.d.ts",
+                "/p/node_modules/lib/z/index.ts",
+                "/p/node_modules/lib/z/index.tsx",
+                "/p/node_modules/lib/z/index.d.ts",
+                "/p/node_modules/@types/lib/z/package.json",
+                "/p/node_modules/@types/lib/package.json",
+                "/p/node_modules/@types/lib/z.d.ts",
+                "/p/node_modules/@types/lib/z/index.d.ts",
+                "/node_modules/lib/z/package.json",
+                "/node_modules/lib/package.json",
+                "/node_modules/lib/z.ts",
+                "/node_modules/lib/z.tsx",
+                "/node_modules/lib/z.d.ts",
+                "/node_modules/lib/z/index.ts",
+                "/node_modules/lib/z/index.tsx",
+                "/node_modules/lib/z/index.d.ts",
+                "/node_modules/@types/lib/z/package.json",
+                "/node_modules/@types/lib/package.json",
+                "/node_modules/@types/lib/z.d.ts",
+                "/node_modules/@types/lib/z/index.d.ts",
+                "/p/node_modules/lib/z/package.json",
+                "/p/node_modules/lib/z.js",
+                "/p/node_modules/lib/z.jsx",
+                "/p/node_modules/lib/z/index.js",
+                "/p/node_modules/lib/z/index.jsx",
+                "/node_modules/lib/z/package.json",
+                "/node_modules/lib/package.json",
+                "/node_modules/lib/z.js",
+                "/node_modules/lib/z.jsx",
+                "/node_modules/lib/z/index.js",
+                "/node_modules/lib/z/index.jsx",
+                "/p/node_modules/lib/z/package.json",
+                "/p/node_modules/lib/z.ts",
+                "/p/node_modules/lib/z.tsx",
+                "/p/node_modules/lib/z.d.ts",
+                "/p/node_modules/lib/z/index.ts",
+                "/p/node_modules/lib/z/index.tsx",
+                "/p/node_modules/lib/z/index.d.ts",
+                "/p/node_modules/@types/lib/z/package.json",
+                "/p/node_modules/@types/lib/package.json",
+                "/p/node_modules/@types/lib/z.d.ts",
+                "/p/node_modules/@types/lib/z/index.d.ts",
+                "/node_modules/lib/z/package.json",
+                "/node_modules/lib/package.json",
+                "/node_modules/lib/z.ts",
+                "/node_modules/lib/z.tsx",
+                "/node_modules/lib/z.d.ts",
+                "/node_modules/lib/z/index.ts",
+                "/node_modules/lib/z/index.tsx",
+                "/node_modules/lib/z/index.d.ts",
+                "/node_modules/@types/lib/z/package.json",
+                "/node_modules/@types/lib/package.json",
+                "/node_modules/@types/lib/z.d.ts",
+                "/node_modules/@types/lib/z/index.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/lib/package.json",
+                "/p/node_modules/lib/package.json",
+                "/p/node_modules/lib/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/lib/y.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "lib@1.0.0/y.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/lib.ts",
+                "/p/node_modules/lib.tsx",
+                "/p/node_modules/lib.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/lib/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/lib/z/package.json",
+                "/p/node_modules/lib/z.ts",
+                "/p/node_modules/lib/z.tsx",
+                "/p/node_modules/lib/z.d.ts",
+                "/p/node_modules/lib/z/index.ts",
+                "/p/node_modules/lib/z/index.tsx",
+                "/p/node_modules/lib/z/index.d.ts",
+                "/p/node_modules/@types/lib/z/package.json",
+                "/p/node_modules/@types/lib/package.json",
+                "/p/node_modules/@types/lib/z.d.ts",
+                "/p/node_modules/@types/lib/z/index.d.ts",
+                "/node_modules/lib/z/package.json",
+                "/node_modules/lib/package.json",
+                "/node_modules/lib/z.ts",
+                "/node_modules/lib/z.tsx",
+                "/node_modules/lib/z.d.ts",
+                "/node_modules/lib/z/index.ts",
+                "/node_modules/lib/z/index.tsx",
+                "/node_modules/lib/z/index.d.ts",
+                "/node_modules/@types/lib/z/package.json",
+                "/node_modules/@types/lib/package.json",
+                "/node_modules/@types/lib/z.d.ts",
+                "/node_modules/@types/lib/z/index.d.ts",
+                "/p/node_modules/lib/z/package.json",
+                "/p/node_modules/lib/z.js",
+                "/p/node_modules/lib/z.jsx",
+                "/p/node_modules/lib/z/index.js",
+                "/p/node_modules/lib/z/index.jsx",
+                "/node_modules/lib/z/package.json",
+                "/node_modules/lib/package.json",
+                "/node_modules/lib/z.js",
+                "/node_modules/lib/z.jsx",
+                "/node_modules/lib/z/index.js",
+                "/node_modules/lib/z/index.jsx",
+                "/p/node_modules/lib/z/package.json",
+                "/p/node_modules/lib/z.ts",
+                "/p/node_modules/lib/z.tsx",
+                "/p/node_modules/lib/z.d.ts",
+                "/p/node_modules/lib/z/index.ts",
+                "/p/node_modules/lib/z/index.tsx",
+                "/p/node_modules/lib/z/index.d.ts",
+                "/p/node_modules/@types/lib/z/package.json",
+                "/p/node_modules/@types/lib/package.json",
+                "/p/node_modules/@types/lib/z.d.ts",
+                "/p/node_modules/@types/lib/z/index.d.ts",
+                "/node_modules/lib/z/package.json",
+                "/node_modules/lib/package.json",
+                "/node_modules/lib/z.ts",
+                "/node_modules/lib/z.tsx",
+                "/node_modules/lib/z.d.ts",
+                "/node_modules/lib/z/index.ts",
+                "/node_modules/lib/z/index.tsx",
+                "/node_modules/lib/z/index.d.ts",
+                "/node_modules/@types/lib/z/package.json",
+                "/node_modules/@types/lib/package.json",
+                "/node_modules/@types/lib/z.d.ts",
+                "/node_modules/@types/lib/z/index.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/lib/package.json",
+                "/p/node_modules/lib/package.json",
+                "/p/node_modules/lib/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/lib/ts4/y.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "lib@1.0.0/ts4/y.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/lib.ts",
+                "/p/node_modules/lib.tsx",
+                "/p/node_modules/lib.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/lib/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/lib/ts4/z.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "lib@1.0.0/ts4/z.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/lib/z/package.json",
+                "/p/node_modules/lib/ts4/z.ts",
+                "/p/node_modules/lib/ts4/z.tsx"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/lib/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/lib/ts4/y.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "lib@1.0.0/ts4/y.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/lib.ts",
+                "/p/node_modules/lib.tsx",
+                "/p/node_modules/lib.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/lib/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/lib/ts4/z.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "lib@1.0.0/ts4/z.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/lib/z/package.json",
+                "/p/node_modules/lib/ts4/z.ts",
+                "/p/node_modules/lib/ts4/z.tsx"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/lib/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/module/config-options/identity/switch-and-return": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src/shared/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/alt/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src/shared/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src/shared/util.ios.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g4": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src/shared/util.ios.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g5": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src/shared/util.ios.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g6": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src/shared/util.ios.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/module/config-options/identity/structured-conditions": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/joined.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/joined.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg/joined.a,b.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.a,b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/split.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/split.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg/split.a.d.ts",
+                "/p/node_modules/pkg/split.b.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/split.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/split.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg/split.a.d.ts",
+                "/p/node_modules/pkg/split.b.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/@types/pkg/package.json",
+                "/p/node_modules/@types/pkg.a.d.ts",
+                "/p/node_modules/@types/pkg.b.d.ts",
+                "/p/node_modules/@types/pkg.d.ts",
+                "/p/node_modules/@types/pkg/index.a.d.ts",
+                "/p/node_modules/@types/pkg/index.b.d.ts",
+                "/p/node_modules/@types/pkg/index.d.ts",
+                "/node_modules/pkg/package.json",
+                "/node_modules/pkg.a.ts",
+                "/node_modules/pkg.b.ts",
+                "/node_modules/pkg.ts",
+                "/node_modules/pkg.a.tsx",
+                "/node_modules/pkg.b.tsx",
+                "/node_modules/pkg.tsx",
+                "/node_modules/pkg.a.d.ts",
+                "/node_modules/pkg.b.d.ts",
+                "/node_modules/pkg.d.ts",
+                "/node_modules/pkg/index.a.ts",
+                "/node_modules/pkg/index.b.ts",
+                "/node_modules/pkg/index.ts",
+                "/node_modules/pkg/index.a.tsx",
+                "/node_modules/pkg/index.b.tsx",
+                "/node_modules/pkg/index.tsx",
+                "/node_modules/pkg/index.a.d.ts",
+                "/node_modules/pkg/index.b.d.ts",
+                "/node_modules/pkg/index.d.ts",
+                "/node_modules/@types/pkg/package.json",
+                "/node_modules/@types/pkg.a.d.ts",
+                "/node_modules/@types/pkg.b.d.ts",
+                "/node_modules/@types/pkg.d.ts",
+                "/node_modules/@types/pkg/index.a.d.ts",
+                "/node_modules/@types/pkg/index.b.d.ts",
+                "/node_modules/@types/pkg/index.d.ts",
+                "/node_modules/pkg/package.json",
+                "/node_modules/pkg.a.js",
+                "/node_modules/pkg.b.js",
+                "/node_modules/pkg.js",
+                "/node_modules/pkg.a.jsx",
+                "/node_modules/pkg.b.jsx",
+                "/node_modules/pkg.jsx",
+                "/node_modules/pkg/index.a.js",
+                "/node_modules/pkg/index.b.js",
+                "/node_modules/pkg/index.js",
+                "/node_modules/pkg/index.a.jsx",
+                "/node_modules/pkg/index.b.jsx",
+                "/node_modules/pkg/index.jsx"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json",
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g4": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/@types/pkg/package.json",
+                "/p/node_modules/@types/pkg.a.d.ts",
+                "/p/node_modules/@types/pkg.b.d.ts",
+                "/p/node_modules/@types/pkg.d.ts",
+                "/p/node_modules/@types/pkg/index.a.d.ts",
+                "/p/node_modules/@types/pkg/index.b.d.ts",
+                "/p/node_modules/@types/pkg/index.d.ts",
+                "/node_modules/pkg/package.json",
+                "/node_modules/pkg.a.ts",
+                "/node_modules/pkg.b.ts",
+                "/node_modules/pkg.ts",
+                "/node_modules/pkg.a.tsx",
+                "/node_modules/pkg.b.tsx",
+                "/node_modules/pkg.tsx",
+                "/node_modules/pkg.a.d.ts",
+                "/node_modules/pkg.b.d.ts",
+                "/node_modules/pkg.d.ts",
+                "/node_modules/pkg/index.a.ts",
+                "/node_modules/pkg/index.b.ts",
+                "/node_modules/pkg/index.ts",
+                "/node_modules/pkg/index.a.tsx",
+                "/node_modules/pkg/index.b.tsx",
+                "/node_modules/pkg/index.tsx",
+                "/node_modules/pkg/index.a.d.ts",
+                "/node_modules/pkg/index.b.d.ts",
+                "/node_modules/pkg/index.d.ts",
+                "/node_modules/@types/pkg/package.json",
+                "/node_modules/@types/pkg.a.d.ts",
+                "/node_modules/@types/pkg.b.d.ts",
+                "/node_modules/@types/pkg.d.ts",
+                "/node_modules/@types/pkg/index.a.d.ts",
+                "/node_modules/@types/pkg/index.b.d.ts",
+                "/node_modules/@types/pkg/index.d.ts",
+                "/node_modules/pkg/package.json",
+                "/node_modules/pkg.a.js",
+                "/node_modules/pkg.b.js",
+                "/node_modules/pkg.js",
+                "/node_modules/pkg.a.jsx",
+                "/node_modules/pkg.b.jsx",
+                "/node_modules/pkg.jsx",
+                "/node_modules/pkg/index.a.js",
+                "/node_modules/pkg/index.b.js",
+                "/node_modules/pkg/index.js",
+                "/node_modules/pkg/index.a.jsx",
+                "/node_modules/pkg/index.b.jsx",
+                "/node_modules/pkg/index.jsx"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json",
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g5": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/split.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/split.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg/split.a.d.ts",
+                "/p/node_modules/pkg/split.b.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g6": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/joined.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/joined.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg/joined.a,b.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.a,b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/module/config-options/identity/structured-paths": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src,alt/x.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/src,alt/y.ts",
+                "/p/src,alt/y.tsx",
+                "/p/src,alt/y.d.ts",
+                "/p/src,alt/y.js",
+                "/p/src,alt/y.jsx",
+                "/p/src,alt/y/package.json",
+                "/p/src,alt/y/index.ts",
+                "/p/src,alt/y/index.tsx",
+                "/p/src,alt/y/index.d.ts",
+                "/p/src,alt/y/index.js",
+                "/p/src,alt/y/index.jsx",
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/@app/y/package.json",
+                "/p/node_modules/@app/y.ts",
+                "/p/node_modules/@app/y.tsx",
+                "/p/node_modules/@app/y.d.ts",
+                "/p/node_modules/@app/y/index.ts",
+                "/p/node_modules/@app/y/index.tsx",
+                "/p/node_modules/@app/y/index.d.ts",
+                "/p/node_modules/@types/app__y/package.json",
+                "/p/node_modules/@types/app__y.d.ts",
+                "/p/node_modules/@types/app__y/index.d.ts",
+                "/node_modules/@app/y/package.json",
+                "/node_modules/@app/y.ts",
+                "/node_modules/@app/y.tsx",
+                "/node_modules/@app/y.d.ts",
+                "/node_modules/@app/y/index.ts",
+                "/node_modules/@app/y/index.tsx",
+                "/node_modules/@app/y/index.d.ts",
+                "/node_modules/@types/app__y/package.json",
+                "/node_modules/@types/app__y.d.ts",
+                "/node_modules/@types/app__y/index.d.ts",
+                "/p/node_modules/@app/y/package.json",
+                "/p/node_modules/@app/y.js",
+                "/p/node_modules/@app/y.jsx",
+                "/p/node_modules/@app/y/index.js",
+                "/p/node_modules/@app/y/index.jsx",
+                "/node_modules/@app/y/package.json",
+                "/node_modules/@app/y.js",
+                "/node_modules/@app/y.jsx",
+                "/node_modules/@app/y/index.js",
+                "/node_modules/@app/y/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src/x.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/alt/y.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/src/y.ts",
+                "/p/src/y.tsx",
+                "/p/src/y.d.ts",
+                "/p/src/y.js",
+                "/p/src/y.jsx",
+                "/p/src/y/package.json",
+                "/p/src/y/index.ts",
+                "/p/src/y/index.tsx",
+                "/p/src/y/index.d.ts",
+                "/p/src/y/index.js",
+                "/p/src/y/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src,alt/x.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/src,alt/y.ts",
+                "/p/src,alt/y.tsx",
+                "/p/src,alt/y.d.ts",
+                "/p/src,alt/y.js",
+                "/p/src,alt/y.jsx",
+                "/p/src,alt/y/package.json",
+                "/p/src,alt/y/index.ts",
+                "/p/src,alt/y/index.tsx",
+                "/p/src,alt/y/index.d.ts",
+                "/p/src,alt/y/index.js",
+                "/p/src,alt/y/index.jsx",
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/@app/y/package.json",
+                "/p/node_modules/@app/y.ts",
+                "/p/node_modules/@app/y.tsx",
+                "/p/node_modules/@app/y.d.ts",
+                "/p/node_modules/@app/y/index.ts",
+                "/p/node_modules/@app/y/index.tsx",
+                "/p/node_modules/@app/y/index.d.ts",
+                "/p/node_modules/@types/app__y/package.json",
+                "/p/node_modules/@types/app__y.d.ts",
+                "/p/node_modules/@types/app__y/index.d.ts",
+                "/node_modules/@app/y/package.json",
+                "/node_modules/@app/y.ts",
+                "/node_modules/@app/y.tsx",
+                "/node_modules/@app/y.d.ts",
+                "/node_modules/@app/y/index.ts",
+                "/node_modules/@app/y/index.tsx",
+                "/node_modules/@app/y/index.d.ts",
+                "/node_modules/@types/app__y/package.json",
+                "/node_modules/@types/app__y.d.ts",
+                "/node_modules/@types/app__y/index.d.ts",
+                "/p/node_modules/@app/y/package.json",
+                "/p/node_modules/@app/y.js",
+                "/p/node_modules/@app/y.jsx",
+                "/p/node_modules/@app/y/index.js",
+                "/p/node_modules/@app/y/index.jsx",
+                "/node_modules/@app/y/package.json",
+                "/node_modules/@app/y.js",
+                "/node_modules/@app/y.jsx",
+                "/node_modules/@app/y/index.js",
+                "/node_modules/@app/y/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src/x.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/alt/y.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/module/mode/esnext-vs-commonjs-distinct-keys": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/dual/cjs.d.cts",
+                "extension": ".d.cts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "dual@1.0.0/cjs.d.cts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/dual/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/dual/esm.d.mts",
+                "extension": ".d.mts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "dual@1.0.0/esm.d.mts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/dual/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/dual/esm.d.mts",
+                "extension": ".d.mts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "dual@1.0.1/esm.d.mts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/dual/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/dual/cjs.d.cts",
+                "extension": ".d.cts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "dual@1.0.1/cjs.d.cts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/dual/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/dual/esm.d.mts",
+                "extension": ".d.mts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "dual@1.0.1/esm.d.mts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/dual/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/dual/cjs.d.cts",
+                "extension": ".d.cts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "dual@1.0.1/cjs.d.cts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/dual/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/types-libs/automatic-types/default-typeroots": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "automatic_type_names",
+              "names": [
+                "node"
+              ]
+            },
+            {
+              "kind": "automatic_type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/@types/node/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": true,
+                "originalPath": null,
+                "packageId": "@types/node@1.0.0/index.d.ts"
+              },
+              "failedLookupLocations": [],
+              "affectingLocations": [
+                "/p/node_modules/@types/node/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "automatic_type_reference",
+              "resolved": null,
+              "failedLookupLocations": [
+                "/p/node_modules/@types/react/package.json",
+                "/p/node_modules/@types/react/index.d.ts",
+                "/node_modules/@types/react/package.json",
+                "/node_modules/@types/react/index.d.ts",
+                "/p/node_modules/react/package.json",
+                "/p/node_modules/react.d.ts",
+                "/p/node_modules/react/index.d.ts",
+                "/p/node_modules/@types/react/package.json",
+                "/p/node_modules/@types/react.d.ts",
+                "/p/node_modules/@types/react/index.d.ts",
+                "/node_modules/react/package.json",
+                "/node_modules/react.d.ts",
+                "/node_modules/react/index.d.ts",
+                "/node_modules/@types/react/package.json",
+                "/node_modules/@types/react.d.ts",
+                "/node_modules/@types/react/index.d.ts"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "automatic_type_names",
+              "names": [
+                "node",
+                "react"
+              ]
+            },
+            {
+              "kind": "automatic_type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/@types/node/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": true,
+                "originalPath": null,
+                "packageId": "@types/node@1.0.0/index.d.ts"
+              },
+              "failedLookupLocations": [],
+              "affectingLocations": [
+                "/p/node_modules/@types/node/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "automatic_type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/@types/react/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": true,
+                "originalPath": null,
+                "packageId": "@types/react@1.0.0/index.d.ts"
+              },
+              "failedLookupLocations": [],
+              "affectingLocations": [
+                "/p/node_modules/@types/react/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "automatic_type_names",
+              "names": [
+                "react"
+              ]
+            },
+            {
+              "kind": "automatic_type_reference",
+              "resolved": null,
+              "failedLookupLocations": [
+                "/p/node_modules/@types/node/package.json",
+                "/p/node_modules/@types/node/index.d.ts",
+                "/node_modules/@types/node/package.json",
+                "/node_modules/@types/node/index.d.ts",
+                "/p/node_modules/node/package.json",
+                "/p/node_modules/node.d.ts",
+                "/p/node_modules/node/index.d.ts",
+                "/p/node_modules/@types/node/package.json",
+                "/p/node_modules/@types/node.d.ts",
+                "/p/node_modules/@types/node/index.d.ts",
+                "/node_modules/node/package.json",
+                "/node_modules/node.d.ts",
+                "/node_modules/node/index.d.ts",
+                "/node_modules/@types/node/package.json",
+                "/node_modules/@types/node.d.ts",
+                "/node_modules/@types/node/index.d.ts"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "automatic_type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/@types/react/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": true,
+                "originalPath": null,
+                "packageId": "@types/react@1.0.0/index.d.ts"
+              },
+              "failedLookupLocations": [],
+              "affectingLocations": [
+                "/p/node_modules/@types/react/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "automatic_type_names",
+              "names": [
+                "react"
+              ]
+            },
+            {
+              "kind": "automatic_type_reference",
+              "resolved": null,
+              "failedLookupLocations": [
+                "/p/node_modules/@types/node/package.json",
+                "/p/node_modules/@types/node/index.d.ts",
+                "/node_modules/@types/node/package.json",
+                "/node_modules/@types/node/index.d.ts",
+                "/p/node_modules/node/package.json",
+                "/p/node_modules/node.d.ts",
+                "/p/node_modules/node/index.d.ts",
+                "/p/node_modules/@types/node/package.json",
+                "/p/node_modules/@types/node.d.ts",
+                "/p/node_modules/@types/node/index.d.ts",
+                "/node_modules/node/package.json",
+                "/node_modules/node.d.ts",
+                "/node_modules/node/index.d.ts",
+                "/node_modules/@types/node/package.json",
+                "/node_modules/@types/node.d.ts",
+                "/node_modules/@types/node/index.d.ts"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "automatic_type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/@types/react/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": true,
+                "originalPath": null,
+                "packageId": "@types/react@1.0.0/index.d.ts"
+              },
+              "failedLookupLocations": [],
+              "affectingLocations": [
+                "/p/node_modules/@types/react/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g4": {
+          "requests": [
+            {
+              "kind": "automatic_type_names",
+              "names": [
+                "react"
+              ]
+            },
+            {
+              "kind": "automatic_type_reference",
+              "resolved": null,
+              "failedLookupLocations": [
+                "/p/node_modules/@types/node/package.json",
+                "/p/node_modules/@types/node/index.d.ts",
+                "/node_modules/@types/node/package.json",
+                "/node_modules/@types/node/index.d.ts",
+                "/p/node_modules/node/package.json",
+                "/p/node_modules/node.d.ts",
+                "/p/node_modules/node/index.d.ts",
+                "/p/node_modules/@types/node/package.json",
+                "/p/node_modules/@types/node.d.ts",
+                "/p/node_modules/@types/node/index.d.ts",
+                "/node_modules/node/package.json",
+                "/node_modules/node.d.ts",
+                "/node_modules/node/index.d.ts",
+                "/node_modules/@types/node/package.json",
+                "/node_modules/@types/node.d.ts",
+                "/node_modules/@types/node/index.d.ts"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "automatic_type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/@types/react/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": true,
+                "originalPath": null,
+                "packageId": "@types/react@1.0.0/index.d.ts"
+              },
+              "failedLookupLocations": [],
+              "affectingLocations": [
+                "/p/node_modules/@types/react/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/types-libs/explicit-typeroots-and-types/custom-root": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "automatic_type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/typings/foo/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/typings/foo.d.ts",
+                "/p/typings/foo/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "type_reference",
+              "resolved": null,
+              "failedLookupLocations": [
+                "/p/typings/bar.d.ts",
+                "/p/typings/bar/package.json",
+                "/p/typings/bar/index.d.ts",
+                "/p/node_modules/bar/package.json",
+                "/p/node_modules/bar.d.ts",
+                "/p/node_modules/bar/index.d.ts",
+                "/p/node_modules/@types/bar/package.json",
+                "/p/node_modules/@types/bar.d.ts",
+                "/p/node_modules/@types/bar/index.d.ts",
+                "/node_modules/bar/package.json",
+                "/node_modules/bar.d.ts",
+                "/node_modules/bar/index.d.ts",
+                "/node_modules/@types/bar/package.json",
+                "/node_modules/@types/bar.d.ts",
+                "/node_modules/@types/bar/index.d.ts"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "automatic_type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/typings/foo/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/typings/foo.d.ts",
+                "/p/typings/foo/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/typings/bar/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/typings/bar.d.ts",
+                "/p/typings/bar/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "automatic_type_reference",
+              "resolved": null,
+              "failedLookupLocations": [
+                "/p/typings/foo.d.ts",
+                "/p/typings/foo/package.json",
+                "/p/typings/foo/index.d.ts"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/typings/bar/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/typings/bar.d.ts",
+                "/p/typings/bar/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "automatic_type_reference",
+              "resolved": null,
+              "failedLookupLocations": [
+                "/p/typings/foo.d.ts",
+                "/p/typings/foo/package.json",
+                "/p/typings/foo/index.d.ts"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/typings/bar/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/typings/bar.d.ts",
+                "/p/typings/bar/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/types-libs/lib-replacement/add-remove-package": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "library",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/@typescript/lib-dom/package.json",
+                "/p/node_modules/@typescript/lib-dom.ts",
+                "/p/node_modules/@typescript/lib-dom.tsx",
+                "/p/node_modules/@typescript/lib-dom.d.ts",
+                "/p/node_modules/@typescript/lib-dom/index.ts",
+                "/p/node_modules/@typescript/lib-dom/index.tsx",
+                "/p/node_modules/@typescript/lib-dom/index.d.ts",
+                "/p/node_modules/@types/typescript__lib-dom/package.json",
+                "/p/node_modules/@types/typescript__lib-dom.d.ts",
+                "/p/node_modules/@types/typescript__lib-dom/index.d.ts",
+                "/node_modules/@typescript/lib-dom/package.json",
+                "/node_modules/@typescript/lib-dom.ts",
+                "/node_modules/@typescript/lib-dom.tsx",
+                "/node_modules/@typescript/lib-dom.d.ts",
+                "/node_modules/@typescript/lib-dom/index.ts",
+                "/node_modules/@typescript/lib-dom/index.tsx",
+                "/node_modules/@typescript/lib-dom/index.d.ts",
+                "/node_modules/@types/typescript__lib-dom/package.json",
+                "/node_modules/@types/typescript__lib-dom.d.ts",
+                "/node_modules/@types/typescript__lib-dom/index.d.ts",
+                "/p/node_modules/@typescript/lib-dom/package.json",
+                "/p/node_modules/@typescript/lib-dom.js",
+                "/p/node_modules/@typescript/lib-dom.jsx",
+                "/p/node_modules/@typescript/lib-dom/index.js",
+                "/p/node_modules/@typescript/lib-dom/index.jsx",
+                "/node_modules/@typescript/lib-dom/package.json",
+                "/node_modules/@typescript/lib-dom.js",
+                "/node_modules/@typescript/lib-dom.jsx",
+                "/node_modules/@typescript/lib-dom/index.js",
+                "/node_modules/@typescript/lib-dom/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "library",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/@typescript/lib-dom/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "@typescript/lib-dom@1.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/@typescript/lib-dom.ts",
+                "/p/node_modules/@typescript/lib-dom.tsx",
+                "/p/node_modules/@typescript/lib-dom.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/@typescript/lib-dom/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "library",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/@typescript/lib-dom/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "@typescript/lib-dom@1.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/@typescript/lib-dom.ts",
+                "/p/node_modules/@typescript/lib-dom.tsx",
+                "/p/node_modules/@typescript/lib-dom.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/@typescript/lib-dom/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "library",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/node_modules/@typescript/lib-dom/package.json",
+                "/p/node_modules/@typescript/lib-dom.ts",
+                "/p/node_modules/@typescript/lib-dom.tsx",
+                "/p/node_modules/@typescript/lib-dom.d.ts",
+                "/p/node_modules/@typescript/lib-dom/index.ts",
+                "/p/node_modules/@typescript/lib-dom/index.tsx",
+                "/p/node_modules/@typescript/lib-dom/index.d.ts",
+                "/p/node_modules/@types/typescript__lib-dom/package.json",
+                "/p/node_modules/@types/typescript__lib-dom.d.ts",
+                "/p/node_modules/@types/typescript__lib-dom/index.d.ts",
+                "/node_modules/@typescript/lib-dom/package.json",
+                "/node_modules/@typescript/lib-dom.ts",
+                "/node_modules/@typescript/lib-dom.tsx",
+                "/node_modules/@typescript/lib-dom.d.ts",
+                "/node_modules/@typescript/lib-dom/index.ts",
+                "/node_modules/@typescript/lib-dom/index.tsx",
+                "/node_modules/@typescript/lib-dom/index.d.ts",
+                "/node_modules/@types/typescript__lib-dom/package.json",
+                "/node_modules/@types/typescript__lib-dom.d.ts",
+                "/node_modules/@types/typescript__lib-dom/index.d.ts",
+                "/p/node_modules/@typescript/lib-dom/package.json",
+                "/p/node_modules/@typescript/lib-dom.js",
+                "/p/node_modules/@typescript/lib-dom.jsx",
+                "/p/node_modules/@typescript/lib-dom/index.js",
+                "/p/node_modules/@typescript/lib-dom/index.jsx",
+                "/node_modules/@typescript/lib-dom/package.json",
+                "/node_modules/@typescript/lib-dom.js",
+                "/node_modules/@typescript/lib-dom.jsx",
+                "/node_modules/@typescript/lib-dom/index.js",
+                "/node_modules/@typescript/lib-dom/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/identity/case-insensitive/folded-keys": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/Util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/Util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/util.ts",
+                "/p/util.tsx",
+                "/p/util.d.ts",
+                "/p/util.js",
+                "/p/util.jsx",
+                "/p/util/package.json",
+                "/p/util/index.ts",
+                "/p/util/index.tsx",
+                "/p/util/index.d.ts",
+                "/p/util/index.js",
+                "/p/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/util.ts",
+                "/p/util.tsx",
+                "/p/util.d.ts",
+                "/p/util.js",
+                "/p/util.jsx",
+                "/p/util/package.json",
+                "/p/util/index.ts",
+                "/p/util/index.tsx",
+                "/p/util/index.d.ts",
+                "/p/util/index.js",
+                "/p/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/Util.ts",
+                "/p/Util.tsx",
+                "/p/Util.d.ts",
+                "/p/Util.js",
+                "/p/Util.jsx",
+                "/p/Util/package.json",
+                "/p/Util/index.ts",
+                "/p/Util/index.tsx",
+                "/p/Util/index.d.ts",
+                "/p/Util/index.js",
+                "/p/Util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/identity/symlink/retarget-and-preserve": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/store/v1/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": "/p/node_modules/pkg/index.d.ts",
+                "packageId": "pkg@1.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/store/v2/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": "/p/node_modules/pkg/index.d.ts",
+                "packageId": "pkg@2.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@2.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g4": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts",
+                "/p/node_modules/pkg/index.ts",
+                "/p/node_modules/pkg/index.tsx",
+                "/p/node_modules/pkg/index.d.ts",
+                "/p/node_modules/@types/pkg/package.json",
+                "/p/node_modules/@types/pkg.d.ts",
+                "/p/node_modules/@types/pkg/index.d.ts",
+                "/node_modules/pkg/package.json",
+                "/node_modules/pkg.ts",
+                "/node_modules/pkg.tsx",
+                "/node_modules/pkg.d.ts",
+                "/node_modules/pkg/index.ts",
+                "/node_modules/pkg/index.tsx",
+                "/node_modules/pkg/index.d.ts",
+                "/node_modules/@types/pkg/package.json",
+                "/node_modules/@types/pkg.d.ts",
+                "/node_modules/@types/pkg/index.d.ts",
+                "/p/node_modules/pkg/package.json",
+                "/p/node_modules/pkg.js",
+                "/p/node_modules/pkg.jsx",
+                "/p/node_modules/pkg/index.js",
+                "/p/node_modules/pkg/index.jsx",
+                "/node_modules/pkg/package.json",
+                "/node_modules/pkg.js",
+                "/node_modules/pkg.jsx",
+                "/node_modules/pkg/index.js",
+                "/node_modules/pkg/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/identity/containing-file/move": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/src/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/src/util.ts",
+                "/p/src/util.tsx",
+                "/p/src/util.d.ts",
+                "/p/src/util.js",
+                "/p/src/util.jsx",
+                "/p/src/util/package.json",
+                "/p/src/util/index.ts",
+                "/p/src/util/index.tsx",
+                "/p/src/util/index.d.ts",
+                "/p/src/util/index.js",
+                "/p/src/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/src/util.ts",
+                "/p/src/util.tsx",
+                "/p/src/util.d.ts",
+                "/p/src/util.js",
+                "/p/src/util.jsx",
+                "/p/src/util/package.json",
+                "/p/src/util/index.ts",
+                "/p/src/util/index.tsx",
+                "/p/src/util/index.d.ts",
+                "/p/src/util/index.js",
+                "/p/src/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/generation/hold-old-reader/immutable-view": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/util.ts",
+                "/p/util.tsx",
+                "/p/util.d.ts",
+                "/p/util.js",
+                "/p/util.jsx",
+                "/p/util/package.json",
+                "/p/util/index.ts",
+                "/p/util/index.tsx",
+                "/p/util/index.d.ts",
+                "/p/util/index.js",
+                "/p/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/generation/shared-across-projects/same-identity": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/node_modules/pkg/index.d.ts",
+                "extension": ".d.ts",
+                "isExternalLibraryImport": true,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": "pkg@1.0.0/index.d.ts"
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/package.json",
+                "/package.json",
+                "/p/node_modules/pkg.ts",
+                "/p/node_modules/pkg.tsx",
+                "/p/node_modules/pkg.d.ts"
+              ],
+              "affectingLocations": [
+                "/p/node_modules/pkg/package.json"
+              ],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/generation/source-membership/rebind": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ],
+          "program": {
+            "sourceFiles": [
+              "/p/a.ts",
+              "/p/main.ts"
+            ],
+            "optionsDiagnostics": [],
+            "configFileParsingDiagnostics": []
+          }
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ],
+          "program": {
+            "sourceFiles": [
+              "/p/b.ts",
+              "/p/a.ts",
+              "/p/main.ts"
+            ],
+            "optionsDiagnostics": [],
+            "configFileParsingDiagnostics": []
+          }
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/a.ts",
+                "/p/a.tsx",
+                "/p/a.d.ts",
+                "/p/a.js",
+                "/p/a.jsx",
+                "/p/a/package.json",
+                "/p/a/index.ts",
+                "/p/a/index.tsx",
+                "/p/a/index.d.ts",
+                "/p/a/index.js",
+                "/p/a/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ],
+          "program": {
+            "sourceFiles": [
+              "/p/b.ts",
+              "/p/main.ts"
+            ],
+            "optionsDiagnostics": [],
+            "configFileParsingDiagnostics": []
+          }
+        }
+      }
+    },
+    "resolution-cache/failure/host-error/normalize": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/util.ts",
+                "/p/util.tsx",
+                "/p/util.d.ts",
+                "/p/util.js",
+                "/p/util.jsx",
+                "/p/util/package.json",
+                "/p/util/index.ts",
+                "/p/util/index.tsx",
+                "/p/util/index.d.ts",
+                "/p/util/index.js",
+                "/p/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/failure/cancel/during-build-and-before-publish": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/c.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/a.ts",
+                "/p/a.tsx",
+                "/p/a.d.ts",
+                "/p/a.js",
+                "/p/a.jsx",
+                "/p/a/package.json",
+                "/p/a/index.ts",
+                "/p/a/index.tsx",
+                "/p/a/index.d.ts",
+                "/p/a/index.js",
+                "/p/a/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/c.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/a.ts",
+                "/p/a.tsx",
+                "/p/a.d.ts",
+                "/p/a.js",
+                "/p/a.jsx",
+                "/p/a/package.json",
+                "/p/a/index.ts",
+                "/p/a/index.tsx",
+                "/p/a/index.d.ts",
+                "/p/a/index.js",
+                "/p/a/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/c.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": null,
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/a.ts",
+                "/p/a.tsx",
+                "/p/a.d.ts",
+                "/p/a.js",
+                "/p/a.jsx",
+                "/p/a/package.json",
+                "/p/a/index.ts",
+                "/p/a/index.tsx",
+                "/p/a/index.d.ts",
+                "/p/a/index.js",
+                "/p/a/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/c.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/failure/evict/refetch": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/c.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/d.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/c.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/d.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/c.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/d.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/a.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/b.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/c.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/d.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/module/package-scope/type-change": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "package_scope",
+              "impliedNodeFormat": "commonjs"
+            },
+            {
+              "kind": "package_scope",
+              "impliedNodeFormat": "commonjs"
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "package_scope",
+              "impliedNodeFormat": "esnext"
+            },
+            {
+              "kind": "package_scope",
+              "impliedNodeFormat": "esnext"
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "package_scope",
+              "impliedNodeFormat": "esnext"
+            },
+            {
+              "kind": "package_scope",
+              "impliedNodeFormat": "commonjs"
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "package_scope",
+              "impliedNodeFormat": "commonjs"
+            },
+            {
+              "kind": "package_scope",
+              "impliedNodeFormat": "commonjs"
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/config/extends/chain": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "config"
+            }
+          ],
+          "config": {
+            "readErrors": [],
+            "fileNames": [
+              "/p/src/main.ts"
+            ],
+            "errors": [],
+            "options": {
+              "moduleResolution": 100,
+              "module": 99,
+              "baseUrl": "/p",
+              "paths": {
+                "@app/*": [
+                  "src/*"
+                ]
+              },
+              "pathsBasePath": "/p"
+            },
+            "extendedSourceFiles": [
+              "/p/base.json"
+            ]
+          }
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "config"
+            }
+          ],
+          "config": {
+            "readErrors": [],
+            "fileNames": [
+              "/p/src/main.ts"
+            ],
+            "errors": [],
+            "options": {
+              "moduleResolution": 100,
+              "module": 99,
+              "baseUrl": "/p",
+              "paths": {
+                "@app/*": [
+                  "lib/*"
+                ]
+              },
+              "pathsBasePath": "/p"
+            },
+            "extendedSourceFiles": [
+              "/p/base.json"
+            ]
+          }
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "config"
+            }
+          ],
+          "config": {
+            "readErrors": [],
+            "fileNames": [
+              "/p/src/extra.ts",
+              "/p/src/main.ts"
+            ],
+            "errors": [],
+            "options": {
+              "moduleResolution": 100,
+              "module": 99,
+              "baseUrl": "/p",
+              "paths": {
+                "@app/*": [
+                  "lib/*"
+                ]
+              },
+              "pathsBasePath": "/p"
+            },
+            "extendedSourceFiles": [
+              "/p/base.json"
+            ]
+          }
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "config"
+            }
+          ],
+          "config": {
+            "readErrors": [],
+            "fileNames": [
+              "/p/src/extra.ts",
+              "/p/src/main.ts"
+            ],
+            "errors": [],
+            "options": {
+              "moduleResolution": 100,
+              "module": 99,
+              "baseUrl": "/p",
+              "paths": {
+                "@app/*": [
+                  "lib/*"
+                ]
+              },
+              "pathsBasePath": "/p"
+            },
+            "extendedSourceFiles": [
+              "/p/base.json"
+            ]
+          }
+        },
+        "g4": {
+          "requests": [
+            {
+              "kind": "config"
+            }
+          ],
+          "config": {
+            "readErrors": [],
+            "fileNames": [
+              "/p/src/extra.ts",
+              "/p/src/main.ts"
+            ],
+            "errors": [
+              5083
+            ],
+            "options": {
+              "moduleResolution": 100,
+              "module": 99
+            },
+            "extendedSourceFiles": [
+              "/p/base.json"
+            ]
+          }
+        },
+        "g5": {
+          "requests": [
+            {
+              "kind": "config"
+            }
+          ],
+          "config": {
+            "readErrors": [],
+            "fileNames": [
+              "/p/src/extra.ts",
+              "/p/src/main.ts"
+            ],
+            "errors": [],
+            "options": {
+              "moduleResolution": 100,
+              "module": 99,
+              "baseUrl": "/p/node_modules/@cfg/base",
+              "rootDirs": [
+                "/p/node_modules/@cfg/base/src",
+                "/p/node_modules/@cfg/base/gen"
+              ]
+            },
+            "extendedSourceFiles": [
+              "/p/node_modules/@cfg/base/tsconfig.base.json"
+            ]
+          }
+        },
+        "g6": {
+          "requests": [
+            {
+              "kind": "config"
+            }
+          ],
+          "config": {
+            "readErrors": [],
+            "fileNames": [
+              "/p/src/extra.ts",
+              "/p/src/main.ts"
+            ],
+            "errors": [],
+            "options": {
+              "moduleResolution": 100,
+              "module": 99,
+              "baseUrl": "/p/node_modules/@cfg/base",
+              "rootDirs": [
+                "/p/node_modules/@cfg/base/src",
+                "/p/node_modules/@cfg/base/gen",
+                "/p/node_modules/@cfg/base/more"
+              ]
+            },
+            "extendedSourceFiles": [
+              "/p/node_modules/@cfg/base/tsconfig.base.json"
+            ]
+          }
+        }
+      }
+    },
+    "resolution-cache/identity/path-spelling/option-inputs": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/types/pkg/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/types/pkg.d.ts",
+                "/p/types/pkg/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/gen/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/src/util.ts",
+                "/p/src/util.tsx",
+                "/p/src/util.d.ts",
+                "/p/src/util.js",
+                "/p/src/util.jsx",
+                "/p/src/util/package.json",
+                "/p/src/util/index.ts",
+                "/p/src/util/index.tsx",
+                "/p/src/util/index.d.ts",
+                "/p/src/util/index.js",
+                "/p/src/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/TYPES/pkg/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/TYPES/pkg.d.ts",
+                "/p/TYPES/pkg/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/gen/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/src/util.ts",
+                "/p/src/util.tsx",
+                "/p/src/util.d.ts",
+                "/p/src/util.js",
+                "/p/src/util.jsx",
+                "/p/src/util/package.json",
+                "/p/src/util/index.ts",
+                "/p/src/util/index.tsx",
+                "/p/src/util/index.d.ts",
+                "/p/src/util/index.js",
+                "/p/src/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/TYPES/pkg/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/TYPES/pkg.d.ts",
+                "/p/TYPES/pkg/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/GEN/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/src/util.ts",
+                "/p/src/util.tsx",
+                "/p/src/util.d.ts",
+                "/p/src/util.js",
+                "/p/src/util.jsx",
+                "/p/src/util/package.json",
+                "/p/src/util/index.ts",
+                "/p/src/util/index.tsx",
+                "/p/src/util/index.d.ts",
+                "/p/src/util/index.js",
+                "/p/src/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g3": {
+          "requests": [
+            {
+              "kind": "type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/types/pkg/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/types/pkg.d.ts",
+                "/p/types/pkg/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/gen/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [
+                "/p/src/util.ts",
+                "/p/src/util.tsx",
+                "/p/src/util.d.ts",
+                "/p/src/util.js",
+                "/p/src/util.jsx",
+                "/p/src/util/package.json",
+                "/p/src/util/index.ts",
+                "/p/src/util/index.tsx",
+                "/p/src/util/index.d.ts",
+                "/p/src/util/index.js",
+                "/p/src/util/index.jsx"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    },
+    "resolution-cache/identity/path-spelling/containing-and-config": {
+      "generations": {
+        "g0": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/P/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/config/node_modules/@types/pkg/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": true,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/config/node_modules/@types/pkg/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g1": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/P/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/CONFIG/node_modules/@types/pkg/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": true,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/CONFIG/node_modules/@types/pkg/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        },
+        "g2": {
+          "requests": [
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/p/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "module",
+              "resolved": {
+                "resolvedFileName": "/P/util.ts",
+                "extension": ".ts",
+                "isExternalLibraryImport": false,
+                "resolvedUsingTsExtension": false,
+                "originalPath": null,
+                "packageId": null
+              },
+              "alternateResult": null,
+              "failedLookupLocations": [],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            },
+            {
+              "kind": "type_reference",
+              "resolved": {
+                "resolvedFileName": "/p/config/node_modules/@types/pkg/index.d.ts",
+                "primary": true,
+                "isExternalLibraryImport": true,
+                "originalPath": null,
+                "packageId": null
+              },
+              "failedLookupLocations": [
+                "/p/config/node_modules/@types/pkg/package.json"
+              ],
+              "affectingLocations": [],
+              "resolutionDiagnostics": []
+            }
+          ]
+        }
+      }
+    }
+  }
+}

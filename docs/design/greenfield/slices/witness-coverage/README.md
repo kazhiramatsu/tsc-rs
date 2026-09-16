@@ -2,7 +2,7 @@
 
 2026-09-16。統合担当：Codex。**emitter direct10、E-only8のCLIに続き、compiler UTF-16/literalの5 targetとC04 transpile contractの入口を追加。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v8.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v10.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -13,18 +13,19 @@
 C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登録した（v6）。
 初回hostedでNode version不一致を検出し、transpileを含むcontrolsにNode25.2.1を設定したv7へ更新。入口の件数はv6と同じ。
 [A-PC1](../h2-8a-compact-body-comments.md) が新設printer targetと既存parameter targetを登録したv8へ更新。
+[C05](../l2-3-resolution-cache/integration/README.md) がprogram contractと全program libを登録したv9、path表記の追加回帰を反映したv10へ更新。
 設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
 ## 現在の入口
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
-| standalone target（filter なし） | 24 | printer job の7 targetとdirect11、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter contract。ignored/cfg-disabled test の実行までは意味しない |
+| standalone target（filter なし） | 25 | printer job の7 targetとdirect11、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・resolution cache contract。ignored/cfg-disabled test の実行までは意味しない |
 | standalone target（名前で filter） | 7 | compiler5 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
 | standalone target の直接呼出しなし | 35 | compiler15 / その他20 |
-| lib/bin の test harness | 16 | この2 workflowからの `cargo test` による直接実行なし |
+| lib/bin の test harness | 16 | Program lib 1件に直接入口、残り15件は直接実行なし |
 
-**66 standalone target を列挙した。35件を「挙動が未検証」とは数えない。**
+**67 standalone target を列挙した。35件を「挙動が未検証」とは数えない。**
 acceptance が同じ比較 helper を Rust の `#[path]` で取り込み、関数を直接呼ぶ場合がある。
 台帳は source の共有関係10 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
 helper の共有から、その target の全テスト・新しい入力集合の実行まで推論しない。
@@ -53,7 +54,7 @@ v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では�
 | --- | --- | --- |
 | OPS-COVER-2 / 統合担当 | emitter direct 10 target：入口追加完了 | [検証記録](emitter-direct/README.md)。literal4 / metadata6、2239 row ×2、13 tests。既存 printer job の20分枠・2 workersでbuildを共有し、専用入力はtarget単位で選択 |
 | OPS-COVER-3 / 統合担当 | [3AのCLI8件](declaration-map-cli/README.md)と[3BのUTF-16 3 target](compiler-utf16/README.md)、[3Cのliteral2 target](compiler-literals/README.md)を登録。残りcompiler15 targetとfiltered5 targetの未選択部分 | 続いてrecovery corpus50と旧literal rowsの重複・census依存、declaration/map、parameterの未収載集合を既存acceptanceのID／比較面と照合。530などの既存全体を再度追加しない |
-| OPS-COVER-4 / 統合担当、各製品 owner | その他20 standalone と16 lib/bin harness | syntax/binder/types、host/program、checker/API、harness/fuzz に分割。単独file変更と共有変更の依存表を持ち、該当製品 slice の公開契約・取消・error・文字列境界を実測して登録 |
+| OPS-COVER-4 / 統合担当、各製品 owner | その他20 standalone と残15 lib/bin harness | syntax/binder/types、host/program、checker/API、harness/fuzz に分割。単独file変更と共有変更の依存表を持ち、該当製品 slice の公開契約・取消・error・文字列境界を実測して登録 |
 | OPS-BUDGET / 統合担当 | 新規 group の build / replay / merge後の重複 | 2 workers、45分で分割検討、60分hard limit。PRとmain pushの実行時間を別集計。entryを追加してから恒常的な時間超過を発見する順序にしない |
 
 emitter literal4：`literal_parent_provenance_contract`、`literal_value_provenance_contract`、
@@ -63,7 +64,7 @@ metadata6：`class_header_token_metadata_contract`、`comma_argument_factory_con
 `mapped_type_members_contract`、`token_comment_phase_metadata_contract`。
 
 これらは Claude の新しい6件目の大規模依頼にはしない。C01/C02/C04 等の提出時に必要な対照を
-照合し、登録と本番統合は統合担当が行う。現在の Claude 推奨順は④→⑤→①→②のまま。
+照合し、登録と本番統合は統合担当が行う。現在の Claude 推奨順はC01→C02。
 
 `ci.yml` は PRに加えてmain pushでも動く。たとえば #527 の PR acceptance の後、
 merge `526c2b37a` に [main push run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34987714601)

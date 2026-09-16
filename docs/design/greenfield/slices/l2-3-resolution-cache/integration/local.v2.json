@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "base": "5903caabbdaf0a2653bb0631dd910ce9fb5670d5",
+  "submitted_patch_sha256": "fa2cf8d3aab1bf00735320aa098dc5f8bb00fb5ec51e91251d8750e980bbc3b1",
+  "source_sha256": {
+    "crates/program/src/lib.rs": "9d639d50abef46eb697053b332127d1e3b85315754f49677a937842b99e6f92a",
+    "crates/program/src/loader.rs": "feb0999c1c8648433b4b4b566f8cfa7765fc7a31a78c54640fcfed4d02ca0050",
+    "crates/program/src/resolution_cache.rs": "f38b94a623a26fabaa250e2e1d092f2a6619f50505336233205be6cc1c6772dc",
+    "crates/program/tests/resolution_cache_contract.rs": "b3b51dc01bbb61af89d00673b67cba25e91ba39384edf926a52582fb51171f18",
+    "crates/program/tests/fixtures/resolution_cache/manifest.v1.json": "b0d9f46ac67e65c405d286f308496f4e22874bc60109029f532419fa1ed39707",
+    "crates/program/tests/fixtures/resolution_cache/expected.v1.json": "c164174394a3e197a42fff2c9f4d196f5564dd57434aecb202ab896c9c3840fc",
+    "scripts/observe-resolution-cache.mjs": "5a5278d1b080c320595efc649d04774c3ff427154279cb24ee1ce859959e3ff2",
+    "scripts/witness.py": "666395277e8ca1b21a6fafd097e6bba3b79cf2bd96096282c069a653c51ccb3a",
+    ".github/ci/replay.py": "32eb3fe42a5f4c4e6028b1353ac68e61997c02787ec59d20089bbc76cb3f64bb",
+    ".github/ci/test_replay.py": "60e862bfef951ac6f60dc22ba189082853faaac84c61c7eb4cd8023d3396669a",
+    ".github/workflows/witness.yml": "88692a8b8c244ad030720cd73a5118d8e753f030eca78fea20dcafee331a12a8"
+  },
+  "local": {
+    "original_repros_pass": 3,
+    "contract_tests_pass": 11,
+    "program_unit_pass": 56,
+    "existing_program_contracts_pass": 481,
+    "existing_program_ignored": 5,
+    "planner_tests_pass": 38,
+    "policy_tests_pass": 10,
+    "fmt": "pass",
+    "diff_check": "pass",
+    "clippy": "exit0; inherited warnings, no new file findings",
+    "path_spelling_repros_before": {
+      "passed": 0,
+      "failed": 2
+    },
+    "native_counts": {
+      "families": 26,
+      "generations": 112,
+      "requests": 197,
+      "fresh_equal": 178,
+      "native_equal": 190,
+      "uncovered": 0
+    }
+  },
+  "hosted": "pending",
+  "prior_integration_head": "1e2668a36b06030f02fb31a90776126b6fc8bbc5"
+}

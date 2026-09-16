@@ -1,0 +1,4153 @@
+{
+  "version": 1,
+  "source_commit": "1e2668a36b06030f02fb31a90776126b6fc8bbc5",
+  "generator_sha256": "f11b4674fedcd325d791fbeeedd81d6c3cd80428c726fb29efd57bff3c1bb4bc",
+  "scope": "configured PR-gate entries in ci.yml and witness.yml; no tests executed",
+  "limits": [
+    "An unfiltered target command does not prove ignored/cfg-disabled tests or every data row executes.",
+    "A filtered target command does not run the entire binary, even if the current binary has one test.",
+    "Acceptance shared-source references are conservative file-level incidence, not all-test execution proof.",
+    "Only literal #[path] Rust module edges are followed; macro/generated/default-path modules need separate review.",
+    "Literal fixture paths are source references, not dynamic fixture discovery or row membership proof.",
+    "No direct target command does not mean its production behavior or shared acceptance helper is untested.",
+    "lib/bin entries report configured cargo test harness commands in these two PR workflows, not behavior coverage."
+  ],
+  "summary": {
+    "standalone_targets": 67,
+    "lib_bin_harness_targets": 16,
+    "lib_bin_harnesses_with_direct_command": 1,
+    "unfiltered_target_commands": 25,
+    "filtered_target_commands": 7,
+    "no_direct_target_command": 35,
+    "targets_with_acceptance_shared_sources": 10,
+    "unregistered_targets_selecting_full_replay": 35
+  },
+  "acceptance_driver_sources": [
+    "crates/xtask/src/bounded_pipeline.rs",
+    "crates/xtask/src/h1_emit_acceptance.rs",
+    "crates/xtask/src/h2_1a_acceptance.rs",
+    "crates/xtask/src/h2_1b_acceptance.rs",
+    "crates/xtask/src/h2_1c_acceptance.rs",
+    "crates/xtask/src/h2_1d_acceptance.rs",
+    "crates/xtask/src/h2_1e_acceptance.rs",
+    "crates/xtask/src/h2_2a_acceptance.rs",
+    "crates/xtask/src/h2_2b_acceptance.rs",
+    "crates/xtask/src/h2_2c_acceptance.rs",
+    "crates/xtask/src/h2_2d_acceptance.rs",
+    "crates/xtask/src/h2_3a_acceptance.rs",
+    "crates/xtask/src/h2_3b_acceptance.rs",
+    "crates/xtask/src/h2_3c_acceptance.rs",
+    "crates/xtask/src/h2_3d_acceptance.rs",
+    "crates/xtask/src/h2_6c_de_promotions.rs",
+    "crates/xtask/src/h2_6c_output_promotions.rs",
+    "crates/xtask/src/h2_6c_refusal_migrations.rs",
+    "crates/xtask/src/h2_7c_acceptance.rs",
+    "crates/xtask/src/h2_7de_acceptance.rs"
+  ],
+  "acceptance_source_references": [
+    {
+      "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+      "module": "h2_7b_w4a_controls",
+      "source": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "qualified_calls_in_driver": []
+    },
+    {
+      "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+      "module": "h2_7c_corpus",
+      "source": "crates/compiler/tests/integration/h2_7c_corpus.rs",
+      "qualified_calls_in_driver": [
+        "assert_corpus"
+      ]
+    },
+    {
+      "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+      "module": "h2_7c_declaration_blocking",
+      "source": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "qualified_calls_in_driver": [
+        "assert_cases"
+      ]
+    },
+    {
+      "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+      "module": "h2_7c_declaration_getters",
+      "source": "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
+      "qualified_calls_in_driver": [
+        "assert_declaration_getters"
+      ]
+    },
+    {
+      "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+      "module": "h2_7c_forced_declarations",
+      "source": "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
+      "qualified_calls_in_driver": [
+        "assert_cases"
+      ]
+    },
+    {
+      "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+      "module": "h2_7c_strip_internal",
+      "source": "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
+      "qualified_calls_in_driver": [
+        "assert_strip_internal"
+      ]
+    },
+    {
+      "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+      "module": "h2_7d_original_corpus_shared",
+      "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "qualified_calls_in_driver": [
+        "assert_original_corpus",
+        "assert_output_directory_references"
+      ]
+    },
+    {
+      "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+      "module": "h2_7e_original_corpus_shared",
+      "source": "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs",
+      "qualified_calls_in_driver": [
+        "assert_original_corpus"
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "package": "tsc-rs-binder",
+      "target": "owned_symbol_names",
+      "source": "crates/binder/tests/owned_symbol_names.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/binder/tests/owned_symbol_names.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/binder/tests/owned_symbol_names.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-checker",
+      "target": "authoritative_external_fact",
+      "source": "crates/checker/tests/authoritative_external_fact.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/checker/tests/authoritative_external_fact.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/checker/tests/authoritative_external_fact.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "contracts",
+      "source": "crates/compiler/tests/contracts.rs",
+      "direct_mode": "filtered-target-command",
+      "commands": [
+        {
+          "group": "retained",
+          "suite": "retained",
+          "package": "tsc-rs-compiler",
+          "target": "contracts",
+          "filter": "h2_8a_retained_accessor_owners::retained_accessor_owners_match_complete_typescript_observations",
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/contracts.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/contracts.rs",
+        "crates/compiler/tests/integration/automatic_type_directive_session_contract.rs",
+        "crates/compiler/tests/integration/cli_contract.rs",
+        "crates/compiler/tests/integration/declaration_resolver_replay_decision_equal.rs",
+        "crates/compiler/tests/integration/declaration_transformer_replay_decision_equal.rs",
+        "crates/compiler/tests/integration/emit_session_contract.rs",
+        "crates/compiler/tests/integration/es2015_generators_witness_contract.rs",
+        "crates/compiler/tests/integration/filesystem_loader_contract.rs",
+        "crates/compiler/tests/integration/h0_qualification_contract.rs",
+        "crates/compiler/tests/integration/h1_emit_qualification_contract.rs",
+        "crates/compiler/tests/integration/h1_filesystem_cli_oracle_contract.rs",
+        "crates/compiler/tests/integration/h1_memory_emit_oracle_contract.rs",
+        "crates/compiler/tests/integration/h2_5h_ca2a_promote_contract.rs",
+        "crates/compiler/tests/integration/h2_5h_ca2b_seam_contract.rs",
+        "crates/compiler/tests/integration/h2_5h_static_this_super_rows.rs",
+        "crates/compiler/tests/integration/h2_5h_static_this_super_witnesses.rs",
+        "crates/compiler/tests/integration/h2_7a_ca_controls.rs",
+        "crates/compiler/tests/integration/h2_7a_m35_controls.rs",
+        "crates/compiler/tests/integration/h2_7a_m4_controls.rs",
+        "crates/compiler/tests/integration/h2_7a_partition_projection.rs",
+        "crates/compiler/tests/integration/h2_7b_m2_controls.rs",
+        "crates/compiler/tests/integration/h2_7b_w1_controls.rs",
+        "crates/compiler/tests/integration/h2_7b_w1_diff_census.rs",
+        "crates/compiler/tests/integration/h2_7b_w2_write_census.rs",
+        "crates/compiler/tests/integration/h2_7b_w2a_controls.rs",
+        "crates/compiler/tests/integration/h2_7b_w2b_controls.rs",
+        "crates/compiler/tests/integration/h2_7b_w3a_controls.rs",
+        "crates/compiler/tests/integration/h2_7b_w3b_controls.rs",
+        "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+        "crates/compiler/tests/integration/h2_7b_w4b_controls.rs",
+        "crates/compiler/tests/integration/h2_7b_w4i_controls.rs",
+        "crates/compiler/tests/integration/h2_7b_w5a_controls.rs",
+        "crates/compiler/tests/integration/h2_7b_w5b_controls.rs",
+        "crates/compiler/tests/integration/h2_7c_corpus.rs",
+        "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+        "crates/compiler/tests/integration/h2_7c_declaration_dir.rs",
+        "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
+        "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
+        "crates/compiler/tests/integration/h2_7c_isolated_accessors.rs",
+        "crates/compiler/tests/integration/h2_7c_isolated_enums.rs",
+        "crates/compiler/tests/integration/h2_7c_isolated_expando_augmentation.rs",
+        "crates/compiler/tests/integration/h2_7c_isolated_inference.rs",
+        "crates/compiler/tests/integration/h2_7c_isolated_parameters.rs",
+        "crates/compiler/tests/integration/h2_7c_isolated_private_types.rs",
+        "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
+        "crates/compiler/tests/integration/h2_8a_alias_conflict_display.rs",
+        "crates/compiler/tests/integration/h2_8a_array_comment_publication.rs",
+        "crates/compiler/tests/integration/h2_8a_binding_name_map_ranges.rs",
+        "crates/compiler/tests/integration/h2_8a_cjs_default_reexport_names.rs",
+        "crates/compiler/tests/integration/h2_8a_class_dependency_order.rs",
+        "crates/compiler/tests/integration/h2_8a_class_field_alias_map_positions.rs",
+        "crates/compiler/tests/integration/h2_8a_class_field_initializer_comments.rs",
+        "crates/compiler/tests/integration/h2_8a_class_header_token.rs",
+        "crates/compiler/tests/integration/h2_8a_class_helper_accessor_producers.rs",
+        "crates/compiler/tests/integration/h2_8a_class_optional_name.rs",
+        "crates/compiler/tests/integration/h2_8a_class_statement_layout.rs",
+        "crates/compiler/tests/integration/h2_8a_class_transform_flags.rs",
+        "crates/compiler/tests/integration/h2_8a_commonjs_class_instance.rs",
+        "crates/compiler/tests/integration/h2_8a_commonjs_esmodule_marker.rs",
+        "crates/compiler/tests/integration/h2_8a_const_modifier_erasure.rs",
+        "crates/compiler/tests/integration/h2_8a_declaration_token_comments.rs",
+        "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs",
+        "crates/compiler/tests/integration/h2_8a_defineproperty_readonly.rs",
+        "crates/compiler/tests/integration/h2_8a_defineproperty_readonly_exports.rs",
+        "crates/compiler/tests/integration/h2_8a_defineproperty_setter_annotations.rs",
+        "crates/compiler/tests/integration/h2_8a_defineproperty_setter_names.rs",
+        "crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs",
+        "crates/compiler/tests/integration/h2_8a_export_name_syntax.rs",
+        "crates/compiler/tests/integration/h2_8a_export_name_syntax_maps.rs",
+        "crates/compiler/tests/integration/h2_8a_export_specifier_names.rs",
+        "crates/compiler/tests/integration/h2_8a_export_star_declaration_producer.rs",
+        "crates/compiler/tests/integration/h2_8a_hoisted_declaration_export_ranges.rs",
+        "crates/compiler/tests/integration/h2_8a_import_helpers.rs",
+        "crates/compiler/tests/integration/h2_8a_import_publication_reference.rs",
+        "crates/compiler/tests/integration/h2_8a_javascript_imports.rs",
+        "crates/compiler/tests/integration/h2_8a_jsdoc_block_scope_container.rs",
+        "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs",
+        "crates/compiler/tests/integration/h2_8a_jsdoc_parentheses_guard.rs",
+        "crates/compiler/tests/integration/h2_8a_local_aliases.rs",
+        "crates/compiler/tests/integration/h2_8a_meta_property_token_maps.rs",
+        "crates/compiler/tests/integration/h2_8a_module_transformer_selection.rs",
+        "crates/compiler/tests/integration/h2_8a_object_property_owners.rs",
+        "crates/compiler/tests/integration/h2_8a_one_sided_class_comments.rs",
+        "crates/compiler/tests/integration/h2_8a_output_directories.rs",
+        "crates/compiler/tests/integration/h2_8a_output_filesystem.rs",
+        "crates/compiler/tests/integration/h2_8a_output_roots.rs",
+        "crates/compiler/tests/integration/h2_8a_package_output_inputs.rs",
+        "crates/compiler/tests/integration/h2_8a_promoted_class_export_maps.rs",
+        "crates/compiler/tests/integration/h2_8a_repeated_target_aliases.rs",
+        "crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
+        "crates/compiler/tests/integration/h2_8a_static_initializer_map_ranges.rs",
+        "crates/compiler/tests/integration/h2_8a_synthetic_default_alias.rs",
+        "crates/compiler/tests/integration/h2_8a_synthetic_namespace_export_modifiers.rs",
+        "crates/compiler/tests/integration/h2_8a_system_variable_publication.rs",
+        "crates/compiler/tests/integration/h2_8a_token_comment_phases.rs",
+        "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+        "crates/compiler/tests/integration/h2_8b_config_commands.rs",
+        "crates/compiler/tests/integration/h2_8b_config_conversion_commands.rs",
+        "crates/compiler/tests/integration/h2_8b_config_diagnostic_commands.rs",
+        "crates/compiler/tests/integration/h2_8b_config_diagnostic_routing.rs",
+        "crates/compiler/tests/integration/h2_8b_config_discovery_commands.rs",
+        "crates/compiler/tests/integration/h2_8b_config_entity_commands.rs",
+        "crates/compiler/tests/integration/h2_8b_config_extension_commands.rs",
+        "crates/compiler/tests/integration/h2_8b_config_root_commands.rs",
+        "crates/compiler/tests/integration/h2_8b_config_source_commands.rs",
+        "crates/compiler/tests/integration/h2_8b_config_source_span_commands.rs",
+        "crates/compiler/tests/integration/h2_8b_library_replacement.rs",
+        "crates/compiler/tests/integration/library_loader_session_contract.rs",
+        "crates/compiler/tests/integration/no_resolve_session_contract.rs",
+        "crates/compiler/tests/integration/original_path_session_contract.rs",
+        "crates/compiler/tests/integration/preserve_symlinks_session_contract.rs",
+        "crates/compiler/tests/integration/program_session_contract.rs",
+        "crates/compiler/tests/integration/source_map_band_probe.rs",
+        "crates/compiler/tests/integration/source_map_emit_witness_contract.rs",
+        "crates/compiler/tests/integration/source_map_recording_witness_contract.rs",
+        "crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs",
+        "crates/compiler/tests/support/witness_libraries.rs",
+        "crates/host/tests/support/scalar_path.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7b_w4a_controls",
+            "source": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+            "qualified_calls_in_driver": []
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7c_corpus.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_corpus",
+            "source": "crates/compiler/tests/integration/h2_7c_corpus.rs",
+            "qualified_calls_in_driver": [
+              "assert_corpus"
+            ]
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_declaration_blocking",
+            "source": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+            "qualified_calls_in_driver": [
+              "assert_cases"
+            ]
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7c_declaration_getters.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_declaration_getters",
+            "source": "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
+            "qualified_calls_in_driver": [
+              "assert_declaration_getters"
+            ]
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7c_forced_declarations.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_forced_declarations",
+            "source": "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
+            "qualified_calls_in_driver": [
+              "assert_cases"
+            ]
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7c_strip_internal.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_strip_internal",
+            "source": "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
+            "qualified_calls_in_driver": [
+              "assert_strip_internal"
+            ]
+          }
+        ],
+        "crates/compiler/tests/support/witness_libraries.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_declaration_blocking",
+            "source": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+            "qualified_calls_in_driver": [
+              "assert_cases"
+            ]
+          }
+        ]
+      },
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/alias-conflict-display.json",
+        "crates/compiler/tests/fixtures/ambient-alias-target-names.json",
+        "crates/compiler/tests/fixtures/array-comment-publication.json",
+        "crates/compiler/tests/fixtures/binding-name-map-ranges.json",
+        "crates/compiler/tests/fixtures/cjs-default-reexport-names.json",
+        "crates/compiler/tests/fixtures/class-declaration-dependency-order.json",
+        "crates/compiler/tests/fixtures/class-declaration-member-order.json",
+        "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
+        "crates/compiler/tests/fixtures/class-field-initializer-comments.json",
+        "crates/compiler/tests/fixtures/class-header-token.json",
+        "crates/compiler/tests/fixtures/class-helper-accessor-producers.json",
+        "crates/compiler/tests/fixtures/class-optional-name.json",
+        "crates/compiler/tests/fixtures/class-statement-layout.json",
+        "crates/compiler/tests/fixtures/class-transform-flags.json",
+        "crates/compiler/tests/fixtures/commonjs-class-instance.json",
+        "crates/compiler/tests/fixtures/commonjs-esmodule-marker.json",
+        "crates/compiler/tests/fixtures/const-modifier-erasure.json",
+        "crates/compiler/tests/fixtures/declaration-blocking.json",
+        "crates/compiler/tests/fixtures/declaration-dir.json",
+        "crates/compiler/tests/fixtures/declaration-getters.json",
+        "crates/compiler/tests/fixtures/declaration-reference-paths.json",
+        "crates/compiler/tests/fixtures/declaration-token-comments.json",
+        "crates/compiler/tests/fixtures/decorator-lexical-prologue-readers-v2.json",
+        "crates/compiler/tests/fixtures/decorator-lexical-prologue.json",
+        "crates/compiler/tests/fixtures/decorator-literal-key-spelling.json",
+        "crates/compiler/tests/fixtures/decorator-literal-member-kinds.json",
+        "crates/compiler/tests/fixtures/decorator-name-owners.json",
+        "crates/compiler/tests/fixtures/decorator-parameter-binding.json",
+        "crates/compiler/tests/fixtures/decorator-parameter-class-fields.json",
+        "crates/compiler/tests/fixtures/decorator-receiver-context.json",
+        "crates/compiler/tests/fixtures/decorator-source-followup-top-level.json",
+        "crates/compiler/tests/fixtures/decorator-source-followup.json",
+        "crates/compiler/tests/fixtures/decorator-super-paths.json",
+        "crates/compiler/tests/fixtures/decorator-system-helper-prologues.json",
+        "crates/compiler/tests/fixtures/decorator-system-map-followup.json",
+        "crates/compiler/tests/fixtures/decorator-transform-order.json",
+        "crates/compiler/tests/fixtures/defineproperty-readonly-exports.json",
+        "crates/compiler/tests/fixtures/defineproperty-readonly.json",
+        "crates/compiler/tests/fixtures/defineproperty-setter-annotations.json",
+        "crates/compiler/tests/fixtures/defineproperty-setter-names.json",
+        "crates/compiler/tests/fixtures/ellipsis-comment-owners.json",
+        "crates/compiler/tests/fixtures/export-name-syntax-maps.json",
+        "crates/compiler/tests/fixtures/export-name-syntax.json",
+        "crates/compiler/tests/fixtures/export-specifier-names.json",
+        "crates/compiler/tests/fixtures/export-star-declaration-producer.json",
+        "crates/compiler/tests/fixtures/forced-declarations.json",
+        "crates/compiler/tests/fixtures/h2-8b-config-commands.json",
+        "crates/compiler/tests/fixtures/h2-8b-config-conversion-commands.json",
+        "crates/compiler/tests/fixtures/h2-8b-config-diagnostic-commands.json",
+        "crates/compiler/tests/fixtures/h2-8b-config-diagnostic-routing.json",
+        "crates/compiler/tests/fixtures/h2-8b-config-discovery-commands.json",
+        "crates/compiler/tests/fixtures/h2-8b-config-entity-commands.json",
+        "crates/compiler/tests/fixtures/h2-8b-config-extension-commands.json",
+        "crates/compiler/tests/fixtures/h2-8b-config-root-commands.json",
+        "crates/compiler/tests/fixtures/h2-8b-config-source-commands.json",
+        "crates/compiler/tests/fixtures/h2-8b-config-source-span-commands.json",
+        "crates/compiler/tests/fixtures/h2-8b-library-order.json",
+        "crates/compiler/tests/fixtures/h2-8b-library-replacement.json",
+        "crates/compiler/tests/fixtures/hoisted-declaration-export-ranges.json",
+        "crates/compiler/tests/fixtures/import-helpers.json",
+        "crates/compiler/tests/fixtures/import-publication-reference.json",
+        "crates/compiler/tests/fixtures/isolated-declaration-accessors.json",
+        "crates/compiler/tests/fixtures/isolated-declaration-enums.json",
+        "crates/compiler/tests/fixtures/isolated-declaration-expando-augmentation.json",
+        "crates/compiler/tests/fixtures/isolated-declaration-inference.json",
+        "crates/compiler/tests/fixtures/isolated-declaration-parameters.json",
+        "crates/compiler/tests/fixtures/isolated-declaration-private-types.json",
+        "crates/compiler/tests/fixtures/javascript-import-retention.json",
+        "crates/compiler/tests/fixtures/jsdoc-block-scope-container.json",
+        "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+        "crates/compiler/tests/fixtures/jsdoc-parentheses-guard.json",
+        "crates/compiler/tests/fixtures/local-alias-declarations.json",
+        "crates/compiler/tests/fixtures/meta-property-token-maps.json",
+        "crates/compiler/tests/fixtures/module-export-identifiers.json",
+        "crates/compiler/tests/fixtures/module-transformer-selection.json",
+        "crates/compiler/tests/fixtures/object-property-owners.json",
+        "crates/compiler/tests/fixtures/one-sided-class-comments.json",
+        "crates/compiler/tests/fixtures/output-directories.json",
+        "crates/compiler/tests/fixtures/output-filesystem.json",
+        "crates/compiler/tests/fixtures/output-root-format.json",
+        "crates/compiler/tests/fixtures/output-roots.json",
+        "crates/compiler/tests/fixtures/package-output-inputs.json",
+        "crates/compiler/tests/fixtures/promoted-class-export-maps.json",
+        "crates/compiler/tests/fixtures/property-literal-key-ranges.json",
+        "crates/compiler/tests/fixtures/repeated-target-declaration-aliases.json",
+        "crates/compiler/tests/fixtures/retained-accessor-inputs.json",
+        "crates/compiler/tests/fixtures/retained-accessor-owners.json",
+        "crates/compiler/tests/fixtures/retained-comma-factory.json",
+        "crates/compiler/tests/fixtures/retained-constructor-references.json",
+        "crates/compiler/tests/fixtures/retained-lexical-edges.json",
+        "crates/compiler/tests/fixtures/retained-lexical-environments.json",
+        "crates/compiler/tests/fixtures/static-initializer-map-ranges.json",
+        "crates/compiler/tests/fixtures/static-this-super-auto-accessor-storage-names.json",
+        "crates/compiler/tests/fixtures/static-this-super-conditional-super-calls.json",
+        "crates/compiler/tests/fixtures/static-this-super-legacy-decorated-static-super.json",
+        "crates/compiler/tests/fixtures/static-this-super-static-super-calls.json",
+        "crates/compiler/tests/fixtures/strip-internal.json",
+        "crates/compiler/tests/fixtures/synthetic-default-alias.json",
+        "crates/compiler/tests/fixtures/synthetic-namespace-export-modifiers.json",
+        "crates/compiler/tests/fixtures/system-dynamic-imports.json",
+        "crates/compiler/tests/fixtures/system-variable-publication.json",
+        "crates/compiler/tests/fixtures/token-comment-phases.json",
+        "crates/compiler/tests/fixtures/transformed-class-assigned-names.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "decorator_super_contract",
+      "source": "crates/compiler/tests/decorator_super_contract.rs",
+      "direct_mode": "filtered-target-command",
+      "commands": [
+        {
+          "group": "primary",
+          "suite": "primary",
+          "package": "tsc-rs-compiler",
+          "target": "decorator_super_contract",
+          "filter": "h2_8a_decorator_super::decorator_super_forms_match_complete_typescript_observations",
+          "evidence": "scripts/witness.py:invocation"
+        },
+        {
+          "group": "controls",
+          "suite": "extra",
+          "package": "tsc-rs-compiler",
+          "target": "decorator_super_contract",
+          "filter": "h2_8a_decorator_super::decorator_super_extra_forms_match_complete_typescript_observations",
+          "evidence": "scripts/witness.py:invocation"
+        },
+        {
+          "group": "controls",
+          "suite": "followup",
+          "package": "tsc-rs-compiler",
+          "target": "decorator_super_contract",
+          "filter": "h2_8a_decorator_super::decorator_super_followup_forms_match_complete_typescript_observations",
+          "evidence": "scripts/witness.py:invocation"
+        },
+        {
+          "group": "controls",
+          "suite": "followup2",
+          "package": "tsc-rs-compiler",
+          "target": "decorator_super_contract",
+          "filter": "h2_8a_decorator_super::decorator_super_followup2_forms_match_complete_typescript_observations",
+          "evidence": "scripts/witness.py:invocation"
+        },
+        {
+          "group": "controls",
+          "suite": "followup3",
+          "package": "tsc-rs-compiler",
+          "target": "decorator_super_contract",
+          "filter": "h2_8a_decorator_super::decorator_super_followup3_forms_match_complete_typescript_observations",
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/decorator_super_contract.rs",
+        "crates/compiler/tests/integration/h2_8a_decorator_super.rs",
+        "crates/compiler/tests/support/witness_libraries.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/support/witness_libraries.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_declaration_blocking",
+            "source": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+            "qualified_calls_in_driver": [
+              "assert_cases"
+            ]
+          }
+        ]
+      },
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_5h_parameter_temporaries",
+      "source": "crates/compiler/tests/h2_5h_parameter_temporaries.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "parameter-temporaries",
+          "package": "tsc-rs-compiler",
+          "target": "h2_5h_parameter_temporaries",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "parameter-temporaries"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_5h_parameter_temporaries.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_5h_utf16_literal_rows",
+      "source": "crates/compiler/tests/h2_5h_utf16_literal_rows.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_5h_utf16_literal_rows.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_5h_utf16_literal_rows.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_5h_utf16_literal_witnesses",
+      "source": "crates/compiler/tests/h2_5h_utf16_literal_witnesses.rs",
+      "direct_mode": "filtered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "utf16-literal-witnesses",
+          "package": "tsc-rs-compiler",
+          "target": "h2_5h_utf16_literal_witnesses",
+          "filter": "utf16_literal_witnesses_match_complete_typescript_observations",
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "utf16-literal-witnesses"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_5h_utf16_literal_witnesses.rs",
+        "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+        "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+        "crates/compiler/tests/support/witness_libraries.rs"
+      ],
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7b_w4a_controls",
+            "source": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+            "qualified_calls_in_driver": []
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_declaration_blocking",
+            "source": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+            "qualified_calls_in_driver": [
+              "assert_cases"
+            ]
+          }
+        ],
+        "crates/compiler/tests/support/witness_libraries.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_declaration_blocking",
+            "source": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+            "qualified_calls_in_driver": [
+              "assert_cases"
+            ]
+          }
+        ]
+      },
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/declaration-blocking.json",
+        "crates/compiler/tests/fixtures/utf16-literals-adjacent-probes.json",
+        "crates/compiler/tests/fixtures/utf16-literals-bundle-prologues.json",
+        "crates/compiler/tests/fixtures/utf16-literals-string-literals.json",
+        "crates/compiler/tests/fixtures/utf16-literals-template-literals.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_5h_utf16_original_rows_complete",
+      "source": "crates/compiler/tests/h2_5h_utf16_original_rows_complete.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "utf16-original-commands",
+          "package": "tsc-rs-compiler",
+          "target": "h2_5h_utf16_original_rows_complete",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "utf16-original-commands"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_5h_utf16_original_rows_complete.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/utf16-original-rows-complete.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_6a_map_option_projection",
+      "source": "crates/compiler/tests/h2_6a_map_option_projection.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_6a_map_option_projection.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_6a_map_option_projection.rs",
+        "crates/compiler/tests/integration/source_map_band_probe.rs",
+        "crates/host/tests/support/scalar_path.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/h2-6a-map-option-projection.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_7d_bundle_program",
+      "source": "crates/compiler/tests/h2_7d_bundle_program.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_7d_bundle_program.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_7d_bundle_program.rs",
+        "crates/host/tests/support/scalar_path.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/bundle-declarations.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_7d_bundle_sinks",
+      "source": "crates/compiler/tests/h2_7d_bundle_sinks.rs",
+      "direct_mode": "filtered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "bundle-sinks",
+          "package": "tsc-rs-compiler",
+          "target": "h2_7d_bundle_sinks",
+          "filter": "ordinary_bundle_sink_commands_match_complete_typescript_twice",
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "bundle-sinks"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_7d_bundle_sinks.rs",
+        "crates/host/tests/support/scalar_path.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/bundle-sinks.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_7d_declaration_bundles",
+      "source": "crates/compiler/tests/h2_7d_declaration_bundles.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_7d_declaration_bundles.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_7d_declaration_bundles.rs",
+        "crates/host/tests/support/scalar_path.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/bundle-declarations.json",
+        "crates/emitter/tests/fixtures/bundle-maps.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_7d_module_identities",
+      "source": "crates/compiler/tests/h2_7d_module_identities.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_7d_module_identities.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_7d_module_identities.rs",
+        "crates/host/tests/support/scalar_path.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/bundle-module-identities.json",
+        "crates/emitter/tests/fixtures/module-alias-underscores.json",
+        "crates/emitter/tests/fixtures/system-generated-names.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_7d_original_corpus",
+      "source": "crates/compiler/tests/h2_7d_original_corpus.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_7d_original_corpus.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_7d_original_corpus.rs",
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs"
+      ],
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+            "module": "h2_7d_original_corpus_shared",
+            "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+            "qualified_calls_in_driver": [
+              "assert_original_corpus",
+              "assert_output_directory_references"
+            ]
+          }
+        ]
+      },
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_7e_declaration_map_apis",
+      "source": "crates/compiler/tests/h2_7e_declaration_map_apis.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_7e_declaration_map_apis.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_7e_declaration_map_apis.rs",
+        "crates/host/tests/support/scalar_path.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/declaration-map-apis.json",
+        "crates/compiler/tests/fixtures/declaration-reference-paths.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_7e_declaration_maps",
+      "source": "crates/compiler/tests/h2_7e_declaration_maps.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_7e_declaration_maps.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_7e_declaration_maps.rs",
+        "crates/host/tests/support/scalar_path.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/declaration-map-apis.json",
+        "crates/compiler/tests/fixtures/declaration-maps-disabled-declaration.json",
+        "crates/compiler/tests/fixtures/declaration-maps-runtime.json",
+        "crates/compiler/tests/fixtures/declaration-maps.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_7e_original_corpus",
+      "source": "crates/compiler/tests/h2_7e_original_corpus.rs",
+      "direct_mode": "filtered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "declaration-map-cli",
+          "package": "tsc-rs-compiler",
+          "target": "h2_7e_original_corpus",
+          "filter": "h2_7e_original_cli_matches_outputs_diagnostics_and_exit_twice",
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "declaration-map-cli"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_7e_original_corpus.rs",
+        "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs"
+      ],
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+            "module": "h2_7e_original_corpus_shared",
+            "source": "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs",
+            "qualified_calls_in_driver": [
+              "assert_original_corpus"
+            ]
+          }
+        ]
+      },
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_declaration_comment_ranges",
+      "source": "crates/compiler/tests/h2_8a_declaration_comment_ranges.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_8a_declaration_comment_ranges.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_8a_declaration_comment_ranges.rs",
+        "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+        "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+        "crates/compiler/tests/support/witness_libraries.rs"
+      ],
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7b_w4a_controls",
+            "source": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+            "qualified_calls_in_driver": []
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_declaration_blocking",
+            "source": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+            "qualified_calls_in_driver": [
+              "assert_cases"
+            ]
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+            "module": "h2_7d_original_corpus_shared",
+            "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+            "qualified_calls_in_driver": [
+              "assert_original_corpus",
+              "assert_output_directory_references"
+            ]
+          }
+        ],
+        "crates/compiler/tests/support/witness_libraries.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_declaration_blocking",
+            "source": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+            "qualified_calls_in_driver": [
+              "assert_cases"
+            ]
+          }
+        ]
+      },
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/declaration-blocking.json",
+        "crates/compiler/tests/fixtures/declaration-comment-detached-prefixes.json",
+        "crates/compiler/tests/fixtures/declaration-comment-parameter-tags.json",
+        "crates/compiler/tests/fixtures/declaration-comment-ranges.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_declaration_specifiers",
+      "source": "crates/compiler/tests/h2_8a_declaration_specifiers.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_8a_declaration_specifiers.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_8a_declaration_specifiers.rs",
+        "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs"
+      ],
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7b_w4a_controls",
+            "source": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+            "qualified_calls_in_driver": []
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+            "module": "h2_7d_original_corpus_shared",
+            "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+            "qualified_calls_in_driver": [
+              "assert_original_corpus",
+              "assert_output_directory_references"
+            ]
+          }
+        ]
+      },
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/h2-8a-declaration-specifiers-composition.json",
+        "crates/compiler/tests/fixtures/h2-8a-declaration-specifiers.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_jsdoc_return",
+      "source": "crates/compiler/tests/h2_8a_jsdoc_return.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_8a_jsdoc_return.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_8a_jsdoc_return.rs",
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs"
+      ],
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+            "module": "h2_7d_original_corpus_shared",
+            "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+            "qualified_calls_in_driver": [
+              "assert_original_corpus",
+              "assert_output_directory_references"
+            ]
+          }
+        ]
+      },
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/h2-8a-jsdoc-return.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_original_corpus",
+      "source": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_8a_original_corpus.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_8a_original_corpus.rs",
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs"
+      ],
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+            "module": "h2_7d_original_corpus_shared",
+            "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+            "qualified_calls_in_driver": [
+              "assert_original_corpus",
+              "assert_output_directory_references"
+            ]
+          }
+        ]
+      },
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_prologue_only_detached_comments",
+      "source": "crates/compiler/tests/h2_8a_prologue_only_detached_comments.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_8a_prologue_only_detached_comments.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_8a_prologue_only_detached_comments.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/prologue-only-detached-comments.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_require_rewrite",
+      "source": "crates/compiler/tests/h2_8a_require_rewrite.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_8a_require_rewrite.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_8a_require_rewrite.rs",
+        "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+        "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+        "crates/compiler/tests/support/witness_libraries.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7b_w4a_controls",
+            "source": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+            "qualified_calls_in_driver": []
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_declaration_blocking",
+            "source": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+            "qualified_calls_in_driver": [
+              "assert_cases"
+            ]
+          }
+        ],
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+            "module": "h2_7d_original_corpus_shared",
+            "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+            "qualified_calls_in_driver": [
+              "assert_original_corpus",
+              "assert_output_directory_references"
+            ]
+          }
+        ],
+        "crates/compiler/tests/support/witness_libraries.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7c_acceptance.rs",
+            "module": "h2_7c_declaration_blocking",
+            "source": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+            "qualified_calls_in_driver": [
+              "assert_cases"
+            ]
+          }
+        ]
+      },
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/declaration-blocking.json",
+        "crates/compiler/tests/fixtures/h2-8a-require-rewrite-composition.json",
+        "crates/compiler/tests/fixtures/h2-8a-require-rewrite-dynamic.json",
+        "crates/compiler/tests/fixtures/h2-8a-require-rewrite-substitution.json",
+        "crates/compiler/tests/fixtures/h2-8a-require-rewrite.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_utf16_identity_recovery_controls",
+      "source": "crates/compiler/tests/h2_8a_utf16_identity_recovery_controls.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "utf16-identity-recovery",
+          "package": "tsc-rs-compiler",
+          "target": "h2_8a_utf16_identity_recovery_controls",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "utf16-identity-recovery"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_8a_utf16_identity_recovery_controls.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/utf16-identity-recovery-controls.json",
+        "crates/compiler/tests/fixtures/utf16-noemit-command-controls.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_utf16_literal_recovery_corpus",
+      "source": "crates/compiler/tests/h2_8a_utf16_literal_recovery_corpus.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/compiler/tests/h2_8a_utf16_literal_recovery_corpus.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_8a_utf16_literal_recovery_corpus.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/utf16-literal-recovery-corpus.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_utf16_review_fix_controls",
+      "source": "crates/compiler/tests/h2_8a_utf16_review_fix_controls.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "utf16-review-fix",
+          "package": "tsc-rs-compiler",
+          "target": "h2_8a_utf16_review_fix_controls",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "utf16-review-fix"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_8a_utf16_review_fix_controls.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/utf16-review-fix-controls.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_utf16_tagged_template_controls",
+      "source": "crates/compiler/tests/h2_8a_utf16_tagged_template_controls.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "utf16-tagged-template",
+          "package": "tsc-rs-compiler",
+          "target": "h2_8a_utf16_tagged_template_controls",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "utf16-tagged-template"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/h2_8a_utf16_tagged_template_controls.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/utf16-tagged-template-controls.json",
+        "crates/compiler/tests/fixtures/utf16-tagged-template-review-v1.json",
+        "crates/compiler/tests/fixtures/utf16-tagged-template-review-v2.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "transpile_routes_contract",
+      "source": "crates/compiler/tests/transpile_routes_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "transpile-routes",
+          "package": "tsc-rs-compiler",
+          "target": "transpile_routes_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "transpile-routes"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/compiler/tests/transpile_routes_contract.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/compiler/tests/fixtures/h2_8c_transpile/expected.v1.json",
+        "crates/compiler/tests/fixtures/h2_8c_transpile/inputs.v1.json",
+        "crates/compiler/tests/fixtures/h2_8c_transpile/known-native.v1.json",
+        "crates/compiler/tests/fixtures/h2_8c_transpile/known-open.v1.json",
+        "crates/compiler/tests/fixtures/h2_8c_transpile/review-expected.v1.json",
+        "crates/compiler/tests/fixtures/h2_8c_transpile/review-inputs.v1.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "class_header_token_metadata_contract",
+      "source": "crates/emitter/tests/class_header_token_metadata_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "class-header-token-metadata",
+          "package": "tsc-rs-emitter",
+          "target": "class_header_token_metadata_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "class-header-token-metadata"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/class_header_token_metadata_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/class-header-token-printer-metadata.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "comma_argument_factory_contract",
+      "source": "crates/emitter/tests/comma_argument_factory_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "comma-argument-factory",
+          "package": "tsc-rs-emitter",
+          "target": "comma_argument_factory_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "comma-argument-factory"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/comma_argument_factory_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/comma-argument-factory.json",
+        "crates/emitter/tests/fixtures/list-boundary-lines.json",
+        "crates/emitter/tests/fixtures/list-intervening-owners.json",
+        "crates/emitter/tests/fixtures/list-trailing-token-owners.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "comma_list_printer_contract",
+      "source": "crates/emitter/tests/comma_list_printer_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "printer",
+          "package": "tsc-rs-emitter",
+          "target": "comma_list_printer_contract",
+          "filter": null,
+          "evidence": ".github/ci/replay.py:printer_witnesses/PRINTER_TARGETS"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "printer"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/comma_list_printer_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/comma-list-printer.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "compact_body_comments_contract",
+      "source": "crates/emitter/tests/compact_body_comments_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "compact-body-comments",
+          "package": "tsc-rs-emitter",
+          "target": "compact_body_comments_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "compact-body-comments"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/compact_body_comments_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/compact-body-comments.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "contracts",
+      "source": "crates/emitter/tests/contracts.rs",
+      "direct_mode": "filtered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "printer",
+          "package": "tsc-rs-emitter",
+          "target": "contracts",
+          "filter": "output_plan_contract::duplicate_output_preflight_reaches_no_sink_and_obeys_no_emit_on_error",
+          "evidence": ".github/ci/replay.py:printer_witnesses/gate"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/emitter/tests/contracts.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/contracts.rs",
+        "crates/emitter/tests/integration/active_transform_contract.rs",
+        "crates/emitter/tests/integration/artifact_sink_contract.rs",
+        "crates/emitter/tests/integration/comment_scope_witness_contract.rs",
+        "crates/emitter/tests/integration/declaration_printer_reprint_contract.rs",
+        "crates/emitter/tests/integration/dependency_direction_contract.rs",
+        "crates/emitter/tests/integration/factory_transform_contract.rs",
+        "crates/emitter/tests/integration/output_plan_contract.rs",
+        "crates/emitter/tests/integration/printer_foundation_contract.rs",
+        "crates/emitter/tests/integration/printer_oracle_contract.rs",
+        "crates/emitter/tests/integration/token_cursor_contract.rs",
+        "crates/emitter/tests/integration/tsx_type_argument_transform_contract.rs",
+        "crates/emitter/tests/integration/writer_position_contract.rs",
+        "crates/host/tests/support/scalar_path.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/decorator-static-accessor-routing.json",
+        "crates/emitter/tests/fixtures/template-fragment-provenance.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "decorator_super_direct_contract",
+      "source": "crates/emitter/tests/decorator_super_direct_contract.rs",
+      "direct_mode": "filtered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "direct",
+          "package": "tsc-rs-emitter",
+          "target": "decorator_super_direct_contract",
+          "filter": "decorator_super_direct_controls_match_typescript",
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "direct"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/decorator_super_direct_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/decorator-super-direct.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "ellipsis_comment_metadata_contract",
+      "source": "crates/emitter/tests/ellipsis_comment_metadata_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "ellipsis-comment-metadata",
+          "package": "tsc-rs-emitter",
+          "target": "ellipsis_comment_metadata_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "ellipsis-comment-metadata"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/ellipsis_comment_metadata_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/ellipsis-comment-printer-metadata.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "emit_pipeline_phases_contract",
+      "source": "crates/emitter/tests/emit_pipeline_phases_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "printer",
+          "package": "tsc-rs-emitter",
+          "target": "emit_pipeline_phases_contract",
+          "filter": null,
+          "evidence": ".github/ci/replay.py:printer_witnesses/PRINTER_TARGETS"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "printer"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/emit_pipeline_phases_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/emit-pipeline-bundle.json",
+        "crates/emitter/tests/fixtures/emit-pipeline-phases.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "import_type_attributes_contract",
+      "source": "crates/emitter/tests/import_type_attributes_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "import-type-attributes",
+          "package": "tsc-rs-emitter",
+          "target": "import_type_attributes_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "import-type-attributes"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/import_type_attributes_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/import-type-attributes.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "list_comment_flags_contract",
+      "source": "crates/emitter/tests/list_comment_flags_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "printer",
+          "package": "tsc-rs-emitter",
+          "target": "list_comment_flags_contract",
+          "filter": null,
+          "evidence": ".github/ci/replay.py:printer_witnesses/PRINTER_TARGETS"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "printer"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/list_comment_flags_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/list-comment-flags.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "list_format_flags_contract",
+      "source": "crates/emitter/tests/list_format_flags_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "printer",
+          "package": "tsc-rs-emitter",
+          "target": "list_format_flags_contract",
+          "filter": null,
+          "evidence": ".github/ci/replay.py:printer_witnesses/PRINTER_TARGETS"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "printer"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/list_format_flags_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/list-format-flags.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "literal_parent_provenance_contract",
+      "source": "crates/emitter/tests/literal_parent_provenance_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "literal-parent-provenance",
+          "package": "tsc-rs-emitter",
+          "target": "literal_parent_provenance_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "literal-parent-provenance"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/literal_parent_provenance_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/literal-parent-provenance-utf16.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "literal_value_provenance_contract",
+      "source": "crates/emitter/tests/literal_value_provenance_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "literal-value-provenance",
+          "package": "tsc-rs-emitter",
+          "target": "literal_value_provenance_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "literal-value-provenance"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/literal_value_provenance_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/string-property-provenance.json",
+        "crates/emitter/tests/fixtures/template-raw-provenance.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "mapped_type_members_contract",
+      "source": "crates/emitter/tests/mapped_type_members_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "mapped-type-members",
+          "package": "tsc-rs-emitter",
+          "target": "mapped_type_members_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "mapped-type-members"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/mapped_type_members_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/mapped-type-members.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "printer_failure_contract",
+      "source": "crates/emitter/tests/printer_failure_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "printer",
+          "package": "tsc-rs-emitter",
+          "target": "printer_failure_contract",
+          "filter": null,
+          "evidence": ".github/ci/replay.py:printer_witnesses/PRINTER_TARGETS"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "printer"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/printer_failure_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/printer-comment-carry.json",
+        "crates/emitter/tests/fixtures/printer-failure-hooks.json",
+        "crates/emitter/tests/fixtures/printer-failure-known-native.json",
+        "crates/emitter/tests/fixtures/printer-failure-probes.json",
+        "crates/emitter/tests/fixtures/printer-failure-review.json",
+        "crates/emitter/tests/fixtures/printer-hook-hints.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "source_comment_topology_contract",
+      "source": "crates/emitter/tests/source_comment_topology_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "printer",
+          "package": "tsc-rs-emitter",
+          "target": "source_comment_topology_contract",
+          "filter": null,
+          "evidence": ".github/ci/replay.py:printer_witnesses/PRINTER_TARGETS"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "printer"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/source_comment_topology_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "string_literal_identifier_source_contract",
+      "source": "crates/emitter/tests/string_literal_identifier_source_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "string-literal-identifier-source",
+          "package": "tsc-rs-emitter",
+          "target": "string_literal_identifier_source_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "string-literal-identifier-source"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/string_literal_identifier_source_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/string-literal-identifier-source.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "token_comment_phase_metadata_contract",
+      "source": "crates/emitter/tests/token_comment_phase_metadata_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "token-comment-phase-metadata",
+          "package": "tsc-rs-emitter",
+          "target": "token_comment_phase_metadata_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "token-comment-phase-metadata"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/token_comment_phase_metadata_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/token-comment-phase-printer-metadata.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "utf16_literal_escaping_contract",
+      "source": "crates/emitter/tests/utf16_literal_escaping_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "utf16-literal-escaping",
+          "package": "tsc-rs-emitter",
+          "target": "utf16_literal_escaping_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "utf16-literal-escaping"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/utf16_literal_escaping_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/utf16-declaration-literal-printer.json",
+        "crates/emitter/tests/fixtures/utf16-literal-escaping.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "utf16_writer_contract",
+      "source": "crates/emitter/tests/utf16_writer_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "printer",
+          "suite": "printer",
+          "package": "tsc-rs-emitter",
+          "target": "utf16_writer_contract",
+          "filter": null,
+          "evidence": ".github/ci/replay.py:printer_witnesses/PRINTER_TARGETS"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "printer"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/emitter/tests/utf16_writer_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/utf16-writer.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-fuzz",
+      "target": "contracts",
+      "source": "crates/fuzz/tests/contracts.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/fuzz/tests/contracts.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/fuzz/tests/contracts.rs",
+        "crates/fuzz/tests/integration/executor_e2e.rs",
+        "crates/fuzz/tests/integration/foundation_contract.rs",
+        "crates/fuzz/tests/integration/replay_contract.rs",
+        "crates/fuzz/tests/integration/vector_production_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-harness",
+      "target": "contracts",
+      "source": "crates/harness/tests/contracts.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/harness/tests/contracts.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/harness/tests/contracts.rs",
+        "crates/harness/tests/integration/h1_compiler_profile_classification.rs",
+        "crates/harness/tests/integration/h1_conformance_expansion.rs",
+        "crates/harness/tests/integration/h1_conformance_profile_classification.rs",
+        "crates/harness/tests/integration/h1_fourslash_whole_program_equivalence.rs",
+        "crates/harness/tests/integration/h1_noemit_performance_contract.rs",
+        "crates/harness/tests/integration/h1_owner_inventory_dispositions.rs",
+        "crates/harness/tests/integration/h1_project_profile_classification.rs",
+        "crates/harness/tests/integration/h2_1a_profile.rs",
+        "crates/harness/tests/integration/h2_1b_profile.rs",
+        "crates/harness/tests/integration/h2_1c_profile.rs",
+        "crates/harness/tests/integration/h2_1d_profile.rs",
+        "crates/harness/tests/integration/h2_1e_profile.rs",
+        "crates/harness/tests/integration/h2_2a_profile.rs",
+        "crates/harness/tests/integration/h2_2b_profile.rs",
+        "crates/harness/tests/integration/h2_2c_profile.rs",
+        "crates/harness/tests/integration/h2_2d_profile.rs",
+        "crates/harness/tests/integration/h2_3a_profile.rs",
+        "crates/harness/tests/integration/h2_3b_profile.rs",
+        "crates/harness/tests/integration/h2_3c_profile.rs",
+        "crates/harness/tests/integration/h2_5h_project_emit.rs",
+        "crates/harness/tests/integration/h2_baseline.rs",
+        "crates/harness/tests/integration/h2_transition.rs",
+        "crates/harness/tests/integration/module_suffixes_oracle_contract.rs",
+        "crates/harness/tests/integration/support/pins.rs",
+        "crates/harness/tests/integration/transpile_suite_inventory.rs",
+        "crates/harness/tests/integration/upstream_execution_plan.rs",
+        "crates/harness/tests/integration/upstream_suite_corpus.rs",
+        "crates/harness/tests/integration/upstream_suite_expansion.rs",
+        "crates/host/tests/support/scalar_path.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-host",
+      "target": "compiler_host_contract",
+      "source": "crates/host/tests/compiler_host_contract.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/host/tests/compiler_host_contract.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/host/tests/compiler_host_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-host",
+      "target": "filesystem_host_contract",
+      "source": "crates/host/tests/filesystem_host_contract.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/host/tests/filesystem_host_contract.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/host/tests/filesystem_host_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-program",
+      "target": "contracts",
+      "source": "crates/program/tests/contracts.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/program/tests/contracts.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/host/tests/support/scalar_path.rs",
+        "crates/program/tests/contracts.rs",
+        "crates/program/tests/integration/automatic_type_directive_loader_contract.rs",
+        "crates/program/tests/integration/config_diagnostics_oracle_contract.rs",
+        "crates/program/tests/integration/config_keyword_recovery_contract.rs",
+        "crates/program/tests/integration/config_option_bag_scaling_contract.rs",
+        "crates/program/tests/integration/config_option_catalog_contract.rs",
+        "crates/program/tests/integration/config_paths_program_options_contract.rs",
+        "crates/program/tests/integration/config_pattern_root_contract.rs",
+        "crates/program/tests/integration/config_program_loader_contract.rs",
+        "crates/program/tests/integration/config_root_plan_contract.rs",
+        "crates/program/tests/integration/h2_8b_config_diagnostics.rs",
+        "crates/program/tests/integration/h2_8b_config_discovery.rs",
+        "crates/program/tests/integration/h2_8b_config_entity_names.rs",
+        "crates/program/tests/integration/h2_8b_config_extends.rs",
+        "crates/program/tests/integration/h2_8b_config_reuse.rs",
+        "crates/program/tests/integration/h2_8b_config_root_boundaries.rs",
+        "crates/program/tests/integration/h2_8b_config_root_options.rs",
+        "crates/program/tests/integration/host_text_decode_contract.rs",
+        "crates/program/tests/integration/library_program_loader_contract.rs",
+        "crates/program/tests/integration/module_request_contract.rs",
+        "crates/program/tests/integration/module_resolution_contract.rs",
+        "crates/program/tests/integration/module_suffixes_arbitrary_extension_contract.rs",
+        "crates/program/tests/integration/module_suffixes_contract.rs",
+        "crates/program/tests/integration/no_lib_program_loader_contract.rs",
+        "crates/program/tests/integration/path_identity_contract.rs",
+        "crates/program/tests/integration/prepared_program_contract.rs",
+        "crates/program/tests/integration/typescript_library_catalog_contract.rs",
+        "crates/program/tests/support/scalar_json.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/program/tests/fixtures/h2-8b-config-diagnostics-inputs.json",
+        "crates/program/tests/fixtures/h2-8b-config-diagnostics.json",
+        "crates/program/tests/fixtures/h2-8b-config-discovery-inputs.json",
+        "crates/program/tests/fixtures/h2-8b-config-discovery.json",
+        "crates/program/tests/fixtures/h2-8b-config-entity-names-inputs.json",
+        "crates/program/tests/fixtures/h2-8b-config-entity-names.json",
+        "crates/program/tests/fixtures/h2-8b-config-extends-inputs.json",
+        "crates/program/tests/fixtures/h2-8b-config-extends.json",
+        "crates/program/tests/fixtures/h2-8b-config-reuse-inputs.json",
+        "crates/program/tests/fixtures/h2-8b-config-reuse.json",
+        "crates/program/tests/fixtures/h2-8b-config-root-boundaries-inputs.json",
+        "crates/program/tests/fixtures/h2-8b-config-root-boundaries.json",
+        "crates/program/tests/fixtures/h2-8b-config-root-options-inputs.json",
+        "crates/program/tests/fixtures/h2-8b-config-root-options.json",
+        "crates/program/tests/fixtures/h2-8b-library-loader-order.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-program",
+      "target": "h2_7d_bundle_source_facts",
+      "source": "crates/program/tests/h2_7d_bundle_source_facts.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/program/tests/h2_7d_bundle_source_facts.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/host/tests/support/scalar_path.rs",
+        "crates/program/tests/h2_7d_bundle_source_facts.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/emitter/tests/fixtures/bundle-plan.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-program",
+      "target": "host_platform_smoke_contract",
+      "source": "crates/program/tests/host_platform_smoke_contract.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/program/tests/host_platform_smoke_contract.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/program/tests/host_platform_smoke_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-program",
+      "target": "resolution_cache_contract",
+      "source": "crates/program/tests/resolution_cache_contract.rs",
+      "direct_mode": "unfiltered-target-command",
+      "commands": [
+        {
+          "group": "controls",
+          "suite": "resolution-cache",
+          "package": "tsc-rs-program",
+          "target": "resolution_cache_contract",
+          "filter": null,
+          "evidence": "scripts/witness.py:invocation"
+        }
+      ],
+      "plan_for_target_source_change": {
+        "acceptance": [],
+        "witnesses": [
+          "resolution-cache"
+        ],
+        "reason": "explicit disconnected or owning-input rules"
+      },
+      "explicit_path_module_sources": [
+        "crates/program/tests/resolution_cache_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/program/tests/fixtures/resolution_cache/expected.v1.json",
+        "crates/program/tests/fixtures/resolution_cache/manifest.v1.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-program",
+      "target": "utf16_config_paths",
+      "source": "crates/program/tests/utf16_config_paths.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/program/tests/utf16_config_paths.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/program/tests/utf16_config_paths.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-program",
+      "target": "utf16_module_paths",
+      "source": "crates/program/tests/utf16_module_paths.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/program/tests/utf16_module_paths.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/program/tests/utf16_module_paths.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-program",
+      "target": "utf16_raw_source_boundary",
+      "source": "crates/program/tests/utf16_raw_source_boundary.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/program/tests/utf16_raw_source_boundary.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/program/tests/utf16_raw_source_boundary.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/program/tests/fixtures/utf16-raw-source-boundary.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-syntax",
+      "target": "entity_names",
+      "source": "crates/syntax/tests/entity_names.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/syntax/tests/entity_names.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/syntax/tests/entity_names.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/syntax/tests/fixtures/utf16-entity-names.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-syntax",
+      "target": "new_meta_property_name",
+      "source": "crates/syntax/tests/new_meta_property_name.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/syntax/tests/new_meta_property_name.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/syntax/tests/new_meta_property_name.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/syntax/tests/fixtures/utf16-new-meta-property-name.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-syntax",
+      "target": "owned_literal_values",
+      "source": "crates/syntax/tests/owned_literal_values.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/syntax/tests/owned_literal_values.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/syntax/tests/owned_literal_values.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/syntax/tests/fixtures/utf16-owned-literal-values.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-syntax",
+      "target": "recovery_provenance",
+      "source": "crates/syntax/tests/recovery_provenance.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/syntax/tests/recovery_provenance.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/syntax/tests/recovery_provenance.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/syntax/tests/fixtures/utf16-recovery-boundary.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-syntax",
+      "target": "scanner_escape_diagnostics",
+      "source": "crates/syntax/tests/scanner_escape_diagnostics.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/syntax/tests/scanner_escape_diagnostics.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/syntax/tests/scanner_escape_diagnostics.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/syntax/tests/fixtures/utf16-scanner-escape-diagnostics.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-syntax",
+      "target": "template_escape_flags",
+      "source": "crates/syntax/tests/template_escape_flags.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/syntax/tests/template_escape_flags.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/syntax/tests/template_escape_flags.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-syntax",
+      "target": "template_flags",
+      "source": "crates/syntax/tests/template_flags.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/syntax/tests/template_flags.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/syntax/tests/template_flags.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [
+        "crates/syntax/tests/fixtures/utf16-template-flags.json"
+      ],
+      "unresolved_or_dynamic_fixture_spellings": []
+    },
+    {
+      "package": "tsc-rs-types",
+      "target": "compiler_option_number_contract",
+      "source": "crates/types/tests/compiler_option_number_contract.rs",
+      "direct_mode": "no-direct-target-command",
+      "commands": [],
+      "plan_for_target_source_change": {
+        "acceptance": [
+          "early",
+          "wide",
+          "late"
+        ],
+        "witnesses": [
+          "primary",
+          "extra",
+          "followup",
+          "followup2",
+          "followup3",
+          "retained",
+          "direct",
+          "printer",
+          "bundle-sinks",
+          "declaration-map-cli",
+          "compact-body-comments",
+          "literal-parent-provenance",
+          "literal-value-provenance",
+          "string-literal-identifier-source",
+          "utf16-literal-escaping",
+          "class-header-token-metadata",
+          "comma-argument-factory",
+          "ellipsis-comment-metadata",
+          "import-type-attributes",
+          "mapped-type-members",
+          "token-comment-phase-metadata",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands",
+          "resolution-cache"
+        ],
+        "reason": "shared or unknown input: crates/types/tests/compiler_option_number_contract.rs"
+      },
+      "explicit_path_module_sources": [
+        "crates/types/tests/compiler_option_number_contract.rs"
+      ],
+      "acceptance_shared_source_references": {},
+      "literal_fixture_files": [],
+      "unresolved_or_dynamic_fixture_spellings": []
+    }
+  ],
+  "lib_bin_harnesses": [
+    {
+      "package": "tsc-rs-binder",
+      "target": "tsc_binder",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/binder/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-checker",
+      "target": "tsc_checker",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/checker/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "tsc-rs",
+      "kind": [
+        "bin"
+      ],
+      "source": "crates/compiler/src/bin/tsc-rs.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "tsc_compiler",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/compiler/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-conformance",
+      "target": "tsc_conformance",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/conformance/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-diagnostics",
+      "target": "tsc_diagnostics",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/diagnostics/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-emitter",
+      "target": "tsc_emitter",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/emitter/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-fuzz",
+      "target": "tsc-rs-fuzz-producer",
+      "kind": [
+        "bin"
+      ],
+      "source": "crates/fuzz/src/bin/tsc-rs-fuzz-producer.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-fuzz",
+      "target": "tsc_fuzz",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/fuzz/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-harness",
+      "target": "tsc_harness",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/harness/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-host",
+      "target": "tsc_host",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/host/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-oracle",
+      "target": "tsc_oracle",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/oracle/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-program",
+      "target": "tsc_program",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/program/src/lib.rs",
+      "direct_pr_test_command": true
+    },
+    {
+      "package": "tsc-rs-syntax",
+      "target": "tsc_syntax",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/syntax/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-types",
+      "target": "tsc_types",
+      "kind": [
+        "lib"
+      ],
+      "source": "crates/types/src/lib.rs",
+      "direct_pr_test_command": false
+    },
+    {
+      "package": "tsc-rs-xtask",
+      "target": "xtask",
+      "kind": [
+        "bin"
+      ],
+      "source": "crates/xtask/src/main.rs",
+      "direct_pr_test_command": false
+    }
+  ],
+  "source_sha256": {
+    ".github/ci/replay.py": "32eb3fe42a5f4c4e6028b1353ac68e61997c02787ec59d20089bbc76cb3f64bb",
+    ".github/ci/test_replay.py": "60e862bfef951ac6f60dc22ba189082853faaac84c61c7eb4cd8023d3396669a",
+    ".github/workflows/ci.yml": "de915626e641960446a9d08a62203069d27e43819b6429ac1a5154c182f2759e",
+    ".github/workflows/witness.yml": "88692a8b8c244ad030720cd73a5118d8e753f030eca78fea20dcafee331a12a8",
+    "Cargo.lock": "e2a9b63447bb9cc3ee9924ae43915d2d7dd4f8f715c503e0b3372643cbb42810",
+    "Cargo.toml": "edd7e574f72487c69e900e43346058ce66e4052575bb2c48c3d552ea4db5edd5",
+    "crates/binder/Cargo.toml": "cc7669bb6fc171e2733d20817e150c5334949d57d57a299b42b7b679a7e033f1",
+    "crates/binder/tests/owned_symbol_names.rs": "1a7485a8585785a60e40fe8a05daceeac493d01c57c5810c680936e3e685ae3b",
+    "crates/checker/Cargo.toml": "15e0305b1c561122e7d67502ebc2c0dfbe47c24c5d425d9fee5ede2f28509568",
+    "crates/checker/tests/authoritative_external_fact.rs": "36f5032341503893326b9534e60116b4ac3bcf381e7709f4b79f8b3fdac2fb41",
+    "crates/compiler/Cargo.toml": "ca3ad097be2704bd6caab63e73e7b92a05b5c255840382e260ecb8d04599ac4a",
+    "crates/compiler/tests/contracts.rs": "851f89e64477724e77293129fe3560c84d5cc7f1ba3953fca3470e4bde5accd4",
+    "crates/compiler/tests/decorator_super_contract.rs": "be55d317f397a2561f7bf41fde88ab71ad7a9a9ef289f06a3bdbdd5d338ae9ee",
+    "crates/compiler/tests/h2_5h_parameter_temporaries.rs": "2382d5c34dd6bf641a407e7799d791bd5a9455bd18f543b4adda5bcc250e2287",
+    "crates/compiler/tests/h2_5h_utf16_literal_rows.rs": "82993106449848b140b2feae110e99719ab8fd47d6281188fa3380afa63e4bb6",
+    "crates/compiler/tests/h2_5h_utf16_literal_witnesses.rs": "c7ca73994bf7a54afd5acbb340eb43e6a61cd6360e2bee252b34928f2aafeaef",
+    "crates/compiler/tests/h2_5h_utf16_original_rows_complete.rs": "c73d753c9d3347df7c820cb01bb45c66f0dab6ece239e9b4d0e0ba99aebc61a2",
+    "crates/compiler/tests/h2_6a_map_option_projection.rs": "14fec485caf7207c5a1fe26628cabb78ea51a272913e419dff0a3760a526b570",
+    "crates/compiler/tests/h2_7d_bundle_program.rs": "48befe6d68854c136ec2a182ae7cf5497a8a73e97c6eaa9bfb21b59ba5246060",
+    "crates/compiler/tests/h2_7d_bundle_sinks.rs": "4b080c40d9ac52601c9b776d6daee42df0e3c1e19f09d203a5d7f5bf592ef7db",
+    "crates/compiler/tests/h2_7d_declaration_bundles.rs": "d7a30de656afc691056b0161a8b95c8c7d72495ecf3aeae4da42d587600a781d",
+    "crates/compiler/tests/h2_7d_module_identities.rs": "8a64e5b7814e44606e06d8952836941076de751952ee58fa585a5e0d32bf3735",
+    "crates/compiler/tests/h2_7d_original_corpus.rs": "74ec2077229c5e0b4b33a8cea948af5be1ce75c3cfbf6056a74655e31407987b",
+    "crates/compiler/tests/h2_7e_declaration_map_apis.rs": "bf36712dd2643598d18d3e501b3a73ed2dd54a5d451d9f45bf47050536293dd9",
+    "crates/compiler/tests/h2_7e_declaration_maps.rs": "ae20ad80d9394ceb714e199200955df0f594b46d2e5bd736d75390022cc4b1e9",
+    "crates/compiler/tests/h2_7e_original_corpus.rs": "6c5e22bd3fa031ddbfcb0e4ce7e68a6ed57f2a44c372843f9f26c1ee9a719da0",
+    "crates/compiler/tests/h2_8a_declaration_comment_ranges.rs": "51ef353c11b370bd35e9f674a16b2ac677e253e3e633053c818a19e0401c14cd",
+    "crates/compiler/tests/h2_8a_declaration_specifiers.rs": "4fe103961f2ca4a33675998cab55c771a82d41ceee686e39ebed99728787f842",
+    "crates/compiler/tests/h2_8a_jsdoc_return.rs": "9084cae7eed4a2d16dd6435d0f00443099d2f6c922491a95bf89fef6d50b83bb",
+    "crates/compiler/tests/h2_8a_original_corpus.rs": "213393a3905c99b980054bfb2db8f19d593fd4620e09ab84c473b64b0851c423",
+    "crates/compiler/tests/h2_8a_prologue_only_detached_comments.rs": "70935f067ecd4534f72f711d51eea4933b48adbb4b630a67e8a44ac5b5772f4f",
+    "crates/compiler/tests/h2_8a_require_rewrite.rs": "0a73cbef41ca17a815a53f8434b195193c71732f8441819c473eb2d44d5656d1",
+    "crates/compiler/tests/h2_8a_utf16_identity_recovery_controls.rs": "1ba2f9da6cabc495a3f2fa88a6e7114e89707a03c8a5f7a1c124ea40c5b1d416",
+    "crates/compiler/tests/h2_8a_utf16_literal_recovery_corpus.rs": "230a5d17b27c59ac7c6ee530150b0a7bca4c74d5d3b82bc0d5f7484e8f165246",
+    "crates/compiler/tests/h2_8a_utf16_review_fix_controls.rs": "d48694d740cf2ffd21a56236e44023feab64862c6219f50d3197da3b1b81095b",
+    "crates/compiler/tests/h2_8a_utf16_tagged_template_controls.rs": "4ca89527e266733af99b65a3bae8a13b8a46e3a03376c10c879784999d2be7a6",
+    "crates/compiler/tests/integration/automatic_type_directive_session_contract.rs": "9628058e918b8e84f3cde6cf7fa27d20315622e1c98ad4cf5962ae33428b654a",
+    "crates/compiler/tests/integration/cli_contract.rs": "d69b9a415d44cd9248083ac5d43f8386a68a9908c7d487f3d4727d3d150971de",
+    "crates/compiler/tests/integration/declaration_resolver_replay_decision_equal.rs": "acca30e08b867ee07902227cf065c9b18d97746e517453765ffc4106d88ddd01",
+    "crates/compiler/tests/integration/declaration_transformer_replay_decision_equal.rs": "ee9e0644cc8409da14d14b6487f6fb7a1e9d6518ca557bb64df826725b790920",
+    "crates/compiler/tests/integration/emit_session_contract.rs": "0570e7c5309e913a8d4e8a897c8f767e700ea898b70aca04a77105d282bd23d4",
+    "crates/compiler/tests/integration/es2015_generators_witness_contract.rs": "2786e09f2ce25052d5e182ed55d7e824d8bdbdd3b4e4ed7942bb09b81c1f1ee6",
+    "crates/compiler/tests/integration/filesystem_loader_contract.rs": "6d92cd334ffb471f3bc5aef9c1e5035a9555bda4c54c94ffe787f6151f10e1cc",
+    "crates/compiler/tests/integration/h0_qualification_contract.rs": "aefac81a32fe338cf17140932fcca1e44fb8f7c26df017f18659209ae5a63ccc",
+    "crates/compiler/tests/integration/h1_emit_qualification_contract.rs": "a83671793c81d681a580af19a1975f3b3548c48571608a6c467cc2480d5a61df",
+    "crates/compiler/tests/integration/h1_filesystem_cli_oracle_contract.rs": "bc866c18dfef7f0b6f11b6881c9609fe6beeb12d51fa98da2e7db5c9c33d4fe7",
+    "crates/compiler/tests/integration/h1_memory_emit_oracle_contract.rs": "3b45de5517dc22793437e183cb4019db61d14ff20b2ef6c4ccee2d927960dd63",
+    "crates/compiler/tests/integration/h2_5h_ca2a_promote_contract.rs": "204a2732c8e45be2c80ceeb86e682b4ef8deaa20122712538044454305d6103a",
+    "crates/compiler/tests/integration/h2_5h_ca2b_seam_contract.rs": "3373999efe0b5ecb75341358d9404c637233ac91bf9e95f468a720096115e7cc",
+    "crates/compiler/tests/integration/h2_5h_static_this_super_rows.rs": "98ce380b65d29f64110b9fcc1e5fec9c66c5027ad075b23ef7c9144549b25304",
+    "crates/compiler/tests/integration/h2_5h_static_this_super_witnesses.rs": "82d1c1fe1834e65edf43d156cbf3a8a80d6d684262aeb2f82e436c4d6dee3d06",
+    "crates/compiler/tests/integration/h2_7a_ca_controls.rs": "96b8707f35d71754f05854ce96b26d9deda77a41d17347ce9120a14be6e438c2",
+    "crates/compiler/tests/integration/h2_7a_m35_controls.rs": "cd3cf5340d82e7b2e351958438f38aabba85950e7039e5f2bfab6ab35240433a",
+    "crates/compiler/tests/integration/h2_7a_m4_controls.rs": "44d9afa32e2f1e4fae25f2b29c5471dc4d0987a494d8034d866ad623fa56df7f",
+    "crates/compiler/tests/integration/h2_7a_partition_projection.rs": "f3f30a27ad37c718e73004bb04515a2108f8b8199d287f56d8c8f9d7f52c5726",
+    "crates/compiler/tests/integration/h2_7b_m2_controls.rs": "3534bf06aec714e45a15ec5c21b3078fffcdc18149b556fd3d3de3b0d92eb4b7",
+    "crates/compiler/tests/integration/h2_7b_w1_controls.rs": "d86aa03d80982ff7f8acf7f99663db904fd70fe9ca7edbed0eaad002365b8b5e",
+    "crates/compiler/tests/integration/h2_7b_w1_diff_census.rs": "b8547fbabe7a3311eb0eaa5245264356938109808d5a6b58ae8d7e9406a40b7d",
+    "crates/compiler/tests/integration/h2_7b_w2_write_census.rs": "b5b68adf7adde48bf3c02c6968e5fce2686a2cd744956ba63fea33e978c30987",
+    "crates/compiler/tests/integration/h2_7b_w2a_controls.rs": "39b9d491d26cc0ef2bc330127a38d5666e5a80c9c19f931d829faeb315daaf15",
+    "crates/compiler/tests/integration/h2_7b_w2b_controls.rs": "4406daad5fcbe4ddcd262da7441d163dd203dcb5c9464b8df7bc2bb31a06ef2c",
+    "crates/compiler/tests/integration/h2_7b_w3a_controls.rs": "534ffccab3f856f0ea01ecea49528178cd71805f5467666a2c25844c7248e172",
+    "crates/compiler/tests/integration/h2_7b_w3b_controls.rs": "b169c47601307619f758f41544593bd7f893776a7d9c819158296106dd7978ff",
+    "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": "88c9b1088a134e7eb7491149e6c503b37905eee0866ae47f4f5c5c21e313d1c6",
+    "crates/compiler/tests/integration/h2_7b_w4b_controls.rs": "ecf537a1047a992b1c38e608cd8fe86108928872cb14e4778154f3d7e8ce60ad",
+    "crates/compiler/tests/integration/h2_7b_w4i_controls.rs": "2593162f11b5e26d08140d1db0ff118cfc7c662e0da42a46a19b5d532d2492fc",
+    "crates/compiler/tests/integration/h2_7b_w5a_controls.rs": "66b88029729948806ad19ba8f218795f53f8cd35485a291ebc9612f1bed59beb",
+    "crates/compiler/tests/integration/h2_7b_w5b_controls.rs": "4241e2a1806fe82ee59b064df857566e12a936715a290a085f316453c3c1c238",
+    "crates/compiler/tests/integration/h2_7c_corpus.rs": "83a2ccc769ec27e6eaf99b73d9a8e5dc755c71d0fedccbb6c0931347df6ee882",
+    "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "8cdd9a5ea31923c515d35ae475f54595d116635ea635e685ddb41ecc8d1e6460",
+    "crates/compiler/tests/integration/h2_7c_declaration_dir.rs": "63d06d61f84f28f4380c718ea5f955a91625236f7227675f41fef0dcd4a24308",
+    "crates/compiler/tests/integration/h2_7c_declaration_getters.rs": "8b0cc4edf30dfafae21904d332a8f714a8a28437eb10be5a4a017c251ffe8060",
+    "crates/compiler/tests/integration/h2_7c_forced_declarations.rs": "e53407fd07652b383a4b9e91e4753210c8f841d7747a5a274a69c7f1630c1969",
+    "crates/compiler/tests/integration/h2_7c_isolated_accessors.rs": "bac9d397918c993b2c3a3de6aa7b7756f94421b08daf492d24986eb1c3b0db74",
+    "crates/compiler/tests/integration/h2_7c_isolated_enums.rs": "dabdd8be80b3c43b892a9a34bcd94869a0a9e0c74dfcb5b28c86dd79d6c9cfc8",
+    "crates/compiler/tests/integration/h2_7c_isolated_expando_augmentation.rs": "e0c63024744a4b3fe9e9697ef9cd02ca1a6e098afb1fa5c6d22920907206dce8",
+    "crates/compiler/tests/integration/h2_7c_isolated_inference.rs": "17ff9a8f9e4b7f2efb2d20d6efcc8e6e7faf62f163454f423746df6bce2ca2de",
+    "crates/compiler/tests/integration/h2_7c_isolated_parameters.rs": "68d47763e12b457eff9292f5cac3becec610bbb41a69d9c9bff64bbb0008d55a",
+    "crates/compiler/tests/integration/h2_7c_isolated_private_types.rs": "de859a7744b41d55f205a383aa82e41ce7802b081550159e5447cdefd09c6c7c",
+    "crates/compiler/tests/integration/h2_7c_strip_internal.rs": "1356a92b17cc5db3685ef5da88f28860f62495592f26cea2282b45d91c14ec4b",
+    "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": "a89cf18ebc3e86f16b39991c40bd54a53189bb64d43ab5fbaded7143bcdc58b4",
+    "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs": "fe190da333d2d4d0d0cb7df4098f067f5eda4f331841f5171166354ede56c9ef",
+    "crates/compiler/tests/integration/h2_8a_alias_conflict_display.rs": "e0ba0be569886612ef05908a5d013300d995cfc0d3c133a8b7276816f87e6527",
+    "crates/compiler/tests/integration/h2_8a_array_comment_publication.rs": "6ba9d8ef20f8ecd5bbdbb1bb02b503b3bc51055dae9824b45a72a1dd604f1a61",
+    "crates/compiler/tests/integration/h2_8a_binding_name_map_ranges.rs": "0d82d8478b7149f7c55019aff81fdb74f4f6250d924d5789723229a07085fc92",
+    "crates/compiler/tests/integration/h2_8a_cjs_default_reexport_names.rs": "cc6854fa182dfd5ebdc2302bbc8fb899883748d774fd6e16f02ca5eb1526b6a8",
+    "crates/compiler/tests/integration/h2_8a_class_dependency_order.rs": "54dedda8a1f0c840436a71ad72b97736afc1c0854cb7ee526ca17129874fa6ed",
+    "crates/compiler/tests/integration/h2_8a_class_field_alias_map_positions.rs": "a3b26f42503b655c7ce3af9b7a7fb23d0533c20e5b6ec1e1e43fe30e1e83ef9e",
+    "crates/compiler/tests/integration/h2_8a_class_field_initializer_comments.rs": "bebefd062e96bb14de8639adc0de4f540341340df90f890316fc65260a314d57",
+    "crates/compiler/tests/integration/h2_8a_class_header_token.rs": "a94ea404521979cbc8b3986970add41fc719ba7b1524e8dc498e86308143cdce",
+    "crates/compiler/tests/integration/h2_8a_class_helper_accessor_producers.rs": "d1ecfce5f1f9f0746a65200394da001d48a68ce2e8e5c78332424a6d1413d6b1",
+    "crates/compiler/tests/integration/h2_8a_class_optional_name.rs": "31aadd1cbe00f3ae7497614cd06de0ff23c963aaef478505dbdd67b75f153c50",
+    "crates/compiler/tests/integration/h2_8a_class_statement_layout.rs": "0d6a494307357c44104e052bea8eba499647fe1cc15d967a50daa258cb40a30a",
+    "crates/compiler/tests/integration/h2_8a_class_transform_flags.rs": "0bc241e457c5694a641eaf20577ddf6a9b36dd00010bd86e22df2edcf6d279b4",
+    "crates/compiler/tests/integration/h2_8a_commonjs_class_instance.rs": "0cc8a8048cdeb9e4904721fb15c63940482da23310a0102be4f7f8db6ba62a77",
+    "crates/compiler/tests/integration/h2_8a_commonjs_esmodule_marker.rs": "43e09105baf4e7534c6fbefe6084baa6c918002af1d57cee5090e54f0ff1fbbc",
+    "crates/compiler/tests/integration/h2_8a_const_modifier_erasure.rs": "ab13b86c1f5ecec930c02488163d1b9bad8b44aab906d7c817549e2633e6eeb1",
+    "crates/compiler/tests/integration/h2_8a_declaration_token_comments.rs": "31fd53b291beb83e52de4d1495b444fcd080cea59f24ee9deb833b7d23390f21",
+    "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs": "a988319d7cc6f5dc08aa77e9856e36f287f9e000bffaa8deb322d2dc9110deee",
+    "crates/compiler/tests/integration/h2_8a_decorator_super.rs": "207918840958a246a590d2a6f016b23601e857d6e04b2bc6e8a46a8077bf823a",
+    "crates/compiler/tests/integration/h2_8a_defineproperty_readonly.rs": "afd5b18d70e2fe3ad41ae5efed8148ecd6a0240aaa5e7744f88acf8692a5fbd0",
+    "crates/compiler/tests/integration/h2_8a_defineproperty_readonly_exports.rs": "f0939792ba728b540fb73734010ce636a6199d190896e9ec0bedea51cf4c3c59",
+    "crates/compiler/tests/integration/h2_8a_defineproperty_setter_annotations.rs": "c4df90b76ab5cdc4447811923f7d483133a805fa558aa2c61d8a2c90a93f92e2",
+    "crates/compiler/tests/integration/h2_8a_defineproperty_setter_names.rs": "1a7b8532d00a898d5d0fb3d07576924da98fd7f52d50fac14a45680fb67944ed",
+    "crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs": "a942b9b22190892f016f9a84611d26faa4261eae73e8b82d93adfefa7a74789b",
+    "crates/compiler/tests/integration/h2_8a_export_name_syntax.rs": "3da9e83984541eeb5d4869c0c64b39cd3f25abd47a8bf519166c45317587dbfa",
+    "crates/compiler/tests/integration/h2_8a_export_name_syntax_maps.rs": "5adc879c75b86ceafd2c9aad89a57e60de0e0e620af6bb9b472984dbcaaa5559",
+    "crates/compiler/tests/integration/h2_8a_export_specifier_names.rs": "a4a1b52e814dcc52e72cba7ceef434eede3f06693a043ebfd8b0941d38f820fd",
+    "crates/compiler/tests/integration/h2_8a_export_star_declaration_producer.rs": "d36cc23a4c75c2d93254f981b509e7c1b24c085aab2016bd240b4639cc5f7200",
+    "crates/compiler/tests/integration/h2_8a_hoisted_declaration_export_ranges.rs": "dcd50df5dc6dc4f0e0d92848dfb01e0519a55e5c99ac131f2b456dfa5626a1f9",
+    "crates/compiler/tests/integration/h2_8a_import_helpers.rs": "b39519716babab821cb6b3d3e11e2f98fc5ef7c3efa1e6cc5d67dc9fa48eceaa",
+    "crates/compiler/tests/integration/h2_8a_import_publication_reference.rs": "bf1dd5a3c159338e6d1f903fcede3957cf006a2e371c83a33082ca3f77a9689a",
+    "crates/compiler/tests/integration/h2_8a_javascript_imports.rs": "4af45e5260817ccc5b2c2650627071478a7491efd064018a4b93188c77812ae1",
+    "crates/compiler/tests/integration/h2_8a_jsdoc_block_scope_container.rs": "6847d1a307738c31202e5932a15e6968cbe606c6a6a6ac08a83ac4dcc71b4e77",
+    "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs": "2c035245d37a82d01b4e3ff15f0f5a05740b11d7b256be02a95c7d1fdd0a24eb",
+    "crates/compiler/tests/integration/h2_8a_jsdoc_parentheses_guard.rs": "7d1f4ca7f7b1c1559757e6086518486d28e27820bfdde3e9ba598a544a7b29e3",
+    "crates/compiler/tests/integration/h2_8a_local_aliases.rs": "c532fe525bf6f237f94679411d36e0d59345df68279a3c53c56a9bace31ea7f0",
+    "crates/compiler/tests/integration/h2_8a_meta_property_token_maps.rs": "3a641ca42f38e3a843607677f51aa30aba1fa274eb9f828796ddffe4e58e5408",
+    "crates/compiler/tests/integration/h2_8a_module_transformer_selection.rs": "3266ac890d11a97337904f45bf1d7d5c1800e4f2f643ff38259f7c03f40c0325",
+    "crates/compiler/tests/integration/h2_8a_object_property_owners.rs": "7886c9ae7b98f9ad31ed150d59ba6888a786a41028937879103b084d53584b4a",
+    "crates/compiler/tests/integration/h2_8a_one_sided_class_comments.rs": "1eb67e79248129018ef74d9ac3dd69d90200f19632210a43adc275a18c535ef8",
+    "crates/compiler/tests/integration/h2_8a_output_directories.rs": "958993a92bc2a1f4b224a8232b2c5a876f8cd1e941f33ce49fb12a602afd8f81",
+    "crates/compiler/tests/integration/h2_8a_output_filesystem.rs": "396d2e64bfbc8839ba036cedcefbb8a645302e95035da53391c96b92610c35e3",
+    "crates/compiler/tests/integration/h2_8a_output_roots.rs": "af1793c4b8a564f2162d6bb064310db7fa6a39fc16ba447ce002cbef776420c4",
+    "crates/compiler/tests/integration/h2_8a_package_output_inputs.rs": "28600d08e33c87ea752abff9b13d6c7c8ebd1cfa3888c04ee45aa9081d6fb05d",
+    "crates/compiler/tests/integration/h2_8a_promoted_class_export_maps.rs": "e9e25e62c93b89be7dc141885e342bfd6ac69422b9ef879138f52ede5fa677d3",
+    "crates/compiler/tests/integration/h2_8a_repeated_target_aliases.rs": "86a74ca0aec409ea43132fee809aef7213e47f5d07c45fec46f8a1ff84fc29bf",
+    "crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs": "081ded62e90f0bfa18a04ae4d88675e1758d85c64bc456e078187bf38e5e146d",
+    "crates/compiler/tests/integration/h2_8a_static_initializer_map_ranges.rs": "bee007cbc47b29e2cbbdc3416bcc1703ebcd48e63e892b258cad7ae000a46e72",
+    "crates/compiler/tests/integration/h2_8a_synthetic_default_alias.rs": "506f9424a4ebdefe59e8b52c303254b932818c4234c9439a1218a405f665e0fc",
+    "crates/compiler/tests/integration/h2_8a_synthetic_namespace_export_modifiers.rs": "d3cdebd4919c19f56faba78cd36bbc89e1f087dd75b2bf48ec70506f44cf5078",
+    "crates/compiler/tests/integration/h2_8a_system_variable_publication.rs": "643840deed77e4e836e289292a16fd240fdc83d398e4fe98fb6bcbcc6e1f2056",
+    "crates/compiler/tests/integration/h2_8a_token_comment_phases.rs": "2ad47062d53758aa11bb81533b4f86eeae850391baf4f788032c664643f9c8fc",
+    "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81",
+    "crates/compiler/tests/integration/h2_8b_config_commands.rs": "e1bcd86886928d16b314c95280dfd44aa094b46759fc5addf6e0de9eeb4c9099",
+    "crates/compiler/tests/integration/h2_8b_config_conversion_commands.rs": "7a33d74a28f658090d5c260e519865bec14f63a3192e0899ba8fb0a81aa60071",
+    "crates/compiler/tests/integration/h2_8b_config_diagnostic_commands.rs": "c357066bbe2d896aec6a309ab3ac5aa08cf2789490ef31e8822a333725b5c73d",
+    "crates/compiler/tests/integration/h2_8b_config_diagnostic_routing.rs": "22176dd155336bc90491e8c231a0d843c7d24785dfda5ccbbdade92a4c41d2c9",
+    "crates/compiler/tests/integration/h2_8b_config_discovery_commands.rs": "6b93bf0dac87e21964d8e7391de73d83146076ec125bd6acc7c8c5255b94339e",
+    "crates/compiler/tests/integration/h2_8b_config_entity_commands.rs": "8c89fdf59018e6a147c4cda7a9855d4c7f770e4e2f7d1da2ed995f40633ae23b",
+    "crates/compiler/tests/integration/h2_8b_config_extension_commands.rs": "9452a7d1e33a5b3ba27a0e58e9922fa95d2b57181e1f5f9bf45604c7cbfa44bf",
+    "crates/compiler/tests/integration/h2_8b_config_root_commands.rs": "57adc116cb2c43dcb760dc70c5ef49cd766292bf08795d2b5971447466949c38",
+    "crates/compiler/tests/integration/h2_8b_config_source_commands.rs": "60aea10a9dfc2be93f970b2cbf7a9219a0e465146e8359824220d25dfd18fc63",
+    "crates/compiler/tests/integration/h2_8b_config_source_span_commands.rs": "f40a363e31df448f84f5e3f119d2c721ec46781711fb11d22f75a5195da604df",
+    "crates/compiler/tests/integration/h2_8b_library_replacement.rs": "595b672a68e3497448de98e876ead99afebcfd0d9a4b0c6e5198ea352aff50e1",
+    "crates/compiler/tests/integration/library_loader_session_contract.rs": "ab3ed200845cd1a9f241c9b76304458855fedce28ae027917c7e804a8743660e",
+    "crates/compiler/tests/integration/no_resolve_session_contract.rs": "10765664e781e1c1ded2812b1dd7449db590aba5a5ed24796a9327c220b60b4c",
+    "crates/compiler/tests/integration/original_path_session_contract.rs": "07840587b223d90d3ee597cf40c0318a2485dfdf53ecc21c5d16a9d3b5a5c1e0",
+    "crates/compiler/tests/integration/preserve_symlinks_session_contract.rs": "2b4ce884fcbe261e24293a7c69b89294027acec8cbca57194e4add1de63e2ced",
+    "crates/compiler/tests/integration/program_session_contract.rs": "0a162ebf4ec820b3d03f95d75408d5f0c8e0db5e05bd1754ee13185acc845c85",
+    "crates/compiler/tests/integration/source_map_band_probe.rs": "95fcc2a747c4c62eb99d7e365b2c98498f5a74c9e4f29b2250fcc5fda02483e9",
+    "crates/compiler/tests/integration/source_map_emit_witness_contract.rs": "46c4c232b012cd89c2719c486b255c980c2049b3ffa24e6e8a742efdeff1e866",
+    "crates/compiler/tests/integration/source_map_recording_witness_contract.rs": "4b84f4b124713606068c6c2d91c1333a3d531640527cb2fab2fe3042b0263d91",
+    "crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs": "d4a6ae5465dee0f7cde0a2d74fe55708a1a6de0bafbd3a63b0a1a9681a5b1237",
+    "crates/compiler/tests/support/witness_libraries.rs": "946901c1cd6af4e1e46ad4ba82d2aece80952ffe3d721e39f76a1ac0f8ea131d",
+    "crates/compiler/tests/transpile_routes_contract.rs": "e9e419813ee987bf9486ab266337cd80059d12865dafe42b0e97a410061c14e1",
+    "crates/conformance/Cargo.toml": "5214fedd2e02a5d2a558d5f469e0b715b49962cb293e662d4972942f4f35f5d6",
+    "crates/diagnostics/Cargo.toml": "5907c1713cc4d1e4a542ed426c167cf67b3d48d6748962db8862fcc23b07afe5",
+    "crates/emitter/Cargo.toml": "652ccbfbe16502c9addcc130bd1fcc67e1ddca2f8d6e1d0afba109aa7a2c54f2",
+    "crates/emitter/tests/class_header_token_metadata_contract.rs": "a25d5d3809710752ae67f0c2e335de1a942aa0f9f33f99a46584cc85d2a5e308",
+    "crates/emitter/tests/comma_argument_factory_contract.rs": "ea551c09f952ebb9ea401cf0d4f0c58c7e8eea30c78f97865d8930443d409b52",
+    "crates/emitter/tests/comma_list_printer_contract.rs": "84a63ddffbb71dc364a9aa4bfc7be5b2ff92609c422183e153da28841ecdfb98",
+    "crates/emitter/tests/compact_body_comments_contract.rs": "d9f78a4b719f0a2f5206131a28aec6a72405e4641fad9185720fc7890c312a7e",
+    "crates/emitter/tests/contracts.rs": "4c7fca5794ab7f097de394ca9291cf74fa2ecd997dbabb2d53954c929cb777e3",
+    "crates/emitter/tests/decorator_super_direct_contract.rs": "740db0a1f50bcc15b0b621d4bcded732eb2c47280e34ad7fe81bb86d0920e6d3",
+    "crates/emitter/tests/ellipsis_comment_metadata_contract.rs": "48b142fdeb05f3769fd87f875dea2fa8eae91f2fbad11e6b30fa6a9d49e053dc",
+    "crates/emitter/tests/emit_pipeline_phases_contract.rs": "e10b584f9e857a712ad6ae182b9b0aa25653f0bd72ab631f0248cbc0004f4aad",
+    "crates/emitter/tests/import_type_attributes_contract.rs": "76306714b8d4276c1a8d04874cd06055b8a281a15365a6c42b005fde4a29f614",
+    "crates/emitter/tests/integration/active_transform_contract.rs": "f5631eb16f55d8b4167ff37f1e9a54637ffcf50e4998ab69314556e998bd975e",
+    "crates/emitter/tests/integration/artifact_sink_contract.rs": "781a88b561ffd8ab79204938bb1e3cc81a298c42d6e0b126bdfd8e76178884f8",
+    "crates/emitter/tests/integration/comment_scope_witness_contract.rs": "96eb810782afedcdb0ee849ed93a80b9a46db9f5a2fa123bc06d187d09c0e544",
+    "crates/emitter/tests/integration/declaration_printer_reprint_contract.rs": "4f821d79015a3b0c12b1d915afad72ebeda59cf1ecd5ff79ed59cf805cf53c34",
+    "crates/emitter/tests/integration/dependency_direction_contract.rs": "8ab37dfb3938b8be7efcb2203efaba0e0411e1e1950f9332589e3bd8253517e7",
+    "crates/emitter/tests/integration/factory_transform_contract.rs": "e77cd33673568783b677da025891dc9f1fb4b964a7cf718532d645229cb5fc88",
+    "crates/emitter/tests/integration/output_plan_contract.rs": "1e5a9a96d1cdd808eb2e20e1137e44318c39db610524c943dca8d55eeb53a12f",
+    "crates/emitter/tests/integration/printer_foundation_contract.rs": "6706f2dd7759d7fb88f5090082442c7de2d956531523465bdf028479cefd49a8",
+    "crates/emitter/tests/integration/printer_oracle_contract.rs": "e17bcbdc03d3be5b0d787fec4d721820aafbce0528aa8f4b9a9da01c45e6bc5e",
+    "crates/emitter/tests/integration/token_cursor_contract.rs": "2ebf7c0f8f87aad6c67dd5ab75987e7a2ea8bd04d014e502695766e226fa90b2",
+    "crates/emitter/tests/integration/tsx_type_argument_transform_contract.rs": "bf6bdedc07360f7042903b1fdc0a27d0efd037cf7c97896b854ac270f9489202",
+    "crates/emitter/tests/integration/writer_position_contract.rs": "cabbf95b98915988589754ad79a0f4ea32db590d019b7eda85670bb422750b7b",
+    "crates/emitter/tests/list_comment_flags_contract.rs": "8712a3eae4782e0379903a5011e514c0e89b2f59948009064b95929ac6dbbea7",
+    "crates/emitter/tests/list_format_flags_contract.rs": "bedca7631c067e54d5e4101c6185478433aa9869c71fbd11437e52eb0ce3f9d4",
+    "crates/emitter/tests/literal_parent_provenance_contract.rs": "bfa6f1ec3b71a0cc4b67b25214ce688e6ac33ea389c61ce0600f2b2642751d29",
+    "crates/emitter/tests/literal_value_provenance_contract.rs": "3dd271dc955af39a25a6fe113b5dcbd0e9146568d42d542df887ccd2d0bf8022",
+    "crates/emitter/tests/mapped_type_members_contract.rs": "afd5ccdded3c33cd9a9e9d0735e5eb99fa92eba1919f43281860b2bd27b96069",
+    "crates/emitter/tests/printer_failure_contract.rs": "843ea435be98f99005a53cbb02bb7c7c592331396906f42f3055164eb778004e",
+    "crates/emitter/tests/source_comment_topology_contract.rs": "0d82d461e9c59b92799b95573f7ee53089d4af7b97c80442003b926859f5d53c",
+    "crates/emitter/tests/string_literal_identifier_source_contract.rs": "c7dd114565986dcb2509840ec51042171a81d0b1f4989755721a734b373cddec",
+    "crates/emitter/tests/token_comment_phase_metadata_contract.rs": "66e5633861ff2354cecbfe34b941f211d16a76f190f2c42f0e4f8faf86735722",
+    "crates/emitter/tests/utf16_literal_escaping_contract.rs": "0672e5a6f83d37b200e179b8f67f96f6acc3e977c8d80469915a952fb8a2bb69",
+    "crates/emitter/tests/utf16_writer_contract.rs": "78999b8facf4b1f20d5545f99cd0a19ed0dbb59388fca80c033ef0224b7912ee",
+    "crates/fuzz/Cargo.toml": "6234c0e2d4194ef8a717eaf64dbe7a5ef604bedc1de2e373fe093f74684b789e",
+    "crates/fuzz/tests/contracts.rs": "a57030d1f27dd86a97f842bdfc83b395631db0210efb9eeabbe54fde139119fb",
+    "crates/fuzz/tests/integration/executor_e2e.rs": "8a23447feec496868b773fa2c21206a3cf25f7fa284717726a2d5c026c689f41",
+    "crates/fuzz/tests/integration/foundation_contract.rs": "1d71b1f91bcb49a927eddced31205ea32a1a8c2753f609041524012db584f2b3",
+    "crates/fuzz/tests/integration/replay_contract.rs": "64e98b67db7919a64d5c0e316729a2296e1f42afbd95d42c7be650125b2c960f",
+    "crates/fuzz/tests/integration/vector_production_contract.rs": "35e45a43e500b8e06a6a07ec27b996df2bc083a8be9bce380510c54662f1e69e",
+    "crates/harness/Cargo.toml": "ac6a671a3885d7966dc7e7ff709460484558930608bb80529e3e204ad2b3c881",
+    "crates/harness/tests/contracts.rs": "4104e16f1293558a9396a811d85a31e333f43699b13a6dcac9a4a9d755754d37",
+    "crates/harness/tests/integration/h1_compiler_profile_classification.rs": "de23f03dbca4d9017df8834a90c00290492ab8226ab99812822da11ab515dcac",
+    "crates/harness/tests/integration/h1_conformance_expansion.rs": "cf23a310f68ec378f60a83bee73784dde8e033ed69176f3c1be8b316e51903f0",
+    "crates/harness/tests/integration/h1_conformance_profile_classification.rs": "1a3049ff118a46971e96c9e1e25af3d046fefd40aaf2b83a0f97edee4aa97933",
+    "crates/harness/tests/integration/h1_fourslash_whole_program_equivalence.rs": "4257d7ded97717078a20f2e98a9c05b0e9a3eff34e70eb60570c660bb0585400",
+    "crates/harness/tests/integration/h1_noemit_performance_contract.rs": "490a2bd3a750fd4e0841d165d4c3f686dea3b20058c77f16affacb7e8e8da355",
+    "crates/harness/tests/integration/h1_owner_inventory_dispositions.rs": "ded2eecde4ac72f619ccbe6cfc76f1a3f3594ee8eef75ac1f1186c143c06992b",
+    "crates/harness/tests/integration/h1_project_profile_classification.rs": "b52f223c480ac8a930d95172b5476a18ddf741355eb5ccbec4ae196c6b25c97b",
+    "crates/harness/tests/integration/h2_1a_profile.rs": "c071f9a95784c9eebe1af065317792897f497065bd1f215276c8e99725dc03e3",
+    "crates/harness/tests/integration/h2_1b_profile.rs": "6863b2e3b102f9955305e4f2dc0c17ecaa3f7f3b8c53a5e8da1f8eb0f3c5c867",
+    "crates/harness/tests/integration/h2_1c_profile.rs": "ef3b95051efe2193a17842e8780bcc2677dfe904250326ecf14975c3655fd39b",
+    "crates/harness/tests/integration/h2_1d_profile.rs": "cad3e5669a124e8d7e945c972f751aeb9e27df933e28b9e4c7d65e0d4b2f7eea",
+    "crates/harness/tests/integration/h2_1e_profile.rs": "286cfdacd29d1211811a15cc288367a8425d352f7e9c0563ad20dc4c58b1b47c",
+    "crates/harness/tests/integration/h2_2a_profile.rs": "874c74d9a86b3ee11ecdbebdda23098c3c2890a856553c68e4ea1728e7f1a1a6",
+    "crates/harness/tests/integration/h2_2b_profile.rs": "3b0a7a4f63f29053c459232efc2d459526ef1760685d3f055c7bbfb607475186",
+    "crates/harness/tests/integration/h2_2c_profile.rs": "e1dc9ca3819ffb5a9b4d83e58bfd93eb8cbeca775fcd6340c1a5bc494347a21d",
+    "crates/harness/tests/integration/h2_2d_profile.rs": "25abfe2d97803cf3abec42dca533901f1387824323389504e495a2f1c14de7ec",
+    "crates/harness/tests/integration/h2_3a_profile.rs": "ba3c39363a185a8c6491563514fe505541c7246edc73f44cad3f7c036a72113f",
+    "crates/harness/tests/integration/h2_3b_profile.rs": "92c1b74eace6573fcb3cbb54e3b68fb8bbf318c2eddeccd9946d30710622e0b3",
+    "crates/harness/tests/integration/h2_3c_profile.rs": "9f07521785c3ee95573e742fa3eed0721549b85f13cf6c1853cbd6dbc5dae0ba",
+    "crates/harness/tests/integration/h2_5h_project_emit.rs": "ecdf101b883e3a2e7861ebfd4cb1be7bd82f03db20d071cd5be2ee94708bd415",
+    "crates/harness/tests/integration/h2_baseline.rs": "c4b7035610c9c66ef8df38a9655f77e8422c24c9146fcb1ccfc617bd6cdf4c1a",
+    "crates/harness/tests/integration/h2_transition.rs": "f01da67e563a03aaadb651a53c303b9ff24caac9e12f16e9eb32116bfc03321a",
+    "crates/harness/tests/integration/module_suffixes_oracle_contract.rs": "c756fafc48b9111475bf510b7a94acd2689c3558efbb76e97a69f83f2ad965d7",
+    "crates/harness/tests/integration/support/pins.rs": "91d2c7b1ce4b36e59d95c749ef1803fedab549ec8b650515d5da81d2b4787567",
+    "crates/harness/tests/integration/transpile_suite_inventory.rs": "8325b896affb3954a01d1bd80d666cc731ffa13dab222b06a28ca1dd5923204f",
+    "crates/harness/tests/integration/upstream_execution_plan.rs": "6db6323def2d8b62c764826631431daed201a9e9842b0965ea7fb7796d6db337",
+    "crates/harness/tests/integration/upstream_suite_corpus.rs": "92bf1e9f8222c8a339aa8221c071525b51a8e0d551c14921b556268336b3a62c",
+    "crates/harness/tests/integration/upstream_suite_expansion.rs": "ac8e7065bbee5e73f3df41f3920968da1b7b5cff8a39f338af4912e14781efed",
+    "crates/host/Cargo.toml": "ff78bb3e43af43aad4253b13239636424933bd1c1664add6672649515f066639",
+    "crates/host/tests/compiler_host_contract.rs": "270fa24b7d0efe9ab8c66f349d38123cc37f67934abff526c07850a0b845a757",
+    "crates/host/tests/filesystem_host_contract.rs": "423f46e4f381273efdd06b7d66bb086de58d0acfb4cb44d8628ac74378eab1cb",
+    "crates/host/tests/support/scalar_path.rs": "4376413a857b9481ef38e255777e9e304a9621fa13f9f8a1ee3d098fe75c3d6c",
+    "crates/oracle/Cargo.toml": "830eb4e735577ecd335b72b7f9ef08ded26402ab5cb8e68cd723586c26ea9ee4",
+    "crates/program/Cargo.toml": "a9ae732c5699ea06d15fcd1301db253a77ac971f621faa03f0306b1b925c1a20",
+    "crates/program/tests/contracts.rs": "0e350a59da45246cc367dffa5873f1bdc36dbb86f517b17c25008eede8d60d81",
+    "crates/program/tests/h2_7d_bundle_source_facts.rs": "74b9681167f015f63f8df225acb51ac8f3baae08fb79e200ccac8deb5fc941ec",
+    "crates/program/tests/host_platform_smoke_contract.rs": "8d6bd73a109f02ffba6cc5533acfd82d3c7423cfed0f49d9b77f28e9bc94cced",
+    "crates/program/tests/integration/automatic_type_directive_loader_contract.rs": "4da2b5624856dcb612773b5cd47212240df1e52b0df4ca8e474503862cbe1ed8",
+    "crates/program/tests/integration/config_diagnostics_oracle_contract.rs": "832714bc54bb48ece883adb62d53310ca7d05dd458fd5570b471ec0002f32fd4",
+    "crates/program/tests/integration/config_keyword_recovery_contract.rs": "8f117188c7d8398282879155e1d73321813e56c1ad7ab7f6481d110f4dde9de2",
+    "crates/program/tests/integration/config_option_bag_scaling_contract.rs": "a0e920dffb5bf7e292fa0d3fe16b5a5f17e26a994a5a149a44f555b83d7c0021",
+    "crates/program/tests/integration/config_option_catalog_contract.rs": "e7cd3fbe0d81537b570492e10f37a882a5a58b5382597b04a55bc5f1d824dc95",
+    "crates/program/tests/integration/config_paths_program_options_contract.rs": "b4f82ed5cc24ebddf01a8a41178d97174b4c5ffab7f35ceeb2c4200b4665e75d",
+    "crates/program/tests/integration/config_pattern_root_contract.rs": "c85ebb49bbe0ea577c662df88e2acb533e6fa032a4f516201c0302aa2f18207d",
+    "crates/program/tests/integration/config_program_loader_contract.rs": "62e5f35129de3ade6fed852667f979b14d539b08f066e0c234e67bf73ec390e0",
+    "crates/program/tests/integration/config_root_plan_contract.rs": "e5837bca6e9ef78a6d51d357e6f1193da7d6e02093d3df0bd6e4b402c58c5283",
+    "crates/program/tests/integration/h2_8b_config_diagnostics.rs": "214ae238dadde978efe8228de019522cf6a794a01a0a6a18ea9ebc62a7c9758f",
+    "crates/program/tests/integration/h2_8b_config_discovery.rs": "a48cd8f3e52b6f7b8bb4f99bf1110daf7e8f7528c942cc7e1374ed45189c2f07",
+    "crates/program/tests/integration/h2_8b_config_entity_names.rs": "dc4e08df36744e86a841cb9d79775c5f9d3b3366bdf7938afe086e9f798993fb",
+    "crates/program/tests/integration/h2_8b_config_extends.rs": "71bf5b8662eeacaa27f58ee1c976ec7cc8e8359b234e556c15aaa33ed77beafd",
+    "crates/program/tests/integration/h2_8b_config_reuse.rs": "8b9b1ccb15532599793660fc3c8dcde5592d57c328504d957676729cf7f4d496",
+    "crates/program/tests/integration/h2_8b_config_root_boundaries.rs": "35e70eee41474ae967d5da6c79c1b4b63fb9a223e2062014224a7209ee7f01c8",
+    "crates/program/tests/integration/h2_8b_config_root_options.rs": "b7dd2da54a531b4f3a4ad9bfde27ed24854c35826bca11517e23807f9bf98f38",
+    "crates/program/tests/integration/host_text_decode_contract.rs": "b90cc59f7d561beea51b773d5098548660b4277664e35b1ac03ffffaa125b534",
+    "crates/program/tests/integration/library_program_loader_contract.rs": "f8fa708cbf29a721476c46f41fe50acb44ed6f41d077496bc23bfbeef867ac67",
+    "crates/program/tests/integration/module_request_contract.rs": "f8f7583b69e9a8f27e3e3f3660ec93407613c3c519de2a4bfdf657fc92066018",
+    "crates/program/tests/integration/module_resolution_contract.rs": "5389171242950dd09b89b99ffc6e1ca4504a808bd048edf00322f95ec2057381",
+    "crates/program/tests/integration/module_suffixes_arbitrary_extension_contract.rs": "bbec533d9d62530900fb7aaa4fce358ee9fbcb8be1d9cc5c9238a543c42d9870",
+    "crates/program/tests/integration/module_suffixes_contract.rs": "731272d8a947414b08dca13fd671c12b3641b8e329788a7c141d36efaea94a6f",
+    "crates/program/tests/integration/no_lib_program_loader_contract.rs": "ed1169348b3350d752c8485f7e9db83bbfe5d96892deb2265b5db25567b7b9af",
+    "crates/program/tests/integration/path_identity_contract.rs": "3994b6147bd92ca14ee2c39f37763c8059aff4eb2260114904cc7625d83dc02a",
+    "crates/program/tests/integration/prepared_program_contract.rs": "0a08bf3fdc97af6d6af6613876116d8214dcdab729949752afa56b346277ef47",
+    "crates/program/tests/integration/typescript_library_catalog_contract.rs": "721e0c79acbbf3183ffbdd928fa903f3b9082113ef524377a0fde2d92e846693",
+    "crates/program/tests/resolution_cache_contract.rs": "b3b51dc01bbb61af89d00673b67cba25e91ba39384edf926a52582fb51171f18",
+    "crates/program/tests/support/scalar_json.rs": "d13f99e99dfa70675f7ac5df56d06614f47b7aed24b34742a18517cf4cf42902",
+    "crates/program/tests/utf16_config_paths.rs": "ecc8ae04ca07289d9e04ef721315357b6d74e4f5bd0a62016b8ec1ffec52fbe7",
+    "crates/program/tests/utf16_module_paths.rs": "f7a96f0efa01e7a43618c267a8a515bb0761cffb371c29430b17a3c54d5d0339",
+    "crates/program/tests/utf16_raw_source_boundary.rs": "11a8dcdbff96c4d03d100ea7e5eb6edc117e8a41179e306942ad92808728ed53",
+    "crates/syntax/Cargo.toml": "9f4e553ac36db9dbff3c2f3607c53f3ac9eb22ecca83fc07053d17a42e02125d",
+    "crates/syntax/tests/entity_names.rs": "792984afa49eba386065990529c579eefe24d148c9d7cd01780c62ea389c6fd0",
+    "crates/syntax/tests/new_meta_property_name.rs": "5d38127d3e3ce7c3003ba14285b42cbee2bb02ab0908df798486b19f21ecb64f",
+    "crates/syntax/tests/owned_literal_values.rs": "a48020048580be2d3ffb5a0ff22af9e838bd5632f118feae73a1141e66bff23c",
+    "crates/syntax/tests/recovery_provenance.rs": "32f2ec4b618eb67afbf9423a5bfa158b41d737563729d350318a2e15bd971b06",
+    "crates/syntax/tests/scanner_escape_diagnostics.rs": "31d8b824dd31db7a2ce01cb9748b6dc788f105687a0f3f7c12f496255a92b070",
+    "crates/syntax/tests/template_escape_flags.rs": "b8c63d3b61b29dd54267a801c5411ff78a8f7ee371d7a08dd657f515451d8d17",
+    "crates/syntax/tests/template_flags.rs": "f73f92e36ec40b90aab194ae5f930a23baa920afc9b8a843d485dd56eb6e7acd",
+    "crates/types/Cargo.toml": "4cc58c4b25be29d91e09fe89f5a60752611af9c296ef946d507de961ef977653",
+    "crates/types/tests/compiler_option_number_contract.rs": "afc43a2718c230ca6d3a276f9302670df1a8ea8519f96483faba9b0cbf256448",
+    "crates/xtask/Cargo.toml": "b8315637758d655d75418e41ffc25698cfe23579cca39c0d3743dec8359a3d27",
+    "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
+    "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa",
+    "crates/xtask/src/bounded_pipeline.rs": "0c28a1734791196646b869db5d22b9c6f34da617a250bfc99e23997bd3c0e3db",
+    "crates/xtask/src/h1_emit_acceptance.rs": "cc0e8560874ef0a8439ac940d6efda538e01523893f567a5659be25a4f2a3814",
+    "crates/xtask/src/h2_1a_acceptance.rs": "c6681fe8fede0ec89f12930bd02f0db3eb3b68bbf0eecbe9858c97d4d0a27792",
+    "crates/xtask/src/h2_1b_acceptance.rs": "61a11ae53c60ab3d7f0cea0c17f530ce53995b032e69a55174751763aa269af8",
+    "crates/xtask/src/h2_1c_acceptance.rs": "eecb1cb2aaa174beedcdcdb16c4af7a4146a7afb230f117349bbd290f9a33d66",
+    "crates/xtask/src/h2_1d_acceptance.rs": "87419ab9e3343dcb5eb142ff2598f355203cf4e1f184ae80a7f0d9cd62f0005a",
+    "crates/xtask/src/h2_1e_acceptance.rs": "a286ba81cf20310b2b9d745129d68239bea217dded838ba723f1c41345da7c64",
+    "crates/xtask/src/h2_2a_acceptance.rs": "94f42e1d55748bfd598870400a7819b707cf135def2f8757b7b3cc682269eead",
+    "crates/xtask/src/h2_2b_acceptance.rs": "29a1cbdc148a2e4e3983cfa19f6b08fef89ca088b4921fcee2098b88d993ffe7",
+    "crates/xtask/src/h2_2c_acceptance.rs": "c7fb06b08d811489d126b36851fbc66eea2829a41451585befd1ed5fbf63353c",
+    "crates/xtask/src/h2_2d_acceptance.rs": "e3e0b8bb474946eeccac554f75df270ec43dfd1291cbc8397be949286dc07237",
+    "crates/xtask/src/h2_3a_acceptance.rs": "3b1a28dceae173d96a10c89070fbf96eba8140e07c68f92d12a7bc6df9eeef20",
+    "crates/xtask/src/h2_3b_acceptance.rs": "38b69175cd9ba7206fbf1c7b6fc99781edf09313b3e0889ba7f7b868b1c3c657",
+    "crates/xtask/src/h2_3c_acceptance.rs": "e5c97a5dd07cb68160204852295138bacac43e7603a0b21895c6fd169540a460",
+    "crates/xtask/src/h2_3d_acceptance.rs": "325ebd13b45303c9882e0a4e06585ce4f1d2efc863323c452002179571cf8f14",
+    "crates/xtask/src/h2_6c_de_promotions.rs": "8cc81afce400364c9d0d4eeec7ad6fe08fb772c5f2ed94f7910d27b54ee8d5d0",
+    "crates/xtask/src/h2_6c_output_promotions.rs": "378fd26d046e748e3a3bb462662bba03cee2c9a9065b02331ec3a549ac642556",
+    "crates/xtask/src/h2_6c_refusal_migrations.rs": "ca5670a55fbb7b079ebd2ff9a1e937234f14657a43557d7a6710eafca5c04782",
+    "crates/xtask/src/h2_7c_acceptance.rs": "44afa0ac864a435e73780855a3bb48965c958c972c0da9a27e58705cb0308337",
+    "crates/xtask/src/h2_7de_acceptance.rs": "aac2e55e99b57e93883b0f9efac20b04dca9290621a0f91b26365845efcec61c",
+    "scripts/witness.py": "666395277e8ca1b21a6fafd097e6bba3b79cf2bd96096282c069a653c51ccb3a"
+  }
+}

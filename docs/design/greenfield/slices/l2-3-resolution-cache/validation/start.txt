@@ -1,0 +1,41 @@
+L2.3 resolution cache draft — start record
+date: 2026-09-16T03:41:20Z
+worktree: /Users/hiramatsu/dev/tsc-rs-resolution-cache
+branch: draft/l2-3-resolution-cache
+HEAD: d9cfb664ad89898b0b5601d85e7e2abf70e32b18
+origin/main at start: d9cfb664ad89898b0b5601d85e7e2abf70e32b18
+SUPER PR #523 head f6444330025da144ce77f140990e898b4d7b2be6 is ancestor: yes
+CI PR #524 head bb2d51c89 is ancestor: yes
+git status --short: (empty)
+rustc: rustc 1.93.0 (254b59607 2026-01-19)
+cargo: cargo 1.93.0 (083ac5135 2025-12-15)
+node: v25.2.1
+vendor/typescript-6.0.3/lib/_tsc.js sha256: 1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3
+vendor/typescript-6.0.3/lib/typescript.js sha256: 569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39
+Go reference: microsoft/TypeScript 1f70213d4922b434345f639b441681e470c7cfc1 at ../tsc-rs/target/typescript7/upstream (HEAD verified, status clean)
+go tsc/internal/project/snapshot.go sha256: 12a44a37174043b2dae04c52026e112e724573f7d92caa1325d0f19a93ee917c
+go tsc/internal/project/snapshotfs.go sha256: 8b22171c319253b47724301d2d5898086988396849c91c6d3b51e8725e9d9894
+go tsc/internal/project/extendedconfigcache.go sha256: 49015aaf61da2ea734c3290d35710067e394900b7a9b0f4d4d016e4d544646fe
+go tsc/internal/project/refcountcache.go sha256: 33fe24698c64806b5d7cf78b23dbfb3a6531742fcf44def9b4bb1cb109318d1f
+go tsc/internal/project/ownercache.go sha256: 981b450da65bee3ed34d7c66b6119f2700c20dc63d2cb1b2d162200e58a4630d
+go tsc/internal/project/filechange.go sha256: 13882c582ddedaad4ab0a888758995e6fef7ab1a6d1c3e37ffa4aafc33c269be
+go tsc/internal/project/compilerhost.go sha256: 8852cebc93e890edc3921db622471db253a1c0f63394ea49c033d55f635393ed
+go tsc/internal/project/parsecache.go sha256: e8232d5a710d1d747e8d1c13fb5012b354dd0c42d81c66b317b82796ad5e7013
+go tsc/internal/project/programcounter.go sha256: 1539c4f797bc8c56804ca3c62cb136d51b14abbcd3e07455d580a53af59dcaa1
+go tsc/internal/project/project.go sha256: abeaf316af08d2d20f0591da8128cf2c8adc8e7f8c7934ce4381ec555f4e1481
+go tsc/internal/project/projectcollectionbuilder.go sha256: 253ff83bbc375b0003babc2cdda1fee80a2b475b8cf5762814fd0c46a1d10230
+go tsc/internal/project/configfileregistrybuilder.go sha256: d2dd3caa195472efc018b79fca0b554c4ae3c6bf7fe381c89f62c3129eea34ca
+go tsc/internal/module/cache.go sha256: 86949a7d67c92c12b6420c3ff45b330ddfa30be311ccf742e5752a32ed65029a
+go tsc/internal/module/resolver.go sha256: 2327bd2509887f401591035516b643411a8a4a2ed046c928c521fcaa791cf629
+go tsc/internal/compiler/program.go sha256: e6d10b986ab5db9759373a60f465ba6a3c833a8b2c8e7dc58dd9d744f14b30a0
+go tsc/internal/packagejson/cache.go sha256: 791379a5393c89351db510879e14d296a9ec37700268aabf6fff8dee2bc45172
+rust inputs at HEAD:
+  crates/program/src/module_resolution.rs sha256: 1b4fbe565a596a15b3fa739e3bbd1fb018bbb8196aafe25060f99443c72ffa54
+  crates/program/src/resolution.rs sha256: 3b2ad8bd9fd740dc265b27705111df2e6475b130c6ac11d2d9ec849952aa4552
+  crates/program/src/loader.rs sha256: 5a2c87a1c5968954feb43b50a2777dee710e61c29dc8bb67f39c097224a99418
+  crates/program/src/config.rs sha256: bbeb4fd2c0264a94973bf07f85ea94b1c9941a42c6d2bc85656156eec0de2709
+  crates/program/src/library.rs sha256: 8315ec4aa0ab762196ce49ff8be001e65b58243caab3dd6dc34885221a646fec
+  crates/program/src/prepared.rs sha256: 8d06da73848e491dfbd7323d1cd7b0740a17e4038cf13a3cec3daeb551eb82ee
+  crates/host/src/lib.rs sha256: de92a8e92142d666bb6b334d92f213b6f66ef2984a67d6d63548a8b72ff0e7ad
+  crates/host/src/memory.rs sha256: f977be6bb207a37715b01387f05abd58596301035f9d141ca6253d16fb442a0f
+  crates/checker/src/program.rs sha256: e079db6a0d8d85d9cb56d5effa29e1f06d8c67c67f867304e34797e27e4f0dc3

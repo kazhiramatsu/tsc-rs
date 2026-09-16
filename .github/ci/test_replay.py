@@ -120,6 +120,42 @@ class SelectionTests(unittest.TestCase):
         self.assertIn("actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020", workflow)
         self.assertIn("node-version-file: .node-version", workflow)
 
+    def test_resolution_cache_owns_only_dedicated_inputs(self):
+        for path in witness.RESOLUTION_INPUTS:
+            self.assertTrue((ROOT / path).is_file(), path)
+            plan = replay.selection([path])
+            self.assertEqual(plan["acceptance"], [])
+            self.assertEqual(plan["witnesses"], ["resolution-cache"])
+            self.assertEqual(replay.matrices(plan)["witnesses"], {
+                "include": [{"group": "controls", "suites": ["resolution-cache"]}],
+            })
+        for path in ("crates/program/src/resolution_cache.rs", "crates/program/src/loader.rs"):
+            self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
+        self.assertEqual(len(witness.case_ids("resolution-cache")), 26)
+        with self.assertRaises(ValueError):
+            witness.invocation("resolution-cache", ["module/"])
+        workflow = (ROOT / ".github/workflows/witness.yml").read_text()
+        self.assertIn("contains(matrix.suites, 'resolution-cache')", workflow)
+
+    def test_resolution_cache_runner_checks_both_targets_and_observer(self):
+        command, env = witness.invocation("resolution-cache", [], {})
+        self.assertIn("--lib", command)
+        self.assertIn("resolution_cache_contract", command)
+        good = "\n".join(f"test result: ok. {n} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;" for n in (56, 11))
+        for output in (good, good.split("\n")[0], good.replace("11 passed", "0 passed"),
+                       good.replace("0 ignored", "1 ignored", 1), good.replace("0 filtered", "1 filtered", 1)):
+            with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output)) as run:
+                if output == good:
+                    witness.run_resolution_cache(command, env)
+                    self.assertEqual(run.call_args_list[0].args[0], witness.RESOLUTION_OBSERVER)
+                else:
+                    with self.assertRaises(ValueError):
+                        witness.run_resolution_cache(command, env)
+        with patch.object(witness.subprocess, "run", side_effect=subprocess.CalledProcessError(1, "observer")) as run:
+            with self.assertRaises(subprocess.CalledProcessError):
+                witness.run_resolution_cache(command, env)
+            self.assertEqual(run.call_count, 1)
+
     def test_witness_groups_cover_every_suite_once(self):
         suites = [suite for group in replay.WITNESS_GROUPS.values() for suite in group]
         self.assertCountEqual(suites, witness.SUITES)
@@ -206,7 +242,7 @@ class WitnessTests(unittest.TestCase):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
             "followup3": 48, "retained": 530, "direct": 32, "printer": 142, "bundle-sinks": 10,
-            "declaration-map-cli": 8, "transpile-routes": 301,
+            "declaration-map-cli": 8, "transpile-routes": 301, "resolution-cache": 26,
             "compact-body-comments": 240, "parameter-temporaries": 68,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,

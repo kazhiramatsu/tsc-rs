@@ -1,0 +1,104 @@
+{
+  "generations": 2000,
+  "requests_per_generation": 3,
+  "limits": {
+    "max_entries": 8,
+    "max_bytes": 65536,
+    "max_live_generations": 6,
+    "max_eviction_history": 32
+  },
+  "max_eviction_history_len": 32,
+  "max_eviction_history_bytes": 25952,
+  "max_live_generation_records": 6,
+  "evict_all_calls": 42,
+  "evict_all_refused_by_live_bound": 11,
+  "final": {
+    "published_entries": 8,
+    "published_bytes": 8752,
+    "eviction_history_len": 32,
+    "eviction_history_bytes": 25952,
+    "eviction_history_dropped": 5960,
+    "live_generation_records": 5,
+    "interned_identity_bytes": 763
+  },
+  "samples": [
+    {
+      "generation": 0,
+      "resident": {
+        "published_entries": 0,
+        "published_bytes": 0,
+        "eviction_history_len": 3,
+        "eviction_history_bytes": 2415,
+        "eviction_history_dropped": 0,
+        "live_generation_records": 1,
+        "interned_identity_bytes": 760
+      },
+      "held_readers": 0
+    },
+    {
+      "generation": 400,
+      "resident": {
+        "published_entries": 8,
+        "published_bytes": 8688,
+        "eviction_history_len": 32,
+        "eviction_history_bytes": 25888,
+        "eviction_history_dropped": 1163,
+        "live_generation_records": 5,
+        "interned_identity_bytes": 762
+      },
+      "held_readers": 4
+    },
+    {
+      "generation": 800,
+      "resident": {
+        "published_entries": 8,
+        "published_bytes": 8688,
+        "eviction_history_len": 32,
+        "eviction_history_bytes": 25888,
+        "eviction_history_dropped": 2363,
+        "live_generation_records": 5,
+        "interned_identity_bytes": 762
+      },
+      "held_readers": 4
+    },
+    {
+      "generation": 1200,
+      "resident": {
+        "published_entries": 8,
+        "published_bytes": 8752,
+        "eviction_history_len": 32,
+        "eviction_history_bytes": 25952,
+        "eviction_history_dropped": 3563,
+        "live_generation_records": 4,
+        "interned_identity_bytes": 763
+      },
+      "held_readers": 3
+    },
+    {
+      "generation": 1600,
+      "resident": {
+        "published_entries": 8,
+        "published_bytes": 8752,
+        "eviction_history_len": 32,
+        "eviction_history_bytes": 25952,
+        "eviction_history_dropped": 4763,
+        "live_generation_records": 5,
+        "interned_identity_bytes": 763
+      },
+      "held_readers": 4
+    },
+    {
+      "generation": 1999,
+      "resident": {
+        "published_entries": 8,
+        "published_bytes": 8752,
+        "eviction_history_len": 32,
+        "eviction_history_bytes": 25952,
+        "eviction_history_dropped": 5960,
+        "live_generation_records": 5,
+        "interned_identity_bytes": 763
+      },
+      "held_readers": 4
+    }
+  ]
+}
