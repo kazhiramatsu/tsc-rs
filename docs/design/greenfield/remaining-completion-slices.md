@@ -75,7 +75,7 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 ### Claude に依頼するもの（5 件）
 
 依頼入口は [Claude handoff index](slices/claude-high-difficulty-handoffs.md)。
-**C01/C03/C04 は候補を受領済み。C01は[統合記録](slices/h2-8a-literal-update/integration/README.md)で実装・検証中。C04 は[統合記録](slices/h2-8c-transpile/INTEGRATION.md)を参照。次の推奨送付先は C02**。
+**C01/C03/C04 は候補を受領済み。C01は[統合記録](slices/h2-8a-literal-update/integration/README.md)でPR #542の統合完了を記録。C04 は[統合記録](slices/h2-8c-transpile/INTEGRATION.md)を参照。次の推奨送付先は C02**。
 C05は再提出を受領し、R4の残る2件とR1のpath表記衝突を統合側で修正し、PR #539で統合した[prototype](slices/l2-3-resolution-cache/integration/README.md)。専用CI入口を登録し、fresh178/native190と回帰を確認。全7 hosted jobと両gateが成功し、mergeと実測は同記録に保存した。Program本番統合はL2.3a/bへ残す。
 [C03 統合レビュー](slices/h2-8a-printer-failure/INTEGRATION.md)に44 exact / 2保留、
 追加修復・検証・hosted 入口を記録した。その後の [A-INT3-CS](slices/h2-8a-printer-comment-carry/README.md)
@@ -113,7 +113,7 @@ C03 以外の4件は **監査・調査・隔離候補の依頼**として渡せ�
 | --- | --- | --- |
 | PLAN-BASE — 完了 | [固定 main `f9ef828a5` の台帳](slices/plan-base/README.md)。全 active profile の source/future/later-deferred、旧 global/class、known、parameter、direct、upstream exception と後続修復を照合 | 全15,642 corpus IDに disposition あり。再生成一致、判定境界7 tests。これは台帳の完了であり、修復・全 profile qualification の完了ではない |
 | VER1.0-MAP | 固定 TS7 の tests / CHANGES と H2 残項目を retained / intentional change / removed option / new feature に分類。parser/checker/resolver/emitter/libs/CLI/service の機能分母と依存を作る | PLAN-BASE と既存 native workflow。新しい参照を選ぶ場合も commit を固定。ES5/System/UMD/Node10/Classic/AMD/outFile 等を個別に disposition。廃止予定を 6.0.3 の修復完了として数えない |
-| OPS-COVER | [入口台帳・追加スライス](slices/witness-coverage/README.md)。64 standalone / 16 lib-bin の静的棚卸し完了。[OPS-COVER-2](slices/witness-coverage/emitter-direct/README.md) は emitter direct10 target・2239 row の個別選択入口を追加。[OPS-COVER-3A](slices/witness-coverage/declaration-map-cli/README.md) は E-only8 のCLI専用入口を追加。[OPS-COVER-3B](slices/witness-coverage/compiler-utf16/README.md) はUTF-16の3 targetを登録し、PR #532で統合済み（全hosted job・両gate成功）。[OPS-COVER-3C](slices/witness-coverage/compiler-literals/README.md) はliteral2 targetの入口を追加。[OPS-COVER-3D](slices/witness-coverage/compiler-declarations/README.md) はdeclaration3 target・129入力の入口を追加（PR #540で統合済み、全7 hosted job・両gate成功）。[OPS-COVER-3E](slices/witness-coverage/compiler-require-rewrite/README.md)でrequire-rewrite74専用入力を追加しC01と一括検証中。現在の69 standalone中、残る直接入口なしは31 target | 次は OPS-COVER-3残部：compiler11とfilter残部、4：その他20とlib/bin。共有helperを全targetの実行証明とせず、case重複・選択・件数・時間・失敗伝播を証明 |
+| OPS-COVER | [入口台帳・追加スライス](slices/witness-coverage/README.md)。64 standalone / 16 lib-bin の静的棚卸し完了。[OPS-COVER-2](slices/witness-coverage/emitter-direct/README.md) は emitter direct10 target・2239 row の個別選択入口を追加。[OPS-COVER-3A](slices/witness-coverage/declaration-map-cli/README.md) は E-only8 のCLI専用入口を追加。[OPS-COVER-3B](slices/witness-coverage/compiler-utf16/README.md) はUTF-16の3 targetを登録し、PR #532で統合済み（全hosted job・両gate成功）。[OPS-COVER-3C](slices/witness-coverage/compiler-literals/README.md) はliteral2 targetの入口を追加。[OPS-COVER-3D](slices/witness-coverage/compiler-declarations/README.md) はdeclaration3 target・129入力の入口を追加（PR #540で統合済み、全7 hosted job・両gate成功）。[OPS-COVER-3E](slices/witness-coverage/compiler-require-rewrite/README.md)でrequire-rewrite74専用入力を追加しC01とPR #542で統合済み。現在の69 standalone中、残る直接入口なしは31 target | 次は OPS-COVER-3残部：compiler11とfilter残部、4：その他20とlib/bin。共有helperを全targetの実行証明とせず、case重複・選択・件数・時間・失敗伝播を証明 |
 | OPS-BUDGET | 追加 suite の build / oracle / replay を測定し、変更 owner ごとの job 分割を維持 | OPS-COVER と各新規 target の実測。1 job 45 分を分割検討の目安、60 分を hard limit とする。重複した build による総 runner 時間も記録。worker 増でメモリ上限を隠さない |
 | OPS-DEBT | 既存 lint・strict test failure を現行 SHA で owner ごとに確定し、独立修復 PR へ分ける | 過去の compiler contract / printer failure の記録はまず再現性を確認。base と新規退行を分離。該当 owner だけ検証し、全 workspace green が未確認ならそう記録。release の採用 gate に未処理を残さない |
 
@@ -128,7 +128,7 @@ OPS は各製品 slice の追加対象に追随する作業でもある。新規
 | ID | 作業と成果物 | 依存・終了条件 |
 | --- | --- | --- |
 | H2.8a-A-PC1 — 完了 | [短い本文のコメント owner修復](slices/h2-8a-compact-body-comments.md)、PR #538 | 既知5件を解消。元のparameter68 commandsと新規printer240 casesが完全一致×2。全7 PR jobと両gate成功。 |
-| H2.8a-A-INT1 | [C01のliteral修復と専用CI入口](slices/h2-8a-literal-update/integration/README.md)を実装・検証中。OPS-COVER-3Eと一括検証 | C01 と現行 architecture / packet。変更がない場合も対応表を記録して閉じる。raw/UTF-16/flags の退行なし |
+| H2.8a-A-INT1 — 完了 | [C01のliteral修復と専用CI入口](slices/h2-8a-literal-update/integration/README.md)をPR #542で統合済み。OPS-COVER-3Eと一括検証し全7 hosted job・両gate成功 | C01 と現行 architecture / packet。変更がない場合も対応表を記録して閉じる。raw/UTF-16/flags の退行なし |
 | H2.8a-A-INT2 | C02 の binding 修復・追加対照を統合 | C02、SUPER。helper order / default runtime name / retained の必要集合が一致 |
 | H2.8a-A-INT3 | C03 の printer failure / continuation 修復を統合 | C03。INT1 と source が重なる場合は順次 rebase。失敗した呼出しと次の正常呼出しを両方比較 |
 | H2.8a-A-INT3-CS | [source をまたぐ comment container の修復](slices/h2-8a-printer-comment-carry/README.md)（PR #528 で統合済み） | 元の保留1 case / 2 op と追加24 case の出力を照合。UTF-16 比較値と source-bound byte cursor を分離。新しい transformation への再利用、隣接契約、全 hosted job が成功。生成名と hook hint は別 owner のまま |
