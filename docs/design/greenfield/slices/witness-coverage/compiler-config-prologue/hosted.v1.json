@@ -1,0 +1,265 @@
+{
+  "version": 1,
+  "pr": 544,
+  "url": "https://github.com/kazhiramatsu/tsc-rs/pull/544",
+  "candidate_head": "f727711d7d69170415a7e3f54e6ecbcf340b82f3",
+  "tested_merge_sha": "51efba8e6b07d00b0fe97d5e515b07020128a933",
+  "runs": [
+    {
+      "id": 35084179622,
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622",
+      "head_sha": "f727711d7d69170415a7e3f54e6ecbcf340b82f3",
+      "event": "pull_request",
+      "run_attempt": 1,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 35084179671,
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671",
+      "head_sha": "f727711d7d69170415a7e3f54e6ecbcf340b82f3",
+      "event": "pull_request",
+      "run_attempt": 1,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "jobs": [
+    {
+      "job": "acceptance (early)",
+      "id": 104755127209,
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104755127209",
+      "started_at": "2026-09-16T10:18:05Z",
+      "completed_at": "2026-09-16T10:29:43Z",
+      "seconds": 698.0,
+      "conclusion": "success",
+      "log_sha256": "033d804ea2eaf36992fbbf58742217898bce4fa693ed3ac86420acc7a7eb8da4",
+      "log": "hosted-acceptance-early.log.gz",
+      "compressed_sha256": "30812e7b8cf9e149fc7fb2b9de3be6f61ac525692cedb3d12ef6e6a8f88bd83d"
+    },
+    {
+      "job": "acceptance (wide)",
+      "id": 104755127248,
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104755127248",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:47:12Z",
+      "seconds": 1748.0,
+      "conclusion": "success",
+      "log_sha256": "c8d2211ba90716b5ed071a87e3b0d2779d23167ba145ce37ea1f8c1ad2097ea9",
+      "log": "hosted-acceptance-wide.log.gz",
+      "compressed_sha256": "e6223a7155a6e943eb62615fbd062b33266074cfd66fba8f34ef333bb149c1b2"
+    },
+    {
+      "job": "acceptance (late)",
+      "id": 104755127342,
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104755127342",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:32:39Z",
+      "seconds": 875.0,
+      "conclusion": "success",
+      "log_sha256": "02a193e984b5cce93c35b202512eddffc59cff4c6c88c6a90f61a9808b0398c1",
+      "log": "hosted-acceptance-late.log.gz",
+      "compressed_sha256": "7066d09fa5e3b029c9ea6ca97821bda14303171249c2e491da0ea951814608b7"
+    },
+    {
+      "job": "witnesses (primary)",
+      "id": 104755122873,
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755122873",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:24:51Z",
+      "seconds": 407.0,
+      "conclusion": "success",
+      "log_sha256": "0a1c7966ad7c7efb3a401fccf184a11498a55b7e9a47aab5e8c93df7e7eec459",
+      "log": "hosted-witnesses-primary.log.gz",
+      "compressed_sha256": "8eda55229d12550927953062c2fc158d57c9c91627d5d6ed95a2eeeb5f7796a8"
+    },
+    {
+      "job": "witnesses (retained)",
+      "id": 104755122950,
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755122950",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:26:57Z",
+      "seconds": 533.0,
+      "conclusion": "success",
+      "log_sha256": "541f56eadf584ef94d8e19c0a5aef9b0302dde4519f7a8dded3abae4a52525f4",
+      "log": "hosted-witnesses-retained.log.gz",
+      "compressed_sha256": "52d5f6bf50d7584bbd2ca80901cfc08d4874141d8472ad204c6db38806664b69"
+    },
+    {
+      "job": "witnesses (controls)",
+      "id": 104755122968,
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755122968",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:52:58Z",
+      "seconds": 2094.0,
+      "conclusion": "success",
+      "log_sha256": "3093a14301502575ce7caefc9fee0612d44ba2f93a6b4dea6c3d3c3008e340e7",
+      "log": "hosted-witnesses-controls.log.gz",
+      "compressed_sha256": "4b9b0cd86d081825c250e96cfb861a6ab18933a0b95cf7265b406506c441e1a3"
+    },
+    {
+      "job": "witnesses (printer)",
+      "id": 104755123013,
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755123013",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:20:48Z",
+      "seconds": 164.0,
+      "conclusion": "success",
+      "log_sha256": "9aa1dc421f4e233ac104f86b2a58a4a231f13e5eaa08c1893cf137a3e9cfcd06",
+      "log": "hosted-witnesses-printer.log.gz",
+      "compressed_sha256": "3cb3611a6bc9d218bfd607e31498c30013abdcc32152a4687cea8eda8b6bb44f"
+    }
+  ],
+  "workflow_jobs": [
+    {
+      "run_id": 35084179622,
+      "id": 104754986709,
+      "name": "plan",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104754986709",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:17:37Z",
+      "completed_at": "2026-09-16T10:18:02Z"
+    },
+    {
+      "run_id": 35084179622,
+      "id": 104755127209,
+      "name": "acceptance (early)",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104755127209",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:18:05Z",
+      "completed_at": "2026-09-16T10:29:43Z"
+    },
+    {
+      "run_id": 35084179622,
+      "id": 104755127248,
+      "name": "acceptance (wide)",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104755127248",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:47:12Z"
+    },
+    {
+      "run_id": 35084179622,
+      "id": 104755127342,
+      "name": "acceptance (late)",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104755127342",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:32:39Z"
+    },
+    {
+      "run_id": 35084179622,
+      "id": 104763573359,
+      "name": "gates",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104763573359",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:47:15Z",
+      "completed_at": "2026-09-16T10:47:28Z"
+    },
+    {
+      "run_id": 35084179671,
+      "id": 104754987684,
+      "name": "plan",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104754987684",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:17:36Z",
+      "completed_at": "2026-09-16T10:18:01Z"
+    },
+    {
+      "run_id": 35084179671,
+      "id": 104755122873,
+      "name": "witnesses (primary)",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755122873",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:24:51Z"
+    },
+    {
+      "run_id": 35084179671,
+      "id": 104755122950,
+      "name": "witnesses (retained)",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755122950",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:26:57Z"
+    },
+    {
+      "run_id": 35084179671,
+      "id": 104755122968,
+      "name": "witnesses (controls)",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755122968",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:52:58Z"
+    },
+    {
+      "run_id": 35084179671,
+      "id": 104755123013,
+      "name": "witnesses (printer)",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755123013",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:18:04Z",
+      "completed_at": "2026-09-16T10:20:48Z"
+    },
+    {
+      "run_id": 35084179671,
+      "id": 104765211005,
+      "name": "witness-gates",
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104765211005",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-16T10:53:01Z",
+      "completed_at": "2026-09-16T10:53:11Z"
+    }
+  ],
+  "job_seconds_total": 6519.0,
+  "max_job_seconds": 2094.0,
+  "compiler_direct": {
+    "compiler_direct": [
+      "config-library",
+      "prologue-comments",
+      "literal-update-pipeline",
+      "require-rewrite",
+      "declaration-specifiers",
+      "declaration-comments",
+      "jsdoc-return",
+      "parameter-temporaries",
+      "transpile-routes",
+      "utf16-identity-recovery",
+      "utf16-review-fix",
+      "utf16-tagged-template",
+      "utf16-literal-witnesses",
+      "utf16-original-commands"
+    ],
+    "targets": 14,
+    "tests_passed": 53,
+    "observer_seconds": 374.8,
+    "cargo_build_and_replay_seconds": 1128.159
+  },
+  "config_library_prepared_events": 384,
+  "config_library_unique_ids": 96,
+  "command_exact": 94,
+  "typed_refusals": 2,
+  "repetitions": 2,
+  "prologue_partial_observations": 8,
+  "scope": "PR runs only; excludes plans, gates and any main-push run",
+  "merged_commit": "60702cc79ab006feaa9e6759ccd2e6ae5996e372",
+  "merged_at": "2026-09-16T10:54:54Z",
+  "trees": {
+    "candidate": "bd4a8429502a69d15283339f616b391e59745bcd",
+    "tested_merge": "bd4a8429502a69d15283339f616b391e59745bcd",
+    "landed_merge": "bd4a8429502a69d15283339f616b391e59745bcd"
+  },
+  "source_match": "Candidate, tested PR merge and landed merge have identical complete Git trees.",
+  "local_receipt": "local.v1.json remains the historical pre-hosted checkpoint."
+}

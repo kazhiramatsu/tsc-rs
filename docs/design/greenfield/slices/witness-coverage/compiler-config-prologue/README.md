@@ -67,5 +67,36 @@ Cargo build/replay時間とcontrols全体を別に記録する。過去のcontro
 
 隣接printer8 target・35 testsも成功（初回build込み226.738秒）。
 失敗／再利用、hook、list、comment topology、UTF-16 writer、compact body240対照を含む。
-hostedは未実行。
+local記録時点ではhosted未実行。最終結果は次節に記録した。
 CFGのProgram単体projection/cache/host、filesystem CLI、他のcompiler contractはこの追加の対象外。
+
+## Hosted統合結果
+
+[PR #544](https://github.com/kazhiramatsu/tsc-rs/pull/544)を `60702cc79ab006feaa9e6759ccd2e6ae5996e372` で統合した。
+候補 `f727711d7d69170415a7e3f54e6ecbcf340b82f3`、CIのsynthetic merge `51efba8e6b07d00b0fe97d5e515b07020128a933`、
+実際のmergeのGit treeは同一。全7 replay jobと両aggregate gateが成功した。
+実行ID、job URL、ログhashと時間は[hosted.v1.json](hosted.v1.json)に固定する。
+
+| PR replay job | Job全体の時間 | 結果 |
+| --- | --- | --- |
+| [acceptance (early)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104755127209) | 11分38秒 | success |
+| [acceptance (wide)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104755127248) | 29分08秒 | success |
+| [acceptance (late)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179622/job/104755127342) | 14分35秒 | success |
+| [witnesses (primary)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755122873) | 6分47秒 | success |
+| [witnesses (retained)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755122950) | 8分53秒 | success |
+| [witnesses (controls)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755122968) | 34分54秒 | success |
+| [witnesses (printer)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35084179671/job/104755123013) | 2分44秒 | success |
+
+PR replay合計は108分39秒、最長は34分54秒。
+plan・aggregate gate・main pushはこの集計に含めない。
+controls全体は34分54秒で45分の分割検討目安内、2 workersを維持した。
+compiler direct全14入口・53 testsが成功し、今回追加した24＋1 testsも含む。
+config/libraryのpreparedイベント384件は94 complete commands・2 typed refusals・
+96 ordered Program factsの各2回と一致し、全96 case IDの観測を照合した。
+prologueは8入力の限定比較を2回実行した。
+
+compiler direct全体のobserverは374.800秒、
+Cargo build/replayは1128.159秒。
+既存suiteを含むhosted値と、新規2 suiteだけのlocal値は同じ分母ではない。
+既存のqualification checkerの循環schemaエラーと未登録targetは残り、
+H2.8b runtime admissionや全workspace greenは主張しない。

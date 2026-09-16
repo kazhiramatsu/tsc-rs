@@ -1,6 +1,6 @@
 # OPS-COVER：PR CI のテスト入口台帳
 
-2026-09-16。統合担当：Codex。**emitter direct10、E-only8のCLIに続き、compiler UTF-16/literalの5 targetとC04 transpile contractの入口を追加。残りは OPS-COVER-3残部〜4。**
+2026-09-16。統合担当：Codex。**config/library・prologueまで既存テストのCI入口を追加し、PR #544で検証・統合済み。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
 [現在の固定台帳](inventory.v13.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
@@ -16,7 +16,7 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 [C05](../l2-3-resolution-cache/integration/README.md) がprogram contractと全program libを登録したv9、path表記の追加回帰を反映したv10へ更新。
 [OPS-COVER-3D](compiler-declarations/README.md) はdeclaration specifier / comment / JSDocの3 target・129専用入力を登録したv11へ更新。[PR #540](https://github.com/kazhiramatsu/tsc-rs/pull/540)で統合済み。全7 replay job・両gate成功、controls22分14秒。
 [C01](../h2-8a-literal-update/integration/README.md)の新規2 targetと[OPS-COVER-3E](compiler-require-rewrite/README.md)のrequire-rewrite専用74入力を登録したv12へ更新。[PR #542](https://github.com/kazhiramatsu/tsc-rs/pull/542)で複数スライスをまとめて検証・統合済み。全7 hosted jobと両gateが成功。
-[OPS-COVER-3F / 3G](compiler-config-prologue/README.md) はconfig/libraryの24 exact test・96入力とprologueの1 target・8入力を追加したv13。hosted結果は同記録で区別する。
+[OPS-COVER-3F / 3G](compiler-config-prologue/README.md) はconfig/libraryの24 exact test・96入力とprologueの1 target・8入力を追加したv13。[PR #544](https://github.com/kazhiramatsu/tsc-rs/pull/544)で限定printer修復と一括検証・統合済み。全7 replay job・両gate成功、controls34分54秒。
 設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
 ## 現在の入口
