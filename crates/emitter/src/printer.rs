@@ -2160,6 +2160,10 @@ impl Printer {
             && !self.comments_disabled()
             && !self.options.declaration_syntax
         {
+            // emitSourceFileWorker closes its MultiLine list before
+            // emitBodyWithDetachedComments visits the original EOF comments.
+            // A transform may have inserted statements into an empty source.
+            writer.write_line(false);
             let source = transformation.arena().source(source_id)?.syntax();
             emit_leading_comments(
                 SourceTrivia::whole(source.text()),

@@ -2,6 +2,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import unittest
@@ -129,6 +130,45 @@ class SelectionTests(unittest.TestCase):
             self.assertEqual(plan["acceptance"], list(replay.GROUPS))
             self.assertEqual(plan["witnesses"], list(witness.SUITES))
 
+    def test_config_library_exact_selection_preserves_shared_contract_coverage(self):
+        for path in ("crates/compiler/tests/contracts.rs",
+                     "crates/compiler/tests/integration/h2_7b_w4a_controls.rs"):
+            self.assertEqual(replay.selection([path])["acceptance"], list(replay.GROUPS))
+            self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
+        spec = witness.COMPILER_DIRECT["config-library"]
+        names = set()
+        for source in spec["sources"]:
+            names.update(f"{Path(source).stem}::{name}" for name in re.findall(
+                r"#\[test\]\s*fn (\w+)", (ROOT / source).read_text()))
+        self.assertEqual(set(spec["test"]), names)
+        self.assertEqual(len(names), 24)
+        self.assertEqual(len(witness.compiler_direct_observers(["config-library"])), 12)
+        for path in ("crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+                     "crates/compiler/tests/support/witness_libraries.rs"):
+            plan = replay.selection([path])
+            self.assertEqual(plan["acceptance"], ["late"])
+            self.assertIn("config-library", plan["witnesses"])
+
+    def test_config_library_runner_rejects_incomplete_contract_selection(self):
+        spec = witness.COMPILER_DIRECT["config-library"]
+        good = (f"test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; "
+                f"{spec['filtered_tests']} filtered out;\n")
+        for output in (good, "", good.replace("24 passed", "23 passed"),
+                       good.replace("0 ignored", "1 ignored"),
+                       good.replace(f"{spec['filtered_tests']} filtered", "9999 filtered")):
+            with patch.object(witness.subprocess, "run",
+                              return_value=subprocess.CompletedProcess([], 0, output)) as run:
+                if output != good:
+                    with self.assertRaises(ValueError):
+                        witness.run_compiler_direct(["config-library"])
+                    continue
+                witness.run_compiler_direct(["config-library"])
+                self.assertEqual(len(run.call_args_list), 13)
+                command = run.call_args_list[-1].args[0]
+                self.assertIn("--exact", command)
+                self.assertTrue(all(name in command for name in spec["test"]))
+                self.assertEqual(command[command.index("--test") + 1], "contracts")
+
     def test_transpile_oracle_runtime_matches_frozen_receipts(self):
         version = (ROOT / ".node-version").read_text().strip()
         for name in ("expected", "review-expected"):
@@ -196,12 +236,12 @@ class SelectionTests(unittest.TestCase):
     def test_shared_comparator_is_an_acceptance_input(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], ["retained", "require-rewrite", "declaration-comments", "utf16-literal-witnesses"])
+        self.assertEqual(plan["witnesses"], ["retained", "config-library", "require-rewrite", "declaration-comments", "utf16-literal-witnesses"])
 
     def test_library_snapshot_keeps_all_fresh_program_consumers(self):
         plan = replay.selection(["crates/compiler/tests/support/witness_libraries.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], [*witness.SUPER, "retained", "require-rewrite", "declaration-comments", "utf16-literal-witnesses"])
+        self.assertEqual(plan["witnesses"], [*witness.SUPER, "retained", "config-library", "require-rewrite", "declaration-comments", "utf16-literal-witnesses"])
 
     def test_common_unknown_and_missing_ranges_keep_complete_coverage(self):
         for paths in (None, [], ["crates/emitter/src/printer.rs"], ["new/tool.rs"],
@@ -263,6 +303,7 @@ class WitnessTests(unittest.TestCase):
             "followup3": 48, "retained": 530, "direct": 32, "printer": 142, "bundle-sinks": 10,
             "declaration-map-cli": 8, "transpile-routes": 301, "resolution-cache": 26,
             "compact-body-comments": 240, "parameter-temporaries": 68,
+            "config-library": 96, "prologue-comments": 8,
             "literal-update": 1396, "literal-update-pipeline": 22, "require-rewrite": 74,
             "declaration-specifiers": 30, "declaration-comments": 41, "jsdoc-return": 58,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
@@ -407,7 +448,7 @@ class WitnessTests(unittest.TestCase):
     def test_literal_witnesses_keep_shared_helpers_and_qualification_owners(self):
         plan = replay.selection(["crates/compiler/tests/integration/h2_7c_declaration_blocking.rs"])
         self.assertEqual(plan["acceptance"], ["late"])
-        self.assertEqual(plan["witnesses"], ["retained", "require-rewrite", "declaration-comments", "utf16-literal-witnesses"])
+        self.assertEqual(plan["witnesses"], ["retained", "config-library", "require-rewrite", "declaration-comments", "utf16-literal-witnesses"])
         for path in ("crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
                      "ratchets/h2-5h-qualification.v1.json",
                      "crates/oracle/vfs-directory-overlay.mjs",
@@ -545,7 +586,7 @@ class WitnessTests(unittest.TestCase):
         inventory = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(inventory)
         rows = inventory.command_rows(replay)
-        for suite in ("declaration-specifiers", "declaration-comments", "jsdoc-return"):
+        for suite in ("declaration-specifiers", "declaration-comments", "jsdoc-return", "config-library"):
             names = witness.COMPILER_DIRECT[suite]["test"]
             names = (names,) if isinstance(names, str) else names
             self.assertEqual([row["filter"] for row in rows if row["suite"] == suite], list(names))

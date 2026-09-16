@@ -2,7 +2,7 @@
 
 2026-09-16。統合担当：Codex。**emitter direct10、E-only8のCLIに続き、compiler UTF-16/literalの5 targetとC04 transpile contractの入口を追加。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v12.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v13.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -16,27 +16,28 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 [C05](../l2-3-resolution-cache/integration/README.md) がprogram contractと全program libを登録したv9、path表記の追加回帰を反映したv10へ更新。
 [OPS-COVER-3D](compiler-declarations/README.md) はdeclaration specifier / comment / JSDocの3 target・129専用入力を登録したv11へ更新。[PR #540](https://github.com/kazhiramatsu/tsc-rs/pull/540)で統合済み。全7 replay job・両gate成功、controls22分14秒。
 [C01](../h2-8a-literal-update/integration/README.md)の新規2 targetと[OPS-COVER-3E](compiler-require-rewrite/README.md)のrequire-rewrite専用74入力を登録したv12へ更新。[PR #542](https://github.com/kazhiramatsu/tsc-rs/pull/542)で複数スライスをまとめて検証・統合済み。全7 hosted jobと両gateが成功。
+[OPS-COVER-3F / 3G](compiler-config-prologue/README.md) はconfig/libraryの24 exact test・96入力とprologueの1 target・8入力を追加したv13。hosted結果は同記録で区別する。
 設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
 ## 現在の入口
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
-| standalone target（filter なし） | 27 | printer job の7 targetとdirect12、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・resolution cache contract。ignored/cfg-disabled test の実行までは意味しない |
+| standalone target（filter なし） | 28 | printer job の7 targetとdirect12、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・resolution cache contract。ignored/cfg-disabled test の実行までは意味しない |
 | standalone target（名前で filter） | 11 | compiler9 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
-| standalone target の直接呼出しなし | 31 | compiler11 / その他20 |
+| standalone target の直接呼出しなし | 30 | compiler10 / その他20 |
 | lib/bin の test harness | 16 | Program lib 1件に直接入口、残り15件は直接実行なし |
 
-**69 standalone target を列挙した。31件を「挙動が未検証」とは数えない。**
+**69 standalone target を列挙した。30件を「挙動が未検証」とは数えない。**
 acceptance が同じ比較 helper を Rust の `#[path]` で取り込み、関数を直接呼ぶ場合がある。
 台帳は source の共有関係10 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
 helper の共有から、その target の全テスト・新しい入力集合の実行まで推論しない。
 
-現在、直接入口のない31 targetの source を単独変更すると、planner は unknown input として
+現在、直接入口のない30 targetの source を単独変更すると、planner は unknown input として
 **全 acceptance / witness グループを選択するが、その standalone target 自身は追加しない**。
 v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では専用 target のみを選ぶ。共有 production の安全策としての
 全体 replay と、変更した専用 contract の実行が別物であることを示す。
-残る31件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
+残る30件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
 
 ### 実例：shared helper と target 全体は違う
 
@@ -56,7 +57,7 @@ v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では�
 | ID / 担当 | 対象 | 入れる順序・終了条件 |
 | --- | --- | --- |
 | OPS-COVER-2 / 統合担当 | emitter direct 10 target：入口追加完了 | [検証記録](emitter-direct/README.md)。literal4 / metadata6、2239 row ×2、13 tests。既存 printer job の20分枠・2 workersでbuildを共有し、専用入力はtarget単位で選択 |
-| OPS-COVER-3 / 統合担当 | [3AのCLI8件](declaration-map-cli/README.md)と[3BのUTF-16 3 target](compiler-utf16/README.md)、[3Cのliteral2 target](compiler-literals/README.md)を登録。[3Dのdeclaration3 target](compiler-declarations/README.md)も登録。[3Eのrequire-rewrite74入力](compiler-require-rewrite/README.md)も登録。残りcompiler11 targetとfiltered9 targetの未選択部分 | 続いてrecovery corpus50と旧literal rowsの重複・census依存、declaration/map、parameterの未収載集合を既存acceptanceのID／比較面と照合。530などの既存全体を再度追加しない |
+| OPS-COVER-3 / 統合担当 | [3AのCLI8件](declaration-map-cli/README.md)と[3BのUTF-16 3 target](compiler-utf16/README.md)、[3Cのliteral2 target](compiler-literals/README.md)を登録。[3Dのdeclaration3 target](compiler-declarations/README.md)も登録。[3Eのrequire-rewrite74入力](compiler-require-rewrite/README.md)も登録。[3F/3Gのconfig/library96入力とprologue8入力](compiler-config-prologue/README.md)も登録。残りcompiler10 targetとfiltered9 targetの未選択部分 | 続いてrecovery corpus50と旧literal rowsの重複・census依存、declaration/map、parameterの未収載集合を既存acceptanceのID／比較面と照合。530などの既存全体を再度追加しない |
 | OPS-COVER-4 / 統合担当、各製品 owner | その他20 standalone と残15 lib/bin harness | syntax/binder/types、host/program、checker/API、harness/fuzz に分割。単独file変更と共有変更の依存表を持ち、該当製品 slice の公開契約・取消・error・文字列境界を実測して登録 |
 | OPS-BUDGET / 統合担当 | 新規 group の build / replay / merge後の重複 | 2 workers、45分で分割検討、60分hard limit。PRとmain pushの実行時間を別集計。entryを追加してから恒常的な時間超過を発見する順序にしない |
 
@@ -124,7 +125,7 @@ filter名、command owner、source/fixture path、driverの関数名はJSON台�
 | compiler | [h2_8a_declaration_specifiers](../../../../../crates/compiler/tests/h2_8a_declaration_specifiers.rs) | test名でfilter | 2 |
 | compiler | [h2_8a_jsdoc_return](../../../../../crates/compiler/tests/h2_8a_jsdoc_return.rs) | test名でfilter | 1 |
 | compiler | [h2_8a_original_corpus](../../../../../crates/compiler/tests/h2_8a_original_corpus.rs) | なし | 1 |
-| compiler | [h2_8a_prologue_only_detached_comments](../../../../../crates/compiler/tests/h2_8a_prologue_only_detached_comments.rs) | なし | 0 |
+| compiler | [h2_8a_prologue_only_detached_comments](../../../../../crates/compiler/tests/h2_8a_prologue_only_detached_comments.rs) | target指定・filterなし | 0 |
 | compiler | [h2_8a_require_rewrite](../../../../../crates/compiler/tests/h2_8a_require_rewrite.rs) | test名でfilter | 4 |
 | compiler | [h2_8a_utf16_identity_recovery_controls](../../../../../crates/compiler/tests/h2_8a_utf16_identity_recovery_controls.rs) | target指定・filterなし | 0 |
 | compiler | [h2_8a_utf16_literal_recovery_corpus](../../../../../crates/compiler/tests/h2_8a_utf16_literal_recovery_corpus.rs) | なし | 0 |
