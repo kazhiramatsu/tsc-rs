@@ -2,7 +2,7 @@
 
 2026-09-16。統合担当：Codex。**emitter direct10、E-only8のCLIに続き、compiler UTF-16/literalの5 targetとC04 transpile contractの入口を追加。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v6.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v7.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -10,7 +10,8 @@
 [OPS-COVER-3B](compiler-utf16/README.md) は3つのUTF-16 targetを追加し、以下をv4に更新した。
 3Bは[PR #532](https://github.com/kazhiramatsu/tsc-rs/pull/532)で統合済み。全7 replay jobと両gateが成功。
 [OPS-COVER-3C](compiler-literals/README.md) は64専用入力と4原本の追加比較を接続し、v5に更新した。
-C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登録し、v6に更新した。
+C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登録した（v6）。
+初回hostedでNode version不一致を検出し、transpileを含むcontrolsにNode25.2.1を設定したv7へ更新。入口の件数はv6と同じ。
 設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
 ## 現在の入口

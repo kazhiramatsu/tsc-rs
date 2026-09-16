@@ -55,6 +55,13 @@ known-open22は inherited emitter14、H2.9 recovery7、範囲外targetのRust拒
 
 修正後の最初の replay は9/9 tests成功。元287は265 exact / 22 known-open、
 追加14は14/14 exact。TypeScript期待値も両集合で2回一致した。
-planner35 testsとpolicy/schemaの選択3 testsも成功。
+planner36 testsとpolicy/schemaの選択3 testsも成功。
 source anchor とnormalizePathの末尾境界を最終訂正した head の通常経路回帰・
 最終route replay、およびhosted head/runは実行中。結果はPRで確定し、受領記録を追記する。
+
+
+初回hostedのcontrolsはNode22.23.2で起動し、oracleのNode25.2.1要求で採取前に停止した。
+`transpile-routes`を含むwitness jobだけ、固定SHAのsetup-nodeで`.node-version`を設定する。
+期待値・Node pin・比較条件は保持し、runtime設定後のheadで全hosted検証を再実行する。
+通常経路のlibrary testsはsyntax175、program48、emitter506、checker1738が全成功。
+宣言bundleも4 tests（visitor/printer、map、forced metadata lifetime、原本JS）が成功した。
