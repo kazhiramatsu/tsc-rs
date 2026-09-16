@@ -1,0 +1,318 @@
+{
+  "base": "e677f87385d87e97d972ad8423d0670778596a9b",
+  "inputs_sha256": {
+    "crates/emitter/src/printer.rs": "f70cdc8cf38b0b0ce070089129a7937b3fbce58b370dbdbe0ae16e85a860fc5d",
+    "crates/emitter/tests/compact_body_comments_contract.rs": "d9f78a4b719f0a2f5206131a28aec6a72405e4641fad9185720fc7890c312a7e",
+    "crates/emitter/tests/fixtures/compact-body-comments.json": "9f19895911f46c8919bf84581ed7ebe42bd6c99211738f6aef89041a2082b5bb",
+    "scripts/observe-compact-body-comments.mjs": "b46503d7928c7c3dcb30d83e078bcdfd6fc5aac30d3d9c9e1925ef22aa45fc44",
+    "crates/compiler/tests/h2_5h_parameter_temporaries.rs": "2382d5c34dd6bf641a407e7799d791bd5a9455bd18f543b4adda5bcc250e2287",
+    "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json": "8cdf5349118b856c7488e1d35a2901acbc1193526c95102309c8cba7873f7145",
+    "scripts/observe-h2-5h-parameter-temporaries.mjs": "36caddcf6869158593cfe06c0cbae63db72eba04bde57ee6df9022e9a2da7581",
+    "scripts/witness.py": "ef7229bfd9542794d2fb6f0df102df2cc9a5be68d39a2bc4e26f9e3c06c19232",
+    ".github/ci/replay.py": "bb1e4d7e3d650131a4ac2fe4f9f05eed4b3cbcc2ee7d40bce2b7dd23ab768aa1",
+    ".github/ci/test_replay.py": "2d5e0a024aa7a09984354b0f54ef1f3261ba3295d600e3c71bdb9c2752814861",
+    ".github/ci/qualification-policy.v2.json": "79739ace24cb405a72430a14a02e5f0ee1367b02be0879932fdef4d685c1fe56"
+  },
+  "complete_commands": [
+    {
+      "name": "comments-lf",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_5h_parameter_temporaries",
+        "focused_parameter_commands",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/target/pc1/after-complete/comments-lf",
+        "TSC_RS_H2_5H_PARAMETER_FILTER": "parameter-temporaries/comments-lf/es2015"
+      },
+      "exit": 0,
+      "seconds": 98.20429320819676,
+      "captures": 2
+    },
+    {
+      "name": "comments-crlf",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_5h_parameter_temporaries",
+        "focused_parameter_commands",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/target/pc1/after-complete/comments-crlf",
+        "TSC_RS_H2_5H_PARAMETER_FILTER": "parameter-temporaries/comments-crlf/es2015"
+      },
+      "exit": 0,
+      "seconds": 12.408750667003915,
+      "captures": 2
+    },
+    {
+      "name": "source-map",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_5h_parameter_temporaries",
+        "focused_parameter_commands",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/target/pc1/after-complete/source-map",
+        "TSC_RS_H2_5H_PARAMETER_FILTER": "parameter-temporaries/source-map/es2015"
+      },
+      "exit": 0,
+      "seconds": 12.454540750011802,
+      "captures": 2
+    },
+    {
+      "name": "bom",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_5h_parameter_temporaries",
+        "focused_parameter_commands",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/target/pc1/after-complete/bom",
+        "TSC_RS_H2_5H_PARAMETER_FILTER": "parameter-temporaries/bom/es2015"
+      },
+      "exit": 0,
+      "seconds": 12.630587083986029,
+      "captures": 2
+    },
+    {
+      "name": "no-emit-on-error",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_5h_parameter_temporaries",
+        "focused_parameter_commands",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/target/pc1/after-complete/no-emit-on-error",
+        "TSC_RS_H2_5H_PARAMETER_FILTER": "parameter-temporaries/no-emit-on-error/es2015"
+      },
+      "exit": 0,
+      "seconds": 12.46501454198733,
+      "captures": 2
+    },
+    {
+      "name": "original",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_5h_parameter_temporaries",
+        "original_parameter_commands",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/target/pc1/after-complete/original"
+      },
+      "exit": 0,
+      "seconds": 26.362464000005275,
+      "captures": 24
+    }
+  ],
+  "direct": {
+    "command": "CARGO_BUILD_JOBS=2 TSC_RS_COMPACT_BODY_CAPTURE=/Users/hiramatsu/dev/tsc-rs-printer-hook-hints/target/pc1/after-direct.json taskpolicy -b nice -n 15 cargo test --offline --manifest-path crates/emitter/Cargo.toml --test compact_body_comments_contract -- --nocapture --test-threads=1",
+    "exit": 0,
+    "exact_twice": 240
+  },
+  "adjacent_and_clippy": [
+    {
+      "name": "adjacent",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--test",
+        "printer_failure_contract",
+        "--test",
+        "emit_pipeline_phases_contract",
+        "--test",
+        "comma_list_printer_contract",
+        "--test",
+        "list_format_flags_contract",
+        "--test",
+        "list_comment_flags_contract",
+        "--test",
+        "source_comment_topology_contract",
+        "--test",
+        "utf16_writer_contract",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "2"
+      },
+      "exit": 0,
+      "seconds": 13.537241249810904
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "clippy",
+        "--offline",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--test",
+        "compact_body_comments_contract",
+        "--message-format=json"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "2"
+      },
+      "exit": 0,
+      "seconds": 11.797159542096779
+    }
+  ],
+  "adjacent_test_counts": [
+    1,
+    1,
+    1,
+    1,
+    10,
+    18,
+    2
+  ],
+  "clippy_diagnostics": {
+    "exit": 0,
+    "program_existing_warnings": 145,
+    "emitter_existing_warnings": 16,
+    "changed_line_diagnostics": 0
+  },
+  "static_checks": [
+    {
+      "command": "python3 -m unittest discover -s .github/ci -p test_replay.py",
+      "exit": 0,
+      "tests": 36
+    },
+    {
+      "command": "node --test --test-name-pattern='hosted|execution|policy' .github/ci/qualification.test.mjs",
+      "exit": 0,
+      "tests": 10
+    },
+    {
+      "command": "node scripts/observe-compact-body-comments.mjs --check",
+      "exit": 0,
+      "cases_twice": 240
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "python3 docs/design/greenfield/slices/witness-coverage/inventory.py --check",
+      "exit": 0
+    }
+  ],
+  "artifacts_sha256": {
+    "adjacent.log.gz": "b7e19923dca52298c8909d700680923203f4c5466b87e8610ceb87e30f0c628c",
+    "after-complete-logs.json.gz": "9026206d51354c06827a49db0a35c316b180059e875c44fc4f4fda178094ca7c",
+    "after-complete.json.gz": "7f93df3439c13c11c7363c94a15f8e7c6f96a9601432798d99c015949c41121e",
+    "after-direct.json.gz": "06255cbd6b6fb2bf24317856c150e2763e6b59d99ddb11ee4c094b6a8ade1feb",
+    "after-direct.log.gz": "3b20e939e53f41510c9c324a5938f4f75c16b5671807e4fa2e8cda4c8ad2e24c",
+    "clippy.log.gz": "10c027fc0ca9509499d1d0b0c372ed2db967568d6ef6b393a991054cc9604a26",
+    "planner.log.gz": "495066758338c9842f324527bd16a117bdfd49d198ea078d60376b0eaf3a6614",
+    "policy.log.gz": "b1ecd8c1bd5fab21904a0106ca244c4e7eaad8719658e8baf7e9c8588fbca391"
+  }
+}

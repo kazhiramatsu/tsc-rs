@@ -23,6 +23,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [A-PC1 compact body comments](h2-8a-compact-body-comments.md) | Focused repair and hosted entry validation | Restore list-owned comments after synthetic parameter prefixes; five existing complete commands and 240 direct controls retain pinned TypeScript output. |
 | [API1.2-HINT printer declaration hooks](api1-2-printer-hook-hints.md) | Merged PR #537; all hosted jobs passed | Repaired binding-name and initializer hint producers; 72 new source-derived direct cases and the four retained comment-carry gaps. No profile/admission change. |
 | [H2.8c C04 transpile prototype](h2-8c-transpile/INTEGRATION.md) | Integrated research prototype, PR #535; hosted passed | Three explicit research routes, 287 original + 14 review inputs, strict exception/known-native guards and controls-job entry. CLI/config activation and full H2.8c qualification remain open. |
 | [OPS-COVER-3C compiler literal witnesses](witness-coverage/compiler-literals/README.md) | CI entry implementation | Dedicated 64 literal commands and additional complete fields for four existing corpus IDs; exact test selection preserves shared acceptance coverage. |

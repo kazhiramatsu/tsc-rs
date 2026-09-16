@@ -207,6 +207,7 @@ class WitnessTests(unittest.TestCase):
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
             "followup3": 48, "retained": 530, "direct": 32, "printer": 142, "bundle-sinks": 10,
             "declaration-map-cli": 8, "transpile-routes": 301,
+            "compact-body-comments": 240, "parameter-temporaries": 68,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,
             "class-header-token-metadata": 32, "comma-argument-factory": 519,
@@ -351,14 +352,18 @@ class WitnessTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             witness.compiler_direct_command(selected)
 
-    def test_literal_suite_clears_inherited_internal_case_selectors(self):
+    def test_compiler_suites_clear_inherited_internal_case_selectors(self):
         poisoned = {"TSC_RS_UTF16_LITERAL_WITNESS_SET": "adjacent-probes",
                     "TSC_RS_UTF16_LITERAL_WITNESS_FILTER": "string-escape",
+                    "TSC_RS_H2_5H_PARAMETER_FILTER": "comments-lf/es2015",
+                    "TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR": "/tmp/stale-captures",
                     "CARGO_BUILD_JOBS": "2"}
         for suite in witness.COMPILER_DIRECT:
             _, env = witness.invocation(suite, [], poisoned)
             self.assertNotIn("TSC_RS_UTF16_LITERAL_WITNESS_SET", env)
             self.assertNotIn("TSC_RS_UTF16_LITERAL_WITNESS_FILTER", env)
+            self.assertNotIn("TSC_RS_H2_5H_PARAMETER_FILTER", env)
+            self.assertNotIn("TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR", env)
         self.assertEqual(poisoned["TSC_RS_UTF16_LITERAL_WITNESS_SET"], "adjacent-probes")
 
     def test_compiler_direct_catalog_rejects_empty_duplicate_and_changed_memberships(self):

@@ -21,6 +21,11 @@ SUPER = {
 # selection. Each fixture tuple is (path, row count, ID key). These counts are
 # input memberships, not a claim about complete compiler command equivalence.
 EMITTER_DIRECT = {
+    "compact-body-comments": {
+        "target": "compact_body_comments_contract",
+        "fixtures": (("crates/emitter/tests/fixtures/compact-body-comments.json", 240, "case_id"),),
+        "observers": ("scripts/observe-compact-body-comments.mjs",),
+    },
     "literal-parent-provenance": {
         "target": "literal_parent_provenance_contract",
         "fixtures": (("crates/emitter/tests/fixtures/literal-parent-provenance-utf16.json", 128, "case_id"),),
@@ -85,6 +90,13 @@ EMITTER_DIRECT = {
 # These compiler witnesses have dedicated inputs or additional command fields.
 # Shared helper tests stay in acceptance; select the dedicated test where needed.
 COMPILER_DIRECT = {
+    "parameter-temporaries": {
+        "target": "h2_5h_parameter_temporaries",
+        "tests": 2,
+        "fixtures": (("crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json", 68, "case_id"),),
+        "observers": ("scripts/observe-h2-5h-parameter-temporaries.mjs",),
+        "inputs": ("docs/design/greenfield/slices/h2-5h-parameter-temporaries-selection.v1.json",),
+    },
     "transpile-routes": {
         "target": "transpile_routes_contract",
         "tests": 9,
@@ -217,10 +229,12 @@ def invocation(suite, needles, environ=None):
     if suite in COMPILER_DIRECT:
         if needles:
             raise ValueError(f"{suite}: compiler target runs together; use --all")
-        # The literal target has an internal selector which Cargo's test count
-        # cannot detect. The registered suite always owns all promoted inputs.
+        # Internal selectors can narrow cases without changing Cargo's test
+        # count. Registered suites always own all their frozen inputs.
         env.pop("TSC_RS_UTF16_LITERAL_WITNESS_SET", None)
         env.pop("TSC_RS_UTF16_LITERAL_WITNESS_FILTER", None)
+        env.pop("TSC_RS_H2_5H_PARAMETER_FILTER", None)
+        env.pop("TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR", None)
         return compiler_direct_command([suite]), env
     if suite in EMITTER_DIRECT:
         if needles:

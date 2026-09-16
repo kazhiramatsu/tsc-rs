@@ -71,8 +71,6 @@ def selection(paths):
         return full_selection("missing or empty change range")
     acceptance, witnesses = set(), set()
     for file in paths:
-        if file.startswith("docs/") or file in ("README.md", "CONTRIBUTING.md", "LICENSE"):
-            continue
         direct_owners = {suite for suite in witness.EMITTER_DIRECT if file in witness.emitter_inputs(suite)}
         if direct_owners:
             witnesses.update(direct_owners)
@@ -80,6 +78,10 @@ def selection(paths):
         compiler_owners = {suite for suite in witness.COMPILER_DIRECT if file in witness.compiler_direct_inputs(suite)}
         if compiler_owners:
             witnesses.update(compiler_owners)
+            continue
+        # Frozen executable selections can live under docs/. Check explicit
+        # witness ownership before treating documentation as disconnected.
+        if file.startswith("docs/") or file in ("README.md", "CONTRIBUTING.md", "LICENSE"):
             continue
         if file in PRINTER_INPUTS:
             witnesses.add("printer")

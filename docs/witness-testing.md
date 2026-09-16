@@ -19,7 +19,7 @@ python3 scripts/witness.py utf16-original-commands --all
 ```
 
 Suites: `primary`, `extra`, `followup`, `followup2`, `followup3`, `retained`, `direct`,
-`printer`, `bundle-sinks`, `declaration-map-cli`, plus the ten small
+`printer`, `bundle-sinks`, `declaration-map-cli`, plus the eleven small
 [emitter direct suites](design/greenfield/slices/witness-coverage/emitter-direct/README.md)
 and three [compiler UTF-16 suites](design/greenfield/slices/witness-coverage/compiler-utf16/README.md):
 `utf16-identity-recovery`, `utf16-review-fix`, `utf16-tagged-template`, plus
@@ -80,7 +80,7 @@ fails before replay.
 `.github/workflows/witness.yml` owns primary, short controls and retained jobs.
 A separate `printer` job shares one emitter build between the printer failure
 suite (four observers, seven targets and one exact noEmitOnError owner control)
-and ten individually selectable literal/factory/metadata targets. It retains a
+and eleven individually selectable literal/factory/metadata targets. It retains a
 20-minute limit and two workers. Selected direct targets run in one Cargo call;
 a literal fixture change runs only its owning target and observers, without the
 printer failure suite or a compiler/acceptance replay.
@@ -169,7 +169,7 @@ The seven replay jobs total 87m04s, excluding plans/gates and main-push replay.
 ## Test entry coverage
 
 The [PR-gate entry inventory](design/greenfield/slices/witness-coverage/README.md)
-lists all 65 standalone Cargo test targets and 16 lib/bin test harnesses. It
+lists all 66 standalone Cargo test targets and 16 lib/bin test harnesses. It
 separates unfiltered commands, named-test filters, and shared acceptance helpers.
 A broad replay selected for an unknown test source does not automatically run
 that source's standalone target. OPS-COVER-2 through 4 pair new owner commands
@@ -205,3 +205,12 @@ The C04 prototype landed in [PR #535](https://github.com/kazhiramatsu/tsc-rs/pul
 All seven replay jobs and both gates passed at `e86ed768f`; controls took 15m45s.
 Inventory v7 records the pinned Node 25.2.1 setup for selections containing `transpile-routes`;
 the original fixture bytes and the 22 known native differences are retained.
+
+A-PC1 registers `compact-body-comments` (240 direct printer cases, one test)
+and `parameter-temporaries` (12 original + 56 focused complete commands, two
+tests). The printer and controls jobs own these targets respectively. Both
+observers replay frozen expectations twice; the parameter entry clears inherited
+case selectors and captures so `--all` cannot silently select a subset. Its
+frozen selection under `docs/` is an executable input, explicitly matched before
+the ordinary documentation skip. Inventory v8 records 66 standalone targets:
+24 unfiltered, seven filtered, 35 without a direct entry (compiler15 / other20).
