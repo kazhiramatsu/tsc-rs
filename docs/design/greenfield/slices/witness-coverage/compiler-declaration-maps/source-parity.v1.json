@@ -1,0 +1,15 @@
+{
+  "baseline": "baseline-source.v1.json",
+  "production_paths_checked": 410,
+  "changed_production_paths": [],
+  "existing_fixture_paths_checked": 298,
+  "changed_existing_fixtures": [],
+  "new_frozen_inputs_sha256": {
+    "crates/compiler/tests/fixtures/declaration-map-bundle-boundary.json": "17d828765d8993c19af16512dc7f08f9016d0293fa55bbab7a0a66277501015e"
+  },
+  "changed_existing_runtime_validation_paths": [
+    "crates/compiler/tests/h2_7e_declaration_maps.rs",
+    "scripts/observe-declaration-maps.mjs",
+    "scripts/witness.py"
+  ]
+}

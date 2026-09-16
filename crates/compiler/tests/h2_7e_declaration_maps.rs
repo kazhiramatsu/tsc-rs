@@ -1,5 +1,6 @@
 //! Declaration-map observations through the printer, whole Program, and real CLI.
-//! The CLI checks status/exit for every fixture; the Program checks the original
+//! The CLI compares fresh reference stdout/stderr/exit and every file byte twice.
+//! The Program separately checks the original
 //! absolute-path command diagnostics, callback artifacts, and raw sourceMaps.
 use std::path::{Path, PathBuf};
 use tsc_compiler::{MemoryOutputSink, ProgramSession};
@@ -579,9 +580,8 @@ fn h2_7e_cli_status_and_exit_match_every_typescript_observation() {
     compare_cases(assert_cli_case);
 }
 
-fn assert_cli_case(case: &Value) {
+fn populate_cli_tree(case: &Value, tree: &CliTree) {
     let prefix = format!("{}/", case["current_directory"].as_str().unwrap());
-    let tree = CliTree::new();
     let roots = case["files"]
         .as_array()
         .unwrap()
@@ -608,11 +608,13 @@ fn assert_cli_case(case: &Value) {
     } else {
         "lf"
     });
-    if let Some(directory) = options["declarationDir"]
-        .as_str()
-        .and_then(|s| s.strip_prefix(prefix.as_str()))
-    {
-        options["declarationDir"] = json!(tree.0.join(directory));
+    for option in ["declarationDir", "outFile"] {
+        if let Some(relative) = options[option]
+            .as_str()
+            .and_then(|s| s.strip_prefix(prefix.as_str()))
+        {
+            options[option] = json!(tree.0.join(relative));
+        }
     }
     std::fs::write(
         tree.0.join("tsconfig.json"),
@@ -636,60 +638,50 @@ fn assert_cli_case(case: &Value) {
             std::fs::create_dir_all(tree.0.join(relative)).unwrap();
         }
     }
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_tsc-rs"))
-        .current_dir(&tree.0)
-        .args(["-p", "tsconfig.json", "--pretty", "false"])
-        .output()
-        .unwrap();
-    assert!(
-        output.stderr.is_empty(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let stdout = String::from_utf8(output.stdout).unwrap();
-    let status = stdout
-        .lines()
-        .filter(|line| line.starts_with("TSFILE: "))
-        .collect::<Vec<_>>();
-    let observation = &case["typescript_observation"];
-    let expected = observation
-        .get("calls")
-        .map_or(observation, |calls| &calls[0]);
-    let expected_status = expected["status_writes"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|line| {
-            let relative = line
-                .as_str()
-                .unwrap()
-                .strip_prefix(format!("TSFILE: {prefix}").as_str())
-                .unwrap();
-            format!("TSFILE: {}", tree.0.join(relative).display())
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(status, expected_status, "actual CLI output: {stdout}");
-    assert_eq!(
-        json!(output.status.code()),
-        expected["exit_code"],
-        "actual CLI output: {stdout}"
-    );
-    if case["options"]["declarationMap"] == true && case["options"]["declaration"] != true {
-        // Preserve the original Program tuple above; additionally compare the
-        // relocated CLI's config-diagnostic rendering and exact JS bytes.
-        for write in expected["writes"].as_array().unwrap() {
-            let relative = write["path"]
-                .as_str()
-                .unwrap()
-                .strip_prefix(prefix.as_str())
-                .unwrap();
-            assert_eq!(
-                std::fs::read(tree.0.join(relative)).unwrap(),
-                base64::engine::general_purpose::STANDARD
-                    .decode(write["materialized_utf8_base64"].as_str().unwrap())
-                    .unwrap()
-            );
+}
+
+fn cli_files(root: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+    fn visit(
+        root: &Path,
+        directory: &Path,
+        files: &mut std::collections::BTreeMap<PathBuf, Vec<u8>>,
+    ) {
+        for entry in std::fs::read_dir(directory).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_dir() {
+                visit(root, &entry.path(), files);
+            } else {
+                assert!(entry.file_type().unwrap().is_file());
+                files.insert(
+                    entry.path().strip_prefix(root).unwrap().to_owned(),
+                    std::fs::read(entry.path()).unwrap(),
+                );
+            }
         }
+    }
+    let mut files = std::collections::BTreeMap::new();
+    visit(root, root, &mut files);
+    files
+}
+
+fn assert_cli_case(case: &Value) {
+    for _ in 0..2 {
+        let tree = CliTree::new();
+        populate_cli_tree(case, &tree);
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_tsc-rs"))
+            .current_dir(&tree.0)
+            .args(["-p", "tsconfig.json", "--pretty", "false"])
+            .output()
+            .unwrap();
+        let actual_files = cli_files(&tree.0);
+        // Config-based CLI defaults differ from bare Program options (TS5011
+        // and declarationDir layout). Compare the same complete CLI invocation
+        // against the pinned reference, with identical paths and pristine input.
+        // Removing our owned temporary tree prevents Rust output from satisfying
+        // a missing reference write, or a reference output from surviving a run.
+        std::fs::remove_dir_all(&tree.0).unwrap();
+        std::fs::create_dir_all(&tree.0).unwrap();
+        populate_cli_tree(case, &tree);
         let reference = std::process::Command::new("node")
             .arg(
                 Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -699,28 +691,27 @@ fn assert_cli_case(case: &Value) {
             .args(["-p", "tsconfig.json", "--pretty", "false"])
             .output()
             .unwrap();
-        assert_eq!(reference.stdout, stdout.as_bytes());
-        assert_eq!(reference.stderr, output.stderr);
-        assert_eq!(reference.status.code(), output.status.code());
-        let actual_outputs = std::fs::read_dir(&tree.0)
-            .unwrap()
-            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-            .filter(|name| name != "tsconfig.json" && !roots.contains(name))
-            .collect::<std::collections::BTreeSet<_>>();
-        let expected_outputs = expected["writes"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|write| {
-                write["path"]
-                    .as_str()
-                    .unwrap()
-                    .strip_prefix(prefix.as_str())
-                    .unwrap()
-                    .to_owned()
-            })
-            .collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(actual_outputs, expected_outputs);
+        let id = &case["case_id"];
+        assert!(
+            reference.status.code().is_some(),
+            "{id}: reference CLI terminated by signal"
+        );
+        assert_eq!(
+            output.status.code(),
+            reference.status.code(),
+            "{id}: CLI exit"
+        );
+        assert_eq!(output.stdout, reference.stdout, "{id}: complete CLI stdout");
+        assert_eq!(output.stderr, reference.stderr, "{id}: complete CLI stderr");
+        assert_eq!(
+            actual_files,
+            cli_files(&tree.0),
+            "{id}: complete CLI file set and bytes"
+        );
+        eprintln!(
+            "H2.7e CLI PASS {id}: stdout/stderr/exit and {} files",
+            actual_files.len()
+        );
     }
 }
 
@@ -737,24 +728,22 @@ fn h2_7e_javascript_and_declaration_map_order_matches_typescript() {
 }
 
 #[test]
-fn h2_7e_bundle_maps_keep_typed_boundary() {
-    let fixture: Value =
+fn h2_7e_bundle_maps_match_admitted_command_observation() {
+    let original: Value =
         serde_json::from_str(include_str!("fixtures/declaration-maps.json")).unwrap();
-    let mut case = fixture["cases"][0].clone();
-    let host = memory_host(&case);
-    case["options"]["declaration"] = json!(true);
-    case["options"]["outFile"] = json!("/project/bundle.js");
-    let mut sink = MemoryOutputSink::new();
-    let error = ProgramSession::new(prepared(&case, &host))
-        .emit(&mut sink)
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        tsc_compiler::DriverError::Emit(tsc_emitter::EmitFailure::UnsupportedCompilerOption {
-            option: "outFile"
-        })
-    ));
-    assert!(sink.writes().is_empty());
+    let mut input = original["cases"][0].clone();
+    input["options"]["declaration"] = json!(true);
+    input["options"]["outFile"] = json!("/project/bundle.js");
+    compare_fixture(
+        include_str!("fixtures/declaration-map-bundle-boundary.json"),
+        1,
+        |case| {
+            assert_eq!(case["files"], input["files"]);
+            assert_eq!(case["options"], input["options"]);
+            assert_eq!(case["current_directory"], input["current_directory"]);
+            assert_program_case(case);
+        },
+    );
 }
 
 struct ControlledFileSystem<'a> {

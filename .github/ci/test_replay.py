@@ -1,4 +1,6 @@
 """Selection and gate contracts; no Rust build or witness replay."""
+from contextlib import redirect_stdout
+import io
 import importlib.util
 import json
 from pathlib import Path
@@ -16,6 +18,65 @@ witness = replay.witness
 
 
 class SelectionTests(unittest.TestCase):
+    def test_declaration_map_dependencies_keep_shared_and_adjacent_owners(self):
+        for path in ("crates/compiler/tests/fixtures/declaration-map-apis.json",
+                     "scripts/observe-declaration-map-apis.mjs"):
+            plan = replay.selection([path])
+            self.assertEqual(plan["witnesses"], ["declaration-map-apis", "declaration-maps"])
+            self.assertEqual(plan["acceptance"], [])
+            self.assertEqual(replay.matrices(plan)["witnesses"], {
+                "include": [{"group": "declaration-maps", "suites": list(replay.DECLARATION_MAP_SUITES)}],
+            })
+        self.assertTrue(set(replay.DECLARATION_MAP_SUITES).isdisjoint(replay.WITNESS_GROUPS["controls"]))
+        for path in ("crates/compiler/tests/fixtures/declaration-reference-paths.json",
+                     "ratchets/h2-7de-candidate-inputs.v1.json",
+                     "ratchets/h2-7de-observations.v1.json",
+                     "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
+                     "crates/oracle/vfs-directory-overlay.mjs"):
+            self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
+            self.assertEqual(replay.selection([path])["acceptance"], list(replay.GROUPS))
+        workflow = (ROOT / ".github/workflows/witness.yml").read_text()
+        for suite in ("declaration-map-apis", "declaration-maps"):
+            self.assertIn(f"contains(matrix.suites, '{suite}')", workflow)
+
+    def test_declaration_map_runner_checks_every_observer_mode_and_both_targets(self):
+        suites = ["declaration-map-apis", "declaration-maps"]
+        expected_observers = [
+            ["node", "scripts/observe-declaration-map-apis.mjs", "--check"],
+            ["node", "scripts/observe-declaration-reference-paths.mjs", "--check"],
+            ["node", "scripts/observe-declaration-maps.mjs", "--check"],
+            ["node", "scripts/observe-declaration-maps.mjs", "--runtime", "--check"],
+            ["node", "scripts/observe-declaration-maps.mjs", "--disabled-declaration", "--check"],
+            ["node", "scripts/observe-declaration-maps.mjs", "--bundle-boundary", "--check"],
+        ]
+        good = "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n" \
+               "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        for output, status in ((good, 0), (good.splitlines()[0], 0),
+                               (good.replace("8 passed", "0 passed"), 0),
+                               (good.replace("0 ignored", "1 ignored"), 0),
+                               (good.replace("0 filtered", "1 filtered"), 0), (good, 101)):
+            with self.subTest(output=output, status=status), patch.object(
+                witness.subprocess, "run", return_value=subprocess.CompletedProcess([], status, output)
+            ) as run, redirect_stdout(io.StringIO()):
+                if output == good and status == 0:
+                    witness.run_compiler_direct(suites)
+                else:
+                    with self.assertRaises((ValueError, subprocess.CalledProcessError)):
+                        witness.run_compiler_direct(suites)
+                self.assertEqual([call.args[0] for call in run.call_args_list[:-1]], expected_observers)
+                self.assertEqual(run.call_args_list[-1].args[0], witness.compiler_direct_command(suites))
+        for observer in expected_observers:
+            def fail_selected(command, **kwargs):
+                if command == observer:
+                    raise subprocess.CalledProcessError(1, command)
+                return subprocess.CompletedProcess(command, 0, "")
+            with self.subTest(observer=observer), patch.object(
+                witness.subprocess, "run", side_effect=fail_selected
+            ) as run, redirect_stdout(io.StringIO()):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    witness.run_compiler_direct(suites)
+                self.assertTrue(all(call.args[0][0] == "node" for call in run.call_args_list))
+
     def test_bundle_dependencies_select_every_consumer_and_keep_shared_coverage(self):
         for path in ("crates/emitter/tests/fixtures/bundle-declarations.json",
                      "scripts/observe-bundle-declarations.mjs"):
@@ -204,7 +265,7 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(plan["witnesses"], ["followup3", "printer", "literal-value-provenance", "comma-argument-factory"])
         self.assertEqual(len(replay.matrices(plan)["witnesses"]["include"]), 2)
 
-    def test_compiler_direct_inputs_select_only_their_target_in_controls(self):
+    def test_compiler_direct_inputs_select_only_their_target_in_owning_job(self):
         for suite in witness.COMPILER_DIRECT:
             for path in witness.compiler_direct_inputs(suite):
                 if path == "scripts/observe-literal-update.mjs":
@@ -212,13 +273,18 @@ class SelectionTests(unittest.TestCase):
                 if path in ("scripts/observe-bundle-declarations.mjs",
                             "crates/emitter/tests/fixtures/bundle-declarations.json"):
                     continue  # shared bundle consumers have an explicit contract above
+                if path in ("scripts/observe-declaration-map-apis.mjs",
+                            "crates/compiler/tests/fixtures/declaration-map-apis.json",
+                            "crates/compiler/tests/fixtures/declaration-reference-paths.json"):
+                    continue  # declaration map cross-target/acceptance ownership above
                 with self.subTest(suite=suite, path=path):
                     self.assertTrue((ROOT / path).is_file(), path)
                     plan = replay.selection([path])
                     self.assertEqual(plan["acceptance"], [])
                     self.assertEqual(plan["witnesses"], [suite])
+                    group = "declaration-maps" if suite in replay.DECLARATION_MAP_SUITES else "controls"
                     self.assertEqual(replay.matrices(plan)["witnesses"], {
-                        "include": [{"group": "controls", "suites": [suite]}],
+                        "include": [{"group": group, "suites": [suite]}],
                     })
 
     def test_compiler_direct_union_and_shared_inputs_retain_other_owners(self):
@@ -472,6 +538,7 @@ class WitnessTests(unittest.TestCase):
             "config-library": 96, "prologue-comments": 8,
             "utf16-recovery-corpus": 50, "map-option-projection": 31,
             "bundle-program": 27, "bundle-declarations": 56,
+            "declaration-map-apis": 75, "declaration-maps": 84,
             "literal-update": 1396, "literal-update-pipeline": 22, "require-rewrite": 74,
             "declaration-specifiers": 30, "declaration-comments": 41, "jsdoc-return": 58,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,

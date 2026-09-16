@@ -184,7 +184,7 @@ The seven replay jobs total 87m04s, excluding plans/gates and main-push replay.
 ## Test entry coverage
 
 The [PR-gate entry inventory](design/greenfield/slices/witness-coverage/README.md)
-lists all 67 standalone Cargo test targets and 16 lib/bin test harnesses. It
+lists all 69 standalone Cargo test targets and 16 lib/bin test harnesses. It
 separates unfiltered commands, named-test filters, and shared acceptance helpers.
 A broad replay selected for an unknown test source does not automatically run
 that source's standalone target. OPS-COVER-2 through 4 pair new owner commands
@@ -345,3 +345,32 @@ passed all seven hosted replay jobs and both gates at `160161683`. Controls ran
 these are whole-group measurements. The seven jobs total 118m36s, excluding
 plans, aggregate gates and main-push runs. Controls remains below the 45-minute
 split-review threshold.
+
+
+## Declaration map output and stateful API witnesses
+
+OPS-COVER-3L/3M registers `declaration-maps` and `declaration-map-apis` in a
+dedicated `declaration-maps` job. Their 6m57s local entry plus the previous
+37m51s controls job left little margin below the 45-minute review threshold,
+so the split adds one compiler build while retaining every suite. All eight
+replay jobs and both gates are required.
+Use `scripts/witness.py <suite> --list` or `--all --dry-run` to inspect the
+84 and 75 fixture memberships, including shared and reference rows. `--all`
+runs the selected complete target harness, or both in the selected compiler batch:
+eight output tests and three stateful API tests. The shared API observer runs
+once per batch; all four map observer modes and reference-path checks run
+before Cargo. Both suites select the frozen Node version even on their own.
+The shared reference-path fixture retains full acceptance/witness selection.
+See the [scope and validation record](design/greenfield/slices/witness-coverage/compiler-declaration-maps/README.md).
+
+
+[OPS-COVER-3L/3M / PR #547](design/greenfield/slices/witness-coverage/compiler-declaration-maps/README.md)
+merged at `0e3852509` after all eight replay jobs and both gates passed at
+`6cfd82ca2`; both Git trees are identical. The new declaration-maps job took
+5m38s, including all 11 tests and 70 pristine CLI comparison pairs. Its six
+observers took 35.504s and Cargo build/replay 267.979s. Controls retained all
+18 compiler-direct suites / 64 tests and took 38m11s. The eight jobs total
+121m55s, excluding plans, aggregate gates and main-push runs. The receipt records
+whole-job timing and the additional build; it is not an isolated performance
+comparison. Inventory v17 leaves 24 standalone targets without a direct entry
+(compiler4 / other20).
