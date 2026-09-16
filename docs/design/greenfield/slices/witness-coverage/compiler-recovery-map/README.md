@@ -54,7 +54,40 @@ mapは31×2 routes＋原本5＋別floor6＝73観測を各2回実行する設計�
 - planner51 tests、実行policy、fmt、台帳v14再生成、diff checkが成功。
   census欠損/衝突、oracle失敗、既存ファイル保全、cleanup、test欠落/0件/ignore/filter変更を検査した。
 
-専用2 suiteと既存coverageをまとめたhosted検証は次節へ記録する。
+専用2 suiteと既存coverageをまとめたhosted検証は次節に記録した。
 全legacy CI、未登録target、H2全体のqualificationは今回のローカル実行には含まない。
 
 
+
+## Hosted検証と統合
+
+[PR #545](https://github.com/kazhiramatsu/tsc-rs/pull/545)を
+`6a9de38d7dc619e43199ec2171ae1320e5840d39`で統合した。
+候補 `008a678c4455ead5a0276eaa7587d10b4cc7bb2e`、synthetic merge
+`acfceea5e2665b5d2448f5d44d11c90b304cf9e4`に対して全7 replay job・両aggregate gateが成功。
+実mergeのtreeはsynthetic mergeと一致する。job・source・時間・ログhashを
+[hosted.v1.json](hosted.v1.json)に固定し、全7 jobのraw logをgzipで保存した。
+抽出は[collect-hosted.py](collect-hosted.py)で再現できる（`--out /tmp/new-receipt-dir`）。
+
+| Job | 全体時間 | 結果 |
+| --- | --- | --- |
+| [acceptance (early)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35092307686/job/104781390715) | 10分04秒 | success |
+| [acceptance (late)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35092307686/job/104781390768) | 17分27秒 | success |
+| [acceptance (wide)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35092307686/job/104781390799) | 29分31秒 | success |
+| [witnesses (printer)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35092307896/job/104781391858) | 2分49秒 | success |
+| [witnesses (retained)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35092307896/job/104781391967) | 6分43秒 | success |
+| [witnesses (primary)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35092307896/job/104781391986) | 10分48秒 | success |
+| [witnesses (controls)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35092307896/job/104781391994) | 35分45秒 | success |
+
+controlsのcompiler direct16入口・57 testsがすべて成功した。
+追加したrecovery50 command comparisonsは各2回、mapは専用31入力×2 adapter＋原本5の
+67観測が完全一致×2。別floorのMapFamily3観測も一致×2、旧SourceMap3観測は
+意図された差を確認×2。これらの入力・floorの重複を新規corpus exact数へ合算しない。
+
+controls全体は35分45秒で45分の分割検討目安内。2 workersと60分上限を維持する。
+compiler direct全体のoracle381.855秒、Cargo build/replay1200.945秒を記録した。
+7 replay job合計は113分07秒。plan・aggregate gate・merge後のmain pushは含まない。
+前回の34分54秒とは入力集合とrunnerが異なり、51秒差を新規suiteの孤立した性能測定にはしない。
+
+OPS-COVER-3H/3Iを閉じる。直接入口なしは69 standalone中28（compiler8 / その他20）。
+残りの入口・filtered targetの未選択部分、runtime admission、全体qualificationは次のownerへ残す。

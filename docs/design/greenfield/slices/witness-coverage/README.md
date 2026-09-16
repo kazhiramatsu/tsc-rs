@@ -1,6 +1,6 @@
 # OPS-COVER：PR CI のテスト入口台帳
 
-2026-09-16。統合担当：Codex。**config/library・prologueまで既存テストのCI入口を追加し、PR #544で検証・統合済み。残りは OPS-COVER-3残部〜4。**
+2026-09-16。統合担当：Codex。**recovery・map-optionまで既存テストのCI入口を追加し、PR #545で検証・統合済み。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
 [現在の固定台帳](inventory.v14.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
@@ -19,7 +19,7 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 [OPS-COVER-3F / 3G](compiler-config-prologue/README.md) はconfig/libraryの24 exact test・96入力とprologueの1 target・8入力を追加したv13。[PR #544](https://github.com/kazhiramatsu/tsc-rs/pull/544)で限定printer修復と一括検証・統合済み。全7 replay job・両gate成功、controls34分54秒。
 設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
-[OPS-COVER-3H / 3I](compiler-recovery-map/README.md) はrecovery50入力とmap-option31専用入力・原本5 IDの2 targetを追加したv14。個別の比較面と重複は同記録に保持する。
+[OPS-COVER-3H / 3I](compiler-recovery-map/README.md) はrecovery50入力とmap-option31専用入力・原本5 IDの2 targetを追加したv14。PR #545で一括検証・統合済み（全7 replay job・両gate成功、controls35分45秒）。個別の比較面と重複は同記録に保持する。
 
 ## 現在の入口
 
