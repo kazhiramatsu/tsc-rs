@@ -200,3 +200,8 @@ total 144m44s, still excluding planning/gates. The receipt retains both runs.
 C04 adds the new `transpile_routes_contract` to controls (nine tests / 301 inputs).
 Inventory v6 therefore has 65 standalone targets: 22 unfiltered, seven filtered,
 and 36 without a direct entry. Existing acceptance membership is unchanged.
+
+The C04 prototype landed in [PR #535](https://github.com/kazhiramatsu/tsc-rs/pull/535).
+All seven replay jobs and both gates passed at `e86ed768f`; controls took 15m45s.
+Inventory v7 records the pinned Node 25.2.1 setup for selections containing `transpile-routes`;
+the original fixture bytes and the 22 known native differences are retained.
