@@ -1,6 +1,6 @@
 # L2.3 隔離 prototype：段階 B の結果報告
 
-**提出時点の記録**：以下の数値はClaude再提出時。統合レビューでR4の追加2件を修正し、identityを含むbytes集計とCI入口を追加した。現在の結果は[統合記録](integration/README.md)を参照。
+**提出時点の記録**：以下の数値はClaude再提出時。統合レビューでR1のpath表記保持とR4の追加2件を修正し、identityを含むbytes集計とCI入口を追加した。現在の結果は[統合記録](integration/README.md)を参照。
 
 作成日：2026-09-16（同日、[レビュー R1](REVIEW-01-RESPONSE.md) の R1–R4 修正後に再提出。§10）。base `d9cfb664ad89898b0b5601d85e7e2abf70e32b18`（origin/main）。
 設計は [DESIGN.md](DESIGN.md)、後続統合は [INTEGRATION.md](INTEGRATION.md)。

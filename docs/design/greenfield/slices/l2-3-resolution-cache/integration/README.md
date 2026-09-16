@@ -74,5 +74,27 @@ manifest26 family /112世代 /197 requestも入口で検査する。
 cache本体を含むProgram production変更は従来の全関連replayと本suiteを選択する。
 `cargo xtask acceptance`へ混在させず、専用witnessとして実行する。
 
-Hosted結果とmerge identityは、実行完了後に追記する。
+[PR #539](https://github.com/kazhiramatsu/tsc-rs/pull/539)で統合済み。merge `5f6e681af9dd338d816b00582a39021e3dbc0741`。
+全7 replay jobと両gateが成功。[hosted.v1.json](hosted.v1.json)にcandidate / tested merge / landed mergeとjob結果を保存した。3者のtreeは同一。
 Program reuse、watch/LSP activation、実FS I/O / heap測定は本統合の対象外。
+
+
+## Hosted実行記録
+
+[acceptance](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35061631290)、[witnesses](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35061631277)はいずれも成功。
+[controlsログ](hosted-controls.log.gz)は26 family /112世代 /197 requestのnative二重照合、unit56 /contract11の成功を保持する。
+新入口はobserver 0.363s、Cargo build/replay 6.128s。
+
+| PR replay job | 実時間 |
+| --- | ---: |
+| acceptance (wide) | 28分25秒 |
+| acceptance (early) | 12分08秒 |
+| acceptance (late) | 17分34秒 |
+| witnesses (primary) | 10分43秒 |
+| witnesses (retained) | 8分51秒 |
+| witnesses (controls) | 13分51秒 |
+| witnesses (printer) | 2分26秒 |
+
+最終7 jobの合計は93分58秒。plan /gate /main pushは含まない。
+path表記の反証を受けて停止した旧候補の7 jobは別途41分26秒。
+job時間はbuild・実行・runner変動を含み、cacheの実FS高速化を示す測定ではない。

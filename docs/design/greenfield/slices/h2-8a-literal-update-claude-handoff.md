@@ -8,9 +8,10 @@ SUPER 統合後の main の SHA を固定し、ローカルは新規失敗・関
 重い全件 replay は hosted で実行します。以下の技術要件は現行実装と照合し、既実装部分を再実装しません。
 
 
-**2026-09-16 次スライス**：C05再提出の統合後、Claudeへ次に送る依頼は本C01。
+**2026-09-16 次スライス**：C05はPR #539で統合済み。Claudeへ次に送る依頼は本C01。
 最新mainから新しいworktreeを作り、開始SHAを固定してください。C05の作業treeへ重ねません。
 統合担当のAPI1.2-HINT（PR #537）とA-PC1（PR #538）も開始点に含めます。
+C05 merge `5f6e681af9dd338d816b00582a39021e3dbc0741`を含むことを確認してください。
 
 再確認した入口は `factory::update_node`（同値なら同一node、変更時はcloneしてpayload更新）、
 `clone_node`（literal propertiesとtemplate flagsを保持）、`LiteralNodeProperties::raw_template_text`
@@ -23,6 +24,42 @@ cooked / raw projection / owned raw / flagsの変更操作が交差する境界�
 `python3 scripts/witness.py <suite> --list`で入口を確認できます。
 新規fixtureはこれらの凍結expectedを書き換えず追加し、最終提出時に専用CI入口の所有path・
 実行件数・想定時間も示してください。全件hostedは統合担当が登録・実行します。
+
+
+## Claudeへの送付用要約
+
+次のスライスとして **C01 / A40-LITERAL-UPDATE：UTF-16リテラル更新とtemplate伝播の残経路監査・修復** をお願いします。
+最新の `origin/main` をfetchし、開始SHAを記録した専用branch/worktreeで進めてください。
+API1.2-HINT（PR #537）、A-PC1（PR #538）、C05統合（PR #539）を含むmainが開始点です。
+既存のC05 worktreeは使い回さず、旧UTF-16 patchも再適用しません。
+
+**目的**：literalの値を更新した後、cooked値・raw値・templateFlags・quote/textSourceNode・
+originalの関係が固定TypeScript 6.0.3と同じ条件で保持または更新され、
+後続printer / tagged-template変換へ正しく届くことを確認し、再現した差を修復すること。
+`JsString`移行、templateFlagsの保持、`IS_INVALID`の消費は既に実装済みです。
+
+進める順序は次のとおりです。
+
+1. **現状の対応表**：旧要求、現行owner/caller、既存witness、追加確認が必要な境界を整理する。
+   「既存観測済み／追加対照が必要／差を再現／到達前提が未成立」を分ける。
+2. **beforeの固定**：同値更新・異値更新、cookedのみ・rawのみ・flagsのみの変更、raw未指定と空文字列、
+   clone/update/cross-source/disposeの操作列について入力IDと件数を先に固定し、nativeを2回観測する。
+   孤立surrogate同士と実U+FFFDを区別し、raw projectionとowned rawを別々に確認する。
+3. **必要な修復**：差が出たproducer/update/consumerのownerを修復する。
+   新しいtyped updateが必要なら、その根拠・同値判定・保持/更新規則・実caller移行を示す。
+   差のない経路は根拠と対照を残し、不要なAPIや再実装は追加しない。
+4. **afterと隣接回帰**：direct factory/printerと、到達するtagged-template経路を最終bytesで検証する。
+   source Programへ到達する経路は完全command観測も比較する。Rust-only errorとnative例外は別集計にする。
+
+**提出物**：`DESIGN.md`、現状対応表、入力/期待値と全ID・件数、before/afterのログ・観測・argv/env/exit、
+必要なcandidate patchとSHA-256、`REPORT.md`、`INTEGRATION.md`。
+残件と未到達の前提、新規CI入口のtarget/所有path/実行件数/想定時間も記載してください。
+既存の凍結expectedは維持し、新規対照は追加ファイル/追加IDで保存してください。
+
+ローカルは新規失敗と変更ownerのfocused setを低優先度・2 workers以下で確認します。
+重い全件replay、commit/PR、CI入口の登録・hosted確認・本番統合は統合担当が進めます。
+Unicode writer全体、checker/syntaxの無関係な改修、全custom-transform APIのadmissionは対象外です。
+以下の詳細仕様と[共通手順](claude-high-difficulty-handoffs.md)を併せて参照してください。
 
 ## 依頼
 

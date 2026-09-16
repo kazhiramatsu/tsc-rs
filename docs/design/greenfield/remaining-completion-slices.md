@@ -76,7 +76,7 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 
 依頼入口は [Claude handoff index](slices/claude-high-difficulty-handoffs.md)。
 **C03/C04 は候補を受領済み。C04 は[統合記録](slices/h2-8c-transpile/INTEGRATION.md)を参照。次の推奨送付順は C01 → C02**。
-C05は再提出を受領し、R4の残る2件とR1のpath表記衝突を統合側で修正した[統合候補](slices/l2-3-resolution-cache/integration/README.md)。専用CI入口を登録し、fresh178/native190と回帰を確認。hosted結果・mergeは同記録へ追記する。Program本番統合はL2.3a/bへ残す。
+C05は再提出を受領し、R4の残る2件とR1のpath表記衝突を統合側で修正し、PR #539で統合した[prototype](slices/l2-3-resolution-cache/integration/README.md)。専用CI入口を登録し、fresh178/native190と回帰を確認。全7 hosted jobと両gateが成功し、mergeと実測は同記録に保存した。Program本番統合はL2.3a/bへ残す。
 [C03 統合レビュー](slices/h2-8a-printer-failure/INTEGRATION.md)に44 exact / 2保留、
 追加修復・検証・hosted 入口を記録した。その後の [A-INT3-CS](slices/h2-8a-printer-comment-carry/README.md)
 で source をまたぐコメント差を修復し、PR #528 で統合済み。提出25件の残差は C02 / A-INT2 の生成名1件。

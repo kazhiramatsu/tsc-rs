@@ -1,6 +1,6 @@
 # レビュー R1（`l2-3-resolution-cache-review-01`）への対応
 
-**提出時点の記録**：以下の数値はClaude再提出時。統合レビューでR4の追加2件を修正し、identityを含むbytes集計とCI入口を追加した。現在の結果は[統合記録](integration/README.md)を参照。
+**提出時点の記録**：以下の数値はClaude再提出時。統合レビューでR1のpath表記保持とR4の追加2件を修正し、identityを含むbytes集計とCI入口を追加した。現在の結果は[統合記録](integration/README.md)を参照。
 
 作成日：2026-09-16。対象：[追加修正依頼 R1](../l2-3-resolution-cache-review-01/README.md)
 （統合担当 Codex、提出 patch `ff4f6021…e3a80e` に対するもの）。

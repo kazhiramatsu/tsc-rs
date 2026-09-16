@@ -40,9 +40,9 @@ Program 再利用・LSP の完成は報告しない。
 5. 型参照 resolutionDiagnostics の所有（loader）と cache value の関係整理。
 6. 実 FS host（`FsCompilerHost`）での I/O 削減と heap 実測（同一優先度・同一環境の before/after）。
 7. Go の非相対名 cache の祖先埋めを採用するかの判断（正しさには影響しない）。
-8. hosted CI への登録は本統合で実施（§4）。実行証跡は[統合記録](integration/README.md)へ追記する。
+8. hosted CI への登録は本統合で実施（§4）。全7 jobと両gateの成功証跡は[統合記録](integration/README.md)に保存した。
 
-## 4. hosted entry（登録済み、実行結果は統合記録）
+## 4. hosted entry（登録・hosted成功、実行結果は統合記録）
 
 `python3 scripts/witness.py resolution-cache --all` をcontrols jobに登録。
 固定Node25.2.1のnative observerは2回採取の一致と凍結expectedへのbyte一致を確認する。
