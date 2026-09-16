@@ -2,7 +2,7 @@
 
 2026-09-16。統合担当：Codex。**recovery・map-optionまで既存テストのCI入口を追加し、PR #545で検証・統合済み。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v14.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v15.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -21,25 +21,27 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 
 [OPS-COVER-3H / 3I](compiler-recovery-map/README.md) はrecovery50入力とmap-option31専用入力・原本5 IDの2 targetを追加したv14。PR #545で一括検証・統合済み（全7 replay job・両gate成功、controls35分45秒）。個別の比較面と重複は同記録に保持する。
 
+[OPS-COVER-3J / 3K](compiler-bundles/README.md) はbundle Programとdeclaration/mapの2 targetを登録したv15。古いnoEmit拒否検査を固定tuple比較へ更新し、PR #546で最終7 testsと両observerを含む全7 hosted replay job・両gateが成功。controls37m51s。
+
 ## 現在の入口
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
-| standalone target（filter なし） | 29 | printer job の7 targetとdirect12、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・recovery-corpus・resolution cache contract。ignored/cfg-disabled test の実行までは意味しない |
-| standalone target（名前で filter） | 12 | compiler10 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
-| standalone target の直接呼出しなし | 28 | compiler8 / その他20 |
+| standalone target（filter なし） | 30 | printer job の7 targetとdirect12、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・recovery-corpus・bundle-program・resolution cache contract。ignored/cfg-disabled test の実行までは意味しない |
+| standalone target（名前で filter） | 13 | compiler11 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
+| standalone target の直接呼出しなし | 26 | compiler6 / その他20 |
 | lib/bin の test harness | 16 | Program lib 1件に直接入口、残り15件は直接実行なし |
 
-**69 standalone target を列挙した。28件を「挙動が未検証」とは数えない。**
+**69 standalone target を列挙した。26件を「挙動が未検証」とは数えない。**
 acceptance が同じ比較 helper を Rust の `#[path]` で取り込み、関数を直接呼ぶ場合がある。
 台帳は source の共有関係10 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
 helper の共有から、その target の全テスト・新しい入力集合の実行まで推論しない。
 
-現在、直接入口のない28 targetの source を単独変更すると、planner は unknown input として
+現在、直接入口のない26 targetの source を単独変更すると、planner は unknown input として
 **全 acceptance / witness グループを選択するが、その standalone target 自身は追加しない**。
 v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では専用 target のみを選ぶ。共有 production の安全策としての
 全体 replay と、変更した専用 contract の実行が別物であることを示す。
-残る28件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
+残る26件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
 
 ### 実例：shared helper と target 全体は違う
 
@@ -59,7 +61,7 @@ v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では�
 | ID / 担当 | 対象 | 入れる順序・終了条件 |
 | --- | --- | --- |
 | OPS-COVER-2 / 統合担当 | emitter direct 10 target：入口追加完了 | [検証記録](emitter-direct/README.md)。literal4 / metadata6、2239 row ×2、13 tests。既存 printer job の20分枠・2 workersでbuildを共有し、専用入力はtarget単位で選択 |
-| OPS-COVER-3 / 統合担当 | [3AのCLI8件](declaration-map-cli/README.md)と[3BのUTF-16 3 target](compiler-utf16/README.md)、[3Cのliteral2 target](compiler-literals/README.md)を登録。[3Dのdeclaration3 target](compiler-declarations/README.md)も登録。[3Eのrequire-rewrite74入力](compiler-require-rewrite/README.md)も登録。[3F/3Gのconfig/library96入力とprologue8入力](compiler-config-prologue/README.md)も登録。[3H/3I](compiler-recovery-map/README.md)でrecovery50とmap-optionの2 targetを登録。残りcompiler8 targetとfiltered10 targetの未選択部分 | 続いて旧literal rowsの重複、declaration/map、parameterの未収載集合を既存acceptanceのID／比較面と照合。530などの既存全体を再度追加しない |
+| OPS-COVER-3 / 統合担当 | [3AのCLI8件](declaration-map-cli/README.md)と[3BのUTF-16 3 target](compiler-utf16/README.md)、[3Cのliteral2 target](compiler-literals/README.md)を登録。[3Dのdeclaration3 target](compiler-declarations/README.md)も登録。[3Eのrequire-rewrite74入力](compiler-require-rewrite/README.md)も登録。[3F/3Gのconfig/library96入力とprologue8入力](compiler-config-prologue/README.md)も登録。[3H/3I](compiler-recovery-map/README.md)でrecovery50とmap-optionの2 targetを登録。[3J/3K](compiler-bundles/README.md)でbundle Programとdeclaration/mapを登録。残りcompiler6 targetとfiltered11 targetの未選択部分 | 続いて旧literal rowsの重複、declaration/map、parameterの未収載集合を既存acceptanceのID／比較面と照合。530などの既存全体を再度追加しない |
 | OPS-COVER-4 / 統合担当、各製品 owner | その他20 standalone と残15 lib/bin harness | syntax/binder/types、host/program、checker/API、harness/fuzz に分割。単独file変更と共有変更の依存表を持ち、該当製品 slice の公開契約・取消・error・文字列境界を実測して登録 |
 | OPS-BUDGET / 統合担当 | 新規 group の build / replay / merge後の重複 | 2 workers、45分で分割検討、60分hard limit。PRとmain pushの実行時間を別集計。entryを追加してから恒常的な時間超過を発見する順序にしない |
 
@@ -99,7 +101,7 @@ workflow の認識していない shell entry が追加された場合はエラ�
 - `--check` は metadata / command / source hash の drift を検知する。台帳の1行を「全体実行」に
   改変した negative control も拒否を確認した。これは互換テストのpass件数には加算しない。
 
-## 全 standalone target（v14）
+## 全 standalone target（v15）
 
 下表の「共有」は acceptance と明示的な source参照が重なる数で、実行したテスト数ではない。
 filter名、command owner、source/fixture path、driverの関数名はJSON台帳で参照できる。
@@ -115,9 +117,9 @@ filter名、command owner、source/fixture path、driverの関数名はJSON台�
 | compiler | [h2_5h_utf16_literal_witnesses](../../../../../crates/compiler/tests/h2_5h_utf16_literal_witnesses.rs) | test名でfilter | 3 |
 | compiler | [h2_5h_utf16_original_rows_complete](../../../../../crates/compiler/tests/h2_5h_utf16_original_rows_complete.rs) | target指定・filterなし | 0 |
 | compiler | [h2_6a_map_option_projection](../../../../../crates/compiler/tests/h2_6a_map_option_projection.rs) | test名でfilter | 0 |
-| compiler | [h2_7d_bundle_program](../../../../../crates/compiler/tests/h2_7d_bundle_program.rs) | なし | 0 |
+| compiler | [h2_7d_bundle_program](../../../../../crates/compiler/tests/h2_7d_bundle_program.rs) | target指定・filterなし | 0 |
 | compiler | [h2_7d_bundle_sinks](../../../../../crates/compiler/tests/h2_7d_bundle_sinks.rs) | test名でfilter | 0 |
-| compiler | [h2_7d_declaration_bundles](../../../../../crates/compiler/tests/h2_7d_declaration_bundles.rs) | なし | 0 |
+| compiler | [h2_7d_declaration_bundles](../../../../../crates/compiler/tests/h2_7d_declaration_bundles.rs) | test名でfilter | 0 |
 | compiler | [h2_7d_module_identities](../../../../../crates/compiler/tests/h2_7d_module_identities.rs) | なし | 0 |
 | compiler | [h2_7d_original_corpus](../../../../../crates/compiler/tests/h2_7d_original_corpus.rs) | なし | 1 |
 | compiler | [h2_7e_declaration_map_apis](../../../../../crates/compiler/tests/h2_7e_declaration_map_apis.rs) | なし | 0 |

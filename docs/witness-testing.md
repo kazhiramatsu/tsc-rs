@@ -316,3 +316,32 @@ The ignored historical census remains unselected. The Rust test derives status
 and exit fields from emit results, so this is not an additional CLI execution.
 See the [slice record](design/greenfield/slices/witness-coverage/compiler-recovery-map/README.md)
 for observations, input hashes, coverage and measured time.
+
+
+## Bundle Program and declaration/map witnesses
+
+OPS-COVER-3J/3K adds `bundle-program` and `bundle-declarations` to controls.
+The first runs all four tests over 25 main sequences and two adjacent references.
+The second selects three exact tests: 19 visitor inputs from 25 declaration rows,
+20 map inputs, and 11 metadata/lifetime inputs in two modes. Its fourth original
+JavaScript wrapper remains outside this selection. All comparisons repeat twice;
+the ordinary-target reference and reused IDs remain separately classified. The
+noEmit row compares its existing command result rather than an obsolete refusal.
+
+Use `scripts/witness.py <suite> --list` or `--all --dry-run` to inspect the
+27 and 56 fixture memberships. Supplemental sections have their own namespaces
+and nonempty/unique/count checks. These totals include shared and reference rows,
+not new corpus admissions. The frozen Node observers run before Cargo; selecting
+both suites checks their shared declaration observer once. Changes to its fixture
+or observer select both suites; map-only changes select the declaration suite.
+Both selections install the pinned Node version even when selected alone.
+See the [scope and validation record](design/greenfield/slices/witness-coverage/compiler-bundles/README.md).
+
+
+[OPS-COVER-3J/3K / PR #546](design/greenfield/slices/witness-coverage/compiler-bundles/README.md)
+passed all seven hosted replay jobs and both gates at `160161683`. Controls ran
+18 compiler-direct suites / 64 tests, including all seven new bundle tests, in
+37m51s. Its compiler-direct oracle took 440.889s and Cargo build/replay 1273.943s;
+these are whole-group measurements. The seven jobs total 118m36s, excluding
+plans, aggregate gates and main-push runs. Controls remains below the 45-minute
+split-review threshold.

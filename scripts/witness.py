@@ -107,6 +107,31 @@ CONFIG_LIBRARY_GROUPS = (
 # These compiler witnesses have dedicated inputs or additional command fields.
 # Shared helper tests stay in acceptance; select the dedicated test where needed.
 COMPILER_DIRECT = {
+    "bundle-program": {
+        "target": "h2_7d_bundle_program",
+        "tests": 4,
+        "fixtures": (("crates/emitter/tests/fixtures/bundle-declarations.json", 25, "case_id"),),
+        "fixture_sections": (("crates/emitter/tests/fixtures/bundle-declarations.json",
+                              "adjacent_owner_references", 2, "case_id"),),
+        "observers": ("scripts/observe-bundle-declarations.mjs",),
+    },
+    "bundle-declarations": {
+        "target": "h2_7d_declaration_bundles",
+        "test": ("ordinary_declaration_bundles_match_typescript_visitor_and_printer_twice",
+                 "ordinary_bundle_source_maps_match_complete_typescript_maps_twice",
+                 "ordinary_and_fresh_forced_bundle_metadata_lifetimes_match_typescript_twice"),
+        "tests": 3,
+        # The original-JavaScript internal map wrapper remains a separate owner.
+        "filtered_tests": 1,
+        "fixtures": (("crates/emitter/tests/fixtures/bundle-declarations.json", 25, "case_id"),
+                     ("crates/emitter/tests/fixtures/bundle-maps.json", 12, "case_id")),
+        "fixture_sections": tuple(("crates/emitter/tests/fixtures/bundle-maps.json", section, count, "case_id")
+                                  for section, count in (("json_bundle_references", 8),
+                                                         ("metadata_lifetime_references", 6),
+                                                         ("constant_value_references", 2),
+                                                         ("runtime_comment_owner_references", 3))),
+        "observers": ("scripts/observe-bundle-declarations.mjs", "scripts/observe-bundle-maps.mjs"),
+    },
     "utf16-recovery-corpus": {
         "target": "h2_8a_utf16_literal_recovery_corpus",
         "tests": 1,
@@ -336,14 +361,18 @@ def case_ids(suite):
     if suite in EMITTER_DIRECT or suite in COMPILER_DIRECT:
         spec = EMITTER_DIRECT[suite] if suite in EMITTER_DIRECT else COMPILER_DIRECT[suite]
         ids = []
-        for file, expected, key in spec["fixtures"]:
-            rows = read_cases(ROOT / file)
+        sections = [(file, "cases", expected, key) for file, expected, key in spec["fixtures"]]
+        sections.extend(spec.get("fixture_sections", ()))
+        for file, section, expected, key in sections:
+            rows = (read_cases(ROOT / file) if section == "cases"
+                    else json.loads((ROOT / file).read_text())[section])
             local_ids = [row[key] for row in rows]
             if (len(rows) != expected or not rows
                     or any(not isinstance(item, str) or not item.strip() for item in local_ids)
                     or len(set(local_ids)) != len(local_ids)):
-                raise ValueError(f"{suite}: empty, duplicate or changed fixture membership: {file}")
-            ids.extend(f"{Path(file).stem}/{item}" for item in local_ids)
+                raise ValueError(f"{suite}: empty, duplicate or changed fixture membership: {file}:{section}")
+            prefix = Path(file).stem if section == "cases" else f"{Path(file).stem}/{section}"
+            ids.extend(f"{prefix}/{item}" for item in local_ids)
         if len(set(ids)) != len(ids):
             raise ValueError(f"{suite}: duplicate fixture membership")
         return ids
@@ -471,6 +500,7 @@ def compiler_direct_inputs(suite):
     return {*spec.get("sources", (f"crates/compiler/tests/{spec['target']}.rs",)),
             *(observer[1] for observer in compiler_direct_observers([suite])),
             *(source for source, _, _ in spec.get("staged_inputs", ())),
+            *(file for file, _, _, _ in spec.get("fixture_sections", ())),
             *(file for file, _, _ in spec["fixtures"]), *spec.get("inputs", ())}
 
 
