@@ -21,7 +21,7 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 
 [OPS-COVER-3H / 3I](compiler-recovery-map/README.md) はrecovery50入力とmap-option31専用入力・原本5 IDの2 targetを追加したv14。PR #545で一括検証・統合済み（全7 replay job・両gate成功、controls35分45秒）。個別の比較面と重複は同記録に保持する。
 
-[OPS-COVER-3J / 3K](compiler-bundles/README.md) はbundle Programとdeclaration/mapの2 targetを登録したv15。古いnoEmit拒否検査を固定tuple比較へ更新し、最終7 testsと両observerが成功。hosted結果は未採取。
+[OPS-COVER-3J / 3K](compiler-bundles/README.md) はbundle Programとdeclaration/mapの2 targetを登録したv15。古いnoEmit拒否検査を固定tuple比較へ更新し、PR #546で最終7 testsと両observerを含む全7 hosted replay job・両gateが成功。controls37m51s。
 
 ## 現在の入口
 

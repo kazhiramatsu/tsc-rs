@@ -336,3 +336,12 @@ both suites checks their shared declaration observer once. Changes to its fixtur
 or observer select both suites; map-only changes select the declaration suite.
 Both selections install the pinned Node version even when selected alone.
 See the [scope and validation record](design/greenfield/slices/witness-coverage/compiler-bundles/README.md).
+
+
+[OPS-COVER-3J/3K / PR #546](design/greenfield/slices/witness-coverage/compiler-bundles/README.md)
+passed all seven hosted replay jobs and both gates at `160161683`. Controls ran
+18 compiler-direct suites / 64 tests, including all seven new bundle tests, in
+37m51s. Its compiler-direct oracle took 440.889s and Cargo build/replay 1273.943s;
+these are whole-group measurements. The seven jobs total 118m36s, excluding
+plans, aggregate gates and main-push runs. Controls remains below the 45-minute
+split-review threshold.

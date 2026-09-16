@@ -1,6 +1,6 @@
 # OPS-COVER-3J/3K: bundle Program and declaration/map witnesses
 
-Status: local implementation and validation complete; hosted validation pending. Base: `618ed97b5ae25d6763f19a6c9d357c6b3a279a5f`.
+Status: combined candidate validated in PR #546; all seven hosted replay jobs and both gates passed. Base: `618ed97b5ae25d6763f19a6c9d357c6b3a279a5f`.
 This evidence/CI batch adds direct entries to existing tests; it changes no
 compiler behavior, frozen expectation, runtime admission or acceptance denominator.
 It follows the [coverage inventory](../README.md) and the user instruction to
@@ -38,7 +38,7 @@ combined runner, with `taskpolicy -b nice -n 15`, two Cargo workers, debug info
 and incremental disabled. Logs retain actual exits, durations and hashes.
 Heavy local processes run one at a time. Hosted validation follows the complete
 batch and retains the existing two-worker/60-minute limits and 45-minute split
-review threshold. Hosted results are pending.
+review threshold. Hosted results are recorded below.
 
 ## OPS-DEBT-BUNDLE-NOEMIT: stale command refusal
 
@@ -77,8 +77,42 @@ repair joins 3J/3K; it does not promote H2.9 or claim same-session noEmit reuse.
 - [Inventory v15](../inventory.v15.json): 69 standalone targets, 30 unfiltered /
   13 filtered / 26 without a direct entry (compiler6 / other20).
 
-Hosted CI must validate the combined candidate before integration. The unchanged
+Hosted CI validated the combined candidate; the recorded source identity is below. The unchanged
 controls job last took 35m45s; the new local entry fits its available margin,
-but hosted totals still require measurement against the 45m review threshold.
+and the measured hosted total is recorded below against the 45m review threshold.
 Seven replay jobs and both gates remain required for this shared-runner change.
 The ignored/unselected original wrapper and other uncovered targets remain open.
+
+## Hosted validation: PR #546
+
+Candidate `160161683d002a18f939f8ee6fcce5e33f6e6faf` passed both workflows and both aggregate gates.
+[The receipt](hosted.v1.json) retains full run/job identities and compressed log hashes.
+
+| Job | Duration | Result |
+| --- | --- | --- |
+| [acceptance (wide)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35098305041/job/104801258638) | 28m44s | success |
+| [acceptance (early)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35098305041/job/104801258664) | 11m52s | success |
+| [acceptance (late)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35098305041/job/104801258697) | 17m21s | success |
+| [witnesses (retained)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35098304984/job/104801223896) | 9m20s | success |
+| [witnesses (controls)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35098304984/job/104801223906) | 37m51s | success |
+| [witnesses (primary)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35098304984/job/104801223994) | 10m37s | success |
+| [witnesses (printer)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35098304984/job/104801224053) | 2m51s | success |
+
+Controls executed all 18 compiler-direct suites / 64 tests, including the new
+4 Program and 3 declaration/map tests. Both frozen bundle observers passed;
+comparison repetitions and membership overlap remain as documented above.
+The stale noEmit assertion repair is validated on hosted as well as locally.
+
+Controls took 37m51s; the seven replay jobs total
+118m36s. These totals exclude plans, aggregate gates
+and any main-push run. Compiler-direct oracle time was
+440.889s and combined Cargo build/replay time
+1273.943s. They measure the entire
+selected group, not just the two new suites.
+
+Controls remained below the 45-minute split-review threshold. The 60-minute
+hard limit and two-worker setting are unchanged.
+
+The follow-up evidence commit changes documentation and receipts only. Hosted
+Rust success belongs to the candidate above; a documentation-only CI plan is
+not counted as a new Rust replay.
