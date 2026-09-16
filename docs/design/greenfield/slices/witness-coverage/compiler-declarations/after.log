@@ -1,0 +1,224 @@
+declaration-specifiers: 30 fixture rows (including any typed refusal controls)
+declaration-comments: 41 fixture rows (including any typed refusal controls)
+jsdoc-return: 58 fixture rows (including any typed refusal controls)
+{"case_id":"declaration-specifiers/wildcard-base-url","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/exact-base-url","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/without-base-url","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/empty-paths-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/absolute-target","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/dot-segment-target","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/second-substitution","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/mapping-order-z-first","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/mapping-order-a-first","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/project-internal-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"declaration-specifiers/separate-package-scopes","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"declaration-specifiers/same-package-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":2,"exit_code":2}
+{"case_id":"declaration-specifiers/inherited-paths-origin","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/overridden-paths-origin","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/empty-override-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/root-dirs-virtual-relative","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/root-dirs-absent-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/declaration-map","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":4,"exit_code":0}
+{"case_id":"declaration-specifiers/declaration-only","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":1,"exit_code":0}
+{"case_id":"declaration-specifiers/no-emit-on-error-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":1,"writes":0,"exit_code":1}
+{"case_id":"declaration-specifiers/base-url-only","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/unmatched-path-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/direct-program-with-paths","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers/direct-program-paths-origin","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"destination":"/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/compiler/tests/fixtures/h2-8a-declaration-specifiers.json","cases":24,"upstream_failure_cases":0,"complete_program_executions":48,"program_attempts":48,"exception_attempts":0,"native_executions":0,"sha256":"21b9daa1c17e4b945efe2704d391e02316b6877328bb6d16b9f70fc0614ebff5"}
+{"case_id":"declaration-specifiers-composition/valid-project-internal-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers-composition/valid-separate-package-scopes","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers-composition/valid-same-package-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":2,"exit_code":0}
+{"case_id":"declaration-specifiers-composition/bundle-relative-paths","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":3,"exit_code":0}
+{"case_id":"declaration-specifiers-composition/bundle-absolute-paths","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":3,"exit_code":0}
+{"case_id":"declaration-specifiers-composition/bundle-no-paths-control","attempts":2,"complete_observations":2,"exception_observations":0,"diagnostics":0,"writes":3,"exit_code":0}
+{"destination":"/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/compiler/tests/fixtures/h2-8a-declaration-specifiers-composition.json","cases":6,"upstream_failure_cases":0,"complete_program_executions":12,"program_attempts":12,"exception_attempts":0,"native_executions":0,"sha256":"961be89e9e3a56d372b8b6afbe0c49262aaca7094aded71a7814f06e4a30ea6c"}
+{"case_id":"declaration-comment-range/module-exports","complete_command_executions":2}
+{"case_id":"declaration-comment-range/exports-property","complete_command_executions":2}
+{"case_id":"declaration-comment-range/module-exports-property","complete_command_executions":2}
+{"case_id":"declaration-comment-range/ordinary-property","complete_command_executions":2}
+{"case_id":"declaration-comment-range/variable","complete_command_executions":2}
+{"case_id":"declaration-comment-range/function-declaration","complete_command_executions":2}
+{"case_id":"declaration-comment-range/prototype-dot","complete_command_executions":2}
+{"case_id":"declaration-comment-range/prototype-element","complete_command_executions":2}
+{"case_id":"declaration-comment-range/static-method","complete_command_executions":2}
+{"case_id":"declaration-comment-range/this-property","complete_command_executions":2}
+{"case_id":"declaration-comment-range/ordinary-method","complete_command_executions":2}
+{"case_id":"declaration-comment-range/prototype-parenthesized","complete_command_executions":2}
+{"case_id":"declaration-comment-range/remove-comments","complete_command_executions":2}
+{"case_id":"declaration-comment-range/declaration-only","complete_command_executions":2}
+{"case_id":"declaration-comment-range/lf-bom-listings","complete_command_executions":2}
+{"case_id":"declaration-comment-range/esnext","complete_command_executions":2}
+{"case_id":"declaration-comment-range/blocked-semantic","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/module-header","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/exports-header","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/variable-expando","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/function-expando","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/class-header","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/plain-variable","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/erased-interface","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/typedef-separated","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/removed-header","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/pinned-header","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/comment-only","complete_command_executions":2}
+{"case_id":"declaration-comment-detached-prefix/prologue-header","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/binding-object","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/binding-array","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/binding-index","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/qualified-tag-negative","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/missing-name","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/last-block","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/first-typed","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/type-tag-precedence","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/inline-function","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/untyped","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/ts-direct-type","complete_command_executions":2}
+{"case_id":"declaration-comment-parameter-tags/parenthesized-function","complete_command_executions":2}
+{"cases":41,"complete_command_executions":82,"internal_traces_replayed":false}
+{"output":"/Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/crates/compiler/tests/fixtures/h2-8a-jsdoc-return.json","sha256":"687d28b13459dff3b472515c430f66165c4bdaaec6f07bbbb893ca2997d54ba3","cases":58,"complete_command_executions":116,"traced_functions":70}
+    Finished `test` profile [unoptimized] target(s) in 0.15s
+     Running tests/h2_8a_declaration_specifiers.rs (target/debug/deps/h2_8a_declaration_specifiers-dbbeab994b28251e)
+
+running 2 tests
+test composition_declaration_specifiers_match_complete_commands ... DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-project-internal-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-project-internal-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-separate-package-scopes repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-separate-package-scopes repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-same-package-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/valid-same-package-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-relative-paths repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-relative-paths repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-absolute-paths repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-absolute-paths repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-no-paths-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers-composition/bundle-no-paths-control repetition=1
+ok
+test focused_declaration_specifiers_match_complete_commands ... DECLARATION-SPECIFIER EXACT declaration-specifiers/wildcard-base-url repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/wildcard-base-url repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/exact-base-url repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/exact-base-url repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/without-base-url repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/without-base-url repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/empty-paths-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/empty-paths-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/absolute-target repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/absolute-target repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/dot-segment-target repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/dot-segment-target repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/second-substitution repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/second-substitution repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/mapping-order-z-first repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/mapping-order-z-first repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/mapping-order-a-first repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/mapping-order-a-first repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/project-internal-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/project-internal-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/separate-package-scopes repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/separate-package-scopes repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/same-package-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/same-package-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/inherited-paths-origin repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/inherited-paths-origin repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/overridden-paths-origin repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/overridden-paths-origin repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/empty-override-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/empty-override-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/root-dirs-virtual-relative repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/root-dirs-virtual-relative repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/root-dirs-absent-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/root-dirs-absent-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/declaration-map repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/declaration-map repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/declaration-only repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/declaration-only repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/no-emit-on-error-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/no-emit-on-error-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/base-url-only repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/base-url-only repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/unmatched-path-control repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/unmatched-path-control repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/direct-program-with-paths repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/direct-program-with-paths repetition=1
+DECLARATION-SPECIFIER EXACT declaration-specifiers/direct-program-paths-origin repetition=0
+DECLARATION-SPECIFIER EXACT declaration-specifiers/direct-program-paths-origin repetition=1
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 298.97s
+
+    Finished `test` profile [unoptimized] target(s) in 0.17s
+     Running tests/h2_8a_declaration_comment_ranges.rs (target/debug/deps/h2_8a_declaration_comment_ranges-aa958ebe53048ca2)
+
+running 3 tests
+test declaration_comment_detached_prefix_complete_commands ... ok
+test declaration_comment_parameter_tags_complete_commands ... ok
+test declaration_comment_range_focused_complete_commands ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 42.76s
+
+    Finished `test` profile [unoptimized] target(s) in 0.15s
+     Running tests/h2_8a_jsdoc_return.rs (target/debug/deps/h2_8a_jsdoc_return-1e34fbd233b93df2)
+
+running 1 test
+test jsdoc_return_controls_match_complete_commands_twice ... jsdoc-return EXACT x2 r1-original-d-string
+jsdoc-return EXACT x2 r1-original-e-template-intersection
+jsdoc-return EXACT x2 r1-returns-alias
+jsdoc-return EXACT x2 r1-body-star-without-annotation
+jsdoc-return EXACT x2 r1-plain-body-without-annotation
+jsdoc-return EXACT x2 r2-exports-property
+jsdoc-return EXACT x2 r2-variable-initializer
+jsdoc-return EXACT x2 r2-function-declaration
+jsdoc-return EXACT x2 r2-arrow-expression-body
+jsdoc-return EXACT x2 r2-parenthesized-function
+jsdoc-return EXACT x2 r2-prototype-method
+jsdoc-return EXACT x2 r2-ordinary-property
+jsdoc-return EXACT x2 r2-object-literal-method
+jsdoc-return EXACT x2 r2-property-assignment-function
+jsdoc-return EXACT x2 r2-class-method
+jsdoc-return EXACT x2 r3-inner-tag-before-outer
+jsdoc-return EXACT x2 r3-last-block-owns-tags
+jsdoc-return EXACT x2 r3-last-block-owns-tags-declaration
+jsdoc-return EXACT x2 r3-untyped-return-tag
+jsdoc-return EXACT x2 r3-untyped-then-typed-return-tags
+jsdoc-return EXACT x2 r3-return-tag-over-callable-type-tag
+jsdoc-return EXACT x2 r3-callable-type-tag-only
+jsdoc-return EXACT x2 r3-sibling-jsdoc-not-inherited
+jsdoc-return EXACT x2 r3-type-assertion-parenthesized-owner
+jsdoc-return EXACT x2 r4-template-constraint-default
+jsdoc-return EXACT x2 r4-template-shadows-typedef
+jsdoc-return EXACT x2 r4-typedef-return
+jsdoc-return EXACT x2 r4-import-type-return
+jsdoc-return EXACT x2 r4-same-name-template-two-sources
+jsdoc-return EXACT x2 r5-literal-annotation
+jsdoc-return EXACT x2 r5-union-annotation
+jsdoc-return EXACT x2 r5-callable-type-literal
+jsdoc-return EXACT x2 r5-jsdoc-function-type
+jsdoc-return EXACT x2 r5-async-promise
+jsdoc-return EXACT x2 r5-generator
+jsdoc-return EXACT x2 r5-async-generator-without-annotation
+jsdoc-return EXACT x2 r5-single-return-without-annotation
+jsdoc-return EXACT x2 r5-multiple-returns-without-annotation
+jsdoc-return EXACT x2 r6-ts-direct-type-ignores-jsdoc
+jsdoc-return EXACT x2 r6-accessor-pair
+jsdoc-return EXACT x2 r6-jsdoc-construct-signature
+jsdoc-return EXACT x2 r6-annotation-body-mismatch
+jsdoc-return EXACT x2 r6-unresolved-annotation
+jsdoc-return EXACT x2 r6-asserted-returns-semantic-fallback
+jsdoc-return EXACT x2 r6-asserted-await-returns-semantic-fallback
+jsdoc-return EXACT x2 r7-allowjs-without-checkjs
+jsdoc-return EXACT x2 r7-emit-declaration-only
+jsdoc-return EXACT x2 r7-noemitonerror-blocked
+jsdoc-return EXACT x2 r7-noemit-with-declaration
+jsdoc-return EXACT x2 r7-declaration-map
+jsdoc-return EXACT x2 r7-remove-comments
+jsdoc-return EXACT x2 r8-lone-surrogate-escape-literal
+jsdoc-return EXACT x2 r8-astral-pair-literal
+jsdoc-return EXACT x2 r8-replacement-character-literal
+jsdoc-return EXACT x2 r8-g4a-function-parameter-and-return
+jsdoc-return EXACT x2 r8-g4b-class-method-owned-comment
+jsdoc-return EXACT x2 r8-detached-prefix-with-return
+jsdoc-return EXACT x2 r8-parameter-tag-binding-with-return
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 61.68s
+
+{"compiler_direct": ["declaration-specifiers", "declaration-comments", "jsdoc-return"], "targets": 3, "tests_passed": 6, "observer_seconds": 133.094, "cargo_build_and_replay_seconds": 404.471}

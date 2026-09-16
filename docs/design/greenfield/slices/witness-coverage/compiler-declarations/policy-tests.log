@@ -1,0 +1,11 @@
+✔ hosted acceptance body is pinned as one canonical executable shape (5.251792ms)
+✔ raw source pins close Rust constructs outside the bounded call-graph grammar (6.7545ms)
+✔ policy and every qualification schema boundary are valid (127.161459ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 201.582042

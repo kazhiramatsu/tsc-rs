@@ -2,7 +2,7 @@
 
 2026-09-16。統合担当：Codex。**emitter direct10、E-only8のCLIに続き、compiler UTF-16/literalの5 targetとC04 transpile contractの入口を追加。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v10.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v11.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -14,6 +14,7 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 初回hostedでNode version不一致を検出し、transpileを含むcontrolsにNode25.2.1を設定したv7へ更新。入口の件数はv6と同じ。
 [A-PC1](../h2-8a-compact-body-comments.md) が新設printer targetと既存parameter targetを登録したv8へ更新。
 [C05](../l2-3-resolution-cache/integration/README.md) がprogram contractと全program libを登録したv9、path表記の追加回帰を反映したv10へ更新。
+[OPS-COVER-3D](compiler-declarations/README.md) はdeclaration specifier / comment / JSDocの3 target・129専用入力を登録したv11へ更新。hostedは未実行。
 設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
 ## 現在の入口
@@ -21,20 +22,20 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
 | standalone target（filter なし） | 25 | printer job の7 targetとdirect11、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・resolution cache contract。ignored/cfg-disabled test の実行までは意味しない |
-| standalone target（名前で filter） | 7 | compiler5 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
-| standalone target の直接呼出しなし | 35 | compiler15 / その他20 |
+| standalone target（名前で filter） | 10 | compiler8 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
+| standalone target の直接呼出しなし | 32 | compiler12 / その他20 |
 | lib/bin の test harness | 16 | Program lib 1件に直接入口、残り15件は直接実行なし |
 
-**67 standalone target を列挙した。35件を「挙動が未検証」とは数えない。**
+**67 standalone target を列挙した。32件を「挙動が未検証」とは数えない。**
 acceptance が同じ比較 helper を Rust の `#[path]` で取り込み、関数を直接呼ぶ場合がある。
 台帳は source の共有関係10 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
 helper の共有から、その target の全テスト・新しい入力集合の実行まで推論しない。
 
-現在、直接入口のない35 targetの source を単独変更すると、planner は unknown input として
+現在、直接入口のない32 targetの source を単独変更すると、planner は unknown input として
 **全 acceptance / witness グループを選択するが、その standalone target 自身は追加しない**。
 v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では専用 target のみを選ぶ。共有 production の安全策としての
 全体 replay と、変更した専用 contract の実行が別物であることを示す。
-残る35件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
+残る32件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
 
 ### 実例：shared helper と target 全体は違う
 
@@ -45,6 +46,7 @@ v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では�
   同じ8 IDでも比較経路が異なるため、CLI追加は原本exact総数の増分として数えない。
 - `h2_8a_declaration_specifiers` / `h2_8a_require_rewrite` は既存 corpus/helper を再利用するが、
   各 target の専用 fixture が全てその helper 経由で replay される保証にはならない。
+  v11は前者の専用30入力を明示登録し、後者と原本wrapperは残部に保持する。
 - `decorator_super_contract` と acceptance は `support/witness_libraries.rs` を共有する。
   この補助 source の共有自体は SUPER の実行証明にならない。SUPER は別 witness job が担う。
 
@@ -53,7 +55,7 @@ v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では�
 | ID / 担当 | 対象 | 入れる順序・終了条件 |
 | --- | --- | --- |
 | OPS-COVER-2 / 統合担当 | emitter direct 10 target：入口追加完了 | [検証記録](emitter-direct/README.md)。literal4 / metadata6、2239 row ×2、13 tests。既存 printer job の20分枠・2 workersでbuildを共有し、専用入力はtarget単位で選択 |
-| OPS-COVER-3 / 統合担当 | [3AのCLI8件](declaration-map-cli/README.md)と[3BのUTF-16 3 target](compiler-utf16/README.md)、[3Cのliteral2 target](compiler-literals/README.md)を登録。残りcompiler15 targetとfiltered5 targetの未選択部分 | 続いてrecovery corpus50と旧literal rowsの重複・census依存、declaration/map、parameterの未収載集合を既存acceptanceのID／比較面と照合。530などの既存全体を再度追加しない |
+| OPS-COVER-3 / 統合担当 | [3AのCLI8件](declaration-map-cli/README.md)と[3BのUTF-16 3 target](compiler-utf16/README.md)、[3Cのliteral2 target](compiler-literals/README.md)を登録。[3Dのdeclaration3 target](compiler-declarations/README.md)も登録。残りcompiler12 targetとfiltered8 targetの未選択部分 | 続いてrecovery corpus50と旧literal rowsの重複・census依存、declaration/map、parameterの未収載集合を既存acceptanceのID／比較面と照合。530などの既存全体を再度追加しない |
 | OPS-COVER-4 / 統合担当、各製品 owner | その他20 standalone と残15 lib/bin harness | syntax/binder/types、host/program、checker/API、harness/fuzz に分割。単独file変更と共有変更の依存表を持ち、該当製品 slice の公開契約・取消・error・文字列境界を実測して登録 |
 | OPS-BUDGET / 統合担当 | 新規 group の build / replay / merge後の重複 | 2 workers、45分で分割検討、60分hard limit。PRとmain pushの実行時間を別集計。entryを追加してから恒常的な時間超過を発見する順序にしない |
 
@@ -93,7 +95,7 @@ workflow の認識していない shell entry が追加された場合はエラ�
 - `--check` は metadata / command / source hash の drift を検知する。台帳の1行を「全体実行」に
   改変した negative control も拒否を確認した。これは互換テストのpass件数には加算しない。
 
-## 全 standalone target（v8）
+## 全 standalone target（v11）
 
 下表の「共有」は acceptance と明示的な source参照が重なる数で、実行したテスト数ではない。
 filter名、command owner、source/fixture path、driverの関数名はJSON台帳で参照できる。
@@ -117,9 +119,9 @@ filter名、command owner、source/fixture path、driverの関数名はJSON台�
 | compiler | [h2_7e_declaration_map_apis](../../../../../crates/compiler/tests/h2_7e_declaration_map_apis.rs) | なし | 0 |
 | compiler | [h2_7e_declaration_maps](../../../../../crates/compiler/tests/h2_7e_declaration_maps.rs) | なし | 0 |
 | compiler | [h2_7e_original_corpus](../../../../../crates/compiler/tests/h2_7e_original_corpus.rs) | CLI test名でfilter | 1 |
-| compiler | [h2_8a_declaration_comment_ranges](../../../../../crates/compiler/tests/h2_8a_declaration_comment_ranges.rs) | なし | 4 |
-| compiler | [h2_8a_declaration_specifiers](../../../../../crates/compiler/tests/h2_8a_declaration_specifiers.rs) | なし | 2 |
-| compiler | [h2_8a_jsdoc_return](../../../../../crates/compiler/tests/h2_8a_jsdoc_return.rs) | なし | 1 |
+| compiler | [h2_8a_declaration_comment_ranges](../../../../../crates/compiler/tests/h2_8a_declaration_comment_ranges.rs) | 専用test名でfilter | 4 |
+| compiler | [h2_8a_declaration_specifiers](../../../../../crates/compiler/tests/h2_8a_declaration_specifiers.rs) | 専用test名でfilter | 2 |
+| compiler | [h2_8a_jsdoc_return](../../../../../crates/compiler/tests/h2_8a_jsdoc_return.rs) | 専用test名でfilter | 1 |
 | compiler | [h2_8a_original_corpus](../../../../../crates/compiler/tests/h2_8a_original_corpus.rs) | なし | 1 |
 | compiler | [h2_8a_prologue_only_detached_comments](../../../../../crates/compiler/tests/h2_8a_prologue_only_detached_comments.rs) | なし | 0 |
 | compiler | [h2_8a_require_rewrite](../../../../../crates/compiler/tests/h2_8a_require_rewrite.rs) | なし | 4 |
@@ -127,6 +129,7 @@ filter名、command owner、source/fixture path、driverの関数名はJSON台�
 | compiler | [h2_8a_utf16_literal_recovery_corpus](../../../../../crates/compiler/tests/h2_8a_utf16_literal_recovery_corpus.rs) | なし | 0 |
 | compiler | [h2_8a_utf16_review_fix_controls](../../../../../crates/compiler/tests/h2_8a_utf16_review_fix_controls.rs) | target指定・filterなし | 0 |
 | compiler | [h2_8a_utf16_tagged_template_controls](../../../../../crates/compiler/tests/h2_8a_utf16_tagged_template_controls.rs) | target指定・filterなし | 0 |
+| compiler | [transpile_routes_contract](../../../../../crates/compiler/tests/transpile_routes_contract.rs) | target指定・filterなし | 0 |
 | emitter | [class_header_token_metadata_contract](../../../../../crates/emitter/tests/class_header_token_metadata_contract.rs) | target指定・filterなし | 0 |
 | emitter | [comma_argument_factory_contract](../../../../../crates/emitter/tests/comma_argument_factory_contract.rs) | target指定・filterなし | 0 |
 | emitter | [comma_list_printer_contract](../../../../../crates/emitter/tests/comma_list_printer_contract.rs) | target指定・filterなし | 0 |
@@ -157,6 +160,7 @@ filter名、command owner、source/fixture path、driverの関数名はJSON台�
 | program | [utf16_config_paths](../../../../../crates/program/tests/utf16_config_paths.rs) | なし | 0 |
 | program | [utf16_module_paths](../../../../../crates/program/tests/utf16_module_paths.rs) | なし | 0 |
 | program | [utf16_raw_source_boundary](../../../../../crates/program/tests/utf16_raw_source_boundary.rs) | なし | 0 |
+| program | [resolution_cache_contract](../../../../../crates/program/tests/resolution_cache_contract.rs) | target指定・filterなし | 0 |
 | syntax | [entity_names](../../../../../crates/syntax/tests/entity_names.rs) | なし | 0 |
 | syntax | [new_meta_property_name](../../../../../crates/syntax/tests/new_meta_property_name.rs) | なし | 0 |
 | syntax | [owned_literal_values](../../../../../crates/syntax/tests/owned_literal_values.rs) | なし | 0 |

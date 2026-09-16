@@ -1,0 +1,23 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: crates/compiler/tests/fixtures/declaration-comment-ranges.json
++ actual - expected
+
++ 'ddceb7c4c3c5c847e0666c79a6b2a77958376d3f4b1186ff99c16db568f34448'
+- 'd5b0d846188dbe37061e852d62b15e510a26edb252bfcceab3333f0c2daf6b9f'
+
+    at file:///Users/hiramatsu/dev/tsc-rs-compiler-declaration-witness-ci/scripts/observe-declaration-comment-commands.mjs:24:10
+    at ModuleJob.run (node:internal/modules/esm/module_job:413:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:654:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'ddceb7c4c3c5c847e0666c79a6b2a77958376d3f4b1186ff99c16db568f34448',
+  expected: 'd5b0d846188dbe37061e852d62b15e510a26edb252bfcceab3333f0c2daf6b9f',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v25.2.1
