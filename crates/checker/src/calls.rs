@@ -261,7 +261,7 @@ impl<'a> CheckerState<'a> {
     /// Decorator metadata is emitted after TypeScript syntax erasure. The
     /// checker therefore records when a type-syntax use is also a runtime
     /// alias use, and import elision consumes that durable fact later.
-    fn mark_decorator_metadata_aliases(&mut self, node: NodeId) -> CheckResult<()> {
+    pub(crate) fn mark_decorator_metadata_aliases(&mut self, node: NodeId) -> CheckResult<()> {
         match self.data_of(node).clone() {
             NodeData::ClassDeclaration(data) => {
                 let constructor = self.nodes_of(data.members).into_iter().find(|&member| {
@@ -378,7 +378,7 @@ impl<'a> CheckerState<'a> {
     /// ordinary expression resolver here would incorrectly diagnose local
     /// type aliases as value uses before metadata serialization has selected
     /// its runtime fallback.
-    fn mark_entity_name_or_entity_expression_as_reference(
+    pub(crate) fn mark_entity_name_or_entity_expression_as_reference(
         &mut self,
         type_name: NodeId,
         for_decorator_metadata: bool,

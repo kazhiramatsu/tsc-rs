@@ -182,6 +182,12 @@ impl<'program> CheckerSession<'program> {
         Ok(state.partial_check_records.clone())
     }
 
+    /// tsrs-native: H2.8c evidence — how many source files ran the
+    /// checkSourceFileWorker body in this session so far.
+    pub fn checked_source_files(&self) -> u32 {
+        self.state.borrow().checked_source_files
+    }
+
     /// Reclaim checker state after the emitter has released its resolver
     /// borrow so the driver can assemble diagnostics and observations.
     /// tsrs-native: ownership adapter after the H1 checker callback boundary.
@@ -496,18 +502,81 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    /// tsc-port: hasNodeCheckFlag @6.0.3
+    /// tsc-hash: 9625b75cf4c5d68d752872a88e9af36590a50b9c8b9c4f2e5fb23f49446afe43
+    /// tsc-span: _tsc.js:88127-88130
+    /// The unchecked-source branch (calculateNodeCheckFlagWorker) runs
+    /// before the links read; checked sources return immediately from it.
     fn has_node_check_flag(
         &self,
         node: EmitResolverNode,
         flag: u32,
     ) -> Result<bool, EmitResolverError> {
         self.with_resolver_node(EmitResolverMethod::HasNodeCheckFlag, node, |state, node| {
-            Ok(state
-                .links
-                .node(node)
-                .check_flags
-                .intersects(tsc_types::NodeCheckFlags::from_bits(flag as i32)))
+            let flag = tsc_types::NodeCheckFlags::from_bits(flag as i32);
+            state.calculate_node_check_flag_worker(node, flag)?;
+            Ok(state.links.node(node).check_flags.intersects(flag))
         })
+    }
+
+    /// tsc-port: markLinkedReferences @6.0.3
+    /// tsc-hash: 3b99dce4b11fe63515ea8d8369e8f411cefeac7b3071b3e64de3a13cb9c5332f
+    /// tsc-span: _tsc.js:71662-71732
+    fn mark_linked_references(
+        &self,
+        source: tsc_program::SourceFileId,
+    ) -> Result<(), EmitResolverError> {
+        let mut state = self.state.borrow_mut();
+        let index =
+            resolver_source_index(&state, EmitResolverMethod::MarkLinkedReferences, source)?;
+        let file = state.binder.source(index);
+        if crate::is_js_file_name(&file.file_name) {
+            return Ok(());
+        }
+        // forEachChildRecursively(file, cb): pre-order over the children of
+        // the source file, pruning import declarations and non-exported
+        // import-equals declarations.
+        let mut stack = Vec::new();
+        tsc_syntax::for_each_child(&file.arena, file.arena.node(file.root), |child| {
+            stack.push(child);
+            false
+        });
+        stack.reverse();
+        let root = file.root;
+        while let Some(node) = stack.pop() {
+            let source_file = state.binder.source_of_node(node);
+            let skip = match &source_file.arena.node(node).data {
+                tsc_syntax::NodeData::ImportDeclaration(_) => true,
+                tsc_syntax::NodeData::ImportEqualsDeclaration(_) => {
+                    !tsc_binder::node_util::has_syntactic_modifier(
+                        source_file,
+                        node,
+                        tsc_types::ModifierFlags::EXPORT,
+                    )
+                }
+                _ => false,
+            };
+            if skip {
+                continue;
+            }
+            state
+                .mark_linked_references_unspecified(node)
+                .map_err(|abort| EmitResolverError::CheckerAborted {
+                    method: EmitResolverMethod::MarkLinkedReferences,
+                    node: EmitResolverNode::new(source, root),
+                    reason: abort.description(),
+                })?;
+            let source_file = state.binder.source_of_node(node);
+            let mut children = Vec::new();
+            tsc_syntax::for_each_child(&source_file.arena, source_file.arena.node(node), |child| {
+                children.push(child);
+                false
+            });
+            for child in children.into_iter().rev() {
+                stack.push(child);
+            }
+        }
+        Ok(())
     }
 
     fn is_arguments_local_binding(

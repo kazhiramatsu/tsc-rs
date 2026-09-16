@@ -113,7 +113,7 @@ fn h2_7d_module_identities_match_typescript_source_facts_twice() {
                     None,
                 );
                 assert_eq!(
-                    source.module_name.as_deref(),
+                    source.module_name.as_ref().and_then(|name| name.as_str()),
                     identity["explicit_module_name"].as_str()
                 );
                 assert_eq!(

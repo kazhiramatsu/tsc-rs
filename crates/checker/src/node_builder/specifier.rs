@@ -241,7 +241,7 @@ pub(crate) fn get_specifier_for_module_symbol(
     if let Some(module_name) = source_file_declaration
         .and_then(|file| state.binder.source_of_node(file).module_name.as_ref())
     {
-        return Ok(module_name.clone().into());
+        return Ok(module_name.clone());
     }
 
     if source_file_declaration.is_none() && ambient_symbol_name(state, module_symbol).is_some() {

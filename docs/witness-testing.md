@@ -25,10 +25,13 @@ and three [compiler UTF-16 suites](design/greenfield/slices/witness-coverage/com
 `utf16-identity-recovery`, `utf16-review-fix`, `utf16-tagged-template`, plus
 [compiler literal suites](design/greenfield/slices/witness-coverage/compiler-literals/README.md)
 `utf16-literal-witnesses` and `utf16-original-commands`.
+The [transpile research contract](design/greenfield/slices/h2-8c-transpile/INTEGRATION.md)
+is registered as `transpile-routes`: 287 original + 14 review inputs, nine tests.
+Its observer checks both frozen collections twice before Cargo runs.
 `--all` explicitly requests the whole suite, normally on hosted CI. `--list` and
 `--dry-run` neither build Rust nor run tests. Commands use a manifest path and an
 exact test name for the large shared comparator targets. Small emitter direct
-suites and unfiltered compiler UTF-16 suites run their whole target, with `--all`;
+suites and unfiltered compiler direct suites run their whole target, with `--all`;
 `--case` is rejected for those suites.
 Their entry checks only the selected fixture observers and rejects missing,
 zero-test, ignored or unexpected filtered target results.
@@ -166,7 +169,7 @@ The seven replay jobs total 87m04s, excluding plans/gates and main-push replay.
 ## Test entry coverage
 
 The [PR-gate entry inventory](design/greenfield/slices/witness-coverage/README.md)
-lists all 64 standalone Cargo test targets and 16 lib/bin test harnesses. It
+lists all 65 standalone Cargo test targets and 16 lib/bin test harnesses. It
 separates unfiltered commands, named-test filters, and shared acceptance helpers.
 A broad replay selected for an unknown test source does not automatically run
 that source's standalone target. OPS-COVER-2 through 4 pair new owner commands
@@ -193,3 +196,7 @@ keeps the exact run/head identities and observed timing boundaries.
 The merge's [main-push acceptance](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35040745901)
 also passed. Its three replay jobs total 54m12s separately; PR plus main push
 total 144m44s, still excluding planning/gates. The receipt retains both runs.
+
+C04 adds the new `transpile_routes_contract` to controls (nine tests / 301 inputs).
+Inventory v6 therefore has 65 standalone targets: 22 unfiltered, seven filtered,
+and 36 without a direct entry. Existing acceptance membership is unchanged.

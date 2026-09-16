@@ -925,7 +925,7 @@ impl<'a> CheckerState<'a> {
     /// accessibility marks. For classic fragments the second factory
     /// probe shares the same first identifier and dedupes when
     /// appropriate.
-    fn mark_jsx_alias_referenced(&mut self, node: NodeId) -> CheckResult<()> {
+    pub(crate) fn mark_jsx_alias_referenced(&mut self, node: NodeId) -> CheckResult<()> {
         if self
             .get_jsx_namespace_container_for_implicit_import(node)?
             .is_some()

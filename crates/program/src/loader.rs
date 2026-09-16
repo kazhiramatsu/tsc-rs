@@ -1480,7 +1480,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         if !path_has_extension(path.display()) {
             return self.load_extensionless_root(path, root_spelling, root_reason);
         }
-        if !is_admitted_source(path.canonical(), self.compiler_options) {
+        // tsc getSourceFileFromReferenceWorker (_tsc.js:124176): the
+        // supported-extension check is skipped entirely under
+        // allowNonTsExtensions; the script kind then derives from the name.
+        if !is_admitted_source(path.canonical(), self.compiler_options)
+            && self.compiler_options.allow_non_ts_extensions != Some(true)
+        {
             let diagnostic = unsupported_root_extension_diagnostic(
                 &path,
                 root_spelling,
@@ -1538,6 +1543,42 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         root_reason: RootFileReason,
     ) -> Result<(), ProgramLoadError> {
         let requested_text = path.display();
+        if self.compiler_options.allow_non_ts_extensions == Some(true) {
+            // tsc getSourceFileFromReferenceWorker (_tsc.js:124200-124205):
+            // under allowNonTsExtensions the exact extensionless name is the
+            // only candidate; no extension probing follows a miss.
+            let source = self.visit_source(
+                path.clone(),
+                0,
+                0,
+                DiscoveryReason::root(root_reason.clone()),
+                SourceClass::Ordinary,
+            )?;
+            if let Some(source) = source {
+                self.sources[source]
+                    .root_inclusions
+                    .push(path.display().to_owned());
+                self.roots.push(StagedRoot {
+                    path,
+                    source: Some(source),
+                    missing_diagnostic: None,
+                });
+                return Ok(());
+            }
+            let diagnostic = missing_root_diagnostic(root_spelling, root_reason);
+            if self
+                .diagnosed_missing_roots
+                .insert(path.display().to_owned())
+            {
+                self.program_diagnostics.push(diagnostic.clone());
+            }
+            self.roots.push(StagedRoot {
+                path,
+                source: None,
+                missing_diagnostic: Some(diagnostic),
+            });
+            return Ok(());
+        }
         for &extension in extensionless_source_probe_extensions(self.compiler_options.allow_js) {
             let mut candidate_text = requested_text.to_owned();
             candidate_text.push_str(extension);

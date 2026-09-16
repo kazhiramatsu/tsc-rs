@@ -45,7 +45,10 @@ fn amd_pragmas_are_source_owned_and_duplicate_module_names_report_exactly() {
         ScriptTarget::ES_NEXT,
     );
 
-    assert_eq!(source.module_name.as_deref(), Some("second"));
+    assert_eq!(
+        source.module_name.as_ref().and_then(|name| name.as_str()),
+        Some("second")
+    );
     assert_eq!(
         source.amd_dependencies,
         [

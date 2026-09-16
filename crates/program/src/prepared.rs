@@ -1737,7 +1737,10 @@ impl PreparedProgramBuilder {
             return Ok(root == source);
         }
         if root == source {
-            return Ok(false);
+            // tsc getSourceFileFromReferenceWorker (_tsc.js:124200): under
+            // allowNonTsExtensions the exact extensionless name is the
+            // selected source; otherwise only probed candidates qualify.
+            return Ok(self.compiler_options.allow_non_ts_extensions == Some(true));
         }
         let Some((root_text, selected_index)) =
             extensionless_root_source_index(root, source, self.compiler_options.allow_js)

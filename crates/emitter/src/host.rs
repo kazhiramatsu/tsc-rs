@@ -105,6 +105,13 @@ impl<'host> EmitSource<'host> {
 /// immutable parsed tree while its checker session remains alive.
 pub trait EmitHost {
     fn compiler_options(&self) -> &CompilerOptions;
+    /// Which public entry produced this emit request. The ordinary Program
+    /// route is the default; the H2.8c research adapters override it to admit
+    /// the no-check / transpile-forced options.
+    /// tsrs-native: typed route plan, see [`crate::EmitRouteKind`].
+    fn emit_route(&self) -> crate::EmitRouteKind {
+        crate::EmitRouteKind::Program
+    }
     fn current_directory(&self) -> JsStr<'_>;
     /// Absolute common source directory; the caller may omit its trailing separator.
     fn common_source_directory(&self) -> JsStr<'_>;

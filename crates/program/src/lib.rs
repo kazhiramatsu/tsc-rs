@@ -90,7 +90,7 @@ mod config_matcher;
 mod config_options;
 mod error;
 mod js_path;
-pub use js_path::base_file_name;
+pub use js_path::{base_file_name, normalize_path};
 pub use tsc_host::to_file_name_lower_case_js;
 mod js_string_ops;
 mod json;
@@ -109,8 +109,9 @@ mod symlinks;
 mod text;
 
 pub use config::{
-    is_non_fatal_option_diagnostic, load_config_program, load_config_program_with_no_emit_override,
-    load_emitting_config_program, load_emitting_config_program_with_no_emit_override,
+    compiler_option_named_choices, is_non_fatal_option_diagnostic, load_config_program,
+    load_config_program_with_no_emit_override, load_emitting_config_program,
+    load_emitting_config_program_with_no_emit_override,
     load_emitting_config_program_with_no_emit_override_and_overrides,
     load_emitting_config_program_with_overrides, parse_config_root_plan,
     parse_config_root_plan_with_cache, validate_config_plan, ConfigDiscoveryOptions,

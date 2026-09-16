@@ -75,7 +75,7 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 ### Claude に依頼するもの（5 件）
 
 依頼入口は [Claude handoff index](slices/claude-high-difficulty-handoffs.md)。
-**C03 は隔離候補を受領済み。次の推奨送付順は C04 → C05 → C01 → C02**。
+**C03/C04 は候補を受領済み。C04 は[統合記録](slices/h2-8c-transpile/INTEGRATION.md)を参照。次の推奨送付順は C05 → C01 → C02**。
 [C03 統合レビュー](slices/h2-8a-printer-failure/INTEGRATION.md)に44 exact / 2保留、
 追加修復・検証・hosted 入口を記録した。その後の [A-INT3-CS](slices/h2-8a-printer-comment-carry/README.md)
 で source をまたぐコメント差を修復し、PR #528 で統合済み。提出25件の残差は C02 / A-INT2 の生成名1件。
@@ -147,8 +147,9 @@ A-CLOSE と該当 artifact の前提を確認してから行う。監査・oracl
 
 ### 4.3 H2.8c：noCheck / transpile
 
-現行 `EmitOperation::Files` には noCheck / isolatedModules / verbatimModuleSyntax の guard が
-残る。option の parse や typed refusal はこの製品の完了ではない。C04 の prototype を基に
+C04 の研究用 noCheck/transpile 経路と301入力の専用 witness を[統合](slices/h2-8c-transpile/INTEGRATION.md)する。
+通常 Program の noCheck / isolatedModules / verbatimModuleSyntax guard と CLI/config activation は残る。
+この bounded prototype を基に
 それぞれ本番 packet を作る。custom transforms は API1.2、incremental は BLD1 に残す。
 
 | ID | 作業と成果物 | 依存・終了条件 |

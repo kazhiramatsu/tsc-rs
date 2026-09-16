@@ -122,6 +122,10 @@ pub struct NodeLinks {
     /// TypeChecked bit lands with M4 5.4; later stages OR in their own
     /// bits (a flags word accumulates, unlike the write-once slots).
     pub check_flags: tsc_types::NodeCheckFlags,
+    /// tsc NodeLinks.calculatedFlags (calculateNodeCheckFlagWorker 88132):
+    /// which lazily computed NodeCheckFlags groups have already been
+    /// derived for an unchecked (noCheck / excluded) source. Emit-only.
+    pub calculated_flags: tsc_types::NodeCheckFlags,
     /// tsc NodeLinks.isVisible (isDeclarationVisible 55591 and the
     /// declaration-emit alias painters). This is the deliberate MONOTONE
     /// exception to the table's write-once policy: absent→false,
@@ -2155,6 +2159,14 @@ impl LinksTables {
         let links = self.node.entry(id).or_default();
         links.check_flags =
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
+    }
+
+    /// `links.calculatedFlags |= bits` (calculateNodeCheckFlagWorker 88132).
+    /// Emit-time bookkeeping outside speculation; never reverted.
+    pub fn or_calculated_flags(&mut self, id: NodeId, bits: tsc_types::NodeCheckFlags) {
+        let links = self.node.entry(id).or_default();
+        links.calculated_flags =
+            tsc_types::NodeCheckFlags::from_bits(links.calculated_flags.bits() | bits.bits());
     }
 
     /// `links.isVisible = value` — the declaration-emit visibility slot is

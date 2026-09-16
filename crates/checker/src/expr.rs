@@ -1258,7 +1258,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4950eecd5ccf25b955631bc3837bfda9ab85d640abbc29f84414e7a17115a3c8
     /// tsc-span: _tsc.js:72063-72125
     ///
-    fn check_identifier_calculate_node_check_flags(
+    pub(crate) fn check_identifier_calculate_node_check_flags(
         &mut self,
         node: NodeId,
         symbol: SymbolId,

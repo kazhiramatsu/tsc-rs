@@ -1,0 +1,250 @@
+{
+ "schema": "h2-8c-transpile-inputs.v1",
+ "typescript": {
+  "version": "6.0.3",
+  "bundle": "vendor/typescript-6.0.3/lib/typescript.js",
+  "bundle_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+ },
+ "generator": "scripts/observe-transpile-routes.mjs",
+ "case_count": 14,
+ "route_counts": {
+  "transpile-js": 13,
+  "transpile-dts": 1
+ },
+ "cases": [
+  {
+   "id": "h2-8c/review/filename/dot",
+   "route": "transpile-js",
+   "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+   "compilerOptions": {
+    "jsx": "react-jsxdev",
+    "jsxImportSource": "preact",
+    "module": "commonjs"
+   },
+   "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d",
+   "text_utf16_units": 72,
+   "fileName": "./src/a.tsx"
+  },
+  {
+   "id": "h2-8c/review/filename/parent",
+   "route": "transpile-js",
+   "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+   "compilerOptions": {
+    "jsx": "react-jsxdev",
+    "jsxImportSource": "preact",
+    "module": "commonjs"
+   },
+   "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d",
+   "text_utf16_units": 72,
+   "fileName": "src/deep/../a.tsx"
+  },
+  {
+   "id": "h2-8c/review/filename/backslash",
+   "route": "transpile-js",
+   "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+   "compilerOptions": {
+    "jsx": "react-jsxdev",
+    "jsxImportSource": "preact",
+    "module": "commonjs"
+   },
+   "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d",
+   "text_utf16_units": 72,
+   "fileName": "src\\a.tsx"
+  },
+  {
+   "id": "h2-8c/review/filename/module-name",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "moduleName": "my/mod",
+   "compilerOptions": {
+    "module": "amd"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20,
+   "fileName": "./src/a.ts"
+  },
+  {
+   "id": "h2-8c/review/filename/renamed",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nimport './side';\nexport const y = x;\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a",
+    "./side": "./renamed-side"
+   },
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "24ef58f4e7438bef01d7a4f0bf2a0a020470ee0cb2be4399a94121d5bd261421",
+   "text_utf16_units": 62,
+   "fileName": "./src/a.ts"
+  },
+  {
+   "id": "h2-8c/review/filename/jsdoc",
+   "route": "transpile-dts",
+   "text": "/** @type {number} */\nexport const a = 1;\n/** @param {string} s */\nexport function f(s) { return s; }\n",
+   "fileName": "./src/a.js",
+   "compilerOptions": {
+    "allowJs": true
+   },
+   "jsDocParsingMode": "ParseNone",
+   "text_sha256": "be126eff319d6ccac5d1977439ac1eb377615a7878925ccd73b6656bdd6a7492",
+   "text_utf16_units": 102
+  },
+  {
+   "id": "h2-8c/review/utf16/module-name-high",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "compilerOptions": {
+    "module": "amd"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20,
+   "moduleNameUtf16": [
+    109,
+    47,
+    55296
+   ]
+  },
+  {
+   "id": "h2-8c/review/utf16/renamed-high",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nimport './side';\nexport const y = x;\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "24ef58f4e7438bef01d7a4f0bf2a0a020470ee0cb2be4399a94121d5bd261421",
+   "text_utf16_units": 62,
+   "renamedDependenciesUtf16": [
+    [
+     [
+      46,
+      47,
+      97
+     ],
+     [
+      46,
+      47,
+      55296
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "h2-8c/review/utf16/module-name-low",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "compilerOptions": {
+    "module": "amd"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20,
+   "moduleNameUtf16": [
+    109,
+    47,
+    56320
+   ]
+  },
+  {
+   "id": "h2-8c/review/utf16/renamed-low",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nimport './side';\nexport const y = x;\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "24ef58f4e7438bef01d7a4f0bf2a0a020470ee0cb2be4399a94121d5bd261421",
+   "text_utf16_units": 62,
+   "renamedDependenciesUtf16": [
+    [
+     [
+      46,
+      47,
+      97
+     ],
+     [
+      46,
+      47,
+      56320
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "h2-8c/review/utf16/module-name-pair",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "compilerOptions": {
+    "module": "amd"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20,
+   "moduleNameUtf16": [
+    109,
+    47,
+    55357,
+    56832
+   ]
+  },
+  {
+   "id": "h2-8c/review/utf16/renamed-pair",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nimport './side';\nexport const y = x;\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "24ef58f4e7438bef01d7a4f0bf2a0a020470ee0cb2be4399a94121d5bd261421",
+   "text_utf16_units": 62,
+   "renamedDependenciesUtf16": [
+    [
+     [
+      46,
+      47,
+      97
+     ],
+     [
+      46,
+      47,
+      55357,
+      56832
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "h2-8c/review/utf16/renamed-key",
+   "route": "transpile-js",
+   "text": "import { x } from './\\uD800'; export const y = x;\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "a77804991c7a0bc2b3814692dda18013442df7199532ee8152e09205d3d50349",
+   "text_utf16_units": 50,
+   "renamedDependenciesUtf16": [
+    [
+     [
+      46,
+      47,
+      55296
+     ],
+     [
+      46,
+      47,
+      114
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "h2-8c/review/renamed/empty-ignored",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nimport './side';\nexport const y = x;\n",
+   "renamedDependencies": {
+    "./a": ""
+   },
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "24ef58f4e7438bef01d7a4f0bf2a0a020470ee0cb2be4399a94121d5bd261421",
+   "text_utf16_units": 62
+  }
+ ]
+}
