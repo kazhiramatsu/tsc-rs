@@ -1,0 +1,83 @@
+✔ gt5: fixture extraction sees all five grammars and only them (1.4265ms)
+✔ gt5: normalizer is invariant under pin value swaps (the incident class) (0.729333ms)
+✔ gt5: normalizer re-keys on logic changes and pin retargets (0.178959ms)
+✔ gt5: unclassified sites, count drift, and mixed classification refuse (0.141959ms)
+✔ gt5: semantic exclusions stay unmasked without refusal (0.072291ms)
+✔ gt5: normalized text holds no residual grammar hits (idempotence) (0.060625ms)
+✔ gt5: python and mjs normalizers agree on every indexed consumer (77.45ms)
+✔ gt5: the checked-in pin-index is clean (104.910875ms)
+✔ gt5: pinIndexRowsSha256 keys the masking-relevant rows only (0.228959ms)
+✔ gt5: repin rewrites exactly the classified grammar shapes (41.725ms)
+✔ gt5: repin skips semantic-classified sites when the index says so (22.263125ms)
+✔ gt5: receipt terms validate in order and name the divergent term (0.490875ms)
+✔ gt5: journal round-trips, drops torn tails, and refuses key drift (25.087875ms)
+✔ gt5: journal removals refuse paths outside the store (rm guard) (8.974959ms)
+✔ gt5: journal lines under a stale-line prefix stay adoptable (kill window) (188.557333ms)
+✔ artifact-to-schema mapping is fixed and immutable (0.140708ms)
+✖ registered h2 artifact labels follow the chain-walk ORDER (2.438709ms)
+✔ FCI readiness chain is valid and every ready packet passes the checker (1929.823292ms)
+✔ slice-readiness schema rejects malformed envelopes fail-closed (0.401666ms)
+✔ JSON schema subset validates local refs and every H2.5g keyword family (0.213583ms)
+✔ H2.5g rootless exception is exact and cannot take the nonempty branch (0.69675ms)
+✔ JSON schema subset rejects invalid artifact values fail-closed (0.878167ms)
+✔ JSON schema subset rejects unsafe or unsupported schemas (0.662334ms)
+✔ Rust owner-control boundary ignores comments and string literals (6.164375ms)
+✔ Rust owner-control boundary rejects direct hosted owner calls (0.64525ms)
+✔ Rust hosted call graph rejects transitive owner-control helpers and aliases (4.314458ms)
+✔ hosted acceptance body is pinned as one canonical executable shape (2.230708ms)
+✔ hosted module declarations reject path, cfg, inline, duplicate, and nested alternatives (1.237583ms)
+✔ H2.7c shared comparators remain in the hosted owner-control boundary (1.151667ms)
+✔ H2.7d/e shared comparators retain hosted source pins and owner boundaries (2.289ms)
+✔ legacy D/E registries remain in the hosted source and owner boundary (2.52025ms)
+✔ raw source pins close Rust constructs outside the bounded call-graph grammar (4.488625ms)
+✔ policy and every qualification schema boundary are valid (104.985ms)
+✔ documentation-only changes select no execution lane (0.34875ms)
+✔ generated-status drift and unknown paths fail closed (7.407334ms)
+✔ known compiler and program owners select their focused tracks (0.162708ms)
+✔ local evidence classification remains fail-closed for policy inputs (0.313417ms)
+✔ lane selection rejects ambiguity, traversal, and missing lanes (0.153833ms)
+✔ exact receipt binds successful commands, immutable inputs, and authentication (0.264458ms)
+✔ OIDC receipt remains bound to the exact attested qualification result (0.389209ms)
+✔ failure artifacts are bounded, relative, and content addressed (0.151ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 40
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2610.702458
+
+✖ failing tests:
+
+test at .github/ci/qualification.test.mjs:346:1
+✖ registered h2 artifact labels follow the chain-walk ORDER (2.438709ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'h2-5g-qualification',
+      'h2-5g-profile',
+      'h2-5h-qualification',
+      'h2-5h-a-foundation',
+  ...
+      'h2-7de-qualification',
+  -   'h2-8a-candidates',
+  -   'h2-8a-observations'
+    ]
+  
+      at TestContext.<anonymous> (file:///Users/hiramatsu/dev/tsc-rs-compiler-utf16-witness-ci/.github/ci/qualification.test.mjs:356:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'h2-5g-qualification', 'h2-5g-profile', 'h2-5h-qualification', 'h2-5h-a-foundation', 'h2-5h-a-comment-scope-witnesses', 'h2-5h-a-owner-graph', 'h2-5h-a-gap-matrix', 'h2-5h-a-dispositions', 'h2-5h-a-es2015-generators-witnesses', 'h2-6a-witnesses', 'h2-6a-qualification', 'h2-6b-witnesses', 'h2-6b-qualification', 'h2-6c-census', 'h2-6c-qualification', 'h2-7a-owner-inventory', 'h2-7a-witnesses', 'h2-7a-probe-traces', 'h2-7a-printer-reprint', 'h2-7a-close', 'h2-7b-qualification', 'h2-7c-qualification', 'h2-7de-qualification' ],
+    expected: [ 'h2-5g-qualification', 'h2-5g-profile', 'h2-5h-qualification', 'h2-5h-a-foundation', 'h2-5h-a-comment-scope-witnesses', 'h2-5h-a-owner-graph', 'h2-5h-a-gap-matrix', 'h2-5h-a-dispositions', 'h2-5h-a-es2015-generators-witnesses', 'h2-6a-witnesses', 'h2-6a-qualification', 'h2-6b-witnesses', 'h2-6b-qualification', 'h2-6c-census', 'h2-6c-qualification', 'h2-7a-owner-inventory', 'h2-7a-witnesses', 'h2-7a-probe-traces', 'h2-7a-printer-reprint', 'h2-7a-close', 'h2-7b-qualification', 'h2-7c-qualification', 'h2-7de-qualification', 'h2-8a-candidates', 'h2-8a-observations' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

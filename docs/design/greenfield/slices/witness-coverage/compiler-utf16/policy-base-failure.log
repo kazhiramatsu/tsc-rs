@@ -1,0 +1,44 @@
+✖ registered h2 artifact labels follow the chain-walk ORDER (2.5895ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 67.928584
+
+✖ failing tests:
+
+test at .github/ci/qualification.test.mjs:346:1
+✖ registered h2 artifact labels follow the chain-walk ORDER (2.5895ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'h2-5g-qualification',
+      'h2-5g-profile',
+      'h2-5h-qualification',
+      'h2-5h-a-foundation',
+  ...
+      'h2-7de-qualification',
+  -   'h2-8a-candidates',
+  -   'h2-8a-observations'
+    ]
+  
+      at TestContext.<anonymous> (file:///Users/hiramatsu/dev/tsc-rs-output-residual/.github/ci/qualification.test.mjs:356:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+      at run (node:internal/test_runner/harness:369:12)
+      at test (node:internal/test_runner/harness:378:12)
+      at file:///Users/hiramatsu/dev/tsc-rs-output-residual/.github/ci/qualification.test.mjs:346:1 {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'h2-5g-qualification', 'h2-5g-profile', 'h2-5h-qualification', 'h2-5h-a-foundation', 'h2-5h-a-comment-scope-witnesses', 'h2-5h-a-owner-graph', 'h2-5h-a-gap-matrix', 'h2-5h-a-dispositions', 'h2-5h-a-es2015-generators-witnesses', 'h2-6a-witnesses', 'h2-6a-qualification', 'h2-6b-witnesses', 'h2-6b-qualification', 'h2-6c-census', 'h2-6c-qualification', 'h2-7a-owner-inventory', 'h2-7a-witnesses', 'h2-7a-probe-traces', 'h2-7a-printer-reprint', 'h2-7a-close', 'h2-7b-qualification', 'h2-7c-qualification', 'h2-7de-qualification' ],
+    expected: [ 'h2-5g-qualification', 'h2-5g-profile', 'h2-5h-qualification', 'h2-5h-a-foundation', 'h2-5h-a-comment-scope-witnesses', 'h2-5h-a-owner-graph', 'h2-5h-a-gap-matrix', 'h2-5h-a-dispositions', 'h2-5h-a-es2015-generators-witnesses', 'h2-6a-witnesses', 'h2-6a-qualification', 'h2-6b-witnesses', 'h2-6b-qualification', 'h2-6c-census', 'h2-6c-qualification', 'h2-7a-owner-inventory', 'h2-7a-witnesses', 'h2-7a-probe-traces', 'h2-7a-printer-reprint', 'h2-7a-close', 'h2-7b-qualification', 'h2-7c-qualification', 'h2-7de-qualification', 'h2-8a-candidates', 'h2-8a-observations' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
