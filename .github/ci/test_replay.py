@@ -110,6 +110,16 @@ class SelectionTests(unittest.TestCase):
             self.assertEqual(plan["acceptance"], list(replay.GROUPS))
             self.assertEqual(plan["witnesses"], list(witness.SUITES))
 
+    def test_transpile_oracle_runtime_matches_frozen_receipts(self):
+        version = (ROOT / ".node-version").read_text().strip()
+        for name in ("expected", "review-expected"):
+            fixture = json.loads((ROOT / f"crates/compiler/tests/fixtures/h2_8c_transpile/{name}.v1.json").read_text())
+            self.assertEqual(fixture["node"], "v" + version)
+        workflow = (ROOT / ".github/workflows/witness.yml").read_text()
+        self.assertIn("if: contains(matrix.suites, 'transpile-routes')", workflow)
+        self.assertIn("actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020", workflow)
+        self.assertIn("node-version-file: .node-version", workflow)
+
     def test_witness_groups_cover_every_suite_once(self):
         suites = [suite for group in replay.WITNESS_GROUPS.values() for suite in group]
         self.assertCountEqual(suites, witness.SUITES)
