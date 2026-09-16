@@ -412,7 +412,11 @@ fn get_output_paths_for_with_force(
     force_dts_paths: bool,
 ) -> Result<EmitOutputPaths, EmitFailure> {
     let options = host.compiler_options();
-    let extension = get_output_extension(source.path(), options.jsx)?;
+    let extension = get_output_extension(
+        source.path(),
+        options.jsx,
+        options.allow_non_ts_extensions == Some(true),
+    )?;
     let javascript = get_own_emit_output_file_path(source.path(), host, extension);
     let is_json = extension == "json";
     let javascript = (!(options.emit_declaration_only.unwrap_or(false)
@@ -591,8 +595,9 @@ pub fn preflight_emit(
         }
     }
     // `suppressOutputPathCheck` is intentionally absent from the typed option
-    // surface. Its upstream gate therefore reduces to `!noEmit` here.
-    if options.no_emit != Some(true) {
+    // surface. Its upstream gate therefore reduces to `!noEmit` here, plus
+    // the typed transpile routes which force the option (typescript.js:146040).
+    if options.no_emit != Some(true) && !host.emit_route().suppresses_output_path_check() {
         for unit in plan.units() {
             if options.emit_declaration_only != Some(true) {
                 if let Some(path) = unit.paths().javascript_path() {
@@ -684,7 +689,11 @@ fn get_own_emit_output_file_path(
 /// tsc-port: getOutputExtension @6.0.3
 /// tsc-hash: cf61157be90d2652413f6d8ee13d05b2e76048b1f4ee38f8b620691af40632ce
 /// tsc-span: _tsc.js:116391-116393
-fn get_output_extension(path: JsStr<'_>, jsx: Option<i32>) -> Result<&'static str, EmitFailure> {
+fn get_output_extension(
+    path: JsStr<'_>,
+    jsx: Option<i32>,
+    allow_non_ts_extensions: bool,
+) -> Result<&'static str, EmitFailure> {
     let file_name = path;
     if has_ascii_file_suffix(file_name, ".json") {
         Ok("json")
@@ -701,6 +710,10 @@ fn get_output_extension(path: JsStr<'_>, jsx: Option<i32>) -> Result<&'static st
         || has_ascii_file_suffix(file_name, ".js")
         || has_ascii_file_suffix(file_name, ".jsx")
     {
+        Ok("js")
+    } else if allow_non_ts_extensions {
+        // tsc's final `Extension.Js` arm; reached only for roots admitted by
+        // allowNonTsExtensions (transpile routes), otherwise fail closed.
         Ok("js")
     } else {
         Err(EmitFailure::UnsupportedSourceExtension {

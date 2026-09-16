@@ -11,10 +11,10 @@ use crate::declarations::{
 };
 use crate::{
     create_printer, transform_nodes, EmitArtifact, EmitContractViolation, EmitFailure, EmitHost,
-    EmitOutcome, EmitPreflight, EmitResolver, EmitRoot, EmitSelection, EmitTextMetadata,
-    EmitWriteDisposition, H2ActivityCanary, H2RuntimeSlice, NewLineKind, OutputSink, PrintRequest,
-    PrinterOptions, SourceFileTextMode, SourceMapObservation, SourceMapRecordingInputs,
-    TransformArena, TransformRoot,
+    EmitOutcome, EmitPreflight, EmitResolver, EmitResolverError, EmitRoot, EmitRouteKind,
+    EmitSelection, EmitTextMetadata, EmitWriteDisposition, H2ActivityCanary, H2RuntimeSlice,
+    NewLineKind, OutputSink, PrintRequest, PrinterOptions, SourceFileTextMode,
+    SourceMapObservation, SourceMapRecordingInputs, TransformArena, TransformError, TransformRoot,
 };
 
 const MODULE_NONE: i32 = 0;
@@ -86,7 +86,18 @@ impl EmitDiagnosticGate {
 /// Reject every effective option outside the frozen JavaScript-only bootstrap
 /// before output planning, checker-to-emitter borrowing, or sink dispatch.
 pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), EmitFailure> {
-    validate_emit_options(options, EmitOperation::Files)
+    validate_emit_options(options, EmitOperation::Files, EmitRouteKind::Program)
+}
+
+/// Route-aware variant of [`validate_bootstrap_emit_options`]: the H2.8c
+/// research routes admit `noCheck` (and, for the transpile routes, the
+/// forced `isolatedModules` / caller `verbatimModuleSyntax`) while every
+/// other bootstrap refusal is unchanged.
+pub fn validate_bootstrap_emit_options_for_route(
+    options: &CompilerOptions,
+    route: EmitRouteKind,
+) -> Result<(), EmitFailure> {
+    validate_emit_options(options, EmitOperation::Files, route)
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -99,6 +110,7 @@ enum EmitOperation {
 fn validate_emit_options(
     options: &CompilerOptions,
     operation: EmitOperation,
+    route: EmitRouteKind,
 ) -> Result<(), EmitFailure> {
     let target = options.emit_script_target();
     if target < ScriptTarget::ES5 || target > ScriptTarget::ES_NEXT {
@@ -133,12 +145,17 @@ fn validate_emit_options(
             "noEmit",
         ),
         (
-            operation == EmitOperation::Files && options.no_check == Some(true),
+            operation == EmitOperation::Files
+                && options.no_check == Some(true)
+                && !route.admits_no_check(),
             "noCheck",
         ),
-        (options.isolated_modules == Some(true), "isolatedModules"),
         (
-            options.verbatim_module_syntax == Some(true),
+            options.isolated_modules == Some(true) && !route.admits_isolated_module_options(),
+            "isolatedModules",
+        ),
+        (
+            options.verbatim_module_syntax == Some(true) && !route.admits_isolated_module_options(),
             "verbatimModuleSyntax",
         ),
         (
@@ -186,7 +203,7 @@ pub fn validate_forced_declaration_request(host: &dyn EmitHost) -> Result<(), Em
 
 fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Result<(), EmitFailure> {
     let options = host.compiler_options();
-    validate_emit_options(options, operation)?;
+    validate_emit_options(options, operation, host.emit_route())?;
     if options
         .out_file
         .as_ref()
@@ -225,7 +242,10 @@ fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Resul
         if is_json && !options.resolve_json_module_effective() {
             return unsupported("resolveJsonModule");
         }
-        if !(is_typescript || is_javascript || is_json)
+        // allowNonTsExtensions (transpile routes): any other extension was
+        // admitted as a TypeScript-kind root by the Program loader.
+        let is_other_admitted = options.allow_non_ts_extensions == Some(true);
+        if !(is_typescript || is_javascript || is_json || is_other_admitted)
             || crate::builtins::has_ascii_file_suffix(name, ".d.ts")
             || crate::builtins::has_ascii_file_suffix(name, ".d.mts")
             || crate::builtins::has_ascii_file_suffix(name, ".d.cts")
@@ -921,6 +941,30 @@ pub fn emit_files_with_activity(
             } else {
                 let mut arena = TransformArena::new();
                 let transform_root = mount_emit_root(&mut arena, host, unit.root())?;
+                // tsc-port: emitJsFileOrBundle @6.0.3 (_tsc.js:116594-116598)
+                // Unchecked sources (noCheck, or a file excluded by
+                // canIncludeBindAndCheckDiagnostics) have their alias
+                // references marked lazily before the script transform so
+                // import elision sees the same `referenced` facts a checked
+                // file would have. Resolvers without a checker
+                // (transform-only fixtures) answer UnavailableForSource and
+                // keep their pre-H2.8c "checked file" assumption.
+                for &file in unit.root().source_files() {
+                    let unchecked = if options.no_check == Some(true) {
+                        true
+                    } else {
+                        match resolver.can_include_bind_and_check_diagnostics(file) {
+                            Ok(can_include) => !can_include,
+                            Err(EmitResolverError::UnavailableForSource { .. }) => false,
+                            Err(error) => return Err(TransformError::from(error).into()),
+                        }
+                    };
+                    if unchecked {
+                        resolver
+                            .mark_linked_references(file)
+                            .map_err(TransformError::from)?;
+                    }
+                }
                 let transformers = get_script_transformers_with_activity(
                     options, resolver, host, source_id, activity,
                 )?;

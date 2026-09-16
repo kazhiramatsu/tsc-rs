@@ -475,6 +475,7 @@ pub enum EmitResolverMethod {
     IsUniqueLocalName,
     HasGlobalName,
     CollectLinkedAliases,
+    MarkLinkedReferences,
     CanIncludeBindAndCheckDiagnostics,
     IsReferencedAliasDeclaration,
     IsTopLevelValueImportEqualsWithEntityName,
@@ -552,6 +553,7 @@ impl EmitResolverMethod {
             Self::IsUniqueLocalName => "isUniqueLocalName",
             Self::HasGlobalName => "hasGlobalName",
             Self::CollectLinkedAliases => "collectLinkedAliases",
+            Self::MarkLinkedReferences => "markLinkedReferences",
             Self::CanIncludeBindAndCheckDiagnostics => "canIncludeBindAndCheckDiagnostics",
             Self::IsReferencedAliasDeclaration => "isReferencedAliasDeclaration",
             Self::IsTopLevelValueImportEqualsWithEntityName => {
@@ -762,6 +764,20 @@ pub trait EmitResolver {
     ) -> Result<Option<Vec<EmitResolverNode>>, EmitResolverError> {
         let _ = set_visibility;
         Err(unavailable(EmitResolverMethod::CollectLinkedAliases, node))
+    }
+
+    /// Mark every alias reference of one unchecked source before its script
+    /// transform: the emitter-side `markLinkedReferences(file)` walk
+    /// (skipping non-exported import-equals and import declarations) over the
+    /// checker's `markLinkedReferences(node, Unspecified)` front door.
+    /// tsc-port: markLinkedReferences (emitter) @6.0.3
+    /// tsc-hash: 0e7d5d8b0d1c6c1b4d0f0a2a5c3c3e0c3ad3a7a6b48e7a8f6a1d9d1a0f9b5e2c
+    /// tsc-span: _tsc.js:116736-116743
+    fn mark_linked_references(&self, source: SourceFileId) -> Result<(), EmitResolverError> {
+        Err(EmitResolverError::UnavailableForSource {
+            method: EmitResolverMethod::MarkLinkedReferences,
+            source,
+        })
     }
 
     /// tsc-port: canIncludeBindAndCheckDiagnostics @6.0.3

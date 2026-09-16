@@ -151,6 +151,7 @@ pub use crate::program::{
     ProgramFileId, ProgramSnapshot,
 };
 
+pub use tsc_syntax::JSDocParsingMode;
 pub use tsc_types::CompilerOptions;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -158,6 +159,14 @@ pub struct InputFile {
     pub name: tsc_types::JsString,
     snapshot: Arc<TextSnapshot>,
     host_only: bool,
+    /// API-supplied `SourceFile.moduleName` (transpileWorker,
+    /// typescript.js:146100); overrides the parsed `amd-module` pragma.
+    module_name: Option<tsc_types::JsString>,
+    /// API-supplied `SourceFile.renamedDependencies` (typescript.js:146101).
+    renamed_dependencies: Vec<(tsc_types::JsString, tsc_types::JsString)>,
+    /// Per-file createSourceFile `jsDocParsingMode`; None keeps the
+    /// Program's ParseAll default.
+    js_doc_parsing_mode: Option<JSDocParsingMode>,
 }
 
 impl InputFile {
@@ -168,6 +177,9 @@ impl InputFile {
             name: name.into(),
             snapshot: TextSnapshot::new(text.into(), DocumentVersion::default()),
             host_only: false,
+            module_name: None,
+            renamed_dependencies: Vec::new(),
+            js_doc_parsing_mode: None,
         }
     }
 
@@ -181,7 +193,34 @@ impl InputFile {
             name: name.into(),
             snapshot,
             host_only: false,
+            module_name: None,
+            renamed_dependencies: Vec::new(),
+            js_doc_parsing_mode: None,
         }
+    }
+
+    /// tsc `sourceFile.moduleName = transpileOptions.moduleName`
+    /// (typescript.js:146099-146101).
+    pub fn with_module_name(mut self, module_name: Option<tsc_types::JsString>) -> Self {
+        self.module_name = module_name;
+        self
+    }
+
+    /// tsc `sourceFile.renamedDependencies = new Map(...)`
+    /// (typescript.js:146102-146104).
+    pub fn with_renamed_dependencies(
+        mut self,
+        renamed_dependencies: Vec<(tsc_types::JsString, tsc_types::JsString)>,
+    ) -> Self {
+        self.renamed_dependencies = renamed_dependencies;
+        self
+    }
+
+    /// tsc createSourceFile `jsDocParsingMode` for this file only
+    /// (typescript.js:146097).
+    pub fn with_js_doc_parsing_mode(mut self, mode: Option<JSDocParsingMode>) -> Self {
+        self.js_doc_parsing_mode = mode;
+        self
     }
 
     /// tsrs-native: retain a host-readable input that is not a source in the
@@ -196,6 +235,9 @@ impl InputFile {
             name: name.into(),
             snapshot,
             host_only: true,
+            module_name: None,
+            renamed_dependencies: Vec::new(),
+            js_doc_parsing_mode: None,
         }
     }
 
@@ -620,12 +662,12 @@ pub(crate) fn is_js_file_name<'n>(name: impl Into<tsc_types::JsStr<'n>>) -> bool
 /// SourceFile.comment_directives — swap this too if the parser ever
 /// grows real pragma processing (M8 surface).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum CheckDirective {
+pub(crate) enum CheckDirective {
     Check,
     NoCheck,
 }
 
-fn check_directive(text: &str) -> Option<CheckDirective> {
+pub(crate) fn check_directive(text: &str) -> Option<CheckDirective> {
     let mut rest = text;
     // getLeadingCommentRanges starts after a leading shebang. Keep
     // this test on the RAW offset zero: a BOM before `#!` makes it an
@@ -1837,8 +1879,11 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         }
         // tsc createProgram only loads roots with supported extensions;
         // anything else (.txt, extensionless, .js without allowJs) never
-        // yields syntactic diagnostics.
-        if !is_supported_source_file_name(&file.name, options.allow_js) {
+        // yields syntactic diagnostics. allowNonTsExtensions (transpile
+        // routes) admits every root the Program loader accepted.
+        if !is_supported_source_file_name(&file.name, options.allow_js)
+            && options.allow_non_ts_extensions != Some(true)
+        {
             continue;
         }
         let authoritative_implied_node_format =
@@ -1934,7 +1979,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             };
         let detect_external_module_from_jsx =
             !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
-        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+        let mut source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
             file.name.clone(),
             Arc::clone(file.snapshot()),
             tsc_syntax::ParseOptions {
@@ -1945,12 +1990,32 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 detect_external_module_from_jsx,
                 node_id_base: 0,
                 node_array_id_base: 0,
-                js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,
+                js_doc_parsing_mode: file
+                    .js_doc_parsing_mode
+                    .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
             },
             None,
             identity_domain,
         )
         .expect("source identity allocation failed");
+        // transpileWorker (typescript.js:146099-146104) assigns the API
+        // moduleName / renamedDependencies to the created SourceFile before
+        // createProgram; the parsed pragma value is overridden.
+        if let Some(module_name) = &file.module_name {
+            source_file.module_name = Some(module_name.to_string_lossy().into_owned());
+        }
+        if !file.renamed_dependencies.is_empty() {
+            source_file.renamed_dependencies = file
+                .renamed_dependencies
+                .iter()
+                .map(|(from, to)| {
+                    (
+                        from.to_string_lossy().into_owned(),
+                        to.to_string_lossy().into_owned(),
+                    )
+                })
+                .collect();
+        }
         work_counters.record_parse(file.text().len());
         program_sources.push(Arc::new(source_file));
     }

@@ -71,6 +71,23 @@ fn external_module_name_from_path(
     }
 }
 
+/// tsc-port: tryRenameExternalModule @6.0.3
+/// tsc-hash: 1b0c9a3e5d7f2b4c6a8e0d2f4b6a8c0e2d4f6a8b0c2e4d6f8a0b2c4d6e8f0a2c
+/// tsc-span: _tsc.js:27720-27723
+///
+/// API-supplied `renamedDependencies` rewrite a module specifier only when no
+/// resolved-file name (outFile / explicit moduleName) claimed it first.
+pub(crate) fn try_rename_external_module(
+    source: &SourceFile,
+    module_name: JsStr<'_>,
+) -> Option<JsString> {
+    source
+        .renamed_dependencies
+        .iter()
+        .find(|(from, _)| JsStr::from_str(from) == module_name)
+        .map(|(_, to)| JsString::from(to.as_str()))
+}
+
 /// tsc-port: tryGetModuleNameFromFile @6.0.3
 /// tsc-hash: 303add929c042f86af9ebd622cf3c6374a0dedeb0a3b3a9e24d636e90f1b84fa
 /// tsc-span: _tsc.js:27724-27735

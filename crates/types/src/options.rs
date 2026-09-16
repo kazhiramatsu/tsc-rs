@@ -203,6 +203,11 @@ pub struct CompilerOptions {
     pub no_emit: Option<bool>,
     /// Internal sourceFileMayBeEmitted gate, applied before forced declaration selection.
     pub no_emit_for_js_files: Option<bool>,
+    /// Internal createProgram option forced by transpileWorker
+    /// (typescript.js:146041): roots with any extension are admitted and
+    /// the script kind derives from the name with TypeScript as the default
+    /// (getSourceFileFromReferenceWorker, _tsc.js:124176-124205).
+    pub allow_non_ts_extensions: Option<bool>,
     /// Include the independent `EmitResult.emittedFiles` observation. The
     /// write callback keeps its own ordering and must never be reconstructed
     /// from this list.

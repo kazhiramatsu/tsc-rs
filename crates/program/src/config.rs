@@ -4880,6 +4880,7 @@ fn config_module_resolution_options<'j0>(
         lib_replacement: config_option_bool(options, "libReplacement"),
         jsx: config_option_i32(options, "jsx"),
         no_emit_for_js_files: None, // internal Program API option, not a tsconfig setting
+        allow_non_ts_extensions: None, // internal transpile API option, not a tsconfig setting
         no_emit: config_option_bool(options, "noEmit"),
         list_emitted_files: config_option_bool(options, "listEmittedFiles"),
         emit_bom: config_option_bool(options, "emitBOM"),
@@ -6038,6 +6039,18 @@ fn config_named_string_option_choices(descriptor: CompilerOptionListDescriptor) 
         .map(|value| format!("'{}'", value.name()))
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// tsc-port: createCompilerDiagnosticForInvalidCustomType (choices) @6.0.3
+/// tsc-span: _tsc.js:37988-37997
+/// The `'a', 'b'` choice list for an enum-typed option, as printed by
+/// TS6046. `None` when the option is not enum-typed.
+pub fn compiler_option_named_choices(name: &str) -> Option<String> {
+    let declaration = crate::config_options::compiler_option_declaration(name)?;
+    match declaration.value_kind() {
+        CompilerOptionValueKind::Named(values) => Some(config_named_option_choices(name, values)),
+        _ => None,
+    }
 }
 
 fn config_named_option_choices(

@@ -1196,6 +1196,215 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
+    /// tsc-port: markLinkedReferences (Unspecified hint) @6.0.3
+    /// tsc-hash: 9d3f5a7e1c2b4d6f8a0c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f
+    /// tsc-span: _tsc.js:71662-71731
+    ///
+    /// The emitter walks an unchecked source (noCheck or a file excluded by
+    /// canIncludeBindAndCheckDiagnostics) and calls this front door for
+    /// every node; the checked path reaches the same hint-specific markers
+    /// from checkIdentifier/checkPropertyAccess/... instead. The front-door
+    /// guards (verbatimModuleSyntax, ambient locations) are preserved here.
+    pub(crate) fn mark_linked_references_unspecified(
+        &mut self,
+        location: NodeId,
+    ) -> CheckResult<()> {
+        if self.options.verbatim_module_syntax == Some(true) {
+            return Ok(());
+        }
+        if self
+            .binder
+            .flags_of(location)
+            .intersects(tsc_types::NodeFlags::AMBIENT)
+            && !matches!(
+                self.kind_of(location),
+                SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration
+            )
+        {
+            return Ok(());
+        }
+        let source = self.binder.source_of_node(location);
+        let parent = self.parent_of(location);
+        if self.kind_of(location) == SyntaxKind::Identifier {
+            let is_expression = node_util::is_expression_node(source, location)
+                || parent.is_some_and(|parent| {
+                    matches!(
+                        self.data_of(parent),
+                        NodeData::ShorthandPropertyAssignment(_)
+                    ) || matches!(self.data_of(parent), NodeData::ImportEqualsDeclaration(data)
+                            if data.module_reference == Some(location))
+                });
+            if is_expression && self.should_mark_identifier_alias_referenced(location) {
+                if let Some(parent) = parent {
+                    let left = match self.data_of(parent) {
+                        NodeData::PropertyAccessExpression(data) => Some(data.expression),
+                        NodeData::QualifiedName(data) => Some(data.left),
+                        _ => None,
+                    };
+                    if let Some(left) = left {
+                        if left != Some(location) {
+                            return Ok(());
+                        }
+                    }
+                }
+                return self.mark_identifier_alias_referenced(location);
+            }
+        }
+        if matches!(
+            self.data_of(location),
+            NodeData::PropertyAccessExpression(_) | NodeData::QualifiedName(_)
+        ) {
+            let mut top = Some(location);
+            while let Some(current) = top.filter(|&node| {
+                matches!(
+                    self.data_of(node),
+                    NodeData::PropertyAccessExpression(_) | NodeData::QualifiedName(_)
+                )
+            }) {
+                if self.is_part_of_type_node(current) {
+                    return Ok(());
+                }
+                top = self.parent_of(current);
+            }
+            let left = match self.data_of(location) {
+                NodeData::PropertyAccessExpression(data) => data.expression,
+                NodeData::QualifiedName(data) => data.left,
+                _ => None,
+            };
+            let Some(left) = left else {
+                return Ok(());
+            };
+            // markPropertyAliasReferenced(location) with no propSymbol and no
+            // parentType: the left type is checkExpressionCached(left).
+            return self.mark_property_alias_referenced_unspecified(location, left);
+        }
+        if matches!(self.data_of(location), NodeData::ExportAssignment(_)) {
+            return self.mark_export_assignment_alias_referenced(location);
+        }
+        if matches!(
+            self.kind_of(location),
+            SyntaxKind::JsxOpeningElement
+                | SyntaxKind::JsxSelfClosingElement
+                | SyntaxKind::JsxOpeningFragment
+        ) {
+            return self.mark_jsx_alias_referenced(location);
+        }
+        if matches!(self.data_of(location), NodeData::ImportEqualsDeclaration(_)) {
+            if self.is_internal_module_import_equals_declaration(location)
+                || self.check_external_import_or_export_declaration(location)?
+            {
+                return self.mark_import_equals_alias_referenced(location);
+            }
+            return Ok(());
+        }
+        if matches!(self.data_of(location), NodeData::ExportSpecifier(_)) {
+            return self.mark_export_specifier_alias_referenced(location);
+        }
+        if node_util::is_function_like_declaration_kind(self.kind_of(location))
+            || self.kind_of(location) == SyntaxKind::MethodSignature
+        {
+            self.mark_async_function_alias_referenced(location)?;
+        }
+        if self.options.emit_decorator_metadata != Some(true) {
+            return Ok(());
+        }
+        let modifiers = node_util::modifiers_of(self.binder.source_of_node(location), location);
+        let has_decorator = self
+            .nodes_of(modifiers)
+            .into_iter()
+            .any(|modifier| self.kind_of(modifier) == SyntaxKind::Decorator);
+        if !crate::js_grammar::can_have_decorators(self.kind_of(location))
+            || !has_decorator
+            || !self.node_can_be_decorated(
+                self.options.experimental_decorators,
+                location,
+                parent,
+                parent.and_then(|parent| self.parent_of(parent)),
+            )
+        {
+            return Ok(());
+        }
+        self.mark_decorator_metadata_aliases(location)
+    }
+
+    /// markPropertyAliasReferenced (71739-71769) when neither propSymbol nor
+    /// parentType is supplied: resolve the left type through
+    /// checkExpressionCached and look the property up on its apparent type.
+    fn mark_property_alias_referenced_unspecified(
+        &mut self,
+        location: NodeId,
+        left: NodeId,
+    ) -> CheckResult<()> {
+        if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
+            return Ok(());
+        }
+        let parent_symbol = match self.get_resolved_symbol(left)? {
+            Some(symbol) if symbol != self.unknown_symbol => symbol,
+            _ => return Ok(()),
+        };
+        if self.options.isolated_modules == Some(true)
+            || (self.options.should_preserve_const_enums()
+                && self.is_export_or_export_expression(location))
+        {
+            return self.mark_alias_referenced(parent_symbol, location);
+        }
+        let left_type = self.check_expression_cached(left, CheckMode::NORMAL)?;
+        if self.tables.flags_of(left_type).intersects(TypeFlags::ANY)
+            || left_type == self.tables.intrinsics.silent_never
+        {
+            return self.mark_alias_referenced(parent_symbol, location);
+        }
+        let right = match self.data_of(location) {
+            NodeData::PropertyAccessExpression(data) => data.name,
+            NodeData::QualifiedName(data) => data.right,
+            _ => None,
+        };
+        let Some(right) = right else {
+            return Ok(());
+        };
+        let assignment_kind = self.get_assignment_target_kind(location);
+        let widen = assignment_kind != crate::expr::AssignmentKind::None
+            || self.is_method_access_for_call(location);
+        let apparent = if widen {
+            let widened = self.get_widened_type(left_type)?;
+            self.get_apparent_type(widened)?
+        } else {
+            self.get_apparent_type(left_type)?
+        };
+        let prop = if self.kind_of(right) == SyntaxKind::PrivateIdentifier {
+            let name = self.identifier_text(right).unwrap_or_default().to_owned();
+            match self.lookup_symbol_for_private_identifier_declaration(&name, right)? {
+                Some(scoped) => self.get_private_identifier_property_of_type(apparent, scoped)?,
+                None => None,
+            }
+        } else {
+            let name = self.identifier_text(right).unwrap_or_default().to_owned();
+            self.get_property_of_type_ex(apparent, &name, false)?
+        };
+        self.mark_property_alias_referenced(location, left, prop, left_type)
+    }
+
+    /// tsc-port: markAsyncFunctionAliasReferenced @6.0.3
+    /// tsc-hash: 5b1c7d9e3f1a5c7e9b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e
+    /// tsc-span: _tsc.js:71828-71835
+    fn mark_async_function_alias_referenced(&mut self, location: NodeId) -> CheckResult<()> {
+        if self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2015 {
+            return Ok(());
+        }
+        const FUNCTION_FLAGS_ASYNC: u32 = 2;
+        if self.get_function_flags(location) & FUNCTION_FLAGS_ASYNC == 0 {
+            return Ok(());
+        }
+        // markTypeNodeAsReferenced(returnTypeNode) (71954-71958)
+        let Some(return_type) = self.effective_return_type_node(location) else {
+            return Ok(());
+        };
+        let Some(entity_name) = self.get_entity_name_from_type_node(return_type) else {
+            return Ok(());
+        };
+        self.mark_entity_name_or_entity_expression_as_reference(entity_name, false)
+    }
+
     /// tsc-port: markImportEqualsAliasReferenced @6.0.3
     /// tsc-hash: 4a0a82f7bec6c25bc28c40fceffea2c758445b4881b1de469dc5c6a826c59d26
     /// tsc-span: _tsc.js:71836-71840

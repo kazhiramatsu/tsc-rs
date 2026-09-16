@@ -1,0 +1,4001 @@
+{
+ "schema": "h2-8c-transpile-inputs.v1",
+ "typescript": {
+  "version": "6.0.3",
+  "bundle": "vendor/typescript-6.0.3/lib/typescript.js",
+  "bundle_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+ },
+ "generator": "scripts/observe-transpile-routes.mjs",
+ "case_count": 287,
+ "route_counts": {
+  "transpile-js": 150,
+  "transpile-dts": 86,
+  "program-no-check": 51
+ },
+ "cases": [
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationAsyncAndGeneratorFunctions.ts~default~module~declarationAsyncAndGeneratorFunctions.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationAsyncAndGeneratorFunctions.ts#default#module",
+   "source_path": "declarationAsyncAndGeneratorFunctions.ts",
+   "text": "\nexport async function asyncFn() {\n    return {} as Promise<void>\n}\n\nexport async function asyncFn2() {\n    return {} as number\n}\n\nexport async function asyncFn3() {\n    return (await 42) as number;\n  }\n\nexport function* generatorFn() {\n    return {} as number\n}\n\nexport async function* asyncGeneratorFn() {\n    return {} as number\n}\n",
+   "fileName": "declarationAsyncAndGeneratorFunctions.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "target": "esnext"
+   },
+   "text_sha256": "57dae68064489f2129bf3435cd04b5c995ef545af3d581195537ad85adf19026",
+   "text_utf16_units": 334
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationAsyncAndGeneratorFunctions.ts~default~declaration~declarationAsyncAndGeneratorFunctions.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationAsyncAndGeneratorFunctions.ts#default#declaration",
+   "source_path": "declarationAsyncAndGeneratorFunctions.ts",
+   "text": "\nexport async function asyncFn() {\n    return {} as Promise<void>\n}\n\nexport async function asyncFn2() {\n    return {} as number\n}\n\nexport async function asyncFn3() {\n    return (await 42) as number;\n  }\n\nexport function* generatorFn() {\n    return {} as number\n}\n\nexport async function* asyncGeneratorFn() {\n    return {} as number\n}\n",
+   "fileName": "declarationAsyncAndGeneratorFunctions.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "target": "esnext"
+   },
+   "text_sha256": "57dae68064489f2129bf3435cd04b5c995ef545af3d581195537ad85adf19026",
+   "text_utf16_units": 334
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationBasicSyntax.ts~declarationMap=true~module~variables.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=true#module",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export const a = 1;\nexport let b = 2;\nexport var c = 3;\nusing d = undefined;\nexport { d };\nawait using e = undefined;\nexport { e };\n",
+   "fileName": "variables.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "1ce3bc74a45f86d663906fdb0ef8546584b2edf421e8959a1e646e2e47a06fa5",
+   "text_utf16_units": 132
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationBasicSyntax.ts~declarationMap=true~module~interface.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=true#module",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export interface Foo {\n    a: string;\n    readonly b: string;\n    c?: string;\n}\n",
+   "fileName": "interface.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "1338eb1ced70ba1a06e25b68aeea4aec09c4e8f836cb3cb4b90a7830a7861c3b",
+   "text_utf16_units": 80
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationBasicSyntax.ts~declarationMap=true~module~class.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=true#module",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "const i = Symbol();\nexport class Bar {\n    a: string;\n    b?: string;\n    declare c: string;\n    #d: string;\n    public e: string;\n    protected f: string;\n    private g: string;\n    [\"h\"]: string;\n    [i]: string;\n}\n\nexport abstract class Baz {\n    abstract a: string;\n    abstract method(): void;\n}\n",
+   "fileName": "class.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "554be8366d44808a06b62fba443bb51fbeca8101f02310d6f40d78a7e11f2260",
+   "text_utf16_units": 301
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationBasicSyntax.ts~declarationMap=true~module~namespace.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=true#module",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n",
+   "fileName": "namespace.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "a9372cec4cb76c5685b2253b293fa5b820c87e7b0b5133bf046a448ee9dd29e8",
+   "text_utf16_units": 159
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationBasicSyntax.ts~declarationMap=true~module~alias.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=true#module",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export type A<T> = { x: T };\n",
+   "fileName": "alias.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "37ba2e24e3ee94c325f63f4914c62d02944025dd969e5ac2f11f468157f534ca",
+   "text_utf16_units": 29
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationBasicSyntax.ts~declarationMap=true~declaration~variables.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=true#declaration",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export const a = 1;\nexport let b = 2;\nexport var c = 3;\nusing d = undefined;\nexport { d };\nawait using e = undefined;\nexport { e };\n",
+   "fileName": "variables.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "1ce3bc74a45f86d663906fdb0ef8546584b2edf421e8959a1e646e2e47a06fa5",
+   "text_utf16_units": 132
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationBasicSyntax.ts~declarationMap=true~declaration~interface.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=true#declaration",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export interface Foo {\n    a: string;\n    readonly b: string;\n    c?: string;\n}\n",
+   "fileName": "interface.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "1338eb1ced70ba1a06e25b68aeea4aec09c4e8f836cb3cb4b90a7830a7861c3b",
+   "text_utf16_units": 80
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationBasicSyntax.ts~declarationMap=true~declaration~class.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=true#declaration",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "const i = Symbol();\nexport class Bar {\n    a: string;\n    b?: string;\n    declare c: string;\n    #d: string;\n    public e: string;\n    protected f: string;\n    private g: string;\n    [\"h\"]: string;\n    [i]: string;\n}\n\nexport abstract class Baz {\n    abstract a: string;\n    abstract method(): void;\n}\n",
+   "fileName": "class.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "554be8366d44808a06b62fba443bb51fbeca8101f02310d6f40d78a7e11f2260",
+   "text_utf16_units": 301
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationBasicSyntax.ts~declarationMap=true~declaration~namespace.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=true#declaration",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n",
+   "fileName": "namespace.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "a9372cec4cb76c5685b2253b293fa5b820c87e7b0b5133bf046a448ee9dd29e8",
+   "text_utf16_units": 159
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationBasicSyntax.ts~declarationMap=true~declaration~alias.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=true#declaration",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export type A<T> = { x: T };\n",
+   "fileName": "alias.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "37ba2e24e3ee94c325f63f4914c62d02944025dd969e5ac2f11f468157f534ca",
+   "text_utf16_units": 29
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationBasicSyntax.ts~declarationMap=false~module~variables.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=false#module",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export const a = 1;\nexport let b = 2;\nexport var c = 3;\nusing d = undefined;\nexport { d };\nawait using e = undefined;\nexport { e };\n",
+   "fileName": "variables.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "1ce3bc74a45f86d663906fdb0ef8546584b2edf421e8959a1e646e2e47a06fa5",
+   "text_utf16_units": 132
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationBasicSyntax.ts~declarationMap=false~module~interface.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=false#module",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export interface Foo {\n    a: string;\n    readonly b: string;\n    c?: string;\n}\n",
+   "fileName": "interface.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "1338eb1ced70ba1a06e25b68aeea4aec09c4e8f836cb3cb4b90a7830a7861c3b",
+   "text_utf16_units": 80
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationBasicSyntax.ts~declarationMap=false~module~class.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=false#module",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "const i = Symbol();\nexport class Bar {\n    a: string;\n    b?: string;\n    declare c: string;\n    #d: string;\n    public e: string;\n    protected f: string;\n    private g: string;\n    [\"h\"]: string;\n    [i]: string;\n}\n\nexport abstract class Baz {\n    abstract a: string;\n    abstract method(): void;\n}\n",
+   "fileName": "class.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "554be8366d44808a06b62fba443bb51fbeca8101f02310d6f40d78a7e11f2260",
+   "text_utf16_units": 301
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationBasicSyntax.ts~declarationMap=false~module~namespace.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=false#module",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n",
+   "fileName": "namespace.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "a9372cec4cb76c5685b2253b293fa5b820c87e7b0b5133bf046a448ee9dd29e8",
+   "text_utf16_units": 159
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationBasicSyntax.ts~declarationMap=false~module~alias.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=false#module",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export type A<T> = { x: T };\n",
+   "fileName": "alias.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "37ba2e24e3ee94c325f63f4914c62d02944025dd969e5ac2f11f468157f534ca",
+   "text_utf16_units": 29
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationBasicSyntax.ts~declarationMap=false~declaration~variables.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=false#declaration",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export const a = 1;\nexport let b = 2;\nexport var c = 3;\nusing d = undefined;\nexport { d };\nawait using e = undefined;\nexport { e };\n",
+   "fileName": "variables.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "1ce3bc74a45f86d663906fdb0ef8546584b2edf421e8959a1e646e2e47a06fa5",
+   "text_utf16_units": 132
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationBasicSyntax.ts~declarationMap=false~declaration~interface.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=false#declaration",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export interface Foo {\n    a: string;\n    readonly b: string;\n    c?: string;\n}\n",
+   "fileName": "interface.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "1338eb1ced70ba1a06e25b68aeea4aec09c4e8f836cb3cb4b90a7830a7861c3b",
+   "text_utf16_units": 80
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationBasicSyntax.ts~declarationMap=false~declaration~class.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=false#declaration",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "const i = Symbol();\nexport class Bar {\n    a: string;\n    b?: string;\n    declare c: string;\n    #d: string;\n    public e: string;\n    protected f: string;\n    private g: string;\n    [\"h\"]: string;\n    [i]: string;\n}\n\nexport abstract class Baz {\n    abstract a: string;\n    abstract method(): void;\n}\n",
+   "fileName": "class.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "554be8366d44808a06b62fba443bb51fbeca8101f02310d6f40d78a7e11f2260",
+   "text_utf16_units": 301
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationBasicSyntax.ts~declarationMap=false~declaration~namespace.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=false#declaration",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n",
+   "fileName": "namespace.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "a9372cec4cb76c5685b2253b293fa5b820c87e7b0b5133bf046a448ee9dd29e8",
+   "text_utf16_units": 159
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationBasicSyntax.ts~declarationMap=false~declaration~alias.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationBasicSyntax.ts#declarationMap=false#declaration",
+   "source_path": "declarationBasicSyntax.ts",
+   "text": "export type A<T> = { x: T };\n",
+   "fileName": "alias.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "37ba2e24e3ee94c325f63f4914c62d02944025dd969e5ac2f11f468157f534ca",
+   "text_utf16_units": 29
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationComputedPropertyNames.ts~default~declaration~declarationComputedPropertyNames.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationComputedPropertyNames.ts#default#declaration",
+   "source_path": "declarationComputedPropertyNames.ts",
+   "text": "\nexport namespace presentNs {\n    export const a = Symbol();\n}\n\nconst aliasing = Symbol;\n\nexport type A = {\n    [missing]: number,\n    [ns.missing]: number,\n    [presentNs.a]: number,\n    [Symbol.iterator]: number,\n    [globalThis.Symbol.toStringTag]: number,\n    [(globalThis.Symbol).unscopables]: number,\n    [aliasing.isConcatSpreadable]: number,\n    [1]: number,\n    [\"2\"]: number,\n    [(missing2)]: number,\n    [Math.random() > 0.5 ? \"f1\" : \"f2\"]: number,\n};\n\nexport interface B {\n    [missing]: number,\n    [ns.missing]: number,\n    [presentNs.a]: number,\n    [Symbol.iterator]: number,\n    [globalThis.Symbol.toStringTag]: number,\n    [(globalThis.Symbol).unscopables]: number,\n    [aliasing.isConcatSpreadable]: number,\n    [1]: number,\n    [\"2\"]: number,\n    [(missing2)]: number,\n    [Math.random() > 0.5 ? \"f1\" : \"f2\"]: number,\n}\n\nexport class C {\n    [missing]: number = 1;\n    [ns.missing]: number = 1;\n    [presentNs.a]: number = 1;\n    [Symbol.iterator]: number = 1;\n    [globalThis.Symbol.toStringTag]: number = 1;\n    [(globalThis.Symbol).unscopables]: number = 1;\n    [aliasing.isConcatSpreadable]: number = 1;\n    [1]: number = 1;\n    [\"2\"]: number = 1;\n    [(missing2)]: number = 1;\n    [Math.random() > 0.5 ? \"f1\" : \"f2\"]: number = 1;\n}\n\nexport const D = {\n    [missing]: 1,\n    [ns.missing]: 1,\n    [presentNs.a]: 1,\n    [Symbol.iterator]: 1,\n    [globalThis.Symbol.toStringTag]: 1,\n    [(globalThis.Symbol).unscopables]: 1,\n    [aliasing.isConcatSpreadable]: 1,\n    [1]: 1,\n    [\"2\"]: 1,\n    [(missing2)]: 1,\n    [Math.random() > 0.5 ? \"f1\" : \"f2\"]: 1,\n};\n",
+   "fileName": "declarationComputedPropertyNames.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "target": "es6"
+   },
+   "text_sha256": "b3012c50bd115e6c4cb427426513cbd1ec849c4c5ace34e0c8c4d2cb2b901674",
+   "text_utf16_units": 1579
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationCrossFileInferences.ts~default~module~defines.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationCrossFileInferences.ts#default#module",
+   "source_path": "declarationCrossFileInferences.ts",
+   "text": "export class A {\n    field = { x: 1 }\n}\n",
+   "fileName": "defines.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "523d49243521eadd6ae88f47c033e6a8a60c82e2710c8585e185af529141f494",
+   "text_utf16_units": 40
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationCrossFileInferences.ts~default~module~consumes.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationCrossFileInferences.ts#default#module",
+   "source_path": "declarationCrossFileInferences.ts",
+   "text": "import {A} from \"./defines.js\";\nexport function create() {\n    return new A();\n}\n",
+   "fileName": "consumes.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "89436b84dfa817072336b16d7fa62415e40f7cba8e8b0b8227b7a976db067978",
+   "text_utf16_units": 81
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationCrossFileInferences.ts~default~module~exposes.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationCrossFileInferences.ts#default#module",
+   "source_path": "declarationCrossFileInferences.ts",
+   "text": "import {create} from \"./consumes.js\";\nexport const value = create();\n",
+   "fileName": "exposes.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "4b06e6671b469da6fde4ff099eaeab1fe4c9d962db3723b5f0fc5dd9a7529d5c",
+   "text_utf16_units": 69
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationCrossFileInferences.ts~default~declaration~defines.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationCrossFileInferences.ts#default#declaration",
+   "source_path": "declarationCrossFileInferences.ts",
+   "text": "export class A {\n    field = { x: 1 }\n}\n",
+   "fileName": "defines.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "523d49243521eadd6ae88f47c033e6a8a60c82e2710c8585e185af529141f494",
+   "text_utf16_units": 40
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationCrossFileInferences.ts~default~declaration~consumes.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationCrossFileInferences.ts#default#declaration",
+   "source_path": "declarationCrossFileInferences.ts",
+   "text": "import {A} from \"./defines.js\";\nexport function create() {\n    return new A();\n}\n",
+   "fileName": "consumes.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "89436b84dfa817072336b16d7fa62415e40f7cba8e8b0b8227b7a976db067978",
+   "text_utf16_units": 81
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationCrossFileInferences.ts~default~declaration~exposes.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationCrossFileInferences.ts#default#declaration",
+   "source_path": "declarationCrossFileInferences.ts",
+   "text": "import {create} from \"./consumes.js\";\nexport const value = create();\n",
+   "fileName": "exposes.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "4b06e6671b469da6fde4ff099eaeab1fe4c9d962db3723b5f0fc5dd9a7529d5c",
+   "text_utf16_units": 69
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationEmitPartialNodeReuse.ts~default~declaration~a.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationEmitPartialNodeReuse.ts#default#declaration",
+   "source_path": "declarationEmitPartialNodeReuse.ts",
+   "text": "export type SpecialString = string;\ntype PrivateSpecialString = string;\n\nexport namespace N {\n    export type SpecialString = string;\n}\nexport const o = (p1: SpecialString, p2: PrivateSpecialString, p3: N.SpecialString) => null! as { foo: SpecialString, bar: PrivateSpecialString, baz: N.SpecialString };\n\n",
+   "fileName": "a.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "strict": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "target": "es2020"
+   },
+   "text_sha256": "637b374d808ab6b43374eb039a51f63d1b95adc8e6cc236a456fcb7bc477439b",
+   "text_utf16_units": 306
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationEmitPartialNodeReuse.ts~default~declaration~b.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationEmitPartialNodeReuse.ts#default#declaration",
+   "source_path": "declarationEmitPartialNodeReuse.ts",
+   "text": "import * as a from \"./a\";\nexport const g = a.o\n\n",
+   "fileName": "b.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "strict": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "target": "es2020"
+   },
+   "text_sha256": "97706c4466f0654b1092c9037527d70cd78c4f98f8d41ec2edba56bc09ba0105",
+   "text_utf16_units": 48
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationEmitPartialNodeReuse.ts~default~declaration~c.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationEmitPartialNodeReuse.ts#default#declaration",
+   "source_path": "declarationEmitPartialNodeReuse.ts",
+   "text": "import { o, SpecialString } from \"./a\";\nexport const g = o\n",
+   "fileName": "c.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "strict": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "target": "es2020"
+   },
+   "text_sha256": "34a6375738f80fa988abdfcdc9843be416e382a69bb5e7a7e9f827065c929b14",
+   "text_utf16_units": 59
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationFunctionDeclarations.ts~default~module~fnDecl.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationFunctionDeclarations.ts#default#module",
+   "source_path": "declarationFunctionDeclarations.ts",
+   "text": "type T = number[]\nexport function fnDeclBasic1(p: number[] | string[] | [T] = [], rParam: string): void { };\nexport function fnDeclBasic2(p: (n: T) => T = () => null!, rParam: string): void { };\nexport function fnDeclBasic3(p: new () => any = class {}, rParam: string): void { };\nexport function fnDeclBasic4(p: [T] = [[]], rParam: string): void { };\nexport function fnDeclBasic5(p: { a: T } = { a: [] }, rParam: string): void { };\nexport function fnDeclBasic6(p: `_${string}` = \"_\", rParam: string): void { };\nexport function fnDeclBasic7(p: { a?: string } & number[] = [], rParam: string): void { };\nexport function fnDeclBasic8(p: (number[] | string[]) | number = [], rParam: string): void { };\n\nexport function fnDeclHasUndefined(p: T | undefined = [], rParam: string): void { };\nexport function fnDeclBad(p: T = [], rParam: string): void { };\n\nexport const fnExprOk1 = function (array: number[] = [], rParam: string): void { };\nexport const fnExprOk2 = function (array: T | undefined = [], rParam: string): void { };\nexport const fnExprBad = function (array: T = [], rParam: string): void { };\n\nexport const arrowOk1 = (array: number[] = [], rParam: string): void => { };\nexport const arrowOk2 = (array: T | undefined = [], rParam: string): void => { };\nexport const arrowBad = (array: T = [], rParam: string): void => { };\n\nexport const inObjectLiteralFnExprOk1 = { o: function (array: number[] = [], rParam: string): void { } };\nexport const inObjectLiteralFnExprOk2 = { o: function (array: T | undefined = [], rParam: string): void { } };\nexport const inObjectLiteralFnExprBad = { o: function (array: T = [], rParam: string): void { } };\n\nexport const inObjectLiteralArrowOk1 = { o: (array: number[] = [], rParam: string): void => { } };\nexport const inObjectLiteralArrowOk2 = { o: (array: T | undefined = [], rParam: string): void => { } };\nexport const inObjectLiteralArrowBad = { o: (array: T = [], rParam: string): void => { } };\n\nexport const inObjectLiteralMethodOk1 = { o(array: number[] = [], rParam: string): void { } };\nexport const inObjectLiteralMethodOk2 = { o(array: T | undefined = [], rParam: string): void { } };\nexport const inObjectLiteralMethodBad = { o(array: T = [], rParam: string): void { } };\n\n\nexport class InClassFnExprOk1 { o = function (array: number[] = [], rParam: string): void { } };\nexport class InClassFnExprOk2 { o = function (array: T | undefined = [], rParam: string): void { } };\nexport class InClassFnExprBad { o = function (array: T = [], rParam: string): void { } };\n\nexport class InClassArrowOk1 { o = (array: number[] = [], rParam: string): void => { } };\nexport class InClassArrowOk2 { o = (array: T | undefined = [], rParam: string): void => { } };\nexport class InClassArrowBad { o = (array: T = [], rParam: string): void => { } };\n\nexport class InClassMethodOk1 { o(array: number[] = [], rParam: string): void { } };\nexport class InClassMethodOk2 { o(array: T | undefined = [], rParam: string): void { } };\nexport class InClassMethodBad { o(array: T = [], rParam: string): void { } };\n\n// https://github.com/microsoft/TypeScript/issues/60976\nclass Bar {}\nexport class ClsWithRequiredInitializedParameter {\n  constructor(\n    private arr: Bar = new Bar(),\n    private bool: boolean,\n  ) {}\n}\n",
+   "fileName": "fnDecl.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "target": "esnext",
+    "strict": true
+   },
+   "text_sha256": "d1eafaa7a984568135519342a8807d4537d82703cf42ef4a2828e37525860db1",
+   "text_utf16_units": 3246
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationFunctionDeclarations.ts~default~declaration~fnDecl.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationFunctionDeclarations.ts#default#declaration",
+   "source_path": "declarationFunctionDeclarations.ts",
+   "text": "type T = number[]\nexport function fnDeclBasic1(p: number[] | string[] | [T] = [], rParam: string): void { };\nexport function fnDeclBasic2(p: (n: T) => T = () => null!, rParam: string): void { };\nexport function fnDeclBasic3(p: new () => any = class {}, rParam: string): void { };\nexport function fnDeclBasic4(p: [T] = [[]], rParam: string): void { };\nexport function fnDeclBasic5(p: { a: T } = { a: [] }, rParam: string): void { };\nexport function fnDeclBasic6(p: `_${string}` = \"_\", rParam: string): void { };\nexport function fnDeclBasic7(p: { a?: string } & number[] = [], rParam: string): void { };\nexport function fnDeclBasic8(p: (number[] | string[]) | number = [], rParam: string): void { };\n\nexport function fnDeclHasUndefined(p: T | undefined = [], rParam: string): void { };\nexport function fnDeclBad(p: T = [], rParam: string): void { };\n\nexport const fnExprOk1 = function (array: number[] = [], rParam: string): void { };\nexport const fnExprOk2 = function (array: T | undefined = [], rParam: string): void { };\nexport const fnExprBad = function (array: T = [], rParam: string): void { };\n\nexport const arrowOk1 = (array: number[] = [], rParam: string): void => { };\nexport const arrowOk2 = (array: T | undefined = [], rParam: string): void => { };\nexport const arrowBad = (array: T = [], rParam: string): void => { };\n\nexport const inObjectLiteralFnExprOk1 = { o: function (array: number[] = [], rParam: string): void { } };\nexport const inObjectLiteralFnExprOk2 = { o: function (array: T | undefined = [], rParam: string): void { } };\nexport const inObjectLiteralFnExprBad = { o: function (array: T = [], rParam: string): void { } };\n\nexport const inObjectLiteralArrowOk1 = { o: (array: number[] = [], rParam: string): void => { } };\nexport const inObjectLiteralArrowOk2 = { o: (array: T | undefined = [], rParam: string): void => { } };\nexport const inObjectLiteralArrowBad = { o: (array: T = [], rParam: string): void => { } };\n\nexport const inObjectLiteralMethodOk1 = { o(array: number[] = [], rParam: string): void { } };\nexport const inObjectLiteralMethodOk2 = { o(array: T | undefined = [], rParam: string): void { } };\nexport const inObjectLiteralMethodBad = { o(array: T = [], rParam: string): void { } };\n\n\nexport class InClassFnExprOk1 { o = function (array: number[] = [], rParam: string): void { } };\nexport class InClassFnExprOk2 { o = function (array: T | undefined = [], rParam: string): void { } };\nexport class InClassFnExprBad { o = function (array: T = [], rParam: string): void { } };\n\nexport class InClassArrowOk1 { o = (array: number[] = [], rParam: string): void => { } };\nexport class InClassArrowOk2 { o = (array: T | undefined = [], rParam: string): void => { } };\nexport class InClassArrowBad { o = (array: T = [], rParam: string): void => { } };\n\nexport class InClassMethodOk1 { o(array: number[] = [], rParam: string): void { } };\nexport class InClassMethodOk2 { o(array: T | undefined = [], rParam: string): void { } };\nexport class InClassMethodBad { o(array: T = [], rParam: string): void { } };\n\n// https://github.com/microsoft/TypeScript/issues/60976\nclass Bar {}\nexport class ClsWithRequiredInitializedParameter {\n  constructor(\n    private arr: Bar = new Bar(),\n    private bool: boolean,\n  ) {}\n}\n",
+   "fileName": "fnDecl.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "target": "esnext",
+    "strict": true
+   },
+   "text_sha256": "d1eafaa7a984568135519342a8807d4537d82703cf42ef4a2828e37525860db1",
+   "text_utf16_units": 3246
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationLinkedAliases.ts~default~module~declarationLinkedAliases.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationLinkedAliases.ts#default#module",
+   "source_path": "declarationLinkedAliases.ts",
+   "text": "import { A } from \"mod\";\nimport B = A.C;\nexport { B };\n",
+   "fileName": "declarationLinkedAliases.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "898620cdc7602c411984c97e216865fe696e292eb3ed708e14772a06c88ed88d",
+   "text_utf16_units": 55
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationLinkedAliases.ts~default~declaration~declarationLinkedAliases.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationLinkedAliases.ts#default#declaration",
+   "source_path": "declarationLinkedAliases.ts",
+   "text": "import { A } from \"mod\";\nimport B = A.C;\nexport { B };\n",
+   "fileName": "declarationLinkedAliases.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "898620cdc7602c411984c97e216865fe696e292eb3ed708e14772a06c88ed88d",
+   "text_utf16_units": 55
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationLocalAliasOfImportAlias.ts~default~module~declarationLocalAliasOfImportAlias.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationLocalAliasOfImportAlias.ts#default#module",
+   "source_path": "declarationLocalAliasOfImportAlias.ts",
+   "text": "import { Record } from \"./a\";\nexport type Foo<K extends string> = Record<K, number>;\n\nexport const obj = {\n  doThing<K extends string>(_k: K): Foo<K> {\n    return {} as any;\n  },\n};\n",
+   "fileName": "declarationLocalAliasOfImportAlias.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "f051eff09c38d9f321cc6af2e0a1edcc09cea909d44956ba710eb806edb2ff6f",
+   "text_utf16_units": 182
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationLocalAliasOfImportAlias.ts~default~declaration~declarationLocalAliasOfImportAlias.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationLocalAliasOfImportAlias.ts#default#declaration",
+   "source_path": "declarationLocalAliasOfImportAlias.ts",
+   "text": "import { Record } from \"./a\";\nexport type Foo<K extends string> = Record<K, number>;\n\nexport const obj = {\n  doThing<K extends string>(_k: K): Foo<K> {\n    return {} as any;\n  },\n};\n",
+   "fileName": "declarationLocalAliasOfImportAlias.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "f051eff09c38d9f321cc6af2e0a1edcc09cea909d44956ba710eb806edb2ff6f",
+   "text_utf16_units": 182
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationNotInScopeTypes.ts~default~module~variables.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationNotInScopeTypes.ts#default#module",
+   "source_path": "declarationNotInScopeTypes.ts",
+   "text": "const x = \"\";\nexport function one() {\n    return {} as typeof x;\n}\n\nexport function two() {\n    const y = \"\";\n    return {} as typeof y;\n}\n\nexport function three() {\n    type Z = string;\n    return {} as Z;\n}\n",
+   "fileName": "variables.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "target": "es6"
+   },
+   "text_sha256": "509da455eff70080aa74c254b8067840aff410576955292a7d94f7b6a51b952b",
+   "text_utf16_units": 209
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationNotInScopeTypes.ts~default~declaration~variables.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationNotInScopeTypes.ts#default#declaration",
+   "source_path": "declarationNotInScopeTypes.ts",
+   "text": "const x = \"\";\nexport function one() {\n    return {} as typeof x;\n}\n\nexport function two() {\n    const y = \"\";\n    return {} as typeof y;\n}\n\nexport function three() {\n    type Z = string;\n    return {} as Z;\n}\n",
+   "fileName": "variables.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "target": "es6"
+   },
+   "text_sha256": "509da455eff70080aa74c254b8067840aff410576955292a7d94f7b6a51b952b",
+   "text_utf16_units": 209
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationPartialNodeReuseTypeOf.ts~default~declaration~a.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationPartialNodeReuseTypeOf.ts#default#declaration",
+   "source_path": "declarationPartialNodeReuseTypeOf.ts",
+   "text": "export const nImported = \"nImported\"\nexport const nNotImported = \"nNotImported\"\nconst nPrivate = \"private\"\nexport const o = (p1: typeof nImported, p2: typeof nNotImported, p3: typeof nPrivate) => null! as { foo: typeof nImported, bar: typeof nPrivate, baz: typeof nNotImported }\n\n",
+   "fileName": "a.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "strict": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "target": "es2020"
+   },
+   "text_sha256": "0c339626d1898c7f165d6c2c5cdddb9a29332196b3cf153081622622de57871d",
+   "text_utf16_units": 280
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationPartialNodeReuseTypeOf.ts~default~declaration~b.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationPartialNodeReuseTypeOf.ts#default#declaration",
+   "source_path": "declarationPartialNodeReuseTypeOf.ts",
+   "text": "import { o, nImported } from \"./a\";\nexport const g = o\nconsole.log(nImported);\n\n",
+   "fileName": "b.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "strict": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "target": "es2020"
+   },
+   "text_sha256": "a679c576c5b2762efcf78da950513511d6c33cd91b475437c73e6906661e831f",
+   "text_utf16_units": 80
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationPartialNodeReuseTypeOf.ts~default~declaration~c.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationPartialNodeReuseTypeOf.ts#default#declaration",
+   "source_path": "declarationPartialNodeReuseTypeOf.ts",
+   "text": "import * as a from \"./a\";\nexport const g = a.o\n",
+   "fileName": "c.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "strict": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "target": "es2020"
+   },
+   "text_sha256": "979646e57a48bb865b78ac43ef9d75f5b3c0a4ff1d67756fc9e3ef68a59184e3",
+   "text_utf16_units": 47
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationRestParameters.ts~default~declaration~v1.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationRestParameters.ts#default#declaration",
+   "source_path": "declarationRestParameters.ts",
+   "text": "export const v1 = (...a: [n: \"n\", a: \"a\"]): {\n    /** r rest param */\n    a: typeof a,\n} => {\n    return null!\n}\n\n",
+   "fileName": "v1.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "target": "es2015",
+    "module": "commonjs",
+    "emitDeclarationOnly": true
+   },
+   "text_sha256": "e816188eeca283a91adaac47ee57f6b8334acb87a74131efa5d68479c7b5d9dd",
+   "text_utf16_units": 114
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationRestParameters.ts~default~declaration~v2.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationRestParameters.ts#default#declaration",
+   "source_path": "declarationRestParameters.ts",
+   "text": "const n = Symbol();\nexport const v2 = (...a: [n: \"n\", a: \"a\"]): {\n    /** r rest param */\n    a: typeof a,\n    /** module var */\n    n: typeof n,\n} => {\n    return null!\n}\n",
+   "fileName": "v2.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "declaration": true,
+    "target": "es2015",
+    "module": "commonjs",
+    "emitDeclarationOnly": true
+   },
+   "text_sha256": "90e2d7472db132a2d7eb934536c8352eb6e67a36ee66e00eba21d1da8669715b",
+   "text_utf16_units": 172
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationSelfReferentialConstraint.ts~default~declaration~declarationSelfReferentialConstraint.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationSelfReferentialConstraint.ts#default#declaration",
+   "source_path": "declarationSelfReferentialConstraint.ts",
+   "text": "export const object = {\n    foo: <T extends Set<T> | []>(): void => { },\n};\n",
+   "fileName": "declarationSelfReferentialConstraint.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true,
+    "emitDeclarationOnly": true
+   },
+   "text_sha256": "3acf10f444dbaa5f051465985c064383ae866212ab28fa1f9268a437b828f5c4",
+   "text_utf16_units": 76
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationSingleFileHasErrors.ts~default~module~declarationSingleFileHasErrors.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationSingleFileHasErrors.ts#default#module",
+   "source_path": "declarationSingleFileHasErrors.ts",
+   "text": "export const a number = \"missing colon\";\n",
+   "fileName": "declarationSingleFileHasErrors.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "b662f37ea675e92a533bc6327df4c99d10aa7e0d239e4fd6105850fffef5af8f",
+   "text_utf16_units": 41
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationSingleFileHasErrors.ts~default~declaration~declarationSingleFileHasErrors.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationSingleFileHasErrors.ts#default#declaration",
+   "source_path": "declarationSingleFileHasErrors.ts",
+   "text": "export const a number = \"missing colon\";\n",
+   "fileName": "declarationSingleFileHasErrors.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "b662f37ea675e92a533bc6327df4c99d10aa7e0d239e4fd6105850fffef5af8f",
+   "text_utf16_units": 41
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationSingleFileHasErrorsReported.ts~default~module~declarationSingleFileHasErrorsReported.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationSingleFileHasErrorsReported.ts#default#module",
+   "source_path": "declarationSingleFileHasErrorsReported.ts",
+   "text": "export const a string = \"missing colon\";\n",
+   "fileName": "declarationSingleFileHasErrorsReported.ts",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true,
+    "reportDiagnostics": "true"
+   },
+   "text_sha256": "ae920ec964886e78abd4caca086e8d277aa6a494e7dff4f425fae24bea63c0c4",
+   "text_utf16_units": 41
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationSingleFileHasErrorsReported.ts~default~declaration~declarationSingleFileHasErrorsReported.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationSingleFileHasErrorsReported.ts#default#declaration",
+   "source_path": "declarationSingleFileHasErrorsReported.ts",
+   "text": "export const a string = \"missing colon\";\n",
+   "fileName": "declarationSingleFileHasErrorsReported.ts",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true,
+    "reportDiagnostics": "true"
+   },
+   "text_sha256": "ae920ec964886e78abd4caca086e8d277aa6a494e7dff4f425fae24bea63c0c4",
+   "text_utf16_units": 41
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationTypeParameterConstraint.ts~default~module~declarationTypeParameterConstraint.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationTypeParameterConstraint.ts#default#module",
+   "source_path": "declarationTypeParameterConstraint.ts",
+   "text": "import { type In, type Out, type Base } from \"./a\";\n\nexport const object = {\n  doThing<T extends Base>(_t: T, _in: In[T]): Out[T] {\n    return;\n  },\n};\n",
+   "fileName": "declarationTypeParameterConstraint.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "c99b9baa46376c91ec7b5f680ccd28bb7a8850ff3510356bc3b6e15923e4effd",
+   "text_utf16_units": 152
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationTypeParameterConstraint.ts~default~declaration~declarationTypeParameterConstraint.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationTypeParameterConstraint.ts#default#declaration",
+   "source_path": "declarationTypeParameterConstraint.ts",
+   "text": "import { type In, type Out, type Base } from \"./a\";\n\nexport const object = {\n  doThing<T extends Base>(_t: T, _in: In[T]): Out[T] {\n    return;\n  },\n};\n",
+   "fileName": "declarationTypeParameterConstraint.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "c99b9baa46376c91ec7b5f680ccd28bb7a8850ff3510356bc3b6e15923e4effd",
+   "text_utf16_units": 152
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationTypeWithComputedName.ts~default~declaration~declarationTypeWithComputedName.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationTypeWithComputedName.ts#default#declaration",
+   "source_path": "declarationTypeWithComputedName.ts",
+   "text": "import {Foo} from './a';\n\nexport type Bar = {\n  [Foo.A]: 1;\n  [Foo.B]: 2;\n}\n\nexport const valBar = null as any as {\n    [Foo.A]: 1;\n    [Foo.B]: 2;\n};\n",
+   "fileName": "declarationTypeWithComputedName.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true,
+    "emitDeclarationOnly": true
+   },
+   "text_sha256": "945be29d890812cc6404e834e9a2428405325738280c71346e940c92a60d70a6",
+   "text_utf16_units": 151
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationUnresolvedGlobalReferencesNoErrors.ts~default~declaration~declarationUnresolvedGlobalReferencesNoErrors.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationUnresolvedGlobalReferencesNoErrors.ts#default#declaration",
+   "source_path": "declarationUnresolvedGlobalReferencesNoErrors.ts",
+   "text": "export const x: MissingGlobalType = null!;\nexport const fn = (a: MissingGlobalType): MissingGlobalType => null!;\nexport const fn2 = (a: MissingGlobalType) => null! as MissingGlobalType;\n\nexport const x2: typeof missingGlobalValue = null!;\nexport const fn3 = (a: typeof missingGlobalValue): typeof missingGlobalValue => null!;\nexport const fn4 = (a: typeof missingGlobalValue) => null! as typeof missingGlobalValue;\n\n\nexport const o : {\n    [missingGlobalValue]: string\n} = null!;\n",
+   "fileName": "declarationUnresolvedGlobalReferencesNoErrors.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true,
+    "emitDeclarationOnly": true
+   },
+   "text_sha256": "4ef74f35a930cd0724a4202ad6c1ceaec91e055434d276e1af72cec16696229d",
+   "text_utf16_units": 480
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationUnresolvedTypeReference.ts~default~declaration~declarationUnresolvedTypeReference.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationUnresolvedTypeReference.ts#default#declaration",
+   "source_path": "declarationUnresolvedTypeReference.ts",
+   "text": "import { type Type } from \"./a\";\n\nexport const foo = (_: Type): void => {};\nexport const bar = (_: import(\"./a\").Type): void => {};\n",
+   "fileName": "declarationUnresolvedTypeReference.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true,
+    "emitDeclarationOnly": true
+   },
+   "text_sha256": "4d5ffc0d9f2d0d2b1f7b0780b7d06a64971188ec1b21788dd44f7a116ec587a5",
+   "text_utf16_units": 132
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationUnresolvedTypeReference2.ts~default~declaration~globals.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationUnresolvedTypeReference2.ts#default#declaration",
+   "source_path": "declarationUnresolvedTypeReference2.ts",
+   "text": "type MissingGlobalType = \"global\";\ndeclare const missingGlobalValue: \"A\";\n",
+   "fileName": "globals.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true,
+    "emitDeclarationOnly": true
+   },
+   "text_sha256": "f11841b8b9fe5a1453da072cf5a110df597faab9da57c0214adaa5650b610030",
+   "text_utf16_units": 74
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationUnresolvedTypeReference2.ts~default~declaration~index.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationUnresolvedTypeReference2.ts#default#declaration",
+   "source_path": "declarationUnresolvedTypeReference2.ts",
+   "text": "// this test assumes there is some global definitions for MissingGlobalType and missingGlobalValue that are not available to transpileDeclaration\nexport const fn = (a: MissingGlobalType): MissingGlobalType => null!;\nexport const fn2 = (a: MissingGlobalType) => null! as MissingGlobalType;\n\nexport const fn3 = (a: typeof missingGlobalValue): typeof missingGlobalValue => null!;\nexport const fn4 = (a: typeof missingGlobalValue) => null! as typeof missingGlobalValue;\n\n",
+   "fileName": "index.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true,
+    "emitDeclarationOnly": true
+   },
+   "text_sha256": "b4a47572505de6e8bdeeaad66ecb065e24e05ee626232da3b25aecfed9b0cb1a",
+   "text_utf16_units": 467
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationsSimple.ts~default~module~declarationsSimple.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:declarationsSimple.ts#default#module",
+   "source_path": "declarationsSimple.ts",
+   "text": "export const c: number = 1;\n\nexport interface A {\n    x: number;\n}\n\nlet expr: { x: number; };\n\nexpr = {\n    x: 12,\n}\n\nexport default expr;\n",
+   "fileName": "declarationsSimple.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "764bf9ffd92fd4e5551143636bea57abbb11e4205fb3fb5285bd42fe4742b435",
+   "text_utf16_units": 139
+  },
+  {
+   "id": "h2-8c/transpile-dts/inventory/declarationsSimple.ts~default~declaration~declarationsSimple.ts",
+   "route": "transpile-dts",
+   "inventory_case": "transpile:declarationsSimple.ts#default#declaration",
+   "source_path": "declarationsSimple.ts",
+   "text": "export const c: number = 1;\n\nexport interface A {\n    x: number;\n}\n\nlet expr: { x: number; };\n\nexpr = {\n    x: 12,\n}\n\nexport default expr;\n",
+   "fileName": "declarationsSimple.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "declaration": true
+   },
+   "text_sha256": "764bf9ffd92fd4e5551143636bea57abbb11e4205fb3fb5285bd42fe4742b435",
+   "text_utf16_units": 139
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=true~module~variables.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=true#module",
+   "source_path": "jsWithInlineSourceMapBasic.ts",
+   "text": "export const a = 1;\nexport let b = 2;\nexport var c = 3;\nusing d = undefined;\nexport { d };\nawait using e = undefined;\nexport { e };\n",
+   "fileName": "variables.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "inlineSourceMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "1ce3bc74a45f86d663906fdb0ef8546584b2edf421e8959a1e646e2e47a06fa5",
+   "text_utf16_units": 132
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=true~module~interface.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=true#module",
+   "source_path": "jsWithInlineSourceMapBasic.ts",
+   "text": "export interface Foo {\n    a: string;\n    readonly b: string;\n    c?: string;\n}\n",
+   "fileName": "interface.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "inlineSourceMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "1338eb1ced70ba1a06e25b68aeea4aec09c4e8f836cb3cb4b90a7830a7861c3b",
+   "text_utf16_units": 80
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=true~module~class.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=true#module",
+   "source_path": "jsWithInlineSourceMapBasic.ts",
+   "text": "const i = Symbol();\nexport class Bar {\n    a: string;\n    b?: string;\n    declare c: string;\n    #d: string;\n    public e: string;\n    protected f: string;\n    private g: string;\n    [\"h\"]: string;\n    [i]: string;\n}\n\nexport abstract class Baz {\n    abstract a: string;\n    abstract method(): void;\n}\n",
+   "fileName": "class.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "inlineSourceMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "554be8366d44808a06b62fba443bb51fbeca8101f02310d6f40d78a7e11f2260",
+   "text_utf16_units": 301
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=true~module~namespace.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=true#module",
+   "source_path": "jsWithInlineSourceMapBasic.ts",
+   "text": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n",
+   "fileName": "namespace.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "inlineSourceMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "a9372cec4cb76c5685b2253b293fa5b820c87e7b0b5133bf046a448ee9dd29e8",
+   "text_utf16_units": 159
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=true~module~alias.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=true#module",
+   "source_path": "jsWithInlineSourceMapBasic.ts",
+   "text": "export type A<T> = { x: T };\n",
+   "fileName": "alias.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "inlineSourceMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "37ba2e24e3ee94c325f63f4914c62d02944025dd969e5ac2f11f468157f534ca",
+   "text_utf16_units": 29
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=false~module~variables.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=false#module",
+   "source_path": "jsWithInlineSourceMapBasic.ts",
+   "text": "export const a = 1;\nexport let b = 2;\nexport var c = 3;\nusing d = undefined;\nexport { d };\nawait using e = undefined;\nexport { e };\n",
+   "fileName": "variables.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "inlineSourceMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "1ce3bc74a45f86d663906fdb0ef8546584b2edf421e8959a1e646e2e47a06fa5",
+   "text_utf16_units": 132
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=false~module~interface.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=false#module",
+   "source_path": "jsWithInlineSourceMapBasic.ts",
+   "text": "export interface Foo {\n    a: string;\n    readonly b: string;\n    c?: string;\n}\n",
+   "fileName": "interface.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "inlineSourceMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "1338eb1ced70ba1a06e25b68aeea4aec09c4e8f836cb3cb4b90a7830a7861c3b",
+   "text_utf16_units": 80
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=false~module~class.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=false#module",
+   "source_path": "jsWithInlineSourceMapBasic.ts",
+   "text": "const i = Symbol();\nexport class Bar {\n    a: string;\n    b?: string;\n    declare c: string;\n    #d: string;\n    public e: string;\n    protected f: string;\n    private g: string;\n    [\"h\"]: string;\n    [i]: string;\n}\n\nexport abstract class Baz {\n    abstract a: string;\n    abstract method(): void;\n}\n",
+   "fileName": "class.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "inlineSourceMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "554be8366d44808a06b62fba443bb51fbeca8101f02310d6f40d78a7e11f2260",
+   "text_utf16_units": 301
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=false~module~namespace.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=false#module",
+   "source_path": "jsWithInlineSourceMapBasic.ts",
+   "text": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n",
+   "fileName": "namespace.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "inlineSourceMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "a9372cec4cb76c5685b2253b293fa5b820c87e7b0b5133bf046a448ee9dd29e8",
+   "text_utf16_units": 159
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=false~module~alias.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=false#module",
+   "source_path": "jsWithInlineSourceMapBasic.ts",
+   "text": "export type A<T> = { x: T };\n",
+   "fileName": "alias.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "inlineSourceMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "37ba2e24e3ee94c325f63f4914c62d02944025dd969e5ac2f11f468157f534ca",
+   "text_utf16_units": 29
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=true~module~variables.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithSourceMapBasic.ts#sourceMap=true#module",
+   "source_path": "jsWithSourceMapBasic.ts",
+   "text": "export const a = 1;\nexport let b = 2;\nexport var c = 3;\nusing d = undefined;\nexport { d };\nawait using e = undefined;\nexport { e };\n",
+   "fileName": "variables.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "sourceMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "1ce3bc74a45f86d663906fdb0ef8546584b2edf421e8959a1e646e2e47a06fa5",
+   "text_utf16_units": 132
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=true~module~interface.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithSourceMapBasic.ts#sourceMap=true#module",
+   "source_path": "jsWithSourceMapBasic.ts",
+   "text": "export interface Foo {\n    a: string;\n    readonly b: string;\n    c?: string;\n}\n",
+   "fileName": "interface.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "sourceMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "1338eb1ced70ba1a06e25b68aeea4aec09c4e8f836cb3cb4b90a7830a7861c3b",
+   "text_utf16_units": 80
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=true~module~class.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithSourceMapBasic.ts#sourceMap=true#module",
+   "source_path": "jsWithSourceMapBasic.ts",
+   "text": "const i = Symbol();\nexport class Bar {\n    a: string;\n    b?: string;\n    declare c: string;\n    #d: string;\n    public e: string;\n    protected f: string;\n    private g: string;\n    [\"h\"]: string;\n    [i]: string;\n}\n\nexport abstract class Baz {\n    abstract a: string;\n    abstract method(): void;\n}\n",
+   "fileName": "class.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "sourceMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "554be8366d44808a06b62fba443bb51fbeca8101f02310d6f40d78a7e11f2260",
+   "text_utf16_units": 301
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=true~module~namespace.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithSourceMapBasic.ts#sourceMap=true#module",
+   "source_path": "jsWithSourceMapBasic.ts",
+   "text": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n",
+   "fileName": "namespace.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "sourceMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "a9372cec4cb76c5685b2253b293fa5b820c87e7b0b5133bf046a448ee9dd29e8",
+   "text_utf16_units": 159
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=true~module~alias.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithSourceMapBasic.ts#sourceMap=true#module",
+   "source_path": "jsWithSourceMapBasic.ts",
+   "text": "export type A<T> = { x: T };\n",
+   "fileName": "alias.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "sourceMap": true,
+    "target": "es6"
+   },
+   "text_sha256": "37ba2e24e3ee94c325f63f4914c62d02944025dd969e5ac2f11f468157f534ca",
+   "text_utf16_units": 29
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=false~module~variables.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithSourceMapBasic.ts#sourceMap=false#module",
+   "source_path": "jsWithSourceMapBasic.ts",
+   "text": "export const a = 1;\nexport let b = 2;\nexport var c = 3;\nusing d = undefined;\nexport { d };\nawait using e = undefined;\nexport { e };\n",
+   "fileName": "variables.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "sourceMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "1ce3bc74a45f86d663906fdb0ef8546584b2edf421e8959a1e646e2e47a06fa5",
+   "text_utf16_units": 132
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=false~module~interface.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithSourceMapBasic.ts#sourceMap=false#module",
+   "source_path": "jsWithSourceMapBasic.ts",
+   "text": "export interface Foo {\n    a: string;\n    readonly b: string;\n    c?: string;\n}\n",
+   "fileName": "interface.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "sourceMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "1338eb1ced70ba1a06e25b68aeea4aec09c4e8f836cb3cb4b90a7830a7861c3b",
+   "text_utf16_units": 80
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=false~module~class.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithSourceMapBasic.ts#sourceMap=false#module",
+   "source_path": "jsWithSourceMapBasic.ts",
+   "text": "const i = Symbol();\nexport class Bar {\n    a: string;\n    b?: string;\n    declare c: string;\n    #d: string;\n    public e: string;\n    protected f: string;\n    private g: string;\n    [\"h\"]: string;\n    [i]: string;\n}\n\nexport abstract class Baz {\n    abstract a: string;\n    abstract method(): void;\n}\n",
+   "fileName": "class.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "sourceMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "554be8366d44808a06b62fba443bb51fbeca8101f02310d6f40d78a7e11f2260",
+   "text_utf16_units": 301
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=false~module~namespace.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithSourceMapBasic.ts#sourceMap=false#module",
+   "source_path": "jsWithSourceMapBasic.ts",
+   "text": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n",
+   "fileName": "namespace.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "sourceMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "a9372cec4cb76c5685b2253b293fa5b820c87e7b0b5133bf046a448ee9dd29e8",
+   "text_utf16_units": 159
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=false~module~alias.ts",
+   "route": "transpile-js",
+   "inventory_case": "transpile:jsWithSourceMapBasic.ts#sourceMap=false#module",
+   "source_path": "jsWithSourceMapBasic.ts",
+   "text": "export type A<T> = { x: T };\n",
+   "fileName": "alias.ts",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "sourceMap": false,
+    "target": "es6"
+   },
+   "text_sha256": "37ba2e24e3ee94c325f63f4914c62d02944025dd969e5ac2f11f468157f534ca",
+   "text_utf16_units": 29
+  },
+  {
+   "id": "h2-8c/transpile-js/empty/no-input",
+   "route": "transpile-js",
+   "text": "",
+   "text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "text_utf16_units": 0
+  },
+  {
+   "id": "h2-8c/transpile-js/empty/whitespace-only",
+   "route": "transpile-js",
+   "text": "  \n\n",
+   "text_sha256": "b94f13a5c07a89598ff9c517dbb26d84a29b460a8d2c3671699886e9458ccabf",
+   "text_utf16_units": 4
+  },
+  {
+   "id": "h2-8c/transpile-js/kinds/ts-basic",
+   "route": "transpile-js",
+   "text": "let x: number = 1;\nexport {};\n",
+   "text_sha256": "11bae417a24a898dd1c3d65ce2924abc153811790cf3cc0ce046c8dcb11e8def",
+   "text_utf16_units": 30
+  },
+  {
+   "id": "h2-8c/transpile-js/kinds/tsx-jsx-react",
+   "route": "transpile-js",
+   "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+   "compilerOptions": {
+    "jsx": "react"
+   },
+   "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d",
+   "text_utf16_units": 72
+  },
+  {
+   "id": "h2-8c/transpile-js/kinds/tsx-jsx-preserve-default",
+   "route": "transpile-js",
+   "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+   "compilerOptions": {
+    "jsx": 1
+   },
+   "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d",
+   "text_utf16_units": 72
+  },
+  {
+   "id": "h2-8c/transpile-js/kinds/js-input",
+   "route": "transpile-js",
+   "text": "export const a = 1;\nvar b = a + 2;\n",
+   "fileName": "module.js",
+   "text_sha256": "7c4714e5217e89ef9dcd2ad11d63e01e17a92770544637a23d88c8152e4a435f",
+   "text_utf16_units": 35
+  },
+  {
+   "id": "h2-8c/transpile-js/kinds/js-input-jsx",
+   "route": "transpile-js",
+   "text": "const x = <a/>;\nexport {x};\n",
+   "fileName": "module.jsx",
+   "compilerOptions": {
+    "jsx": "react"
+   },
+   "text_sha256": "7ae436566f84dbf196361436cf558539f285ab900e188ed746b0e07e782eec9b",
+   "text_utf16_units": 28
+  },
+  {
+   "id": "h2-8c/transpile-js/filename/absent",
+   "route": "transpile-js",
+   "text": "export const a: string = 'a';\n",
+   "text_sha256": "1e135600a787e792ca15c51625b3efcbd390584d6fca8dad10c0bf326f34d9f6",
+   "text_utf16_units": 30
+  },
+  {
+   "id": "h2-8c/transpile-js/filename/explicit-nested",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "fileName": "src/lib/a.ts",
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/filename/nonstandard-extension",
+   "route": "transpile-js",
+   "text": "export const a: number = 1;\n",
+   "fileName": "module.txt",
+   "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66",
+   "text_utf16_units": 28
+  },
+  {
+   "id": "h2-8c/transpile-js/filename/declaration-input-throws",
+   "route": "transpile-js",
+   "text": "declare const a: number;\nexport {};\n",
+   "fileName": "module.d.ts",
+   "text_sha256": "365e1bfd67f31cfdd8e2ab3823fe07d164805b123e182dd0e116c61cc8ddbebb",
+   "text_utf16_units": 36
+  },
+  {
+   "id": "h2-8c/transpile-js/filename/mts",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "fileName": "module.mts",
+   "compilerOptions": {
+    "module": "node20"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/filename/cts",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "fileName": "module.cts",
+   "compilerOptions": {
+    "module": "node20"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/filename/json-input",
+   "route": "transpile-js",
+   "text": "{\"a\": 1}\n",
+   "fileName": "data.json",
+   "text_sha256": "e8c628edc9968ef0c668f54e0ba2636b35503357eb1aca0ddc828aeace432f67",
+   "text_utf16_units": 9
+  },
+  {
+   "id": "h2-8c/transpile-js/module-name/amd",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "moduleName": "my/mod",
+   "compilerOptions": {
+    "module": "amd"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/module-name/system",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "moduleName": "my/mod",
+   "compilerOptions": {
+    "module": "system"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/module-name/commonjs-ignored",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "moduleName": "my/mod",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/renamed/commonjs",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nimport './side';\nexport const y = x;\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a",
+    "./side": "./renamed-side"
+   },
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "24ef58f4e7438bef01d7a4f0bf2a0a020470ee0cb2be4399a94121d5bd261421",
+   "text_utf16_units": 62
+  },
+  {
+   "id": "h2-8c/transpile-js/renamed/esnext",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nexport const y = x;\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a"
+   },
+   "compilerOptions": {
+    "module": "esnext"
+   },
+   "text_sha256": "8960ee0577a81ef5b2db00904c9c7fa318f6315595122c195f70d540b893ca84",
+   "text_utf16_units": 45
+  },
+  {
+   "id": "h2-8c/transpile-js/jsdoc/parse-none",
+   "route": "transpile-js",
+   "text": "/** @deprecated */\nexport function f() {}\n",
+   "jsDocParsingMode": "ParseNone",
+   "text_sha256": "605820043cb3a4671b4555ce0c87ff3817086fd532e450950ca7d3faf5c993bc",
+   "text_utf16_units": 42
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/syntax-error-report-on",
+   "route": "transpile-js",
+   "text": "let x: = 1;\nexport {};\n",
+   "reportDiagnostics": true,
+   "text_sha256": "3d29fca55f1c8d5f7cf4e822d90d77f966811221c70b688c399377fa9bdd4e80",
+   "text_utf16_units": 23
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/syntax-error-report-off",
+   "route": "transpile-js",
+   "text": "let x: = 1;\nexport {};\n",
+   "reportDiagnostics": false,
+   "text_sha256": "3d29fca55f1c8d5f7cf4e822d90d77f966811221c70b688c399377fa9bdd4e80",
+   "text_utf16_units": 23
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/syntax-error-report-absent",
+   "route": "transpile-js",
+   "text": "let x: = 1;\nexport {};\n",
+   "text_sha256": "3d29fca55f1c8d5f7cf4e822d90d77f966811221c70b688c399377fa9bdd4e80",
+   "text_utf16_units": 23
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/option-invalid-enum-string",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": "es9999"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/option-invalid-enum-number",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": 1234
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/option-invalid-enum-report-off",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": false,
+   "compilerOptions": {
+    "target": "es9999"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/option-conflict-verbatim-commonjs",
+   "route": "transpile-js",
+   "text": "import { A } from './a';\nlet v: A;\nexport {};\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "module": "commonjs",
+    "verbatimModuleSyntax": true
+   },
+   "text_sha256": "12e7a1a6c724226edc7de49c3f47e96d8e94509ba222fdc3b95ac15e8c215999",
+   "text_utf16_units": 46
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/option-conflict-maps",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "sourceMap": true,
+    "inlineSourceMap": true
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/semantic-only-error",
+   "route": "transpile-js",
+   "text": "const x: number = 'string';\nexport const y: string = x;\n",
+   "reportDiagnostics": true,
+   "text_sha256": "f3bf4e250386b65735bff54f524247b6b642c4842cf482cecc2c0f47f9ee18f9",
+   "text_utf16_units": 56
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/clean-report-on",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/target-es5-deprecated-report-on",
+   "route": "transpile-js",
+   "text": "export const a = () => 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": "es5"
+   },
+   "text_sha256": "0f3c0c068e76339e21597691c4f60cd57d23d561c2655b3e5f46b82df35672ea",
+   "text_utf16_units": 26
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/target-es5-ignore-deprecations",
+   "route": "transpile-js",
+   "text": "export const a = () => 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": "es5",
+    "ignoreDeprecations": "6.0"
+   },
+   "text_sha256": "0f3c0c068e76339e21597691c4f60cd57d23d561c2655b3e5f46b82df35672ea",
+   "text_utf16_units": 26
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/isolated-modules-reexport-type",
+   "route": "transpile-js",
+   "text": "import { T } from './t';\nexport { T };\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "module": "esnext"
+   },
+   "text_sha256": "6f50a77bee6b30265fa96fb89acfaf938c204a91faa212f2a0aa815053ac8722",
+   "text_utf16_units": 39
+  },
+  {
+   "id": "h2-8c/transpile-js/modules/import-elision",
+   "route": "transpile-js",
+   "text": "import { A, B, type C } from \"./dep\";\nimport * as ns from \"./dep\";\nimport D = require(\"./dep\");\nexport const value = new A();\nlet onlyType: B;\nlet alsoType: C;\nexport function useNs(): ns.T { return null as any; }\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "1db4478cbc2c56b1222065891d1ab583d29cc729c56a8c8d1ee630966d950ca1",
+   "text_utf16_units": 214
+  },
+  {
+   "id": "h2-8c/transpile-js/modules/import-elision-esnext",
+   "route": "transpile-js",
+   "text": "import { A, B, type C } from \"./dep\";\nimport * as ns from \"./dep\";\nimport D = require(\"./dep\");\nexport const value = new A();\nlet onlyType: B;\nlet alsoType: C;\nexport function useNs(): ns.T { return null as any; }\n",
+   "compilerOptions": {
+    "module": "esnext"
+   },
+   "text_sha256": "1db4478cbc2c56b1222065891d1ab583d29cc729c56a8c8d1ee630966d950ca1",
+   "text_utf16_units": 214
+  },
+  {
+   "id": "h2-8c/transpile-js/modules/import-elision-verbatim",
+   "route": "transpile-js",
+   "text": "import { A, B, type C } from \"./dep\";\nimport * as ns from \"./dep\";\nexport const value = new A();\nlet onlyType: B;\nlet alsoType: C;\nexport function useNs(): ns.T { return null as any; }\n",
+   "compilerOptions": {
+    "module": "esnext",
+    "verbatimModuleSyntax": true
+   },
+   "text_sha256": "323dd4019850c4a1bb5227d52b88024d5a9307d28f4ae54505922cfdc445ab3a",
+   "text_utf16_units": 185
+  },
+  {
+   "id": "h2-8c/transpile-js/modules/export-star-and-default",
+   "route": "transpile-js",
+   "text": "export * from './a';\nexport * as b from './b';\nexport default function () {}\nexport { c as default2 } from './c';\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "e601ab8e8cb60dc0850e4f1dca9b9b97808b260a4e5baf8c055f76294b95607b",
+   "text_utf16_units": 114
+  },
+  {
+   "id": "h2-8c/transpile-js/modules/export-equals",
+   "route": "transpile-js",
+   "text": "import fs = require('fs');\nexport = fs.readFileSync;\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "0309803607c454d0533553e6bd81778e2b98b70ee09adc495ebe9e71ab958c11",
+   "text_utf16_units": 53
+  },
+  {
+   "id": "h2-8c/transpile-js/modules/dynamic-import-es5",
+   "route": "transpile-js",
+   "text": "export async function f() { return (await import('./a')).x; }\n",
+   "compilerOptions": {
+    "module": "commonjs",
+    "target": "es5"
+   },
+   "text_sha256": "744783ccd8ce1601b5ce68b582aaa98147d9372a21ed81d1db38de4146a1bc16",
+   "text_utf16_units": 62
+  },
+  {
+   "id": "h2-8c/transpile-js/modules/type-only-export",
+   "route": "transpile-js",
+   "text": "import type { A } from './a';\nexport type { A };\nexport type B = A;\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "fe9644949738de29b1bc2bafd437fcda1c86400f359d3045e6c377653bab8b05",
+   "text_utf16_units": 68
+  },
+  {
+   "id": "h2-8c/transpile-js/modules/script-no-exports",
+   "route": "transpile-js",
+   "text": "const a = 1;\nnamespace N { export const b = a; }\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "68cd3641e9b7f031a9d34d16d03ba06efc405f3a42a72dca25fb368627d93387",
+   "text_utf16_units": 49
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/enum-namespace",
+   "route": "transpile-js",
+   "text": "const enum E { A = 1, B = A << 1, C = \"x\".length }\nenum F { X, Y = E.B }\nnamespace N { export const v = E.B; export namespace M { export let w = F.Y; } }\ndeclare namespace D { const q: number; }\nexport const u = E.C + N.v;\n",
+   "compilerOptions": {
+    "module": "esnext"
+   },
+   "text_sha256": "e927391e0cf2084a40b85f814c137ac967d5a23cfc00521119b981e62b20d5cc",
+   "text_utf16_units": 223
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/enum-namespace-es5",
+   "route": "transpile-js",
+   "text": "const enum E { A = 1, B = A << 1, C = \"x\".length }\nenum F { X, Y = E.B }\nnamespace N { export const v = E.B; export namespace M { export let w = F.Y; } }\ndeclare namespace D { const q: number; }\nexport const u = E.C + N.v;\n",
+   "compilerOptions": {
+    "module": "commonjs",
+    "target": "es5"
+   },
+   "text_sha256": "e927391e0cf2084a40b85f814c137ac967d5a23cfc00521119b981e62b20d5cc",
+   "text_utf16_units": 223
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/decorators-experimental",
+   "route": "transpile-js",
+   "text": "function dec(...args: any[]) {}\n@dec class A { @dec m(@dec p: string) {} @dec prop = 1; @dec static s() {} }\n",
+   "compilerOptions": {
+    "experimentalDecorators": true,
+    "target": "es2017"
+   },
+   "text_sha256": "98f8930858b2def4ed79ab1b5c60e6d7253d2bfa2a2edeb01defe09386531188",
+   "text_utf16_units": 109
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/decorators-experimental-metadata",
+   "route": "transpile-js",
+   "text": "function dec(...args: any[]) {}\n@dec class A { @dec m(@dec p: string) {} @dec prop = 1; @dec static s() {} }\n",
+   "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "target": "es2017"
+   },
+   "text_sha256": "98f8930858b2def4ed79ab1b5c60e6d7253d2bfa2a2edeb01defe09386531188",
+   "text_utf16_units": 109
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/decorators-standard-es2022",
+   "route": "transpile-js",
+   "text": "function dec(...args: any[]) {}\n@dec class A { @dec m(@dec p: string) {} @dec prop = 1; @dec static s() {} }\n",
+   "compilerOptions": {
+    "target": "es2022"
+   },
+   "text_sha256": "98f8930858b2def4ed79ab1b5c60e6d7253d2bfa2a2edeb01defe09386531188",
+   "text_utf16_units": 109
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/decorators-standard-esnext",
+   "route": "transpile-js",
+   "text": "function dec(...args: any[]) {}\n@dec class A { @dec m(@dec p: string) {} @dec prop = 1; @dec static s() {} }\n",
+   "compilerOptions": {
+    "target": "esnext"
+   },
+   "text_sha256": "98f8930858b2def4ed79ab1b5c60e6d7253d2bfa2a2edeb01defe09386531188",
+   "text_utf16_units": 109
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/class-fields-es5",
+   "route": "transpile-js",
+   "text": "class C { x = 1; static y = 2; #z = 3; declare d: number; accessor a = 4; }\n",
+   "compilerOptions": {
+    "target": "es5"
+   },
+   "text_sha256": "08e4413ebfd500db2a1cc68626077125ec6b5ba12ae9444724d348f03ad307d8",
+   "text_utf16_units": 76
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/class-fields-es2015",
+   "route": "transpile-js",
+   "text": "class C { x = 1; static y = 2; #z = 3; declare d: number; accessor a = 4; }\n",
+   "compilerOptions": {
+    "target": "es2015"
+   },
+   "text_sha256": "08e4413ebfd500db2a1cc68626077125ec6b5ba12ae9444724d348f03ad307d8",
+   "text_utf16_units": 76
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/class-fields-es2017",
+   "route": "transpile-js",
+   "text": "class C { x = 1; static y = 2; #z = 3; declare d: number; accessor a = 4; }\n",
+   "compilerOptions": {
+    "target": "es2017"
+   },
+   "text_sha256": "08e4413ebfd500db2a1cc68626077125ec6b5ba12ae9444724d348f03ad307d8",
+   "text_utf16_units": 76
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/class-fields-es2021",
+   "route": "transpile-js",
+   "text": "class C { x = 1; static y = 2; #z = 3; declare d: number; accessor a = 4; }\n",
+   "compilerOptions": {
+    "target": "es2021"
+   },
+   "text_sha256": "08e4413ebfd500db2a1cc68626077125ec6b5ba12ae9444724d348f03ad307d8",
+   "text_utf16_units": 76
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/class-fields-es2022",
+   "route": "transpile-js",
+   "text": "class C { x = 1; static y = 2; #z = 3; declare d: number; accessor a = 4; }\n",
+   "compilerOptions": {
+    "target": "es2022"
+   },
+   "text_sha256": "08e4413ebfd500db2a1cc68626077125ec6b5ba12ae9444724d348f03ad307d8",
+   "text_utf16_units": 76
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/class-fields-esnext",
+   "route": "transpile-js",
+   "text": "class C { x = 1; static y = 2; #z = 3; declare d: number; accessor a = 4; }\n",
+   "compilerOptions": {
+    "target": "esnext"
+   },
+   "text_sha256": "08e4413ebfd500db2a1cc68626077125ec6b5ba12ae9444724d348f03ad307d8",
+   "text_utf16_units": 76
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/class-fields-es2022-no-define",
+   "route": "transpile-js",
+   "text": "class C { x = 1; static y = 2; #z = 3; declare d: number; accessor a = 4; }\n",
+   "compilerOptions": {
+    "target": "es2022",
+    "useDefineForClassFields": false
+   },
+   "text_sha256": "08e4413ebfd500db2a1cc68626077125ec6b5ba12ae9444724d348f03ad307d8",
+   "text_utf16_units": 76
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/es5-flags",
+   "route": "transpile-js",
+   "text": "class Base { m() { return 1; } }\nclass Derived extends Base {\n  async m2() { return super.m() + arguments.length; }\n  static { this.x = super.toString(); }\n}\nfor (let i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }\nfunction f() { return () => arguments[0]; }\n",
+   "compilerOptions": {
+    "target": "es5"
+   },
+   "text_sha256": "5e9344e8eb2ed1cdaecdf5b6b69f84e277a2f5da9ae9c3de29be37f78eb8c555",
+   "text_utf16_units": 268
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/es2015-flags",
+   "route": "transpile-js",
+   "text": "class Base { m() { return 1; } }\nclass Derived extends Base {\n  async m2() { return super.m() + arguments.length; }\n  static { this.x = super.toString(); }\n}\nfor (let i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }\nfunction f() { return () => arguments[0]; }\n",
+   "compilerOptions": {
+    "target": "es2015"
+   },
+   "text_sha256": "5e9344e8eb2ed1cdaecdf5b6b69f84e277a2f5da9ae9c3de29be37f78eb8c555",
+   "text_utf16_units": 268
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/es2017-flags",
+   "route": "transpile-js",
+   "text": "class Base { m() { return 1; } }\nclass Derived extends Base {\n  async m2() { return super.m() + arguments.length; }\n  static { this.x = super.toString(); }\n}\nfor (let i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }\nfunction f() { return () => arguments[0]; }\n",
+   "compilerOptions": {
+    "target": "es2017"
+   },
+   "text_sha256": "5e9344e8eb2ed1cdaecdf5b6b69f84e277a2f5da9ae9c3de29be37f78eb8c555",
+   "text_utf16_units": 268
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/generators-es5",
+   "route": "transpile-js",
+   "text": "export function* g() { yield 1; const x = yield* g(); }\nasync function* ag() { for await (const x of []) yield x; }\n",
+   "compilerOptions": {
+    "target": "es5"
+   },
+   "text_sha256": "0db9b5f545413f42d9e1cbf6a97f7f4575d8e38653bc89d00f7f8146ace77491",
+   "text_utf16_units": 116
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/object-rest-es2017",
+   "route": "transpile-js",
+   "text": "const { a, ...rest } = { a: 1, b: 2 };\nconst o = { ...rest, a };\nexport { o };\n",
+   "compilerOptions": {
+    "target": "es2017"
+   },
+   "text_sha256": "65202e0412c2667fcdec6fd738b2a0fe6743bffe4a80fa03b546344fd1e20b6b",
+   "text_utf16_units": 79
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/optional-chaining-es2019",
+   "route": "transpile-js",
+   "text": "declare const o: any;\nexport const v = o?.a?.[0]?.() ?? 1;\nlet w = 0; w ??= 2; w ||= 3; w &&= 4;\n",
+   "compilerOptions": {
+    "target": "es2019"
+   },
+   "text_sha256": "d68e9c67cbfb70aa35e3d2b5c9dfe173cf1d581dbb4aa1dc95c21ce9fda36acc",
+   "text_utf16_units": 97
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/using-es2022",
+   "route": "transpile-js",
+   "text": "export {};\n{ using x = null; await using y = null; }\n",
+   "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext"
+   },
+   "text_sha256": "9bdee6a1a1aab1879cd2067b3835e0f84fd3142d3e356529df4819d246860213",
+   "text_utf16_units": 53
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/private-in-es2020",
+   "route": "transpile-js",
+   "text": "class C { #p = 1; static has(o: object) { return #p in o; } }\nexport {C};\n",
+   "compilerOptions": {
+    "target": "es2020"
+   },
+   "text_sha256": "b9d94f048d197d18ddc5920d65a8cb39bb2be77c0b1bf3488bfa70d39358722f",
+   "text_utf16_units": 74
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/import-helpers",
+   "route": "transpile-js",
+   "text": "export class A extends Object {}\nexport const {a, ...r} = {a: 1};\n",
+   "compilerOptions": {
+    "target": "es5",
+    "importHelpers": true,
+    "module": "commonjs"
+   },
+   "text_sha256": "d62bc0dddf267aa4009711f48bddd2ecbad1048d473b22094a1f90bd6a5b212b",
+   "text_utf16_units": 66
+  },
+  {
+   "id": "h2-8c/transpile-js/maps/source-map",
+   "route": "transpile-js",
+   "text": "export const a: number = 1;\nexport function f(x: string) { return x; }\n",
+   "compilerOptions": {
+    "sourceMap": true
+   },
+   "text_sha256": "c78c7f46392f73940439c9622c7d9b86031e4e1aa05d2642c3de5085727fffed",
+   "text_utf16_units": 71
+  },
+  {
+   "id": "h2-8c/transpile-js/maps/inline-source-map",
+   "route": "transpile-js",
+   "text": "export const a: number = 1;\n",
+   "compilerOptions": {
+    "inlineSourceMap": true
+   },
+   "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66",
+   "text_utf16_units": 28
+  },
+  {
+   "id": "h2-8c/transpile-js/maps/inline-sources",
+   "route": "transpile-js",
+   "text": "export const a: number = 1;\n",
+   "compilerOptions": {
+    "sourceMap": true,
+    "inlineSources": true
+   },
+   "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66",
+   "text_utf16_units": 28
+  },
+  {
+   "id": "h2-8c/transpile-js/maps/source-map-nested-filename",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "fileName": "src/deep/a.ts",
+   "compilerOptions": {
+    "sourceMap": true,
+    "sourceRoot": "/root",
+    "mapRoot": "/maps"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/maps/declaration-map-forced-off",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "compilerOptions": {
+    "declarationMap": true,
+    "declaration": true
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/text/crlf",
+   "route": "transpile-js",
+   "text": "export const a = 1;\r\nexport const b = 2;\r\n",
+   "text_sha256": "1430ea1942c34ca19be4868e9c723385db258172e976145b9f37b8fad0c2ac1d",
+   "text_utf16_units": 42
+  },
+  {
+   "id": "h2-8c/transpile-js/text/crlf-newline-option",
+   "route": "transpile-js",
+   "text": "export const a = 1;\nexport const b = 2;\n",
+   "compilerOptions": {
+    "newLine": "crlf"
+   },
+   "text_sha256": "fbfbcf152280f449324deb51f60768d8da86a478715a2929ea2a5de316acc3b3",
+   "text_utf16_units": 40
+  },
+  {
+   "id": "h2-8c/transpile-js/text/unicode",
+   "route": "transpile-js",
+   "text": "export const s = 'é😀漢字';\nconst \\u{1F600}x = `\\u{1F600}${s}`;\nexport { \\u{1F600}x as 😀 };\n",
+   "compilerOptions": {
+    "target": "es5"
+   },
+   "text_sha256": "251c798de7778a109cf9e1d8f148d8c4aa95fe1890d6cb6aca6a36a784e33170",
+   "text_utf16_units": 91
+  },
+  {
+   "id": "h2-8c/transpile-js/text/bom",
+   "route": "transpile-js",
+   "text": "﻿export const a = 1;\n",
+   "text_sha256": "2d44f6258b5f1c7c1fea2e0fff92aa5e79240a6a67796f5987bb9422d2fe9d6f",
+   "text_utf16_units": 21
+  },
+  {
+   "id": "h2-8c/transpile-js/text/shebang-and-prologue",
+   "route": "transpile-js",
+   "text": "#!/usr/bin/env node\n'use strict';\nexport const a = 1;\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "a1a36da26ec24b32e2a06c3301c71ed1beeba474995e8447ad3abe11cea23e8c",
+   "text_utf16_units": 54
+  },
+  {
+   "id": "h2-8c/transpile-js/options/target-string",
+   "route": "transpile-js",
+   "text": "export const a = () => 1;\n",
+   "compilerOptions": {
+    "target": "ES5"
+   },
+   "text_sha256": "0f3c0c068e76339e21597691c4f60cd57d23d561c2655b3e5f46b82df35672ea",
+   "text_utf16_units": 26
+  },
+  {
+   "id": "h2-8c/transpile-js/options/module-string-case",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "compilerOptions": {
+    "module": "CommonJS"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/options/unknown-option",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "noSuchOption": true
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/options/no-emit-forced-off",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "noEmit": true
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/options/no-emit-on-error-forced-off",
+   "route": "transpile-js",
+   "text": "const x: number = 'a';\nexport {x};\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "noEmitOnError": true
+   },
+   "text_sha256": "dd2ca9af3b49ac84ff9dfaf25e90a553ebe8d239e68acbd203e8a5c706510ce8",
+   "text_utf16_units": 35
+  },
+  {
+   "id": "h2-8c/transpile-js/options/declaration-forced-off",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/options/out-file-forced-off",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "outFile": "bundle.js",
+    "module": "amd"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/options/no-check-false-forced-true",
+   "route": "transpile-js",
+   "text": "const x: number = 'a';\nexport {x};\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "noCheck": false
+   },
+   "text_sha256": "dd2ca9af3b49ac84ff9dfaf25e90a553ebe8d239e68acbd203e8a5c706510ce8",
+   "text_utf16_units": 35
+  },
+  {
+   "id": "h2-8c/transpile-js/options/isolated-modules-false-forced-true",
+   "route": "transpile-js",
+   "text": "import { T } from './t';\nexport { T };\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "isolatedModules": false,
+    "module": "esnext"
+   },
+   "text_sha256": "6f50a77bee6b30265fa96fb89acfaf938c204a91faa212f2a0aa815053ac8722",
+   "text_utf16_units": 39
+  },
+  {
+   "id": "h2-8c/transpile-js/options/lib-forced-off",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "lib": [
+     "es2015"
+    ]
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/options/no-lib-false-forced-true",
+   "route": "transpile-js",
+   "text": "export const a: Array<number> = [];\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "noLib": false
+   },
+   "text_sha256": "d73ac6f8ccb348ffae964c5ec4b927ed8f5566da56be04145397b37fb4d964ce",
+   "text_utf16_units": 36
+  },
+  {
+   "id": "h2-8c/transpile-js/options/remove-comments",
+   "route": "transpile-js",
+   "text": "// c1\n/* c2 */ export const a = 1; // c3\n",
+   "compilerOptions": {
+    "removeComments": true
+   },
+   "text_sha256": "d8fbe535003e50cf980641fc11bb75a7531278f1e15fe6eb67e88dd92b08540d",
+   "text_utf16_units": 41
+  },
+  {
+   "id": "h2-8c/transpile-js/options/preserve-const-enums-false",
+   "route": "transpile-js",
+   "text": "const enum E { A = 1 }\nexport const v = E.A;\n",
+   "compilerOptions": {
+    "preserveConstEnums": false,
+    "module": "esnext"
+   },
+   "text_sha256": "65ed00635caafce840d88181ef5358adeaefd13a85ba47a5383e02c5ce0899e2",
+   "text_utf16_units": 45
+  },
+  {
+   "id": "h2-8c/transpile-js/options/emit-bom",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "compilerOptions": {
+    "emitBOM": true
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/options/module-detection-force",
+   "route": "transpile-js",
+   "text": "const a = 1;\n",
+   "compilerOptions": {
+    "moduleDetection": "force",
+    "module": "commonjs"
+   },
+   "text_sha256": "b79b14bd2584dd52b0f0ef042a2a4f104cda48330500e12237737cc51fbda43d",
+   "text_utf16_units": 13
+  },
+  {
+   "id": "h2-8c/transpile-js/options/jsx-factory",
+   "route": "transpile-js",
+   "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+   "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "F"
+   },
+   "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d",
+   "text_utf16_units": 72
+  },
+  {
+   "id": "h2-8c/transpile-js/options/jsx-react-jsx",
+   "route": "transpile-js",
+   "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+   "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "esnext"
+   },
+   "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d",
+   "text_utf16_units": 72
+  },
+  {
+   "id": "h2-8c/transpile-js/options/jsx-react-jsxdev-import-source",
+   "route": "transpile-js",
+   "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+   "compilerOptions": {
+    "jsx": "react-jsxdev",
+    "jsxImportSource": "preact",
+    "module": "commonjs"
+   },
+   "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d",
+   "text_utf16_units": 72
+  },
+  {
+   "id": "h2-8c/transpile-js/repeat/first",
+   "route": "transpile-js",
+   "text": "export const first = 1;\n",
+   "text_sha256": "b5e3af850620010b0263a016788409fd508d0e4dc37e88bd2db29168d8dcf398",
+   "text_utf16_units": 24
+  },
+  {
+   "id": "h2-8c/transpile-js/repeat/second",
+   "route": "transpile-js",
+   "text": "export const second = 2;\n",
+   "text_sha256": "001abb6bb627a8b9e7a02f9a53887d5181dee5fd05fe9e0f020732e11ca57e93",
+   "text_utf16_units": 25
+  },
+  {
+   "id": "h2-8c/transpile-js/filename/extensionless",
+   "route": "transpile-js",
+   "text": "export const a: number = 1;\n",
+   "fileName": "module",
+   "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66",
+   "text_utf16_units": 28
+  },
+  {
+   "id": "h2-8c/transpile-js/filename/nonstandard-extension-source-map",
+   "route": "transpile-js",
+   "text": "export const a: number = 1;\n",
+   "fileName": "dir/module.txt",
+   "compilerOptions": {
+    "sourceMap": true
+   },
+   "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66",
+   "text_utf16_units": 28
+  },
+  {
+   "id": "h2-8c/transpile-js/module-name/amd-with-imports",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nexport const y = x;\nexport const p = import('./b');\n",
+   "moduleName": "my/mod",
+   "compilerOptions": {
+    "module": "amd"
+   },
+   "text_sha256": "9df9690461cea32627361aefda33c4159cd4db64b0517424b86095722ceef2ee",
+   "text_utf16_units": 77
+  },
+  {
+   "id": "h2-8c/transpile-js/module-name/umd",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "moduleName": "my/mod",
+   "compilerOptions": {
+    "module": "umd"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/module-name/empty-string-ignored",
+   "route": "transpile-js",
+   "text": "export const a = 1;\n",
+   "moduleName": "",
+   "compilerOptions": {
+    "module": "amd"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-js/module-name/pragma-overridden",
+   "route": "transpile-js",
+   "text": "/// <amd-module name=\"pragma/name\" />\nexport const a = 1;\n",
+   "moduleName": "api/name",
+   "compilerOptions": {
+    "module": "amd"
+   },
+   "text_sha256": "dc952d24303a515f6e4f75689eb484f242688a9344ad6ebe0c764e1192849370",
+   "text_utf16_units": 58
+  },
+  {
+   "id": "h2-8c/transpile-js/renamed/amd",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nexport const y = x;\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a"
+   },
+   "compilerOptions": {
+    "module": "amd"
+   },
+   "text_sha256": "8960ee0577a81ef5b2db00904c9c7fa318f6315595122c195f70d540b893ca84",
+   "text_utf16_units": 45
+  },
+  {
+   "id": "h2-8c/transpile-js/renamed/system",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nexport const y = x;\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a"
+   },
+   "compilerOptions": {
+    "module": "system"
+   },
+   "text_sha256": "8960ee0577a81ef5b2db00904c9c7fa318f6315595122c195f70d540b893ca84",
+   "text_utf16_units": 45
+  },
+  {
+   "id": "h2-8c/transpile-js/renamed/umd",
+   "route": "transpile-js",
+   "text": "import { x } from './a';\nexport const y = x;\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a"
+   },
+   "compilerOptions": {
+    "module": "umd"
+   },
+   "text_sha256": "8960ee0577a81ef5b2db00904c9c7fa318f6315595122c195f70d540b893ca84",
+   "text_utf16_units": 45
+  },
+  {
+   "id": "h2-8c/transpile-js/renamed/dynamic-import",
+   "route": "transpile-js",
+   "text": "export const p = import('./a');\nexport const q = import('./unrenamed');\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a"
+   },
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "d6212cb662ab9854607358af2d48e68b99a7ff67859ba3579e1f2ed064fa6b9a",
+   "text_utf16_units": 72
+  },
+  {
+   "id": "h2-8c/transpile-js/renamed/dynamic-import-system",
+   "route": "transpile-js",
+   "text": "export const p = import('./a');\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a"
+   },
+   "compilerOptions": {
+    "module": "system"
+   },
+   "text_sha256": "a5212659753d8b8579208be863b2adc650304a18d17e1b3644541d06d41e65be",
+   "text_utf16_units": 32
+  },
+  {
+   "id": "h2-8c/transpile-js/renamed/export-from",
+   "route": "transpile-js",
+   "text": "export { x } from './a';\nexport * from './b';\nimport c = require('./c');\nexport const d = c;\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a",
+    "./b": "./renamed-b",
+    "./c": "./renamed-c"
+   },
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "77bec4b407caced1a84223d577df4afd5a85cab1fb4b65657d6dce4aa01fa7dd",
+   "text_utf16_units": 93
+  },
+  {
+   "id": "h2-8c/transpile-js/renamed/type-only-elided",
+   "route": "transpile-js",
+   "text": "import type { T } from './a';\nexport const v: T = null!;\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a"
+   },
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "6e255d119e358d13bb4b2a787b596ceec87ad790543091878ef6e28d9db67445",
+   "text_utf16_units": 57
+  },
+  {
+   "id": "h2-8c/transpile-js/jsdoc/parse-none-js",
+   "route": "transpile-js",
+   "text": "/** @type {number} */\nexport const a = 1;\n",
+   "fileName": "module.js",
+   "jsDocParsingMode": "ParseNone",
+   "text_sha256": "bc3e29e7935b7ddf259b6acbe633198ecdb4fb8622f09ddb61eae1f38215f739",
+   "text_utf16_units": 42
+  },
+  {
+   "id": "h2-8c/transpile-js/jsdoc/parse-for-type-info-ts",
+   "route": "transpile-js",
+   "text": "/** @deprecated */\nexport const a = 1;\n",
+   "jsDocParsingMode": "ParseForTypeInfo",
+   "text_sha256": "3ae342e7e7c73c53f53439f58111142cc74a3cf0b288d7ad4b235ecd361ba9a2",
+   "text_utf16_units": 39
+  },
+  {
+   "id": "h2-8c/transpile-dts/empty/no-input",
+   "route": "transpile-dts",
+   "text": "",
+   "text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "text_utf16_units": 0
+  },
+  {
+   "id": "h2-8c/transpile-dts/basic/exports",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\nexport function f(x: number): string { return ''; }\nexport class C { m(): void {} private p = 1; }\nexport interface I { x: number }\nexport type T = I | C;\n",
+   "text_sha256": "b2d2fa83fb8ffeaeb722b37403cb364f6dc5e5cf9c1aa25645806fe109e32a31",
+   "text_utf16_units": 175
+  },
+  {
+   "id": "h2-8c/transpile-dts/basic/script-globals",
+   "route": "transpile-dts",
+   "text": "const a = 1;\nfunction f(): void {}\ndeclare const g: number;\n",
+   "text_sha256": "fb3feec0df8f056a5f422dcca9acf6cd90c8d3ba3fe1b1d1f2516272e9b4f715",
+   "text_utf16_units": 60
+  },
+  {
+   "id": "h2-8c/transpile-dts/diag/isolated-inference-error",
+   "route": "transpile-dts",
+   "text": "export function f() { return 1; }\nexport const o = { a: 1, b() { return 2; } };\n",
+   "reportDiagnostics": true,
+   "text_sha256": "755523667d84f6cd42f41b81607c24a3506e46e8c0c736e66a5e5efff3deafff",
+   "text_utf16_units": 80
+  },
+  {
+   "id": "h2-8c/transpile-dts/diag/isolated-inference-error-report-off",
+   "route": "transpile-dts",
+   "text": "export function f() { return 1; }\n",
+   "reportDiagnostics": false,
+   "text_sha256": "5c85621db5b969d9acad48bad3215de6e6e47a76d62ed6a1582cf5b7b071cce1",
+   "text_utf16_units": 34
+  },
+  {
+   "id": "h2-8c/transpile-dts/diag/isolated-inference-error-report-absent",
+   "route": "transpile-dts",
+   "text": "export function f() { return 1; }\n",
+   "text_sha256": "5c85621db5b969d9acad48bad3215de6e6e47a76d62ed6a1582cf5b7b071cce1",
+   "text_utf16_units": 34
+  },
+  {
+   "id": "h2-8c/transpile-dts/diag/syntax-error-report-on",
+   "route": "transpile-dts",
+   "text": "export const a: = 1;\n",
+   "reportDiagnostics": true,
+   "text_sha256": "62116aebc07e86c7cd657b20159c883e30e0e3d8936884a5af494be700f5c4c9",
+   "text_utf16_units": 21
+  },
+  {
+   "id": "h2-8c/transpile-dts/diag/semantic-only-error",
+   "route": "transpile-dts",
+   "text": "export const x: number = 'string';\n",
+   "reportDiagnostics": true,
+   "text_sha256": "f5a1f3811cf26bb7a98f00b26d585c662efdeb4533864d2d8f57b369e230e099",
+   "text_utf16_units": 35
+  },
+  {
+   "id": "h2-8c/transpile-dts/diag/option-invalid-enum-string",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": "es9999"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-dts/diag/option-conflict-verbatim-commonjs",
+   "route": "transpile-dts",
+   "text": "import { A } from './a';\nexport let v: A;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "module": "commonjs",
+    "verbatimModuleSyntax": true
+   },
+   "text_sha256": "220046f98e7f4ca5501070432e86ac6972a4f6af92e6319fccc8a4e958d2d12a",
+   "text_utf16_units": 42
+  },
+  {
+   "id": "h2-8c/transpile-dts/maps/declaration-map",
+   "route": "transpile-dts",
+   "text": "export const a: number = 1;\nexport function f(x: string): string { return x; }\n",
+   "compilerOptions": {
+    "declarationMap": true
+   },
+   "text_sha256": "341016b4804e9fd92fc9d91a9bc2f4a179a03ee33070a670ff20d3843f58aef7",
+   "text_utf16_units": 79
+  },
+  {
+   "id": "h2-8c/transpile-dts/maps/declaration-map-nested-filename",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n",
+   "fileName": "src/deep/a.ts",
+   "compilerOptions": {
+    "declarationMap": true
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-dts/maps/source-map-ignored",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n",
+   "compilerOptions": {
+    "sourceMap": true,
+    "inlineSourceMap": true
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-dts/kinds/js-input",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n/** @type {number} */\nexport let b = 2;\n",
+   "fileName": "module.js",
+   "text_sha256": "283d594ecaf8d9208e82d970f9a081f32e473fc66d1b66a7382930fde3a9e880",
+   "text_utf16_units": 60
+  },
+  {
+   "id": "h2-8c/transpile-dts/kinds/js-input-allow-js",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n/** @type {number} */\nexport let b = 2;\n",
+   "fileName": "module.js",
+   "compilerOptions": {
+    "allowJs": true
+   },
+   "text_sha256": "283d594ecaf8d9208e82d970f9a081f32e473fc66d1b66a7382930fde3a9e880",
+   "text_utf16_units": 60
+  },
+  {
+   "id": "h2-8c/transpile-dts/kinds/tsx",
+   "route": "transpile-dts",
+   "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+   "compilerOptions": {
+    "jsx": "react"
+   },
+   "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d",
+   "text_utf16_units": 72
+  },
+  {
+   "id": "h2-8c/transpile-dts/filename/absent",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n",
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-dts/filename/nonstandard-extension",
+   "route": "transpile-dts",
+   "text": "export const a: number = 1;\n",
+   "fileName": "module.txt",
+   "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66",
+   "text_utf16_units": 28
+  },
+  {
+   "id": "h2-8c/transpile-dts/filename/declaration-input-throws",
+   "route": "transpile-dts",
+   "text": "export declare const a: number;\n",
+   "fileName": "module.d.ts",
+   "text_sha256": "52db5d1a3fa84d3692297673f6fede59e50d94b4ed2cab8398c7a65e1a45e6fa",
+   "text_utf16_units": 32
+  },
+  {
+   "id": "h2-8c/transpile-dts/filename/mts",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n",
+   "fileName": "module.mts",
+   "compilerOptions": {
+    "module": "node20"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-dts/globals/barebones-lib",
+   "route": "transpile-dts",
+   "text": "export const arr: Array<string> = [];\nexport const sym: symbol = Symbol();\nexport const len = arr.length;\nexport const p: Promise<number> = null!;\n",
+   "reportDiagnostics": true,
+   "text_sha256": "bdd51d3243615b64a487453a7479a89d0d15d561e3f81fca5dbb0e111c96c6fd",
+   "text_utf16_units": 147
+  },
+  {
+   "id": "h2-8c/transpile-dts/modules/imports",
+   "route": "transpile-dts",
+   "text": "import { A, B, type C } from \"./dep\";\nimport * as ns from \"./dep\";\nimport D = require(\"./dep\");\nexport const value = new A();\nlet onlyType: B;\nlet alsoType: C;\nexport function useNs(): ns.T { return null as any; }\n",
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "1db4478cbc2c56b1222065891d1ab583d29cc729c56a8c8d1ee630966d950ca1",
+   "text_utf16_units": 214
+  },
+  {
+   "id": "h2-8c/transpile-dts/modules/export-star-and-default",
+   "route": "transpile-dts",
+   "text": "export * from './a';\nexport * as b from './b';\nexport default function (): void {}\n",
+   "text_sha256": "9413551425f81dfeded01c240b5bf8804574e17d43d4ad23ca810a966624778d",
+   "text_utf16_units": 83
+  },
+  {
+   "id": "h2-8c/transpile-dts/modules/import-type-and-typeof",
+   "route": "transpile-dts",
+   "text": "import type { A } from './a';\nimport { B } from './b';\nexport type X = A;\nexport const y: typeof B = B;\nexport const z: import('./c').C = null!;\n",
+   "text_sha256": "8fb4b72ad9700a2322f1eda25dcbe860867837ff5399c6d153c2184bfd4c544f",
+   "text_utf16_units": 145
+  },
+  {
+   "id": "h2-8c/transpile-dts/lang/enum-namespace",
+   "route": "transpile-dts",
+   "text": "const enum E { A = 1, B = A << 1, C = \"x\".length }\nenum F { X, Y = E.B }\nnamespace N { export const v = E.B; export namespace M { export let w = F.Y; } }\ndeclare namespace D { const q: number; }\nexport const u = E.C + N.v;\n",
+   "text_sha256": "e927391e0cf2084a40b85f814c137ac967d5a23cfc00521119b981e62b20d5cc",
+   "text_utf16_units": 223
+  },
+  {
+   "id": "h2-8c/transpile-dts/lang/class-fields",
+   "route": "transpile-dts",
+   "text": "class C { x = 1; static y = 2; #z = 3; declare d: number; accessor a = 4; }\n",
+   "compilerOptions": {
+    "target": "es2022"
+   },
+   "text_sha256": "08e4413ebfd500db2a1cc68626077125ec6b5ba12ae9444724d348f03ad307d8",
+   "text_utf16_units": 76
+  },
+  {
+   "id": "h2-8c/transpile-dts/lang/class-heritage-and-accessors",
+   "route": "transpile-dts",
+   "text": "export class B<T> { get v(): T { return null!; } set v(x: T) {} }\nexport class D extends B<string> implements I { constructor(public x: number, private readonly y?: string) { super(); } }\ninterface I {}\n",
+   "text_sha256": "98fceac17d1becd0a9aa8ab3c5f7978f5a0622ae6b4c7e1350d63c6428fb9a1b",
+   "text_utf16_units": 203
+  },
+  {
+   "id": "h2-8c/transpile-dts/lang/decorators",
+   "route": "transpile-dts",
+   "text": "function dec(...args: any[]) {}\n@dec class A { @dec m(@dec p: string) {} @dec prop = 1; @dec static s() {} }\n",
+   "compilerOptions": {
+    "experimentalDecorators": true
+   },
+   "text_sha256": "98f8930858b2def4ed79ab1b5c60e6d7253d2bfa2a2edeb01defe09386531188",
+   "text_utf16_units": 109
+  },
+  {
+   "id": "h2-8c/transpile-dts/lang/overloads-and-generics",
+   "route": "transpile-dts",
+   "text": "export function f(x: string): string;\nexport function f(x: number): number;\nexport function f(x: any): any { return x; }\nexport function g<T extends object = {}>(x: T): T { return x; }\n",
+   "text_sha256": "f575fbf937cfaada55637c5d8196603c23fcfb21c36aff2e515f8ea9279b2974",
+   "text_utf16_units": 185
+  },
+  {
+   "id": "h2-8c/transpile-dts/lang/const-assertions",
+   "route": "transpile-dts",
+   "text": "export const t = [1, 'a'] as const;\nexport const o = { a: 1 } as const;\nexport const n = 1 as number;\n",
+   "text_sha256": "286b02aaec187c02d6abdcf36cecc84a2c749e4b9d299ee458df9b83c6d02df5",
+   "text_utf16_units": 102
+  },
+  {
+   "id": "h2-8c/transpile-dts/lang/expando-function",
+   "route": "transpile-dts",
+   "text": "export function f() {}\nf.prop = 1;\n",
+   "text_sha256": "1d4b3a796a424811e7e00c4b8befc9462509f414377b4aa3feed9a165dd82a7b",
+   "text_utf16_units": 35
+  },
+  {
+   "id": "h2-8c/transpile-dts/text/crlf",
+   "route": "transpile-dts",
+   "text": "export const a: number = 1;\r\nexport const b: string = '';\r\n",
+   "text_sha256": "f5b14cd9b117121101e149366f107d928e3ba56337139c87ec8be919a90b4dc2",
+   "text_utf16_units": 59
+  },
+  {
+   "id": "h2-8c/transpile-dts/text/crlf-newline-option",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n",
+   "compilerOptions": {
+    "newLine": "crlf"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-dts/text/unicode",
+   "route": "transpile-dts",
+   "text": "export const s = 'é😀漢字';\nexport const \\u{1F600}x: '😀' = '😀';\n",
+   "text_sha256": "f5fa0343e54894397c30e7fdc11a8ffa994f031095a54717911e8da5e00612c4",
+   "text_utf16_units": 64
+  },
+  {
+   "id": "h2-8c/transpile-dts/text/comments",
+   "route": "transpile-dts",
+   "text": "/** doc */\nexport const a = 1; // trailing\n/* internal */ export const b = 2;\n",
+   "text_sha256": "662fb11768407757dfba90eda993fb32d7d3bfd13efac3e21a38caaafb336cef",
+   "text_utf16_units": 78
+  },
+  {
+   "id": "h2-8c/transpile-dts/options/strip-internal",
+   "route": "transpile-dts",
+   "text": "/** @internal */ export const a = 1;\nexport const b = 2;\n",
+   "compilerOptions": {
+    "stripInternal": true
+   },
+   "text_sha256": "49c358e2372927630b0ef10f8d85e2b0797f438552ee83c63d0eb1828d2097e2",
+   "text_utf16_units": 57
+  },
+  {
+   "id": "h2-8c/transpile-dts/options/remove-comments",
+   "route": "transpile-dts",
+   "text": "/** doc */\nexport const a = 1;\n",
+   "compilerOptions": {
+    "removeComments": true
+   },
+   "text_sha256": "a025f569f34f7a653b080b2706aa5ba3c10d45f200193cef21d86860679fbfea",
+   "text_utf16_units": 31
+  },
+  {
+   "id": "h2-8c/transpile-dts/options/declaration-false-forced-true",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "declaration": false,
+    "emitDeclarationOnly": false,
+    "isolatedDeclarations": false
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-dts/options/no-lib-true-forced-false",
+   "route": "transpile-dts",
+   "text": "export const a: Array<number> = [];\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "noLib": true
+   },
+   "text_sha256": "d73ac6f8ccb348ffae964c5ec4b927ed8f5566da56be04145397b37fb4d964ce",
+   "text_utf16_units": 36
+  },
+  {
+   "id": "h2-8c/transpile-dts/options/no-check-false-forced-true",
+   "route": "transpile-dts",
+   "text": "export const x: number = 'a';\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "noCheck": false
+   },
+   "text_sha256": "583521f13c0804ba33e11133f91b8c994eeb09f840e16558c1be2567d91e3cc7",
+   "text_utf16_units": 30
+  },
+  {
+   "id": "h2-8c/transpile-dts/options/unknown-option",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "noSuchOption": true
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-dts/repeat/first",
+   "route": "transpile-dts",
+   "text": "export const first = 1;\n",
+   "text_sha256": "b5e3af850620010b0263a016788409fd508d0e4dc37e88bd2db29168d8dcf398",
+   "text_utf16_units": 24
+  },
+  {
+   "id": "h2-8c/transpile-dts/repeat/second",
+   "route": "transpile-dts",
+   "text": "export const second = 2;\n",
+   "text_sha256": "001abb6bb627a8b9e7a02f9a53887d5181dee5fd05fe9e0f020732e11ca57e93",
+   "text_utf16_units": 25
+  },
+  {
+   "id": "h2-8c/transpile-dts/filename/extensionless",
+   "route": "transpile-dts",
+   "text": "export const a: number = 1;\n",
+   "fileName": "module",
+   "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66",
+   "text_utf16_units": 28
+  },
+  {
+   "id": "h2-8c/transpile-dts/module-name/dts-ignored",
+   "route": "transpile-dts",
+   "text": "export const a = 1;\n",
+   "moduleName": "my/mod",
+   "compilerOptions": {
+    "module": "amd"
+   },
+   "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+   "text_utf16_units": 20
+  },
+  {
+   "id": "h2-8c/transpile-dts/renamed/dts-ignored",
+   "route": "transpile-dts",
+   "text": "import { x } from './a';\nexport const y: typeof x = x;\n",
+   "renamedDependencies": {
+    "./a": "./renamed-a"
+   },
+   "compilerOptions": {
+    "module": "commonjs"
+   },
+   "text_sha256": "b3687848182743a9cb9372d40f0205c1109508a47c0763cb29231f5ee5cd7fc9",
+   "text_utf16_units": 55
+  },
+  {
+   "id": "h2-8c/transpile-dts/jsdoc/parse-none-js-dts",
+   "route": "transpile-dts",
+   "text": "/** @type {number} */\nexport const a = 1;\n/** @param {string} s */\nexport function f(s) { return s; }\n",
+   "fileName": "module.js",
+   "compilerOptions": {
+    "allowJs": true
+   },
+   "jsDocParsingMode": "ParseNone",
+   "text_sha256": "be126eff319d6ccac5d1977439ac1eb377615a7878925ccd73b6656bdd6a7492",
+   "text_utf16_units": 102
+  },
+  {
+   "id": "h2-8c/transpile-dts/jsdoc/parse-all-js-dts",
+   "route": "transpile-dts",
+   "text": "/** @type {number} */\nexport const a = 1;\n/** @param {string} s */\nexport function f(s) { return s; }\n",
+   "fileName": "module.js",
+   "compilerOptions": {
+    "allowJs": true
+   },
+   "jsDocParsingMode": "ParseAll",
+   "text_sha256": "be126eff319d6ccac5d1977439ac1eb377615a7878925ccd73b6656bdd6a7492",
+   "text_utf16_units": 102
+  },
+  {
+   "id": "h2-8c/transpile-dts/jsdoc/parse-for-type-errors-ts",
+   "route": "transpile-dts",
+   "text": "/** @deprecated {@link f} */\nexport const a = 1;\n",
+   "jsDocParsingMode": "ParseForTypeErrors",
+   "text_sha256": "fdb7b7b0e56db27af626d9bbd90e46e26f8bf69d379002ec901ee2c403130e39",
+   "text_utf16_units": 49
+  },
+  {
+   "id": "h2-8c/program-no-check/semantic-error/emits",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "const x: number = 'string';\nexport const y: string = x;\n",
+     "text_sha256": "f3bf4e250386b65735bff54f524247b6b642c4842cf482cecc2c0f47f9ee18f9"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/semantic-error/control-checked",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "const x: number = 'string';\nexport const y: string = x;\n",
+     "text_sha256": "f3bf4e250386b65735bff54f524247b6b642c4842cf482cecc2c0f47f9ee18f9"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": false,
+    "newLine": "lf"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/semantic-error/control-checked-absent",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "const x: number = 'string';\nexport const y: string = x;\n",
+     "text_sha256": "f3bf4e250386b65735bff54f524247b6b642c4842cf482cecc2c0f47f9ee18f9"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "newLine": "lf"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/syntax-error/still-emits",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "let x: = 1;\nexport {};\n",
+     "text_sha256": "3d29fca55f1c8d5f7cf4e822d90d77f966811221c70b688c399377fa9bdd4e80"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/no-emit-on-error/semantic",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "const x: number = 'string';\nexport const y: string = x;\n",
+     "text_sha256": "f3bf4e250386b65735bff54f524247b6b642c4842cf482cecc2c0f47f9ee18f9"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "noEmitOnError": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/no-emit-on-error/syntax",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "let x: = 1;\nexport {};\n",
+     "text_sha256": "3d29fca55f1c8d5f7cf4e822d90d77f966811221c70b688c399377fa9bdd4e80"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "noEmitOnError": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/no-emit-on-error/declaration-error",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "class Private {}\nexport const v = new Private();\nexport function f() { return new Private(); }\n",
+     "text_sha256": "7c210535843a6d1c33c301697da8badfa88d4544b86a66f606de41292f67d6f5"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "noEmitOnError": true,
+    "declaration": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/no-emit/plain",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "const x: number = 'string';\nexport const y: string = x;\n",
+     "text_sha256": "f3bf4e250386b65735bff54f524247b6b642c4842cf482cecc2c0f47f9ee18f9"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "noEmit": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/no-emit/declaration-getter",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "class Private {}\nexport const v = new Private();\n",
+     "text_sha256": "978396d34108b6d31999971f455397d9ea099f3a5c9ae15804e2d7a3b4dbaea3"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "noEmit": true,
+    "declaration": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/declaration/clean",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a: number = 1;\nexport function f(x: string): string { return x; }\n",
+     "text_sha256": "341016b4804e9fd92fc9d91a9bc2f4a179a03ee33070a670ff20d3843f58aef7"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "declaration": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/declaration/inferred-types",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a = 1;\nexport function f(x: string) { return { x, n: [1, 'a'] }; }\nexport class C { m() { return this; } }\n",
+     "text_sha256": "a9abc2923abfb86a19b3a77570e9c7b107b0ee538ba2e065deb6f915d8dc094d"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "declaration": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/declaration/declaration-error-blocks-dts",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "class Private {}\nexport const v = new Private();\n",
+     "text_sha256": "978396d34108b6d31999971f455397d9ea099f3a5c9ae15804e2d7a3b4dbaea3"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "declaration": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/declaration/declaration-map",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a: number = 1;\n",
+     "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "declaration": true,
+    "declarationMap": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/isolated-declarations/error",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export function f() { return 1; }\nexport const ok: number = 1;\n",
+     "text_sha256": "3b521fd669e5518748a7ea44a5fd1e954e2e61c5c9d66c11554ea21c51ab3ff4"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "declaration": true,
+    "isolatedDeclarations": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/isolated-declarations/clean",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export function f(): number { return 1; }\n",
+     "text_sha256": "27cc9448e765b170fdfdb59fdc8df6b75824679980d0ec95a40041aa0bf13e82"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "declaration": true,
+    "isolatedDeclarations": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/js-declaration/allow-js",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.js",
+     "text": "export const a = 1;\n/** @param {number} x */\nexport function f(x) { return x; }\n",
+     "text_sha256": "6866b809210a191224a46635c01feb7f2513ff301ddc5bf3e4623c93dbb14154"
+    }
+   ],
+   "roots": [
+    "/project/src/a.js"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "allowJs": true,
+    "declaration": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/js-declaration/check-js-error",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.js",
+     "text": "// @ts-check\nexport const a = 1;\n/** @type {number} */\nexport const b = 'string';\n",
+     "text_sha256": "38c4517cfa2609b5e52b45e3c3bdc2c004097c41b3beba92019ab47806809e27"
+    }
+   ],
+   "roots": [
+    "/project/src/a.js"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/import-elision/cross-file",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/dep.ts",
+     "text": "export class A {}\nexport interface B {}\nexport type C = number;\nexport type T = string;\n",
+     "text_sha256": "4defa9e949df595dbaa2dcf9136e95c5e1d9762d9562d472be393ed34cbcd87e"
+    },
+    {
+     "path": "/project/src/main.ts",
+     "text": "import { A, B, type C } from \"./dep\";\nimport * as ns from \"./dep\";\nimport D = require(\"./dep\");\nexport const value = new A();\nlet onlyType: B;\nlet alsoType: C;\nexport function useNs(): ns.T { return null as any; }\n",
+     "text_sha256": "1db4478cbc2c56b1222065891d1ab583d29cc729c56a8c8d1ee630966d950ca1"
+    }
+   ],
+   "roots": [
+    "/project/src/dep.ts",
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "module": "commonjs"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/import-elision/cross-file-esnext",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/dep.ts",
+     "text": "export class A {}\nexport interface B {}\nexport type C = number;\nexport type T = string;\n",
+     "text_sha256": "4defa9e949df595dbaa2dcf9136e95c5e1d9762d9562d472be393ed34cbcd87e"
+    },
+    {
+     "path": "/project/src/main.ts",
+     "text": "import { A, B, type C } from \"./dep\";\nimport * as ns from \"./dep\";\nexport const value = new A();\nlet onlyType: B;\nlet alsoType: C;\nexport function useNs(): ns.T { return null as any; }\n",
+     "text_sha256": "323dd4019850c4a1bb5227d52b88024d5a9307d28f4ae54505922cfdc445ab3a"
+    }
+   ],
+   "roots": [
+    "/project/src/dep.ts",
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "module": "esnext"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/import-elision/cross-file-control-checked",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/dep.ts",
+     "text": "export class A {}\nexport interface B {}\nexport type C = number;\nexport type T = string;\n",
+     "text_sha256": "4defa9e949df595dbaa2dcf9136e95c5e1d9762d9562d472be393ed34cbcd87e"
+    },
+    {
+     "path": "/project/src/main.ts",
+     "text": "import { A, B, type C } from \"./dep\";\nimport * as ns from \"./dep\";\nimport D = require(\"./dep\");\nexport const value = new A();\nlet onlyType: B;\nlet alsoType: C;\nexport function useNs(): ns.T { return null as any; }\n",
+     "text_sha256": "1db4478cbc2c56b1222065891d1ab583d29cc729c56a8c8d1ee630966d950ca1"
+    }
+   ],
+   "roots": [
+    "/project/src/dep.ts",
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": false,
+    "newLine": "lf",
+    "module": "commonjs"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/import-elision/ts-nocheck-directive",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/dep.ts",
+     "text": "export class A {}\nexport interface B {}\n",
+     "text_sha256": "88354a3a49e3c1e9eb49ad1a4abd0b3a2b450d43347017b8074446f4b3175824"
+    },
+    {
+     "path": "/project/src/main.ts",
+     "text": "// @ts-nocheck\nimport { A, B } from './dep';\nlet t: B;\nexport const v = new A();\n",
+     "text_sha256": "c66b9d22f7e7f91ddb33c29bdebdad2a6920d37e9d44f23a8a57c4d1efb62d63"
+    }
+   ],
+   "roots": [
+    "/project/src/dep.ts",
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": false,
+    "newLine": "lf",
+    "module": "commonjs"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/import-elision/unresolved",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "import { A } from 'missing';\nimport { B } from './also-missing';\nlet t: A;\nexport const v = new B();\n",
+     "text_sha256": "4abfbca32b035d5bd497d61a7f2139a2042caf6389097fe9920b3c1b1fdfc80f"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "module": "commonjs"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/import-elision/reexports",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/dep.ts",
+     "text": "export class A {}\nexport interface B {}\n",
+     "text_sha256": "88354a3a49e3c1e9eb49ad1a4abd0b3a2b450d43347017b8074446f4b3175824"
+    },
+    {
+     "path": "/project/src/main.ts",
+     "text": "import { A, B } from './dep';\nexport { A, B };\nexport { A as A2 } from './dep';\nexport * from './dep';\nexport type { B as B2 } from './dep';\n",
+     "text_sha256": "8949f6dd975993757a693702b39a8e3de69c4f2ec39c761cce334f6f45e94b65"
+    }
+   ],
+   "roots": [
+    "/project/src/dep.ts",
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "module": "commonjs"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/import-elision/import-equals-export",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/dep.ts",
+     "text": "export namespace N { export const x = 1; export type T = string; }\n",
+     "text_sha256": "789f24b635b29bb1dd04a63deacf0e5fc7629d1125e0080fc3d95282b99f467f"
+    },
+    {
+     "path": "/project/src/main.ts",
+     "text": "import { N } from './dep';\nimport X = N.x;\nimport T = N.T;\nexport import Y = N.x;\nexport const v: T = '' + X;\n",
+     "text_sha256": "757151e2babc02f999fa4fc8aee4ca2e617e7e7bb174c6804cfbf87bfc51cc3a"
+    }
+   ],
+   "roots": [
+    "/project/src/dep.ts",
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "module": "commonjs"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/enum/const-enum-cross-file",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/e.ts",
+     "text": "export const enum E { A = 1, B = A * 2, S = 'str' }\n",
+     "text_sha256": "a5b14a39ae32afa89549bd1c2cc2846a5bd11c51129f7dc1f7574128c1c9203d"
+    },
+    {
+     "path": "/project/src/main.ts",
+     "text": "import { E } from './e';\nexport const v = E.B + E.A;\nexport const s = E.S;\nexport const w = E['A'];\n",
+     "text_sha256": "f58d0e59a85fd7110acb4d869ba3bdd63048409a6a5242daae2b49560f52b93c"
+    }
+   ],
+   "roots": [
+    "/project/src/e.ts",
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "module": "commonjs"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/enum/const-enum-same-file-es5",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "const enum E { A = 1, B = A << 1, C = \"x\".length }\nenum F { X, Y = E.B }\nnamespace N { export const v = E.B; export namespace M { export let w = F.Y; } }\ndeclare namespace D { const q: number; }\nexport const u = E.C + N.v;\n",
+     "text_sha256": "e927391e0cf2084a40b85f814c137ac967d5a23cfc00521119b981e62b20d5cc"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "module": "commonjs",
+    "target": "es5",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/flags/es5-loop-capture",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "class Base { m() { return 1; } }\nclass Derived extends Base {\n  async m2() { return super.m() + arguments.length; }\n  static { this.x = super.toString(); }\n}\nfor (let i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }\nfunction f() { return () => arguments[0]; }\n",
+     "text_sha256": "5e9344e8eb2ed1cdaecdf5b6b69f84e277a2f5da9ae9c3de29be37f78eb8c555"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "target": "es5",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/flags/es5-loop-capture-commonjs",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "class Base { m() { return 1; } }\nclass Derived extends Base {\n  async m2() { return super.m() + arguments.length; }\n  static { this.x = super.toString(); }\n}\nfor (let i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }\nfunction f() { return () => arguments[0]; }\nexport {};\n",
+     "text_sha256": "6d8738420437bd76250dd4631dc1e0b5da3af9ef0eed2de8249d1119135f2998"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "target": "es5",
+    "module": "commonjs",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/flags/es2015-async-super",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "class Base { m() { return 1; } }\nclass Derived extends Base {\n  async m2() { return super.m() + arguments.length; }\n  static { this.x = super.toString(); }\n}\nfor (let i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }\nfunction f() { return () => arguments[0]; }\n",
+     "text_sha256": "5e9344e8eb2ed1cdaecdf5b6b69f84e277a2f5da9ae9c3de29be37f78eb8c555"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "target": "es2015"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/flags/es2017-static-block",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "class Base { m() { return 1; } }\nclass Derived extends Base {\n  async m2() { return super.m() + arguments.length; }\n  static { this.x = super.toString(); }\n}\nfor (let i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }\nfunction f() { return () => arguments[0]; }\n",
+     "text_sha256": "5e9344e8eb2ed1cdaecdf5b6b69f84e277a2f5da9ae9c3de29be37f78eb8c555"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "target": "es2017"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/flags/es5-class-fields-decorators",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "class C { x = 1; static y = 2; #z = 3; declare d: number; accessor a = 4; }\nfunction dec(...args: any[]) {}\n@dec class A { @dec m(@dec p: string) {} @dec prop = 1; @dec static s() {} }\n",
+     "text_sha256": "bcec7bb3211919cc0283c6989f0a1d78a0f9ef014576e204b619ba2b7468df09"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "target": "es5",
+    "experimentalDecorators": true,
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/decorators/metadata-cross-file",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/dep.ts",
+     "text": "export class Dep {}\nexport interface I {}\nexport type U = string | number;\nexport enum En { A }\n",
+     "text_sha256": "c7fe95c05eb43ac06fead74faf87832a3a7727a8394e8efd663cfe841e0ee803"
+    },
+    {
+     "path": "/project/src/main.ts",
+     "text": "import { Dep, I, U, En } from './dep';\nfunction dec(...a: any[]) {}\n@dec export class C {\n  constructor(private d: Dep, i: I, u: U, e: En, n: number, s?: string, f?: () => void) {}\n  @dec m(@dec p: Dep): Promise<I> { return null!; }\n  @dec prop: En = En.A;\n}\n",
+     "text_sha256": "dff5bdec3851f3aeda39d4766ec4a99ad6117929ca23eccfcb4df924254ed3f6"
+    }
+   ],
+   "roots": [
+    "/project/src/dep.ts",
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "target": "es2017",
+    "module": "commonjs"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/decorators/standard-esnext",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "function dec(...args: any[]) {}\n@dec class A { @dec m(@dec p: string) {} @dec prop = 1; @dec static s() {} }\n",
+     "text_sha256": "98f8930858b2def4ed79ab1b5c60e6d7253d2bfa2a2edeb01defe09386531188"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "target": "esnext"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/jsx/react",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.tsx",
+     "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+     "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d"
+    }
+   ],
+   "roots": [
+    "/project/src/main.tsx"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "jsx": "react",
+    "module": "commonjs"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/jsx/react-jsx",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.tsx",
+     "text": "const el = <div className=\"a\">{1 + 1}<span /></div>;\nexport default el;\n",
+     "text_sha256": "2b06da78d3e6ff8c90a1c815c7a9db372cd1f9bb8341a7a68ac151d34bbe454d"
+    }
+   ],
+   "roots": [
+    "/project/src/main.tsx"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "jsx": "react-jsx",
+    "module": "esnext"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/maps/source-map",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a: number = 1;\n",
+     "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "sourceMap": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/maps/inline-source-map",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a: number = 1;\n",
+     "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "inlineSourceMap": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/no-lib/global-diagnostics",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a: number = 1;\n",
+     "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "noLib": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/no-lib/global-diagnostics-control-checked",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a: number = 1;\n",
+     "text_sha256": "8fbccf1f29c58f5ceefc8a9a2d793cadf78d1f97e74c5e33b231b96a0cf74c66"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": false,
+    "newLine": "lf",
+    "noLib": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/options/conflict-emit-declaration-only",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a = 1;\n",
+     "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "emitDeclarationOnly": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/options/list-emitted-files",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a = 1;\n",
+     "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "listEmittedFiles": true,
+    "declaration": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/sink/on-error-javascript",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a = 1;\n",
+     "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "declaration": true
+   },
+   "sink_rules": [
+    {
+     "path": "/project/src/a.js",
+     "action": "on-error"
+    }
+   ]
+  },
+  {
+   "id": "h2-8c/program-no-check/sink/on-error-declaration",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a = 1;\n",
+     "text_sha256": "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "declaration": true
+   },
+   "sink_rules": [
+    {
+     "path": "/project/src/a.d.ts",
+     "action": "on-error"
+    }
+   ]
+  },
+  {
+   "id": "h2-8c/program-no-check/control-checked/es5-flags",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "class Base { m() { return 1; } }\nclass Derived extends Base {\n  async m2() { return super.m() + arguments.length; }\n  static { this.x = super.toString(); }\n}\nfor (let i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }\nfunction f() { return () => arguments[0]; }\n",
+     "text_sha256": "5e9344e8eb2ed1cdaecdf5b6b69f84e277a2f5da9ae9c3de29be37f78eb8c555"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": false,
+    "newLine": "lf",
+    "target": "es5",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/control-checked/es2015-flags",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "class Base { m() { return 1; } }\nclass Derived extends Base {\n  async m2() { return super.m() + arguments.length; }\n  static { this.x = super.toString(); }\n}\nfor (let i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }\nfunction f() { return () => arguments[0]; }\n",
+     "text_sha256": "5e9344e8eb2ed1cdaecdf5b6b69f84e277a2f5da9ae9c3de29be37f78eb8c555"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": false,
+    "newLine": "lf",
+    "target": "es2015"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/control-checked/import-helpers",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "export class A extends Object {}\nexport const {a, ...r} = {a: 1};\n",
+     "text_sha256": "d62bc0dddf267aa4009711f48bddd2ecbad1048d473b22094a1f90bd6a5b212b"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": false,
+    "newLine": "lf",
+    "target": "es5",
+    "module": "commonjs",
+    "importHelpers": true,
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/control-checked/namespace-source-map",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/namespace.ts",
+     "text": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n",
+     "text_sha256": "a9372cec4cb76c5685b2253b293fa5b820c87e7b0b5133bf046a448ee9dd29e8"
+    }
+   ],
+   "roots": [
+    "/project/src/namespace.ts"
+   ],
+   "options": {
+    "noCheck": false,
+    "newLine": "lf",
+    "target": "es2015",
+    "sourceMap": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/no-check/import-helpers",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/main.ts",
+     "text": "export class A extends Object {}\nexport const {a, ...r} = {a: 1};\n",
+     "text_sha256": "d62bc0dddf267aa4009711f48bddd2ecbad1048d473b22094a1f90bd6a5b212b"
+    }
+   ],
+   "roots": [
+    "/project/src/main.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "target": "es5",
+    "module": "commonjs",
+    "importHelpers": true,
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/no-check/namespace-source-map",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/namespace.ts",
+     "text": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n",
+     "text_sha256": "a9372cec4cb76c5685b2253b293fa5b820c87e7b0b5133bf046a448ee9dd29e8"
+    }
+   ],
+   "roots": [
+    "/project/src/namespace.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "target": "es2015",
+    "sourceMap": true
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/text/crlf-unicode",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const s = 'é😀漢字';\r\nexport const t: number = 1;\r\n",
+     "text_sha256": "df396669e2a4c44814b7ebc695d8912bf5c6d055e00508a27818e1ad3b8eb7b9"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "crlf",
+    "target": "es5"
+   }
+  },
+  {
+   "id": "h2-8c/program-no-check/multi/three-files-mixed",
+   "route": "program-no-check",
+   "current_directory": "/project",
+   "use_case_sensitive_file_names": true,
+   "files": [
+    {
+     "path": "/project/src/a.ts",
+     "text": "export const a: number = 'x' as any;\n",
+     "text_sha256": "4540b31332af181993dd6f747af473acd999d2a314f2ff449dc6f2db9a064b12"
+    },
+    {
+     "path": "/project/src/b.ts",
+     "text": "import { a } from './a';\nexport const b = a + 1;\n",
+     "text_sha256": "d5171795d9729ff681f770709621b0dc215fd7e9c362aed4cba0a1a914e69a29"
+    },
+    {
+     "path": "/project/src/c.ts",
+     "text": "import type { b } from './b';\nexport {};\n",
+     "text_sha256": "2967963d380b7cb6cc38af27aa7e8fb8b6d24b276e753760a6315488bc156f4f"
+    }
+   ],
+   "roots": [
+    "/project/src/a.ts",
+    "/project/src/b.ts",
+    "/project/src/c.ts"
+   ],
+   "options": {
+    "noCheck": true,
+    "newLine": "lf",
+    "module": "commonjs",
+    "declaration": true
+   }
+  }
+ ]
+}

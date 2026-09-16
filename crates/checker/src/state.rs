@@ -544,6 +544,10 @@ pub struct CheckerState<'a> {
     /// covered by an aggregated 7027 range; cleared per checked file
     /// (86985's `= void 0`).
     pub(crate) reported_unreachable_nodes: std::collections::HashSet<NodeId>,
+    /// tsrs-native: number of source files whose checkSourceFileWorker body
+    /// ran (not skipped by skipTypeChecking and not already TypeChecked).
+    /// H2.8c evidence counter; never consulted by checking itself.
+    pub(crate) checked_source_files: u32,
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
     /// tsc currentNode (46454): the element/deferred-node the driver is
@@ -1158,6 +1162,7 @@ impl<'a> CheckerState<'a> {
             relations: RelationCaches::default(),
             subtype_reduction_cache: std::collections::HashMap::new(),
             speculation_depth: 0,
+            checked_source_files: 0,
             #[cfg(test)]
             speculation_commit_count: 0,
             #[cfg(test)]

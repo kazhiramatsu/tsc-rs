@@ -209,6 +209,13 @@ impl SystemModuleInfo {
                     host, resolver, arena, *statement,
                 )?
                 .map(JsString::from)
+                // tryRenameExternalModule (27716): API renamedDependencies.
+                .or_else(|| {
+                    crate::external_module_names::try_rename_external_module(
+                        arena.source(source).ok()?.syntax(),
+                        original_text,
+                    )
+                })
                 .unwrap_or_else(|| original_text.to_owned());
                 let index = if let Some(index) = group_indices.get(&text).copied() {
                     index
@@ -2187,12 +2194,22 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             Some(argument)
                 if self.context.arena().node(argument)?.kind == SyntaxKind::StringLiteral =>
             {
-                crate::external_module_names::resolved_external_module_name_literal(
+                let resolved = crate::external_module_names::resolved_external_module_name_literal(
                     self.host,
                     self.resolver,
                     self.context.arena(),
                     original,
-                )?
+                )?;
+                match resolved {
+                    Some(name) => Some(name),
+                    // tryRenameExternalModule (27716) for dynamic imports.
+                    None => string_literal_text(self.context.arena(), argument)
+                        .ok()
+                        .and_then(|text| {
+                            let source = self.context.arena().source(self.source).ok()?.syntax();
+                            crate::external_module_names::try_rename_external_module(source, text)
+                        }),
+                }
             }
             _ => None,
         };

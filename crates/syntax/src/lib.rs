@@ -138,8 +138,13 @@ pub struct SourceFile {
     pub lib_reference_directives: Vec<FileReference>,
     /// tsc SourceFile.amdDependencies, in leading pragma order.
     pub amd_dependencies: Vec<AmdDependency>,
-    /// tsc SourceFile.moduleName from the final `amd-module` pragma.
+    /// tsc SourceFile.moduleName from the final `amd-module` pragma, or the
+    /// API-supplied `TranspileOptions.moduleName` (typescript.js:146100).
     pub module_name: Option<String>,
+    /// tsc SourceFile.renamedDependencies: API-supplied module specifier
+    /// renames (typescript.js:146101), consulted by tryRenameExternalModule
+    /// (_tsc.js:27720). Never produced by parsing.
+    pub renamed_dependencies: Vec<(String, String)>,
     /// Whether leading multiline comments contain a recognized
     /// `@jsxImportSource` pragma.
     pub has_jsx_import_source_pragma: bool,
