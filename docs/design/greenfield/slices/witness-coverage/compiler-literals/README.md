@@ -26,8 +26,8 @@ command status等を追加比較する。入力と親qualificationのhashも検�
 retained530とは別の比較集合。
 
 `adjacent-probes` 23行は以前の診断用選択として保持し、promoted64行へ混ぜない。
-recovery corpus50行は別target。そのobserverはローカルcensusを要求するため、
-入力の永続化・既存acceptanceとの比較面の照合を次のOPS-COVER-3へ残す。
+recovery corpus50行は別target。当時ローカルcensusへの依存で残した入口は、
+[OPS-COVER-3H](../compiler-recovery-map/README.md)で元censusの保存と専用実行を追加した。
 旧literal rows4行も既存acceptance/今回のcomplete targetとの重複を区別して台帳に保持する。
 
 ## 実行・選択・失敗伝播

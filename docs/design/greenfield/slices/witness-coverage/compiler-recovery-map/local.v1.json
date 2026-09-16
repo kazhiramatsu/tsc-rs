@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "slices": [
+    "OPS-COVER-3H",
+    "OPS-COVER-3I"
+  ],
+  "base_commit": "65aa1a1590d92e3880fa9ba7d5e78453477fe02b",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "node": "v25.2.1",
+  "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "runs": [
+    {
+      "base_commit": "65aa1a1590d92e3880fa9ba7d5e78453477fe02b",
+      "command": [
+        "python3",
+        ".github/ci/replay.py",
+        "witnesses"
+      ],
+      "inputs_sha256": {
+        "scripts/witness.py": "5773258ab4c22bd174a3878c7dbfd337adb1b051338d6c5a20e7b15354bcf761",
+        ".github/ci/replay.py": "e140fcd561bc099c15ffb03c79d1680a452c24f96afeaad71e8eab54bfc66332",
+        ".github/ci/test_replay.py": "8432d2e648c40e01861e6ec6f2846d44e70ee5355389679c0657be3beacfefd2",
+        "crates/compiler/tests/h2_8a_utf16_literal_recovery_corpus.rs": "230a5d17b27c59ac7c6ee530150b0a7bca4c74d5d3b82bc0d5f7484e8f165246",
+        "crates/compiler/tests/h2_6a_map_option_projection.rs": "14fec485caf7207c5a1fe26628cabb78ea51a272913e419dff0a3760a526b570",
+        "crates/compiler/tests/fixtures/utf16-literal-recovery-corpus.json": "8974a5d03595a5d9cea728556467ee70e187a5295a57e12ecdb71eb7c0d2e87c",
+        "crates/compiler/tests/fixtures/utf16-literal-recovery-census.json": "16fafabaac5e46d99e0caebd37f215d387a2199dbd36f0473f9fbd678cb78efb",
+        "crates/compiler/tests/fixtures/h2-6a-map-option-projection.json": "cb75bbf1b0ca866148c736089be22d37ab1829f9dee132837bc8250eb7fbf9d9",
+        "scripts/observe-utf16-literal-recovery-corpus.mjs": "f418db8da2bf6ff7cc9f68751dfdb41fc5947f7240ed10eba29a8252878d4654",
+        "crates/oracle/h2-6a-map-option-projection.mjs": "0c7a1ea35b8e35823ca41f94163e47d3df01bf8de1c661324b11f9955d9a4605",
+        "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+        "Cargo.lock": "e2a9b63447bb9cc3ee9924ae43915d2d7dd4f8f715c503e0b3372643cbb42810"
+      },
+      "env": {
+        "WITNESS_SUITES": "[\"utf16-recovery-corpus\",\"map-option-projection\"]",
+        "CARGO_BUILD_JOBS": "2",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "exit_code": 1,
+      "seconds": 520.1,
+      "log_sha256": "15b7486145df8bb4e5229263bbbaaeaf38d588d7ece0202e74c054248599658b",
+      "binaries_sha256": {
+        "target/debug/deps/h2_8a_utf16_literal_recovery_corpus-b0b7370afa7a28e6": "346b068ae042a50c58152bddb304cba09201fda985fe6e431cd3b8fcbc4182eb",
+        "target/debug/deps/h2_6a_map_option_projection-29567c2d8a546480": "7001b6d713531b8b5912f6a7bcbebd2d634268954e76b9d7f9a0de7fd856b663"
+      },
+      "phase": "initial",
+      "log": "initial.log.gz",
+      "log_gzip_sha256": "e6a94b5179aa4e0ef5d8d62a8858500a54ff168ffc05a66822462a72ffaadf75",
+      "test_summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.53s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 71.60s"
+      ]
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/witness.py",
+        "map-option-projection",
+        "--all"
+      ],
+      "inputs_sha256": {
+        "scripts/witness.py": "357c2a3b49f86870fd2d4fec05c96efddfb731cb7c2f41795f642440a62787b9",
+        ".github/ci/replay.py": "e140fcd561bc099c15ffb03c79d1680a452c24f96afeaad71e8eab54bfc66332",
+        ".github/ci/test_replay.py": "7ca0ad213f2752a475f9970f6fb154ebb5c76a63a4e33e8fa72cb658858d2976",
+        "crates/compiler/tests/h2_8a_utf16_literal_recovery_corpus.rs": "230a5d17b27c59ac7c6ee530150b0a7bca4c74d5d3b82bc0d5f7484e8f165246",
+        "crates/compiler/tests/h2_6a_map_option_projection.rs": "14fec485caf7207c5a1fe26628cabb78ea51a272913e419dff0a3760a526b570",
+        "crates/compiler/tests/fixtures/utf16-literal-recovery-corpus.json": "8974a5d03595a5d9cea728556467ee70e187a5295a57e12ecdb71eb7c0d2e87c",
+        "crates/compiler/tests/fixtures/utf16-literal-recovery-census.json": "16fafabaac5e46d99e0caebd37f215d387a2199dbd36f0473f9fbd678cb78efb",
+        "crates/compiler/tests/fixtures/h2-6a-map-option-projection.json": "cb75bbf1b0ca866148c736089be22d37ab1829f9dee132837bc8250eb7fbf9d9",
+        "scripts/observe-utf16-literal-recovery-corpus.mjs": "f418db8da2bf6ff7cc9f68751dfdb41fc5947f7240ed10eba29a8252878d4654",
+        "crates/oracle/h2-6a-map-option-projection.mjs": "0c7a1ea35b8e35823ca41f94163e47d3df01bf8de1c661324b11f9955d9a4605",
+        "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+        "Cargo.lock": "e2a9b63447bb9cc3ee9924ae43915d2d7dd4f8f715c503e0b3372643cbb42810"
+      },
+      "env": {
+        "CARGO_BUILD_JOBS": "2",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "exit_code": 0,
+      "seconds": 89.458,
+      "log_sha256": "4707fd993bbe9e05f45778b76ce14ad0049d23df06b9d6881bc80d5a0c311583",
+      "binaries_sha256": {
+        "target/debug/deps/h2_6a_map_option_projection-29567c2d8a546480": "7001b6d713531b8b5912f6a7bcbebd2d634268954e76b9d7f9a0de7fd856b663"
+      },
+      "phase": "final-map",
+      "log": "final-map.log.gz",
+      "log_gzip_sha256": "92aefcfef7d6b4297b6dd77bf6a9b3a94ac36138c4f73fcbd97eb4bbc11a785c",
+      "test_summaries": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 72.41s"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "command": [
+        "node",
+        ".github/ci/qualification.mjs",
+        "check-policy"
+      ],
+      "exit_code": 0,
+      "stdout": "hosted acceptance execution policy is valid\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python3",
+        "docs/design/greenfield/slices/witness-coverage/inventory.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"standalone_targets\": 69, \"lib_bin_harness_targets\": 16, \"lib_bin_harnesses_with_direct_command\": 1, \"unfiltered_target_commands\": 29, \"filtered_target_commands\": 12, \"no_direct_target_command\": 28, \"targets_with_acceptance_shared_sources\": 10, \"unregistered_targets_selecting_full_replay\": 28}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "planner": {
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      ".github/ci",
+      "-p",
+      "test_replay.py"
+    ],
+    "exit_code": 0,
+    "tests": 51,
+    "log": "planner.log.gz",
+    "sha256": "9e66820db4a30146e9bc700babb6b1f5c3d5c840dfbaa9cb381aef55500cfe49"
+  },
+  "runner_correction": {
+    "field": "COMPILER_DIRECT.map-option-projection.filtered_tests",
+    "before": 1,
+    "after": 2,
+    "all_other_runner_bytes_unchanged": true,
+    "map_binary_unchanged": true
+  },
+  "hosted": "not-yet-run"
+}

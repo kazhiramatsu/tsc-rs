@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Run a focused witness selection without building xtask first."""
 import argparse
+from contextlib import contextmanager
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -105,6 +107,28 @@ CONFIG_LIBRARY_GROUPS = (
 # These compiler witnesses have dedicated inputs or additional command fields.
 # Shared helper tests stay in acceptance; select the dedicated test where needed.
 COMPILER_DIRECT = {
+    "utf16-recovery-corpus": {
+        "target": "h2_8a_utf16_literal_recovery_corpus",
+        "tests": 1,
+        "fixtures": (("crates/compiler/tests/fixtures/utf16-literal-recovery-corpus.json", 50, "case_id"),),
+        "observers": (("scripts/observe-utf16-literal-recovery-corpus.mjs", "--census",
+                       "target/declaration-comment-ranges-runs/utf16-literal-recovery-census.json"),),
+        # The frozen observer records this exact relative path in its result.
+        # Preserve both its source hash and the original observation bytes.
+        "staged_inputs": (("crates/compiler/tests/fixtures/utf16-literal-recovery-census.json",
+                           "target/declaration-comment-ranges-runs/utf16-literal-recovery-census.json",
+                           "16fafabaac5e46d99e0caebd37f215d387a2199dbd36f0473f9fbd678cb78efb"),),
+    },
+    "map-option-projection": {
+        "target": "h2_6a_map_option_projection",
+        "test": ("original_floor_divergence_and_existing_map_family_parity",
+                 "h2_6a_rows_and_adjacent_controls_match_complete_frozen_tuples",
+                 "map_option_directives_and_virtual_configs_match_typescript"),
+        "tests": 3,
+        "filtered_tests": 2,
+        "fixtures": (("crates/compiler/tests/fixtures/h2-6a-map-option-projection.json", 31, "case_id"),),
+        "observers": ("crates/oracle/h2-6a-map-option-projection.mjs",),
+    },
     # These exact tests share the large contracts binary. Only their dedicated
     # modules/fixtures own this suite; contracts.rs remains a shared input.
     "config-library": {
@@ -388,6 +412,7 @@ def invocation(suite, needles, environ=None):
         env.pop("TSC_RS_UTF16_LITERAL_WITNESS_FILTER", None)
         env.pop("TSC_RS_H2_5H_PARAMETER_FILTER", None)
         env.pop("TSC_RS_H2_5H_PARAMETER_CAPTURE_DIR", None)
+        env.pop("TSRS_MAP_OPTION_CAPTURE", None)
         for key in ("TSC_RS_DECL_COMMENT_FILTER", "TSC_RS_DECL_COMMENT_CAPTURE_DIR",
                     "TSC_RS_JSDOC_RETURN_FILTER", "TSC_RS_JSDOC_RETURN_CAPTURE_DIR",
                     "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR",
@@ -445,6 +470,7 @@ def compiler_direct_inputs(suite):
     # That shared input keeps full replay via the planner's unknown-input rule.
     return {*spec.get("sources", (f"crates/compiler/tests/{spec['target']}.rs",)),
             *(observer[1] for observer in compiler_direct_observers([suite])),
+            *(source for source, _, _ in spec.get("staged_inputs", ())),
             *(file for file, _, _ in spec["fixtures"]), *spec.get("inputs", ())}
 
 
@@ -482,6 +508,33 @@ def compiler_direct_command(suites):
     return [*command, "--", "--nocapture", "--test-threads=1"]
 
 
+@contextmanager
+def staged_compiler_inputs(suites):
+    """Restore hash-pinned historical inputs only for the frozen observer call."""
+    created = []
+    try:
+        for suite in suites:
+            for source, destination, expected in COMPILER_DIRECT[suite].get("staged_inputs", ()):
+                data = (ROOT / source).read_bytes()
+                if hashlib.sha256(data).hexdigest() != expected:
+                    raise ValueError(f"{suite}: archived input hash drift: {source}")
+                target = ROOT / destination
+                target.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    output = target.open("xb")
+                except FileExistsError:
+                    if target.read_bytes() != data:
+                        raise ValueError(f"{suite}: existing staged input differs: {destination}") from None
+                else:
+                    created.append(target)
+                    with output:
+                        output.write(data)
+        yield
+    finally:
+        for target in reversed(created):
+            target.unlink()
+
+
 def run_compiler_direct(suites):
     """Check selected frozen oracles and replay their complete standalone targets."""
     if not suites or len(set(suites)) != len(suites) or any(suite not in COMPILER_DIRECT for suite in suites):
@@ -491,8 +544,9 @@ def run_compiler_direct(suites):
     for suite in suites:
         print(f"{suite}: {len(case_ids(suite))} fixture rows (including any typed refusal controls)", flush=True)
     started = time.monotonic()
-    for command in compiler_direct_observers(suites):
-        subprocess.run(list(command), cwd=ROOT, check=True)
+    with staged_compiler_inputs(suites):
+        for command in compiler_direct_observers(suites):
+            subprocess.run(list(command), cwd=ROOT, check=True)
     oracle_seconds = time.monotonic() - started
     _, env = invocation(suites[0], [])
     started = time.monotonic()
