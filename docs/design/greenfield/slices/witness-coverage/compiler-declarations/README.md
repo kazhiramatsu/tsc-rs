@@ -79,5 +79,31 @@ hosted全体の時間は分けて記録し、今回のhosted所要時間を過�
 台帳v11は67 standalone中25 unfiltered / 10 filtered / 32直接入口なし。
 残る直接入口なしはcompiler12・その他20、lib/binは15。既存filtered targetの残部も別管理する。
 
-hostedは未実行。PR head、run URL、controls全体とbuild/oracle/replayの実測、両gateの結果は
-統合時に追記する。入口の実装・ローカル比較の成功とhosted qualificationを区別する。
+## Hosted と統合
+
+[PR #540](https://github.com/kazhiramatsu/tsc-rs/pull/540)でmainに統合済み。
+merge `c75a8579cedc00f284dfad21650c82428b24872f`、head `e2679f6f77cc74ea33431f363fdf70e91a7c9ac4`。
+全7 replay jobと両gateが成功した。candidate / tested merge / landed mergeのtreeは同一。
+[受領記録](hosted.v1.json)と[controlsの完全ログ](hosted-controls.log.gz)を保存した。
+`local.v1.json` のhosted未実行はローカル検証時点の履歴として保持する。
+
+[acceptance](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35068755559)、
+[witnesses](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35068755615)で、
+追加129 commandsが各2回一致。specifier60 native比較、JSDoc58 native二重比較、
+commentの3 tests / 41入力と82 upstream commandをログで確認した。
+controls全体は22分14秒。compiler batch全体は10 target / 23 tests、observer217.655秒、
+Cargo build/replay553.618秒。このbatch時間には既存7 suiteも含まれる。
+
+| PR replay job | 実時間 |
+| --- | ---: |
+| acceptance (late) | 17分12秒 |
+| acceptance (wide) | 28分45秒 |
+| acceptance (early) | 12分02秒 |
+| witnesses (controls) | 22分14秒 |
+| witnesses (printer) | 2分18秒 |
+| witnesses (primary) | 10分37秒 |
+| witnesses (retained) | 9分05秒 |
+
+7 jobの合計は102分13秒。plan / gate / main pushは含めない。
+最大28分45秒、controls22分14秒で、45分の分割検討目安・60分上限の範囲内。
+この記録はPRの結果を示し、main pushの成功へ転用しない。製品のruntime admissionは変更しない。

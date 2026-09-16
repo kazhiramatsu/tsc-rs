@@ -14,7 +14,7 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 初回hostedでNode version不一致を検出し、transpileを含むcontrolsにNode25.2.1を設定したv7へ更新。入口の件数はv6と同じ。
 [A-PC1](../h2-8a-compact-body-comments.md) が新設printer targetと既存parameter targetを登録したv8へ更新。
 [C05](../l2-3-resolution-cache/integration/README.md) がprogram contractと全program libを登録したv9、path表記の追加回帰を反映したv10へ更新。
-[OPS-COVER-3D](compiler-declarations/README.md) はdeclaration specifier / comment / JSDocの3 target・129専用入力を登録したv11へ更新。hostedは未実行。
+[OPS-COVER-3D](compiler-declarations/README.md) はdeclaration specifier / comment / JSDocの3 target・129専用入力を登録したv11へ更新。[PR #540](https://github.com/kazhiramatsu/tsc-rs/pull/540)で統合済み。全7 replay job・両gate成功、controls22分14秒。
 設定された入口と実行した比較面・件数は各スライスの記録で区別する。
 
 ## 現在の入口

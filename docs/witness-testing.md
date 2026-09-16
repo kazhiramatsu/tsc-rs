@@ -1,5 +1,20 @@
 # Focused witnesses and hosted replay
 
+## Batch implementation before hosted CI
+
+User instruction, 2026-09-16: for Codex/integration work, complete multiple
+compatible assigned implementation slices before starting hosted CI. Sequence
+related changes on one integration branch, with focused local checks during
+implementation, then submit the combined final source for hosted validation.
+
+Retain each slice's readiness conditions, frozen inputs, before/after evidence,
+and ownership boundaries. Validate the combined source and keep the existing
+job coverage, worker limits and time budgets. Further hosted runs are for failed
+checks or necessary fixes and new changes. Choose the next group of implementation
+slices before beginning the next hosted CI cycle.
+
+## Focused local checks
+
 Use a case selection while editing. List IDs before selecting; repeated `--case`
 arguments select a union. A missing or empty selection fails before Cargo starts.
 
@@ -247,4 +262,4 @@ Use `scripts/witness.py <suite> --list` or `--all --dry-run` to inspect them;
 libtest selection per target, keeping imported helper tests out of these runs.
 The runner clears internal filters and checks both passed and filtered counts.
 See the [scope and validation record](design/greenfield/slices/witness-coverage/compiler-declarations/README.md)
-for original-wrapper exclusions, observer boundaries and pending hosted results.
+for original-wrapper exclusions, observer boundaries and hosted results.
