@@ -1,0 +1,70 @@
+{
+  "checks": [
+    {
+      "command": [
+        "node",
+        ".github/ci/qualification.mjs",
+        "check-policy"
+      ],
+      "exit": 0,
+      "log": "check-0.log.gz",
+      "sha256": "effecafb28867c0ea68b4399c8a67335fbbf81aa945acda2f25b35a66933ff50"
+    },
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern=policy",
+        ".github/ci/qualification.test.mjs"
+      ],
+      "exit": 0,
+      "log": "check-1.log.gz",
+      "sha256": "cf5eb75b7e486c6d717cbadc4eacd4dd0ce925040de8c4dcda58edbd139961e8"
+    },
+    {
+      "command": [
+        "python3",
+        "docs/design/greenfield/slices/witness-coverage/inventory.py",
+        "--check"
+      ],
+      "exit": 0,
+      "log": "check-2.log.gz",
+      "sha256": "1d6b00372ce533d2561f11e767706467473131e1ee70ff6ae0108948ee19f9c4"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "log": "check-3.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    }
+  ],
+  "planner": {
+    "tests": 54,
+    "exit": 0,
+    "log": "planner.log.gz",
+    "sha256": "500679c8a35ec064f45ecbd657a9954d63f2bc7cac831df83853d40d41d7e1a3"
+  },
+  "focused_noemit": {
+    "command": [
+      "cargo",
+      "test",
+      "--manifest-path",
+      "crates/compiler/Cargo.toml",
+      "--test",
+      "h2_7d_bundle_program",
+      "bundle_later_owner_references_remain_separate",
+      "--",
+      "--exact",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit": 0,
+    "passed": 1,
+    "filtered": 3,
+    "test_seconds": 2.56
+  }
+}

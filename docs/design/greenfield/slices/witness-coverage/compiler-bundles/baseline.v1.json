@@ -1,0 +1,71 @@
+{
+  "base": "618ed97b5ae25d6763f19a6c9d357c6b3a279a5f",
+  "phase": "baseline",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "source_manifest": "baseline-source.v1.json",
+  "source_manifest_sha256": "3ba92974f49b7b734345875677c45170c6ab36b3d58cdf9974ebc638f5c763b3",
+  "node": "v25.2.1",
+  "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": ""
+  },
+  "runs": [
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_7d_bundle_program",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 101,
+      "seconds": 465.675,
+      "log": "baseline-0.log.gz",
+      "log_sha256": "2750508627dc6a7727802f5bfd37f73e59381d477729ef2503e7908d0ecb762e",
+      "summaries": [
+        "test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 74.77s"
+      ]
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_7d_declaration_bundles",
+        "ordinary_declaration_bundles_match_typescript_visitor_and_printer_twice",
+        "--",
+        "--exact",
+        "ordinary_bundle_source_maps_match_complete_typescript_maps_twice",
+        "ordinary_and_fresh_forced_bundle_metadata_lifetimes_match_typescript_twice",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 61.636,
+      "log": "baseline-1.log.gz",
+      "log_sha256": "6ca4cd97bdce88be53075020138990e917446ab52a3bff9d2278447e83dd484f",
+      "summaries": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 58.19s"
+      ]
+    }
+  ]
+}

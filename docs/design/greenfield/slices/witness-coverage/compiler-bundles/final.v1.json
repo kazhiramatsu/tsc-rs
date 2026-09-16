@@ -1,0 +1,43 @@
+{
+  "base": "618ed97b5ae25d6763f19a6c9d357c6b3a279a5f",
+  "phase": "final",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "source_manifest": "final-source.v1.json",
+  "source_manifest_sha256": "7c72769fc307d73140765a3111309382941714e94809a1bf3f81b4f66c3ba4be",
+  "node": "v25.2.1",
+  "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "WITNESS_SUITES": "[\"bundle-program\", \"bundle-declarations\"]"
+  },
+  "runs": [
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "python3",
+        ".github/ci/replay.py",
+        "witnesses"
+      ],
+      "exit": 0,
+      "seconds": 198.959,
+      "log": "final-0.log.gz",
+      "log_sha256": "c212f2b6f1eead3502f38e34b35a6c4fb30858e705105604fe7b454038c9a6bb",
+      "summaries": [
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 73.09s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 55.42s",
+        "{\"compiler_direct\": [\"bundle-program\", \"bundle-declarations\"], \"targets\": 2, \"tests_passed\": 7, \"observer_seconds\": 69.392, \"cargo_build_and_replay_seconds\": 129.343}"
+      ],
+      "binaries_sha256": {
+        "target/debug/deps/h2_7d_bundle_program-0ff07409d2b57104": "8a6b7fa74b57fb979f5847ecb5d902dbbc89e1cf8e85ab5edb14734f89df3585",
+        "target/debug/deps/h2_7d_declaration_bundles-b4a85e465717d82d": "d4bed8e3632221501413beb38b54aa7fce717c588744ecc8088ba8f477381284"
+      }
+    }
+  ]
+}

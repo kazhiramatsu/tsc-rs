@@ -16,6 +16,23 @@ witness = replay.witness
 
 
 class SelectionTests(unittest.TestCase):
+    def test_bundle_dependencies_select_every_consumer_and_keep_shared_coverage(self):
+        for path in ("crates/emitter/tests/fixtures/bundle-declarations.json",
+                     "scripts/observe-bundle-declarations.mjs"):
+            plan = replay.selection([path])
+            self.assertEqual(plan["witnesses"], ["bundle-program", "bundle-declarations"])
+            self.assertEqual(plan["acceptance"], [])
+        for path in ("crates/emitter/tests/fixtures/bundle-maps.json", "scripts/observe-bundle-maps.mjs"):
+            self.assertEqual(replay.selection([path])["witnesses"], ["bundle-declarations"])
+        for path in ("crates/emitter/tests/fixtures/bundle-plan.json",
+                     "crates/emitter/tests/fixtures/bundle-module-identities.json",
+                     "ratchets/h2-7de-candidate-inputs.v1.json", "ratchets/h2-7de-observations.v1.json",
+                     "crates/oracle/vfs-directory-overlay.mjs", "vendor/typescript-6.0.3/lib/typescript.js"):
+            self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
+        workflow = (ROOT / ".github/workflows/witness.yml").read_text()
+        for suite in ("bundle-program", "bundle-declarations"):
+            self.assertIn(f"contains(matrix.suites, '{suite}')", workflow)
+
     def test_recovery_census_archive_matches_frozen_selection(self):
         spec = witness.COMPILER_DIRECT["utf16-recovery-corpus"]
         source, destination, digest = spec["staged_inputs"][0]
@@ -192,6 +209,9 @@ class SelectionTests(unittest.TestCase):
             for path in witness.compiler_direct_inputs(suite):
                 if path == "scripts/observe-literal-update.mjs":
                     continue  # covered by the explicit cross-crate ownership contract below
+                if path in ("scripts/observe-bundle-declarations.mjs",
+                            "crates/emitter/tests/fixtures/bundle-declarations.json"):
+                    continue  # shared bundle consumers have an explicit contract above
                 with self.subTest(suite=suite, path=path):
                     self.assertTrue((ROOT / path).is_file(), path)
                     plan = replay.selection([path])
@@ -383,6 +403,66 @@ class SelectionTests(unittest.TestCase):
 
 
 class WitnessTests(unittest.TestCase):
+    def test_bundle_section_membership_preserves_modes_and_rejects_drift_before_replay(self):
+        ids = witness.case_ids("bundle-declarations")
+        self.assertIn("bundle-maps/helpers/shared-es5", ids)
+        self.assertIn("bundle-maps/metadata_lifetime_references/helpers/shared-es5", ids)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for file, _, _ in witness.COMPILER_DIRECT["bundle-declarations"]["fixtures"]:
+                target = root / file
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / file).read_bytes())
+            file = root / "crates/emitter/tests/fixtures/bundle-maps.json"
+            fixture = json.loads(file.read_text())
+            original = fixture["metadata_lifetime_references"]
+            for rows in ([], original[:-1], [original[0]] * 6,
+                         [{"case_id": ""}] * 6, [{"case_id": None}] * 6):
+                fixture["metadata_lifetime_references"] = rows
+                file.write_text(json.dumps(fixture))
+                with patch.object(witness, "ROOT", root), patch.object(witness.subprocess, "run") as run:
+                    with self.assertRaises(ValueError):
+                        witness.run_compiler_direct(["bundle-declarations"])
+                    run.assert_not_called()
+
+    def test_bundle_runner_shares_observers_and_requires_both_target_results(self):
+        selected = ["bundle-program", "bundle-declarations"]
+        def run_with(bad_output=None, status=0, observer_failure=False):
+            def result(command, **kwargs):
+                if command[0] == "node":
+                    if observer_failure:
+                        raise subprocess.CalledProcessError(1, command)
+                    return subprocess.CompletedProcess(command, 0)
+                target = command[command.index("--test") + 1]
+                passed, filtered = (4, 0) if target == "h2_7d_bundle_program" else (3, 1)
+                output = f"test result: ok. {passed} passed; 0 failed; 0 ignored; 0 measured; {filtered} filtered out;\n"
+                if target == "h2_7d_declaration_bundles" and bad_output is not None:
+                    output = bad_output
+                return subprocess.CompletedProcess(command, status, output)
+            with patch.object(witness.subprocess, "run", side_effect=result) as run:
+                witness.run_compiler_direct(selected)
+                return run.call_args_list
+        calls = run_with()
+        self.assertEqual(len(calls), 4)
+        self.assertEqual([call.args[0] for call in calls[:2]], [
+            ["node", "scripts/observe-bundle-declarations.mjs", "--check"],
+            ["node", "scripts/observe-bundle-maps.mjs", "--check"],
+        ])
+        names = witness.COMPILER_DIRECT["bundle-declarations"]["test"]
+        self.assertEqual(calls[-1].args[0], ["cargo", "test", "--manifest-path", "crates/compiler/Cargo.toml",
+                                          "--test", "h2_7d_declaration_bundles", names[0], "--", "--exact",
+                                          *names[1:], "--nocapture", "--test-threads=1"])
+        good = "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out;\n"
+        for output in ("", good * 2, good.replace("3 passed", "0 passed"),
+                       good.replace("3 passed", "2 passed"), good.replace("0 ignored", "1 ignored"),
+                       good.replace("1 filtered", "0 filtered")):
+            with self.subTest(output=output), self.assertRaises(ValueError):
+                run_with(output)
+        with self.assertRaises(subprocess.CalledProcessError):
+            run_with(status=101)
+        with self.assertRaises(subprocess.CalledProcessError):
+            run_with(observer_failure=True)
+
     def test_frozen_input_catalog_counts(self):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
@@ -391,6 +471,7 @@ class WitnessTests(unittest.TestCase):
             "compact-body-comments": 240, "parameter-temporaries": 68,
             "config-library": 96, "prologue-comments": 8,
             "utf16-recovery-corpus": 50, "map-option-projection": 31,
+            "bundle-program": 27, "bundle-declarations": 56,
             "literal-update": 1396, "literal-update-pipeline": 22, "require-rewrite": 74,
             "declaration-specifiers": 30, "declaration-comments": 41, "jsdoc-return": 58,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,

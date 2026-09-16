@@ -487,17 +487,24 @@ fn bundle_later_owner_references_remain_separate() {
     let libs = libraries();
     for _ in 0..2 {
         let mut sink = MemoryOutputSink::new();
-        let error = ProgramSession::new(prepare(no_emit, &libs))
+        let outcome = ProgramSession::new(prepare(no_emit, &libs))
             .emit_command_for_harness(&mut sink)
-            .err()
-            .expect("ordinary noEmit keeps its mode boundary");
-        assert!(matches!(
-            error,
-            DriverError::InvalidProgramMode {
-                expected: tsc_program::PreparedProgramMode::Emit,
-                actual: tsc_program::PreparedProgramMode::NoEmit
-            }
-        ));
+            .unwrap_or_else(|error| panic_api(error, &sink, "noEmit command"));
+        let ordinary = &no_emit["typescript_observation"]["calls"][0];
+        // The command adapter now supports H0's noEmit route. Compare its
+        // frozen public tuple instead of the historical InvalidProgramMode.
+        assert_call(
+            complete_call(
+                ordinary,
+                &sink,
+                json!({"reported_diagnostics":diagnostics(outcome.diagnostics()),
+                    "status_writes":scalar_json(&outcome.status_writes()),
+                    "exit_code":outcome.exit_code(),"emit_result":emit_result(outcome.emit())}),
+            ),
+            ordinary,
+            "noEmit command",
+        );
+        assert_eq!(outcome.emit().h2_activity(), Default::default());
         assert!(sink.writes().is_empty());
         let mut sink = MemoryOutputSink::new();
         let outcome = ProgramSession::new(prepare(no_emit, &libs))
@@ -508,9 +515,8 @@ fn bundle_later_owner_references_remain_separate() {
             json!({"writes":writes(&sink),"emit_result":emit_result(&outcome),"exception":null}),
             json!({"writes":expected["writes"],"emit_result":expected["emit_result"],"exception":expected["exception"]})
         );
-        // Getter-only prefix follows the refused ordinary noEmit call in TS.
-        // Its no-op emit neither requests a resolver nor changes getter caches.
-        let ordinary = &no_emit["typescript_observation"]["calls"][0];
+        // This fresh getter-only prefix remains separate from the consuming
+        // command above; it does not claim same-session noEmit continuation.
         assert_eq!(ordinary["resolver_requests"], json!([]));
         assert_eq!(ordinary["writes"], json!([]));
         ProgramSession::new(prepare(no_emit, &libs))
