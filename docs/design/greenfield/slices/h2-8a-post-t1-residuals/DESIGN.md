@@ -220,12 +220,16 @@ C02 決定 11 の `stabilize_receiver`（`downlevel.rs:7742`、call binding）�
 1. **temp 分岐の初期化右辺は `clone_node(receiver)`。** `initialized = create_assignment(target, clone)`：clone は synthesized（unmapped）で original = receiver（上流 `cloneNode` と同じ metadata 複写）。読み取り `read` は temp のまま。
 2. **すべての receiver range を一括で消さない。** inlineable 分岐（既に clone）と `stabilize_receiver`（call binding、mapped が正しい）は変更しない。
 3. **評価順序・回数・式の値は変わらない**（生成 JS bytes は修復前後で同一：complete-command 契約が保護）。runtime control は不要（式が変わらないため）；対照は value used / discarded、side-effect receiver、update 式を含む。
+4. **隣接原因（対照が発見）：update 式の comma 列を helper 引数にする括弧は列の range を持つ。** 上流は `createCallExpression` の引数を
+   `parenthesizeExpressionForDisallowedComma`（`_tsc.js:20483-20488`）で `setTextRange(createParenthesizedExpression(e), e)` と包むので、
+   `(_d = …, _c = _d++, _d)` の `(` と `)` が update 式の両端に map される（before の `static-postfix-*` / `static-prefix-*`：上流だけの 2 segment）。
+   Rust の update 経路（`downlevel.rs:1560-1567`）は括弧を明示的に作るので、同じ range を `set_text_range` で付ける。
 
 ### 6.5 変更ファイル
 
 | file | 変更 |
 | --- | --- |
-| `crates/emitter/src/builtins/class_fields/downlevel.rs` | `stabilize_inline_receiver`：temp 分岐で clone を初期化右辺にする |
+| `crates/emitter/src/builtins/class_fields/downlevel.rs` | `stabilize_inline_receiver`：clone を先に作り、temp 分岐の初期化右辺にする；update 経路の comma 列の括弧に列の range を付ける |
 
 ### 6.6 対照（新 ID `post-t1-residuals/receiver-map/…`、18 件）
 
@@ -251,10 +255,25 @@ printer：call の `emitCommentsBeforeNode` が `containerPos/End = node.pos/end
 consumer：`printer.rs:17543 emit_list_element_end_comments_in_container`（`NO_TRAILING_COMMENTS` で skip、else 要素 end の同一行 trailing + leading-of-position）、
 `printer.rs:8447 emit_child_boundary_comments_before_parent_end`（同 flag で skip）。
 
-### 7.3 観測と disposition
+### 7.3 観測
 
-REPORT §3.4 の対照（前置 / 後置 / 行末 / 括弧 / comma / 引数境界 / 複数行 / removeComments / instance / compound / 値利用 / outDir）で
-flag を外した Rust の公開出力が上流と一致するか、一致しない場合にどの consumer が二重印字するかを確定する。決定は §7.4。
+- 開始 SHA（flag あり）：17 対照のうち 16 が exact ×2、`compound-trailing` だけ RECEIVER-MAP の map 差（JS bytes は一致）。packet probe は `static-set` 系の行で Rust だけ `NO_TRAILING_COMMENTS`（2048）。
+- 実験（RECEIVER-MAP 修復後、`create_private_set` の `NO_TRAILING_COMMENTS` を外す）：17 comment 対照 + 18 receiver 対照 = 35 exact ×2 / 0 failed（complete-command 契約：JS / d.ts / map / diagnostics / exit）、packet probe 33 / 33 exact、T1 18 exact / packet 13 exact + 2 known（decorated 2 行のみ）。
+  上流の観測どおり、`B.#p = v /* t */;` は `__classPrivateFieldSet(_a, _a, v, "f", _B_p) /* t */;`（helper call の後に一度だけ）、`/* l */ v` は引数内、`v // eol` は call の後、`(v /* in */)` は括弧内に出る。
+- flag の由来：H2.5g ES2016 lowering（`53c307e96`、2026-08-14）。A-INT3-CS / `E-COMMENT-SCOPE-H` 以前の printer に対する Rust 固有の境界で、現在の printer は上流と同じ container 規則（`containerEnd`、`previousSibling.end !== parentNode.end`）を `CommentEmissionScope` / `emit_list_element_end_comments_in_container` / `emit_child_boundary_comments_before_parent_end` で持つ。
+
+### 7.4 設計決定（disposition：修復）
+
+1. **flag を外す。** 抑制の正しい所有者は printer の comment container（`E-COMMENT-SCOPE-H`）であり、producer は上流と同じく右辺に emitNode を作らない。packet probe は上流と一致し、T1 known-packet の `static-set` 行を retire する。
+2. **全対照で公開出力を保護する。** §7.3 の 17 + 18 対照と T1 18 件が exact ×2。retained（530）/ SUPER / 5g の全件は hosted（統合担当）で確認する：flag の元の witness は H2.5g profile にあり得るため、hosted の結果を admission の条件にする（REPORT §6）。
+3. **update 式の comma 列に残る `NO_TRAILING_COMMENTS`（`downlevel.rs` update 経路）は本子の対象外**：右辺ではなく synthesized comma 列の境界で、上流に対応する node が無い Rust 固有の構成。対照 `static-postfix-*` / `static-prefix-*` で exact。
+
+### 7.5 変更ファイル
+
+| file | 変更 |
+| --- | --- |
+| `crates/emitter/src/builtins/class_fields/downlevel.rs` | `create_private_set`：value の `NO_TRAILING_COMMENTS` を外す |
+| `crates/compiler/tests/fixtures/bundle-metadata-t1-known-packet.json` | `receiver/es2015/static-set-second-file` を retire |
 
 ## 8. DECORATOR-COMMENTS — decorator 式の `NoComments`
 
@@ -270,13 +289,47 @@ native 経路（ESNext × define）は transform しない。
 
 ### 8.2 現行 Rust（開始 SHA）
 
-`standard_decorators.rs:2819-2833 transform_decorator_expressions`：`visit(decorator)` → `bind_decorator_expression(visited)`。visited 式に `NO_COMMENTS` を書かない。
+| 段階 | symbol | 状態 |
+| --- | --- | --- |
+| producer（lowered） | `standard_decorators.rs:2819-2833 transform_decorator_expressions`：`visit(decorator)` → `bind_decorator_expression(visited)`。visited 式に `NO_COMMENTS` を書かない | gap |
+| bound target（lowered、cached receiver） | `bind_decorator_expression` PropertyAccess / ElementAccess arm：`factory.update_node(expression, …)`（**original を保つ**） | gap：上流は `createPropertyAccessExpression(...)` + `setTextRange(target, callee)` の fresh node（`_tsc.js:24710-24722`）。original があると printer が `getParseTreeNode` で「similar node」と判定し、`.` token の trailing-of-position（`ns./* b */dec` の `/* b */`）を出す |
+| bound target（lowered、non-cached receiver：`this` / literal） | `(receiver, receiver)` + `update_node` | already-exact 相当：上流も `target = callee`（同じ parse node、NoComments 付き） |
+| printer（native、ESNext × define） | `printer.rs:13148 emit_modifiers` Decorator arm：`emit_node_id_with_context`（comments phase 無し）；Modifier arm は `emit_node_id_with_context_and_source_comments`（LeadingAndTrailing） | gap：上流 `emitDecoratorList` → `emitNodeListItems(emit, …)` は各 decorator を通常の node pipeline（`emitCommentsBeforeNode` / `emitCommentsAfterNode`）で印字するので `@dec /* b */` の trailing が出る |
+| consumer（lowered） | printer の `NO_COMMENTS`（node の leading / trailing skip + container claim）、list の intervening comments（`[/* a */ dec]` の `/* a */` は同一行の trailing-of-position として list が出す：`emitNodeListItems` 120117-120120） | already-exact（Modifier / 引数 list で検証済みの既存経路） |
 
-### 8.3 観測と disposition
+### 8.3 観測（開始 SHA、REPORT §3.5）
 
-REPORT §3.5 の対照（decorator の前後 / 式内部 / computed name 境界のコメント、単一 / 複数、native / lowered、removeComments、bundle / outDir）で確定する。決定は §8.4。
+- lowered（ES2015 / ES2022 / ESNext × set、21 行中 19 行が差）：Rust は decorator 式の trailing comment を印字する（`[/* a */ dec /* b */]`、`[dec /* a */, dec2 /* b */]`、`[dec(/* arg */ 1) /* after */]`、`_m_decorators = [/* a */ dec /* b */]`）；上流は `NoComments` で抑制（`/* a */` は list の intervening comment として両者が出す）。
+  property access：Rust `[(_a = ns). /* b */dec.bind(_a)]`、上流 `[(_a = ns).dec /* c */.bind(_a)]`（Rust は `.` token の trailing-of-position を出し、target 自身の trailing を出さない）。
+- native（ESNext × define、3 行）：Rust は `@dec /* b */`、`@ns. /* b */dec /* c */`、member の `/* d */` を落とす；上流は decorator node の trailing comment を印字する。
+- `removeComments: true` と `set-static-get-second-file`（コメント無し）は exact。既存 2 件の JS 一致はコメント無しの入力だったからで、コメント経路の正しさの根拠にはならない（依頼書 §4）。
 
-## 9. 検証コマンドと retire
+### 8.4 設計決定
+
+1. **producer：visited decorator 式に `NO_COMMENTS`（3072）を書く**（上流 100556 と同じ node：identifier / access なら parse node、synthetic なら synthetic node）。これで parse node の packet が上流と一致し（T1 known-packet 2 行を retire）、lowered の `[/* a */ dec]` / `[dec, dec2]` が一致する。
+2. **cached receiver の bound target は fresh node**：`createPropertyAccessExpression(paren(assignment), callee.name)` / `createElementAccessExpression(...)` に相当する新 node を作り `set_text_range(target, callee)`（original 無し、flags 無し）。`callee.name` / `argumentExpression` は同じ node を再利用（上流と同じ）。non-cached（`this` / literal / 空 literal）は従来どおり同じ node（NoComments 付き）を使う。
+3. **printer：Decorator item も通常の comments phase を通す**（`emit_modifiers` の Decorator arm を Modifier arm と同じ `emit_node_id_with_context_and_source_comments(..., LeadingAndTrailing)` にする）。`emitNodeListItems(emit, …)` の `ListFormat.Decorators` は MultiLine で intervening comment を出さないため、改行の扱い（`write_line` 前後）は変えない。
+4. **flag の整数値を合わせるだけの変更にしない**：1〜3 は公開出力（JS / map）の一致で検証し、packet の一致はその帰結として記録する。`removeComments` 対照で抑制経路が変わらないことも保護する。
+5. **隣接原因（対照が発見）：transformClassLike の member 名 `NoLeadingComments`。** `partialTransformClassElement`（`_tsc.js:99937-99942`）は、
+   decorator を除いた modifiers が空の method / property の visited 名に `NoLeadingComments`（1024）を書く（class に decorator があり classInfo が存在する場合、decorated かどうかに関わらず）。
+   Rust は書かないので (a) packet probe が 13 行で上流と異なり（`upstream_only` の Identifier 1024）、(b) 名前 node を再利用する access descriptor（`obj.m`、`_tsc.js:25586` の `elementName.name = member.name`）で
+   decorator と名前の間の行コメントが `obj.\n// between member\nm` として印字される（`set-line-between`）。Rust の同じ producer（`update_decorated_property`、`update_public_method` の MethodDeclaration arm、`visit_class_element_generic` の Property / Method arm）に同じ flag を書く。
+6. **残る printer 所有の差（disposition：実装差、owner = printer `E-COMMENT-SCOPE-H`）。** cached receiver の bound target `(_a = ns).dec /* c */.bind(_a)` の `/* c */`（`dec` の後、`.bind` の前）を Rust は出さない。
+   上流は `target`（range 付きの fresh PropertyAccess）自身の `emitTrailingCommentsOfNode` が `target.end` で出す（`containerEnd` は class 文なので skip されない）。Rust の printer は PropertyAccess / ElementAccess の deferred comments phase を左端の子へ転送し（`emit_node_id_with_forwarded_source_comments`）、
+   node 自身の末尾境界は親の boundary 論理（statement terminator / list delimiter / 引数 list / parsed token）に委ねる。親が synthesized（`.bind` access → call → array literal）だとその境界を誰も claim しない。
+   これは decorator transform ではなく printer の node 末尾 comment phase の owner（`printer.rs:7317-7455` の PropertyAccess arm と `DeferredExpressionSourceComments` の転送規則）で、修復は共有 printer の comment 機構に及ぶため本候補では行わない：
+   新 suite の `set-property-access`（ES2015 / ES2022 / ESNext）と `set-parenthesized`（ES2022 / ESNext）の 5 行を known-native として凍結し、owner と再現手順を記録する。
+
+### 8.5 変更ファイル
+
+| file | 変更 |
+| --- | --- |
+| `crates/emitter/src/builtins/standard_decorators.rs` | `transform_decorator_expressions`：visited 式に `NO_COMMENTS`；`bind_decorator_expression`：cached receiver の target を fresh node + `set_text_range`；member 名の `NO_LEADING_COMMENTS`（決定 5） |
+| `crates/emitter/src/printer.rs` | `emit_modifiers`：Decorator item の comments phase |
+| `crates/compiler/tests/fixtures/bundle-metadata-t1-known-packet.json` | decorated 2 行を retire（packet が exact になるため） |
+| `crates/compiler/tests/fixtures/post-t1-residuals-known-native.json` | 決定 6 の 5 行を凍結 |
+
+## 9. 検証コマンドと retire（実行結果は REPORT §2 / §4）
 
 - before（開始 SHA、正規 runner）：[records/before/](records/before/)（`t1-witness`：18 → 15 exact / 3 known / 0 failed、packet 12 / 3；`pipeline-witness`：4 → 0 exact / 4 known / 0 failed）。
 - 新対照：`python3 scripts/witness.py post-t1-residuals --all`（observer `--check` → 2 tests；101 complete commands、bundle 行の packet probe）。
@@ -285,3 +338,25 @@ REPORT §3.5 の対照（decorator の前後 / 式内部 / computed name 境界�
   （`decorator-binding-known-native.json` の 4 行、`bundle-metadata-t1-known-native.json` の 3 行、`bundle-metadata-t1-known-packet.json` は §7 / §8 の決定に従う）。
 - 隣接：`witness.py bundle-declarations --all`、`bundle-program --all`、`module-identities --all`、`bundle-original-javascript --all`、`decorator-binding --all`（direct）、
   `decorator-binding-pipeline --case lifecycle/` ほか変更 owner の focused set；全 767 / SUPER / retained / acceptance は hosted（統合担当）。
+
+## 10. Traceability
+
+| 上流 owner / invariant | Rust | focused test | evidence |
+| --- | --- | --- | --- |
+| `getGeneratedNameForNode(node)` の 1 identity（transformTypeScript 94455-94456、`getName` 24788-24799）、`makeUniqueName("default")` の global / census / bundle 判定 | `TypeScriptVisitor::generated_declaration_bindings` + `create_identifier`、System `collect_hoisted_names` の登録、CJS `register_generated_declaration_name_binding` / `create_identifier`；finalizer 不変 | `post_t1_residuals_controls_match_complete_typescript_observations`（`/r9/`）、pipeline 2 件 | REPORT §2 / §3 |
+| System `visitClassDeclaration` の `setTextRange` のみの fresh node（112605-112633）、`emitSourceMapsAfterNode`（121294-121303） | `transform_hoisted_class` の `set_text_range` | `/r12/`、pipeline 2 件、T1 2 件 | REPORT §2 / §3 |
+| `createCopiableReceiverExpr` の synthesized clone（96567-96578、`cloneNode` 24436-24466）、`parenthesizeExpressionForDisallowedComma`（20483-20488） | `stabilize_inline_receiver`、update 経路の括弧 range | `/receiver-map/`、T1 1 件 | REPORT §2 / §3 |
+| 右辺に emitNode を作らない producer（96795-96840）と printer の container 規則（120090-120095、121007-121046） | `create_private_set`（flag 除去）；consumer は既存 `CommentEmissionScope` | `/private-set-comments/`（17）、packet probe、T1 packet | REPORT §3、DESIGN §7.3 |
+| `transformDecorator` の NoComments（100554-100569）、`createCallBinding` の fresh target（24710-24735）、`emitDecoratorList` の node comments phase、`partialTransformClassElement` の NoLeadingComments（99937-99942）、`enterClass(classInfo)` | `transform_decorator_expressions`、`bind_decorator_expression`、`emit_modifiers`、`mark_transformed_member_name` + `innermost_class_has_class_info` | `/decorator-comments/`（27）、packet probe、T1 packet 2 件 | REPORT §3、§3.5 |
+
+## 11. Unresolved items
+
+1. printer 所有の bound decorator target の trailing comment（§8.4 決定 6、REPORT §3.5）：5 行を known-native に凍結、owner = `E-COMMENT-SCOPE-H`。
+2. PRIVATE-SET-COMMENTS の flag 除去は H2.5g 由来の境界を外す：hosted の retained / 5g / acceptance の結果を admission の条件にする（§7.4）。
+
+## 12. Readiness summary
+
+authority hashes：`_tsc.js` `1c59e77a…`、`typescript.js` `56917765…`、上流 span 46（records/upstream-spans.tsv）。
+local-gap rows：R9 7（missing 3 / already-exact 4）、R12 5（partial-or-stale 2 / already-exact 3）、RECEIVER-MAP 5（partial-or-stale 1 + 隣接 1 / already-exact 3）、PRIVATE-SET 1（obsolete flag）、DECORATOR 4（gap 3 + 隣接 1、残 1 = printer）。
+witness rows：対象 7 + 3 probes、新対照 101（family 5）。architecture concerns：`E-NAMES-BASE` modified-requalify、`E-METADATA-BASE` premise-unchanged（T1 packet 不変）、`E-COMMENTS-G` / `E-COMMENT-SCOPE-H` premise-unchanged（printer の decorator arm は既存 comments phase の適用）、`E-NAMES-CLASS-G` / `E-METADATA-G-CLASS` premise-unchanged。
+undispositioned 0、unresolved 2（§11、owner 付き）。確認コマンド：§9、REPORT §4。

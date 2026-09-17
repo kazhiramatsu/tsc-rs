@@ -1,0 +1,20 @@
+commit: e3a3e609c post-t1 R12: System hoists a class with a range-only expression and statement
+retired 4 + 2
+ .../fixtures/bundle-metadata-t1-known-native.json  |  70 ---------
+ .../fixtures/decorator-binding-known-native.json   | 163 +--------------------
+ 2 files changed, 1 insertion(+), 232 deletions(-)
+8:decorator binding EXACT x2 decorator-binding/global/esnext/define/script-let-default_1
+9:decorator binding EXACT x2 decorator-binding/lifecycle/esnext/define/bundle-default-two-files
+10:decorator binding EXACT x2 decorator-binding/lifecycle/esnext/define/bundle-file-level-then-scoped-across-files
+11:decorator binding EXACT x2 decorator-binding/lifecycle/esnext/define/bundle-computed-temps-two-files
+12:decorator binding SUMMARY exact=4 known=0 failed=0 selected=4
+15:test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 6.69s
+17:pipeline exit: 0 seconds: 9
+10:bundle metadata t1 KNOWN x2 bundle-metadata-t1/receiver/es2015/static-compound-second-file
+24:bundle metadata t1 SUMMARY exact=17 known=1 failed=0 selected=18
+45:bundle metadata t1 PACKET KNOWN x2 bundle-metadata-t1/receiver/es2015/static-set-second-file
+70:bundle metadata t1 PACKET KNOWN x2 bundle-metadata-t1/decorated/es2022/static-get-second-file
+75:bundle metadata t1 PACKET KNOWN x2 bundle-metadata-t1/decorated/esnext/static-get-second-file
+101:bundle metadata t1 PACKET SUMMARY exact=12 known=3 failed=0 probed=15
+104:test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 29.13s
+106:t1 exit: 0 seconds: 32

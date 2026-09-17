@@ -1,0 +1,4 @@
+argv: cargo test --manifest-path crates/emitter/Cargo.toml --lib
+env: CARGO_BUILD_JOBS=2 (taskpolicy -b nice -n 15)
+exit: 0
+seconds: 108

@@ -434,3 +434,23 @@ and clears inherited case/dump selectors. Its generator, observer and fixtures
 select the same owner. Shared production changes retain full replay. T1 removes
 five known rows from the unchanged 767-command binding collection: the expected
 full summary is 763 exact / four known, with its one upstream exception separate.
+
+
+## Post-T1 residual controls
+
+[H2.8a-A-RES-POST-T1](design/greenfield/slices/h2-8a-post-t1-residuals/REPORT.md)
+registers `post-t1-residuals` in the local runner: 101 complete commands
+(anonymous default class names, System hoisted class end maps, private
+compound-assignment receiver temps, private assignment right-operand
+comments, decorator expression comment suppression) with the T1 parse-node
+packet probe for its 79 bundle rows. Its generator, observer and frozen
+observations are dedicated files; five printer-owned rows are frozen as
+known native divergences. The suite needs the pinned Node version and is
+not yet listed in `.github/workflows/witness.yml`; the integrator adds the
+hosted entry (about 250 s of observer checks and 200 s of Cargo build and
+replay locally) before treating it as covered.
+
+```sh
+python3 scripts/witness.py post-t1-residuals --all --dry-run
+python3 scripts/witness.py post-t1-residuals --all
+```
