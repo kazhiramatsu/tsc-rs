@@ -13147,13 +13147,38 @@ impl Printer {
             match item.kind {
                 ModifierListItemKind::Decorator => {
                     writer.write_line(false);
-                    self.emit_node_id_with_context(
-                        transformation,
-                        source,
-                        item.node,
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                        writer,
-                    )?;
+                    let child_context =
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL);
+                    if expression_context.nested_comments_suppressed() {
+                        self.emit_node_id_with_context(
+                            transformation,
+                            source,
+                            item.node,
+                            child_context,
+                            writer,
+                        )?;
+                    } else {
+                        // `emitDecoratorList` -> `emitNodeListItems(emit, ...)`
+                        // (ListFormat.Decorators): every decorator takes the
+                        // ordinary node comments phase, so a same-line
+                        // comment after the decorator expression
+                        // (`@dec /* b */`) prints as its trailing comment.
+                        let outcome = self.emit_node_id_with_context_and_source_comments(
+                            transformation,
+                            source,
+                            item.node,
+                            child_context,
+                            DeferredExpressionSourceComments::nested(
+                                expression_context.comments(),
+                                DeferredSourceCommentExtent::LeadingAndTrailing,
+                            ),
+                            writer,
+                        )?;
+                        assert!(matches!(
+                            outcome,
+                            ExpressionSourceCommentsOutcome::Complete { .. }
+                        ));
+                    }
                     writer.write_line(false);
                 }
                 ModifierListItemKind::Modifier => {

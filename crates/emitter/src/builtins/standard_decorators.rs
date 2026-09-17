@@ -775,6 +775,11 @@ enum DecoratorReceiverFrame {
         /// `classInfo.classSuper`: the `_classSuper` name of a decorated
         /// class with an extends clause.
         class_super: Option<TargetBinding>,
+        /// `enterClass(classInfo)` versus `enterClass(undefined)`: only a
+        /// class transformed by `transformClassLike` carries a classInfo,
+        /// and only its members take the `partialTransformClassElement`
+        /// projections (member-name NoLeadingComments, descriptors).
+        class_info: bool,
         saved_pending: Vec<TransformNode>,
     },
     ClassElement {
@@ -1792,6 +1797,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.enter_receiver_class(
             class_this_identity,
             class_super.as_ref().map(|(name, _)| name.clone()),
+            true,
         );
         let static_method_extra = method_plans
             .iter()
@@ -2816,6 +2822,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
         }
     }
 
+    /// tsc-port: transformDecorator @6.0.3
+    /// tsc-span: _tsc.js:100554-100569
+    ///
+    /// The visited expression (the parse node itself for an identifier or
+    /// access expression) is marked NoComments before it is bound; the
+    /// flag stays on that node for the rest of the Program (a Bundle root
+    /// never disposes it).
     fn transform_decorator_expressions(
         &mut self,
         decorators: &[TransformNode],
@@ -2829,6 +2842,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     parent: SyntaxKind::Decorator,
                     field: "expression",
                 })?;
+            self.add_emit_flags(visited, EmitFlags::NO_COMMENTS)?;
             output.push(self.bind_decorator_expression(visited)?);
         }
         Ok(output)
@@ -2877,17 +2891,31 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     })?;
                 let receiver = self.node(receiver);
                 let (bound_receiver, this_arg) = self.bind_decorator_receiver(receiver)?;
+                let cached = bound_receiver != receiver;
                 data.expression = Some(bound_receiver.node());
-                let flags = flags_after_update(
-                    self.context.arena(),
-                    expression,
-                    &NodeData::PropertyAccessExpression(data.clone()),
-                )?;
-                let target = self.context.factory()?.update_node(
-                    expression,
-                    NodeData::PropertyAccessExpression(data),
-                    flags,
-                )?;
+                let target = if cached {
+                    // createCallBinding (_tsc.js:24710-24722): the target of
+                    // a cached receiver is a fresh access expression ranged
+                    // to the callee, with neither the callee's original nor
+                    // its emit flags; only its name is the parsed node.
+                    let target = self.context.factory()?.create_node(
+                        self.source,
+                        NodeData::PropertyAccessExpression(data),
+                        TransformFlags::NONE,
+                    )?;
+                    self.context.factory()?.set_text_range(target, expression)?
+                } else {
+                    let flags = flags_after_update(
+                        self.context.arena(),
+                        expression,
+                        &NodeData::PropertyAccessExpression(data.clone()),
+                    )?;
+                    self.context.factory()?.update_node(
+                        expression,
+                        NodeData::PropertyAccessExpression(data),
+                        flags,
+                    )?
+                };
                 (target, this_arg)
             }
             NodeData::ElementAccessExpression(mut data) => {
@@ -2899,17 +2927,29 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     })?;
                 let receiver = self.node(receiver);
                 let (bound_receiver, this_arg) = self.bind_decorator_receiver(receiver)?;
+                let cached = bound_receiver != receiver;
                 data.expression = Some(bound_receiver.node());
-                let flags = flags_after_update(
-                    self.context.arena(),
-                    expression,
-                    &NodeData::ElementAccessExpression(data.clone()),
-                )?;
-                let target = self.context.factory()?.update_node(
-                    expression,
-                    NodeData::ElementAccessExpression(data),
-                    flags,
-                )?;
+                let target = if cached {
+                    // createCallBinding (_tsc.js:24723-24735): same fresh
+                    // node for an element access.
+                    let target = self.context.factory()?.create_node(
+                        self.source,
+                        NodeData::ElementAccessExpression(data),
+                        TransformFlags::NONE,
+                    )?;
+                    self.context.factory()?.set_text_range(target, expression)?
+                } else {
+                    let flags = flags_after_update(
+                        self.context.arena(),
+                        expression,
+                        &NodeData::ElementAccessExpression(data.clone()),
+                    )?;
+                    self.context.factory()?.update_node(
+                        expression,
+                        NodeData::ElementAccessExpression(data),
+                        flags,
+                    )?
+                };
                 (target, this_arg)
             }
             _ => return Ok(expression),
@@ -3403,6 +3443,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         })?;
         let modifiers =
             self.filter_modifiers(original_modifiers, |kind| kind == SyntaxKind::StaticKeyword)?;
+        self.mark_transformed_member_name(
+            matches!(data, NodeData::MethodDeclaration(_)),
+            modifiers,
+            Some(name),
+        )?;
         let descriptor_name =
             plan.descriptor_name
                 .as_ref()
@@ -3479,6 +3524,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     data.name = Some(name);
                 }
                 data.modifiers = self.strip_decorators(data.modifiers)?;
+                self.mark_transformed_member_name(true, data.modifiers, data.name)?;
                 NodeData::MethodDeclaration(data)
             }
             NodeData::GetAccessor(mut data) => {
@@ -4019,6 +4065,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let mut data = plan.data.clone();
         data.name = self.visit_optional_node(data.name)?;
         data.modifiers = self.strip_decorators(data.modifiers)?;
+        self.mark_transformed_member_name(true, data.modifiers, data.name)?;
         data.initializer = Some(initializer.node());
         let flags = flags_after_update(
             self.context.arena(),
@@ -6288,6 +6335,32 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
+    /// tsc-port: partialTransformClassElement @6.0.3 (member name flag)
+    /// tsc-span: _tsc.js:99937-99942
+    ///
+    /// A method or property declaration of a transformed class whose
+    /// modifiers are empty once its decorators are removed gets
+    /// NoLeadingComments on its visited name: the trivia between the
+    /// removed decorators and the name must not print before the name, nor
+    /// before the same node reused by the `access` descriptor.
+    fn mark_transformed_member_name(
+        &mut self,
+        is_method_or_property: bool,
+        stripped_modifiers: Option<NodeArrayId>,
+        name: Option<NodeId>,
+    ) -> Result<(), TransformError> {
+        if !is_method_or_property
+            || stripped_modifiers.is_some()
+            || !self.innermost_class_has_class_info()
+        {
+            return Ok(());
+        }
+        if let Some(name) = name {
+            self.add_emit_flags(self.node(name), EmitFlags::NO_LEADING_COMMENTS)?;
+        }
+        Ok(())
+    }
+
     /// tsc-port: createTempVariable(hoistVariableDeclaration) @6.0.3
     ///
     /// A generated binding declared by the innermost lexical environment.
@@ -7292,14 +7365,30 @@ impl StandardDecoratorVisitor<'_> {
         &mut self,
         class_this: Option<TransformNode>,
         class_super: Option<TargetBinding>,
+        class_info: bool,
     ) {
         let saved_pending = std::mem::take(&mut self.pending_expressions);
         self.receiver_frames.push(DecoratorReceiverFrame::Class {
             class_this,
             class_super,
+            class_info,
             saved_pending,
         });
         self.update_receiver_state();
+    }
+
+    /// Whether the innermost enclosing class frame was entered with a
+    /// classInfo (`transformClassLike`), the condition under which
+    /// `partialTransformClassElement` projects member names.
+    fn innermost_class_has_class_info(&self) -> bool {
+        self.receiver_frames
+            .iter()
+            .rev()
+            .find_map(|frame| match frame {
+                DecoratorReceiverFrame::Class { class_info, .. } => Some(*class_info),
+                _ => None,
+            })
+            .unwrap_or(false)
     }
 
     /// tsc-port: exitClass @6.0.3
@@ -7478,7 +7567,7 @@ impl StandardDecoratorVisitor<'_> {
         data.name = self.visit_optional_node(data.name)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
-        self.enter_receiver_class(None, None);
+        self.enter_receiver_class(None, None, false);
         let members = self.visit_class_members_generic(data.members);
         self.exit_receiver_class();
         data.members = members?;
@@ -7504,7 +7593,7 @@ impl StandardDecoratorVisitor<'_> {
         data.name = self.visit_optional_node(data.name)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
-        self.enter_receiver_class(None, None);
+        self.enter_receiver_class(None, None, false);
         let members = self.visit_class_members_generic(data.members);
         self.exit_receiver_class();
         data.members = members?;
@@ -7665,6 +7754,7 @@ impl StandardDecoratorVisitor<'_> {
             NodeData::PropertyDeclaration(mut data) => {
                 let modifiers = data.modifiers;
                 data.modifiers = self.strip_decorators(data.modifiers)?;
+                self.mark_transformed_member_name(true, data.modifiers, data.name)?;
                 // The initializer owns a lexical environment; the memoized
                 // result is what the generic child visit picks up.
                 self.visit_property_initializer(data.initializer)?;
@@ -7673,6 +7763,7 @@ impl StandardDecoratorVisitor<'_> {
             NodeData::MethodDeclaration(mut data) => {
                 let modifiers = data.modifiers;
                 data.modifiers = self.strip_decorators(data.modifiers)?;
+                self.mark_transformed_member_name(true, data.modifiers, data.name)?;
                 (NodeData::MethodDeclaration(data), Some(modifiers))
             }
             NodeData::GetAccessor(mut data) => {
