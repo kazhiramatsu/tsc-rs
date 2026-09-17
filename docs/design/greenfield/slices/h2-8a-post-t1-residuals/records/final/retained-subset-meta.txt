@@ -1,0 +1,4 @@
+argv: python3 scripts/witness.py retained --case decorator-receiver-context/ --case decorator-static-accessor-handoff/ --case retained-accessor-followup/ --case retained-comma-factory/
+env: CARGO_BUILD_JOBS=2 (taskpolicy -b nice -n 15)
+exit: 0
+seconds: 106

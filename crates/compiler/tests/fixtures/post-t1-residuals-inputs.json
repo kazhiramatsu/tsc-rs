@@ -1,0 +1,3591 @@
+{
+ "version": 1,
+ "description": "H2.8a-A-RES-POST-T1 adjacent controls: anonymous default class names (r9), System hoisted class end maps (r12), private compound-assignment receiver temps (receiver-map), private assignment right-operand comments (private-set-comments), decorator expression comment suppression (decorator-comments).",
+ "cases": [
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-module-global-let-collision",
+   "family": "r9",
+   "variant": "define-module-global-let-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 99,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-module-no-collision",
+   "family": "r9",
+   "variant": "define-module-no-collision",
+   "roots": [
+    "/project/main.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 99,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-module-two-globals",
+   "family": "r9",
+   "variant": "define-module-two-globals",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\nlet default_2 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 99,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-module-same-file-census",
+   "family": "r9",
+   "variant": "define-module-same-file-census",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "const default_1 = 0;\nfunction dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 99,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-module-named-default",
+   "family": "r9",
+   "variant": "define-module-named-default",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class Named { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 99,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-module-static-field-no-decorator",
+   "family": "r9",
+   "variant": "define-module-static-field-no-decorator",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export default class { static f = 1; }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 99,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-module-no-name-needed",
+   "family": "r9",
+   "variant": "define-module-no-name-needed",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export default class { m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 99,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-system-two-files",
+   "family": "r9",
+   "variant": "define-system-two-files",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-system-two-files-reversed",
+   "family": "r9",
+   "variant": "define-system-two-files-reversed",
+   "roots": [
+    "/project/second.ts",
+    "/project/main.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-system-global-collision",
+   "family": "r9",
+   "variant": "define-system-global-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-system-static-field-two-files",
+   "family": "r9",
+   "variant": "define-system-static-field-two-files",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export default class { static f = 1; }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "export default class { static f = 1; }\nexport const tail = 1;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-system-function-default-collision",
+   "family": "r9",
+   "variant": "define-system-function-default-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export default function () { return 1; }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-commonjs-global-let-collision",
+   "family": "r9",
+   "variant": "define-commonjs-global-let-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 1,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-commonjs-function-default-collision",
+   "family": "r9",
+   "variant": "define-commonjs-function-default-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export default function () { return 1; }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 1,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-amd-global-let-collision",
+   "family": "r9",
+   "variant": "define-amd-global-let-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 2,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/define-umd-global-let-collision",
+   "family": "r9",
+   "variant": "define-umd-global-let-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 3,
+    "useDefineForClassFields": true,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/esnext/set-module-global-let-collision",
+   "family": "r9",
+   "variant": "set-module-global-let-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "module": 99,
+    "useDefineForClassFields": false,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/es2022/set-module-global-let-collision",
+   "family": "r9",
+   "variant": "set-module-global-let-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "module": 99,
+    "useDefineForClassFields": false,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/es2015/set-module-global-let-collision",
+   "family": "r9",
+   "variant": "set-module-global-let-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "module": 99,
+    "useDefineForClassFields": false,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/es2022/set-system-two-files",
+   "family": "r9",
+   "variant": "set-system-two-files",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r9/es2015/set-commonjs-global-let-collision",
+   "family": "r9",
+   "variant": "set-commonjs-global-let-collision",
+   "roots": [
+    "/project/main.ts",
+    "/project/globals.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nexport default @dec class { @dec static m() {} }\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/globals.ts",
+     "text": "let default_1 = 0;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "module": 1,
+    "useDefineForClassFields": false,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/system-exported-static-field",
+   "family": "r12",
+   "variant": "system-exported-static-field",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/system-unexported-static-field",
+   "family": "r12",
+   "variant": "system-unexported-static-field",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/system-no-declaration",
+   "family": "r12",
+   "variant": "system-no-declaration",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/system-no-static",
+   "family": "r12",
+   "variant": "system-no-static",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    m() { return 1; }\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/system-trailing-comment",
+   "family": "r12",
+   "variant": "system-trailing-comment",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    static f = 1;\n} // end of A\n\n/* between */\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/system-non-bmp-before-class",
+   "family": "r12",
+   "variant": "system-non-bmp-before-class",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "const s = \"😀😀\";\nexport class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name + s;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/system-default-anonymous-static-field",
+   "family": "r12",
+   "variant": "system-default-anonymous-static-field",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export default class {\n    static f = 1;\n}\nexport const tail = 1;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/system-class-expression-variable",
+   "family": "r12",
+   "variant": "system-class-expression-variable",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export const A = class {\n    static f = 1;\n};\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/system-nested-class",
+   "family": "r12",
+   "variant": "system-nested-class",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export function make() {\n    class A extends Object {\n        static f = 1;\n    }\n    return A.name;\n}\nexport const tailA = make();\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/system-static-private-both-files",
+   "family": "r12",
+   "variant": "system-static-private-both-files",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static #p = 1;\n    static readP() { return A.#p; }\n}\nexport const tailB = A.readP();\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2022/system-exported-static-field",
+   "family": "r12",
+   "variant": "system-exported-static-field",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/esnext/define-system-decorated-static-init",
+   "family": "r12",
+   "variant": "define-system-decorated-static-init",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { get x(): \"x\" { return \"x\"; } };\n@dec\nexport class K {\n    @dec static [keys.x] = 1;\n}\nexport const tail = K.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { get x(): \"x\" { return \"x\"; } };\n@dec\nexport class K {\n    @dec static [keys.x] = 1;\n}\nexport const tail = K.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/esnext/define-system-decorated-no-static",
+   "family": "r12",
+   "variant": "define-system-decorated-no-static",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\n@dec\nexport class K {\n    @dec m() { return 1; }\n}\nexport const tail = K.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\n@dec\nexport class K {\n    @dec m() { return 1; }\n}\nexport const tail = K.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/esnext/define-system-static-field-no-decorator",
+   "family": "r12",
+   "variant": "define-system-static-field-no-decorator",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 4,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/amd-exported-static-field",
+   "family": "r12",
+   "variant": "amd-exported-static-field",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/umd-exported-static-field",
+   "family": "r12",
+   "variant": "umd-exported-static-field",
+   "roots": [
+    "/project/main.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 3,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/commonjs-exported-static-field",
+   "family": "r12",
+   "variant": "commonjs-exported-static-field",
+   "roots": [
+    "/project/main.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 1,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/r12/es2015/esnext-module-exported-static-field",
+   "family": "r12",
+   "variant": "esnext-module-exported-static-field",
+   "roots": [
+    "/project/main.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 99,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-compound-second-file",
+   "family": "receiver-map",
+   "variant": "static-compound-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { B.#p += 1; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-compound-first-file",
+   "family": "receiver-map",
+   "variant": "static-compound-first-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { B.#p += 1; }\n}\nexport const tailB = B.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-compound-outdir",
+   "family": "receiver-map",
+   "variant": "static-compound-outdir",
+   "roots": [
+    "/project/main.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { B.#p += 1; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 1,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-compound-value-used",
+   "family": "receiver-map",
+   "variant": "static-compound-value-used",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { return B.#p += 1; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-compound-multiply",
+   "family": "receiver-map",
+   "variant": "static-compound-multiply",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { B.#p *= 2; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-postfix-discarded",
+   "family": "receiver-map",
+   "variant": "static-postfix-discarded",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { B.#p++; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-postfix-used",
+   "family": "receiver-map",
+   "variant": "static-postfix-used",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { return B.#p++; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-prefix-discarded",
+   "family": "receiver-map",
+   "variant": "static-prefix-discarded",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { ++B.#p; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-prefix-used",
+   "family": "receiver-map",
+   "variant": "static-prefix-used",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { return ++B.#p; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-read",
+   "family": "receiver-map",
+   "variant": "static-read",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static read() { return B.#p; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-simple-set",
+   "family": "receiver-map",
+   "variant": "static-simple-set",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static set(v: number) { B.#p = v; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/instance-this-compound",
+   "family": "receiver-map",
+   "variant": "instance-this-compound",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    bump() { this.#q += 1; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/instance-this-compound-used",
+   "family": "receiver-map",
+   "variant": "instance-this-compound-used",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    bump() { return this.#q += 1; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/instance-side-effect-compound",
+   "family": "receiver-map",
+   "variant": "instance-side-effect-compound",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static make(): B { return new B(); }\n    static bump() { B.make().#q += 1; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-side-effect-compound",
+   "family": "receiver-map",
+   "variant": "static-side-effect-compound",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static pick(): typeof B { return B; }\n    static bump() { B.pick().#p += 1; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-paren-receiver-compound",
+   "family": "receiver-map",
+   "variant": "static-paren-receiver-compound",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { (B).#p += 1; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2015/static-nested-class-compound",
+   "family": "receiver-map",
+   "variant": "static-nested-class-compound",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "export function make() {\n    class B extends Object {\n        static #p = 1;\n        static bump() { B.#p += 1; }\n    }\n    return B.name;\n}\nexport const tailB = make();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/receiver-map/es2022/static-compound-second-file",
+   "family": "receiver-map",
+   "variant": "static-compound-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static bump() { B.#p += 1; }\n}\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/no-comment",
+   "family": "private-set-comments",
+   "variant": "no-comment",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { B.#p = v; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/trailing-block",
+   "family": "private-set-comments",
+   "variant": "trailing-block",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { B.#p = v /* t */; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/leading-block",
+   "family": "private-set-comments",
+   "variant": "leading-block",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { B.#p = /* l */ v; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/leading-and-trailing",
+   "family": "private-set-comments",
+   "variant": "leading-and-trailing",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { B.#p = /* l */ v /* t */; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/end-of-line",
+   "family": "private-set-comments",
+   "variant": "end-of-line",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) {\n        B.#p = v // eol\n        ;\n    }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/parenthesized",
+   "family": "private-set-comments",
+   "variant": "parenthesized",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { B.#p = (v /* in */); }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/comma-sequence",
+   "family": "private-set-comments",
+   "variant": "comma-sequence",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { (B.#p = v /* t1 */, B.#p = v /* t2 */); }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/argument-boundary",
+   "family": "private-set-comments",
+   "variant": "argument-boundary",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static id(x: number, y: number) { return x + y; }\n    static writeP(v: number) { B.id(B.#p = v /* arg */, 1); }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/instance-this-trailing",
+   "family": "private-set-comments",
+   "variant": "instance-this-trailing",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { }\n    writeQ(v: number) { this.#q = v /* t */; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/compound-trailing",
+   "family": "private-set-comments",
+   "variant": "compound-trailing",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { B.#p += v /* t */; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/multiline-trailing",
+   "family": "private-set-comments",
+   "variant": "multiline-trailing",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) {\n        B.#p =\n            v /* t */\n            ;\n    }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/leading-line-comment",
+   "family": "private-set-comments",
+   "variant": "leading-line-comment",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) {\n        B.#p = // c\n            v;\n    }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/value-used-trailing",
+   "family": "private-set-comments",
+   "variant": "value-used-trailing",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { const r = (B.#p = v /* t */); return r; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/after-statement",
+   "family": "private-set-comments",
+   "variant": "after-statement",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { B.#p = v; /* after */ }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/trailing-block-remove-comments",
+   "family": "private-set-comments",
+   "variant": "trailing-block-remove-comments",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { B.#p = v /* t */; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": true,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2015/trailing-block-outdir",
+   "family": "private-set-comments",
+   "variant": "trailing-block-outdir",
+   "roots": [
+    "/project/main.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { B.#p = v /* t */; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 1,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/private-set-comments/es2022/trailing-block",
+   "family": "private-set-comments",
+   "variant": "trailing-block",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    #q = 1;\n    static writeP(v: number) { B.#p = v /* t */; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-static-get-second-file",
+   "family": "decorator-comments",
+   "variant": "set-static-get-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@dec\nclass B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-class-block",
+   "family": "decorator-comments",
+   "variant": "set-class-block",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@/* a */ dec /* b */\nclass B extends Object {\n    static #p = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-class-eol",
+   "family": "decorator-comments",
+   "variant": "set-class-eol",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@dec // eol\nclass B extends Object {\n    static #p = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-member-block",
+   "family": "decorator-comments",
+   "variant": "set-member-block",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\nclass B extends Object {\n    @/* a */ dec /* b */ m() { return 1; }\n    @/* c */ dec /* d */ static f = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-property-access",
+   "family": "decorator-comments",
+   "variant": "set-property-access",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@/* a */ ns./* b */dec /* c */\nclass B extends Object {\n    @ns.dec /* d */ m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-call-arguments",
+   "family": "decorator-comments",
+   "variant": "set-call-arguments",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@dec(/* arg */ 1 as any) /* after */\nclass B extends Object {\n    @dec /* x */ (1 as any) m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-parenthesized",
+   "family": "decorator-comments",
+   "variant": "set-parenthesized",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@(/* p */ dec /* q */)\nclass B extends Object {\n    @(/* r */ ns.dec /* s */) m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-multiple",
+   "family": "decorator-comments",
+   "variant": "set-multiple",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@dec /* a */ @dec2 /* b */\nclass B extends Object {\n    @dec /* c */ @dec2 /* d */ m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-computed-name",
+   "family": "decorator-comments",
+   "variant": "set-computed-name",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\nclass B extends Object {\n    @dec /* a */ [/* k */ key() /* l */] = 1;\n    @dec /* b */ static [/* m */ key()]() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-line-between",
+   "family": "decorator-comments",
+   "variant": "set-line-between",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@dec\n// between\nclass B extends Object {\n    @dec\n    // between member\n    m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/set-static-get-second-file",
+   "family": "decorator-comments",
+   "variant": "set-static-get-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@dec\nclass B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/set-class-block",
+   "family": "decorator-comments",
+   "variant": "set-class-block",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@/* a */ dec /* b */\nclass B extends Object {\n    static #p = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/set-class-eol",
+   "family": "decorator-comments",
+   "variant": "set-class-eol",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@dec // eol\nclass B extends Object {\n    static #p = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/set-member-block",
+   "family": "decorator-comments",
+   "variant": "set-member-block",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\nclass B extends Object {\n    @/* a */ dec /* b */ m() { return 1; }\n    @/* c */ dec /* d */ static f = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/set-property-access",
+   "family": "decorator-comments",
+   "variant": "set-property-access",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@/* a */ ns./* b */dec /* c */\nclass B extends Object {\n    @ns.dec /* d */ m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/set-call-arguments",
+   "family": "decorator-comments",
+   "variant": "set-call-arguments",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@dec(/* arg */ 1 as any) /* after */\nclass B extends Object {\n    @dec /* x */ (1 as any) m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/set-parenthesized",
+   "family": "decorator-comments",
+   "variant": "set-parenthesized",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@(/* p */ dec /* q */)\nclass B extends Object {\n    @(/* r */ ns.dec /* s */) m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/set-multiple",
+   "family": "decorator-comments",
+   "variant": "set-multiple",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@dec /* a */ @dec2 /* b */\nclass B extends Object {\n    @dec /* c */ @dec2 /* d */ m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/set-computed-name",
+   "family": "decorator-comments",
+   "variant": "set-computed-name",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\nclass B extends Object {\n    @dec /* a */ [/* k */ key() /* l */] = 1;\n    @dec /* b */ static [/* m */ key()]() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/set-line-between",
+   "family": "decorator-comments",
+   "variant": "set-line-between",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@dec\n// between\nclass B extends Object {\n    @dec\n    // between member\n    m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-class-block-remove-comments",
+   "family": "decorator-comments",
+   "variant": "set-class-block-remove-comments",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@/* a */ dec /* b */\nclass B extends Object {\n    static #p = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": true,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2022/set-class-block-outdir",
+   "family": "decorator-comments",
+   "variant": "set-class-block-outdir",
+   "roots": [
+    "/project/main.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@/* a */ dec /* b */\nclass B extends Object {\n    static #p = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 9,
+    "useDefineForClassFields": false,
+    "module": 1,
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2015/set-class-block",
+   "family": "decorator-comments",
+   "variant": "set-class-block",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@/* a */ dec /* b */\nclass B extends Object {\n    static #p = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/es2015/set-property-access",
+   "family": "decorator-comments",
+   "variant": "set-property-access",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@/* a */ ns./* b */dec /* c */\nclass B extends Object {\n    @ns.dec /* d */ m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 2,
+    "useDefineForClassFields": false,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/define-class-block",
+   "family": "decorator-comments",
+   "variant": "define-class-block",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@/* a */ dec /* b */\nclass B extends Object {\n    static #p = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/define-property-access",
+   "family": "decorator-comments",
+   "variant": "define-property-access",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\n@/* a */ ns./* b */dec /* c */\nclass B extends Object {\n    @ns.dec /* d */ m() { return 1; }\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "post-t1-residuals/decorator-comments/esnext/define-member-block",
+   "family": "decorator-comments",
+   "variant": "define-member-block",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\nfunction dec2(value: any, context: any): any { return value; }\nconst ns = { dec };\nfunction key(): \"x\" { return \"x\"; }\nclass B extends Object {\n    @/* a */ dec /* b */ m() { return 1; }\n    @/* c */ dec /* d */ static f = 1;\n}\nexport const tail = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "removeComments": false,
+    "target": 99,
+    "useDefineForClassFields": true,
+    "module": 2,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  }
+ ]
+}

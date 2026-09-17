@@ -1,0 +1,4 @@
+argv: cargo clippy --manifest-path crates/emitter/Cargo.toml --all-targets -- -D warnings
+env: CARGO_BUILD_JOBS=2 (taskpolicy -b nice -n 15)
+exit: 101
+seconds: 18

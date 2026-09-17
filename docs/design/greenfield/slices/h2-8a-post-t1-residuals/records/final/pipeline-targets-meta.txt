@@ -1,0 +1,4 @@
+argv: python3 scripts/witness.py decorator-binding-pipeline --case decorator-binding/global/esnext/define/script-let-default_1 --case decorator-binding/lifecycle/esnext/define/bundle-default-two-files --case decorator-binding/lifecycle/esnext/define/bundle-computed-temps-two-files --case decorator-binding/lifecycle/esnext/define/bundle-file-level-then-scoped-across-files
+env: CARGO_BUILD_JOBS=2 (taskpolicy -b nice -n 15)
+exit: 0
+seconds: 368

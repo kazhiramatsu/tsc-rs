@@ -173,9 +173,10 @@ class SelectionTests(unittest.TestCase):
     def test_binding_runner_requires_requested_membership_and_propagates_failure(self):
         suite = "decorator-binding-pipeline"
         command, env = witness.invocation(suite, [], {})
-        # The frozen known-native fixture holds four rows (R9 x2, R12 x2) after
-        # H2.8a-A-RES-BUNDLE-METADATA-T1 retired the five T1 rows.
-        good = "decorator binding SUMMARY exact=763 known=4 failed=0 selected=767\n" \
+        # The frozen known-native fixture holds no rows after
+        # H2.8a-A-RES-POST-T1 retired the four R9 / R12 rows (T1 had retired
+        # its five rows before).
+        good = "decorator binding SUMMARY exact=767 known=0 failed=0 selected=767\n" \
                "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
         def invoke(output=good, status=0, observer_failure=False, needles=()):
             def run(argv, **kwargs):
@@ -193,16 +194,16 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(calls.call_args_list[0].kwargs["env"], env)
         self.assertEqual(calls.call_args_list[1].args[0], command)
         for output in ("", good.replace("1 passed", "0 passed"), good.replace("0 ignored", "1 ignored"),
-                       good.replace("failed=0", "failed=1"), good.replace("exact=763", "exact=762"),
-                       good.replace("exact=763 known=4", "exact=764 known=3"),
-                       good.replace("exact=763", "exact=1").replace("selected=767", "selected=10")):
+                       good.replace("failed=0", "failed=1"), good.replace("exact=767", "exact=766"),
+                       good.replace("exact=767 known=0", "exact=766 known=1"),
+                       good.replace("exact=767", "exact=1").replace("selected=767", "selected=10")):
             with self.subTest(output=output), self.assertRaises(ValueError):
                 invoke(output)
         with self.assertRaises(subprocess.CalledProcessError):
             invoke(status=101)
         with self.assertRaises(subprocess.CalledProcessError):
             invoke(observer_failure=True)
-        focused = good.replace("exact=763 known=4", "exact=28 known=0").replace("selected=767", "selected=28")
+        focused = good.replace("exact=767 known=0", "exact=28 known=0").replace("selected=767", "selected=28")
         invoke(focused, needles=("/reserved/esnext/set/",))
         with self.assertRaises(ValueError), patch.object(witness.subprocess, "run") as calls:
             witness.run_binding(suite, command, env, [witness.BINDING[suite]["upstream_exceptions"][0]])
@@ -810,6 +811,7 @@ class WitnessTests(unittest.TestCase):
             "config-library": 96, "prologue-comments": 8,
             "utf16-recovery-corpus": 50, "map-option-projection": 31,
             "bundle-program": 27, "bundle-declarations": 56, "bundle-metadata-t1": 18,
+            "post-t1-residuals": 101,
             "module-identities": 56, "bundle-original-javascript": 4,
             "declaration-map-apis": 75, "declaration-maps": 84,
             "literal-update": 1396, "literal-update-pipeline": 22, "require-rewrite": 74,
