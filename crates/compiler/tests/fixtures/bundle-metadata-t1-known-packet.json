@@ -42,26 +42,6 @@
           "constant_value": false
         }
       ]
-    },
-    {
-      "case_id": "bundle-metadata-t1/receiver/es2015/static-set-second-file",
-      "class": "private-set-value-comment-boundary",
-      "owner": "builtins/class_fields/downlevel.rs:7700-7708 create_private_set: the Rust-native comment boundary adds NO_TRAILING_COMMENTS (2048) to the parsed right operand `v` of `B.#p = v` (a guard against emitting a retained trailing comment inside the helper argument list and again from the original-linked outer expression); tsc creates no emitNode for that operand. JavaScript and declaration bytes match; the receiver comment range matches exactly.",
-      "disposition": "rust-only-flag-no-exact-credit",
-      "rust_only": [
-        {
-          "file": "/project/second.ts",
-          "kind": "Identifier",
-          "pos": 81,
-          "end": 83,
-          "flags": 2048,
-          "internal_flags": 0,
-          "comment_range": null,
-          "type_node": null,
-          "constant_value": false
-        }
-      ],
-      "upstream_only": []
     }
   ]
 }

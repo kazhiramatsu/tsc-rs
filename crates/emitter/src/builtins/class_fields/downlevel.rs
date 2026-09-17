@@ -7703,14 +7703,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             Vec::new(),
         ))?;
         self.set_private_receiver_comment_range(receiver)?;
-        // The source assignment/update owns trivia at the end of the right
-        // operand. Without this boundary, a retained trailing comment is
-        // emitted inside the synthesized helper's argument list and then a
-        // second time from the original-linked outer expression.
-        self.context
-            .arena_mut()?
-            .metadata_mut(value)
-            .add_flags(EmitFlags::NO_TRAILING_COMMENTS);
         let helper = self
             .context
             .factory()?
