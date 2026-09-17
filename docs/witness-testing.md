@@ -500,3 +500,12 @@ timings and qualification are recorded by the integration receipt.
 python3 scripts/witness.py post-t1-residuals --all --dry-run
 python3 scripts/witness.py post-t1-residuals --all
 ```
+
+PR #555's candidate `2883e3c79247b988106c6e4f1f2bdd074ae90e66` passed all14 checks.
+The pipeline job took20m57s, including the new101 controls;
+controls took39m57s. Full pipeline767 was exact with no known rows.
+POST-T1 produced96 exact /5 guarded known /0 failed and79 exact packet probes;
+T1 produced18 exact complete commands and15 exact packet probes.
+[Integration evidence](design/greenfield/slices/h2-8a-post-t1-residuals/integration/README.md)
+records the final-head local checks, full hosted logs, bounded architecture
+requalification and remaining printer-owned five rows.

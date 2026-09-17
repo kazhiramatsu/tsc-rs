@@ -33,7 +33,7 @@ C02 generated-binding はPR #549で統合済み。 direct 156入力と pipeline 
 
 [OPS-COVER-4A/4B](foundations/README.md) はsyntax/binder/typesの9 targetとhost/Programの7 targetを独立foundations jobに登録したv22。凍結observer9件とmacOSの47 testsが成功。Linuxでも専用cfgを含む48 testsが成功。PR #551は14 checks成功後にmain `45d6f6848`へ統合済み。API/value/host契約の件数であり、完全なコンパイラcommand互換件数には加算しない。
 
-[POST-T1統合](../h2-8a-post-t1-residuals/integration/README.md)で新101入力・2 exact-name testsをpipeline jobへ追加したv23。73 standaloneの入口を棚卸しし、元pipelineの必要値を767 exact /0 knownとする。hosted結果は統合記録へ保存する。
+[POST-T1統合](../h2-8a-post-t1-residuals/integration/README.md)で新101入力・2 exact-name testsをpipeline jobへ追加したv23。73 standaloneの入口を棚卸しし、元pipelineの必要値を767 exact /0 knownとする。PR #555の最終候補で全14 checksが成功し、pipeline767 exact、新対照96 exact/5 knownとpacket79 exactを確認。実時間と全logは統合記録に保存した。
 
 ## 現在の入口
 
@@ -88,7 +88,7 @@ metadata6：`class_header_token_metadata_contract`、`comma_argument_factory_con
 残るOPS-COVER全件をemitter完了の追加前提にしない。emitter修復の検証に必要な入口だけを先に扱う。
 
 これらは Claude の新しい6件目の大規模依頼にはしない。C01/C02/C04 等の提出時に必要な対照を
-照合し、登録と本番統合は統合担当が行う。C01はPR #542で統合済み。C02もPR #549で統合済み。T1もPR #550で統合済み。次は[POST-T1の5件一括依頼](../h2-8a-post-t1-residuals-claude-handoff.md)。
+照合し、登録と本番統合は統合担当が行う。C01はPR #542で統合済み。C02もPR #549で統合済み。T1もPR #550で統合済み。[POST-T1の5子](../h2-8a-post-t1-residuals/integration/README.md)も受領し、CI入口追加と全14 hosted checksが完了。残る5 knownはprinterの別経路として記録する。
 
 `ci.yml` は PRに加えてmain pushでも動く。たとえば #527 の PR acceptance の後、
 merge `526c2b37a` に [main push run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34987714601)

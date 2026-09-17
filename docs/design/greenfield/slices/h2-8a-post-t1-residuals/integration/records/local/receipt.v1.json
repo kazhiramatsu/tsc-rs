@@ -1,0 +1,66 @@
+{
+  "head": "2883e3c79247b988106c6e4f1f2bdd074ae90e66",
+  "source_status": "",
+  "started_at": "2026-09-17T05:29:20.191129+00:00",
+  "environment": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-post-t1-residuals/target"
+  },
+  "commands": [
+    {
+      "name": "emitter-units",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 249.211,
+      "log": "emitter-units.log.gz",
+      "sha256": "c0a2ef913a9382b824a1ec05a437e7e2ab43a5a99f593c862c924becf46333ae"
+    },
+    {
+      "name": "post-t1",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "scripts/witness.py",
+        "post-t1-residuals",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 610.79,
+      "log": "post-t1.log.gz",
+      "sha256": "8313e929424fb71a9581b86094e2eaf45487b0516b7b359650c511fad21cd373"
+    },
+    {
+      "name": "t1",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "scripts/witness.py",
+        "bundle-metadata-t1",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 64.226,
+      "log": "t1.log.gz",
+      "sha256": "d38fd9f670b51dc41144b8c2ca898e4d80c2eabbed076a8e269979048ab03642"
+    }
+  ]
+}

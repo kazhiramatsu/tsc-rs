@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "candidate_commit": "2883e3c79247b988106c6e4f1f2bdd074ae90e66",
+  "candidate_tree": "2281920bafc71210eaa45e7d7fbbe8bfb1c984b0",
+  "local_receipt": "records/local/receipt.v1.json",
+  "hosted_receipt": "hosted/receipt.v1.json",
+  "status": "active-qualified",
+  "bounded_changes": {
+    "E-NAMES-BASE": "Typed anonymous-default binding propagation into module transforms.",
+    "E-METADATA-BASE": "Range-only System nodes, synthesized private receivers and decorator metadata producers.",
+    "E-COMMENT-SCOPE-H": "Native decorator comment entry and private-set suppression removal."
+  },
+  "premise_unchanged": [
+    "E-NAMES-CLASS-G",
+    "E-METADATA-G-CLASS",
+    "E-POSITIONS"
+  ],
+  "remaining_known": {
+    "complete_commands": 5,
+    "packet_probes": 0,
+    "owner": "E-COMMENT-SCOPE-H bound decorator target trailing comments"
+  },
+  "observations": {
+    "pipeline": "decorator binding SUMMARY exact=767 known=0 failed=0 selected=767",
+    "post-t1": "post t1 residuals SUMMARY exact=96 known=5 failed=0 selected=101",
+    "post-t1-packet": "post t1 residuals PACKET SUMMARY exact=79 known=0 failed=0 probed=79",
+    "t1": "bundle metadata t1 SUMMARY exact=18 known=0 failed=0 selected=18",
+    "t1-packet": "bundle metadata t1 PACKET SUMMARY exact=15 known=0 failed=0 probed=15"
+  },
+  "no_change_to": [
+    "STAGE",
+    "accepted profiles",
+    "ratchets",
+    "H2.8 whole-product admission"
+  ]
+}
