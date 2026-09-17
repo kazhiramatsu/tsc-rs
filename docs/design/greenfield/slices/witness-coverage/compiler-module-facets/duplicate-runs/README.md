@@ -1,0 +1,5 @@
+# Accidental duplicate runs for PR #550
+
+The exact implementation head `059519e997c5f81fd313c8166b9e28fd8fefee79` passed all nine replay jobs and all 13 checks in runs 35166123773 and 35166123746 (see ../hosted.v1.json). A later documentation-only push triggered another full replay because PR planning uses the base diff. Documentation was preserved on `docs/module-witness-hosted-550`, and the implementation branch was restored to the already tested head.
+
+Restoring that head generated the two additional duplicate runs archived here. They were cancelled without repeating the completed validation, but their cancellation results blocked the PR despite the successful original checks. Their complete job metadata and downloadable logs are retained here before removing only these two accidental duplicate run records from GitHub. The successful original runs remain on GitHub, including their second attempt that reran only the aggregate gates. No production or test implementation changed after full validation.

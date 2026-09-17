@@ -1,0 +1,879 @@
+{
+  "run": {
+    "id": 35169133250,
+    "name": "witnesses",
+    "node_id": "WFR_kwLOTPETk88AAAAIMD5iwg",
+    "head_branch": "work/module-foundation-witnesses",
+    "head_sha": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+    "path": ".github/workflows/witness.yml",
+    "display_title": "ci: cover module identities and original JavaScript bundle maps",
+    "run_number": 37,
+    "event": "pull_request",
+    "status": "completed",
+    "conclusion": "cancelled",
+    "workflow_id": 358665923,
+    "check_suite_id": 95245552356,
+    "check_suite_node_id": "CS_kwDOTPETk88AAAAWLRPK5A",
+    "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250",
+    "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35169133250",
+    "pull_requests": [
+      {
+        "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/pulls/550",
+        "id": 4553334109,
+        "number": 550,
+        "head": {
+          "ref": "work/module-foundation-witnesses",
+          "sha": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+          "repo": {
+            "id": 1290867603,
+            "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs",
+            "name": "tsc-rs"
+          }
+        },
+        "base": {
+          "ref": "main",
+          "sha": "84da0c0278c296fd295f15e48177ada87810f841",
+          "repo": {
+            "id": 1290867603,
+            "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs",
+            "name": "tsc-rs"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-09-17T01:04:46Z",
+    "updated_at": "2026-09-17T01:07:34Z",
+    "actor": {
+      "login": "kazhiramatsu",
+      "id": 226653,
+      "node_id": "MDQ6VXNlcjIyNjY1Mw==",
+      "avatar_url": "https://avatars.githubusercontent.com/u/226653?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/kazhiramatsu",
+      "html_url": "https://github.com/kazhiramatsu",
+      "followers_url": "https://api.github.com/users/kazhiramatsu/followers",
+      "following_url": "https://api.github.com/users/kazhiramatsu/following{/other_user}",
+      "gists_url": "https://api.github.com/users/kazhiramatsu/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/kazhiramatsu/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/kazhiramatsu/subscriptions",
+      "organizations_url": "https://api.github.com/users/kazhiramatsu/orgs",
+      "repos_url": "https://api.github.com/users/kazhiramatsu/repos",
+      "events_url": "https://api.github.com/users/kazhiramatsu/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/kazhiramatsu/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "run_attempt": 1,
+    "referenced_workflows": [],
+    "run_started_at": "2026-09-17T01:04:46Z",
+    "triggering_actor": {
+      "login": "kazhiramatsu",
+      "id": 226653,
+      "node_id": "MDQ6VXNlcjIyNjY1Mw==",
+      "avatar_url": "https://avatars.githubusercontent.com/u/226653?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/kazhiramatsu",
+      "html_url": "https://github.com/kazhiramatsu",
+      "followers_url": "https://api.github.com/users/kazhiramatsu/followers",
+      "following_url": "https://api.github.com/users/kazhiramatsu/following{/other_user}",
+      "gists_url": "https://api.github.com/users/kazhiramatsu/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/kazhiramatsu/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/kazhiramatsu/subscriptions",
+      "organizations_url": "https://api.github.com/users/kazhiramatsu/orgs",
+      "repos_url": "https://api.github.com/users/kazhiramatsu/repos",
+      "events_url": "https://api.github.com/users/kazhiramatsu/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/kazhiramatsu/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "jobs_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250/jobs",
+    "logs_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250/logs",
+    "check_suite_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/check-suites/95245552356",
+    "artifacts_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250/artifacts",
+    "cancel_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250/cancel",
+    "rerun_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250/rerun",
+    "previous_attempt_url": null,
+    "workflow_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/workflows/358665923",
+    "head_commit": {
+      "id": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+      "tree_id": "a34cbdb889b8687e5840b990cabb8795db3989fe",
+      "message": "ci: cover module identities and original JavaScript bundle maps",
+      "timestamp": "2026-09-17T00:19:22Z",
+      "author": {
+        "name": "kazhiramatsu",
+        "email": "kazutakehiramatsu@gmail.com"
+      },
+      "committer": {
+        "name": "kazhiramatsu",
+        "email": "kazutakehiramatsu@gmail.com"
+      }
+    },
+    "repository": {
+      "id": 1290867603,
+      "node_id": "R_kgDOTPETkw",
+      "name": "tsc-rs",
+      "full_name": "kazhiramatsu/tsc-rs",
+      "private": false,
+      "owner": {
+        "login": "kazhiramatsu",
+        "id": 226653,
+        "node_id": "MDQ6VXNlcjIyNjY1Mw==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/226653?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/kazhiramatsu",
+        "html_url": "https://github.com/kazhiramatsu",
+        "followers_url": "https://api.github.com/users/kazhiramatsu/followers",
+        "following_url": "https://api.github.com/users/kazhiramatsu/following{/other_user}",
+        "gists_url": "https://api.github.com/users/kazhiramatsu/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/kazhiramatsu/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/kazhiramatsu/subscriptions",
+        "organizations_url": "https://api.github.com/users/kazhiramatsu/orgs",
+        "repos_url": "https://api.github.com/users/kazhiramatsu/repos",
+        "events_url": "https://api.github.com/users/kazhiramatsu/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/kazhiramatsu/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs",
+      "description": "tsc-rs is a Rust implementation of TypeScript checker behavior, focused on reproducing tsc diagnostics closely enough for differential testing.",
+      "fork": false,
+      "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs",
+      "forks_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/forks",
+      "keys_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/teams",
+      "hooks_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/hooks",
+      "issue_events_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/events",
+      "assignees_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/tags",
+      "blobs_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/languages",
+      "stargazers_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/stargazers",
+      "contributors_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/contributors",
+      "subscribers_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/subscribers",
+      "subscription_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/subscription",
+      "commits_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/merges",
+      "archive_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/downloads",
+      "issues_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/labels{/name}",
+      "releases_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/deployments"
+    },
+    "head_repository": {
+      "id": 1290867603,
+      "node_id": "R_kgDOTPETkw",
+      "name": "tsc-rs",
+      "full_name": "kazhiramatsu/tsc-rs",
+      "private": false,
+      "owner": {
+        "login": "kazhiramatsu",
+        "id": 226653,
+        "node_id": "MDQ6VXNlcjIyNjY1Mw==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/226653?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/kazhiramatsu",
+        "html_url": "https://github.com/kazhiramatsu",
+        "followers_url": "https://api.github.com/users/kazhiramatsu/followers",
+        "following_url": "https://api.github.com/users/kazhiramatsu/following{/other_user}",
+        "gists_url": "https://api.github.com/users/kazhiramatsu/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/kazhiramatsu/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/kazhiramatsu/subscriptions",
+        "organizations_url": "https://api.github.com/users/kazhiramatsu/orgs",
+        "repos_url": "https://api.github.com/users/kazhiramatsu/repos",
+        "events_url": "https://api.github.com/users/kazhiramatsu/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/kazhiramatsu/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/kazhiramatsu/tsc-rs",
+      "description": "tsc-rs is a Rust implementation of TypeScript checker behavior, focused on reproducing tsc diagnostics closely enough for differential testing.",
+      "fork": false,
+      "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs",
+      "forks_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/forks",
+      "keys_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/teams",
+      "hooks_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/hooks",
+      "issue_events_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/events",
+      "assignees_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/tags",
+      "blobs_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/languages",
+      "stargazers_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/stargazers",
+      "contributors_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/contributors",
+      "subscribers_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/subscribers",
+      "subscription_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/subscription",
+      "commits_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/merges",
+      "archive_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/downloads",
+      "issues_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/labels{/name}",
+      "releases_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/deployments"
+    }
+  },
+  "jobs": {
+    "total_count": 8,
+    "jobs": [
+      {
+        "id": 105036841859,
+        "run_id": 35169133250,
+        "workflow_name": "witnesses",
+        "head_branch": "work/module-foundation-witnesses",
+        "run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTPETk88AAAAYdK8Dgw",
+        "head_sha": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+        "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/jobs/105036841859",
+        "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35169133250/job/105036841859",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-17T01:05:11Z",
+        "started_at": "2026-09-17T01:05:13Z",
+        "completed_at": "2026-09-17T01:05:39Z",
+        "name": "plan",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-09-17T01:05:14Z",
+            "completed_at": "2026-09-17T01:05:15Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-09-17T01:05:15Z",
+            "completed_at": "2026-09-17T01:05:34Z"
+          },
+          {
+            "name": "Select affected replay groups",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-09-17T01:05:34Z",
+            "completed_at": "2026-09-17T01:05:37Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-09-17T01:05:37Z",
+            "completed_at": "2026-09-17T01:05:38Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-09-17T01:05:38Z",
+            "completed_at": "2026-09-17T01:05:38Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/check-runs/105036841859",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002675,
+        "runner_name": "GitHub Actions 1000002675",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 105036938095,
+        "run_id": 35169133250,
+        "workflow_name": "witnesses",
+        "head_branch": "work/module-foundation-witnesses",
+        "run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTPETk88AAAAYdLB7bw",
+        "head_sha": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+        "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/jobs/105036938095",
+        "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35169133250/job/105036938095",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-17T01:05:39Z",
+        "started_at": "2026-09-17T01:05:41Z",
+        "completed_at": "2026-09-17T01:07:14Z",
+        "name": "witnesses (decorator-binding-pipeline)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-09-17T01:05:41Z",
+            "completed_at": "2026-09-17T01:05:42Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-09-17T01:05:42Z",
+            "completed_at": "2026-09-17T01:05:49Z"
+          },
+          {
+            "name": "Use the frozen oracle Node version",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-09-17T01:05:49Z",
+            "completed_at": "2026-09-17T01:05:54Z"
+          },
+          {
+            "name": "Run selected witnesses",
+            "status": "completed",
+            "conclusion": "cancelled",
+            "number": 4,
+            "started_at": "2026-09-17T01:05:54Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Post Use the frozen oracle Node version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 7,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/check-runs/105036938095",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002681,
+        "runner_name": "GitHub Actions 1000002681",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 105036938118,
+        "run_id": 35169133250,
+        "workflow_name": "witnesses",
+        "head_branch": "work/module-foundation-witnesses",
+        "run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTPETk88AAAAYdLB7hg",
+        "head_sha": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+        "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/jobs/105036938118",
+        "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35169133250/job/105036938118",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-17T01:05:39Z",
+        "started_at": "2026-09-17T01:05:41Z",
+        "completed_at": "2026-09-17T01:07:14Z",
+        "name": "witnesses (primary)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-09-17T01:05:41Z",
+            "completed_at": "2026-09-17T01:05:42Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-09-17T01:05:42Z",
+            "completed_at": "2026-09-17T01:05:49Z"
+          },
+          {
+            "name": "Use the frozen oracle Node version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 3,
+            "started_at": "2026-09-17T01:05:49Z",
+            "completed_at": "2026-09-17T01:05:49Z"
+          },
+          {
+            "name": "Run selected witnesses",
+            "status": "completed",
+            "conclusion": "cancelled",
+            "number": 4,
+            "started_at": "2026-09-17T01:05:49Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/check-runs/105036938118",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002680,
+        "runner_name": "GitHub Actions 1000002680",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 105036938131,
+        "run_id": 35169133250,
+        "workflow_name": "witnesses",
+        "head_branch": "work/module-foundation-witnesses",
+        "run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTPETk88AAAAYdLB7kw",
+        "head_sha": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+        "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/jobs/105036938131",
+        "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35169133250/job/105036938131",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-17T01:05:39Z",
+        "started_at": "2026-09-17T01:05:42Z",
+        "completed_at": "2026-09-17T01:07:16Z",
+        "name": "witnesses (controls)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-09-17T01:05:43Z",
+            "completed_at": "2026-09-17T01:05:44Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-09-17T01:05:44Z",
+            "completed_at": "2026-09-17T01:05:54Z"
+          },
+          {
+            "name": "Use the frozen oracle Node version",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-09-17T01:05:54Z",
+            "completed_at": "2026-09-17T01:05:58Z"
+          },
+          {
+            "name": "Run selected witnesses",
+            "status": "completed",
+            "conclusion": "cancelled",
+            "number": 4,
+            "started_at": "2026-09-17T01:05:58Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Post Use the frozen oracle Node version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 7,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:14Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-09-17T01:07:14Z",
+            "completed_at": "2026-09-17T01:07:14Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/check-runs/105036938131",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002679,
+        "runner_name": "GitHub Actions 1000002679",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 105036938149,
+        "run_id": 35169133250,
+        "workflow_name": "witnesses",
+        "head_branch": "work/module-foundation-witnesses",
+        "run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTPETk88AAAAYdLB7pQ",
+        "head_sha": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+        "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/jobs/105036938149",
+        "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35169133250/job/105036938149",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-17T01:05:39Z",
+        "started_at": "2026-09-17T01:05:42Z",
+        "completed_at": "2026-09-17T01:07:15Z",
+        "name": "witnesses (declaration-maps)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-09-17T01:05:43Z",
+            "completed_at": "2026-09-17T01:05:44Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-09-17T01:05:44Z",
+            "completed_at": "2026-09-17T01:05:53Z"
+          },
+          {
+            "name": "Use the frozen oracle Node version",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-09-17T01:05:53Z",
+            "completed_at": "2026-09-17T01:05:58Z"
+          },
+          {
+            "name": "Run selected witnesses",
+            "status": "completed",
+            "conclusion": "cancelled",
+            "number": 4,
+            "started_at": "2026-09-17T01:05:58Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Post Use the frozen oracle Node version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 7,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/check-runs/105036938149",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002682,
+        "runner_name": "GitHub Actions 1000002682",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 105036938246,
+        "run_id": 35169133250,
+        "workflow_name": "witnesses",
+        "head_branch": "work/module-foundation-witnesses",
+        "run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTPETk88AAAAYdLB8Bg",
+        "head_sha": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+        "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/jobs/105036938246",
+        "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35169133250/job/105036938246",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-17T01:05:39Z",
+        "started_at": "2026-09-17T01:05:41Z",
+        "completed_at": "2026-09-17T01:07:15Z",
+        "name": "witnesses (retained)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-09-17T01:05:42Z",
+            "completed_at": "2026-09-17T01:05:42Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-09-17T01:05:42Z",
+            "completed_at": "2026-09-17T01:05:49Z"
+          },
+          {
+            "name": "Use the frozen oracle Node version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 3,
+            "started_at": "2026-09-17T01:05:49Z",
+            "completed_at": "2026-09-17T01:05:49Z"
+          },
+          {
+            "name": "Run selected witnesses",
+            "status": "completed",
+            "conclusion": "cancelled",
+            "number": 4,
+            "started_at": "2026-09-17T01:05:49Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:14Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-09-17T01:07:14Z",
+            "completed_at": "2026-09-17T01:07:14Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/check-runs/105036938246",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002683,
+        "runner_name": "GitHub Actions 1000002683",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 105036938319,
+        "run_id": 35169133250,
+        "workflow_name": "witnesses",
+        "head_branch": "work/module-foundation-witnesses",
+        "run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTPETk88AAAAYdLB8Tw",
+        "head_sha": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+        "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/jobs/105036938319",
+        "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35169133250/job/105036938319",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-17T01:05:39Z",
+        "started_at": "2026-09-17T01:05:41Z",
+        "completed_at": "2026-09-17T01:07:15Z",
+        "name": "witnesses (printer)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-09-17T01:05:42Z",
+            "completed_at": "2026-09-17T01:05:42Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-09-17T01:05:42Z",
+            "completed_at": "2026-09-17T01:05:50Z"
+          },
+          {
+            "name": "Use the frozen oracle Node version",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-09-17T01:05:50Z",
+            "completed_at": "2026-09-17T01:05:55Z"
+          },
+          {
+            "name": "Run selected witnesses",
+            "status": "completed",
+            "conclusion": "cancelled",
+            "number": 4,
+            "started_at": "2026-09-17T01:05:55Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Post Use the frozen oracle Node version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 7,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:13Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-09-17T01:07:13Z",
+            "completed_at": "2026-09-17T01:07:14Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-09-17T01:07:14Z",
+            "completed_at": "2026-09-17T01:07:14Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/check-runs/105036938319",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002684,
+        "runner_name": "GitHub Actions 1000002684",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 105037270375,
+        "run_id": 35169133250,
+        "workflow_name": "witnesses",
+        "head_branch": "work/module-foundation-witnesses",
+        "run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/runs/35169133250",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTPETk88AAAAYdLWNZw",
+        "head_sha": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+        "url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/actions/jobs/105037270375",
+        "html_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35169133250/job/105037270375",
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-17T01:07:17Z",
+        "started_at": "2026-09-17T01:07:19Z",
+        "completed_at": "2026-09-17T01:07:33Z",
+        "name": "witness-gates",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-09-17T01:07:20Z",
+            "completed_at": "2026-09-17T01:07:21Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-09-17T01:07:21Z",
+            "completed_at": "2026-09-17T01:07:30Z"
+          },
+          {
+            "name": "Require every selected group to succeed",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 3,
+            "started_at": "2026-09-17T01:07:30Z",
+            "completed_at": "2026-09-17T01:07:30Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-09-17T01:07:30Z",
+            "completed_at": "2026-09-17T01:07:30Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-09-17T01:07:30Z",
+            "completed_at": "2026-09-17T01:07:30Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/kazhiramatsu/tsc-rs/check-runs/105037270375",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002686,
+        "runner_name": "GitHub Actions 1000002686",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      }
+    ]
+  }
+}
