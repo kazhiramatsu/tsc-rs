@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "head": "bc4fa2c295dc20e45814f44ce8f460a6d959be0f",
+  "source_status": "",
+  "started_at": "2026-09-17T06:37:36.953514+00:00",
+  "commands": [
+    {
+      "name": "planner",
+      "argv": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".github/ci",
+        "-p",
+        "test_replay.py"
+      ],
+      "exit": 0,
+      "seconds": 1.111,
+      "log": "planner.log.gz",
+      "sha256": "92dcb273d9e30194b95b2e3a9180582d8e7f8163d831a98e72e8147754741440"
+    },
+    {
+      "name": "policy",
+      "argv": [
+        "node",
+        ".github/ci/qualification.mjs",
+        "check-policy"
+      ],
+      "exit": 0,
+      "seconds": 0.126,
+      "log": "policy.log.gz",
+      "sha256": "effecafb28867c0ea68b4399c8a67335fbbf81aa945acda2f25b35a66933ff50"
+    },
+    {
+      "name": "policy-tests",
+      "argv": [
+        "node",
+        "--test",
+        "--test-name-pattern=policy and every qualification schema boundary|local evidence classification",
+        ".github/ci/qualification.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.228,
+      "log": "policy-tests.log.gz",
+      "sha256": "119dac086d28253b9e9c398d95562179a85968dbbda4cbfcd2b174b2b656d65d"
+    },
+    {
+      "name": "inventory",
+      "argv": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "docs/design/greenfield/slices/witness-coverage/inventory.py",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.199,
+      "log": "inventory.log.gz",
+      "sha256": "df4a5a1c87dee843a2cc381734336922f31a02e2f76d539d5f45777ee5f59998"
+    },
+    {
+      "name": "diff",
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.024,
+      "log": "diff.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "name": "production-unchanged",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "origin/main",
+        "--",
+        "crates",
+        "vendor",
+        "ratchets",
+        "Cargo.toml",
+        "Cargo.lock"
+      ],
+      "exit": 0,
+      "seconds": 0.013,
+      "log": "production-unchanged.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    }
+  ]
+}
