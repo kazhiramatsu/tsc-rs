@@ -121,13 +121,50 @@ five-child Claude POST-T1 handoff. Claude's emitter changes are outside this
 branch. Production and the compiler accepted state remain byte-identical to
 the baseline.
 
-Full final-head hosted validation is pending until a run/head receipt is
-recorded. The policy/runner changes conservatively select all acceptance and
-witness groups, including foundations. Both aggregate gates must pass before
-merge. Record the new group's build/replay and total job time; split at the
-existing 45-minute review threshold if needed, without raising worker limits.
+Final head `447920e6c73f9a81d0aae8c2729a395426c9ff3b` passed all ten
+replay jobs, both planners and both aggregate gates in PR #551:14 successful
+checks. The policy/runner changes selected every acceptance and witness group.
+PR #551 merged at `45d6f68485556860f08c3949833276660d7a92eb`.
+[The merge receipt](hosted/merge.v1.json) verifies two parents and a Git tree
+identical to the tested candidate.
 
 OPS-COVER-4 is not closed wholesale: checker, harness, fuzz and the broad
 Program contract target remain, as do unregistered lib/bin harnesses and
 OPS-COVER-3's original-wrapper/filter accounting. The next inventory names
 those remaining entries explicitly.
+
+The [post-emitter coverage backlog](remaining-seven.md) records the seven remaining
+standalone targets and separates static declaration counts from executed tests.
+
+
+## Hosted validation: PR #551
+
+[The receipt](hosted/receipt.v1.json) retains both workflow runs, all14 job logs,
+SHA-256 hashes, candidate/tree identity and measured time. Every replay and
+aggregate check succeeded at the exact candidate head.
+
+| Replay job | Whole-job time | Result |
+| --- | ---: | --- |
+| [acceptance (late)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35178344808/job/105065004138) | 17m02s | success |
+| [acceptance (early)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35178344808/job/105065004169) | 12m00s | success |
+| [acceptance (wide)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35178344808/job/105065004218) | 27m50s | success |
+| [witnesses (retained)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35178344800/job/105065022827) | 8m49s | success |
+| [witnesses (declaration-maps)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35178344800/job/105065022837) | 6m25s | success |
+| [witnesses (primary)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35178344800/job/105065022858) | 10m33s | success |
+| [witnesses (decorator-binding-pipeline)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35178344800/job/105065022869) | 17m08s | success |
+| [witnesses (foundations)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35178344800/job/105065022875) | 1m28s | success |
+| [witnesses (printer)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35178344800/job/105065022891) | 3m01s | success |
+| [witnesses (controls)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35178344800/job/105065022923) | 29m08s | success |
+
+Foundations runs16 targets /48 Linux tests, including the Linux-only filesystem
+contract. Its observers take25.348s and Cargo build/replay43.765s; the whole
+job takes1m28s. Local macOS remains47 tests. The existing controls job retains
+21 compiler-direct selections /70 tests, and the binding pipeline retains
+763 exact /four known across767 complete commands. Known rows remain separate
+from exact compatibility results.
+
+The ten replay jobs total **133m24s**, excluding
+plans, aggregate gates and main push. The longest job is
+**29m08s**, below the45-minute split-review
+threshold and60-minute hard limit. These are whole-job observations on different
+hosted workers; they are not an isolated performance-improvement claim.

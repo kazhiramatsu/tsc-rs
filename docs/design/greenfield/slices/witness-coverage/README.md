@@ -1,6 +1,6 @@
 # OPS-COVER：PR CI のテスト入口台帳
 
-2026-09-17。統合担当：Codex。**OPS-COVER-4A/4Bの16 targetを一括追加。ローカル検証済み、最終headのhosted検証待ち。**
+2026-09-17。統合担当：Codex。**OPS-COVER-4A/4Bの16 targetをPR #551で一括統合。全10 replay job・両gateを含む14 checks成功。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
 [現在の固定台帳](inventory.v22.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
@@ -31,7 +31,7 @@ C02 generated-binding はPR #549で統合済み。 direct 156入力と pipeline 
 
 [T1統合](../h2-8a-bundle-metadata-t1/integration/README.md)は新18入力・2 exact-name testsをcontrolsへ追加し、台帳v21に記録する。元の767 complete commandsは763 exact /4 knownを必要値とする。
 
-[OPS-COVER-4A/4B](foundations/README.md) はsyntax/binder/typesの9 targetとhost/Programの7 targetを独立foundations jobに登録したv22。凍結observer9件とmacOSの47 testsが成功。Linuxでは専用cfgを含む48 testsを要求する。API/value/host契約の件数であり、完全なコンパイラcommand互換件数には加算しない。
+[OPS-COVER-4A/4B](foundations/README.md) はsyntax/binder/typesの9 targetとhost/Programの7 targetを独立foundations jobに登録したv22。凍結observer9件とmacOSの47 testsが成功。Linuxでも専用cfgを含む48 testsが成功。PR #551は14 checks成功後にmain `45d6f6848`へ統合済み。API/value/host契約の件数であり、完全なコンパイラcommand互換件数には加算しない。
 
 ## 現在の入口
 
@@ -66,13 +66,13 @@ v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では�
 - `decorator_super_contract` と acceptance は `support/witness_libraries.rs` を共有する。
   この補助 source の共有自体は SUPER の実行証明にならない。SUPER は別 witness job が担う。
 
-## 次に実装するスライス
+## 入口追加の完了記録と残項目
 
 | ID / 担当 | 対象 | 入れる順序・終了条件 |
 | --- | --- | --- |
 | OPS-COVER-2 / 統合担当 | emitter direct 10 target：入口追加完了 | [検証記録](emitter-direct/README.md)。literal4 / metadata6、2239 row ×2、13 tests。既存 printer job の20分枠・2 workersでbuildを共有し、専用入力はtarget単位で選択 |
 | OPS-COVER-3 / 統合担当 | [3AのCLI8件](declaration-map-cli/README.md)と[3BのUTF-16 3 target](compiler-utf16/README.md)、[3Cのliteral2 target](compiler-literals/README.md)を登録。[3Dのdeclaration3 target](compiler-declarations/README.md)も登録。[3Eのrequire-rewrite74入力](compiler-require-rewrite/README.md)も登録。[3F/3Gのconfig/library96入力とprologue8入力](compiler-config-prologue/README.md)も登録。[3H/3I](compiler-recovery-map/README.md)でrecovery50とmap-optionの2 targetを登録。[3J/3K](compiler-bundles/README.md)でbundle Programとdeclaration/mapを登録。[3N/3O](compiler-module-facets/README.md)でmodule identityと原本JavaScript recorderも登録。残りcompiler3 targetと名前filterの未選択部分 | 続いて旧literal rowsの重複、declaration/map、parameterの未収載集合を既存acceptanceのID／比較面と照合。530などの既存全体を再度追加しない |
-| OPS-COVER-4A/4B / 統合担当 | [syntax/binder/typesとhost/Programの16 target](foundations/README.md)を一括追加 | ローカル47 tests・planner71 tests成功。共有変更の従来選択を保持し、独立foundations jobで最終headを検証 |
+| OPS-COVER-4A/4B / 統合担当 | [syntax/binder/typesとhost/Programの16 target](foundations/README.md)を一括追加 | PR #551で統合済み。macOS47 /Linux48 tests・planner71 tests成功。全14 hosted checks成功、foundations1m28s、controls29m08s |
 | OPS-COVER-4残部 / 統合担当、各製品 owner | その他4 standalone と残15 lib/bin harness | checker/API、Program contracts、harness/fuzzの残部。単独file変更と共有変更の依存表を持ち、公開契約・取消・error・文字列境界を実測して登録 |
 | OPS-BUDGET / 統合担当 | 新規 group の build / replay / merge後の重複 | 2 workers、45分で分割検討、60分hard limit。PRとmain pushの実行時間を別集計。entryを追加してから恒常的な時間超過を発見する順序にしない |
 
@@ -81,6 +81,9 @@ emitter literal4：`literal_parent_provenance_contract`、`literal_value_provena
 metadata6：`class_header_token_metadata_contract`、`comma_argument_factory_contract`、
 `ellipsis_comment_metadata_contract`、`import_type_attributes_contract`、
 `mapped_type_members_contract`、`token_comment_phase_metadata_contract`。
+
+2026-09-17の優先順位：emitterの完成を次の一区切りとし、LSP関連と一般API整備は別途進める。
+残るOPS-COVER全件をemitter完了の追加前提にしない。emitter修復の検証に必要な入口だけを先に扱う。
 
 これらは Claude の新しい6件目の大規模依頼にはしない。C01/C02/C04 等の提出時に必要な対照を
 照合し、登録と本番統合は統合担当が行う。C01はPR #542で統合済み。C02もPR #549で統合済み。T1もPR #550で統合済み。次は[POST-T1の5件一括依頼](../h2-8a-post-t1-residuals-claude-handoff.md)。

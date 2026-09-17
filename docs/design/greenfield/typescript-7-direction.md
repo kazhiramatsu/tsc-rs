@@ -10,6 +10,44 @@ adapter sequence in the older post-H1 and L2-L5 plans, and their requirement
 for separate approval merely to begin post-6.0.3 work. Routine selection and
 sequencing within this direction belong to the implementer.
 
+## Emitter milestone and subsequent API work: 2026-09-17 clarification
+
+The next stopping milestone is emitter completion. Language services, native
+LSP and general public API development form a later phase. Existing emitter
+contracts still need their own validation; the complete tooling/API backlog is
+not an added condition for declaring that emitter milestone.
+
+For the later phase, the user explicitly chooses the TypeScript 7 **Go
+implementation and its public protocols** as the porting reference. LSP and
+programmatic API compatibility are separate observable contracts. Rust's typed
+internals support those contracts; same-named internal functions alone do not
+establish compatibility with upstream clients.
+
+The existing investigation pin remains
+`1f70213d4922b434345f639b441681e470c7cfc1` (`7.1.0-dev`). A read-only source
+review on2026-09-17 confirms these boundaries:
+
+| Boundary | Contract at the investigation pin | Porting scope |
+| --- | --- | --- |
+| Native LSP | Go LSP server and JSON-RPC transport | Adopt the pinned LSP methods, capabilities, document updates, cancellation, errors and results; replay native FourSlash and actual protocol exchanges separately |
+| Asynchronous compiler API | `Async` selects JSON-RPC2.0 with Content-Length framing; the asynchronous client uses JSON-RPC over stdio or a socket | Match API method/parameter/result/error definitions, session/snapshot/handle lifetime and client filesystem callbacks. These method contracts are distinct from LSP |
+| Synchronous compiler API | Default server mode selects MessagePack and a synchronous connection | Inventory this separately when defining supported upstream clients. An asynchronous JSON-RPC implementation does not establish synchronous-client compatibility |
+
+Source references at that exact commit:
+[API server selection](https://github.com/microsoft/TypeScript/blob/1f70213d4922b434345f639b441681e470c7cfc1/tsc/internal/api/server.go),
+[JSON-RPC framing](https://github.com/microsoft/TypeScript/blob/1f70213d4922b434345f639b441681e470c7cfc1/tsc/internal/ipc/protocol_jsonrpc.go),
+[asynchronous client](https://github.com/microsoft/TypeScript/blob/1f70213d4922b434345f639b441681e470c7cfc1/packages/typescript/src/api/async/client.ts),
+and [API definitions](https://github.com/microsoft/TypeScript/blob/1f70213d4922b434345f639b441681e470c7cfc1/tsc/internal/api/proto.go).
+
+At implementation time, record the adopted commit and its exported definitions,
+clients and tests. API1.0 must map wire operations, lifecycle, callbacks, error
+semantics and position encoding before refining the old API1 sub-slices.
+Classify legacy factory/custom-transform signatures against what that adopted
+API exposes; they are not automatic prerequisites. Keep existing6.0.3 emitter
+regression evidence at its recorded boundary. This clarification neither changes
+the accepted compiler version nor claims an API/LSP implementation or protocol
+qualification. No upstream build or tests were run for this source review.
+
 ## Reference selection
 
 The current compiler acceptance baseline remains the vendored TypeScript

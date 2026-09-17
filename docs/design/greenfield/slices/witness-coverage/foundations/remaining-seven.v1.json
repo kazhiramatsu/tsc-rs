@@ -1,0 +1,624 @@
+{
+  "version": 1,
+  "source_commit": "447920e6c73f9a81d0aae8c2729a395426c9ff3b",
+  "inventory_sha256": "13f1a72ef8fd2c7b8899bb25bec3547c035c23dae71c7c36b92198437925c3fe",
+  "scope": "Static follow-up planning for seven targets with no direct PR entry. Not a Rust test run or runtime coverage claim. Counts scan plain attributes only; cfg/include/macros require review.",
+  "targets": [
+    {
+      "package": "tsc-rs-checker",
+      "target": "authoritative_external_fact",
+      "source": "crates/checker/tests/authoritative_external_fact.rs",
+      "modules": [
+        {
+          "source": "crates/checker/tests/authoritative_external_fact.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        }
+      ],
+      "plain_test_attributes": 1,
+      "ignored_attributes": 0,
+      "acceptance_shared_source_references": {}
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_5h_utf16_literal_rows",
+      "source": "crates/compiler/tests/h2_5h_utf16_literal_rows.rs",
+      "modules": [
+        {
+          "source": "crates/compiler/tests/h2_5h_utf16_literal_rows.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        }
+      ],
+      "plain_test_attributes": 1,
+      "ignored_attributes": 0,
+      "acceptance_shared_source_references": {}
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_7d_original_corpus",
+      "source": "crates/compiler/tests/h2_7d_original_corpus.rs",
+      "modules": [
+        {
+          "source": "crates/compiler/tests/h2_7d_original_corpus.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+          "plain_test_attributes": 0,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        }
+      ],
+      "plain_test_attributes": 1,
+      "ignored_attributes": 0,
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+            "module": "h2_7d_original_corpus_shared",
+            "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+            "qualified_calls_in_driver": [
+              "assert_original_corpus",
+              "assert_output_directory_references"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "package": "tsc-rs-compiler",
+      "target": "h2_8a_original_corpus",
+      "source": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "modules": [
+        {
+          "source": "crates/compiler/tests/h2_8a_original_corpus.rs",
+          "plain_test_attributes": 24,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+          "plain_test_attributes": 0,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        }
+      ],
+      "plain_test_attributes": 24,
+      "ignored_attributes": 0,
+      "acceptance_shared_source_references": {
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": [
+          {
+            "driver": "crates/xtask/src/h2_7de_acceptance.rs",
+            "module": "h2_7d_original_corpus_shared",
+            "source": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+            "qualified_calls_in_driver": [
+              "assert_original_corpus",
+              "assert_output_directory_references"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "package": "tsc-rs-fuzz",
+      "target": "contracts",
+      "source": "crates/fuzz/tests/contracts.rs",
+      "modules": [
+        {
+          "source": "crates/fuzz/tests/contracts.rs",
+          "plain_test_attributes": 0,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/fuzz/tests/integration/executor_e2e.rs",
+          "plain_test_attributes": 3,
+          "ignored_attributes": [],
+          "cfg_attributes": [
+            "#[cfg(unix)]"
+          ]
+        },
+        {
+          "source": "crates/fuzz/tests/integration/foundation_contract.rs",
+          "plain_test_attributes": 36,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/fuzz/tests/integration/replay_contract.rs",
+          "plain_test_attributes": 7,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/fuzz/tests/integration/vector_production_contract.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        }
+      ],
+      "plain_test_attributes": 47,
+      "ignored_attributes": 0,
+      "acceptance_shared_source_references": {}
+    },
+    {
+      "package": "tsc-rs-harness",
+      "target": "contracts",
+      "source": "crates/harness/tests/contracts.rs",
+      "modules": [
+        {
+          "source": "crates/harness/tests/contracts.rs",
+          "plain_test_attributes": 0,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h1_compiler_profile_classification.rs",
+          "plain_test_attributes": 4,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h1_conformance_expansion.rs",
+          "plain_test_attributes": 6,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h1_conformance_profile_classification.rs",
+          "plain_test_attributes": 3,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h1_fourslash_whole_program_equivalence.rs",
+          "plain_test_attributes": 3,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h1_noemit_performance_contract.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h1_owner_inventory_dispositions.rs",
+          "plain_test_attributes": 6,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h1_project_profile_classification.rs",
+          "plain_test_attributes": 4,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_1a_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_1b_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_1c_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_1d_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_1e_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_2a_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_2b_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_2c_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_2d_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_3a_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_3b_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_3c_profile.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_5h_project_emit.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_baseline.rs",
+          "plain_test_attributes": 4,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/h2_transition.rs",
+          "plain_test_attributes": 4,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/module_suffixes_oracle_contract.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/support/pins.rs",
+          "plain_test_attributes": 0,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/transpile_suite_inventory.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/upstream_execution_plan.rs",
+          "plain_test_attributes": 9,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/harness/tests/integration/upstream_suite_corpus.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": [
+            "#[cfg(unix)]",
+            "#[cfg(not(unix))]"
+          ]
+        },
+        {
+          "source": "crates/harness/tests/integration/upstream_suite_expansion.rs",
+          "plain_test_attributes": 9,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/host/tests/support/scalar_path.rs",
+          "plain_test_attributes": 0,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/support/scalar_json.rs",
+          "plain_test_attributes": 0,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        }
+      ],
+      "plain_test_attributes": 83,
+      "ignored_attributes": 0,
+      "acceptance_shared_source_references": {}
+    },
+    {
+      "package": "tsc-rs-program",
+      "target": "contracts",
+      "source": "crates/program/tests/contracts.rs",
+      "modules": [
+        {
+          "source": "crates/host/tests/support/scalar_path.rs",
+          "plain_test_attributes": 0,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/contracts.rs",
+          "plain_test_attributes": 0,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/automatic_type_directive_loader_contract.rs",
+          "plain_test_attributes": 11,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/config_diagnostics_oracle_contract.rs",
+          "plain_test_attributes": 2,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/config_keyword_recovery_contract.rs",
+          "plain_test_attributes": 6,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/config_option_bag_scaling_contract.rs",
+          "plain_test_attributes": 3,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/config_option_catalog_contract.rs",
+          "plain_test_attributes": 5,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/config_paths_program_options_contract.rs",
+          "plain_test_attributes": 16,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/config_pattern_root_contract.rs",
+          "plain_test_attributes": 3,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/config_program_loader_contract.rs",
+          "plain_test_attributes": 31,
+          "ignored_attributes": [
+            "#[ignore = \"local H0 program oracle audit; requires the pinned Node runtime\"]"
+          ],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/config_root_plan_contract.rs",
+          "plain_test_attributes": 74,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/h2_8b_config_diagnostics.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/h2_8b_config_discovery.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/h2_8b_config_entity_names.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/h2_8b_config_extends.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/h2_8b_config_reuse.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/h2_8b_config_root_boundaries.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/h2_8b_config_root_options.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/host_text_decode_contract.rs",
+          "plain_test_attributes": 6,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/library_program_loader_contract.rs",
+          "plain_test_attributes": 20,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/module_request_contract.rs",
+          "plain_test_attributes": 39,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/module_resolution_contract.rs",
+          "plain_test_attributes": 133,
+          "ignored_attributes": [
+            "#[ignore = \"local H0 resolver oracle audit; requires the pinned Node runtime\"]"
+          ],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/module_suffixes_arbitrary_extension_contract.rs",
+          "plain_test_attributes": 3,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/module_suffixes_contract.rs",
+          "plain_test_attributes": 16,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/no_lib_program_loader_contract.rs",
+          "plain_test_attributes": 74,
+          "ignored_attributes": [
+            "#[ignore = \"local H0 program oracle audit; requires the pinned Node runtime\"]",
+            "#[ignore = \"local H0 program oracle audit; requires the pinned Node runtime\"]",
+            "#[ignore = \"local H0 program oracle audit; requires the pinned Node runtime\"]"
+          ],
+          "cfg_attributes": [
+            "#[cfg(unix)]",
+            "#[cfg(unix)]",
+            "#[cfg(unix)]",
+            "#[cfg(unix)]",
+            "#[cfg(unix)]",
+            "#[cfg(unix)]",
+            "#[cfg(unix)]",
+            "#[cfg(unix)]",
+            "#[cfg(unix)]"
+          ]
+        },
+        {
+          "source": "crates/program/tests/integration/path_identity_contract.rs",
+          "plain_test_attributes": 8,
+          "ignored_attributes": [],
+          "cfg_attributes": [
+            "#[cfg(unix)]",
+            "#[cfg(unix)]"
+          ]
+        },
+        {
+          "source": "crates/program/tests/integration/prepared_program_contract.rs",
+          "plain_test_attributes": 28,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/integration/typescript_library_catalog_contract.rs",
+          "plain_test_attributes": 1,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        },
+        {
+          "source": "crates/program/tests/support/scalar_json.rs",
+          "plain_test_attributes": 0,
+          "ignored_attributes": [],
+          "cfg_attributes": []
+        }
+      ],
+      "plain_test_attributes": 486,
+      "ignored_attributes": 5,
+      "acceptance_shared_source_references": {}
+    }
+  ],
+  "source_sha256": {
+    "crates/checker/tests/authoritative_external_fact.rs": "36f5032341503893326b9534e60116b4ac3bcf381e7709f4b79f8b3fdac2fb41",
+    "crates/compiler/tests/h2_5h_utf16_literal_rows.rs": "82993106449848b140b2feae110e99719ab8fd47d6281188fa3380afa63e4bb6",
+    "crates/compiler/tests/h2_7d_original_corpus.rs": "74ec2077229c5e0b4b33a8cea948af5be1ce75c3cfbf6056a74655e31407987b",
+    "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": "a89cf18ebc3e86f16b39991c40bd54a53189bb64d43ab5fbaded7143bcdc58b4",
+    "crates/compiler/tests/h2_8a_original_corpus.rs": "213393a3905c99b980054bfb2db8f19d593fd4620e09ab84c473b64b0851c423",
+    "crates/fuzz/tests/contracts.rs": "a57030d1f27dd86a97f842bdfc83b395631db0210efb9eeabbe54fde139119fb",
+    "crates/fuzz/tests/integration/executor_e2e.rs": "8a23447feec496868b773fa2c21206a3cf25f7fa284717726a2d5c026c689f41",
+    "crates/fuzz/tests/integration/foundation_contract.rs": "1d71b1f91bcb49a927eddced31205ea32a1a8c2753f609041524012db584f2b3",
+    "crates/fuzz/tests/integration/replay_contract.rs": "64e98b67db7919a64d5c0e316729a2296e1f42afbd95d42c7be650125b2c960f",
+    "crates/fuzz/tests/integration/vector_production_contract.rs": "35e45a43e500b8e06a6a07ec27b996df2bc083a8be9bce380510c54662f1e69e",
+    "crates/harness/tests/contracts.rs": "4104e16f1293558a9396a811d85a31e333f43699b13a6dcac9a4a9d755754d37",
+    "crates/harness/tests/integration/h1_compiler_profile_classification.rs": "de23f03dbca4d9017df8834a90c00290492ab8226ab99812822da11ab515dcac",
+    "crates/harness/tests/integration/h1_conformance_expansion.rs": "cf23a310f68ec378f60a83bee73784dde8e033ed69176f3c1be8b316e51903f0",
+    "crates/harness/tests/integration/h1_conformance_profile_classification.rs": "1a3049ff118a46971e96c9e1e25af3d046fefd40aaf2b83a0f97edee4aa97933",
+    "crates/harness/tests/integration/h1_fourslash_whole_program_equivalence.rs": "4257d7ded97717078a20f2e98a9c05b0e9a3eff34e70eb60570c660bb0585400",
+    "crates/harness/tests/integration/h1_noemit_performance_contract.rs": "490a2bd3a750fd4e0841d165d4c3f686dea3b20058c77f16affacb7e8e8da355",
+    "crates/harness/tests/integration/h1_owner_inventory_dispositions.rs": "ded2eecde4ac72f619ccbe6cfc76f1a3f3594ee8eef75ac1f1186c143c06992b",
+    "crates/harness/tests/integration/h1_project_profile_classification.rs": "b52f223c480ac8a930d95172b5476a18ddf741355eb5ccbec4ae196c6b25c97b",
+    "crates/harness/tests/integration/h2_1a_profile.rs": "c071f9a95784c9eebe1af065317792897f497065bd1f215276c8e99725dc03e3",
+    "crates/harness/tests/integration/h2_1b_profile.rs": "6863b2e3b102f9955305e4f2dc0c17ecaa3f7f3b8c53a5e8da1f8eb0f3c5c867",
+    "crates/harness/tests/integration/h2_1c_profile.rs": "ef3b95051efe2193a17842e8780bcc2677dfe904250326ecf14975c3655fd39b",
+    "crates/harness/tests/integration/h2_1d_profile.rs": "cad3e5669a124e8d7e945c972f751aeb9e27df933e28b9e4c7d65e0d4b2f7eea",
+    "crates/harness/tests/integration/h2_1e_profile.rs": "286cfdacd29d1211811a15cc288367a8425d352f7e9c0563ad20dc4c58b1b47c",
+    "crates/harness/tests/integration/h2_2a_profile.rs": "874c74d9a86b3ee11ecdbebdda23098c3c2890a856553c68e4ea1728e7f1a1a6",
+    "crates/harness/tests/integration/h2_2b_profile.rs": "3b0a7a4f63f29053c459232efc2d459526ef1760685d3f055c7bbfb607475186",
+    "crates/harness/tests/integration/h2_2c_profile.rs": "e1dc9ca3819ffb5a9b4d83e58bfd93eb8cbeca775fcd6340c1a5bc494347a21d",
+    "crates/harness/tests/integration/h2_2d_profile.rs": "25abfe2d97803cf3abec42dca533901f1387824323389504e495a2f1c14de7ec",
+    "crates/harness/tests/integration/h2_3a_profile.rs": "ba3c39363a185a8c6491563514fe505541c7246edc73f44cad3f7c036a72113f",
+    "crates/harness/tests/integration/h2_3b_profile.rs": "92c1b74eace6573fcb3cbb54e3b68fb8bbf318c2eddeccd9946d30710622e0b3",
+    "crates/harness/tests/integration/h2_3c_profile.rs": "9f07521785c3ee95573e742fa3eed0721549b85f13cf6c1853cbd6dbc5dae0ba",
+    "crates/harness/tests/integration/h2_5h_project_emit.rs": "ecdf101b883e3a2e7861ebfd4cb1be7bd82f03db20d071cd5be2ee94708bd415",
+    "crates/harness/tests/integration/h2_baseline.rs": "c4b7035610c9c66ef8df38a9655f77e8422c24c9146fcb1ccfc617bd6cdf4c1a",
+    "crates/harness/tests/integration/h2_transition.rs": "f01da67e563a03aaadb651a53c303b9ff24caac9e12f16e9eb32116bfc03321a",
+    "crates/harness/tests/integration/module_suffixes_oracle_contract.rs": "c756fafc48b9111475bf510b7a94acd2689c3558efbb76e97a69f83f2ad965d7",
+    "crates/harness/tests/integration/support/pins.rs": "91d2c7b1ce4b36e59d95c749ef1803fedab549ec8b650515d5da81d2b4787567",
+    "crates/harness/tests/integration/transpile_suite_inventory.rs": "8325b896affb3954a01d1bd80d666cc731ffa13dab222b06a28ca1dd5923204f",
+    "crates/harness/tests/integration/upstream_execution_plan.rs": "6db6323def2d8b62c764826631431daed201a9e9842b0965ea7fb7796d6db337",
+    "crates/harness/tests/integration/upstream_suite_corpus.rs": "92bf1e9f8222c8a339aa8221c071525b51a8e0d551c14921b556268336b3a62c",
+    "crates/harness/tests/integration/upstream_suite_expansion.rs": "ac8e7065bbee5e73f3df41f3920968da1b7b5cff8a39f338af4912e14781efed",
+    "crates/host/tests/support/scalar_path.rs": "4376413a857b9481ef38e255777e9e304a9621fa13f9f8a1ee3d098fe75c3d6c",
+    "crates/program/tests/support/scalar_json.rs": "d13f99e99dfa70675f7ac5df56d06614f47b7aed24b34742a18517cf4cf42902",
+    "crates/program/tests/contracts.rs": "0e350a59da45246cc367dffa5873f1bdc36dbb86f517b17c25008eede8d60d81",
+    "crates/program/tests/integration/automatic_type_directive_loader_contract.rs": "4da2b5624856dcb612773b5cd47212240df1e52b0df4ca8e474503862cbe1ed8",
+    "crates/program/tests/integration/config_diagnostics_oracle_contract.rs": "832714bc54bb48ece883adb62d53310ca7d05dd458fd5570b471ec0002f32fd4",
+    "crates/program/tests/integration/config_keyword_recovery_contract.rs": "8f117188c7d8398282879155e1d73321813e56c1ad7ab7f6481d110f4dde9de2",
+    "crates/program/tests/integration/config_option_bag_scaling_contract.rs": "a0e920dffb5bf7e292fa0d3fe16b5a5f17e26a994a5a149a44f555b83d7c0021",
+    "crates/program/tests/integration/config_option_catalog_contract.rs": "e7cd3fbe0d81537b570492e10f37a882a5a58b5382597b04a55bc5f1d824dc95",
+    "crates/program/tests/integration/config_paths_program_options_contract.rs": "b4f82ed5cc24ebddf01a8a41178d97174b4c5ffab7f35ceeb2c4200b4665e75d",
+    "crates/program/tests/integration/config_pattern_root_contract.rs": "c85ebb49bbe0ea577c662df88e2acb533e6fa032a4f516201c0302aa2f18207d",
+    "crates/program/tests/integration/config_program_loader_contract.rs": "62e5f35129de3ade6fed852667f979b14d539b08f066e0c234e67bf73ec390e0",
+    "crates/program/tests/integration/config_root_plan_contract.rs": "e5837bca6e9ef78a6d51d357e6f1193da7d6e02093d3df0bd6e4b402c58c5283",
+    "crates/program/tests/integration/h2_8b_config_diagnostics.rs": "214ae238dadde978efe8228de019522cf6a794a01a0a6a18ea9ebc62a7c9758f",
+    "crates/program/tests/integration/h2_8b_config_discovery.rs": "a48cd8f3e52b6f7b8bb4f99bf1110daf7e8f7528c942cc7e1374ed45189c2f07",
+    "crates/program/tests/integration/h2_8b_config_entity_names.rs": "dc4e08df36744e86a841cb9d79775c5f9d3b3366bdf7938afe086e9f798993fb",
+    "crates/program/tests/integration/h2_8b_config_extends.rs": "71bf5b8662eeacaa27f58ee1c976ec7cc8e8359b234e556c15aaa33ed77beafd",
+    "crates/program/tests/integration/h2_8b_config_reuse.rs": "8b9b1ccb15532599793660fc3c8dcde5592d57c328504d957676729cf7f4d496",
+    "crates/program/tests/integration/h2_8b_config_root_boundaries.rs": "35e70eee41474ae967d5da6c79c1b4b63fb9a223e2062014224a7209ee7f01c8",
+    "crates/program/tests/integration/h2_8b_config_root_options.rs": "b7dd2da54a531b4f3a4ad9bfde27ed24854c35826bca11517e23807f9bf98f38",
+    "crates/program/tests/integration/host_text_decode_contract.rs": "b90cc59f7d561beea51b773d5098548660b4277664e35b1ac03ffffaa125b534",
+    "crates/program/tests/integration/library_program_loader_contract.rs": "f8fa708cbf29a721476c46f41fe50acb44ed6f41d077496bc23bfbeef867ac67",
+    "crates/program/tests/integration/module_request_contract.rs": "f8f7583b69e9a8f27e3e3f3660ec93407613c3c519de2a4bfdf657fc92066018",
+    "crates/program/tests/integration/module_resolution_contract.rs": "5389171242950dd09b89b99ffc6e1ca4504a808bd048edf00322f95ec2057381",
+    "crates/program/tests/integration/module_suffixes_arbitrary_extension_contract.rs": "bbec533d9d62530900fb7aaa4fce358ee9fbcb8be1d9cc5c9238a543c42d9870",
+    "crates/program/tests/integration/module_suffixes_contract.rs": "731272d8a947414b08dca13fd671c12b3641b8e329788a7c141d36efaea94a6f",
+    "crates/program/tests/integration/no_lib_program_loader_contract.rs": "ed1169348b3350d752c8485f7e9db83bbfe5d96892deb2265b5db25567b7b9af",
+    "crates/program/tests/integration/path_identity_contract.rs": "3994b6147bd92ca14ee2c39f37763c8059aff4eb2260114904cc7625d83dc02a",
+    "crates/program/tests/integration/prepared_program_contract.rs": "0a08bf3fdc97af6d6af6613876116d8214dcdab729949752afa56b346277ef47",
+    "crates/program/tests/integration/typescript_library_catalog_contract.rs": "721e0c79acbbf3183ffbdd928fa903f3b9082113ef524377a0fde2d92e846693"
+  }
+}

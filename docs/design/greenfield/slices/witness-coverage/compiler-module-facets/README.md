@@ -99,7 +99,9 @@ from #549 are not evidence for this candidate.
 The final registry has 71 standalone targets: 34 unfiltered, 14 name-filtered,
 23 without a direct entry (compiler3 / other20). The previously omitted fourth
 declaration-bundle test now has its own exact selection; the other three keep
-their existing scoped suite. Hosted results are recorded below; merge is pending.
+their existing scoped suite. Hosted results are recorded below. PR #550 subsequently merged at
+`eb6dc2c7872b18442657f8eefde5efc9e8fb4cf7` after the T1 addition passed
+[its final-head validation](../../h2-8a-bundle-metadata-t1/integration/README.md).
 
 ## Hosted validation: PR #550
 

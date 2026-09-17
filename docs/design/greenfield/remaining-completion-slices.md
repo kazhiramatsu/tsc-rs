@@ -1,6 +1,6 @@
 # 残タスクと完了までのスライス設計
 
-更新日：2026-09-15。対象：one-shot compiler、TypeScript 7 移行、再利用、build/watch、
+更新日：2026-09-17。対象：one-shot compiler、TypeScript 7 移行、再利用、build/watch、
 公開 API、Language Service、native LSP、最終検証・配布。
 実装の確認点は SUPER 統合済み main `d671d8417` と CI 改修 `dac0d55ce`。
 CI 改修も main `bb2d51c89` にマージ済み。
@@ -9,6 +9,12 @@ CI 改修も main `bb2d51c89` にマージ済み。
 凍結済みの profile、ratchet、readiness manifest を書き換えるものではありません。
 **Claude は下記の C01〜C05、T1、追加の POST-T1 5子スライスの候補。それ以外の行は Codex／統合担当が持ちます。**
 候補の提出、main への統合、製品の qualification は別の完了条件です。
+
+**2026-09-17のユーザー指定：emitterが完成した時点を次の一区切りとする。**
+直近はemitter残差の修復・必要な検証・統合を優先する。LSP関連と一般的な公開API整備は、
+作業量の大きい別フェーズとして後で扱い、emitter完了の条件へ追加しない。
+後続LSP/APIは[TypeScript 7のGo実装と公開通信仕様](typescript-7-direction.md#emitter-milestone-and-subsequent-api-work-2026-09-17-clarification)に合わせてRustへ移植する。固定参照ではLSP／非同期APIがJSON-RPC、同期APIがMessagePackであり、それぞれの互換性を分けて検証する。
+以下は長期の残項目も含む台帳であり、全行を今回の一区切りまでに実施するという意味ではない。
 
 2026-09-15：**[PLAN-BASE の台帳作成](slices/plan-base/README.md)は完了**。
 全15,642 corpus IDを照合し、6,045 ID・9,004所属の残差／検証記録台帳を作成した。
@@ -118,7 +124,7 @@ private-set / decorator のコメント制御（別集計の1＋2 packet probes�
 | --- | --- | --- |
 | PLAN-BASE — 完了 | [固定 main `f9ef828a5` の台帳](slices/plan-base/README.md)。全 active profile の source/future/later-deferred、旧 global/class、known、parameter、direct、upstream exception と後続修復を照合 | 全15,642 corpus IDに disposition あり。再生成一致、判定境界7 tests。これは台帳の完了であり、修復・全 profile qualification の完了ではない |
 | VER1.0-MAP | 固定 TS7 の tests / CHANGES と H2 残項目を retained / intentional change / removed option / new feature に分類。parser/checker/resolver/emitter/libs/CLI/service の機能分母と依存を作る | PLAN-BASE と既存 native workflow。新しい参照を選ぶ場合も commit を固定。ES5/System/UMD/Node10/Classic/AMD/outFile 等を個別に disposition。廃止予定を 6.0.3 の修復完了として数えない |
-| OPS-COVER | [入口台帳・追加スライス](slices/witness-coverage/README.md)。64 standalone / 16 lib-bin の静的棚卸し完了。[OPS-COVER-2](slices/witness-coverage/emitter-direct/README.md) は emitter direct10 target・2239 row の個別選択入口を追加。[OPS-COVER-3A](slices/witness-coverage/declaration-map-cli/README.md) は E-only8 のCLI専用入口を追加。[OPS-COVER-3B](slices/witness-coverage/compiler-utf16/README.md) はUTF-16の3 targetを登録し、PR #532で統合済み（全hosted job・両gate成功）。[OPS-COVER-3C](slices/witness-coverage/compiler-literals/README.md) はliteral2 targetの入口を追加。[OPS-COVER-3D](slices/witness-coverage/compiler-declarations/README.md) はdeclaration3 target・129入力の入口を追加（PR #540で統合済み、全7 hosted job・両gate成功）。[OPS-COVER-3E](slices/witness-coverage/compiler-require-rewrite/README.md)でrequire-rewrite74専用入力を追加しC01とPR #542で統合済み。[OPS-COVER-3F/3G](slices/witness-coverage/compiler-config-prologue/README.md)でconfig/library24 test・96入力とprologue8入力の入口を追加し、PR #544で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3H/3I](slices/witness-coverage/compiler-recovery-map/README.md)でrecovery50とmap-option31専用入力・原本5 IDの2 targetを追加し、PR #545で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3J/3K](slices/witness-coverage/compiler-bundles/README.md)でbundle Programとdeclaration/mapの2 targetを登録し、PR #546で追加7 testsを含む全7 hosted replay job・両gateが成功。[OPS-COVER-3L/3M](slices/witness-coverage/compiler-declaration-maps/README.md)で宣言map出力/APIの2 target・11 testsを登録し、PR #547で統合済み（全8 hosted replay job・両gate成功、CLI比較70回一致）。[OPS-COVER-3N/3O](slices/witness-coverage/compiler-module-facets/README.md)でmodule identityと原本JavaScript bundle recorderの入口を追加し、PR #550で追加4 testsを含む全9 replay job・両gateが成功し統合済み。[OPS-COVER-4A/4B](slices/witness-coverage/foundations/README.md)でsyntax/binder/typesとhost/Programの16 targetを一括追加（macOS47 tests成功、hosted待ち）。72 standalone中、残る直接入口なしは7 target | 次は OPS-COVER-3残部：compiler3とfilter残部、4：その他4とlib/bin。共有helperを全targetの実行証明とせず、case重複・選択・件数・時間・失敗伝播を証明 |
+| OPS-COVER | [入口台帳・追加スライス](slices/witness-coverage/README.md)。64 standalone / 16 lib-bin の静的棚卸し完了。[OPS-COVER-2](slices/witness-coverage/emitter-direct/README.md) は emitter direct10 target・2239 row の個別選択入口を追加。[OPS-COVER-3A](slices/witness-coverage/declaration-map-cli/README.md) は E-only8 のCLI専用入口を追加。[OPS-COVER-3B](slices/witness-coverage/compiler-utf16/README.md) はUTF-16の3 targetを登録し、PR #532で統合済み（全hosted job・両gate成功）。[OPS-COVER-3C](slices/witness-coverage/compiler-literals/README.md) はliteral2 targetの入口を追加。[OPS-COVER-3D](slices/witness-coverage/compiler-declarations/README.md) はdeclaration3 target・129入力の入口を追加（PR #540で統合済み、全7 hosted job・両gate成功）。[OPS-COVER-3E](slices/witness-coverage/compiler-require-rewrite/README.md)でrequire-rewrite74専用入力を追加しC01とPR #542で統合済み。[OPS-COVER-3F/3G](slices/witness-coverage/compiler-config-prologue/README.md)でconfig/library24 test・96入力とprologue8入力の入口を追加し、PR #544で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3H/3I](slices/witness-coverage/compiler-recovery-map/README.md)でrecovery50とmap-option31専用入力・原本5 IDの2 targetを追加し、PR #545で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3J/3K](slices/witness-coverage/compiler-bundles/README.md)でbundle Programとdeclaration/mapの2 targetを登録し、PR #546で追加7 testsを含む全7 hosted replay job・両gateが成功。[OPS-COVER-3L/3M](slices/witness-coverage/compiler-declaration-maps/README.md)で宣言map出力/APIの2 target・11 testsを登録し、PR #547で統合済み（全8 hosted replay job・両gate成功、CLI比較70回一致）。[OPS-COVER-3N/3O](slices/witness-coverage/compiler-module-facets/README.md)でmodule identityと原本JavaScript bundle recorderの入口を追加し、PR #550で追加4 testsを含む全9 replay job・両gateが成功し統合済み。[OPS-COVER-4A/4B](slices/witness-coverage/foundations/README.md)でsyntax/binder/typesとhost/Programの16 targetを一括追加（PR #551で統合済み、macOS47 /Linux48 testsと全14 hosted checks成功）。72 standalone中、残る直接入口なしは7 target | 次は OPS-COVER-3残部：compiler3とfilter残部、4：その他4とlib/bin。共有helperを全targetの実行証明とせず、case重複・選択・件数・時間・失敗伝播を証明 |
 | OPS-BUDGET | 追加 suite の build / oracle / replay を測定し、変更 owner ごとの job 分割を維持 | OPS-COVER と各新規 target の実測。1 job 45 分を分割検討の目安、60 分を hard limit とする。重複した build による総 runner 時間も記録。worker 増でメモリ上限を隠さない |
 | OPS-DEBT | [EMPTY-SOURCE](slices/witness-coverage/compiler-config-prologue/empty-source.md)で基点のforced-empty不一致を再現・限定修復し、OPS-COVER-3F/3GとPR #544で合成検証・統合済み（全7 hosted job・両gate成功）。既存 lint・strict test failure を現行 SHA で owner ごとに確定し、独立修復 PR へ分ける | 過去の compiler contract / printer failure の記録はまず再現性を確認。base と新規退行を分離。該当 owner だけ検証し、全 workspace green が未確認ならそう記録。release の採用 gate に未処理を残さない |
 
@@ -225,15 +231,18 @@ registry 作成ではない。固定 TS7 の設計を参照し、fresh 計算と
 ## 6. 公開 API・Language Service・native LSP（すべて統合担当）
 
 API1 は独立製品。native LSP の内部 typed API は L3/L5 が持ち、公開 TypeScript API の全互換や
-legacy tsserver を先に実装する条件を付けない。各 query family は別 PR とする。
+legacy tsserver を先に実装する条件を付けない。公開APIもTypeScript 7のGo実装を基準とし、
+非同期JSON-RPCと同期MessagePackのmethod/params/result/error・lifetimeを別契約として扱う。
+API1.0で採用upstream commit・公開範囲・clientを固定してから下記の古いAPI細分を具体化する。
+各query familyの差分と証拠を分け、互換性のある複数項目をまとめて検証・統合する。
 
 | ID | 作業と成果物 | 依存・終了条件 |
 | --- | --- | --- |
-| API1.0 | public signature ↔ upstream implementation ↔ Rust の converse inventory、Rust-native / optional JS profile | VER-MAP と現行 API。すべての signature に disposition。内部の同名関数を公開互換と数えない |
-| API1.1a | AST/source/factory/printer の公開所有権、identity、error、thread/semver contract | API1.0、H2.8a。signature/behavior と lifetime tests、raw internal ID の露出を防ぐ |
-| API1.1b | Program/Checker/host、cancellation、反復呼出しの公開 contract | API1.1a、H2.8b/d。direct API 観測、取消安全性と lifetime を検証 |
+| API1.0 | 固定TS7 Go APIの公開method/params/result/error ↔ Go実装 ↔ Rustの対応台帳。非同期JSON-RPC／同期MessagePackとclient profileを区分 | VER-MAPと固定Go API/proto/client。snapshot/handle・FS callback・cancel・位置単位・寿命を含め、全公開面にdisposition。内部同名関数を通信互換と数えない |
+| API1.1a | 採用TS7 APIのsource/node/snapshot/handleの所有権、identity、error、lifetime | API1.0、必要なH2.8a。upstream clientとの要求・応答と寿命を検証。旧factory/printer公開signatureはAPI1.0の採用範囲で判定 |
+| API1.1b | 採用TS7 APIのProgram/Checker/host呼出し、FS callback、cancellationと反復要求 | API1.1a、H2.8b/d。Go APIとRPC観測を比較し、callback・取消・error・release後の寿命を検証 |
 | API1.2-HINT | [宣言 binding と initializer の hook EmitHint 修復](slices/api1-2-printer-hook-hints.md)（統合担当） | 新規72 caseと元のcomment-carry24 caseが完全一致×2。hint依存の置換、失敗後の再利用、全eventと出力を比較。PR #537で統合済み、全hosted jobと両gate成功。現在のClaude C01〜C05とは別作業 |
-| API1.2 | before / after / afterDeclarations custom transforms、clone/original、callback/write precedence | API1.1、H2.8c/d。callback 順序、mutation/identity、error/repeated emit/cancel が一致 |
+| API1.2 | 採用TS7公開APIのemit/transform拡張、callback/write境界。旧before/after/afterDeclarationsとclone/originalは公開範囲を先に判定 | API1.0/1.1、必要なH2.8c/d。採用分のcallback順序・identity・error/repeated emit/cancelを一致させる。旧API全再現を自動で条件にしない |
 | L3.0 | Go LS / native FourSlash の query inventory、service host/snapshot/modes、typed request と multigeneration harness | VER-MAP、L2.0。採用 query ごとの complete results / span / cancel を固定。調査・harness は H2 終了前から可 |
 | L3-PROJ1 | configured/inferred/external project、open-file overlay、選択、config discovery、lifecycle | L3.0、L2.4、CFG/HOST。旧 L4.1 の必要責務をここへ移す。open/edit/close と project release を比較 |
 | L3.1a | syntactic/semantic/partial-semantic diagnostics | L3-PROJ1、対応 checker。編集・option/project 変更後の診断順序と span が一致 |
@@ -249,7 +258,7 @@ legacy tsserver を先に実装する条件を付けない。各 query family �
 | L3.4b | refactors | L3.2/3 の必要 query。各 refactor owner を別子 slice にし、selection / applicability / edits / cancel を比較 |
 | L3.4c | organize imports / paste edits / inlay hints | L3.3 の必要 query。各独立 family を別 PR とし、options・edits・位置・競合を比較 |
 | L3.5 | per-file emit/maps、採用 FourSlash/service 全体、長期 edit/query qualification | L3.1〜4、H2.8d。whole-Program の代用なし。fresh equality と resource 上限 |
-| L5.0 | LSP version/capabilities と native typed interface、protocol/sync harness | L3.0、VER-MAP。独立の capability / request / error 分母。tsserver bridge は作らない |
+| L5.0 | 固定TS7 Go LSPのversion/capabilities、JSON-RPC2.0のrequest/notification/errorとnative typed interface、protocol/sync harness | L3.0、VER-MAP。独立の capability / request / error 分母。tsserver bridge は作らない |
 | L5.1 | initialize/shutdown、URI/path/workspace、UTF-16 sync/version/config | L5.0、L3-PROJ1。Unicode/case/symlink/stale version/reconnect/close の protocol tests |
 | L5.2a | navigation / rename / symbols / hierarchy を LSP へ対応 | L5.1、対応 L3.2。結果変換・capability の有無・workspace 境界を比較 |
 | L5.2b | completion / hover / signature / semantic tokens を対応 | L5.1、対応 L3.1/3。partial/optional result を含む protocol 観測 |
