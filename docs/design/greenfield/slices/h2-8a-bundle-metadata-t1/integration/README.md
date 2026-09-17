@@ -1,5 +1,9 @@
 # T1 候補の統合・再検証
 
+追記：PR #550は2026-09-17にmain `eb6dc2c7872b18442657f8eefde5efc9e8fb4cf7`へ統合済み。
+以下の「mergeは別途」「宣言しない」はhosted記録採取時点の区別を保持した履歴。
+最終hosted head `4d4ed3c7d` と通常Bundle packetに限定したqualificationの境界は変わらない。
+
 2026-09-17。提出候補 `a17009c58b26cf3d98030a16fa32f0153f75179a` を受領した。
 基点は PR #549 の main `84da0c0278c296fd295f15e48177ada87810f841`。
 統合 branch は `work/bundle-metadata-t1-integration`、最終候補は `4d4ed3c7d42d49aac8eeea3eaf610615ecddb205`（[PR #550](https://github.com/kazhiramatsu/tsc-rs/pull/550)）。PR #550 の
