@@ -17,6 +17,15 @@ C01〜C05、T1、POST-T1の提出・統合履歴は下記に保持する。
 後続LSP/APIは[TypeScript 7のGo実装と公開通信仕様](typescript-7-direction.md#emitter-milestone-and-subsequent-api-work-2026-09-17-clarification)に合わせてRustへ移植する。固定参照ではLSP／非同期APIがJSON-RPC、同期APIがMessagePackであり、それぞれの互換性を分けて検証する。
 以下は長期の残項目も含む台帳であり、全行を今回の一区切りまでに実施するという意味ではない。
 
+**後続参照の推奨案：emitter完成後、7.1の固定commitを設計・比較の起点とし、既存機能の不足を優先する。**
+ユーザーは7.0までの不足解消を先行する方針に続き、API変更を考慮して7.1起点を提案した。
+7.0の公式発表とAPIの固定source比較を受け、API/LSPは7.1の契約から設計する案に整理した。
+入口は[7.1 Iteration Plan #63703](https://github.com/microsoft/TypeScript/issues/63703)と
+[API roadmap #63875](https://github.com/microsoft/TypeScript/issues/63875)。
+7.0以前からある不足も7.1の仕様・testへ対応付ける。追加言語機能・libは依存と優先度で後続へ分ける。
+根拠と参照version・実装順の区別は[追従設計](typescript-7-upstream-sync.md)を参照。
+accepted profileは6.0.3のままで、この整理によるruntime admissionやhelper pin変更はない。
+
 2026-09-15：**[PLAN-BASE の台帳作成](slices/plan-base/README.md)は完了**。
 全15,642 corpus IDを照合し、6,045 ID・9,004所属の残差／検証記録台帳を作成した。
 旧 class 128失敗のうち88件は同じ fixture で現在の hosted が exact、40件は未再測定。
@@ -290,6 +299,8 @@ plugins / ATA / installer は §8 の profile 判断に残す。
 test選定→比較→slice→必要なGo処理のRust実装という7段階を半自動化する。
 `_tsc.js`調査と同じ粒度で、Goも実際に実行し、呼出し・分岐・状態変化をtraceする。
 新しい追従ツールは未実装。emitter後にSYNC1/2、次にSYNC3/4と機能移植pilotをまとめて進める。
+pilotは既存機能の不足から選び、7.1の固定commitで仕様・trace・testを揃える。
+導入世代、7.1での変更、API/基盤依存と優先度を分け、追加言語機能・libは後続batchへ送る。
 既存native pinでのGo test成功と、Rustの機能採用・accepted profile更新は区別する。
 比較元・比較先のcommitを固定し、上流で部分実装の機能は完成度とRust採用状態を別管理する。
 不足条件・関連PR・再調査条件を保持し、次のpinで影響範囲を見直す。独立した部分採用と
@@ -299,10 +310,11 @@ test選定→比較→slice→必要なGo処理のRust実装という7段階を�
 | --- | --- | --- |
 | VER1.0-SYNC1/2 | 元パスを保つtest inventory/layout adapter、Issueロードマップ・詳細仕様・固定commit間差分を結ぶ機能台帳。上流/Rustの状態、不足条件、関連PRと再調査条件を記録 | 既存native workflow。MAPに接続。設定・操作列・移動・廃止・未知群・共有依存変更を保持。checkpoint更新後も未完了項目を残す。詳細は[設計案](typescript-7-upstream-sync.md) |
 | VER1.0-SYNC3/4 | Goの実行traceと新旧Go/Rust比較、担当別slice・合成検証案。上流の後続実装・仕様変更・revertで再調査し、部分採用・先行移植・上流待ちを区別 | SYNC1/2と対象のRust driver。初回はcompiler、LSP/APIは各実装に合わせ拡張。上流未完成・未実行・skip・非対応を互換成功に含めず、採用はMAP/PINと既存readinessに従う |
-| VER1.0-FEATURE-PILOT | 一件の限定した機能で調査1〜7を一巡し、必要なGo処理をRustへ移して検証する | SYNC1〜4と該当producer。調査開始時に対象を選び、原本・trace・固定test・依存・readinessを揃える。report生成のみでは完了しない |
-| VER1.0-PIN | source/libs/locale/package/generated data、runner と oracle の version pin を更新し、採用 profile の移行表を作る | VER1.0-MAP。6.0.3 の凍結証拠を保存。新旧の意図的な差、廃止、未採用を個別に明記してから runtime admission |
-| VER1.0-FEATURE-* | MAP が列挙した TS7 の新機能・意図的変更を producer と依存ごとに実装 | PIN と各 checker/resolver/emitter/service の前提。各機能に固定 test 群と exact evidence。compiler 群と native service 群を別 claim とする |
+| VER1.0-FEATURE-PILOT | 既存機能の不足から一件を選び、調査1〜7を一巡し、必要なGo処理をRustへ移して検証する | SYNC1〜4と該当producer。7.1の原本・trace・固定test・依存・readinessと上流の完成範囲を揃える。report生成のみでは完了しない |
+| VER1.0-PIN | 採用候補の7.1 source/artifactの完全commitとlibs/locale/package/generated data、client、runner、oracleを固定し、採用profileの移行表を作る | VER1.0-MAP。release状態と未完成範囲を明記。7.0参照は導入時期・変更理由の比較に使用。6.0.3の凍結証拠を保存し、意図的な差、廃止、未採用を明記してからruntime admission |
+| VER1.0-FEATURE-* | MAPが列挙した既存機能の不足と必要な7.1 API/基盤を先行し、追加の言語機能・libを依存順に実装 | PINと各checker/resolver/emitter/serviceの前提。各機能に固定test群とexact evidence。導入世代と採用versionを別記し、compiler群とnative service群を別claimとする |
 | VER1.0-CLOSE | 採用 TS7 機能、version 表示、libs/diagnostics と product evidence を合成し、継続追従手順を記録 | 採用 FEATURE 行と必要な H2/L3/L5/BLD/W qualification。移動する upstream main を合格基準にしない |
+| VER1.1-TRACK | [7.1 Iteration Plan #63703](https://github.com/microsoft/TypeScript/issues/63703)とAPI roadmapから関連Issue/PR・仕様・testを追跡し、機能台帳へ保持 | SYNC/MAPへ接続。7.1参照から開始し、API/基盤の依存と後続の言語機能・libを分類。既存の7段階と固定commit・部分実装の規則を使う |
 | M9.1c | 既存 M9 foundation の残差を再監査し、preflight readiness、真の reduction、domain/resource/owner の未完を閉じる | shared checker producers が安定してから [M9 contract](m9-execution-and-close.md) の entry 条件を再確認。1a/1b を再実装しない |
 | M9.2 | grammar/corpus mutation、domain quotas、streaming と child/Node lifetime、coverage ledger | M9.1c。凍結 domain を満たし、bounded scratch と real replay を証明 |
 | M9.3 | window/history/class/witness、recurrence/triage、attestation、explicit producer/aggregate、Node-free verifier と completion row | M9.2。zero history で red、将来の正しい 14 windows で green となる gate を先に実装 |

@@ -5,6 +5,16 @@ to consult the Go implementation and included TypeScript 7.0 and new features
 from the Go implementation in the intended follow-on scope. This records that
 direction; it does not claim any TypeScript 7 feature is implemented yet.
 
+On 2026-09-17 the user first prioritized missing functionality through 7.0,
+then proposed starting from 7.1 because of API changes. The researched
+recommendation is to use a fixed **7.1** source for design and comparison,
+while implementing missing existing features first. New API/LSP foundations
+follow the 7.1 contracts from the outset; additional language/lib features are
+sequenced by dependencies and priority. The supplied [7.1 iteration plan #63703](https://github.com/microsoft/TypeScript/issues/63703)
+and [API roadmap #63875](https://github.com/microsoft/TypeScript/issues/63875)
+are the investigation entries. The [tracking design](typescript-7-upstream-sync.md)
+records the evidence and distinguishes this recommendation from adoption.
+
 This amendment supersedes the mandatory tsserver product / separate LSP
 adapter sequence in the older post-H1 and L2-L5 plans, and their requirement
 for separate approval merely to begin post-6.0.3 work. Routine selection and
@@ -51,10 +61,18 @@ qualification. No upstream build or tests were run for this source review.
 ## Reference selection
 
 The current compiler acceptance baseline remains the vendored TypeScript
-6.0.3 artifact until an explicit profile transition. TypeScript 7 is the next
-compatibility target, including its new features. Consulting its Go source
+6.0.3 artifact until an explicit profile transition. The recommended next
+reference is 7.1, prioritizing missing existing functionality. Consulting Go source
 may begin now; adopting an observable behavior uses the corresponding pinned
 upstream tests and an explicit version transition.
+
+The existing `7.1.0-dev` pin can be the investigation starting point.
+VER1.0-MAP/PIN records the specific 7.1 commit, client/test/lib dependencies,
+release status and incomplete scope before adoption. A fixed 7.0 reference
+helps identify feature introduction and intentional changes; 7.1 results do
+not establish 7.0 compatibility. The [7.0 announcement](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
+states that 7.0 does not ship an API and a new API is planned for 7.1, which
+supports beginning API design from 7.1. The helper pin is unchanged.
 
 | Area | Primary implementation reference and adoption rule |
 | --- | --- |
