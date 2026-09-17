@@ -2,41 +2,5 @@
   "version": 1,
   "route": "native-divergence-controls",
   "note": "Native outcomes frozen at the candidate bytes for rows that still differ from upstream for a reason outside H2.8a-A-RES-BUNDLE-METADATA-T1: the SHA-256 of every write with exit code, status writes and diagnostics. The comparator asserts each on both passes and counts it as known, never exact; a row that becomes exact fails until it is retired here.",
-  "cases": [
-    {
-      "case_id": "bundle-metadata-t1/receiver/es2015/static-compound-second-file",
-      "class": "class-fields-copiable-receiver-map",
-      "owner": "builtins/class_fields/downlevel.rs: for `B.#p += 1` the copiable-receiver temp (`_b = _a` / `_b`) is mapped to the source receiver `B` (two extra segments at generated line 27, columns 60 and 62 -> source line 2, columns 20/21) while tsc leaves the synthesized temp unmapped. JavaScript, declaration and declaration-map bytes match; the parse node carries no comment range on either side (records/residual/static-compound-map-diff.txt).",
-      "disposition": "divergent-writes-no-exact-credit",
-      "native": {
-        "outcome": "completed",
-        "exit_code": 0,
-        "emit_refused": false,
-        "status_writes": [],
-        "diagnostics": [],
-        "writes": [
-          {
-            "path": "/project/out/bundle.js.map",
-            "sha256": "22122a98de5746372aa8f0aa8a396566707b7ff0ed4a91dc6f5c6d41929ed27f",
-            "bytes": 418
-          },
-          {
-            "path": "/project/out/bundle.js",
-            "sha256": "5f8e922ec146b6064ebdfbe6be2c0af81c754fb25aa12185d846bba4f3afb5fd",
-            "bytes": 1857
-          },
-          {
-            "path": "/project/out/bundle.d.ts.map",
-            "sha256": "cd6422b4d8c5f517e12e452423701a16a1a5e875a9a7f05aee5955065e47afea",
-            "bytes": 188
-          },
-          {
-            "path": "/project/out/bundle.d.ts",
-            "sha256": "868e5ab16541b6e6b0fb5c139ceefb00ddfd4e1b9ffe9cd29e51d07431a89b67",
-            "bytes": 160
-          }
-        ]
-      }
-    }
-  ]
+  "cases": []
 }
