@@ -423,3 +423,14 @@ suite selections / 68 tests in 38m49s. Its oracle phase was 460.852s and Cargo
 build/replay was 1299.146s; these cover the full compiler-direct batch. The
 remaining 23 standalone targets without direct entries retain their explicit
 owners. The receipt records hosted results; merge remains separate.
+
+
+[T1 bundle metadata integration](design/greenfield/slices/h2-8a-bundle-metadata-t1/integration/README.md)
+adds `bundle-metadata-t1` to controls with pinned Node even when selected alone.
+Its 18 complete commands contain 15 exact and three frozen native divergences;
+15 packet probes contain 12 exact and three frozen flag divergences. The runner
+selects two exact test names, requires eight shared-helper tests to be filtered,
+and clears inherited case/dump selectors. Its generator, observer and fixtures
+select the same owner. Shared production changes retain full replay. T1 removes
+five known rows from the unchanged 767-command binding collection: the expected
+full summary is 763 exact / four known, with its one upstream exception separate.

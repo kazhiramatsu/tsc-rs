@@ -1,0 +1,202 @@
+{
+  "candidate": "a17009c58b26cf3d98030a16fa32f0153f75179a",
+  "candidate_base": "84da0c0278c296fd295f15e48177ada87810f841",
+  "integration_base": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+  "cherry_pick": "866536635",
+  "patch_sha256": "beea6313f1a1eca84b6ea876b714ef17c9f827a825aac4b5b0fe2d146002973d",
+  "patch_matches_commit": true,
+  "upstream_spans_verified": [
+    {
+      "name": "getParseTreeNode",
+      "span": "11426-11437",
+      "sha256": "80b5c2449cb8320cf209184a8eef484f944379da161e54d74dd54ed1f0d2d592"
+    },
+    {
+      "name": "getSourceFileOfNode",
+      "span": "12867-12872",
+      "sha256": "58e6f8a806053a8ef08f49d786151da6e7ea6e103c40de9a930afaa37519a8a6"
+    },
+    {
+      "name": "createRange",
+      "span": "17297-17300",
+      "sha256": "520b69615170f74d3a3927feddbf50e2061870b64af199c54c6404f46e046f17"
+    },
+    {
+      "name": "moveRangePos",
+      "span": "17304-17306",
+      "sha256": "11da3d6e63737439c2a5e1069044dc8474e21b2bf5a36d5c66e78ee47add4cba"
+    },
+    {
+      "name": "setTextRangeEnd",
+      "span": "19041-19044",
+      "sha256": "5ad7ce9ab99a915dfa4c8536a700b94eca023d11ee1bf032053292186f5d93a4"
+    },
+    {
+      "name": "mergeEmitNode",
+      "span": "25218-25277",
+      "sha256": "6d9f4af1f1fa79b494c5ef7b570972925000f7939cd16ffe520855a67583f375"
+    },
+    {
+      "name": "getOrCreateEmitNode",
+      "span": "25287-25301",
+      "sha256": "973debb573fcc3974cba5fd8c4bf89f1c5ffacc8ba297ec47a83f1534846ab1a"
+    },
+    {
+      "name": "disposeEmitNodes",
+      "span": "25302-25310",
+      "sha256": "0f82231ff0268dcb94304e298c18c37ff2504cd1877a006042e1c1a4b2898599"
+    },
+    {
+      "name": "getCommentRange",
+      "span": "25358-25361",
+      "sha256": "84e06c1d1498906aa5765dfc0bdfd9dd4ca9d1c75367b90067f24dbc57936cd2"
+    },
+    {
+      "name": "setCommentRange",
+      "span": "25362-25365",
+      "sha256": "d6570cb1675104244d3afe24c2af06743788d2245658b935bf932e2e72cb32e7"
+    },
+    {
+      "name": "isIgnorableParen",
+      "span": "24643-24645",
+      "sha256": "8bbd617706416b4ea200ed3b203c13978b3f36b17ca182602f4ac56f0aa68323"
+    },
+    {
+      "name": "createPrivateIdentifierAccess",
+      "span": "96401-96405",
+      "sha256": "c8487979092d485d916bd83919846515f0b41b9354a6dd158027d02cec757ec9"
+    },
+    {
+      "name": "createPrivateIdentifierAccessHelper",
+      "span": "96406-96435",
+      "sha256": "d66e2b7ff6a6d02e599e9ebae8c047b310e93bf4a413e456ee7d98c24f4b7ab0"
+    },
+    {
+      "name": "createPrivateIdentifierAssignment",
+      "span": "96795-96840",
+      "sha256": "50aca93fc9bff1017585d1ffed3aa4de5466d4d747cf0a9b04b1864aa4cdecff"
+    },
+    {
+      "name": "preserveJsDoc",
+      "span": "114803-114808",
+      "sha256": "c7b4e75ac7ce986490523f63b53f7ebb54de1cd40398dd0f7319de5a3cedc226"
+    },
+    {
+      "name": "transformNodes",
+      "span": "115977-116276",
+      "sha256": "ef2079da1a35b78b43d8794c034dd6caabdad5b71547b22c3270c40d47349e84"
+    },
+    {
+      "name": "dispose",
+      "span": "116261-116275",
+      "sha256": "755ee15b0a6a736ab4b0f454dfdfa3db415b88dd49a338c3058e7e8c3da8826c"
+    },
+    {
+      "name": "emitJsFileOrBundle",
+      "span": "116587-116639",
+      "sha256": "8ddf52b0baac8e39b1e88f3b70dbfdc5de75f49f2e943618ad31b80606a1adf8"
+    },
+    {
+      "name": "emitDeclarationFileOrBundle",
+      "span": "116640-116715",
+      "sha256": "8275307ffb4a07e3c7d8b7a5d7f2acf16bfe01c5f746285165c54dc225904434"
+    },
+    {
+      "name": "emitCommentsBeforeNode",
+      "span": "120987-120994",
+      "sha256": "dc59a0901c0b5aaa640586703fb5f5a2420cf3f5ad344fd433501a20612154cf"
+    },
+    {
+      "name": "emitCommentsAfterNode",
+      "span": "120995-121006",
+      "sha256": "f0baac32a6d9fcf8f005ee8f1b923e1706f679e8a1fb88e2a7753064bb644a89"
+    },
+    {
+      "name": "emitLeadingCommentsOfNode",
+      "span": "121007-121032",
+      "sha256": "ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb"
+    },
+    {
+      "name": "emitTrailingCommentsOfNode",
+      "span": "121033-121046",
+      "sha256": "e5c99d84eeab2c12d594ba56695a7a869c49720eb110f3715c0ea3f9271d1112"
+    },
+    {
+      "name": "forEachLeadingCommentToEmit",
+      "span": "121219-121233",
+      "sha256": "2e1fb613c9b9bb29f94a866a92b31e77c392cd696ee93b2e61a001e4e3981a9c"
+    },
+    {
+      "name": "forEachTrailingCommentToEmit",
+      "span": "121234-121238",
+      "sha256": "bd6612ac9040b10e756e1b9666a34daebcc0fe66a227dfda01db103bfd3f27a7"
+    },
+    {
+      "name": "printSourceFileOrBundle",
+      "span": "116744-116804",
+      "sha256": "46e5c19d92e497190c703090e7d95bbd22e310323b69dde9c43c0eac2fa6979b"
+    }
+  ],
+  "submitted_hashes_verified": [
+    {
+      "path": "crates/compiler/tests/fixtures/bundle-metadata-t1-inputs.json",
+      "sha256": "d83c8825dae31dba5df9e9272617b5cbf3d05aa3366bbb4a9ab45a8a70fe109a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/bundle-metadata-t1.json",
+      "sha256": "11e7cbebfdb2c0998d1ca9241b579048528b1668fcd46f78a4cffa97c437ed27"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/bundle-metadata-t1-known-native.json",
+      "sha256": "7f03ec86ce2f8de123387262bc82905614660ced3335855069b97575e32add72"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/bundle-metadata-t1-known-packet.json",
+      "sha256": "81247002134bbc9035d0070b68ccb782dcec9697cc4bb14f8e94d31c952d7d72"
+    },
+    {
+      "path": "scripts/observe-bundle-metadata-t1.mjs",
+      "sha256": "13020255b9b76fd23e19e5261b7ddb92962eab9f7a4949f977487dfb4158d5fc"
+    },
+    {
+      "path": "scripts/generate-bundle-metadata-t1-inputs.mjs",
+      "sha256": "788822bb2e04b8e127cc7ea0afc3ff0b9b2e0169b338d1caa668ba62b09d1b6b"
+    },
+    {
+      "path": "crates/compiler/tests/bundle_metadata_t1_contract.rs",
+      "sha256": "9aa342134e44f2b645fcfe18b28ed4ce6c0d66dbef80cb53175e02710ba3dfe6"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/decorator-binding-inputs.json",
+      "sha256": "0284b24a2bc6e8d111f60b77d76b2bb6008c5ec53e26330a16386109ec678b15"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/decorator-binding.json.zst",
+      "sha256": "be52ec87a5cdcfa407ccd0729b1eaa020f4c6e71b159dabbb507efbc70915ab7"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/decorator-binding-known-native.json",
+      "sha256": "c3e1defc3e6f2d98f34befa9477d14d7404fbd3179179ac3f993537a788b5358"
+    },
+    {
+      "path": "scripts/observe-decorator-bindings.mjs",
+      "sha256": "6d05f2bbe6d92612d9b4f8cce682e35b3b6f1d2b7c5f59114ef028b7f48e5327"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/decorator-binding-known-native.json",
+      "sha256": "be36223e9c563d20ba7c3f38f14aeaf333521ff2b942329bfca3d2bdd0ae6a09"
+    }
+  ],
+  "production_unchanged_from_candidate": {
+    "crates/emitter/src/factory/parsed_metadata.rs": "de12f5f43623ae5ed8569e408a25e344a452da9943bc40c2a02744ae31f3f0f0",
+    "crates/emitter/src/metadata.rs": "aaa2645e623c52479ba0bc1072e8597a65918963a1b0f16a19e6bc706a3aa1ea"
+  }
+}

@@ -1,0 +1,82 @@
+[
+  {
+    "name": "format",
+    "argv": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit": 0,
+    "seconds": 3.366,
+    "log": "format.log.gz",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "whitespace",
+    "argv": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit": 0,
+    "seconds": 0.027,
+    "log": "whitespace.log.gz",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "policy",
+    "argv": [
+      "node",
+      ".github/ci/qualification.mjs",
+      "check-policy"
+    ],
+    "exit": 0,
+    "seconds": 0.107,
+    "log": "policy.log.gz",
+    "log_sha256": "5a410dae8571b57481d5a80e08f858a77bd074bd7690d8a2a23fc555fe084afb"
+  },
+  {
+    "name": "policy-schema",
+    "argv": [
+      "node",
+      "--test",
+      "--test-name-pattern=policy and every qualification schema boundary are valid",
+      ".github/ci/qualification.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 0.208,
+    "log": "policy-schema.log.gz",
+    "log_sha256": "e0f99412c188fbb7da116e9ab619b08bc756329a9e91c2a474e84f0fda878385"
+  },
+  {
+    "name": "inventory",
+    "argv": [
+      "python3",
+      "docs/design/greenfield/slices/witness-coverage/inventory.py",
+      "--check"
+    ],
+    "exit": 0,
+    "seconds": 0.16,
+    "log": "inventory.log.gz",
+    "log_sha256": "aee25cf9dcfdfe0001b40ce5c51ddde58fb524602f418111a624108e002df8db"
+  },
+  {
+    "name": "planner",
+    "argv": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      ".github/ci",
+      "-p",
+      "test_replay.py"
+    ],
+    "tests": 63,
+    "exit": 0,
+    "log": "planner.log.gz",
+    "log_sha256": "db7e3cb8670b572ea8aa2a316a7d51db41044a65b4a9fbf3d6fdb72cdaff8fe2"
+  }
+]

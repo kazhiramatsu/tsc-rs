@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--manifest-path",
+    "crates/compiler/Cargo.toml",
+    "--test",
+    "bundle_metadata_t1_contract",
+    "bundle_metadata_t1_controls_match_complete_typescript_observations",
+    "--",
+    "--exact",
+    "bundle_metadata_t1_parsed_packet_matches_typescript_after_javascript_probe",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "exit": 0,
+  "seconds": 31.85,
+  "binary_before": "186c590ac2555bfa03500818996c98fda273f33ec377e8aa53ca2b140d3df3b9",
+  "binary_after": "1f33841479ca709872f6502b0df719bda4c6a3140e3a1d5aa49962b838ef1254",
+  "log": "warning-cleanup.log.gz",
+  "log_sha256": "d3cc1359742fa2dc8b91ee59d13a64dcb19a20355fc92f62aca5935e08ce4895"
+}

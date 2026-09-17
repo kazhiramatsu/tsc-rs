@@ -14,8 +14,8 @@ Claude 担当 C01〜C05 と、それ以外の実装・統合・検証・配布�
 ⑤ cache はR1〜R4再提出を受領し、統合側の追加修正と専用CI入口を含む[PR #539](https://github.com/kazhiramatsu/tsc-rs/pull/539)で統合済みです。[統合記録](l2-3-resolution-cache/integration/README.md)を参照。
 ① literal は候補を受領し、[A-INT1統合](h2-8a-literal-update/integration/README.md)でCI入口を追加し、PR #542の全7 hosted job・両gate成功後にmainへ統合済みです。
 ② binding も [PR #549](https://github.com/kazhiramatsu/tsc-rs/pull/549) で統合済みです。
-当初の5件は候補統合が一巡しました。次の追加依頼は
-[T1：bundle の parse-node metadata 可搬性](h2-8a-bundle-metadata-t1-claude-handoff.md)。
+当初の5件は候補統合が一巡しました。追加依頼の
+[T1：bundle の parse-node metadata 可搬性](h2-8a-bundle-metadata-t1-claude-handoff.md)は候補 `a17009c58` を受領し、[統合検証](h2-8a-bundle-metadata-t1/integration/README.md)へ進んでいます。
 R9/R12 は別の追加依頼候補で、今回の T1 には含めません。
 [A-INT3-CS](h2-8a-printer-comment-carry/README.md) と
 [API1.2-HINT](api1-2-printer-hook-hints.md) は統合済みです。

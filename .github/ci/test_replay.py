@@ -18,6 +18,18 @@ witness = replay.witness
 
 
 class SelectionTests(unittest.TestCase):
+    def test_bundle_metadata_t1_uses_controls_and_pinned_node_when_selected_alone(self):
+        suite = "bundle-metadata-t1"
+        for path in witness.compiler_direct_inputs(suite):
+            plan = replay.selection([path])
+            self.assertEqual(plan["acceptance"], [])
+            self.assertEqual(plan["witnesses"], [suite])
+            self.assertEqual(replay.matrices(plan)["witnesses"], {
+                "include": [{"group": "controls", "suites": [suite]}],
+            })
+        workflow = (ROOT / ".github/workflows/witness.yml").read_text()
+        self.assertIn(f"contains(matrix.suites, '{suite}')", workflow)
+
     def test_module_facets_cover_shared_targets_without_narrowing_shared_inputs(self):
         suites = ["module-identities", "bundle-original-javascript"]
         plan = replay.selection([
@@ -895,6 +907,8 @@ class WitnessTests(unittest.TestCase):
                     "TSC_RS_REQUIRE_REWRITE_FILTER": "no-match",
                     "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/tmp/stale-rewrite-captures",
                     "TSC_RS_LITERAL_UPDATE_REPORT_DIR": "/tmp/stale-update-reports",
+                    "TSC_RS_BUNDLE_METADATA_T1_CASE_SET": "no-match",
+                    "TSC_RS_BUNDLE_METADATA_T1_DUMP_DIR": "/tmp/stale-t1-dumps",
                     "CARGO_BUILD_JOBS": "2"}
         for suite in witness.COMPILER_DIRECT:
             _, env = witness.invocation(suite, [], poisoned)

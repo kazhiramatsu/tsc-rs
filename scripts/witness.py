@@ -329,7 +329,7 @@ COMPILER_DIRECT = {
         "observers": ("scripts/observe-h2-8a-jsdoc-return.mjs",),
     },
     # H2.8a-A-RES-BUNDLE-METADATA-T1: parse-node comment ranges carried from a
-    # bundle's JavaScript transform into its declaration transform (16
+    # bundle's JavaScript transform into its declaration transform (18
     # complete commands + upstream emitNode probes, two tests).
     "bundle-metadata-t1": {
         "target": "bundle_metadata_t1_contract",
@@ -341,7 +341,8 @@ COMPILER_DIRECT = {
         "fixtures": (("crates/compiler/tests/fixtures/bundle-metadata-t1.json", 18, "case_id"),),
         "observers": ("scripts/observe-bundle-metadata-t1.mjs",),
         "inputs": tuple(f"crates/compiler/tests/fixtures/bundle-metadata-t1-{name}.json"
-                        for name in ("inputs", "known-native", "known-packet")),
+                        for name in ("inputs", "known-native", "known-packet"))
+                  + ("scripts/generate-bundle-metadata-t1-inputs.mjs",),
     },
     "parameter-temporaries": {
         "target": "h2_5h_parameter_temporaries",

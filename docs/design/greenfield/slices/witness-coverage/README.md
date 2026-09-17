@@ -2,7 +2,7 @@
 
 2026-09-17。統合担当：Codex。**宣言map出力/APIまでPR #547で検証・統合済み。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v20.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v21.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -29,18 +29,20 @@ C02 generated-binding はPR #549で統合済み。 direct 156入力と pipeline 
 
 [OPS-COVER-3N/3O](compiler-module-facets/README.md) はmodule identityの3 testsと原本JavaScript bundle recorderの1 testをcontrolsへ追加したv20（実測81秒を受けてビルドを共有）。nativeの比較面は38＋4入力、各2回。追加のAPI/path参照はRust実行件数へ加算しない。PR #550で全9 replay job・両gate成功、controls20 suites /68 tests、38m49s。merge待ち。
 
+[T1統合](../h2-8a-bundle-metadata-t1/integration/README.md)は新18入力・2 exact-name testsをcontrolsへ追加し、台帳v21に記録する。元の767 complete commandsは763 exact /4 knownを必要値とする。
+
 ## 現在の入口
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
 | standalone target（filter なし） | 34 | controlsのmodule identity target、printer job の7 targetとdirect13、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・recovery-corpus・bundle-program・resolution cache contractと専用declaration-maps jobの2 target。ignored/cfg-disabled test の実行までは意味しない |
-| standalone target（名前で filter） | 14 | compiler12 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
+| standalone target（名前で filter） | 15 | compiler13 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
 | standalone target の直接呼出しなし | 23 | compiler3 / その他20 |
 | lib/bin の test harness | 16 | Program lib 1件に直接入口、残り15件は直接実行なし |
 
-**71 standalone target を列挙した。23件を「挙動が未検証」とは数えない。**
+**72 standalone target を列挙した。23件を「挙動が未検証」とは数えない。**
 acceptance が同じ比較 helper を Rust の `#[path]` で取り込み、関数を直接呼ぶ場合がある。
-台帳は source の共有関係11 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
+台帳は source の共有関係12 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
 helper の共有から、その target の全テスト・新しい入力集合の実行まで推論しない。
 
 現在、直接入口のない23 targetの source を単独変更すると、planner は unknown input として
@@ -109,7 +111,7 @@ workflow の認識していない shell entry が追加された場合はエラ�
 
 ## 全 standalone target（v15の履歴表）
 
-現行の全件はv20 JSONを参照。以下は過去の表であり現在の入口判定には使わない。
+現行の全件はv21 JSONを参照。以下は過去の表であり現在の入口判定には使わない。
 
 下表の「共有」は acceptance と明示的な source参照が重なる数で、実行したテスト数ではない。
 filter名、command owner、source/fixture path、driverの関数名はJSON台帳で参照できる。

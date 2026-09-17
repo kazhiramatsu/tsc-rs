@@ -124,7 +124,7 @@ fn load_all_cases() -> Vec<Value> {
         .map(|case| case["case_id"].as_str().unwrap().to_owned())
         .collect::<Vec<_>>();
     assert_eq!(input_ids.len(), EXPECTED_CASES);
-    let mut cases = artifact["cases"].as_array().unwrap().clone();
+    let cases = artifact["cases"].as_array().unwrap().clone();
     assert_eq!(
         cases
             .iter()
@@ -613,7 +613,7 @@ fn compare_packet(
                 continue;
             };
             let comment_range = metadata.comment_range().map(|range| {
-                let positions = syntax(program_of[&range.source()]).positions().clone();
+                let positions = syntax(program_of[&range.source()]).positions();
                 let utf16 = |position: Option<tsc_emitter::SourceBytePosition>| {
                     position.map_or(-1, |position| {
                         i64::from(positions.byte_to_utf16(position.value()).unwrap())

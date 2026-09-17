@@ -1,7 +1,7 @@
 # H2.8a-A-RES-BUNDLE-METADATA-T1 — 結果報告（before / after、追加対照、残差、未実行）
 
 作成日：2026-09-17。設計は [DESIGN.md](DESIGN.md)。依頼書は [../h2-8a-bundle-metadata-t1-claude-handoff.md](../h2-8a-bundle-metadata-t1-claude-handoff.md)。
-記録は [records/](records/)。全件 replay / hosted / PR は統合担当（§6）。
+統合後の検証は [integration/README.md](integration/README.md)。提出記録は [records/](records/)。全件 replay / hosted / PR は統合担当（§6）。
 
 ## 1. 開始点と候補
 
@@ -99,7 +99,7 @@ exact になった場合は retire を要求して fail する（known-native �
 | `cargo test --manifest-path crates/emitter/Cargo.toml --lib parsed_`（constants test と他 module の `parsed_*` を含む） | 12 passed | [records/after/unit-parsed-all.log.gz](records/after/unit-parsed-all.log.gz) |
 | `python3 scripts/witness.py bundle-declarations --all`（3 tests + 1 filtered） | 3 passed / 1 filtered（既存 packet 契約：visitor / map / metadata lifetime の ordinary + fresh-forced、fixture 不変） | [records/after/bundle-declarations.log.gz](records/after/bundle-declarations.log.gz) |
 | `python3 scripts/witness.py bundle-program --all`（4 tests） | 4 passed | [records/after/bundle-program.log.gz](records/after/bundle-program.log.gz) |
-| `python3 -m unittest discover -s .github/ci -p test_replay.py`（planner 59 tests） | OK（新 suite の件数 17 と retire 後の known 4 を反映） | — |
+| `python3 -m unittest discover -s .github/ci -p test_replay.py`（planner 59 tests） | OK（新 suite の入力件数 18 と retire 後の known 4 を反映） | — |
 | `cargo fmt --all -- --check`、`git diff --check` | exit 0 | — |
 
 printer / generated binding 自体は変更していない（DESIGN §7）。
@@ -109,13 +109,13 @@ printer / generated binding 自体は変更していない（DESIGN §7）。
 - 全 767 件の `decorator-binding-pipeline --all`（目標 763 exact / 4 known / 767 complete）、SUPER / retained / acceptance chain、
   hosted witness / acceptance の全 job：統合担当。
 - clippy `-D warnings` 全体：既存 warning（program）で止まるため未実行。変更 file への指摘は無い前提を統合側で確認。
-- 同一 Program の API 再 emit（`Program.emit` 2 回目）の Rust 側比較：上流 probe のみ（17 件 identical）。H2.9 / API1 の owner。
+- 同一 Program の API 再 emit（`Program.emit` 2 回目）の Rust 側比較：上流 probe のみ（18 件 identical）。H2.9 / API1 の owner。
 
 ## 6. 提出物と統合担当への引き継ぎ
 
 - patch / commit：§1（変更 file は DESIGN §7；`.github/ci/test_replay.py` は planner test の件数のみ）。retire した known-native ID：[records/retired-known-native-ids.txt](records/retired-known-native-ids.txt)。
 - hosted 入口：`scripts/witness.py` の `COMPILER_DIRECT["bundle-metadata-t1"]`（controls group に自動編入、`.github/ci/replay.py` は
-  `COMPILER_DIRECT` を列挙するため追加登録不要；planner test の件数 17 と known 4 は更新済み）。
+  `COMPILER_DIRECT` を列挙するため追加登録不要；planner test の入力件数 18 と known 4 は更新済み）。
   hosted job の実行・時間予算の確認は統合担当。
 - 残る owner：R9 ×2、R12 ×2（既存 known-native 4 行）、§3.2 の 3 種（System export class map、private-set 右辺 flag、decorator 式 NoComments）、
   dispose 後 print の typed 差分 2 件（direct suite）。
