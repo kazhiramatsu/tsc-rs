@@ -54,7 +54,7 @@ def load_replay():
     sys.path.insert(0, str(ROOT / '.github/ci'))
     import replay
     READ.update((ROOT / name).resolve() for name in (
-        '.github/ci/replay.py', '.github/ci/test_replay.py', 'scripts/witness.py',
+        '.github/ci/replay.py', '.github/ci/test_replay.py', 'scripts/witness.py', 'scripts/foundation_witnesses.py',
         '.github/workflows/ci.yml', '.github/workflows/witness.yml'))
     expected_runs = {
         'ci.yml': {'python3 .github/ci/replay.py plan', 'python3 .github/ci/replay.py acceptance "$ACCEPTANCE_GROUP"', 'python3 .github/ci/replay.py gate acceptance'},
@@ -244,7 +244,7 @@ def main():
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--write', action='store_true', help='write a NEW snapshot only')
     action.add_argument('--check', action='store_true', help='compare current source with the frozen snapshot')
-    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v21.json')
+    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v22.json')
     args = parser.parse_args()
     if args.check:
         source_commit = json.loads(args.output.read_text())['source_commit']

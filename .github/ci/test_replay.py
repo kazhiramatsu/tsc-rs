@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -15,6 +16,104 @@ spec = importlib.util.spec_from_file_location("replay", ROOT / ".github/ci/repla
 replay = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(replay)
 witness = replay.witness
+
+
+class FoundationTests(unittest.TestCase):
+    def output(self, suites):
+        foundation = witness.foundation_witnesses
+        blocks = []
+        for suite in suites:
+            target = foundation.SUITES[suite]["target"]
+            names = foundation.test_names(suite)
+            blocks.append(f"     Running tests/{target}.rs (target/debug/deps/{target}-012345)\n" +
+                          "\n".join(f"test {name} ... ok" for name in names) +
+                          f"\ntest result: ok. {len(names)} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n")
+        return "\n".join(blocks)
+
+    def test_foundation_sources_have_one_bounded_job_and_all_targets(self):
+        foundation = witness.foundation_witnesses
+        self.assertEqual(len(foundation.SUITES), 16)
+        self.assertEqual(len({(s["crate"], s["target"]) for s in foundation.SUITES.values()}), 16)
+        for suite in foundation.SUITES:
+            plan = replay.selection([foundation.source(suite)])
+            self.assertEqual(plan["acceptance"], [])
+            self.assertEqual(plan["witnesses"], [suite])
+            self.assertEqual(replay.matrices(plan)["witnesses"], {
+                "include": [{"group": "foundations", "suites": [suite]}]})
+            for file in foundation.inputs(suite):
+                self.assertTrue((ROOT / file).is_file(), file)
+                self.assertIn(suite, replay.selection([file])["witnesses"], file)
+        self.assertIn("matrix.group == 'foundations'", (ROOT / ".github/workflows/witness.yml").read_text())
+
+    def test_foundation_shared_dependencies_preserve_existing_consumers(self):
+        for file in ("crates/compiler/tests/fixtures/utf16-literals-adjacent-probes-inputs.json",
+                     "crates/host/tests/support/scalar_path.rs", "scripts/foundation_witnesses.py",
+                     "crates/program/src/program.rs", "crates/syntax/src/parser.rs"):
+            self.assertEqual(replay.selection([file])["acceptance"], list(replay.GROUPS))
+            self.assertEqual(replay.selection([file])["witnesses"], list(witness.SUITES))
+        for file in ("crates/emitter/tests/fixtures/bundle-plan.json", "scripts/observe-bundle-plan.mjs"):
+            selected = replay.selection([file])["witnesses"]
+            self.assertIn("bundle-program", selected)
+            self.assertIn("program-bundle-facts", selected)
+
+    def test_foundation_platform_names_are_explicit(self):
+        foundation = witness.foundation_witnesses
+        for platform, memory, filesystem in (("linux", 14, 9), ("darwin", 14, 8), ("win32", 13, 7)):
+            self.assertEqual(len(foundation.test_names("host-memory", platform)), memory)
+            self.assertEqual(len(foundation.test_names("host-filesystem", platform)), filesystem)
+        with self.assertRaises(ValueError):
+            foundation.test_names("host-memory", "unreviewed")
+
+    def test_foundation_missing_duplicate_filtered_ignored_and_wrong_tests_fail(self):
+        foundation = witness.foundation_witnesses
+        suites = ["syntax-entity-names", "syntax-template-flags"]
+        output = self.output(suites)
+        self.assertEqual(foundation.verify_output(suites, output), 3)
+        for broken in ("", self.output(suites[:1]), output + output,
+                       output.replace("0 filtered out", "1 filtered out", 1),
+                       output.replace("0 ignored", "1 ignored", 1),
+                       output.replace("test entity_and_identifier_predicates_match_typescript_utf16_values", "test wrong_name"),
+                       output.replace("2 passed", "0 passed", 1)):
+            with self.subTest(output=broken), self.assertRaises(ValueError):
+                foundation.verify_output(suites, broken)
+
+    def test_foundation_cli_selection_and_dry_run_never_execute(self):
+        for suite in witness.foundation_witnesses.SUITES:
+            with self.assertRaises(ValueError):
+                witness.invocation(suite, ["anything"])
+            with patch.object(witness.subprocess, "run") as run, redirect_stdout(io.StringIO()):
+                self.assertEqual(witness.main([suite, "--all", "--dry-run"]), 0)
+                run.assert_not_called()
+
+    def test_foundation_batches_selected_targets_and_checks_oracles_first(self):
+        foundation = witness.foundation_witnesses
+        suites = ["syntax-entity-names", "syntax-template-flags"]
+        fake = subprocess.CompletedProcess([], 0, self.output(suites))
+        with patch.object(foundation.subprocess, "run", return_value=fake) as run, redirect_stdout(io.StringIO()):
+            foundation.run(suites, {})
+        self.assertEqual(run.call_count, 3)
+        self.assertEqual([call.args[0][0] for call in run.call_args_list], ["node", "node", "cargo"])
+        self.assertEqual(run.call_args_list[-1].args[0], foundation.command(suites))
+        with self.assertRaises(ValueError):
+            foundation.command(["syntax-entity-names", "host-memory"])
+        for suites in ([], ["host-memory", "host-memory"], ["unknown"]):
+            with self.assertRaises(ValueError):
+                foundation.run(suites, {})
+
+    def test_foundation_observer_and_native_failures_propagate(self):
+        foundation = witness.foundation_witnesses
+        with patch.object(foundation.subprocess, "run", side_effect=subprocess.CalledProcessError(1, ["node"])) as run:
+            with self.assertRaises(subprocess.CalledProcessError):
+                foundation.run(["syntax-entity-names"], {})
+            self.assertEqual(run.call_count, 1)
+        with patch.object(foundation.subprocess, "run", return_value=subprocess.CompletedProcess([], 101, "failure")), redirect_stdout(io.StringIO()):
+            with self.assertRaises(subprocess.CalledProcessError):
+                foundation.run(["host-memory"], {})
+
+    def test_foundation_unreviewed_attributes_and_empty_declarations_fail(self):
+        for text in ("", "#[ignore]\n#[test]\nfn omitted() {}", "#[cfg(feature = \"hidden\")]\n#[test]\nfn hidden() {}"):
+            with patch.object(Path, "read_text", return_value=text), self.assertRaises(ValueError):
+                witness.foundation_witnesses.test_names("host-memory")
 
 
 class SelectionTests(unittest.TestCase):
@@ -449,7 +548,7 @@ class SelectionTests(unittest.TestCase):
             fixture = json.loads((ROOT / f"crates/compiler/tests/fixtures/h2_8c_transpile/{name}.v1.json").read_text())
             self.assertEqual(fixture["node"], "v" + version)
         workflow = (ROOT / ".github/workflows/witness.yml").read_text()
-        self.assertIn("if: contains(matrix.suites, 'transpile-routes')", workflow)
+        self.assertIn("contains(matrix.suites, 'transpile-routes')", workflow)
         self.assertIn("actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020", workflow)
         self.assertIn("node-version-file: .node-version", workflow)
 
@@ -697,6 +796,13 @@ class WitnessTests(unittest.TestCase):
 
     def test_frozen_input_catalog_counts(self):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
+            "syntax-entity-names": 2, "syntax-meta-property": 1, "syntax-literal-values": 1,
+            "syntax-recovery": 1, "syntax-scanner-escapes": 1, "syntax-template-escapes": 5,
+            "syntax-template-flags": 1, "binder-symbol-names": 2, "types-option-numbers": 3,
+            "host-memory": 13 if sys.platform == "win32" else 14,
+            "host-filesystem": {"linux": 9, "darwin": 8, "win32": 7}[sys.platform],
+            "program-bundle-facts": 1, "program-host-platform": 1, "program-config-paths": 2,
+            "program-module-paths": 3, "program-raw-source": 1,
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
             "followup3": 48, "retained": 530, "direct": 32, "printer": 142, "bundle-sinks": 10,
             "declaration-map-cli": 8, "transpile-routes": 301, "resolution-cache": 26,

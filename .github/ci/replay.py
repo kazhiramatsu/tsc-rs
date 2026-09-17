@@ -34,6 +34,9 @@ WITNESS_GROUPS = {
     # Reuse this short job's emitter build. Fixture changes select individual
     # direct suites without running unrelated printer failure/owner controls.
     "printer": ("printer", *witness.EMITTER_DIRECT),
+    # Syntax/binder/types and host/program contracts share a small build per
+    # crate without consuming the controls job's remaining timeout margin.
+    "foundations": tuple(witness.foundation_witnesses.SUITES),
 }
 PRINTER_TARGETS = (
     "printer_failure_contract", "emit_pipeline_phases_contract",
@@ -79,15 +82,19 @@ def selection(paths):
         # The forced-declaration acceptance helper also consumes this fixture.
         # Registering its API witness must preserve the existing shared replay.
         if file in ("crates/compiler/tests/fixtures/declaration-reference-paths.json",
-                    "crates/emitter/tests/fixtures/bundle-module-identities.json"):
+                    "crates/emitter/tests/fixtures/bundle-module-identities.json",
+                    "crates/compiler/tests/fixtures/utf16-literals-adjacent-probes-inputs.json",
+                    "crates/emitter/tests/fixtures/bundle-plan.json", "scripts/observe-bundle-plan.mjs"):
             # Module identity facts also feed the declaration observer and
             # emitter unit tests; registering one consumer cannot narrow them.
             return full_selection(f"shared declaration reference input: {file}")
         direct_owners = {suite for suite in witness.EMITTER_DIRECT if file in witness.emitter_inputs(suite)}
         compiler_owners = {suite for suite in witness.COMPILER_DIRECT if file in witness.compiler_direct_inputs(suite)}
         binding_owners = {suite for suite in witness.BINDING if file in witness.binding_inputs(suite)}
-        if direct_owners or compiler_owners or binding_owners:
-            witnesses.update(direct_owners | compiler_owners | binding_owners)
+        foundation_owners = {suite for suite in witness.foundation_witnesses.SUITES
+                             if file in witness.foundation_witnesses.inputs(suite)}
+        if direct_owners or compiler_owners or binding_owners or foundation_owners:
+            witnesses.update(direct_owners | compiler_owners | binding_owners | foundation_owners)
             continue
         if file in witness.RESOLUTION_INPUTS:
             witnesses.add("resolution-cache")
@@ -290,7 +297,7 @@ def main():
         for suite in suites:
             if suite == "printer":
                 printer_witnesses()
-            elif suite in witness.EMITTER_DIRECT or suite in witness.COMPILER_DIRECT:
+            elif suite in witness.EMITTER_DIRECT or suite in witness.COMPILER_DIRECT or suite in witness.foundation_witnesses.SUITES:
                 continue  # Batch selected small targets below, sharing one build.
             else:
                 subprocess.run([sys.executable, "scripts/witness.py", suite, "--all"], cwd=ROOT, check=True)
@@ -300,6 +307,10 @@ def main():
         compiler = [suite for suite in suites if suite in witness.COMPILER_DIRECT]
         if compiler:
             witness.run_compiler_direct(compiler)
+        foundations = [suite for suite in suites if suite in witness.foundation_witnesses.SUITES]
+        if foundations:
+            _, env = witness.invocation(foundations[0], [])
+            witness.foundation_witnesses.run(foundations, env)
     else:
         if args.value not in ("acceptance", "witnesses"):
             parser.error("gate requires acceptance or witnesses")
