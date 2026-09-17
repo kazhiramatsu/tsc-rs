@@ -1,0 +1,2175 @@
+{
+  "version": 1,
+  "candidate_commit": "bc4fa2c295dc20e45814f44ce8f460a6d959be0f",
+  "base_commit": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "pr": "https://github.com/kazhiramatsu/tsc-rs/pull/557",
+  "workflows": [
+    {
+      "conclusion": "success",
+      "createdAt": "2026-09-17T06:38:11Z",
+      "databaseId": 35190703849,
+      "event": "pull_request",
+      "headBranch": "work/emitter-final-ci-budget",
+      "headSha": "bc4fa2c295dc20e45814f44ce8f460a6d959be0f",
+      "jobs": [
+        {
+          "completedAt": "2026-09-17T06:38:41Z",
+          "conclusion": "success",
+          "databaseId": 105102413965,
+          "name": "plan",
+          "startedAt": "2026-09-17T06:38:14Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:16Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:35Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:38Z",
+              "conclusion": "success",
+              "name": "Select affected replay groups",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:35Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:38Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-17T06:38:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:38Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-17T06:38:38Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703849/job/105102413965",
+          "seconds": 27,
+          "log": "105102413965.log.gz",
+          "log_sha256": "b05349c948f2e71b599c97b9b5967c88f6655d0e9373f5a7490fff24e990b0e4",
+          "log_uncompressed_sha256": "e0990f0840aaaf73408bc8e8716c1a23ee29f243f238656383febf079f1b97f1",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T07:07:08Z",
+          "conclusion": "success",
+          "databaseId": 105102524055,
+          "name": "acceptance (wide)",
+          "startedAt": "2026-09-17T06:38:43Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:44Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:52Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:07:05Z",
+              "conclusion": "success",
+              "name": "Run selected acceptance",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:07:05Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-17T07:07:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:07:05Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-17T07:07:05Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703849/job/105102524055",
+          "seconds": 1705,
+          "log": "105102524055.log.gz",
+          "log_sha256": "f1757bec98ced1081edbe906f3bd0364db73762fa9284f8d396165f9473d2183",
+          "log_uncompressed_sha256": "5e22f22277765022ef74a04445b7eb290c93e56649fe46960286a213c6f7fa9a",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T06:51:08Z",
+          "conclusion": "success",
+          "databaseId": 105102524073,
+          "name": "acceptance (late)",
+          "startedAt": "2026-09-17T06:38:43Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:44Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:50Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:51:06Z",
+              "conclusion": "success",
+              "name": "Run selected acceptance",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:51:06Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-17T06:51:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:51:06Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-17T06:51:06Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703849/job/105102524073",
+          "seconds": 745,
+          "log": "105102524073.log.gz",
+          "log_sha256": "168f9cb9245cbc6469337f04bc4b328f8d966acaea4760322c31641388261b9b",
+          "log_uncompressed_sha256": "389a7494af5758241b481bc1da6f9c46599e1cb0cf74c0cdb725e9caab5ec5f1",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T06:48:00Z",
+          "conclusion": "success",
+          "databaseId": 105102524146,
+          "name": "acceptance (early)",
+          "startedAt": "2026-09-17T06:38:43Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:45Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:52Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:47:58Z",
+              "conclusion": "success",
+              "name": "Run selected acceptance",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:47:58Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-17T06:47:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:47:58Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-17T06:47:58Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703849/job/105102524146",
+          "seconds": 557,
+          "log": "105102524146.log.gz",
+          "log_sha256": "da68d20f7c8f10bd69bc600f3d910ef568a1f28968d5cb2237ee0ba4fe799147",
+          "log_uncompressed_sha256": "cfd416328edc077479cc3c3ef121401f06a21aaef7e6660a728f02e3db621d65",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T07:07:21Z",
+          "conclusion": "success",
+          "databaseId": 105109467519,
+          "name": "gates",
+          "startedAt": "2026-09-17T07:07:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T07:07:11Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T07:07:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:07:19Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T07:07:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:07:19Z",
+              "conclusion": "success",
+              "name": "Require every selected group to succeed",
+              "number": 3,
+              "startedAt": "2026-09-17T07:07:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:07:20Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-17T07:07:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:07:20Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-17T07:07:20Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703849/job/105109467519",
+          "seconds": 11,
+          "log": "105109467519.log.gz",
+          "log_sha256": "d4402266e43cca62aa08ede56b63a3b0d816904c4357d8b37812302cdbd6dcf6",
+          "log_uncompressed_sha256": "1dd701ac70c41ff30124b43f38d2074d08b7f6abb3772ce4608dc2c1d57dfa6e",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        }
+      ],
+      "status": "completed",
+      "updatedAt": "2026-09-17T07:07:22Z",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703849"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-09-17T06:38:11Z",
+      "databaseId": 35190703827,
+      "event": "pull_request",
+      "headBranch": "work/emitter-final-ci-budget",
+      "headSha": "bc4fa2c295dc20e45814f44ce8f460a6d959be0f",
+      "jobs": [
+        {
+          "completedAt": "2026-09-17T06:38:39Z",
+          "conclusion": "success",
+          "databaseId": 105102413742,
+          "name": "plan",
+          "startedAt": "2026-09-17T06:38:14Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:15Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:34Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:37Z",
+              "conclusion": "success",
+              "name": "Select affected replay groups",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:37Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-17T06:38:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:37Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-17T06:38:37Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703827/job/105102413742",
+          "seconds": 25,
+          "log": "105102413742.log.gz",
+          "log_sha256": "a9db6e4cf344bf55ded403b729fe018fd20cdae6a109b794c13097e8c2353d03",
+          "log_uncompressed_sha256": "a2bc615e606f4fb7cbfa1a8212abff33e795c1a02a5850470f4fc2e4fd10e2ae",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T06:59:23Z",
+          "conclusion": "success",
+          "databaseId": 105102518137,
+          "name": "witnesses (module-output)",
+          "startedAt": "2026-09-17T06:38:41Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:42Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:52Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:56Z",
+              "conclusion": "success",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:59:21Z",
+              "conclusion": "success",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-17T06:38:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:59:21Z",
+              "conclusion": "success",
+              "name": "Post Use the frozen oracle Node version",
+              "number": 7,
+              "startedAt": "2026-09-17T06:59:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:59:21Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-17T06:59:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:59:21Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-17T06:59:21Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703827/job/105102518137",
+          "seconds": 1242,
+          "log": "105102518137.log.gz",
+          "log_sha256": "0a57a1880aa796573ae52642a540388ee3ba75112cc510bd069589257cf03b59",
+          "log_uncompressed_sha256": "8273c26dc3316b52ae95572404d065e60dc4f8d5ab7f1aa389f90de437894cb3",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T06:41:53Z",
+          "conclusion": "success",
+          "databaseId": 105102518141,
+          "name": "witnesses (printer)",
+          "startedAt": "2026-09-17T06:38:42Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:45Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:54Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:59Z",
+              "conclusion": "success",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:41:50Z",
+              "conclusion": "success",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-17T06:38:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:41:50Z",
+              "conclusion": "success",
+              "name": "Post Use the frozen oracle Node version",
+              "number": 7,
+              "startedAt": "2026-09-17T06:41:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:41:50Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-17T06:41:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:41:50Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-17T06:41:50Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703827/job/105102518141",
+          "seconds": 191,
+          "log": "105102518141.log.gz",
+          "log_sha256": "589ebafe28ac514a8ba1dfab1b84a24cf14b38f8b3ee9688eab5b84f9dd7b3e9",
+          "log_uncompressed_sha256": "1a07210f931a06a722c5c90ea4205f62a7c5b6a78cd8548622530c6b67d8ae61",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T06:40:20Z",
+          "conclusion": "success",
+          "databaseId": 105102518161,
+          "name": "witnesses (foundations)",
+          "startedAt": "2026-09-17T06:38:41Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:42Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:51Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:55Z",
+              "conclusion": "success",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:40:18Z",
+              "conclusion": "success",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-17T06:38:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:40:18Z",
+              "conclusion": "success",
+              "name": "Post Use the frozen oracle Node version",
+              "number": 7,
+              "startedAt": "2026-09-17T06:40:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:40:19Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-17T06:40:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:40:19Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-17T06:40:19Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703827/job/105102518161",
+          "seconds": 99,
+          "log": "105102518161.log.gz",
+          "log_sha256": "5a7c9df62210b2c28e29798392995e6871a9ba357bf954e9d3d358de8b0b9b47",
+          "log_uncompressed_sha256": "c844f9d042d1d78985fd4dab209d9e203947f597bd1b003e0ec1ef529462ff02",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T07:04:02Z",
+          "conclusion": "success",
+          "databaseId": 105102518233,
+          "name": "witnesses (controls)",
+          "startedAt": "2026-09-17T06:38:41Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:43Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:51Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:43Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:56Z",
+              "conclusion": "success",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:03:59Z",
+              "conclusion": "success",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-17T06:38:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:03:59Z",
+              "conclusion": "success",
+              "name": "Post Use the frozen oracle Node version",
+              "number": 7,
+              "startedAt": "2026-09-17T07:03:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:04:00Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-17T07:03:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:04:00Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-17T07:04:00Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703827/job/105102518233",
+          "seconds": 1521,
+          "log": "105102518233.log.gz",
+          "log_sha256": "a46e0516314aa3b0beba1ed18909aba36c524362e9b7c448e3304825f85739ab",
+          "log_uncompressed_sha256": "0104bba06c7d32c946510b5213b7d496aff3574362589fd343b102a66e79542f",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T06:49:18Z",
+          "conclusion": "success",
+          "databaseId": 105102518253,
+          "name": "witnesses (primary)",
+          "startedAt": "2026-09-17T06:38:41Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:43Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:52Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:43Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:52Z",
+              "conclusion": "skipped",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:49:15Z",
+              "conclusion": "success",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-17T06:38:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:49:16Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-17T06:49:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:49:16Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-17T06:49:16Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703827/job/105102518253",
+          "seconds": 637,
+          "log": "105102518253.log.gz",
+          "log_sha256": "50717e2bca17f3bcdd77bfcccb3f5c236922a1111364ecc906670dbac941f65a",
+          "log_uncompressed_sha256": "f2d0a7fb81338068db8892cbc604b3d4b7d83f25c180e5199fd3951eb2e06210",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T06:47:45Z",
+          "conclusion": "success",
+          "databaseId": 105102518270,
+          "name": "witnesses (retained)",
+          "startedAt": "2026-09-17T06:38:42Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:43Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:43Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:52Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:43Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:52Z",
+              "conclusion": "skipped",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:47:41Z",
+              "conclusion": "success",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-17T06:38:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:47:42Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-17T06:47:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:47:42Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-17T06:47:42Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703827/job/105102518270",
+          "seconds": 543,
+          "log": "105102518270.log.gz",
+          "log_sha256": "dc1baf3ea943107428f23bb63c41524d144edf9ff9da3b43477bc5dbc8246501",
+          "log_uncompressed_sha256": "a8c04f5a7ac72ffd1469b1caf7ce50e6b65702ddbca325baf531fdd87f347ab1",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T06:59:49Z",
+          "conclusion": "success",
+          "databaseId": 105102518317,
+          "name": "witnesses (decorator-binding-pipeline)",
+          "startedAt": "2026-09-17T06:38:41Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T06:38:43Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T06:38:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:51Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T06:38:43Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:38:55Z",
+              "conclusion": "success",
+              "name": "Use the frozen oracle Node version",
+              "number": 3,
+              "startedAt": "2026-09-17T06:38:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:59:47Z",
+              "conclusion": "success",
+              "name": "Run selected witnesses",
+              "number": 4,
+              "startedAt": "2026-09-17T06:38:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:59:47Z",
+              "conclusion": "success",
+              "name": "Post Use the frozen oracle Node version",
+              "number": 7,
+              "startedAt": "2026-09-17T06:59:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:59:47Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 8,
+              "startedAt": "2026-09-17T06:59:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T06:59:47Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-09-17T06:59:47Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703827/job/105102518317",
+          "seconds": 1268,
+          "log": "105102518317.log.gz",
+          "log_sha256": "9732e560c0fa63b8f827903c310a0ba0042e3f107a6d2a6b9bc8ae5f7a6bfbaf",
+          "log_uncompressed_sha256": "24dc1da2b858cbdab59a8c2e451905c356f63aa495ee0ef08d954274493589b8",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        },
+        {
+          "completedAt": "2026-09-17T07:04:17Z",
+          "conclusion": "success",
+          "databaseId": 105108668072,
+          "name": "witness-gates",
+          "startedAt": "2026-09-17T07:04:04Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-09-17T07:04:06Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-09-17T07:04:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:04:15Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 2,
+              "startedAt": "2026-09-17T07:04:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:04:15Z",
+              "conclusion": "success",
+              "name": "Require every selected group to succeed",
+              "number": 3,
+              "startedAt": "2026-09-17T07:04:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:04:15Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "number": 6,
+              "startedAt": "2026-09-17T07:04:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-09-17T07:04:15Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-09-17T07:04:15Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703827/job/105108668072",
+          "seconds": 13,
+          "log": "105108668072.log.gz",
+          "log_sha256": "8e5c0f32dde8baf7aaa54fec7617688ce982eeb364d8a7ab1069fc2e40a25b98",
+          "log_uncompressed_sha256": "7d3f1741eedc46acf9c250ed949b2400c5d5d7f8b349dc7890f8af90dfb62ad2",
+          "checkout_commit": "f733713d44ff82110f7935431113323235b69c94"
+        }
+      ],
+      "status": "completed",
+      "updatedAt": "2026-09-17T07:04:18Z",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35190703827"
+    }
+  ],
+  "candidate_tree": "9e47b211450b0ebab2411f9d173ae192345c4772",
+  "tested_checkout": {
+    "commit": "f733713d44ff82110f7935431113323235b69c94",
+    "tree": "9e47b211450b0ebab2411f9d173ae192345c4772",
+    "parents": [
+      "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+      "bc4fa2c295dc20e45814f44ce8f460a6d959be0f"
+    ],
+    "same_tree_as_candidate": true
+  },
+  "replay_jobs": 10,
+  "replay_total_seconds": 8508,
+  "replay_longest_seconds": 1705,
+  "workers": 2,
+  "observations": {
+    "h2-5g": "H2.5g emit acceptance: candidates=9027 exact=8511 h2_8a_deferred=6 h2_9_deferred=510 exact_diagnostics=26815 exact_writes=9466 repetitions=2",
+    "super-primary": "decorator super SUMMARY exact=670 failed=0 selected=670",
+    "pipeline": "decorator binding SUMMARY exact=767 known=0 failed=0 selected=767",
+    "post-t1": "post t1 residuals SUMMARY exact=96 known=5 failed=0 selected=101",
+    "post-t1-packet": "post t1 residuals PACKET SUMMARY exact=79 known=0 failed=0 probed=79",
+    "t1": "bundle metadata t1 SUMMARY exact=18 known=0 failed=0 selected=18",
+    "t1-packet": "bundle metadata t1 PACKET SUMMARY exact=15 known=0 failed=0 probed=15"
+  },
+  "compiler_direct": {
+    "controls": {
+      "summary": {
+        "compiler_direct": [
+          "module-identities",
+          "bundle-original-javascript",
+          "bundle-program",
+          "bundle-declarations",
+          "utf16-recovery-corpus",
+          "map-option-projection",
+          "config-library",
+          "prologue-comments",
+          "literal-update-pipeline",
+          "declaration-comments",
+          "jsdoc-return",
+          "bundle-metadata-t1",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands"
+        ],
+        "targets": 19,
+        "tests_passed": 64,
+        "observer_seconds": 320.673,
+        "cargo_build_and_replay_seconds": 635.197
+      },
+      "steps": [
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "module-identities"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-bundle-module-identities.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 10.16
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "module-identities"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-system-generated-names.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 5.579
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "module-identities"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-module-alias-underscores.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 3.303
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "bundle-original-javascript"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-bundle-original-javascript.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 2.364
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "bundle-program",
+            "bundle-declarations"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-bundle-declarations.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 29.696
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "bundle-declarations"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-bundle-maps.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 17.15
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "utf16-recovery-corpus"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-utf16-literal-recovery-corpus.mjs",
+            "--census",
+            "target/declaration-comment-ranges-runs/utf16-literal-recovery-census.json",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 19.937
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "map-option-projection"
+          ],
+          "argv": [
+            "node",
+            "crates/oracle/h2-6a-map-option-projection.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 11.868
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-config-commands.mjs",
+            "config-commands",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 0.982
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-config-conversion-commands.mjs",
+            "config-conversion-commands",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 0.909
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-config-diagnostic-commands.mjs",
+            "config-diagnostic-commands",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 1.18
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-config-diagnostic-routing.mjs",
+            "config-diagnostic-routing",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 2.176
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-config-discovery-commands.mjs",
+            "config-discovery-commands",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 1.035
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-config-entity-commands.mjs",
+            "config-entity-commands",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 0.752
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-config-extension-commands.mjs",
+            "config-extension-commands",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 0.749
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-config-root-commands.mjs",
+            "config-root-commands",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 1.174
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-config-source-commands.mjs",
+            "config-source-commands",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 0.958
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-config-source-span-commands.mjs",
+            "config-source-span-commands",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 0.89
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-library-replacement.mjs",
+            "library-replacement",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 2.264
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8b-library-order.mjs",
+            "library-order",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 0.888
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "prologue-comments"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-prologue-only-detached-comments.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 3.762
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "literal-update-pipeline"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-literal-update.mjs",
+            "pipeline",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 9.448
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "declaration-comments"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-declaration-comment-commands.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 16.341
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "jsdoc-return"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8a-jsdoc-return.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 22.811
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "bundle-metadata-t1"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-bundle-metadata-t1.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 21.777
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "parameter-temporaries"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-5h-parameter-temporaries.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 26.363
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "transpile-routes"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-transpile-routes.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 29.455
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "utf16-identity-recovery"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-utf16-identity-recovery-controls.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 25.758
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "utf16-identity-recovery"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-utf16-noemit-command-controls.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 5.255
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "utf16-review-fix"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-utf16-review-fix-controls.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 10.178
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "utf16-tagged-template"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-utf16-tagged-template-controls.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 7.031
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "utf16-literal-witnesses"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-utf16-literal-witnesses.mjs",
+            "string-literals",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 14.085
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "utf16-literal-witnesses"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-utf16-literal-witnesses.mjs",
+            "template-literals",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 10.485
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "utf16-literal-witnesses"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-utf16-literal-witnesses.mjs",
+            "bundle-prologues",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 1.542
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "utf16-original-commands"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-utf16-original-rows-complete.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 2.361
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "module-identities",
+            "bundle-program",
+            "utf16-recovery-corpus",
+            "prologue-comments",
+            "literal-update-pipeline",
+            "parameter-temporaries",
+            "transpile-routes",
+            "utf16-identity-recovery",
+            "utf16-review-fix",
+            "utf16-tagged-template",
+            "utf16-original-commands"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "h2_7d_module_identities",
+            "--test",
+            "h2_7d_bundle_program",
+            "--test",
+            "h2_8a_utf16_literal_recovery_corpus",
+            "--test",
+            "h2_8a_prologue_only_detached_comments",
+            "--test",
+            "literal_update_pipeline_contract",
+            "--test",
+            "h2_5h_parameter_temporaries",
+            "--test",
+            "transpile_routes_contract",
+            "--test",
+            "h2_8a_utf16_identity_recovery_controls",
+            "--test",
+            "h2_8a_utf16_review_fix_controls",
+            "--test",
+            "h2_8a_utf16_tagged_template_controls",
+            "--test",
+            "h2_5h_utf16_original_rows_complete",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 389.047
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "bundle-original-javascript"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "h2_7d_declaration_bundles",
+            "original_javascript_declaration_bundles_match_typescript_twice",
+            "--",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 3.24
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "bundle-declarations"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "h2_7d_declaration_bundles",
+            "ordinary_declaration_bundles_match_typescript_visitor_and_printer_twice",
+            "--",
+            "--exact",
+            "ordinary_bundle_source_maps_match_complete_typescript_maps_twice",
+            "ordinary_and_fresh_forced_bundle_metadata_lifetimes_match_typescript_twice",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 38.59
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "map-option-projection"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "h2_6a_map_option_projection",
+            "original_floor_divergence_and_existing_map_family_parity",
+            "--",
+            "--exact",
+            "h2_6a_rows_and_adjacent_controls_match_complete_frozen_tuples",
+            "map_option_directives_and_virtual_configs_match_typescript",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 50.623
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "config-library"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "contracts",
+            "h2_8b_config_commands::config_commands_match_complete_typescript_observations",
+            "--",
+            "--exact",
+            "h2_8b_config_commands::config_commands_match_ordered_program_facts",
+            "h2_8b_config_conversion_commands::config_conversion_commands_match_complete_typescript_observations",
+            "h2_8b_config_conversion_commands::config_conversion_commands_match_ordered_program_facts",
+            "h2_8b_config_diagnostic_commands::config_diagnostic_commands_match_complete_typescript_observations",
+            "h2_8b_config_diagnostic_commands::config_diagnostic_commands_match_ordered_program_facts",
+            "h2_8b_config_diagnostic_routing::config_diagnostic_routing_match_complete_typescript_observations",
+            "h2_8b_config_diagnostic_routing::config_diagnostic_routing_match_ordered_program_facts",
+            "h2_8b_config_discovery_commands::config_discovery_commands_match_complete_typescript_observations",
+            "h2_8b_config_discovery_commands::config_discovery_commands_match_ordered_program_facts",
+            "h2_8b_config_entity_commands::config_entity_commands_match_complete_typescript_observations",
+            "h2_8b_config_entity_commands::config_entity_commands_match_ordered_program_facts",
+            "h2_8b_config_extension_commands::config_extension_commands_match_complete_typescript_observations",
+            "h2_8b_config_extension_commands::config_extension_commands_match_ordered_program_facts",
+            "h2_8b_config_root_commands::config_root_commands_match_complete_typescript_observations",
+            "h2_8b_config_root_commands::config_root_commands_match_ordered_program_facts",
+            "h2_8b_config_source_commands::config_source_commands_match_observations_and_module_boundaries",
+            "h2_8b_config_source_commands::config_source_commands_match_ordered_program_facts",
+            "h2_8b_config_source_span_commands::config_source_span_commands_match_complete_typescript_observations",
+            "h2_8b_config_source_span_commands::config_source_span_commands_match_ordered_program_facts",
+            "h2_8b_library_replacement::library_replacement_matches_complete_typescript_observations",
+            "h2_8b_library_replacement::library_replacement_matches_program_membership",
+            "h2_8b_library_replacement::library_order_controls_match_complete_typescript_observations",
+            "h2_8b_library_replacement::library_order_controls_match_program_membership",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 26.219
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "declaration-comments"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "h2_8a_declaration_comment_ranges",
+            "declaration_comment_range_focused_complete_commands",
+            "--",
+            "--exact",
+            "declaration_comment_detached_prefix_complete_commands",
+            "declaration_comment_parameter_tags_complete_commands",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 26.786
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "jsdoc-return"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "h2_8a_jsdoc_return",
+            "jsdoc_return_controls_match_complete_commands_twice",
+            "--",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 39.063
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "bundle-metadata-t1"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "bundle_metadata_t1_contract",
+            "bundle_metadata_t1_controls_match_complete_typescript_observations",
+            "--",
+            "--exact",
+            "bundle_metadata_t1_parsed_packet_matches_typescript_after_javascript_probe",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 21.745
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "utf16-literal-witnesses"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "h2_5h_utf16_literal_witnesses",
+            "utf16_literal_witnesses_match_complete_typescript_observations",
+            "--",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 39.882
+        }
+      ],
+      "observer_step_seconds": 320.666,
+      "cargo_batch_step_seconds": 635.195
+    },
+    "module-output": {
+      "summary": {
+        "compiler_direct": [
+          "declaration-map-apis",
+          "declaration-maps",
+          "require-rewrite",
+          "declaration-specifiers"
+        ],
+        "targets": 4,
+        "tests_passed": 17,
+        "observer_seconds": 209.46,
+        "cargo_build_and_replay_seconds": 1015.236
+      },
+      "steps": [
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "declaration-map-apis",
+            "declaration-maps"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-declaration-map-apis.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 19.913
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "declaration-map-apis"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-declaration-reference-paths.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 8.431
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "declaration-maps"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-declaration-maps.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 9.864
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "declaration-maps"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-declaration-maps.mjs",
+            "--runtime",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 2.012
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "declaration-maps"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-declaration-maps.mjs",
+            "--disabled-declaration",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 1.567
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "declaration-maps"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-declaration-maps.mjs",
+            "--bundle-boundary",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 1.104
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "require-rewrite"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-require-rewrite.mjs",
+            "require-rewrite",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 96.818
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "require-rewrite"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-require-rewrite-composition.mjs",
+            "require-rewrite-composition",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 7.878
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "require-rewrite"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-require-rewrite-substitution.mjs",
+            "require-rewrite-substitution",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 8.034
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "require-rewrite"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-require-rewrite-dynamic.mjs",
+            "require-rewrite-dynamic",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 11.117
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "declaration-specifiers"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8a-declaration-specifiers.mjs",
+            "declaration-specifiers",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 33.267
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "declaration-specifiers"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-h2-8a-declaration-specifiers-composition.mjs",
+            "declaration-specifiers-composition",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 9.454
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "declaration-map-apis",
+            "declaration-maps"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "h2_7e_declaration_map_apis",
+            "--test",
+            "h2_7e_declaration_maps",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 323.802
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "require-rewrite"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "h2_8a_require_rewrite",
+            "require_rewrite_focused_complete_commands",
+            "--",
+            "--exact",
+            "require_rewrite_composition_complete_commands",
+            "require_rewrite_substitution_complete_commands",
+            "require_rewrite_dynamic_complete_commands",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 506.401
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "declaration-specifiers"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "h2_8a_declaration_specifiers",
+            "focused_declaration_specifiers_match_complete_commands",
+            "--",
+            "--exact",
+            "composition_declaration_specifiers_match_complete_commands",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 185.033
+        }
+      ],
+      "observer_step_seconds": 209.459,
+      "cargo_batch_step_seconds": 1015.236
+    },
+    "decorator-binding-pipeline": {
+      "summary": {
+        "compiler_direct": [
+          "post-t1-residuals"
+        ],
+        "targets": 1,
+        "tests_passed": 2,
+        "observer_seconds": 116.462,
+        "cargo_build_and_replay_seconds": 121.633
+      },
+      "steps": [
+        {
+          "witness_step": "compiler-direct",
+          "phase": "observer",
+          "suites": [
+            "post-t1-residuals"
+          ],
+          "argv": [
+            "node",
+            "scripts/observe-post-t1-residuals.mjs",
+            "--check"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 116.462
+        },
+        {
+          "witness_step": "compiler-direct",
+          "phase": "cargo-build-and-replay",
+          "suites": [
+            "post-t1-residuals"
+          ],
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/compiler/Cargo.toml",
+            "--test",
+            "post_t1_residuals_contract",
+            "post_t1_residuals_controls_match_complete_typescript_observations",
+            "--",
+            "--exact",
+            "post_t1_residuals_parsed_packet_matches_typescript_after_javascript_probe",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "event": "finish",
+          "status": "passed",
+          "seconds": 121.633
+        }
+      ],
+      "observer_step_seconds": 116.462,
+      "cargo_batch_step_seconds": 121.633
+    }
+  },
+  "timing_excludes": [
+    "plans",
+    "gates",
+    "main push"
+  ],
+  "timing_limits": [
+    "Whole-job comparisons include host/cache variability.",
+    "Cargo batch seconds include build and replay and are not divided among suites.",
+    "Baseline per-observer timing was not recorded; no isolated speedup is inferred."
+  ],
+  "remaining_known": {
+    "post_t1_complete_commands": 5,
+    "post_t1_packet_probes": 0,
+    "owner": "E-COMMENT-SCOPE-H bound decorator target trailing comments"
+  },
+  "baseline_comparison": {
+    "source_receipt": "docs/design/greenfield/slices/h2-8a-post-t1-residuals/integration/hosted/receipt.v1.json",
+    "source_receipt_sha256": "a02237f62f5e08f9a00666fa4dd98bc033a1e1a0522970cfbd27c62af4d2e800",
+    "compiler_membership_preserved": {
+      "suites": [
+        "bundle-declarations",
+        "bundle-metadata-t1",
+        "bundle-original-javascript",
+        "bundle-program",
+        "config-library",
+        "declaration-comments",
+        "declaration-map-apis",
+        "declaration-maps",
+        "declaration-specifiers",
+        "jsdoc-return",
+        "literal-update-pipeline",
+        "map-option-projection",
+        "module-identities",
+        "parameter-temporaries",
+        "prologue-comments",
+        "require-rewrite",
+        "transpile-routes",
+        "utf16-identity-recovery",
+        "utf16-literal-witnesses",
+        "utf16-original-commands",
+        "utf16-recovery-corpus",
+        "utf16-review-fix",
+        "utf16-tagged-template"
+      ],
+      "targets": 23,
+      "tests_passed": 81
+    },
+    "before": {
+      "controls_seconds": 2397,
+      "declaration_maps_seconds": 360,
+      "total_replay_seconds": 8674
+    },
+    "after": {
+      "controls_seconds": 1521,
+      "module_output_seconds": 1242,
+      "total_replay_seconds": 8508
+    }
+  }
+}
