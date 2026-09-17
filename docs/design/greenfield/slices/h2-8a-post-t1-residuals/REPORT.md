@@ -50,7 +50,7 @@ retire した既存 ID（修復で exact になった行のみ、guard は無効
 ## 3. 新規対照（新 ID `post-t1-residuals/<family>/<target>/<variant>`、101 件）
 
 入力 [`crates/compiler/tests/fixtures/post-t1-residuals-inputs.json`](../../../../../crates/compiler/tests/fixtures/post-t1-residuals-inputs.json)（`scripts/generate-post-t1-residuals-inputs.mjs`）。
-上流期待値 [`post-t1-residuals.json`](../../../../../crates/compiler/tests/fixtures/post-t1-residuals.json) は `scripts/observe-post-t1-residuals.mjs --write`（各 case を同一 process で 2 回採取して一致、[records/before-controls/observe-write.log](records/before-controls/observe-write.log)、251 s）と
+上流期待値 [`post-t1-residuals.json`](../../../../../crates/compiler/tests/fixtures/post-t1-residuals.json) は `scripts/observe-post-t1-residuals.mjs --write`（各 case を同一 process で 2 回採取して一致、[records/before-controls/observe-write.log](records/before-controls/observe-write.log.gz)、251 s）と
 runner の `--check`（別 process の再採取、同じ sha256 `fa4a5b38…`）で 2 回一致。T1 と同じ observer 契約（complete command ×2 + `after` / `afterDeclarations` emitNode probe + 2 回 emit）。
 Rust 側 [`crates/compiler/tests/post_t1_residuals_contract.rs`](../../../../../crates/compiler/tests/post_t1_residuals_contract.rs)（T1 契約の複製、2 tests：complete ×2、bundle 行の packet ↔ probe）。runner：`python3 scripts/witness.py post-t1-residuals --all`（2 tests / 8 filtered）。
 

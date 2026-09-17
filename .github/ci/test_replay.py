@@ -117,6 +117,37 @@ class FoundationTests(unittest.TestCase):
 
 
 class SelectionTests(unittest.TestCase):
+    def test_post_t1_inputs_use_pipeline_job_and_pinned_node_alone_or_combined(self):
+        suite = "post-t1-residuals"
+        self.assertNotIn(suite, replay.WITNESS_GROUPS["controls"])
+        for path in witness.compiler_direct_inputs(suite):
+            plan = replay.selection([path])
+            self.assertEqual(plan["acceptance"], [])
+            self.assertEqual(plan["witnesses"], [suite])
+            self.assertEqual(replay.matrices(plan)["witnesses"], {
+                "include": [{"group": "decorator-binding-pipeline", "suites": [suite]}],
+            })
+        plan = replay.selection([
+            "crates/compiler/tests/post_t1_residuals_contract.rs",
+            "crates/compiler/tests/decorator_binding_pipeline_contract.rs",
+        ])
+        self.assertEqual(set(plan["witnesses"]), {suite, "decorator-binding-pipeline"})
+        matrix = replay.matrices(plan)["witnesses"]["include"]
+        self.assertEqual(len(matrix), 1)
+        self.assertEqual(matrix[0]["group"], "decorator-binding-pipeline")
+        self.assertEqual(set(matrix[0]["suites"]), set(plan["witnesses"]))
+        workflow = (ROOT / ".github/workflows/witness.yml").read_text()
+        self.assertIn(f"contains(matrix.suites, '{suite}')", workflow)
+
+    def test_post_t1_selection_and_dump_environment_are_cleared(self):
+        dirty = {key: "stale" for key in (
+            "TSC_RS_POST_T1_RESIDUALS_CASE_SET", "TSC_RS_POST_T1_RESIDUALS_DUMP_DIR",
+            "TSC_RS_BUNDLE_METADATA_T1_CASE_SET", "TSC_RS_BUNDLE_METADATA_T1_DUMP_DIR",
+        )}
+        for suite in witness.COMPILER_DIRECT:
+            _, env = witness.invocation(suite, [], dirty)
+            self.assertTrue(set(dirty).isdisjoint(env), suite)
+
     def test_bundle_metadata_t1_uses_controls_and_pinned_node_when_selected_alone(self):
         suite = "bundle-metadata-t1"
         for path in witness.compiler_direct_inputs(suite):
@@ -484,7 +515,9 @@ class SelectionTests(unittest.TestCase):
                     plan = replay.selection([path])
                     self.assertEqual(plan["acceptance"], [])
                     self.assertEqual(plan["witnesses"], [suite])
-                    group = "declaration-maps" if suite in replay.DECLARATION_MAP_SUITES else "controls"
+                    group = ("declaration-maps" if suite in replay.DECLARATION_MAP_SUITES
+                             else "decorator-binding-pipeline" if suite in replay.POST_T1_SUITES
+                             else "controls")
                     self.assertEqual(replay.matrices(plan)["witnesses"], {
                         "include": [{"group": group, "suites": [suite]}],
                     })

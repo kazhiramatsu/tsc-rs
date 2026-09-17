@@ -489,10 +489,12 @@ compound-assignment receiver temps, private assignment right-operand
 comments, decorator expression comment suppression) with the T1 parse-node
 packet probe for its 79 bundle rows. Its generator, observer and frozen
 observations are dedicated files; five printer-owned rows are frozen as
-known native divergences. The suite needs the pinned Node version and is
-not yet listed in `.github/workflows/witness.yml`; the integrator adds the
-hosted entry (about 250 s of observer checks and 200 s of Cargo build and
-replay locally) before treating it as covered.
+known native divergences. The suite shares the `decorator-binding-pipeline`
+job's compiler build and uses pinned Node even when selected alone. Its
+dedicated inputs select only this suite; shared production retains full
+coverage. Keeping the measured local observer/replay cost (about250s/200s)
+out of controls preserves that job's45-minute review margin; actual hosted
+timings and qualification are recorded by the integration receipt.
 
 ```sh
 python3 scripts/witness.py post-t1-residuals --all --dry-run

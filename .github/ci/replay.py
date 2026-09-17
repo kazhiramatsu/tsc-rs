@@ -22,14 +22,18 @@ GROUPS = {
 # Keep the map API/CLI replay separate: adding its measured seven minutes to
 # the previous 37m51s controls job would exhaust the 45-minute review margin.
 DECLARATION_MAP_SUITES = ("declaration-map-apis", "declaration-maps")
+# The post-T1 controls add about eight minutes locally. Share the related
+# pipeline job's compiler build instead of exhausting controls' review margin.
+POST_T1_SUITES = ("post-t1-residuals",)
 # A changed fixture selects its collection; related suites share a job's build.
 WITNESS_GROUPS = {
     "primary": ("primary",),
     "controls": ("extra", "followup", "followup2", "followup3", "direct", "bundle-sinks", "declaration-map-cli",
-                 *(suite for suite in witness.COMPILER_DIRECT if suite not in DECLARATION_MAP_SUITES),
+                 *(suite for suite in witness.COMPILER_DIRECT
+                   if suite not in (*DECLARATION_MAP_SUITES, *POST_T1_SUITES)),
                  "resolution-cache"),
     "declaration-maps": DECLARATION_MAP_SUITES,
-    "decorator-binding-pipeline": tuple(witness.BINDING),
+    "decorator-binding-pipeline": (*witness.BINDING, *POST_T1_SUITES),
     "retained": ("retained",),
     # Reuse this short job's emitter build. Fixture changes select individual
     # direct suites without running unrelated printer failure/owner controls.

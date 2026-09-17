@@ -2,7 +2,7 @@
 
 2026-09-17。統合担当：Codex。**OPS-COVER-4A/4Bの16 targetをPR #551で一括統合。全10 replay job・両gateを含む14 checks成功。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v22.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v23.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -33,18 +33,20 @@ C02 generated-binding はPR #549で統合済み。 direct 156入力と pipeline 
 
 [OPS-COVER-4A/4B](foundations/README.md) はsyntax/binder/typesの9 targetとhost/Programの7 targetを独立foundations jobに登録したv22。凍結observer9件とmacOSの47 testsが成功。Linuxでも専用cfgを含む48 testsが成功。PR #551は14 checks成功後にmain `45d6f6848`へ統合済み。API/value/host契約の件数であり、完全なコンパイラcommand互換件数には加算しない。
 
+[POST-T1統合](../h2-8a-post-t1-residuals/integration/README.md)で新101入力・2 exact-name testsをpipeline jobへ追加したv23。73 standaloneの入口を棚卸しし、元pipelineの必要値を767 exact /0 knownとする。hosted結果は統合記録へ保存する。
+
 ## 現在の入口
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
 | standalone target（filter なし） | 50 | foundationsの16 target、 controlsのmodule identity target、printer job の7 targetとdirect13、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・recovery-corpus・bundle-program・resolution cache contractと専用declaration-maps jobの2 target。ignored/cfg-disabled test の実行までは意味しない |
-| standalone target（名前で filter） | 15 | compiler13 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
+| standalone target（名前で filter） | 16 | compiler14 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
 | standalone target の直接呼出しなし | 7 | compiler3 / その他4 |
 | lib/bin の test harness | 16 | Program lib 1件に直接入口、残り15件は直接実行なし |
 
-**72 standalone target を列挙した。7件を「挙動が未検証」とは数えない。**
+**73 standalone target を列挙した。7件を「挙動が未検証」とは数えない。**
 acceptance が同じ比較 helper を Rust の `#[path]` で取り込み、関数を直接呼ぶ場合がある。
-台帳は source の共有関係12 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
+台帳は source の共有関係13 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
 helper の共有から、その target の全テスト・新しい入力集合の実行まで推論しない。
 
 現在、直接入口のない7 targetの source を単独変更すると、planner は unknown input として
