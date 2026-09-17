@@ -1,0 +1,18 @@
+# R12-family residual: System bundle, exported undecorated class, JavaScript map only
+# case: bundle-metadata-t1/lifetime/es2015/no-declaration (input version with 'export class', minted 2026-09-17, superseded by the unexported inputs; the frozen residual row is residual/es2015/system-export-class-map)
+# left = Rust (candidate) bundle.js.map, right = upstream bundle.js.map; tuples = (generated line, generated column, source line, source column), 0-based
+segments 51 55
+--- 729f379c70754f87-1-0-bundle.js.map
++++ lifetime_es2015_no-declaration-bundle.js.map
+@@ -6,2 +6,4 @@
+ (12, 38, 0, 29)
++(13, 13, 2, 1)
++(13, 14, 2, 1)
+ (15, 12, 1, 11)
+@@ -37,2 +39,4 @@
+ (28, 84, 2, 35)
++(29, 13, 3, 1)
++(29, 14, 3, 1)
+ (32, 12, 1, 11)
+# JavaScript bytes:
+identical

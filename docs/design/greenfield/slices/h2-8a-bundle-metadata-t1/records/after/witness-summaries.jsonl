@@ -1,0 +1,4 @@
+{"suite": "decorator-binding-pipeline", "exact": 5, "known": 0, "selected": 5, "known_frozen": 4, "observer_seconds": 495.578, "cargo_build_and_replay_seconds": 11.366}
+{"compiler_direct": ["bundle-metadata-t1"], "targets": 1, "tests_passed": 2, "observer_seconds": 44.816, "cargo_build_and_replay_seconds": 49.173}
+{"compiler_direct": ["bundle-program"], "targets": 1, "tests_passed": 4, "observer_seconds": 28.992, "cargo_build_and_replay_seconds": 48.46}
+{"compiler_direct": ["bundle-declarations"], "targets": 1, "tests_passed": 3, "observer_seconds": 88.56, "cargo_build_and_replay_seconds": 41.002}

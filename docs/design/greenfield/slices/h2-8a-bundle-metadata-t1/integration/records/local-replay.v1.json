@@ -1,0 +1,53 @@
+[
+  {
+    "name": "parsed-metadata",
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "--manifest-path",
+      "crates/emitter/Cargo.toml",
+      "--lib",
+      "parsed_metadata_",
+      "--",
+      "--nocapture"
+    ],
+    "environment": {
+      "CARGO_BUILD_JOBS": "2",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "RUSTC_WRAPPER": ""
+    },
+    "exit": 0,
+    "seconds": 180.917,
+    "log": "parsed-metadata.log.gz",
+    "log_sha256": "a1b2ac0df7c3fe8c90ca9467464d0bcb58b980f1a2dc91c2b09d93eefa8f11c7"
+  },
+  {
+    "name": "bundle-adjacent",
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "python3",
+      "-c",
+      "import sys; sys.path.insert(0,\"scripts\"); import witness; witness.run_compiler_direct([\"bundle-metadata-t1\", \"bundle-program\", \"bundle-declarations\", \"module-identities\", \"bundle-original-javascript\"])"
+    ],
+    "environment": {
+      "CARGO_BUILD_JOBS": "2",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "RUSTC_WRAPPER": ""
+    },
+    "exit": 0,
+    "seconds": 630.337,
+    "log": "bundle-adjacent.log.gz",
+    "log_sha256": "16f0c214a17aed0fefc9c9b4e8546650b577bcf41bca2fae7dc7426a6e2cc9da"
+  }
+]

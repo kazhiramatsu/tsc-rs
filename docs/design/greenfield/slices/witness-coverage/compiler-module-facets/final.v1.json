@@ -1,0 +1,35 @@
+{
+  "base": "84da0c0278c296fd295f15e48177ada87810f841",
+  "started_at": "2026-09-17T00:15:19.058725+00:00",
+  "argv": [
+    "python3",
+    ".github/ci/replay.py",
+    "witnesses"
+  ],
+  "environment": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "WITNESS_SUITES": "[\"module-identities\", \"bundle-original-javascript\"]"
+  },
+  "baseline_binary_sha256": {
+    "target/debug/deps/h2_7d_module_identities-ca4b520119011336": "d865e6e2f2735c0003efa8e8bbdaba7576a19b78e3849091e941225b4d7c980d",
+    "target/debug/deps/h2_7d_declaration_bundles-b4a85e465717d82d": "cf12ab9b4221dfaeee57ae2171c850d62bebc5ae2a2c12d38a13261cbb308308"
+  },
+  "source_sha256": {
+    "scripts/witness.py": "438600631597f55c104d60311464f20a784885624126e24c74cf8e6591bd269d",
+    ".github/ci/replay.py": "f396c094390db6db318c4acaa3d09159b99bb918062c78dd64fc22b3cff3a83c",
+    ".github/ci/test_replay.py": "73568d3f45705674cad1e44653051a50ca4124fb20e3529de02d797d9965f00e",
+    ".github/workflows/witness.yml": "c292ec66874e0203dd42a6952767fa24f439a7b60981ea15f4f61abbb06ac802",
+    "scripts/observe-bundle-original-javascript.mjs": "0245e26249e6fc3652212fa6ac5ecf9dd9bf82b79028518af7f862718df2439c",
+    "docs/design/greenfield/slices/witness-coverage/compiler-module-facets/original-javascript-inputs.v1.json": "84f9598ff48d5e41b4b2abaf58331cc9ef9f55fec4bee49eb736f0c112c422a1"
+  },
+  "exit": 0,
+  "seconds": 81.466,
+  "log": "final.log.gz",
+  "log_sha256": "626938f978f2fce5731a5c448e0513a5bb4f034127cc2e490de984900d05a724",
+  "final_binary_sha256": {
+    "target/debug/deps/h2_7d_module_identities-ca4b520119011336": "d865e6e2f2735c0003efa8e8bbdaba7576a19b78e3849091e941225b4d7c980d",
+    "target/debug/deps/h2_7d_declaration_bundles-b4a85e465717d82d": "cf12ab9b4221dfaeee57ae2171c850d62bebc5ae2a2c12d38a13261cbb308308"
+  }
+}

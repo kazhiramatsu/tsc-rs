@@ -1,0 +1,22 @@
+{
+  ".github/ci/qualification-policy.v2.json": "2d9b63408a88c6a49bd5f5561fa9e7551d0e4cb55cb060a441a9875d3408089a",
+  ".github/ci/replay.py": "000b7d30367853a1a0e75082bb1baeaa2e5a645e030970c9b3dd508f85b7bbf8",
+  ".github/ci/test_replay.py": "a743f1d0e85905b51aa1da0905f7364f9e2a89223edea0c9a0185d62496b4eaa",
+  ".github/workflows/witness.yml": "bd4015245961dc6b6bf32b26dd242947f9f10383de230e942f5223cf16b495fd",
+  ".node-version": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c",
+  "Cargo.lock": "e2a9b63447bb9cc3ee9924ae43915d2d7dd4f8f715c503e0b3372643cbb42810",
+  "Cargo.toml": "edd7e574f72487c69e900e43346058ce66e4052575bb2c48c3d552ea4db5edd5",
+  "crates/compiler/tests/bundle_metadata_t1_contract.rs": "d54d9fb3c3f1e04e510460f362adc15666d2a4df2f3d225972daac71d2c7b6ff",
+  "crates/compiler/tests/fixtures/bundle-metadata-t1-inputs.json": "d83c8825dae31dba5df9e9272617b5cbf3d05aa3366bbb4a9ab45a8a70fe109a",
+  "crates/compiler/tests/fixtures/bundle-metadata-t1-known-native.json": "7f03ec86ce2f8de123387262bc82905614660ced3335855069b97575e32add72",
+  "crates/compiler/tests/fixtures/bundle-metadata-t1-known-packet.json": "81247002134bbc9035d0070b68ccb782dcec9697cc4bb14f8e94d31c952d7d72",
+  "crates/compiler/tests/fixtures/bundle-metadata-t1.json": "11e7cbebfdb2c0998d1ca9241b579048528b1668fcd46f78a4cffa97c437ed27",
+  "crates/compiler/tests/fixtures/decorator-binding-known-native.json": "c3e1defc3e6f2d98f34befa9477d14d7404fbd3179179ac3f993537a788b5358",
+  "crates/emitter/src/factory/parsed_metadata.rs": "de12f5f43623ae5ed8569e408a25e344a452da9943bc40c2a02744ae31f3f0f0",
+  "crates/emitter/src/metadata.rs": "aaa2645e623c52479ba0bc1072e8597a65918963a1b0f16a19e6bc706a3aa1ea",
+  "rust-toolchain.toml": "fbd21d92d7dfb2ec38a4385a7541697d528ddd5dff4695619ba91f66a983f763",
+  "scripts/generate-bundle-metadata-t1-inputs.mjs": "788822bb2e04b8e127cc7ea0afc3ff0b9b2e0169b338d1caa668ba62b09d1b6b",
+  "scripts/observe-bundle-metadata-t1.mjs": "13020255b9b76fd23e19e5261b7ddb92962eab9f7a4949f977487dfb4158d5fc",
+  "scripts/observe-bundle-original-javascript.mjs": "0245e26249e6fc3652212fa6ac5ecf9dd9bf82b79028518af7f862718df2439c",
+  "scripts/witness.py": "d1625e44fb41fa7ffc7793c6fd2e9e8b786c1faa5bd751de7960f81d65d79239"
+}

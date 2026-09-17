@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "kind": "original-javascript-bundle-selection",
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "repetitions": 2,
+  "dependencies": [
+    {
+      "path": "ratchets/h2-7de-candidate-inputs.v1.json",
+      "sha256": "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a"
+    },
+    {
+      "path": "ratchets/h2-7de-observations.v1.json",
+      "sha256": "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2"
+    },
+    {
+      "path": "crates/oracle/h2-7de-observations.mjs",
+      "sha256": "9a525d7db81a634725c2d5a6cbc01c3219e835109ed0927eaf35a213f18401e5"
+    },
+    {
+      "path": "crates/oracle/h2-7de-candidates.mjs",
+      "sha256": "0c1947c53ae421dd7859af4d391306dcc2c60bb45ceec75767dbd73069a389d7"
+    },
+    {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": ".node-version",
+      "sha256": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsImportTypeBundled.ts#default",
+      "input_sha256": "14c48de2083155e75ff4df34420a0e8f3c1867fc23039464b15e7ce455c5b84b",
+      "observation_sha256": "45851c901e5c57032669d8eba4c336e97846f2d0420e527579494e886ea9e296"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocAccessibilityTagsDeclarations.ts#default",
+      "input_sha256": "2ff7e027417ed8167611f5fc74cd571ee83986ddc9aba7939fc744e7feec5e0f",
+      "observation_sha256": "ca242384f01cb5177f165133b0cdcacd5594c590d3d936273acb3c7dbaa93943"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocReadonlyDeclarations.ts#default",
+      "input_sha256": "9977a30715d794fcabfec63543c96028d165d53a8c4e739d826f35bd56f5f196",
+      "observation_sha256": "d39d47539c4370e9988e8b3cae09d0b40aba3cccab9654e0b6dfe36195f26438"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/uniqueSymbol/uniqueSymbolsDeclarationsInJs.ts#default",
+      "input_sha256": "d4bfc37075011ae496319e613d36527541fa0f5894a42d740c6c68e4843295ff",
+      "observation_sha256": "2edf1972608259f286c9f41e6ea25cd69de294fe7794d0f9c69e70307863bf01"
+    }
+  ]
+}

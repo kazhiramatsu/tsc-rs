@@ -1,0 +1,104 @@
+{
+  "commands": [
+    {
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".github/ci",
+        "-p",
+        "test_replay.py"
+      ],
+      "exit": 0,
+      "seconds": 1.036,
+      "log": "check-1.log.gz",
+      "log_sha256": "2a4ddfdbaa4db61ed3812c1e0391682787ae55eba51b2ad3c4a0ef59707a0e56"
+    },
+    {
+      "argv": [
+        "node",
+        ".github/ci/qualification.mjs",
+        "check-policy"
+      ],
+      "exit": 0,
+      "seconds": 0.116,
+      "log": "check-2.log.gz",
+      "log_sha256": "effecafb28867c0ea68b4399c8a67335fbbf81aa945acda2f25b35a66933ff50"
+    },
+    {
+      "argv": [
+        "node",
+        "--test",
+        "--test-name-pattern=policy and every qualification schema boundary|H2.7d/e shared comparators",
+        ".github/ci/qualification.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.228,
+      "log": "check-3.log.gz",
+      "log_sha256": "441cf8b2c429a81f4102f53529899534bbfc94e01c065699aea07076e8ae5607"
+    },
+    {
+      "argv": [
+        "python3",
+        "docs/design/greenfield/slices/witness-coverage/inventory.py",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.166,
+      "log": "check-4.log.gz",
+      "log_sha256": "ed5bad32f95bdf648108eeb9b19c481c465774399bb208b03a9cc404c851cc66"
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "scripts/observe-bundle-original-javascript.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.034,
+      "log": "check-5.log.gz",
+      "log_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 11.351,
+      "log": "check-6.log.gz",
+      "log_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.039,
+      "log": "check-7.log.gz",
+      "log_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    }
+  ],
+  "native_binary_parity": true,
+  "source_sha256": {
+    ".github/workflows/ci.yml": "de915626e641960446a9d08a62203069d27e43819b6429ac1a5154c182f2759e",
+    ".github/workflows/witness.yml": "c292ec66874e0203dd42a6952767fa24f439a7b60981ea15f4f61abbb06ac802",
+    ".github/ci/replay.py": "000b7d30367853a1a0e75082bb1baeaa2e5a645e030970c9b3dd508f85b7bbf8",
+    "scripts/witness.py": "438600631597f55c104d60311464f20a784885624126e24c74cf8e6591bd269d",
+    "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
+    "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa",
+    ".github/ci/test_replay.py": "9142cc12e3b114f648056e931cffa83d16c9c6b5ba34f0310de2eb71d1f8322f"
+  }
+}

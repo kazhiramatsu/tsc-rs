@@ -1,0 +1,11 @@
+start_sha=84da0c0278c296fd295f15e48177ada87810f841
+branch=draft/h2-8a-bundle-metadata-t1
+worktree=/Users/hiramatsu/dev/tsc-rs-bundle-metadata-t1
+date=2026-09-16T23:55:35Z
+status:
+rustc=rustc 1.93.0 (254b59607 2026-01-19)
+cargo=cargo 1.93.0 (083ac5135 2025-12-15)
+node=v25.2.1
+vendor_tsc_sha256=1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3  vendor/typescript-6.0.3/lib/_tsc.js
+vendor_typescript_sha256=569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39  vendor/typescript-6.0.3/lib/typescript.js
+vendor_pkg_version=

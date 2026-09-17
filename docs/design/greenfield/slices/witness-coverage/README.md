@@ -2,7 +2,7 @@
 
 2026-09-17。統合担当：Codex。**宣言map出力/APIまでPR #547で検証・統合済み。残りは OPS-COVER-3残部〜4。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v18.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v21.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -25,27 +25,31 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 
 [OPS-COVER-3L / 3M](compiler-declaration-maps/README.md) は宣言map出力とstateful APIの2 target・11 testsを登録したv16。実測6m57sを受け、controlsの37m51sに余裕を残すため専用jobへ分けたv17。PR #547で全8 replay job・両gateが成功し統合済み。新jobは5m38s、controlsは38m11s。共有fixtureとreferenceの重複は個別記録に保持する。
 
-C02 generated-binding の統合候補は direct 156入力と pipeline 768入力（767 complete + 1 upstream exception）を追加した v18。pipeline は独立 job、共有 observer は両 suite を選択する。hosted の実行状況は [統合記録](../h2-8a-generated-binding/integration/revised/README.md) を参照。
+C02 generated-binding はPR #549で統合済み。 direct 156入力と pipeline 768入力（767 complete + 1 upstream exception）を追加した v18。pipeline は独立 job、共有 observer は両 suite を選択する。採取時の詳細は [統合記録](../h2-8a-generated-binding/integration/revised/README.md) を参照。
+
+[OPS-COVER-3N/3O](compiler-module-facets/README.md) はmodule identityの3 testsと原本JavaScript bundle recorderの1 testをcontrolsへ追加したv20（実測81秒を受けてビルドを共有）。nativeの比較面は38＋4入力、各2回。追加のAPI/path参照はRust実行件数へ加算しない。PR #550で全9 replay job・両gate成功、controls20 suites /68 tests、38m49s。merge待ち。
+
+[T1統合](../h2-8a-bundle-metadata-t1/integration/README.md)は新18入力・2 exact-name testsをcontrolsへ追加し、台帳v21に記録する。元の767 complete commandsは763 exact /4 knownを必要値とする。
 
 ## 現在の入口
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
-| standalone target（filter なし） | 33 | printer job の7 targetとdirect13、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・recovery-corpus・bundle-program・resolution cache contractと専用declaration-maps jobの2 target。ignored/cfg-disabled test の実行までは意味しない |
-| standalone target（名前で filter） | 14 | compiler12 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
-| standalone target の直接呼出しなし | 24 | compiler4 / その他20 |
+| standalone target（filter なし） | 34 | controlsのmodule identity target、printer job の7 targetとdirect13、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・recovery-corpus・bundle-program・resolution cache contractと専用declaration-maps jobの2 target。ignored/cfg-disabled test の実行までは意味しない |
+| standalone target（名前で filter） | 15 | compiler13 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
+| standalone target の直接呼出しなし | 23 | compiler3 / その他20 |
 | lib/bin の test harness | 16 | Program lib 1件に直接入口、残り15件は直接実行なし |
 
-**71 standalone target を列挙した。24件を「挙動が未検証」とは数えない。**
+**72 standalone target を列挙した。23件を「挙動が未検証」とは数えない。**
 acceptance が同じ比較 helper を Rust の `#[path]` で取り込み、関数を直接呼ぶ場合がある。
-台帳は source の共有関係11 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
+台帳は source の共有関係12 target、fixture の literal 参照、明示的な関数呼出名を別に記録する。
 helper の共有から、その target の全テスト・新しい入力集合の実行まで推論しない。
 
-現在、直接入口のない24 targetの source を単独変更すると、planner は unknown input として
+現在、直接入口のない23 targetの source を単独変更すると、planner は unknown input として
 **全 acceptance / witness グループを選択するが、その standalone target 自身は追加しない**。
 v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では専用 target のみを選ぶ。共有 production の安全策としての
 全体 replay と、変更した専用 contract の実行が別物であることを示す。
-残る24件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
+残る23件も target / fixture の所有関係と実行コマンドを同時に登録する必要がある。
 
 ### 実例：shared helper と target 全体は違う
 
@@ -65,7 +69,7 @@ v1 では `literal_value_provenance_contract.rs` も該当したが、v2 では�
 | ID / 担当 | 対象 | 入れる順序・終了条件 |
 | --- | --- | --- |
 | OPS-COVER-2 / 統合担当 | emitter direct 10 target：入口追加完了 | [検証記録](emitter-direct/README.md)。literal4 / metadata6、2239 row ×2、13 tests。既存 printer job の20分枠・2 workersでbuildを共有し、専用入力はtarget単位で選択 |
-| OPS-COVER-3 / 統合担当 | [3AのCLI8件](declaration-map-cli/README.md)と[3BのUTF-16 3 target](compiler-utf16/README.md)、[3Cのliteral2 target](compiler-literals/README.md)を登録。[3Dのdeclaration3 target](compiler-declarations/README.md)も登録。[3Eのrequire-rewrite74入力](compiler-require-rewrite/README.md)も登録。[3F/3Gのconfig/library96入力とprologue8入力](compiler-config-prologue/README.md)も登録。[3H/3I](compiler-recovery-map/README.md)でrecovery50とmap-optionの2 targetを登録。[3J/3K](compiler-bundles/README.md)でbundle Programとdeclaration/mapを登録。残りcompiler6 targetとfiltered11 targetの未選択部分 | 続いて旧literal rowsの重複、declaration/map、parameterの未収載集合を既存acceptanceのID／比較面と照合。530などの既存全体を再度追加しない |
+| OPS-COVER-3 / 統合担当 | [3AのCLI8件](declaration-map-cli/README.md)と[3BのUTF-16 3 target](compiler-utf16/README.md)、[3Cのliteral2 target](compiler-literals/README.md)を登録。[3Dのdeclaration3 target](compiler-declarations/README.md)も登録。[3Eのrequire-rewrite74入力](compiler-require-rewrite/README.md)も登録。[3F/3Gのconfig/library96入力とprologue8入力](compiler-config-prologue/README.md)も登録。[3H/3I](compiler-recovery-map/README.md)でrecovery50とmap-optionの2 targetを登録。[3J/3K](compiler-bundles/README.md)でbundle Programとdeclaration/mapを登録。[3N/3O](compiler-module-facets/README.md)でmodule identityと原本JavaScript recorderも登録。残りcompiler3 targetと名前filterの未選択部分 | 続いて旧literal rowsの重複、declaration/map、parameterの未収載集合を既存acceptanceのID／比較面と照合。530などの既存全体を再度追加しない |
 | OPS-COVER-4 / 統合担当、各製品 owner | その他20 standalone と残15 lib/bin harness | syntax/binder/types、host/program、checker/API、harness/fuzz に分割。単独file変更と共有変更の依存表を持ち、該当製品 slice の公開契約・取消・error・文字列境界を実測して登録 |
 | OPS-BUDGET / 統合担当 | 新規 group の build / replay / merge後の重複 | 2 workers、45分で分割検討、60分hard limit。PRとmain pushの実行時間を別集計。entryを追加してから恒常的な時間超過を発見する順序にしない |
 
@@ -76,7 +80,7 @@ metadata6：`class_header_token_metadata_contract`、`comma_argument_factory_con
 `mapped_type_members_contract`、`token_comment_phase_metadata_contract`。
 
 これらは Claude の新しい6件目の大規模依頼にはしない。C01/C02/C04 等の提出時に必要な対照を
-照合し、登録と本番統合は統合担当が行う。C01はPR #542で統合済み。次のClaude推奨はC02。
+照合し、登録と本番統合は統合担当が行う。C01はPR #542で統合済み。C02もPR #549で統合済み。次の追加依頼は[T1](../h2-8a-bundle-metadata-t1-claude-handoff.md)。
 
 `ci.yml` は PRに加えてmain pushでも動く。たとえば #527 の PR acceptance の後、
 merge `526c2b37a` に [main push run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34987714601)
@@ -105,7 +109,9 @@ workflow の認識していない shell entry が追加された場合はエラ�
 - `--check` は metadata / command / source hash の drift を検知する。台帳の1行を「全体実行」に
   改変した negative control も拒否を確認した。これは互換テストのpass件数には加算しない。
 
-## 全 standalone target（v15）
+## 全 standalone target（v15の履歴表）
+
+現行の全件はv21 JSONを参照。以下は過去の表であり現在の入口判定には使わない。
 
 下表の「共有」は acceptance と明示的な source参照が重なる数で、実行したテスト数ではない。
 filter名、command owner、source/fixture path、driverの関数名はJSON台帳で参照できる。
