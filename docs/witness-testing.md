@@ -434,3 +434,37 @@ and clears inherited case/dump selectors. Its generator, observer and fixtures
 select the same owner. Shared production changes retain full replay. T1 removes
 five known rows from the unchanged 767-command binding collection: the expected
 full summary is 763 exact / four known, with its one upstream exception separate.
+
+T1 final head `4d4ed3c7d42d49aac8eeea3eaf610615ecddb205` passed all13 hosted checks in PR #550.
+Controls ran21 compiler-direct selections /70 tests in 39m38s; the
+pipeline confirmed763 exact /four known across767 complete commands.
+[The hosted receipt](design/greenfield/slices/h2-8a-bundle-metadata-t1/integration/records/hosted.v1.json)
+retains all job logs, hashes and measured time. PR #550 merged at
+`eb6dc2c7872b18442657f8eefde5efc9e8fb4cf7`.
+
+
+## Syntax, binder, options and host/Program foundations
+
+OPS-COVER-4A/4B registers sixteen existing standalone targets in a dedicated
+`foundations` job. Seven syntax targets, one binder target and one option-number
+target form4A; two host targets and five Program targets form4B. They share one
+Cargo invocation per crate, pinned Node and two workers. Nine frozen observers
+run before Cargo. The job requires48 native tests on Linux; local macOS runs47.
+These API/value/fault contracts include explicit unsupported raw UTF-16 source
+controls and overlapping bundle facts, so their counts are not additional
+complete compiler command passes. Windows-only branches remain unqualified.
+
+```sh
+python3 scripts/witness.py syntax-entity-names --list
+python3 scripts/witness.py host-filesystem --all --dry-run
+python3 scripts/witness.py program-raw-source --all
+```
+
+For these small targets, `--list` returns test function names for the current
+platform, and `--all` runs the entire target. `--case` is refused. The runner
+checks actual target names, test membership and zero ignored/filtered results;
+missing, substituted, empty or failed execution is rejected. Dedicated inputs
+select their owner; shared production, literal/bundle fixtures and unknown
+inputs preserve full replay. The bounded declaration recognizer requires review
+when new test attributes or macros are introduced. See the
+[scope and validation record](design/greenfield/slices/witness-coverage/foundations/README.md).

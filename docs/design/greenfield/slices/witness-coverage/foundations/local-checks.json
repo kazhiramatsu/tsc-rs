@@ -1,0 +1,39 @@
+{
+  "base": "eb6dc2c7872b18442657f8eefde5efc9e8fb4cf7",
+  "planner": {
+    "tests": 71,
+    "log": "planner-final.log.gz",
+    "sha256": "a0ad7ae215de89e3f99ee31718fae2126f9df14ccd65cc31927fa729892d9114"
+  },
+  "qualification_policy": {
+    "command": [
+      "node",
+      ".github/ci/qualification.mjs",
+      "check-policy"
+    ],
+    "exit": 0
+  },
+  "qualification_tests": {
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern",
+      "policy and every qualification schema boundary|local evidence classification remains fail-closed",
+      ".github/ci/qualification.test.mjs"
+    ],
+    "passed": 2,
+    "exit": 0
+  },
+  "inventory": {
+    "path": "../inventory.v22.json",
+    "sha256": "13f1a72ef8fd2c7b8899bb25bec3547c035c23dae71c7c36b92198437925c3fe",
+    "check_exit": 0,
+    "standalone": 72,
+    "unfiltered": 50,
+    "filtered": 15,
+    "no_direct": 7
+  },
+  "native_replay": "final-verified/receipt.json",
+  "production_vendor_accepted_state_unchanged": true,
+  "full_legacy_local_gate": "not run; focused local plus hosted policy in docs/witness-testing.md"
+}

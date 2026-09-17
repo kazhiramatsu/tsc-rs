@@ -11,6 +11,7 @@ import shlex
 import subprocess
 import sys
 import time
+import foundation_witnesses
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "crates/compiler/tests/fixtures"
@@ -422,7 +423,7 @@ BINDING = {
     },
 }
 SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks", "declaration-map-cli",
-          *EMITTER_DIRECT, *COMPILER_DIRECT, *BINDING, "resolution-cache")
+          *EMITTER_DIRECT, *COMPILER_DIRECT, *BINDING, "resolution-cache", *foundation_witnesses.SUITES)
 RESOLUTION_INPUTS = {
     "crates/program/tests/resolution_cache_contract.rs",
     "crates/program/tests/fixtures/resolution_cache/manifest.v1.json",
@@ -447,6 +448,8 @@ def read_cases(file):
 
 
 def case_ids(suite):
+    if suite in foundation_witnesses.SUITES:
+        return foundation_witnesses.test_names(suite)
     if suite == "resolution-cache":
         manifest = json.loads((ROOT / "crates/program/tests/fixtures/resolution_cache/manifest.v1.json").read_text())
         families = manifest["families"]
@@ -537,6 +540,10 @@ def invocation(suite, needles, environ=None):
                 "TSC_RS_H2_8A_KNOWN_NATIVE_DUMP_DIR"):
         env.pop(key, None)
     env.setdefault("CARGO_BUILD_JOBS", "2")
+    if suite in foundation_witnesses.SUITES:
+        if needles:
+            raise ValueError(f"{suite}: foundation target runs together; use --all")
+        return foundation_witnesses.command([suite]), env
     if suite == "resolution-cache":
         if needles:
             raise ValueError("resolution-cache: complete trace and controls run together; use --all")
@@ -831,7 +838,8 @@ def main(argv=None):
         command, env = invocation(args.suite, args.case)
     except (ValueError, KeyError, OSError) as error:
         parser.error(str(error))
-    print(f"{args.suite}: selected {len(selected)} input cases", flush=True)
+    unit = "test functions" if args.suite in foundation_witnesses.SUITES else "input cases"
+    print(f"{args.suite}: selected {len(selected)} {unit}", flush=True)
     if args.suite == "primary":
         print("Primary upstream exceptions are reported separately by the comparator.", flush=True)
     if args.list:
@@ -841,6 +849,10 @@ def main(argv=None):
                    if key.startswith("TSC_RS_") and (key.endswith("CASE_SET") or key.endswith("CASE_FILTER"))}
     print(shlex.join(["env", *[f"{key}={value}" for key, value in sorted(assignments.items())], *command]), flush=True)
     if args.dry_run:
+        if args.suite in foundation_witnesses.SUITES:
+            spec = foundation_witnesses.SUITES[args.suite]
+            if "oracle" in spec:
+                print(shlex.join(["node", f"scripts/observe-{spec['oracle']}.mjs", "--check"]))
         if args.suite == "resolution-cache":
             print(shlex.join(RESOLUTION_OBSERVER))
         if args.suite in EMITTER_DIRECT:
@@ -852,6 +864,9 @@ def main(argv=None):
         if args.suite in BINDING:
             for command in direct_observers(BINDING, [args.suite]):
                 print(shlex.join(command))
+        return 0
+    if args.suite in foundation_witnesses.SUITES:
+        foundation_witnesses.run([args.suite], env)
         return 0
     if args.suite == "resolution-cache":
         run_resolution_cache(command, env)

@@ -7,7 +7,7 @@ CI 改修も main `bb2d51c89` にマージ済み。
 
 本書は [実行 schedule](post-h1-completion-slices.md) の現在の棚卸しと担当分割です。
 凍結済みの profile、ratchet、readiness manifest を書き換えるものではありません。
-**Claude は下記の C01〜C05と追加のT1修復候補。それ以外の行は Codex／統合担当が持ちます。**
+**Claude は下記の C01〜C05、T1、追加の POST-T1 5子スライスの候補。それ以外の行は Codex／統合担当が持ちます。**
 候補の提出、main への統合、製品の qualification は別の完了条件です。
 
 2026-09-15：**[PLAN-BASE の台帳作成](slices/plan-base/README.md)は完了**。
@@ -72,7 +72,7 @@ CFG の統合観測は `ratchets/h2-8b-config-integrated-*.v1.json` にも残る
 
 ## 2. 担当と開始順
 
-### Claude の当初5件と追加のT1
+### Claude の当初5件、T1、POST-T1一括依頼
 
 依頼入口は [Claude handoff index](slices/claude-high-difficulty-handoffs.md)。
 **C01/C03/C04 は候補を受領済み。C01は[統合記録](slices/h2-8a-literal-update/integration/README.md)でPR #542の統合完了を記録。C04 は[統合記録](slices/h2-8c-transpile/INTEGRATION.md)を参照。C02修正版も受領し、[再レビュー・統合候補](slices/h2-8a-generated-binding/integration/revised/README.md)でF1/F2確認と追加temp ordinal修復・CI登録を記録。PR #549の全13 checks成功後、main `84da0c027` へ統合済み**。
@@ -91,7 +91,11 @@ C05は再提出を受領し、R4の残る2件とR1のpath表記衝突を統合�
 | C04 / H2.8c | [noCheck / transpile](slices/h2-8c-transpile-claude-handoff.md)。noCheck、transpileModule、transpileDeclaration の依存設計、source oracle、隔離 prototype | 現行 compiler/emitter と採用 version の source。共有変換・declaration を棚卸し | API ごとの complete observables、必要な linked-reference/diagnostic schedule、prototype と未到達一覧。runtime activation はせず NC1/TM1/TD1 へ |
 | C05 / L2.3 | [resolution cache](slices/l2-3-resolution-cache-claude-handoff.md)。snapshot/dependency/invalidation 設計、実 resolver の隔離 prototype | 現行 resolver/host/path identity、固定 Go reference。L2.0 の本番統合前でも調査可 | 正・負 lookup と隣接変更で reuse/invalidation を証明。所有権・取消・寿命・cache key と patch を提出。Program 再利用への組込みは L2.3 へ |
 
-当初5件は候補統合済み。**T1候補 `a17009c58` を受領し、[統合検証](slices/h2-8a-bundle-metadata-t1/integration/README.md)中**。R9/R12は引き続き別owner。
+当初5件とT1は候補統合済み。T1はPR #550のmain `eb6dc2c78`に入った。
+**次は [POST-T1一括依頼](slices/h2-8a-post-t1-residuals-claude-handoff.md)**。
+R9（2 complete commands）、R12（C02の2＋T1の2）、private receiver map（1）の修復候補と、
+private-set / decorator のコメント制御（別集計の1＋2 packet probes）の監査・必要な修復をClaudeが持つ。
+5子のownerと設計・before/afterは分け、一つの合成候補として提出する。
 この一覧を新たな runtime `ready` 判定には使わない。Claude へ送信する操作は本書の作成に含めない。
 提出済み SUPER は 6 件目の新規依頼に数えない。
 
@@ -99,7 +103,8 @@ C05は再提出を受領し、R4の残る2件とR1のpath表記衝突を統合�
 
 以下の全行を統合担当が持つ。Claude の成果物を受け取っても、base 照合、共有 source の適応、
 候補の合成、hosted 検証、commit / PR / merge、admission と進捗更新は統合担当の責任とする。
-追加依頼 [T1](slices/h2-8a-bundle-metadata-t1-claude-handoff.md) は A-RES / H2.7d の metadata 可搬性5件を Claude が修復し、統合担当が受領・合成・hosted検証を持つ。R9/R12 は別候補。
+追加依頼 [T1](slices/h2-8a-bundle-metadata-t1-claude-handoff.md) は A-RES / H2.7d の metadata 可搬性5件を修復し、PR #550で統合した。
+[POST-T1](slices/h2-8a-post-t1-residuals-claude-handoff.md)の5子も候補作成はClaude、受領・合成・hosted検証・admissionは統合担当が持つ。
 将来 Claude に追加委託する場合も、対象行を分割して handoff を作り、担当表を更新する。
 
 **2026-09-16 ユーザー指示：Codex／統合担当は、依存関係の合う複数の担当スライスを実装してから、まとめて hosted CI を実行する。**
@@ -113,7 +118,7 @@ C05は再提出を受領し、R4の残る2件とR1のpath表記衝突を統合�
 | --- | --- | --- |
 | PLAN-BASE — 完了 | [固定 main `f9ef828a5` の台帳](slices/plan-base/README.md)。全 active profile の source/future/later-deferred、旧 global/class、known、parameter、direct、upstream exception と後続修復を照合 | 全15,642 corpus IDに disposition あり。再生成一致、判定境界7 tests。これは台帳の完了であり、修復・全 profile qualification の完了ではない |
 | VER1.0-MAP | 固定 TS7 の tests / CHANGES と H2 残項目を retained / intentional change / removed option / new feature に分類。parser/checker/resolver/emitter/libs/CLI/service の機能分母と依存を作る | PLAN-BASE と既存 native workflow。新しい参照を選ぶ場合も commit を固定。ES5/System/UMD/Node10/Classic/AMD/outFile 等を個別に disposition。廃止予定を 6.0.3 の修復完了として数えない |
-| OPS-COVER | [入口台帳・追加スライス](slices/witness-coverage/README.md)。64 standalone / 16 lib-bin の静的棚卸し完了。[OPS-COVER-2](slices/witness-coverage/emitter-direct/README.md) は emitter direct10 target・2239 row の個別選択入口を追加。[OPS-COVER-3A](slices/witness-coverage/declaration-map-cli/README.md) は E-only8 のCLI専用入口を追加。[OPS-COVER-3B](slices/witness-coverage/compiler-utf16/README.md) はUTF-16の3 targetを登録し、PR #532で統合済み（全hosted job・両gate成功）。[OPS-COVER-3C](slices/witness-coverage/compiler-literals/README.md) はliteral2 targetの入口を追加。[OPS-COVER-3D](slices/witness-coverage/compiler-declarations/README.md) はdeclaration3 target・129入力の入口を追加（PR #540で統合済み、全7 hosted job・両gate成功）。[OPS-COVER-3E](slices/witness-coverage/compiler-require-rewrite/README.md)でrequire-rewrite74専用入力を追加しC01とPR #542で統合済み。[OPS-COVER-3F/3G](slices/witness-coverage/compiler-config-prologue/README.md)でconfig/library24 test・96入力とprologue8入力の入口を追加し、PR #544で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3H/3I](slices/witness-coverage/compiler-recovery-map/README.md)でrecovery50とmap-option31専用入力・原本5 IDの2 targetを追加し、PR #545で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3J/3K](slices/witness-coverage/compiler-bundles/README.md)でbundle Programとdeclaration/mapの2 targetを登録し、PR #546で追加7 testsを含む全7 hosted replay job・両gateが成功。[OPS-COVER-3L/3M](slices/witness-coverage/compiler-declaration-maps/README.md)で宣言map出力/APIの2 target・11 testsを登録し、PR #547で統合済み（全8 hosted replay job・両gate成功、CLI比較70回一致）。[OPS-COVER-3N/3O](slices/witness-coverage/compiler-module-facets/README.md)でmodule identityと原本JavaScript bundle recorderの入口を追加し、PR #550で追加4 testsを含む全9 replay job・両gateが成功（merge待ち）。T1追加後の72 standalone中、残る直接入口なしは23 target | 次は OPS-COVER-3残部：compiler3とfilter残部、4：その他20とlib/bin。共有helperを全targetの実行証明とせず、case重複・選択・件数・時間・失敗伝播を証明 |
+| OPS-COVER | [入口台帳・追加スライス](slices/witness-coverage/README.md)。64 standalone / 16 lib-bin の静的棚卸し完了。[OPS-COVER-2](slices/witness-coverage/emitter-direct/README.md) は emitter direct10 target・2239 row の個別選択入口を追加。[OPS-COVER-3A](slices/witness-coverage/declaration-map-cli/README.md) は E-only8 のCLI専用入口を追加。[OPS-COVER-3B](slices/witness-coverage/compiler-utf16/README.md) はUTF-16の3 targetを登録し、PR #532で統合済み（全hosted job・両gate成功）。[OPS-COVER-3C](slices/witness-coverage/compiler-literals/README.md) はliteral2 targetの入口を追加。[OPS-COVER-3D](slices/witness-coverage/compiler-declarations/README.md) はdeclaration3 target・129入力の入口を追加（PR #540で統合済み、全7 hosted job・両gate成功）。[OPS-COVER-3E](slices/witness-coverage/compiler-require-rewrite/README.md)でrequire-rewrite74専用入力を追加しC01とPR #542で統合済み。[OPS-COVER-3F/3G](slices/witness-coverage/compiler-config-prologue/README.md)でconfig/library24 test・96入力とprologue8入力の入口を追加し、PR #544で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3H/3I](slices/witness-coverage/compiler-recovery-map/README.md)でrecovery50とmap-option31専用入力・原本5 IDの2 targetを追加し、PR #545で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3J/3K](slices/witness-coverage/compiler-bundles/README.md)でbundle Programとdeclaration/mapの2 targetを登録し、PR #546で追加7 testsを含む全7 hosted replay job・両gateが成功。[OPS-COVER-3L/3M](slices/witness-coverage/compiler-declaration-maps/README.md)で宣言map出力/APIの2 target・11 testsを登録し、PR #547で統合済み（全8 hosted replay job・両gate成功、CLI比較70回一致）。[OPS-COVER-3N/3O](slices/witness-coverage/compiler-module-facets/README.md)でmodule identityと原本JavaScript bundle recorderの入口を追加し、PR #550で追加4 testsを含む全9 replay job・両gateが成功し統合済み。[OPS-COVER-4A/4B](slices/witness-coverage/foundations/README.md)でsyntax/binder/typesとhost/Programの16 targetを一括追加（macOS47 tests成功、hosted待ち）。72 standalone中、残る直接入口なしは7 target | 次は OPS-COVER-3残部：compiler3とfilter残部、4：その他4とlib/bin。共有helperを全targetの実行証明とせず、case重複・選択・件数・時間・失敗伝播を証明 |
 | OPS-BUDGET | 追加 suite の build / oracle / replay を測定し、変更 owner ごとの job 分割を維持 | OPS-COVER と各新規 target の実測。1 job 45 分を分割検討の目安、60 分を hard limit とする。重複した build による総 runner 時間も記録。worker 増でメモリ上限を隠さない |
 | OPS-DEBT | [EMPTY-SOURCE](slices/witness-coverage/compiler-config-prologue/empty-source.md)で基点のforced-empty不一致を再現・限定修復し、OPS-COVER-3F/3GとPR #544で合成検証・統合済み（全7 hosted job・両gate成功）。既存 lint・strict test failure を現行 SHA で owner ごとに確定し、独立修復 PR へ分ける | 過去の compiler contract / printer failure の記録はまず再現性を確認。base と新規退行を分離。該当 owner だけ検証し、全 workspace green が未確認ならそう記録。release の採用 gate に未処理を残さない |
 

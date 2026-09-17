@@ -1,0 +1,80 @@
+{
+  "phase": "final",
+  "head": "7cadd8c6042ff38ebc94b4d0b35f06d5ef007cd8",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "source_sha256": "7f5dfde9c38aee2c953ba51ee5f1d72a6235d33f707afbfdae1af7a059d6b0a0",
+  "node": "v25.2.1",
+  "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "CARGO_TERM_COLOR": "never",
+    "WITNESS_SUITES": "[\"syntax-entity-names\", \"syntax-meta-property\", \"syntax-literal-values\", \"syntax-recovery\", \"syntax-scanner-escapes\", \"syntax-template-escapes\", \"syntax-template-flags\", \"binder-symbol-names\", \"types-option-numbers\", \"host-memory\", \"host-filesystem\", \"program-bundle-facts\", \"program-host-platform\", \"program-config-paths\", \"program-module-paths\", \"program-raw-source\"]"
+  },
+  "runs": [
+    {
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "python3",
+        ".github/ci/replay.py",
+        "witnesses"
+      ],
+      "exit": 0,
+      "seconds": 77.135,
+      "log": "0.log.gz",
+      "log_sha256": "8ba6b50b961d9c654a2070b15782e8c51ee12ec9027c6db2b4ce46ab506cdb74",
+      "summaries": [
+        "{\"output\":\"/Users/hiramatsu/dev/tsc-rs-foundation-witness-batch/crates/syntax/tests/fixtures/utf16-entity-names.json\",\"sha256\":\"f5c4314d8da980e1744e7e2d7f7f0bc5503580217b724db16f52618ac50edaee\",\"cases\":129}",
+        "{\"output\":\"/Users/hiramatsu/dev/tsc-rs-foundation-witness-batch/crates/syntax/tests/fixtures/utf16-new-meta-property-name.json\",\"sha256\":\"e45c558e6e72bad015e861e0ce44865fdda77b1a86c4c9629dfddf4c9ef92d15\",\"cases\":10,\"executions\":20}",
+        "{\"output\":\"/Users/hiramatsu/dev/tsc-rs-foundation-witness-batch/crates/syntax/tests/fixtures/utf16-owned-literal-values.json\",\"sha256\":\"1423f66adc3cec19c4afe5952b12395128869d8aa4cd1f62432c210549e14107\",\"cases\":27,\"executions\":54}",
+        "{\"output\":\"/Users/hiramatsu/dev/tsc-rs-foundation-witness-batch/crates/syntax/tests/fixtures/utf16-recovery-boundary.json\",\"sha256\":\"9f7f3e1c40df92fb3b968c8044654ce884447e599a23cb747d9f35a3a5576462\",\"cases\":20,\"executions\":40}",
+        "{\"output\":\"/Users/hiramatsu/dev/tsc-rs-foundation-witness-batch/crates/syntax/tests/fixtures/utf16-scanner-escape-diagnostics.json\",\"sha256\":\"aad3487634bee584d9d38969e4450e44a8426cb30d9931a3b7464f8551f5586b\",\"cases\":23,\"executions\":46}",
+        "{\"output\":\"/Users/hiramatsu/dev/tsc-rs-foundation-witness-batch/crates/syntax/tests/fixtures/utf16-template-flags.json\",\"sha256\":\"65d617b0deb84330b6fb9bc4e03ad1e5bc2afff4bf2833286c52e8661e3edcb3\",\"cases\":43,\"executions\":86}",
+        "{\"output\":\"/Users/hiramatsu/dev/tsc-rs-foundation-witness-batch/crates/binder/tests/fixtures/utf16-binder-names.rs\",\"sha256\":\"3e88d20bf3821ab0ad6ab4b69f877849cb74515db49f01f45682c17bd8d7e150\",\"cases\":7,\"executions\":14}",
+        "{\"output\":\"/Users/hiramatsu/dev/tsc-rs-foundation-witness-batch/crates/program/tests/fixtures/utf16-raw-source-boundary.json\",\"sha256\":\"c91bfe347d853e618cccea13ff5518efc107710a0ab533537a4d50a631136e0a\",\"cases\":6,\"repetitions\":2}",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.86s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "{\"foundation_direct\": [\"syntax-entity-names\", \"syntax-meta-property\", \"syntax-literal-values\", \"syntax-recovery\", \"syntax-scanner-escapes\", \"syntax-template-escapes\", \"syntax-template-flags\", \"binder-symbol-names\", \"types-option-numbers\", \"host-memory\", \"host-filesystem\", \"program-bundle-facts\", \"program-host-platform\", \"program-config-paths\", \"program-module-paths\", \"program-raw-source\"], \"platform\": \"darwin\", \"targets\": 16, \"tests_passed\": 47, \"observer_seconds\": 48.176, \"cargo_build_and_replay_seconds\": 28.756}"
+      ]
+    }
+  ],
+  "inputs_unchanged": true,
+  "binaries_sha256": {
+    "target/debug/deps/entity_names-735a98fe4bfb51d6": "53b2a23569efbf8f3715d25594d97c1b27693525f2fcde222938c01139a6a180",
+    "target/debug/deps/new_meta_property_name-54ed18ecd5346f9b": "b7fbe2c05b4ef1b9e043a7b0ec2d14902ff08855501840e05c4428f69b73d65d",
+    "target/debug/deps/owned_literal_values-9eadc4598e13375f": "505fe0911d711a92eb91252a0b71b533ebe6391e98e79afac1075d101dfc45e0",
+    "target/debug/deps/recovery_provenance-3393b83d2c26b9d3": "42d06a5f083663cf15309c8abbbcbb5f75e24a71961fe02652fcb74e8c7d98c1",
+    "target/debug/deps/scanner_escape_diagnostics-46e4cf3b333151d3": "7469490cddadaa58756c28025cd4f1e14c0152bc582fd157c983497335b1a892",
+    "target/debug/deps/template_escape_flags-4c5ed10f80650208": "9f40dfb12a0e25a8abc3264c06994ec1f0e5d7d0ecaeb154e9d5aa4634e4545a",
+    "target/debug/deps/template_flags-703e55abf63903e1": "03d06b63c09c61524b492242477d8da6566d5bb979270707e5d7f185e937fc3a",
+    "target/debug/deps/owned_symbol_names-3767c02d3cf696ed": "fa287e7b63c9a9fb6ee40fb75568743f3fc40255cd1a5fff7986b8539fb740e7",
+    "target/debug/deps/compiler_option_number_contract-1ce01175d8cfb4f9": "9e5321274d03a50b2009facece830b44e6f01ee98c842b75df2a3d2d4e1bbc9c",
+    "target/debug/deps/compiler_host_contract-66b49fd5f961e2f6": "fcb2f647b9b991aedc72621451d115035c25103a7d9d0b88faf71bfc86a09ff2",
+    "target/debug/deps/filesystem_host_contract-012ed1d02441fa43": "a28d9ebe8b3c51f58283199442fbe5a7b9c981635d43bb90bf7c5c92306cf504",
+    "target/debug/deps/h2_7d_bundle_source_facts-100c0571304cfd2c": "9360aafcea73b864061ecff8e6b68222ab3beab5e9f666fd48d08f0215eb2717",
+    "target/debug/deps/host_platform_smoke_contract-91b593fc55a9d6bd": "7578ee10dea20aacc965c827a23d02d1b6552cea954df56ad788f1cd47d72aca",
+    "target/debug/deps/utf16_config_paths-b2e3df2ad42bc676": "e1ba676a3ff40a65f24155dbd29c6a59c36a5b91b5e439c131b8b77d4fd80d6d",
+    "target/debug/deps/utf16_module_paths-4ebf8c053f70eca9": "f0d33f2e7a944243a0f666914c6e7f31d0a6082e0537c6465d3b674ba17b300d",
+    "target/debug/deps/utf16_raw_source_boundary-ca9f446714076622": "6755d69be3318e11ff159ee6705c9cf57253966fb2bc3b9b4a768ff7f0c25858"
+  }
+}
