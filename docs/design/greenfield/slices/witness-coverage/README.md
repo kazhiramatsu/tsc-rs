@@ -2,7 +2,7 @@
 
 2026-09-17。統合担当：Codex。**OPS-COVER-4A/4Bの16 targetをPR #551で一括統合。全10 replay job・両gateを含む14 checks成功。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v23.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v24.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -39,7 +39,7 @@ C02 generated-binding はPR #549で統合済み。 direct 156入力と pipeline 
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
-| standalone target（filter なし） | 50 | foundationsの16 target、 controlsのmodule identity target、printer job の7 targetとdirect13、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・recovery-corpus・bundle-program・resolution cache contractと専用declaration-maps jobの2 target。ignored/cfg-disabled test の実行までは意味しない |
+| standalone target（filter なし） | 50 | foundationsの16 target、 controlsのmodule identity target、printer job の7 targetとdirect13、controls jobのcompiler UTF-16/literalの4 targetとtranspile・parameter・literal-update-pipeline・prologue-comments・recovery-corpus・bundle-program・resolution cache contractとmodule-output jobの宣言map2 target。ignored/cfg-disabled test の実行までは意味しない |
 | standalone target（名前で filter） | 16 | compiler14 / emitter2。現在1 testしかない targetでも、将来の追加を自動では実行しない |
 | standalone target の直接呼出しなし | 7 | compiler3 / その他4 |
 | lib/bin の test harness | 16 | Program lib 1件に直接入口、残り15件は直接実行なし |
@@ -197,3 +197,5 @@ filter名、command owner、source/fixture path、driverの関数名はJSON台�
 | types | [compiler_option_number_contract](../../../../../crates/types/tests/compiler_option_number_contract.rs) | なし | 0 |
 
 現在のClaude依頼は[通常compiler emitter完了一括](../emitter-final-batch/README.md)。必要なfocused入口の候補と実測を提出し、shared runner/planner/hostedへの登録・分割と最終全件検証は統合担当が持つ。
+
+[最終emitter検証のCI予算整備](emitter-final-ci-budget/README.md)で入口台帳v24へ更新。重いrequire-rewrite / declaration-specifiersを既存宣言mapのjobへ移し、module-outputとして4 suitesをまとめる。入口数は73 standaloneのまま、観測・test件数は変更しない。最終headのhosted時間は同記録へ追記する。

@@ -19,9 +19,10 @@ GROUPS = {
     "wide": ("h2-5g",),
     "late": ("h2-5h", "h2-6a", "h2-6b", "h2-6c", "h2-7b", "h2-7c", "h2-7de"),
 }
-# Keep the map API/CLI replay separate: adding its measured seven minutes to
-# the previous 37m51s controls job would exhaust the 45-minute review margin.
+# Share the existing map job's compiler build with the two expensive module
+# targets. Their Rust tests took 11m39s inside PR #555's 39m57s controls job.
 DECLARATION_MAP_SUITES = ("declaration-map-apis", "declaration-maps")
+MODULE_OUTPUT_SUITES = (*DECLARATION_MAP_SUITES, "require-rewrite", "declaration-specifiers")
 # The post-T1 controls add about eight minutes locally. Share the related
 # pipeline job's compiler build instead of exhausting controls' review margin.
 POST_T1_SUITES = ("post-t1-residuals",)
@@ -30,9 +31,9 @@ WITNESS_GROUPS = {
     "primary": ("primary",),
     "controls": ("extra", "followup", "followup2", "followup3", "direct", "bundle-sinks", "declaration-map-cli",
                  *(suite for suite in witness.COMPILER_DIRECT
-                   if suite not in (*DECLARATION_MAP_SUITES, *POST_T1_SUITES)),
+                   if suite not in (*MODULE_OUTPUT_SUITES, *POST_T1_SUITES)),
                  "resolution-cache"),
-    "declaration-maps": DECLARATION_MAP_SUITES,
+    "module-output": MODULE_OUTPUT_SUITES,
     "decorator-binding-pipeline": (*witness.BINDING, *POST_T1_SUITES),
     "retained": ("retained",),
     # Reuse this short job's emitter build. Fixture changes select individual

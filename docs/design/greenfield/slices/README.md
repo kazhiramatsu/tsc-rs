@@ -23,6 +23,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [Emitter final CI budget](witness-coverage/emitter-final-ci-budget/README.md) | Integrator candidate; hosted timing pending | Rebalance two heavy compiler suites into the existing module-output job, preserve all replay memberships, and record each compiler observer/Cargo step with failure propagation. |
 | [Claude emitter completion batch](emitter-final-batch/README.md) | Current all-in-one handoff after PR #555; source inventory pinned, fresh replay belongs to implementation | EF1–8 cover known comments/lowering/maps, historical class/global replay, uncovered emit producers and A-CLOSE evidence. Claude owns necessary implementation through completion; integrator owns hosted/qualification/merge. |
 | [POST-T1 five-child integration](h2-8a-post-t1-residuals/integration/README.md) | Merged via PR #555 at `ce39261ac`; all14 checks pass; bounded changes qualified | Review R9/R12/receiver maps and private/decorator comments, register101 controls in the pipeline job, and requalify bounded names/metadata/comment changes. Five new printer-known rows remain explicit. |
 | [OPS-COVER-4A / 4B foundation contracts](witness-coverage/foundations/README.md) | Integrated in PR #551; all14 hosted checks passed | Register sixteen existing syntax/binder/types and host/Program targets in one bounded foundations job; exact target/test membership and shared-input coverage. |
