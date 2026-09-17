@@ -66,6 +66,10 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   user-approved native TypeScript 7 and direct LSP direction, superseding
   the mandatory tsserver/adapter sequence. Start with the
   [native test/build/debug workflow](greenfield/typescript-7-workflow.md).
+  The [upstream-tracking design](greenfield/typescript-7-upstream-sync.md) proposes
+  native test-layout alignment and semi-automated feature adoption after the
+  emitter milestone, from roadmap and specification research through actual Go
+  traces to Rust implementation.
 - [greenfield/](greenfield/README.md): the execution companion to the
   five M/core documents above, plus the entry route for active post-H1 work.
   Its M0-M9 step guides are completed or paused history; its post-H1 route

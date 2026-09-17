@@ -274,8 +274,18 @@ plugins / ATA / installer は §8 の profile 判断に残す。
 
 ## 7. TS7 移行・信頼性・配布（すべて統合担当）
 
+2026-09-17の追加方針として、[TS7以降のテスト構成・継続追従の設計案](typescript-7-upstream-sync.md)を置く。
+元のtest/baseline配置と操作列を保ち、Issue等のロードマップ→詳細仕様→上流差分→
+test選定→比較→slice→必要なGo処理のRust実装という7段階を半自動化する。
+`_tsc.js`調査と同じ粒度で、Goも実際に実行し、呼出し・分岐・状態変化をtraceする。
+新しい追従ツールは未実装。emitter後にSYNC1/2、次にSYNC3/4と機能移植pilotをまとめて進める。
+既存native pinでのGo test成功と、Rustの機能採用・accepted profile更新は区別する。
+
 | ID | 作業と成果物 | 依存・終了条件 |
 | --- | --- | --- |
+| VER1.0-SYNC1/2 | 元パスを保つtest inventory/layout adapter、Issueロードマップ・詳細仕様・固定commit間差分を結ぶ機能台帳 | 既存native workflow。MAPの棚卸しに接続。設定・操作列・test移動・廃止・未知群・共有harness/lib変更を保持。詳細は[設計案](typescript-7-upstream-sync.md) |
+| VER1.0-SYNC3/4 | 選択したGoの実行traceと新旧Go/Rustの比較、Claude/Codex向けslice・実装への引継ぎ・合成検証案生成 | SYNC1/2と対象のRust driver。初回はcompiler、LSP/APIは各実装に合わせて拡張。未実行・skip・非対応を成功に含めず、FEATURE-*へ依存順に分配 |
+| VER1.0-FEATURE-PILOT | 一件の限定した機能で調査1〜7を一巡し、必要なGo処理をRustへ移して検証する | SYNC1〜4と該当producer。調査開始時に対象を選び、原本・trace・固定test・依存・readinessを揃える。report生成のみでは完了しない |
 | VER1.0-PIN | source/libs/locale/package/generated data、runner と oracle の version pin を更新し、採用 profile の移行表を作る | VER1.0-MAP。6.0.3 の凍結証拠を保存。新旧の意図的な差、廃止、未採用を個別に明記してから runtime admission |
 | VER1.0-FEATURE-* | MAP が列挙した TS7 の新機能・意図的変更を producer と依存ごとに実装 | PIN と各 checker/resolver/emitter/service の前提。各機能に固定 test 群と exact evidence。compiler 群と native service 群を別 claim とする |
 | VER1.0-CLOSE | 採用 TS7 機能、version 表示、libs/diagnostics と product evidence を合成し、継続追従手順を記録 | 採用 FEATURE 行と必要な H2/L3/L5/BLD/W qualification。移動する upstream main を合格基準にしない |
