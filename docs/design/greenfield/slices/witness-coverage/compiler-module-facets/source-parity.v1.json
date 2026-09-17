@@ -1,0 +1,9 @@
+{
+  "base": "84da0c0278c296fd295f15e48177ada87810f841",
+  "baseline_source_manifest": "baseline.v1.json",
+  "unchanged_files": 1640,
+  "changed_files": [
+    "scripts/witness.py"
+  ],
+  "native_source_and_existing_fixture_bytes": "unchanged"
+}

@@ -392,3 +392,27 @@ The shared observer selects both suites; dedicated fixtures select their owner.
 Both jobs use `.node-version`. Capture/report/dump and inherited selection
 variables are cleared. Local focused checks and admission status are recorded in
 [the integration review](design/greenfield/slices/h2-8a-generated-binding/integration/revised/README.md).
+
+
+## Module identities and original JavaScript bundle recorder
+
+OPS-COVER-3N/3O adds two suites to the existing `controls` job. `module-identities` runs
+three existing tests over 38 ordinary JavaScript inputs twice. Its catalog also
+retains four API references and 14 path-helper references; the resulting 56
+fixture memberships are not 56 native executions. All three frozen observers
+run first. `bundle-original-javascript` runs the previously unselected exact
+test over four original JavaScript declaration bundle inputs twice. Its new
+observer repeats the four complete TypeScript commands against the unchanged
+H2.7d/e ratchet; Rust keeps the existing internal recorder's narrower scope.
+
+```sh
+python3 scripts/witness.py module-identities --all --dry-run
+python3 scripts/witness.py bundle-original-javascript --all --dry-run
+```
+
+The two suites reuse the controls compiler build, pinned Node and two workers.
+Their measured 81-second local entry leaves planning margin below the
+45-minute review threshold when added to the previous 38m11s controls run.
+Shared declaration target changes select both its old three-test suite and the
+new exact test. Shared module-identity fixtures and ratchets keep full replay.
+See the [scope and validation record](design/greenfield/slices/witness-coverage/compiler-module-facets/README.md).

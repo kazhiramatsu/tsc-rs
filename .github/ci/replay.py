@@ -78,7 +78,10 @@ def selection(paths):
     for file in paths:
         # The forced-declaration acceptance helper also consumes this fixture.
         # Registering its API witness must preserve the existing shared replay.
-        if file == "crates/compiler/tests/fixtures/declaration-reference-paths.json":
+        if file in ("crates/compiler/tests/fixtures/declaration-reference-paths.json",
+                    "crates/emitter/tests/fixtures/bundle-module-identities.json"):
+            # Module identity facts also feed the declaration observer and
+            # emitter unit tests; registering one consumer cannot narrow them.
             return full_selection(f"shared declaration reference input: {file}")
         direct_owners = {suite for suite in witness.EMITTER_DIRECT if file in witness.emitter_inputs(suite)}
         compiler_owners = {suite for suite in witness.COMPILER_DIRECT if file in witness.compiler_direct_inputs(suite)}

@@ -18,6 +18,30 @@ witness = replay.witness
 
 
 class SelectionTests(unittest.TestCase):
+    def test_module_facets_cover_shared_targets_without_narrowing_shared_inputs(self):
+        suites = ["module-identities", "bundle-original-javascript"]
+        plan = replay.selection([
+            "crates/compiler/tests/h2_7d_module_identities.rs",
+            "scripts/observe-bundle-original-javascript.mjs",
+        ])
+        self.assertEqual(plan["acceptance"], [])
+        self.assertEqual(plan["witnesses"], suites)
+        self.assertEqual(replay.matrices(plan)["witnesses"], {
+            "include": [{"group": "controls", "suites": suites}],
+        })
+        self.assertTrue(set(suites).issubset(replay.WITNESS_GROUPS["controls"]))
+        self.assertEqual(replay.selection(["crates/compiler/tests/h2_7d_declaration_bundles.rs"])["witnesses"],
+                         ["bundle-original-javascript", "bundle-declarations"])
+        for path in ("crates/emitter/tests/fixtures/bundle-module-identities.json",
+                     "ratchets/h2-7de-candidate-inputs.v1.json", "ratchets/h2-7de-observations.v1.json",
+                     "crates/oracle/h2-7de-observations.mjs", "crates/oracle/h2-7de-candidates.mjs",
+                     "crates/oracle/vfs-directory-overlay.mjs", "crates/host/tests/support/scalar_path.rs"):
+            self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
+            self.assertEqual(replay.selection([path])["acceptance"], list(replay.GROUPS))
+        workflow = (ROOT / ".github/workflows/witness.yml").read_text()
+        for suite in suites:
+            self.assertIn(f"contains(matrix.suites, '{suite}')", workflow)
+
     def test_binding_dependencies_and_dedicated_pipeline_job(self):
         suite = "decorator-binding-pipeline"
         for path in witness.binding_inputs(suite):
@@ -333,7 +357,9 @@ class SelectionTests(unittest.TestCase):
                 if path in ("scripts/observe-literal-update.mjs", "scripts/observe-decorator-bindings.mjs"):
                     continue  # covered by the explicit cross-crate ownership contract below
                 if path in ("scripts/observe-bundle-declarations.mjs",
-                            "crates/emitter/tests/fixtures/bundle-declarations.json"):
+                            "crates/emitter/tests/fixtures/bundle-declarations.json",
+                            "crates/emitter/tests/fixtures/bundle-module-identities.json",
+                            "crates/compiler/tests/h2_7d_declaration_bundles.rs"):
                     continue  # shared bundle consumers have an explicit contract above
                 if path in ("scripts/observe-declaration-map-apis.mjs",
                             "crates/compiler/tests/fixtures/declaration-map-apis.json",
@@ -531,6 +557,70 @@ class SelectionTests(unittest.TestCase):
 
 
 class WitnessTests(unittest.TestCase):
+    def test_module_facet_runner_rejects_partial_results_and_oracle_failures(self):
+        suites = ["module-identities", "bundle-original-javascript"]
+        observers = [["node", f"scripts/{name}.mjs", "--check"] for name in (
+            "observe-bundle-module-identities", "observe-system-generated-names",
+            "observe-module-alias-underscores", "observe-bundle-original-javascript")]
+
+        def invoke(bad_target=None, bad_output=None, status=0, failing_observer=None):
+            def result(command, **kwargs):
+                if command[0] == "node":
+                    if command == failing_observer:
+                        raise subprocess.CalledProcessError(1, command)
+                    return subprocess.CompletedProcess(command, 0)
+                target = command[command.index("--test") + 1]
+                passed, filtered = (3, 0) if target == "h2_7d_module_identities" else (1, 3)
+                output = f"test result: ok. {passed} passed; 0 failed; 0 ignored; 0 measured; {filtered} filtered out;\n"
+                if target == bad_target:
+                    output = bad_output
+                return subprocess.CompletedProcess(command, status, output)
+            with patch.object(witness.subprocess, "run", side_effect=result) as calls, redirect_stdout(io.StringIO()):
+                witness.run_compiler_direct(suites)
+                return calls.call_args_list
+
+        calls = invoke()
+        self.assertEqual([call.args[0] for call in calls[:4]], observers)
+        self.assertEqual([call.args[0] for call in calls[4:]],
+                         [witness.compiler_direct_command([suite]) for suite in suites])
+        for target, passed, filtered in (("h2_7d_module_identities", 3, 0), ("h2_7d_declaration_bundles", 1, 3)):
+            good = f"test result: ok. {passed} passed; 0 failed; 0 ignored; 0 measured; {filtered} filtered out;\n"
+            for output in ("", good * 2, good.replace(f"{passed} passed", "0 passed"),
+                           good.replace("0 ignored", "1 ignored"),
+                           good.replace(f"{filtered} filtered", f"{filtered + 1} filtered")):
+                with self.subTest(target=target, output=output), self.assertRaises(ValueError):
+                    invoke(target, output)
+        with self.assertRaises(subprocess.CalledProcessError):
+            invoke(status=101)
+        for observer in observers:
+            with self.subTest(observer=observer), self.assertRaises(subprocess.CalledProcessError):
+                invoke(failing_observer=observer)
+
+    def test_original_bundle_manifest_and_observer_preserve_pinned_predecessor(self):
+        suite = "bundle-original-javascript"
+        manifest_path = witness.COMPILER_DIRECT[suite]["fixtures"][0][0]
+        manifest = json.loads((ROOT / manifest_path).read_text())
+        originals = witness.read_cases(ROOT / "ratchets/h2-7de-candidate-inputs.v1.json")
+        names = ("jsDeclarationsImportTypeBundled", "jsdocAccessibilityTagsDeclarations",
+                 "jsdocReadonlyDeclarations", "uniqueSymbolsDeclarationsInJs")
+        expected = [next(row["case_id"] for row in originals if row["case_id"].endswith(f"/{name}.ts#default"))
+                    for name in names]
+        self.assertEqual([row["case_id"] for row in manifest["cases"]], expected)
+        source = (ROOT / "scripts/observe-bundle-original-javascript.mjs").read_text()
+        original = (ROOT / "crates/oracle/h2-7de-observations.mjs").read_text()
+        body = original.split("function diagnostic(d) {", 1)[1].split("\nconst cases = [];", 1)[0]
+        self.assertIn("function diagnostic(d) {" + body, source)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / manifest_path
+            target.parent.mkdir(parents=True)
+            for rows in ([], manifest["cases"][:-1], [manifest["cases"][0]] * 4):
+                target.write_text(json.dumps({**manifest, "cases": rows}))
+                with patch.object(witness, "ROOT", root), patch.object(witness.subprocess, "run") as run:
+                    with self.assertRaises(ValueError):
+                        witness.run_compiler_direct([suite])
+                    run.assert_not_called()
+
     def test_bundle_section_membership_preserves_modes_and_rejects_drift_before_replay(self):
         ids = witness.case_ids("bundle-declarations")
         self.assertIn("bundle-maps/helpers/shared-es5", ids)
@@ -600,6 +690,7 @@ class WitnessTests(unittest.TestCase):
             "config-library": 96, "prologue-comments": 8,
             "utf16-recovery-corpus": 50, "map-option-projection": 31,
             "bundle-program": 27, "bundle-declarations": 56,
+            "module-identities": 56, "bundle-original-javascript": 4,
             "declaration-map-apis": 75, "declaration-maps": 84,
             "literal-update": 1396, "literal-update-pipeline": 22, "require-rewrite": 74,
             "decorator-binding": 156, "decorator-binding-pipeline": 768,

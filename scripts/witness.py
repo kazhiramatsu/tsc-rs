@@ -116,6 +116,30 @@ CONFIG_LIBRARY_GROUPS = (
 # These compiler witnesses have dedicated inputs or additional command fields.
 # Shared helper tests stay in acceptance; select the dedicated test where needed.
 COMPILER_DIRECT = {
+    "module-identities": {
+        "target": "h2_7d_module_identities",
+        "tests": 3,
+        # 38 ordinary native inputs; four API and 14 path-helper references
+        # remain oracle-only memberships, never additional native executions.
+        "fixtures": (("crates/emitter/tests/fixtures/bundle-module-identities.json", 24, "case_id"),
+                     ("crates/emitter/tests/fixtures/system-generated-names.json", 12, "case_id"),
+                     ("crates/emitter/tests/fixtures/module-alias-underscores.json", 6, "case_id")),
+        "fixture_sections": (("crates/emitter/tests/fixtures/bundle-module-identities.json",
+                              "path_cases", 14, "case_id"),),
+        "observers": ("scripts/observe-bundle-module-identities.mjs",
+                      "scripts/observe-system-generated-names.mjs",
+                      "scripts/observe-module-alias-underscores.mjs"),
+    },
+    "bundle-original-javascript": {
+        "target": "h2_7d_declaration_bundles",
+        "test": "original_javascript_declaration_bundles_match_typescript_twice",
+        "tests": 1,
+        "filtered_tests": 3,
+        "fixtures": (("docs/design/greenfield/slices/witness-coverage/compiler-module-facets/original-javascript-inputs.v1.json",
+                      4, "case_id"),),
+        # Shared ratchet/oracle dependencies retain the planner's full fallback.
+        "observers": ("scripts/observe-bundle-original-javascript.mjs",),
+    },
     "declaration-map-apis": {
         "target": "h2_7e_declaration_map_apis",
         "tests": 3,
@@ -160,7 +184,7 @@ COMPILER_DIRECT = {
                  "ordinary_bundle_source_maps_match_complete_typescript_maps_twice",
                  "ordinary_and_fresh_forced_bundle_metadata_lifetimes_match_typescript_twice"),
         "tests": 3,
-        # The original-JavaScript internal map wrapper remains a separate owner.
+        # The original-JavaScript recorder has its own registered selection.
         "filtered_tests": 1,
         "fixtures": (("crates/emitter/tests/fixtures/bundle-declarations.json", 25, "case_id"),
                      ("crates/emitter/tests/fixtures/bundle-maps.json", 12, "case_id")),
