@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "pull_request": {
+    "headRefOid": "447920e6c73f9a81d0aae8c2729a395426c9ff3b",
+    "mergeCommit": {
+      "oid": "45d6f68485556860f08c3949833276660d7a92eb"
+    },
+    "mergedAt": "2026-09-17T04:01:45Z",
+    "number": 551,
+    "state": "MERGED",
+    "url": "https://github.com/kazhiramatsu/tsc-rs/pull/551"
+  },
+  "merge_parents": [
+    "eb6dc2c7872b18442657f8eefde5efc9e8fb4cf7",
+    "447920e6c73f9a81d0aae8c2729a395426c9ff3b"
+  ],
+  "merge_tree": "15a9334da885372062a64ea7bf70cf13cdf49df4",
+  "tested_candidate_tree": "15a9334da885372062a64ea7bf70cf13cdf49df4",
+  "trees_identical": true,
+  "hosted_receipt": "receipt.v1.json"
+}

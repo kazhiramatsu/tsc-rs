@@ -468,3 +468,14 @@ select their owner; shared production, literal/bundle fixtures and unknown
 inputs preserve full replay. The bounded declaration recognizer requires review
 when new test attributes or macros are introduced. See the
 [scope and validation record](design/greenfield/slices/witness-coverage/foundations/README.md).
+
+
+[PR #551](https://github.com/kazhiramatsu/tsc-rs/pull/551) passed all ten replay
+jobs and both aggregate gates at `447920e6c`; both planners passed too.
+The merge `45d6f6848` has the identical Git tree. Foundations ran16 targets
+/48 Linux tests in1m28s (observers25.348s, Cargo43.765s). Controls retained
+21 compiler-direct selections /70 tests in29m08s. Total replay runner time
+was133m24s, excluding plans, gates and main push. These are observed whole-job
+times, not an isolated speed comparison. The
+[full receipt](design/greenfield/slices/witness-coverage/foundations/hosted/receipt.v1.json)
+retains all14 job logs and their hashes.

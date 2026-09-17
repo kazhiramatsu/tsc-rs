@@ -1,9 +1,16 @@
-# OPS-COVER after the foundation batch: next grouped work
+# OPS-COVER after the emitter milestone: parked coverage work
 
 Static review at `447920e6c73f9a81d0aae8c2729a395426c9ff3b` (PR #551).
 [The source-hashed inventory](remaining-seven.v1.json) records the seven
 standalone targets that inventory v22 still marks without a direct PR entry.
 No additional Rust execution, compatibility admission or repair is claimed here.
+
+User priority,2026-09-17: complete the emitter and take that as the next
+milestone. LSP work and general API development belong to a later, separate
+phase. The proposals below are a parked coverage backlog, not the next
+implementation batch or additional prerequisites for the emitter milestone.
+Promote only a bounded contract check needed to validate an actual emitter
+repair; do not expand into generic API cleanup while closing emitter work.
 
 | Remaining target | Plain `#[test]` declarations in literal module closure | Integration concern |
 | --- | ---: | --- |
@@ -20,7 +27,7 @@ nested registration and ignored tests must be checked against the compiled
 harness before a new execution contract is frozen. Do not sum these counts with
 original corpus IDs or the foundation job's48 Linux tests.
 
-## Suggested next integration batch
+## Candidate batches for the later coverage phase
 
 1. **OPS-COVER-4C: authoritative checker boundary.** Register the one-test
    checker target with source ownership and explicit native membership. Preserve
@@ -41,7 +48,8 @@ original corpus IDs or the foundation job's48 Linux tests.
    and executable-injection guards. Link the existing pin descriptors instead
    of reminting historical evidence merely to register a test entry.
 
-Implement at least two compatible parts before the next hosted cycle. Any
+When this later coverage phase is resumed, implement at least two compatible
+parts before its next hosted cycle. Any
 baseline failure gets a cause and bounded owner repair before final-head replay;
 never turn a failing test into an ignore or replace its expected observation to
 make entry registration green. Keep the two-worker cap and45/60-minute review

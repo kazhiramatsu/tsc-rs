@@ -124,14 +124,16 @@ the baseline.
 Final head `447920e6c73f9a81d0aae8c2729a395426c9ff3b` passed all ten
 replay jobs, both planners and both aggregate gates in PR #551:14 successful
 checks. The policy/runner changes selected every acceptance and witness group.
-The result below records that tested head; the merge is tracked separately.
+PR #551 merged at `45d6f68485556860f08c3949833276660d7a92eb`.
+[The merge receipt](hosted/merge.v1.json) verifies two parents and a Git tree
+identical to the tested candidate.
 
 OPS-COVER-4 is not closed wholesale: checker, harness, fuzz and the broad
 Program contract target remain, as do unregistered lib/bin harnesses and
 OPS-COVER-3's original-wrapper/filter accounting. The next inventory names
 those remaining entries explicitly.
 
-The [next grouped work note](remaining-seven.md) records the seven remaining
+The [post-emitter coverage backlog](remaining-seven.md) records the seven remaining
 standalone targets and separates static declaration counts from executed tests.
 
 
