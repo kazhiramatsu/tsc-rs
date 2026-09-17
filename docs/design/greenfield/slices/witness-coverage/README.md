@@ -27,7 +27,7 @@ C04 [transpile統合](../h2-8c-transpile/INTEGRATION.md) は新設1 targetを登
 
 C02 generated-binding はPR #549で統合済み。 direct 156入力と pipeline 768入力（767 complete + 1 upstream exception）を追加した v18。pipeline は独立 job、共有 observer は両 suite を選択する。採取時の詳細は [統合記録](../h2-8a-generated-binding/integration/revised/README.md) を参照。
 
-[OPS-COVER-3N/3O](compiler-module-facets/README.md) はmodule identityの3 testsと原本JavaScript bundle recorderの1 testをcontrolsへ追加したv20（実測81秒を受けてビルドを共有）。nativeの比較面は38＋4入力、各2回。追加のAPI/path参照はRust実行件数へ加算しない。hostedは同記録で追跡する。
+[OPS-COVER-3N/3O](compiler-module-facets/README.md) はmodule identityの3 testsと原本JavaScript bundle recorderの1 testをcontrolsへ追加したv20（実測81秒を受けてビルドを共有）。nativeの比較面は38＋4入力、各2回。追加のAPI/path参照はRust実行件数へ加算しない。PR #550で全9 replay job・両gate成功、controls20 suites /68 tests、38m49s。merge待ち。
 
 ## 現在の入口
 

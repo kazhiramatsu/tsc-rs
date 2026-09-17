@@ -99,4 +99,37 @@ from #549 are not evidence for this candidate.
 The final registry has 71 standalone targets: 34 unfiltered, 14 name-filtered,
 23 without a direct entry (compiler3 / other20). The previously omitted fourth
 declaration-bundle test now has its own exact selection; the other three keep
-their existing scoped suite. Hosted results remain to be recorded.
+their existing scoped suite. Hosted results are recorded below; merge is pending.
+
+## Hosted validation: PR #550
+
+[PR #550](https://github.com/kazhiramatsu/tsc-rs/pull/550) passed all nine replay
+jobs and both aggregate gates at `059519e997c5f81fd313c8166b9e28fd8fefee79`.
+Both planning checks also passed: 13 successful checks in total.
+[The receipt](hosted.v1.json) retains run/job identities, timing and the hash of
+[the controls log](hosted-controls.log.gz).
+
+Controls executed all 20 compiler-direct suite selections / 68 tests, including
+the three module tests and the original JavaScript recorder test. The original
+JavaScript observer checked eight fresh TypeScript Programs against the unchanged
+ratchet. All four newly registered Rust tests passed. The whole compiler-direct
+batch took 460.852s in observers and 1299.146s in Cargo build/replay. These are
+whole-batch measurements, not the added suites' isolated cost.
+
+| Job | Duration | Result |
+| --- | --- | --- |
+| [acceptance (early)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35166123773/job/105027603408) | 12m23s | success |
+| [acceptance (late)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35166123773/job/105027603416) | 17m28s | success |
+| [acceptance (wide)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35166123773/job/105027603464) | 22m35s | success |
+| [witnesses (printer)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35166123746/job/105027601260) | 2m33s | success |
+| [witnesses (controls)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35166123746/job/105027601280) | 38m49s | success |
+| [witnesses (retained)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35166123746/job/105027601289) | 9m05s | success |
+| [witnesses (declaration-maps)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35166123746/job/105027601320) | 6m15s | success |
+| [witnesses (primary)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35166123746/job/105027601357) | 10m30s | success |
+| [witnesses (decorator-binding-pipeline)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35166123746/job/105027601358) | 17m59s | success |
+
+Controls took **38m49s**, below the 45-minute split-review threshold and the
+60-minute hard limit. The nine replay jobs total **137m37s**, excluding planning,
+aggregate gates and any later main-push validation. No extra compiler job was
+added. The implementation and hosted validation of 3N/3O are complete; this
+record does not claim the PR has merged or expand runtime admission.

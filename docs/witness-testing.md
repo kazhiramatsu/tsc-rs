@@ -416,3 +416,10 @@ Their measured 81-second local entry leaves planning margin below the
 Shared declaration target changes select both its old three-test suite and the
 new exact test. Shared module-identity fixtures and ratchets keep full replay.
 See the [scope and validation record](design/greenfield/slices/witness-coverage/compiler-module-facets/README.md).
+
+[PR #550](https://github.com/kazhiramatsu/tsc-rs/pull/550) passed all nine replay
+jobs and both gates at `059519e99`. Controls executed all 20 compiler-direct
+suite selections / 68 tests in 38m49s. Its oracle phase was 460.852s and Cargo
+build/replay was 1299.146s; these cover the full compiler-direct batch. The
+remaining 23 standalone targets without direct entries retain their explicit
+owners. The receipt records hosted results; merge remains separate.
