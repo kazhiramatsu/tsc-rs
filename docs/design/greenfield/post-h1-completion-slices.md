@@ -1,5 +1,18 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
+2026-09-17 follow-on planning checkpoint: the
+[post-emitter roadmap](post-emitter-roadmap.md) refines the existing remaining
+IDs and owns the proposed sequence after emitter completion. Its
+[foundation batch](slices/post-emitter-foundation-batch/README.md) prepares
+fixed 7.1 references, test/feature inventories and the subsequent actual
+Go-trace-to-Rust-port pilot. L2.4a/4b separate snapshot correctness from full
+reuse qualification; BLD1.3a-G/3a-S separate shared graph foundations from
+incremental build status. API, native LS/LSP and build/watch can start their
+bounded paths once their specific dependencies are ready. Earlier broad
+product dependencies below remain closure requirements where applicable,
+not blanket barriers to those child slices. This does not close the emitter,
+activate runtime packets, or change the accepted 6.0.3 profile.
+
 2026-09-15 PLAN-BASE checkpoint: the [dated residual/evidence inventory](slices/plan-base/README.md)
 is complete at main `f9ef828a5`. All 15,642 frozen corpus IDs have a disposition;
 the crosswalk contains 6,045 IDs / 9,004 memberships, not a defect count.
