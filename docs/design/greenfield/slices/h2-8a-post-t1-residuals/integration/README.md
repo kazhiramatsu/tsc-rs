@@ -131,3 +131,11 @@ E-COMMENT-SCOPE-Hのnative decorator入口・private-set抑制除去だけ。
 残るbound decorator targetの末尾コメント5行は同ownerの別経路として未解決のまま保持する。
 元handoffの**7 complete-command差分と3 packet差分**は解消した。
 emitter全体の完了、H2.8全体のadmission、全API再emitの互換性へは範囲を拡張しない。
+
+## Merge
+
+PR #555は`2026-09-17T06:16:16Z`にmerge commit
+`ce39261ace254b4aaf9d2923220f4672818b1d8f`でmainへ統合済み。
+[merge証拠](hosted/merge.v1.json)で2 parentsと検証候補の同一Git treeを確認した。
+Claudeの9 commitsを保持し、source修復とCI入口を一つのPRで統合した。
+本記録の追記は検証済みproduction・fixture・runnerを変更しない。

@@ -7,7 +7,8 @@ CI 改修も main `bb2d51c89` にマージ済み。
 
 本書は [実行 schedule](post-h1-completion-slices.md) の現在の棚卸しと担当分割です。
 凍結済みの profile、ratchet、readiness manifest を書き換えるものではありません。
-**Claude は下記の C01〜C05、T1、追加の POST-T1 5子スライスの候補。それ以外の行は Codex／統合担当が持ちます。**
+**現在は[通常compiler emitterの完了まで](slices/emitter-final-batch/README.md)をClaudeへ一括依頼する。EF1〜8と追加で判明した必要producerの調査・実装候補はClaude、shared CI・hosted・最終qualification・PR/mergeはCodex／統合担当。その他の製品フェーズは統合担当が持つ。**
+C01〜C05、T1、POST-T1の提出・統合履歴は下記に保持する。
 候補の提出、main への統合、製品の qualification は別の完了条件です。
 
 **2026-09-17のユーザー指定：emitterが完成した時点を次の一区切りとする。**
@@ -98,7 +99,7 @@ C05は再提出を受領し、R4の残る2件とR1のpath表記衝突を統合�
 | C05 / L2.3 | [resolution cache](slices/l2-3-resolution-cache-claude-handoff.md)。snapshot/dependency/invalidation 設計、実 resolver の隔離 prototype | 現行 resolver/host/path identity、固定 Go reference。L2.0 の本番統合前でも調査可 | 正・負 lookup と隣接変更で reuse/invalidation を証明。所有権・取消・寿命・cache key と patch を提出。Program 再利用への組込みは L2.3 へ |
 
 当初5件とT1は候補統合済み。T1はPR #550のmain `eb6dc2c78`に入った。
-**[POST-T1の5子](slices/h2-8a-post-t1-residuals/integration/README.md)も受領し、PR #555の最終候補で全14 checksが成功した**。
+**[POST-T1の5子](slices/h2-8a-post-t1-residuals/integration/README.md)もPR #555でmain `ce39261ac`へ統合済み。最終候補の全14 checksが成功し、mergeの同一treeも確認した**。
 R9/R12/private receiver mapの7 complete-command差分と、private-set/decoratorの3 packet差分を解消。
 元pipeline767 exact、T1 complete18/packet15 exact、新101対照は96 exact/5 known、packet79 exact。
 残る5 knownはbound decorator targetの末尾コメント転送で、`E-COMMENT-SCOPE-H`に保持する。
@@ -106,9 +107,18 @@ R9/R12/private receiver mapの7 complete-command差分と、private-set/decorato
 この一覧を新たな runtime `ready` 判定には使わない。Claude へ送信する操作は本書の作成に含めない。
 提出済み SUPER は 6 件目の新規依頼に数えない。
 
-### それ以外（Codex／統合担当）
+### 現在の一括依頼：emitter完了まで
 
-以下の全行を統合担当が持つ。Claude の成果物を受け取っても、base 照合、共有 source の適応、
+2026-09-17の追加指示により、[EF1〜8の一括依頼](slices/emitter-final-batch/README.md)を作成した。
+Claudeはコメント5件、known20 ID、旧class40件、旧global14件を入口に、未観測217 IDを含む
+全所属の照合と必要な追加producer修復、出力軸の仕上げまで担当する。件数は重複し、現在の失敗総数ではない。
+8子だけで固定せず、新たな通常emitの必要修復も同じ依頼内で進める。A-RES、A-CLOSE、
+H2.9-INVのemitter部分と、通常emitに必要なcompiler/host/checker接続の候補作成をここへ委託する。
+STAGE・profile admission・最終hosted・統合判断は統合担当のまま。LSP・一般API・TS7移行は後続に保持する。
+
+### それ以外と統合（Codex／統合担当）
+
+上記でClaudeへ委託した調査・実装候補以外の行と、各候補の本番統合を統合担当が持つ。Claude の成果物を受け取っても、base 照合、共有 source の適応、
 候補の合成、hosted 検証、commit / PR / merge、admission と進捗更新は統合担当の責任とする。
 追加依頼 [T1](slices/h2-8a-bundle-metadata-t1-claude-handoff.md) は A-RES / H2.7d の metadata 可搬性5件を修復し、PR #550で統合した。
 [POST-T1](slices/h2-8a-post-t1-residuals-claude-handoff.md)の5子も候補作成はClaude、受領・合成・hosted検証・admissionは統合担当が持つ。

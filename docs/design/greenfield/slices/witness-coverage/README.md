@@ -195,3 +195,5 @@ filter名、command owner、source/fixture path、driverの関数名はJSON台�
 | syntax | [template_escape_flags](../../../../../crates/syntax/tests/template_escape_flags.rs) | なし | 0 |
 | syntax | [template_flags](../../../../../crates/syntax/tests/template_flags.rs) | なし | 0 |
 | types | [compiler_option_number_contract](../../../../../crates/types/tests/compiler_option_number_contract.rs) | なし | 0 |
+
+現在のClaude依頼は[通常compiler emitter完了一括](../emitter-final-batch/README.md)。必要なfocused入口の候補と実測を提出し、shared runner/planner/hostedへの登録・分割と最終全件検証は統合担当が持つ。
