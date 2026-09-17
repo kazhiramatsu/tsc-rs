@@ -2190,13 +2190,26 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             self.context
                 .factory()?
                 .create_node(self.source, expression_data, flags)?;
-        self.set_original_and_range(class_expression, original)?;
+        // tsc-port: visitClassDeclaration (System) @6.0.3
+        // tsc-span: _tsc.js:112605-112633
+        // The hoisted class expression and its statement are fresh nodes that
+        // only take the declaration's text range (`setTextRange`, never
+        // `setOriginalNode`): they carry none of the declaration's emit
+        // flags, so `emitSourceMapsAfterNode` maps the class end after the
+        // expression's `}` and again after the statement's `;` even when the
+        // declaration itself was marked NoTrailingSourceMap by
+        // transformTypeScript's static-initializer facts (94464-94467).
+        self.context
+            .factory()?
+            .set_text_range(class_expression, original)?;
         let mut output = Vec::new();
         if let Some(local) = local {
             let target = self.create_identifier(&local)?;
             let assignment = self.create_assignment(target, class_expression)?;
             let statement = self.create_expression_statement(assignment)?;
-            self.set_original_and_range(statement, original)?;
+            self.context
+                .factory()?
+                .set_text_range(statement, original)?;
             output.push(statement);
             for export in exports {
                 let value = self.create_identifier(&local)?;
