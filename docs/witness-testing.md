@@ -434,3 +434,9 @@ and clears inherited case/dump selectors. Its generator, observer and fixtures
 select the same owner. Shared production changes retain full replay. T1 removes
 five known rows from the unchanged 767-command binding collection: the expected
 full summary is 763 exact / four known, with its one upstream exception separate.
+
+T1 final head `4d4ed3c7d42d49aac8eeea3eaf610615ecddb205` passed all13 hosted checks in PR #550.
+Controls ran21 compiler-direct selections /70 tests in 39m38s; the
+pipeline confirmed763 exact /four known across767 complete commands.
+[The hosted receipt](design/greenfield/slices/h2-8a-bundle-metadata-t1/integration/records/hosted.v1.json)
+retains all job logs, hashes and measured time; merge remains separate.

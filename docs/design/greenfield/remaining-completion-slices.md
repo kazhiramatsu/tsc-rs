@@ -91,7 +91,7 @@ C05は再提出を受領し、R4の残る2件とR1のpath表記衝突を統合�
 | C04 / H2.8c | [noCheck / transpile](slices/h2-8c-transpile-claude-handoff.md)。noCheck、transpileModule、transpileDeclaration の依存設計、source oracle、隔離 prototype | 現行 compiler/emitter と採用 version の source。共有変換・declaration を棚卸し | API ごとの complete observables、必要な linked-reference/diagnostic schedule、prototype と未到達一覧。runtime activation はせず NC1/TM1/TD1 へ |
 | C05 / L2.3 | [resolution cache](slices/l2-3-resolution-cache-claude-handoff.md)。snapshot/dependency/invalidation 設計、実 resolver の隔離 prototype | 現行 resolver/host/path identity、固定 Go reference。L2.0 の本番統合前でも調査可 | 正・負 lookup と隣接変更で reuse/invalidation を証明。所有権・取消・寿命・cache key と patch を提出。Program 再利用への組込みは L2.3 へ |
 
-当初5件は候補統合済み。**T1候補 `a17009c58` を受領し、[統合検証](slices/h2-8a-bundle-metadata-t1/integration/README.md)中**。R9/R12は引き続き別owner。
+当初5件は候補統合済み。**T1候補をPR #550へ取り込み、`4d4ed3c7d` の[統合検証](slices/h2-8a-bundle-metadata-t1/integration/README.md)で全13 hosted checksが成功。767件は763 exact /4 known、T1の5件はすべてEXACT x2。merge待ち**。R9/R12は引き続き別owner。
 この一覧を新たな runtime `ready` 判定には使わない。Claude へ送信する操作は本書の作成に含めない。
 提出済み SUPER は 6 件目の新規依頼に数えない。
 

@@ -1,0 +1,214 @@
+{
+  "pr": "https://github.com/kazhiramatsu/tsc-rs/pull/550",
+  "tested_head": "4d4ed3c7d42d49aac8eeea3eaf610615ecddb205",
+  "checked_at": "2026-09-17T02:16:15.263605+00:00",
+  "runs": [
+    {
+      "id": 35171104556,
+      "name": "ci",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556",
+      "head_sha": "4d4ed3c7d42d49aac8eeea3eaf610615ecddb205",
+      "conclusion": "success",
+      "created_at": "2026-09-17T01:34:48Z",
+      "updated_at": "2026-09-17T02:01:28Z",
+      "log": "hosted-ci.logs.zip",
+      "log_sha256": "493d4b5a30a2a6dac0fcc580f52d2083c7c2f5ab17f28242c17e6eae25654f0f"
+    },
+    {
+      "id": 35171104560,
+      "name": "witnesses",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560",
+      "head_sha": "4d4ed3c7d42d49aac8eeea3eaf610615ecddb205",
+      "conclusion": "success",
+      "created_at": "2026-09-17T01:34:48Z",
+      "updated_at": "2026-09-17T02:15:09Z",
+      "log": "hosted-witnesses.logs.zip",
+      "log_sha256": "196bc16423456efb17343a962e1bae0bad35e24fad0c55f97fc121e8820ff2a2"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 105042753803,
+      "name": "plan",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556/job/105042753803",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:34:51Z",
+      "completed_at": "2026-09-17T01:35:17Z",
+      "seconds": 26
+    },
+    {
+      "id": 105042844292,
+      "name": "acceptance (wide)",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556/job/105042844292",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:35:19Z",
+      "completed_at": "2026-09-17T02:01:08Z",
+      "seconds": 1549
+    },
+    {
+      "id": 105042844301,
+      "name": "acceptance (early)",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556/job/105042844301",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:35:19Z",
+      "completed_at": "2026-09-17T01:47:19Z",
+      "seconds": 720
+    },
+    {
+      "id": 105042844321,
+      "name": "acceptance (late)",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556/job/105042844321",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:35:19Z",
+      "completed_at": "2026-09-17T01:53:07Z",
+      "seconds": 1068
+    },
+    {
+      "id": 105047795946,
+      "name": "gates",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556/job/105047795946",
+      "conclusion": "success",
+      "started_at": "2026-09-17T02:01:15Z",
+      "completed_at": "2026-09-17T02:01:27Z",
+      "seconds": 12
+    },
+    {
+      "id": 105042753892,
+      "name": "plan",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042753892",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:34:50Z",
+      "completed_at": "2026-09-17T01:35:15Z",
+      "seconds": 25
+    },
+    {
+      "id": 105042839687,
+      "name": "witnesses (primary)",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839687",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:35:17Z",
+      "completed_at": "2026-09-17T01:46:07Z",
+      "seconds": 650
+    },
+    {
+      "id": 105042839688,
+      "name": "witnesses (retained)",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839688",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:35:18Z",
+      "completed_at": "2026-09-17T01:44:05Z",
+      "seconds": 527
+    },
+    {
+      "id": 105042839693,
+      "name": "witnesses (decorator-binding-pipeline)",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839693",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:35:18Z",
+      "completed_at": "2026-09-17T01:51:50Z",
+      "seconds": 992
+    },
+    {
+      "id": 105042839695,
+      "name": "witnesses (declaration-maps)",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839695",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:35:18Z",
+      "completed_at": "2026-09-17T01:41:51Z",
+      "seconds": 393
+    },
+    {
+      "id": 105042839696,
+      "name": "witnesses (printer)",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839696",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:35:18Z",
+      "completed_at": "2026-09-17T01:38:34Z",
+      "seconds": 196
+    },
+    {
+      "id": 105042839754,
+      "name": "witnesses (controls)",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839754",
+      "conclusion": "success",
+      "started_at": "2026-09-17T01:35:17Z",
+      "completed_at": "2026-09-17T02:14:55Z",
+      "seconds": 2378
+    },
+    {
+      "id": 105050573002,
+      "name": "witness-gates",
+      "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105050573002",
+      "conclusion": "success",
+      "started_at": "2026-09-17T02:14:57Z",
+      "completed_at": "2026-09-17T02:15:08Z",
+      "seconds": 11
+    }
+  ],
+  "summaries": {
+    "controls": {
+      "summary": {
+        "compiler_direct": [
+          "module-identities",
+          "bundle-original-javascript",
+          "bundle-program",
+          "bundle-declarations",
+          "utf16-recovery-corpus",
+          "map-option-projection",
+          "config-library",
+          "prologue-comments",
+          "literal-update-pipeline",
+          "require-rewrite",
+          "declaration-specifiers",
+          "declaration-comments",
+          "jsdoc-return",
+          "bundle-metadata-t1",
+          "parameter-temporaries",
+          "transpile-routes",
+          "utf16-identity-recovery",
+          "utf16-review-fix",
+          "utf16-tagged-template",
+          "utf16-literal-witnesses",
+          "utf16-original-commands"
+        ],
+        "targets": 21,
+        "tests_passed": 70,
+        "observer_seconds": 444.621,
+        "cargo_build_and_replay_seconds": 1357.896
+      },
+      "log": "hosted-controls.log.gz",
+      "compressed_sha256": "28541bff160d83cf6165c55befa81f2a6b475f23d1913a419559555e3d7aa71d",
+      "log_sha256": "17bb8883598cf94b315d7b4ab478197083f9922f3116ae022276a4a6471e32d6"
+    },
+    "pipeline": {
+      "summary": {
+        "suite": "decorator-binding-pipeline",
+        "exact": 763,
+        "known": 4,
+        "selected": 767,
+        "known_frozen": 4,
+        "observer_seconds": 310.027,
+        "cargo_build_and_replay_seconds": 663.691
+      },
+      "log": "hosted-pipeline.log.gz",
+      "compressed_sha256": "962dbe0d2d97266cdc8587d14e0743037b49f532eae6508065529660a61b11a8",
+      "log_sha256": "e84b5b016a66ad84bc166aa01614bc0e8b34a022cf091d17f83f576169fe78f7"
+    }
+  },
+  "all_checks_success": true,
+  "checks": 13,
+  "replay_jobs": 9,
+  "replay_job_seconds": 8473,
+  "integrated_patch": {
+    "base": "059519e997c5f81fd313c8166b9e28fd8fefee79",
+    "path": "/Users/hiramatsu/dev/tsc-rs-bundle-metadata-t1-integration/target/h2-8a-bundle-metadata-t1-integrated.patch",
+    "sha256": "28a0f0b52b7146c778dd793db61f50fa46489d94e9a728f3324db923531a36c0"
+  },
+  "qualification": {
+    "architecture": "E-METADATA-BASE",
+    "scope": "parsed comment ranges in the ordinary Bundle metadata packet only",
+    "status": "active-qualified",
+    "validation_ref": "4d4ed3c7d42d49aac8eeea3eaf610615ecddb205"
+  },
+  "merge": "not performed"
+}
