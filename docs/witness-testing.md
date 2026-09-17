@@ -509,3 +509,13 @@ T1 produced18 exact complete commands and15 exact packet probes.
 [Integration evidence](design/greenfield/slices/h2-8a-post-t1-residuals/integration/README.md)
 records the final-head local checks, full hosted logs, bounded architecture
 requalification and remaining printer-owned five rows.
+
+## Emitter final CI budget
+
+The [integration-side budget work](design/greenfield/slices/witness-coverage/emitter-final-ci-budget/README.md)
+renames the declaration-maps job to `module-output` and adds require-rewrite
+and declaration-specifiers to that existing job. Their observer/test memberships
+are unchanged; dedicated inputs still select only their owners, with pinned Node.
+Compiler-direct records each observer and Cargo batch start/end, elapsed wall time
+and failures. Shared Cargo timing includes build and replay together. The final
+hosted receipt records observed timing; historical test time is not a speed claim.

@@ -18,6 +18,85 @@ spec.loader.exec_module(replay)
 witness = replay.witness
 
 
+class CompilerBudgetTests(unittest.TestCase):
+    def test_module_output_partition_preserves_all_suites_and_dedicated_selection(self):
+        members = [suite for suites in replay.WITNESS_GROUPS.values() for suite in suites]
+        self.assertCountEqual(members, witness.SUITES)
+        self.assertEqual(len(members), len(set(members)))
+        self.assertEqual(len(replay.WITNESS_GROUPS), 7)
+        self.assertEqual(replay.WITNESS_GROUPS["module-output"],
+                         ("declaration-map-apis", "declaration-maps", "require-rewrite", "declaration-specifiers"))
+        workflow = (ROOT / ".github/workflows/witness.yml").read_text()
+        for suite in ("require-rewrite", "declaration-specifiers"):
+            plan = replay.selection([f"crates/compiler/tests/fixtures/h2-8a-{suite}.json"])
+            self.assertEqual(plan["acceptance"], [])
+            self.assertEqual(replay.matrices(plan)["witnesses"], {
+                "include": [{"group": "module-output", "suites": [suite]}]})
+            self.assertNotIn(suite, replay.WITNESS_GROUPS["controls"])
+            self.assertIn(f"contains(matrix.suites, '{suite}')", workflow)
+        self.assertEqual(replay.selection(["crates/emitter/src/printer.rs"])["witnesses"],
+                         list(witness.SUITES))
+
+    def test_step_records_deduplicate_shared_observers_and_keep_shared_cargo_cost(self):
+        suites = ["declaration-map-apis", "declaration-maps"]
+        observers = witness.compiler_direct_observers(suites)
+        good = ("test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+                "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n")
+        output = io.StringIO()
+
+        def run(command, **kwargs):
+            events = [json.loads(line) for line in output.getvalue().splitlines() if line.startswith('{"witness_step"')]
+            self.assertEqual(events[-1]["event"], "start")
+            self.assertEqual(events[-1]["argv"], list(command))
+            return subprocess.CompletedProcess(command, 0, good)
+
+        with patch.object(witness.subprocess, "run", side_effect=run) as calls, redirect_stdout(output):
+            witness.run_compiler_direct(suites)
+        self.assertEqual([call.args[0] for call in calls.call_args_list],
+                         [list(command) for command in observers] + [witness.compiler_direct_command(suites)])
+        events = [json.loads(line) for line in output.getvalue().splitlines() if line.startswith('{"witness_step"')]
+        self.assertEqual(len(events), 2 * (len(observers) + 1))
+        for start, finish in zip(events[::2], events[1::2]):
+            self.assertEqual(finish["argv"], start["argv"])
+            self.assertEqual(finish["status"], "passed")
+            self.assertGreaterEqual(finish["seconds"], 0)
+        shared = next(event for event in events if event["phase"] == "observer"
+                      and event["argv"][1] == "scripts/observe-declaration-map-apis.mjs")
+        self.assertEqual(shared["suites"], suites)
+        self.assertEqual(events[-1]["phase"], "cargo-build-and-replay")
+        self.assertEqual(events[-1]["suites"], suites)
+
+    def test_observer_failure_is_timed_and_prevents_cargo_and_success_summary(self):
+        output = io.StringIO()
+        error = subprocess.CalledProcessError(7, ["node"])
+        with patch.object(witness.subprocess, "run", side_effect=error) as calls, redirect_stdout(output):
+            with self.assertRaises(subprocess.CalledProcessError) as raised:
+                witness.run_compiler_direct(["require-rewrite"])
+        self.assertIs(raised.exception, error)
+        self.assertEqual(calls.call_count, 1)
+        events = [json.loads(line) for line in output.getvalue().splitlines() if line.startswith('{"witness_step"')]
+        self.assertEqual(len(events), 2)
+        self.assertEqual(events[-1]["status"], "failed")
+        self.assertEqual(events[-1]["exit_code"], 7)
+        self.assertNotIn('"tests_passed"', output.getvalue())
+
+    def test_cargo_failure_or_invalid_membership_never_gets_passed_timing(self):
+        good = "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        for status, text, error in ((101, good, subprocess.CalledProcessError),
+                                    (0, good.replace("9 passed", "0 passed"), ValueError)):
+            output = io.StringIO()
+            def run(command, **kwargs):
+                return subprocess.CompletedProcess(command, status if command[0] == "cargo" else 0, text)
+            with self.subTest(status=status), patch.object(witness.subprocess, "run", side_effect=run), redirect_stdout(output):
+                with self.assertRaises(error):
+                    witness.run_compiler_direct(["transpile-routes"])
+            events = [json.loads(line) for line in output.getvalue().splitlines() if line.startswith('{"witness_step"')]
+            self.assertEqual(events[-1]["phase"], "cargo-build-and-replay")
+            self.assertEqual(events[-1]["status"], "failed")
+            self.assertEqual(events[-1]["error"], error.__name__)
+            self.assertNotIn('"tests_passed"', output.getvalue())
+
+
 class FoundationTests(unittest.TestCase):
     def output(self, suites):
         foundation = witness.foundation_witnesses
@@ -256,7 +335,7 @@ class SelectionTests(unittest.TestCase):
             self.assertEqual(plan["witnesses"], ["declaration-map-apis", "declaration-maps"])
             self.assertEqual(plan["acceptance"], [])
             self.assertEqual(replay.matrices(plan)["witnesses"], {
-                "include": [{"group": "declaration-maps", "suites": list(replay.DECLARATION_MAP_SUITES)}],
+                "include": [{"group": "module-output", "suites": list(replay.DECLARATION_MAP_SUITES)}],
             })
         self.assertTrue(set(replay.DECLARATION_MAP_SUITES).isdisjoint(replay.WITNESS_GROUPS["controls"]))
         for path in ("crates/compiler/tests/fixtures/declaration-reference-paths.json",
@@ -515,7 +594,7 @@ class SelectionTests(unittest.TestCase):
                     plan = replay.selection([path])
                     self.assertEqual(plan["acceptance"], [])
                     self.assertEqual(plan["witnesses"], [suite])
-                    group = ("declaration-maps" if suite in replay.DECLARATION_MAP_SUITES
+                    group = ("module-output" if suite in replay.MODULE_OUTPUT_SUITES
                              else "decorator-binding-pipeline" if suite in replay.POST_T1_SUITES
                              else "controls")
                     self.assertEqual(replay.matrices(plan)["witnesses"], {

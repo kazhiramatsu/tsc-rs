@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "baseline_merge": "ce39261ace254b4aaf9d2923220f4672818b1d8f",
+  "baseline_candidate": "2883e3c79247b988106c6e4f1f2bdd074ae90e66",
+  "source_receipt": "docs/design/greenfield/slices/h2-8a-post-t1-residuals/integration/hosted/receipt.v1.json",
+  "source_receipt_sha256": "a02237f62f5e08f9a00666fa4dd98bc033a1e1a0522970cfbd27c62af4d2e800",
+  "controls_job": {
+    "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/35185981972/job/105088124467",
+    "seconds": 2397,
+    "log": "docs/design/greenfield/slices/h2-8a-post-t1-residuals/integration/hosted/105088124467.log.gz",
+    "log_sha256": "e823f2bf0a2f012cfec4d974d310254d6453596be9e0d039a68cf9b2cd04db74"
+  },
+  "declaration_maps_seconds": 360,
+  "moved_suites": [
+    "require-rewrite",
+    "declaration-specifiers"
+  ],
+  "rust_test_durations": [
+    {
+      "target": "h2_8a_require_rewrite",
+      "tests": 4,
+      "rust_reported_seconds": 510.03
+    },
+    {
+      "target": "h2_8a_declaration_specifiers",
+      "tests": 2,
+      "rust_reported_seconds": 189.28
+    }
+  ],
+  "moved_rust_reported_seconds": 699.31,
+  "observer_durations_individually_known": false,
+  "measurement_limits": [
+    "Reported test durations exclude Cargo build and observer costs.",
+    "Buffered output timestamps are not per-test start/end timestamps.",
+    "Relocated replay speed must be measured at the final hosted candidate."
+  ],
+  "baseline_total_replay_seconds": 8674
+}

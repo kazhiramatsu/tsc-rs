@@ -741,6 +741,26 @@ def staged_compiler_inputs(suites):
             target.unlink()
 
 
+@contextmanager
+def compiler_step(phase, command, suites):
+    """Expose wall time and failures without attributing a shared build to one suite."""
+    fields = {"witness_step": "compiler-direct", "phase": phase,
+              "suites": list(suites), "argv": list(command)}
+    print(json.dumps({**fields, "event": "start"}), flush=True)
+    started = time.monotonic()
+    try:
+        yield
+    except Exception as error:
+        print(json.dumps({**fields, "event": "finish", "status": "failed",
+                          "seconds": round(time.monotonic() - started, 3),
+                          "error": type(error).__name__,
+                          "exit_code": getattr(error, "returncode", None)}), flush=True)
+        raise
+    else:
+        print(json.dumps({**fields, "event": "finish", "status": "passed",
+                          "seconds": round(time.monotonic() - started, 3)}), flush=True)
+
+
 def run_compiler_direct(suites):
     """Check selected frozen oracles and replay their complete standalone targets."""
     if not suites or len(set(suites)) != len(suites) or any(suite not in COMPILER_DIRECT for suite in suites):
@@ -752,21 +772,25 @@ def run_compiler_direct(suites):
     started = time.monotonic()
     with staged_compiler_inputs(suites):
         for command in compiler_direct_observers(suites):
-            subprocess.run(list(command), cwd=ROOT, check=True)
+            owners = [suite for suite in suites if command in compiler_direct_observers([suite])]
+            with compiler_step("observer", command, owners):
+                subprocess.run(list(command), cwd=ROOT, check=True)
     oracle_seconds = time.monotonic() - started
     _, env = invocation(suites[0], [])
     started = time.monotonic()
     tests_passed = 0
     for batch in batches:
-        result = subprocess.run(compiler_direct_command(batch), cwd=ROOT, env=env, text=True,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
-        print(result.stdout, end="", flush=True)
-        result.check_returncode()
-        counts = re.findall(r"test result: ok\. (\d+) passed; 0 failed; (\d+) ignored;.*? (\d+) filtered out;", result.stdout)
-        expected = sorted((COMPILER_DIRECT[suite]["tests"], 0, COMPILER_DIRECT[suite].get("filtered_tests", 0)) for suite in batch)
-        if sorted(tuple(map(int, row)) for row in counts) != expected:
-            raise ValueError("compiler direct target omitted, ignored, filtered or selected zero tests")
-        tests_passed += sum(int(row[0]) for row in counts)
+        command = compiler_direct_command(batch)
+        with compiler_step("cargo-build-and-replay", command, batch):
+            result = subprocess.run(command, cwd=ROOT, env=env, text=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            print(result.stdout, end="", flush=True)
+            result.check_returncode()
+            counts = re.findall(r"test result: ok\. (\d+) passed; 0 failed; (\d+) ignored;.*? (\d+) filtered out;", result.stdout)
+            expected = sorted((COMPILER_DIRECT[suite]["tests"], 0, COMPILER_DIRECT[suite].get("filtered_tests", 0)) for suite in batch)
+            if sorted(tuple(map(int, row)) for row in counts) != expected:
+                raise ValueError("compiler direct target omitted, ignored, filtered or selected zero tests")
+            tests_passed += sum(int(row[0]) for row in counts)
     print(json.dumps({"compiler_direct": suites, "targets": len(suites),
                       "tests_passed": tests_passed,
                       "observer_seconds": round(oracle_seconds, 3),
