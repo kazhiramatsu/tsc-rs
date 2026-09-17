@@ -69,6 +69,14 @@ Five additional ES2015 parameter/comment controls retain a separate printer
 gap and stay strict failures. This is a bounded repair, with H2.8a and that
 printer owner still open; no global re-mint or admission is claimed.
 
+2026-09-17 bounded repair checkpoint: [T1 bundle metadata](slices/h2-8a-bundle-metadata-t1/integration/README.md)
+carries parsed comment ranges into the same ordinary bundle command's declaration arena,
+with independent source identity and atomic restoration. PR #550 head `4d4ed3c7d`
+passed all13 hosted checks: the unchanged767-command binding collection contains
+763 exact and four R9/R12 known cases; all five T1 repairs are exact twice.
+The bounded `E-METADATA-BASE` packet extension is requalified at that head;
+main merge and broader H2.8 admission remain separate.
+
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
 acceptance. The

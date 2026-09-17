@@ -2,7 +2,7 @@
 
 2026-09-17。提出候補 `a17009c58b26cf3d98030a16fa32f0153f75179a` を受領した。
 基点は PR #549 の main `84da0c0278c296fd295f15e48177ada87810f841`。
-統合 branch は `work/bundle-metadata-t1-integration`。PR #550 の
+統合 branch は `work/bundle-metadata-t1-integration`、最終候補は `4d4ed3c7d42d49aac8eeea3eaf610615ecddb205`（[PR #550](https://github.com/kazhiramatsu/tsc-rs/pull/550)）。PR #550 の
 `059519e997c5f81fd313c8166b9e28fd8fefee79` の上へ取り込み、登録件数の競合を解消した。
 PR #550 の hosted 結果も `128c5e273` から取り込んだ。提出 worktree は変更していない。
 
@@ -59,15 +59,50 @@ packet単体テストの後、新suiteとbundle Program/declaration、module ide
 ## Hosted と architecture 再 qualification
 
 最終 source の全9 replay jobs（acceptance early/wide/late、witness printer/controls/retained/
-declaration-maps/primary/decorator-binding-pipeline）と両gateを一括検証する。
+declaration-maps/primary/decorator-binding-pipeline）と両gateを一括検証した。
 controlsは新suite追加後21 compiler-direct selections / 70 tests。
 前回controls38m49sに提出新suite実測約94sを加えた目安は約40m23sで、45分の分割検討閾値内。
-実際のbuild/oracle/replay秒数とjob全時間はhosted結果で確認する。60分・2 workerの上限は維持する。
+実際のbuild/oracle/replay秒数とjob全時間は以下のhosted結果で確認した。60分・2 workerの上限は維持する。
 
-`E-METADATA-BASE` のbundle packet部分は `modified-requalify`。
+`E-METADATA-BASE` のbundle packet部分は、以下の最終headの実測により `active-qualified`。
 検証対象は元5件、新18 complete commands / 15 packet probes、6 unit tests、既存bundle lifetime controlsと
 共有productionの全hosted acceptance/witness。成功した最終head・run・log hashを根拠に、この部分だけを
-`active-qualified` へ戻す。歴史的qualification、他のmetadata field、H2.8全体のadmissionは更新しない。
+`active-qualified` へ戻した。歴史的qualification、他のmetadata field、H2.8全体のadmissionは更新しない。
 
-このcommit時点で全件hostedは未実行。後続のhosted記録は検証済みheadを固定した別docs branchへ保存し、
-PR本文からリンクする。記録追記だけで同じ全件CIを再起動しない。runtime mergeは別途。
+実装commit `4d4ed3c7d` の作成時点では全件hostedは未実行だった。以下の後続記録を
+検証済みheadを固定した別docs branchへ保存し、PR本文からリンクする。記録追記だけで同じ全件CIを再起動しない。runtime mergeは別途。
+
+
+## 最終 hosted 結果と bounded 再 qualification
+
+[実測記録](records/hosted.v1.json)はhead、run/job、時刻、ログとSHA-256を保持する。
+[acceptance全ログ](records/hosted-ci.logs.zip)、[witness全ログ](records/hosted-witnesses.logs.zip)、
+[controls本文](records/hosted-controls.log.gz)、[pipeline本文](records/hosted-pipeline.log.gz)を保存した。
+
+検証headは `4d4ed3c7d42d49aac8eeea3eaf610615ecddb205`。全9 replay jobs・2 planner・2 gate、**13 checksすべて成功**。
+
+| Job | Time | Result |
+| --- | ---: | --- |
+| [plan](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556/job/105042753803) | 0m26s | success |
+| [acceptance (wide)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556/job/105042844292) | 25m49s | success |
+| [acceptance (early)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556/job/105042844301) | 12m00s | success |
+| [acceptance (late)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556/job/105042844321) | 17m48s | success |
+| [gates](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104556/job/105047795946) | 0m12s | success |
+| [plan](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042753892) | 0m25s | success |
+| [witnesses (primary)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839687) | 10m50s | success |
+| [witnesses (retained)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839688) | 8m47s | success |
+| [witnesses (decorator-binding-pipeline)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839693) | 16m32s | success |
+| [witnesses (declaration-maps)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839695) | 6m33s | success |
+| [witnesses (printer)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839696) | 3m16s | success |
+| [witnesses (controls)](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105042839754) | 39m38s | success |
+| [witness-gates](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35171104560/job/105050573002) | 0m11s | success |
+
+- 既存pipeline：**763 exact /4 known /767 complete commands**。T1の5 IDすべてをログで `EXACT x2` と照合した。上流例外1件は成功数に含めない。
+- 新T1：complete **15 exact /3 known /18**、packet **12 exact /3 known /15**、いずれもfailed0。comment rangeの行は全件exact。
+- controls：21 compiler-direct selections /70 tests、全job **39m38s**。oracle 444.621秒、Cargo build+replay 1357.896秒。
+- controlsは前回38m49sから49秒増（runner差を含む総job比較）で、45分の分割検討閾値内。
+- 全9 replay jobの合計は **141m13s**（planner/gate除外）。
+
+`E-METADATA-BASE` の通常Bundle packetにおけるparsed comment range可搬性だけを、validation ref `4d4ed3c7d42d49aac8eeea3eaf610615ecddb205` で再qualifiedとする。source identity / mount順序 / endpoint状態 / atomic restoreは6 unit testsと15 packet probesで確認し、元5件と全767 complete commands、既存bundle lifetime対照、全hosted回帰が成功した。R9/R12 4件、新規known native3件/packet3件、dispose後print2件、同一ProgramのRust API再emitは各ownerへ残す。H2.8全体のadmissionやmainへのmergeは宣言しない。
+
+統合patch（base `059519e99` → `4d4ed3c7d`）のSHA-256は `28a0f0b52b7146c778dd793db61f50fa46489d94e9a728f3324db923531a36c0`。この後続記録は `docs/bundle-metadata-t1-hosted-550` に保存する。PRの実装headは検証済みの `4d4ed3c7d` に固定し、記録だけのpushで全CIを繰り返さない。
