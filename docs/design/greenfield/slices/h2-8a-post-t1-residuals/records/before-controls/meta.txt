@@ -1,0 +1,24 @@
+date: 2026-09-17T03:38:14Z
+head: eb6dc2c7872b18442657f8eefde5efc9e8fb4cf7
+status:
+ M .github/ci/test_replay.py
+ M scripts/witness.py
+?? crates/compiler/tests/fixtures/post-t1-residuals-inputs.json
+?? crates/compiler/tests/fixtures/post-t1-residuals-known-native.json
+?? crates/compiler/tests/fixtures/post-t1-residuals-known-packet.json
+?? crates/compiler/tests/fixtures/post-t1-residuals.json
+?? crates/compiler/tests/post_t1_residuals_contract.rs
+?? docs/design/greenfield/slices/h2-8a-post-t1-residuals-claude-handoff.md
+?? docs/design/greenfield/slices/h2-8a-post-t1-residuals/
+?? scripts/generate-post-t1-residuals-inputs.mjs
+?? scripts/observe-post-t1-residuals.mjs
+inputs:
+8291bd11ab45fa37a6371fe5b64bc09ba6fe706f2a289ad1d15d10b6cb165dbf  crates/compiler/tests/fixtures/post-t1-residuals-inputs.json
+fa4a5b38b32c7bfabfbcc88caca0e974033cc845c8e658c4f48daf6797ef76ab  crates/compiler/tests/fixtures/post-t1-residuals.json
+f9eb04efdb289422d46c1a839058463155fec7521f122a582f39a0d8e29a4d1b  crates/compiler/tests/fixtures/post-t1-residuals-known-native.json
+75502d91f6031bb19a2abe2e9a0012d66736ce59e9a0a981637e9002e0c33236  crates/compiler/tests/fixtures/post-t1-residuals-known-packet.json
+ea93d0e2fd89c8e8f842b1ca64e7f3c360f77762bd6e9ecbe68ad8ff837da04d  scripts/observe-post-t1-residuals.mjs
+a3fa8587cbd5e902e43dbb1a852d7aba716efe3141894efe7020a3f256394510  scripts/generate-post-t1-residuals-inputs.mjs
+binaries:
+0e0b50b7c1ee374073fb830c2aa928d40c817d2273b4faf44698e5fbce0ae520  target/debug/deps/post_t1_residuals_contract-5a895082ff15923e
+done

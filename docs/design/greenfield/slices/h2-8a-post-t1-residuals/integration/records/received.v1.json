@@ -1,0 +1,262 @@
+{
+  "candidate": "8529a432618fc16077e44940e436eb20cd98faa4",
+  "submitted_base": "eb6dc2c7872b18442657f8eefde5efc9e8fb4cf7",
+  "integration_base": "3de6ab9bc7ecbee096699e927dd3e0f35f2c923e",
+  "integration_merge": "f35766ce603456eadfaa29fbe804929b4bcfad20",
+  "candidate_commits": [
+    "58f2dc77fc584581b6adbe20f6bd2a54eac044be",
+    "5f455be6c92c5d7006ab8cb540587ae078af5c72",
+    "e3a3e609c347d0660deab9fb4be25b80269039b3",
+    "13da7f33f37163564b47943dcb45f6ed05a7fd40",
+    "9f203cf7a3eb2faaadda6a812cb20c901a573235",
+    "af5c427c0fc35b73a36ccefd4fccff6ce04d4206",
+    "03097fc02e922224fc44a470eec3eb6b5ca67a1a",
+    "150a91255307d66f1fc0f83663e2513190a642df",
+    "8529a432618fc16077e44940e436eb20cd98faa4"
+  ],
+  "upstream_spans": [
+    {
+      "name": "getClassFacts",
+      "span": "94410-94427",
+      "sha256": "81b81924250121c13e7318fa6fe7748c25e8772b034bd7b78c11b5226d4b6651"
+    },
+    {
+      "name": "isClassLikeDeclarationWithTypeScriptSyntax",
+      "span": "94431-94433",
+      "sha256": "f99b70774885874532bc1947c7b742b2f3257b1a97de87676502becfef31dab8"
+    },
+    {
+      "name": "visitClassDeclaration",
+      "span": "94434-94548",
+      "sha256": "b4f4c7bb3c8f14a7776dd0ab5337e8c11b30104d7eb70b676c5dba79a9e1ae59"
+    },
+    {
+      "name": "getName",
+      "span": "24788-24799",
+      "sha256": "9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33"
+    },
+    {
+      "name": "getLocalName",
+      "span": "24803-24805",
+      "sha256": "db85ef71236480d7de1d2e131b01d6f8fed272ef41d0f5297ce7fb3485ee7979"
+    },
+    {
+      "name": "getDeclarationName",
+      "span": "24809-24811",
+      "sha256": "2774ac8674f5e2cbedb331ad2c3c64fa2474c0df15cd30c16f824775fdb87714"
+    },
+    {
+      "name": "getGeneratedNameForNode",
+      "span": "21652-21666",
+      "sha256": "7aeec7c8966a869665e0b8f01a41cd52e75bc957006170fd446ea819be9a6ea0"
+    },
+    {
+      "name": "generateNameForNode",
+      "span": "120876-120942",
+      "sha256": "80b51fff38bdb471f7bacf14c7290fa5c0f8ab22521a261a84e3e110d21f5cdd"
+    },
+    {
+      "name": "generateNameForExportDefault",
+      "span": "120831-120846",
+      "sha256": "d2ea6c0895811d31d686b3394111fb991799cce99455da0b84522ec063ad0d7e"
+    },
+    {
+      "name": "makeUniqueName",
+      "span": "120741-120779",
+      "sha256": "24cb46aa2ba811ebf24cee740aa8ca553970a6bd6f18b7b57ae10ea77cb55f03"
+    },
+    {
+      "name": "isUniqueName",
+      "span": "120638-120640",
+      "sha256": "5394b599339515ed581da61d91069f3ff89631e769f80a5b678f80698b6512e2"
+    },
+    {
+      "name": "isFileLevelUniqueNameInCurrentFile",
+      "span": "120665-120667",
+      "sha256": "ff107c74acbb219b00b9c5890157cec66f947415d061dd503e481c77b1a22f17"
+    },
+    {
+      "name": "isFileLevelUniqueName",
+      "span": "12907-12909",
+      "sha256": "a001ca500ae40c28622e35ca8857c92863585ca5db38e07439ec25f43e629e20"
+    },
+    {
+      "name": "visitClassDeclaration",
+      "span": "112605-112633",
+      "sha256": "de6afa6b3825a73326606b89f43e7620cddea99d7de289df7990f87fdfd3ad69"
+    },
+    {
+      "name": "visitFunctionDeclaration",
+      "span": "112576-112604",
+      "sha256": "c9849240c0fe34698d20c78bc1e0e89f5a6b06d37b7e9133450057840c271667"
+    },
+    {
+      "name": "appendExportsOfHoistedDeclaration",
+      "span": "112795-112809",
+      "sha256": "99fef8ae7429a78f3b3e5c8edb7d4033beac0eb6c5f9253a4910352e50dba94e"
+    },
+    {
+      "name": "visitClassDeclaration",
+      "span": "111505-111536",
+      "sha256": "6f7feb4a8b967c7fae469513af7ed76696d9ad5d54a01fa13a1b8c83abbd29ee"
+    },
+    {
+      "name": "appendExportsOfHoistedDeclaration",
+      "span": "111722-111742",
+      "sha256": "bfbaa381d44c81a747e6de4dd148b3d0dc129a1d6e350138cee1ced097b4a3f7"
+    },
+    {
+      "name": "setTextRange",
+      "span": "28256-28258",
+      "sha256": "b4484231223d27d5a3bd94103656b0f7ee336d397d3f1af742f67f893bd1cc08"
+    },
+    {
+      "name": "setOriginalNode",
+      "span": "25208-25217",
+      "sha256": "8ef5d40b9635be7af9ec133e0cb89a40498944062d5e9570facb5c3468121129"
+    },
+    {
+      "name": "mergeEmitNode",
+      "span": "25218-25277",
+      "sha256": "6d9f4af1f1fa79b494c5ef7b570972925000f7939cd16ffe520855a67583f375"
+    },
+    {
+      "name": "emitSourceMapsBeforeNode",
+      "span": "121283-121293",
+      "sha256": "ac346b41706c68dd97ca01be4df11b5db57df063dfb4a1b84ee9b5ac1efa2517"
+    },
+    {
+      "name": "emitSourceMapsAfterNode",
+      "span": "121294-121303",
+      "sha256": "6ca767d42995b2ea08ceccbb1261345452b6f976a0665d60a80c68fa14e0aeb6"
+    },
+    {
+      "name": "createPrivateIdentifierAssignment",
+      "span": "96795-96840",
+      "sha256": "50aca93fc9bff1017585d1ffed3aa4de5466d4d747cf0a9b04b1864aa4cdecff"
+    },
+    {
+      "name": "createCopiableReceiverExpr",
+      "span": "96567-96578",
+      "sha256": "4e366a50034f7622b6496c16b631befe9559c33e38b453b94cdb0f7e2e1dc675"
+    },
+    {
+      "name": "cloneNode",
+      "span": "24436-24466",
+      "sha256": "d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6"
+    },
+    {
+      "name": "isSimpleInlineableExpression",
+      "span": "93030-93032",
+      "sha256": "75411b5859a6888595a6e090ab2d42fe4f904d7becfe81a855f1b6111fa27cee"
+    },
+    {
+      "name": "isSimpleCopiableExpression",
+      "span": "93027-93029",
+      "sha256": "388e8823ae5507fbcabb38b5bbd06c28c38b7381ce8b0eb987dbad1150ed52f1"
+    },
+    {
+      "name": "visitBinaryExpression",
+      "span": "96694-96785",
+      "sha256": "193d3a0027cec0eb7f3a62bd355169c710406d9e1e21276d0b7c7c524788a5b4"
+    },
+    {
+      "name": "visitPreOrPostfixUnaryExpression",
+      "span": "96486-96551",
+      "sha256": "05f34f10ae885a6ea6d845774a37df4a9c8cd5c5d79a90c9f22cceb2cc3a64ef"
+    },
+    {
+      "name": "createCallBinding",
+      "span": "24691-24753",
+      "sha256": "445f6a3542132e1adf49e01683e039e6fa034bd127cd15ab5447db84951b41bc"
+    },
+    {
+      "name": "createClassPrivateFieldSetHelper",
+      "span": "25971-25985",
+      "sha256": "24690a6905d3cf964f5b37343e142568c29fc3079d1ebecc8ad5e021afe10955"
+    },
+    {
+      "name": "createClassPrivateFieldGetHelper",
+      "span": "25956-25970",
+      "sha256": "bef177012c8baa7c040d67c64ee91d462aeed5e0af85a7478e13af615db83e56"
+    },
+    {
+      "name": "emitNodeListItems",
+      "span": "120068-120155",
+      "sha256": "ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40"
+    },
+    {
+      "name": "emitCommentsBeforeNode",
+      "span": "120987-120994",
+      "sha256": "dc59a0901c0b5aaa640586703fb5f5a2420cf3f5ad344fd433501a20612154cf"
+    },
+    {
+      "name": "emitCommentsAfterNode",
+      "span": "120995-121006",
+      "sha256": "f0baac32a6d9fcf8f005ee8f1b923e1706f679e8a1fb88e2a7753064bb644a89"
+    },
+    {
+      "name": "emitLeadingCommentsOfNode",
+      "span": "121007-121032",
+      "sha256": "ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb"
+    },
+    {
+      "name": "emitTrailingCommentsOfNode",
+      "span": "121033-121046",
+      "sha256": "e5c99d84eeab2c12d594ba56695a7a869c49720eb110f3715c0ea3f9271d1112"
+    },
+    {
+      "name": "emitLeadingCommentsOfPosition",
+      "span": "121166-121175",
+      "sha256": "fa23b688b1540c772ccf513c874d47bba4a08a44e019bc430feb79cbea73d2cd"
+    },
+    {
+      "name": "forEachTrailingCommentToEmit",
+      "span": "121234-121238",
+      "sha256": "bd6612ac9040b10e756e1b9666a34daebcc0fe66a227dfda01db103bfd3f27a7"
+    },
+    {
+      "name": "transformAllDecoratorsOfDeclaration",
+      "span": "100546-100553",
+      "sha256": "1b5a7f8ef32e03228943f699e46d9615e70cb9b615307d42e75b6c83fa19d6a6"
+    },
+    {
+      "name": "transformDecorator",
+      "span": "100554-100569",
+      "sha256": "d59f7ca48434d47359734b185ca41b870154ec401bea6c5336d7e0074b8ec622"
+    },
+    {
+      "name": "restoreOuterExpressions",
+      "span": "24646-24654",
+      "sha256": "954f25c47999754f47c599c6955c83aa60e378fc74ef0ba8fd54289bbd65abd8"
+    },
+    {
+      "name": "emitDecoratorsAndModifiers",
+      "span": "119846-119902",
+      "sha256": "8fb50c70cd68d557886307bc8242e2f79f0533fea4c44e498feb8ce7c0eba899"
+    },
+    {
+      "name": "emitDecorator",
+      "span": "117872-117875",
+      "sha256": "aa7b18f77f86832a5176a4b2f46205c09066a10497425e2453ecc4dd8d054fe4"
+    },
+    {
+      "name": "getEmitFlags",
+      "span": "13054-13057",
+      "sha256": "6d8c5eece414332d11f366f7ae016d6d3253477e31519ee07e143b4263b35933"
+    }
+  ],
+  "production_unchanged_from_candidate": {
+    "crates/emitter/src/builtins.rs": "3f255606ebf123d6cb7a5bd488060d95f7b00945460c3134f9a2bdda89a8784b",
+    "crates/emitter/src/builtins/class_fields/downlevel.rs": "7e4480aca985a89056339f99be0e1be7c87c1b403d938224dca77392be953113",
+    "crates/emitter/src/builtins/standard_decorators.rs": "36679a333f6b4969239e8e8e5c62ef0361ab4f7c7dcd885eb2b4590cc0e7a6b9",
+    "crates/emitter/src/builtins/system.rs": "d3d7973a9b355e2962d3025e4f1e8d500ee59f975225a947eb31532e9b2d2672",
+    "crates/emitter/src/printer.rs": "4105006b8fef0d11b449df9e1ba1b1e27d0a3a20c4d1c501cca1eee04f2d7b11"
+  },
+  "original_inputs_and_oracles_unchanged": {
+    "crates/compiler/tests/fixtures/decorator-binding-inputs.json": "0284b24a2bc6e8d111f60b77d76b2bb6008c5ec53e26330a16386109ec678b15",
+    "crates/compiler/tests/fixtures/decorator-binding.json.zst": "be52ec87a5cdcfa407ccd0729b1eaa020f4c6e71b159dabbb507efbc70915ab7",
+    "crates/compiler/tests/fixtures/bundle-metadata-t1-inputs.json": "d83c8825dae31dba5df9e9272617b5cbf3d05aa3366bbb4a9ab45a8a70fe109a",
+    "crates/compiler/tests/fixtures/bundle-metadata-t1.json": "11e7cbebfdb2c0998d1ca9241b579048528b1668fcd46f78a4cffa97c437ed27"
+  }
+}

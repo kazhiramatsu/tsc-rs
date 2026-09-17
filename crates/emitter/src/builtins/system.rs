@@ -818,9 +818,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             }
             NodeData::ClassDeclaration(data) => {
                 let key = self.context.arena().get_original_node(statement).node();
-                let name = data
+                let name_node = data
                     .name
-                    .and_then(|id| self.context.arena().node_ref(self.source, id))
+                    .and_then(|id| self.context.arena().node_ref(self.source, id));
+                let name = name_node
                     .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
                     .or_else(|| {
                         self.info
@@ -830,6 +831,20 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             .map(ToString::to_string)
                     });
                 if let Some(name) = name {
+                    // A class whose name transformTypeScript generated
+                    // (`default_1` of an anonymous default class) carries a
+                    // target binding; the hoisted `var`, the assignment
+                    // target and the export publication re-create the
+                    // spelling through `create_identifier`, so register the
+                    // binding under its text (tsc: `getLocalName(node)` is the
+                    // same generated identifier, _tsc.js:112606-112607).
+                    if let Some(binding) =
+                        name_node.and_then(|name| self.generated_binding_of_identifier(name))
+                    {
+                        self.generated_bindings
+                            .entry(name.clone())
+                            .or_insert(binding);
+                    }
                     self.push_hoisted_name(&name);
                 }
             }
@@ -2175,13 +2190,26 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             self.context
                 .factory()?
                 .create_node(self.source, expression_data, flags)?;
-        self.set_original_and_range(class_expression, original)?;
+        // tsc-port: visitClassDeclaration (System) @6.0.3
+        // tsc-span: _tsc.js:112605-112633
+        // The hoisted class expression and its statement are fresh nodes that
+        // only take the declaration's text range (`setTextRange`, never
+        // `setOriginalNode`): they carry none of the declaration's emit
+        // flags, so `emitSourceMapsAfterNode` maps the class end after the
+        // expression's `}` and again after the statement's `;` even when the
+        // declaration itself was marked NoTrailingSourceMap by
+        // transformTypeScript's static-initializer facts (94464-94467).
+        self.context
+            .factory()?
+            .set_text_range(class_expression, original)?;
         let mut output = Vec::new();
         if let Some(local) = local {
             let target = self.create_identifier(&local)?;
             let assignment = self.create_assignment(target, class_expression)?;
             let statement = self.create_expression_statement(assignment)?;
-            self.set_original_and_range(statement, original)?;
+            self.context
+                .factory()?
+                .set_text_range(statement, original)?;
             output.push(statement);
             for export in exports {
                 let value = self.create_identifier(&local)?;

@@ -1,0 +1,4 @@
+argv: python3 -m unittest discover -s .github/ci -p test_replay.py
+env: CARGO_BUILD_JOBS=2 (taskpolicy -b nice -n 15)
+exit: 0
+seconds: 5

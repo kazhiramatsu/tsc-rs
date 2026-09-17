@@ -1,0 +1,26 @@
+date: 2026-09-17T04:27:39Z
+head: 150a91255307d66f1fc0f83663e2513190a642df
+status:
+ M docs/design/greenfield/slices/h2-8a-post-t1-residuals/DESIGN.md
+?? docs/design/greenfield/slices/h2-8a-post-t1-residuals/records/freeze-known-native.py
+toolchain: rustc 1.93.0 (254b59607 2026-01-19) / cargo 1.93.0 (083ac5135 2025-12-15) / node v25.2.1
+vendor:
+1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3  vendor/typescript-6.0.3/lib/_tsc.js
+569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39  vendor/typescript-6.0.3/lib/typescript.js
+inputs:
+0284b24a2bc6e8d111f60b77d76b2bb6008c5ec53e26330a16386109ec678b15  crates/compiler/tests/fixtures/decorator-binding-inputs.json
+be52ec87a5cdcfa407ccd0729b1eaa020f4c6e71b159dabbb507efbc70915ab7  crates/compiler/tests/fixtures/decorator-binding.json.zst
+3300897bf210a14e251e2b4813f4f82ae363d8bbb818dbce0f901eea2698de1e  crates/compiler/tests/fixtures/decorator-binding-known-native.json
+d83c8825dae31dba5df9e9272617b5cbf3d05aa3366bbb4a9ab45a8a70fe109a  crates/compiler/tests/fixtures/bundle-metadata-t1-inputs.json
+11e7cbebfdb2c0998d1ca9241b579048528b1668fcd46f78a4cffa97c437ed27  crates/compiler/tests/fixtures/bundle-metadata-t1.json
+8f3f690d8936030472dc4edf9181362b59c166c5ade2ecda7508957843e15767  crates/compiler/tests/fixtures/bundle-metadata-t1-known-native.json
+6f57be0acf737d46d246d12bf9fe9d1a693caee36146d046ea2699b23ba4966f  crates/compiler/tests/fixtures/bundle-metadata-t1-known-packet.json
+8291bd11ab45fa37a6371fe5b64bc09ba6fe706f2a289ad1d15d10b6cb165dbf  crates/compiler/tests/fixtures/post-t1-residuals-inputs.json
+fa4a5b38b32c7bfabfbcc88caca0e974033cc845c8e658c4f48daf6797ef76ab  crates/compiler/tests/fixtures/post-t1-residuals.json
+f8923fd809c966ade8fa6fe60f80ebb8a7f8314de50de6032dd468f4d27b065c  crates/compiler/tests/fixtures/post-t1-residuals-known-native.json
+75502d91f6031bb19a2abe2e9a0012d66736ce59e9a0a981637e9002e0c33236  crates/compiler/tests/fixtures/post-t1-residuals-known-packet.json
+binaries:
+f4d4aaa723444509d722910e207b55a8c9be42231eefc48aa03caad505c53581  target/debug/deps/bundle_metadata_t1_contract-ec73748c3d71934a
+b42a2eae7392c0e55e0e5fee893eda750824f66f6796936fef1967186d1b85c2  target/debug/deps/decorator_binding_pipeline_contract-6441a05f1df13e98
+5eaf9391ab7e92589be7ee63a9144a365e2b814a66257d8bf09276102f2b10ba  target/debug/deps/post_t1_residuals_contract-5a895082ff15923e
+done

@@ -48,7 +48,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Use the frozen oracle Node version
-        if: matrix.group == 'foundations' || contains(matrix.suites, 'transpile-routes') || contains(matrix.suites, 'resolution-cache') || contains(matrix.suites, 'literal-update') || contains(matrix.suites, 'literal-update-pipeline') || contains(matrix.suites, 'bundle-program') || contains(matrix.suites, 'bundle-declarations') || contains(matrix.suites, 'declaration-map-apis') || contains(matrix.suites, 'declaration-maps') || contains(matrix.suites, 'decorator-binding') || contains(matrix.suites, 'decorator-binding-pipeline') || contains(matrix.suites, 'module-identities') || contains(matrix.suites, 'bundle-original-javascript') || contains(matrix.suites, 'bundle-metadata-t1')
+        if: matrix.group == 'foundations' || contains(matrix.suites, 'transpile-routes') || contains(matrix.suites, 'resolution-cache') || contains(matrix.suites, 'literal-update') || contains(matrix.suites, 'literal-update-pipeline') || contains(matrix.suites, 'bundle-program') || contains(matrix.suites, 'bundle-declarations') || contains(matrix.suites, 'declaration-map-apis') || contains(matrix.suites, 'declaration-maps') || contains(matrix.suites, 'decorator-binding') || contains(matrix.suites, 'decorator-binding-pipeline') || contains(matrix.suites, 'module-identities') || contains(matrix.suites, 'bundle-original-javascript') || contains(matrix.suites, 'bundle-metadata-t1') || contains(matrix.suites, 'post-t1-residuals')
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .node-version

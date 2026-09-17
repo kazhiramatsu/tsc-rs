@@ -479,3 +479,24 @@ was133m24s, excluding plans, gates and main push. These are observed whole-job
 times, not an isolated speed comparison. The
 [full receipt](design/greenfield/slices/witness-coverage/foundations/hosted/receipt.v1.json)
 retains all14 job logs and their hashes.
+
+## Post-T1 residual controls
+
+[H2.8a-A-RES-POST-T1](design/greenfield/slices/h2-8a-post-t1-residuals/REPORT.md)
+registers `post-t1-residuals` in the local runner: 101 complete commands
+(anonymous default class names, System hoisted class end maps, private
+compound-assignment receiver temps, private assignment right-operand
+comments, decorator expression comment suppression) with the T1 parse-node
+packet probe for its 79 bundle rows. Its generator, observer and frozen
+observations are dedicated files; five printer-owned rows are frozen as
+known native divergences. The suite shares the `decorator-binding-pipeline`
+job's compiler build and uses pinned Node even when selected alone. Its
+dedicated inputs select only this suite; shared production retains full
+coverage. Keeping the measured local observer/replay cost (about250s/200s)
+out of controls preserves that job's45-minute review margin; actual hosted
+timings and qualification are recorded by the integration receipt.
+
+```sh
+python3 scripts/witness.py post-t1-residuals --all --dry-run
+python3 scripts/witness.py post-t1-residuals --all
+```

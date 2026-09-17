@@ -1,0 +1,20 @@
+date: 2026-09-17T03:21:55Z
+head: eb6dc2c7872b18442657f8eefde5efc9e8fb4cf7
+status:
+?? docs/design/greenfield/slices/h2-8a-post-t1-residuals-claude-handoff.md
+toolchain: rustc 1.93.0 (254b59607 2026-01-19) / cargo 1.93.0 (083ac5135 2025-12-15) / node v25.2.1
+vendor:
+1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3  vendor/typescript-6.0.3/lib/_tsc.js
+569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39  vendor/typescript-6.0.3/lib/typescript.js
+inputs:
+0284b24a2bc6e8d111f60b77d76b2bb6008c5ec53e26330a16386109ec678b15  crates/compiler/tests/fixtures/decorator-binding-inputs.json
+be52ec87a5cdcfa407ccd0729b1eaa020f4c6e71b159dabbb507efbc70915ab7  crates/compiler/tests/fixtures/decorator-binding.json.zst
+c3e1defc3e6f2d98f34befa9477d14d7404fbd3179179ac3f993537a788b5358  crates/compiler/tests/fixtures/decorator-binding-known-native.json
+d83c8825dae31dba5df9e9272617b5cbf3d05aa3366bbb4a9ab45a8a70fe109a  crates/compiler/tests/fixtures/bundle-metadata-t1-inputs.json
+11e7cbebfdb2c0998d1ca9241b579048528b1668fcd46f78a4cffa97c437ed27  crates/compiler/tests/fixtures/bundle-metadata-t1.json
+7f03ec86ce2f8de123387262bc82905614660ced3335855069b97575e32add72  crates/compiler/tests/fixtures/bundle-metadata-t1-known-native.json
+81247002134bbc9035d0070b68ccb782dcec9697cc4bb14f8e94d31c952d7d72  crates/compiler/tests/fixtures/bundle-metadata-t1-known-packet.json
+binaries:
+3297535d7c5d96d45af2ef3da2c17ae2f2d96fd462cfd0fb8fde4b3c57f30e3f  target/debug/deps/bundle_metadata_t1_contract-ec73748c3d71934a
+b30d9310d490ff7f61c593af4fdd86c97e38f5ac6addb39bc5194e9e335d066d  target/debug/deps/decorator_binding_pipeline_contract-6441a05f1df13e98
+done

@@ -1,0 +1,22 @@
+commit: 9f203cf7a post-t1 RECEIVER-MAP: private compound/update receivers store a synthesized clone
+retired T1 receiver row; remaining 0
+24:bundle metadata t1 SUMMARY exact=18 known=0 failed=0 selected=18
+45:bundle metadata t1 PACKET KNOWN x2 bundle-metadata-t1/receiver/es2015/static-set-second-file
+70:bundle metadata t1 PACKET KNOWN x2 bundle-metadata-t1/decorated/es2022/static-get-second-file
+75:bundle metadata t1 PACKET KNOWN x2 bundle-metadata-t1/decorated/esnext/static-get-second-file
+101:bundle metadata t1 PACKET SUMMARY exact=12 known=3 failed=0 probed=15
+104:test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 31.21s
+106:t1 exit: 0 seconds: 33
+commit: af5c427c0 post-t1: retire the T1 receiver compound known-native row
+experiment: NO_TRAILING_COMMENTS removed from create_private_set
+experiment: retired known-packet static-set row
+45:post t1 residuals SUMMARY exact=35 known=0 failed=0 selected=35
+213:post t1 residuals PACKET SUMMARY exact=33 known=0 failed=0 probed=33
+216:test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 63.54s
+218:exit: 0 seconds: 91
+24:bundle metadata t1 SUMMARY exact=18 known=0 failed=0 selected=18
+70:bundle metadata t1 PACKET KNOWN x2 bundle-metadata-t1/decorated/es2022/static-get-second-file
+75:bundle metadata t1 PACKET KNOWN x2 bundle-metadata-t1/decorated/esnext/static-get-second-file
+101:bundle metadata t1 PACKET SUMMARY exact=13 known=2 failed=0 probed=15
+104:test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 30.45s
+106:t1 exit: 0 seconds: 33
