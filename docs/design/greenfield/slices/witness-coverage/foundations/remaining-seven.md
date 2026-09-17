@@ -7,7 +7,10 @@ No additional Rust execution, compatibility admission or repair is claimed here.
 
 User priority,2026-09-17: complete the emitter and take that as the next
 milestone. LSP work and general API development belong to a later, separate
-phase. The proposals below are a parked coverage backlog, not the next
+phase. That later LSP/API phase follows the TypeScript7 Go implementation
+and its exported protocols, including the distinct asynchronous JSON-RPC and
+synchronous MessagePack API paths at the recorded investigation pin.
+The proposals below are a parked coverage backlog, not the next
 implementation batch or additional prerequisites for the emitter milestone.
 Promote only a bounded contract check needed to validate an actual emitter
 repair; do not expand into generic API cleanup while closing emitter work.

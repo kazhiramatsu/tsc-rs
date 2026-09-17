@@ -13,6 +13,7 @@ CI 改修も main `bb2d51c89` にマージ済み。
 **2026-09-17のユーザー指定：emitterが完成した時点を次の一区切りとする。**
 直近はemitter残差の修復・必要な検証・統合を優先する。LSP関連と一般的な公開API整備は、
 作業量の大きい別フェーズとして後で扱い、emitter完了の条件へ追加しない。
+後続LSP/APIは[TypeScript 7のGo実装と公開通信仕様](typescript-7-direction.md#emitter-milestone-and-subsequent-api-work-2026-09-17-clarification)に合わせてRustへ移植する。固定参照ではLSP／非同期APIがJSON-RPC、同期APIがMessagePackであり、それぞれの互換性を分けて検証する。
 以下は長期の残項目も含む台帳であり、全行を今回の一区切りまでに実施するという意味ではない。
 
 2026-09-15：**[PLAN-BASE の台帳作成](slices/plan-base/README.md)は完了**。
@@ -230,15 +231,18 @@ registry 作成ではない。固定 TS7 の設計を参照し、fresh 計算と
 ## 6. 公開 API・Language Service・native LSP（すべて統合担当）
 
 API1 は独立製品。native LSP の内部 typed API は L3/L5 が持ち、公開 TypeScript API の全互換や
-legacy tsserver を先に実装する条件を付けない。各 query family は別 PR とする。
+legacy tsserver を先に実装する条件を付けない。公開APIもTypeScript 7のGo実装を基準とし、
+非同期JSON-RPCと同期MessagePackのmethod/params/result/error・lifetimeを別契約として扱う。
+API1.0で採用upstream commit・公開範囲・clientを固定してから下記の古いAPI細分を具体化する。
+各query familyの差分と証拠を分け、互換性のある複数項目をまとめて検証・統合する。
 
 | ID | 作業と成果物 | 依存・終了条件 |
 | --- | --- | --- |
-| API1.0 | public signature ↔ upstream implementation ↔ Rust の converse inventory、Rust-native / optional JS profile | VER-MAP と現行 API。すべての signature に disposition。内部の同名関数を公開互換と数えない |
-| API1.1a | AST/source/factory/printer の公開所有権、identity、error、thread/semver contract | API1.0、H2.8a。signature/behavior と lifetime tests、raw internal ID の露出を防ぐ |
-| API1.1b | Program/Checker/host、cancellation、反復呼出しの公開 contract | API1.1a、H2.8b/d。direct API 観測、取消安全性と lifetime を検証 |
+| API1.0 | 固定TS7 Go APIの公開method/params/result/error ↔ Go実装 ↔ Rustの対応台帳。非同期JSON-RPC／同期MessagePackとclient profileを区分 | VER-MAPと固定Go API/proto/client。snapshot/handle・FS callback・cancel・位置単位・寿命を含め、全公開面にdisposition。内部同名関数を通信互換と数えない |
+| API1.1a | 採用TS7 APIのsource/node/snapshot/handleの所有権、identity、error、lifetime | API1.0、必要なH2.8a。upstream clientとの要求・応答と寿命を検証。旧factory/printer公開signatureはAPI1.0の採用範囲で判定 |
+| API1.1b | 採用TS7 APIのProgram/Checker/host呼出し、FS callback、cancellationと反復要求 | API1.1a、H2.8b/d。Go APIとRPC観測を比較し、callback・取消・error・release後の寿命を検証 |
 | API1.2-HINT | [宣言 binding と initializer の hook EmitHint 修復](slices/api1-2-printer-hook-hints.md)（統合担当） | 新規72 caseと元のcomment-carry24 caseが完全一致×2。hint依存の置換、失敗後の再利用、全eventと出力を比較。PR #537で統合済み、全hosted jobと両gate成功。現在のClaude C01〜C05とは別作業 |
-| API1.2 | before / after / afterDeclarations custom transforms、clone/original、callback/write precedence | API1.1、H2.8c/d。callback 順序、mutation/identity、error/repeated emit/cancel が一致 |
+| API1.2 | 採用TS7公開APIのemit/transform拡張、callback/write境界。旧before/after/afterDeclarationsとclone/originalは公開範囲を先に判定 | API1.0/1.1、必要なH2.8c/d。採用分のcallback順序・identity・error/repeated emit/cancelを一致させる。旧API全再現を自動で条件にしない |
 | L3.0 | Go LS / native FourSlash の query inventory、service host/snapshot/modes、typed request と multigeneration harness | VER-MAP、L2.0。採用 query ごとの complete results / span / cancel を固定。調査・harness は H2 終了前から可 |
 | L3-PROJ1 | configured/inferred/external project、open-file overlay、選択、config discovery、lifecycle | L3.0、L2.4、CFG/HOST。旧 L4.1 の必要責務をここへ移す。open/edit/close と project release を比較 |
 | L3.1a | syntactic/semantic/partial-semantic diagnostics | L3-PROJ1、対応 checker。編集・option/project 変更後の診断順序と span が一致 |
@@ -254,7 +258,7 @@ legacy tsserver を先に実装する条件を付けない。各 query family �
 | L3.4b | refactors | L3.2/3 の必要 query。各 refactor owner を別子 slice にし、selection / applicability / edits / cancel を比較 |
 | L3.4c | organize imports / paste edits / inlay hints | L3.3 の必要 query。各独立 family を別 PR とし、options・edits・位置・競合を比較 |
 | L3.5 | per-file emit/maps、採用 FourSlash/service 全体、長期 edit/query qualification | L3.1〜4、H2.8d。whole-Program の代用なし。fresh equality と resource 上限 |
-| L5.0 | LSP version/capabilities と native typed interface、protocol/sync harness | L3.0、VER-MAP。独立の capability / request / error 分母。tsserver bridge は作らない |
+| L5.0 | 固定TS7 Go LSPのversion/capabilities、JSON-RPC2.0のrequest/notification/errorとnative typed interface、protocol/sync harness | L3.0、VER-MAP。独立の capability / request / error 分母。tsserver bridge は作らない |
 | L5.1 | initialize/shutdown、URI/path/workspace、UTF-16 sync/version/config | L5.0、L3-PROJ1。Unicode/case/symlink/stale version/reconnect/close の protocol tests |
 | L5.2a | navigation / rename / symbols / hierarchy を LSP へ対応 | L5.1、対応 L3.2。結果変換・capability の有無・workspace 境界を比較 |
 | L5.2b | completion / hover / signature / semantic tokens を対応 | L5.1、対応 L3.1/3。partial/optional result を含む protocol 観測 |
