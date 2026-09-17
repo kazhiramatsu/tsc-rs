@@ -93,6 +93,14 @@ work, including actual Go execution traces of calls, decisions and state changes
 The design builds on the existing native runner and probe workflow. Its new
 automation and layout remain planned; implementation follows the emitter milestone.
 
+Follow-up clarification: compare fixed source and target commits, and track
+upstream completeness separately from Rust adoption. For partially implemented
+features, retain the observed scope, missing conditions, related PRs and triggers
+for investigation at the next pin. Independently usable subsets may be adopted
+with an explicit contract and dependencies; foundation ports alone do not close
+the whole feature. A tracking update preserves unfinished work and prior evidence.
+The upstream-tracking design specifies these rules and their SYNC2–4 checks.
+
 The first follow-on task is the [native test/build/debug workflow](typescript-7-workflow.md),
 ahead of further H2 implementation, as directed by the user on 2026-09-06.
 Run compiler fixtures and native FourSlash tests at a fixed commit and use

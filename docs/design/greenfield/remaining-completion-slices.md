@@ -280,11 +280,14 @@ test選定→比較→slice→必要なGo処理のRust実装という7段階を�
 `_tsc.js`調査と同じ粒度で、Goも実際に実行し、呼出し・分岐・状態変化をtraceする。
 新しい追従ツールは未実装。emitter後にSYNC1/2、次にSYNC3/4と機能移植pilotをまとめて進める。
 既存native pinでのGo test成功と、Rustの機能採用・accepted profile更新は区別する。
+比較元・比較先のcommitを固定し、上流で部分実装の機能は完成度とRust採用状態を別管理する。
+不足条件・関連PR・再調査条件を保持し、次のpinで影響範囲を見直す。独立した部分採用と
+基盤の先行移植を分け、機能全体の完了を判定する。詳細は[上流で実装途中の機能](typescript-7-upstream-sync.md#上流で実装途中の機能)。
 
 | ID | 作業と成果物 | 依存・終了条件 |
 | --- | --- | --- |
-| VER1.0-SYNC1/2 | 元パスを保つtest inventory/layout adapter、Issueロードマップ・詳細仕様・固定commit間差分を結ぶ機能台帳 | 既存native workflow。MAPの棚卸しに接続。設定・操作列・test移動・廃止・未知群・共有harness/lib変更を保持。詳細は[設計案](typescript-7-upstream-sync.md) |
-| VER1.0-SYNC3/4 | 選択したGoの実行traceと新旧Go/Rustの比較、Claude/Codex向けslice・実装への引継ぎ・合成検証案生成 | SYNC1/2と対象のRust driver。初回はcompiler、LSP/APIは各実装に合わせて拡張。未実行・skip・非対応を成功に含めず、FEATURE-*へ依存順に分配 |
+| VER1.0-SYNC1/2 | 元パスを保つtest inventory/layout adapter、Issueロードマップ・詳細仕様・固定commit間差分を結ぶ機能台帳。上流/Rustの状態、不足条件、関連PRと再調査条件を記録 | 既存native workflow。MAPに接続。設定・操作列・移動・廃止・未知群・共有依存変更を保持。checkpoint更新後も未完了項目を残す。詳細は[設計案](typescript-7-upstream-sync.md) |
+| VER1.0-SYNC3/4 | Goの実行traceと新旧Go/Rust比較、担当別slice・合成検証案。上流の後続実装・仕様変更・revertで再調査し、部分採用・先行移植・上流待ちを区別 | SYNC1/2と対象のRust driver。初回はcompiler、LSP/APIは各実装に合わせ拡張。上流未完成・未実行・skip・非対応を互換成功に含めず、採用はMAP/PINと既存readinessに従う |
 | VER1.0-FEATURE-PILOT | 一件の限定した機能で調査1〜7を一巡し、必要なGo処理をRustへ移して検証する | SYNC1〜4と該当producer。調査開始時に対象を選び、原本・trace・固定test・依存・readinessを揃える。report生成のみでは完了しない |
 | VER1.0-PIN | source/libs/locale/package/generated data、runner と oracle の version pin を更新し、採用 profile の移行表を作る | VER1.0-MAP。6.0.3 の凍結証拠を保存。新旧の意図的な差、廃止、未採用を個別に明記してから runtime admission |
 | VER1.0-FEATURE-* | MAP が列挙した TS7 の新機能・意図的変更を producer と依存ごとに実装 | PIN と各 checker/resolver/emitter/service の前提。各機能に固定 test 群と exact evidence。compiler 群と native service 群を別 claim とする |
