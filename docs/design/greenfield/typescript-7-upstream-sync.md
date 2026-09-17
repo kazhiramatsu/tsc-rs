@@ -11,6 +11,71 @@
 実装済みの入口は[固定参照の実行手順](typescript-7-workflow.md)、
 実行順は[残作業台帳](remaining-completion-slices.md)。
 
+## 参照は7.1、実装は既存機能の不足を優先する
+
+2026-09-17、ユーザーは7.0までの不足解消を先行する方針を示した後、APIの変更を考慮して
+7.1を起点にする案を提示した。以下はその追加提案と上流調査に基づく推奨案である。
+**emitter完成後は7.1の固定commitを設計・比較の共通参照にし、実装順は7.0以前からある
+機能の不足を優先する。** API/LSPの設計には7.1の契約と、そのために必要な依存を最初から含める。
+7.1の追加言語機能・lib更新は依存と優先度で後続batchへ分ける。
+現在のemitter完了条件、LSP/APIなどの製品別の完了判定、accepted profileの更新は別管理する。
+
+起点にするロードマップはユーザー指定の
+[TypeScript 7.1 Iteration Plan #63703](https://github.com/microsoft/TypeScript/issues/63703)。
+2026-09-17に本文を確認し、Issueはopen、更新日時は2026-09-12T18:40:54Zだった。
+言語・lib、API安定化、editor/LSP、性能、基盤の各項目から関連Issue/PR、固定source、testへ進む。
+[API feature roadmap #63875](https://github.com/microsoft/TypeScript/issues/63875)も併用し、
+新規APIの設計依存と、既存機能のRust側の不足を対応付ける。
+
+### 7.1を参照にする根拠と確認の範囲
+
+[7.0の公式発表](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)は、
+7.0製品にAPIを同梱せず、新しいAPIを7.1で提供する予定だと説明している。
+Goの7.0 sourceに実験的なAPI実装があることと、7.0製品の公開API契約は区別する。
+後続APIを7.1の設計から始めることで移植のやり直しを減らせる、というのが今回の判断である。
+
+既存調査pin `1f70213d4922b434345f639b441681e470c7cfc1`（`7.1.0-dev`）と、
+[`v7.0.2`](https://github.com/microsoft/TypeScript/releases/tag/v7.0.2)の
+`1e4744d68260a7cb91b62b12edc3f6a2187faaf1`について、
+[`tsc/internal/api/proto.go`の7.0側](https://github.com/microsoft/TypeScript/blob/1e4744d68260a7cb91b62b12edc3f6a2187faaf1/tsc/internal/api/proto.go)と
+[7.1側](https://github.com/microsoft/TypeScript/blob/1f70213d4922b434345f639b441681e470c7cfc1/tsc/internal/api/proto.go)の
+Method定数を静的に照合した。7.1側で31名の追加、3名の削除があり、追加には
+`createProgram`、`transpileModule`、`transpileDeclaration`、emitと設定処理のAPIが含まれる。
+原本SHA-256は7.0側 `5cf38a8dbc87c3f2b5032e9362cefd19dde703d9c9bf3063b2789bb1d5ffea19`、
+7.1側 `102c2bb8f82b4afc8980f2984ade731fbf97a454371fff064906ffa0f64f59ce`。
+これは宣言名の比較であり、31機能の完成、公開互換性、実行traceの証明ではない。
+
+[Build Orchestrator API #64158](https://github.com/microsoft/TypeScript/pull/64158)は、
+7.1でのbuild用APIとclient側のhost責務を扱うが、確認時はopen・未mergeだった
+（head `24144e9f6a11f0d66a4055f368e923581424a854`）。
+計画・開発中・固定pinに実装済み・採用済みを分け、未完成部分には既存の部分実装ルールを適用する。
+参照開始時にはIssue本文と関連PRの更新を再確認する。
+
+### Language Service APIの完成度
+
+#63703のLanguage Service APIはリンクのない項目であり、空欄だけから未実装とは判定しない。
+#63875の項目5では、公開するLanguage Serviceメソッドがまだ残っていると説明されている。
+2026-09-17に取得したmain `5c2f7abf1733c9148100c5c6c7dd284745120d6b`の
+[非同期clientのLanguageService class](https://github.com/microsoft/TypeScript/blob/5c2f7abf1733c9148100c5c6c7dd284745120d6b/packages/typescript/src/api/async/api.ts#L1034)
+には、constructorを除いて5つのasyncメソッドがあり、補完、参照シンボル、import編集などを公開している。
+これはこのclassの静的な宣言確認で、API全体の分母や実行検証ではない。
+7.0で提供されたLSPのエディター機能、Go内部のLanguage Service、外部プログラム向けAPIは
+別の契約として棚卸しする。現状は公開APIの整備途中として扱い、固定pinで動く部分から
+調査・移植し、追加メソッドや未確定の契約は関連Issue/PRとともに再調査待ちへ残す。
+この追加読解pinを既存helperやaccepted profileへ採用したわけではない。
+
+### 台帳と比較基準
+
+機能台帳には、導入された世代（7.0まで / 7.1以降 / 未確定）と根拠、7.1での仕様変更、
+API/基盤の依存、実装優先度、上流完成度、Rust採用状態を別々に保存する。
+7.0以前の機能も7.1側の対象挙動とtestへ対応付け、廃止・変更されたものは移行表に残す。
+7.0の固定参照は導入時期や変更理由の比較に使い、7.1 pinでの成功を7.0互換の証拠にはしない。
+
+後続調査は既存の7.1開発pinを起点にできる。各sliceでは対象のAPI/言語機能が入った
+具体的なcommitとtest/lib/clientを固定し、releaseとの対応・未完成範囲を明記する。
+既存のaccepted profileは6.0.3のままで、7.1参照の採用や不足一覧の実測はまだ行っていない。
+今回の変更は設計方針の整理であり、helperのpin変更や7.1全体の互換性宣言ではない。
+
 ## 目指す作業の流れ
 
 新しい上流コミットを見つけるたびに、調査から移植までをやり直さずに済むようにする。
@@ -138,6 +203,8 @@ inventoryの不足として報告する。既存6.0.3の入力・証拠の移動
 
 最初は現在のnative調査pinをinventoryの起点にする。そこからの差分だけでは6系から
 TS7への移行分を網羅できないため、VER1.0-MAPで起点以前の機能・意図的変更も棚卸しする。
+この起点より前からある不足も、7.1側の仕様・testとRustの対応表で調べる。
+7.0の固定参照は導入時期と変更理由の比較に使い、7.1の実行結果と混同しない。
 tracking checkpointを進めることと、accepted profileを更新することは別の操作になる。
 差分検出を理由に既存の未対応行や合格基準を消さない。
 
@@ -289,10 +356,10 @@ emitter後、まず以下の1・2を一つの実装batchにし、次に3・4と�
 | ID | 成果物と終了条件 | 依存・担当 |
 | --- | --- | --- |
 | VER1.0-SYNC1 | 固定commitのlayout/inventoryと元パスを保つimport manifest。compiler設定、FourSlash操作列、API client群を別々に表現し、重複・未知・除外を検出 | 既存native workflow。Codexが基盤・既存harnessとの接続を担当 |
-| VER1.0-SYNC2 | ロードマップ資料の更新、詳細仕様、固定commit間の差分を機能台帳へ結ぶ。上流とRustの状態、不足条件、関連PR、再調査条件を分け、追加/削除/移動・baselineのみ・共有依存変更も残す | SYNC1。Codex。MAPへ接続。再実行・重複イベントでも同じ機能IDを使い、checkpoint更新後も未完了項目を保持 |
+| VER1.0-SYNC2 | ロードマップ資料の更新、詳細仕様、固定commit間の差分を機能台帳へ結ぶ。導入世代と根拠、7.1の仕様変更とAPI依存、実装優先度、上流とRustの状態、不足条件、関連PR、再調査条件を分け、追加/削除/移動・baselineのみ・共有依存変更も残す | SYNC1。Codex。MAPへ接続。既存機能の不足を優先し、7.1のAPI/基盤依存と追加言語機能を区別する。再実行・重複イベントでも同じ機能IDを使い、checkpoint更新後も未完了項目を保持 |
 | VER1.0-SYNC3 | 選択したnative compiler testでGoの実行traceと新旧Go/Rustの比較を一巡。Go/Rustの責務、全設定・欠測・上流未完成・旧版非対応・baseline削除を区別し、更新で影響する既存観測も再確認 | SYNC1/2、対象のRust観測driver。Codex。FourSlash/APIの実行対応はL3/API1/L5の実装に合わせて追加 |
 | VER1.0-SYNC4 | 詳細仕様・trace・比較から担当別sliceと合成検証案を生成。独立した部分採用、基盤の先行移植、上流待ちを分け、原本・owner・依存・command・終了条件を引き継ぐ | SYNC2/3。Codexが生成・統合を担当。Claudeへは依存が閉じた機能群をまとめて渡す。公開範囲の採用はMAP/PINと既存readinessに従う |
-| VER1.0-FEATURE-PILOT | 台帳から限定した一件を選び、手順1〜7を通して必要なGo処理をRustへ実装し検証。対応済みならその根拠を残し、移植が必要な別項目で実装工程も確認する | SYNC1〜4と該当producer。Codex/Claudeが実装、Codexが統合。調査開始時に対象commit・仕様・testを特定する |
+| VER1.0-FEATURE-PILOT | 台帳の既存機能の不足から限定した一件を選び、手順1〜7を通して必要なGo処理をRustへ実装し検証。対応済みならその根拠を残し、別の既存機能の不足で実装工程も確認する | SYNC1〜4と該当producer。Codex/Claudeが実装、Codexが統合。調査開始時に7.1の対象commit・仕様・testと上流の完成範囲を特定する |
 
 生成物は既存の[slice packet手順](slices/README.md)へ接続する。
 原本・Go/Rustの現行symbol・trace・期待値・依存が揃い、適用するreadiness検証を通った
@@ -313,6 +380,8 @@ rename、選択ゼロ、skip、未知layout、同じ入力の設定変更など�
 reportを生成する運用を追加できる。定期処理の設定はまだ行わない。
 新機能は`VER1.0-FEATURE-*`へ依存順に分配し、未実装/実装中/検証済み/採用済みを管理する。
 台帳の追跡範囲は7.0に限定せず、7.x以降にも同じ手順を適用する。
+参照versionと実装順は区別する。7.1を共通参照に、既存機能の不足と必要なAPI/基盤を先行し、
+追加の言語機能・lib更新は依存と優先度で後続batchへ分ける。
 
 固定commit間の比較と上流の部分実装に関する追加合意も、この設計とSYNC2〜4の
 終了条件へ反映した。半自動化本体の実装順は引き続きemitter完成後とする。
@@ -325,3 +394,6 @@ reportを生成する運用を追加できる。定期処理の設定はまだ�
 今回の上流build/test・新たなGo trace、Rust比較、新機能の網羅的な仕様調査、
 テスト配置変更は未実施。
 この文書をemitterの新しい終了条件には加えない。
+後続の方針更新では#63703とAPIロードマップ、7.0の公式発表、固定した7.0/7.1のAPI宣言を
+確認した。7.1を参照に既存不足を先行する推奨案を記録したが、各機能の詳細な実行調査や
+Rust実装、7.1全体の完成度判定はまだ行っていない。

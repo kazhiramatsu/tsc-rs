@@ -12,6 +12,13 @@ Its future automation reuses this runner and the print-debugging workflow below;
 inventory, arbitrary-reference comparison and slice generation are not supported
 commands yet.
 
+The recommended next reference is 7.1, while missing existing functionality
+is implemented first; see the [version/reference rationale](typescript-7-upstream-sync.md).
+The development pin below remains an investigation starting point. Each
+adoption slice must pin its source, clients, tests and libraries and state
+its incomplete scope. This workflow does not establish 7.0 compatibility
+or completion of the 7.1 API.
+
 ## Pinned environment
 
 - Repository: `microsoft/TypeScript`, commit
