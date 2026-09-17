@@ -1,0 +1,15 @@
+# candidate final bytes (2026-09-17)
+d83c8825dae31dba5df9e9272617b5cbf3d05aa3366bbb4a9ab45a8a70fe109a  crates/compiler/tests/fixtures/bundle-metadata-t1-inputs.json
+11e7cbebfdb2c0998d1ca9241b579048528b1668fcd46f78a4cffa97c437ed27  crates/compiler/tests/fixtures/bundle-metadata-t1.json
+7f03ec86ce2f8de123387262bc82905614660ced3335855069b97575e32add72  crates/compiler/tests/fixtures/bundle-metadata-t1-known-native.json
+81247002134bbc9035d0070b68ccb782dcec9697cc4bb14f8e94d31c952d7d72  crates/compiler/tests/fixtures/bundle-metadata-t1-known-packet.json
+13020255b9b76fd23e19e5261b7ddb92962eab9f7a4949f977487dfb4158d5fc  scripts/observe-bundle-metadata-t1.mjs
+788822bb2e04b8e127cc7ea0afc3ff0b9b2e0169b338d1caa668ba62b09d1b6b  scripts/generate-bundle-metadata-t1-inputs.mjs
+9aa342134e44f2b645fcfe18b28ed4ce6c0d66dbef80cb53175e02710ba3dfe6  crates/compiler/tests/bundle_metadata_t1_contract.rs
+0284b24a2bc6e8d111f60b77d76b2bb6008c5ec53e26330a16386109ec678b15  crates/compiler/tests/fixtures/decorator-binding-inputs.json
+be52ec87a5cdcfa407ccd0729b1eaa020f4c6e71b159dabbb507efbc70915ab7  crates/compiler/tests/fixtures/decorator-binding.json.zst
+c3e1defc3e6f2d98f34befa9477d14d7404fbd3179179ac3f993537a788b5358  crates/compiler/tests/fixtures/decorator-binding-known-native.json
+6d05f2bbe6d92612d9b4f8cce682e35b3b6f1d2b7c5f59114ef028b7f48e5327  scripts/observe-decorator-bindings.mjs
+1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3  vendor/typescript-6.0.3/lib/_tsc.js
+569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39  vendor/typescript-6.0.3/lib/typescript.js
+be36223e9c563d20ba7c3f38f14aeaf333521ff2b942329bfca3d2bdd0ae6a09  crates/compiler/tests/fixtures/decorator-binding-known-native.json (base 84da0c027, 9 rows)

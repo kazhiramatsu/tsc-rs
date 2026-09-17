@@ -59,46 +59,6 @@
       }
     },
     {
-      "case_id": "decorator-binding/lifecycle/es2015/define/bundle-file-level-then-scoped-across-files",
-      "class": "T1",
-      "owner": "bundle parse-node metadata portability (H2.7d / A-INT3-CS): the System bundle snapshot refuses the printer's comment_range annotation on a parsed Identifier (second cause; the internal-flag cause is fixed)",
-      "disposition": "typed-error-no-exact-credit",
-      "native": {
-        "outcome": "typed-error",
-        "error": "Emit(Transform(ParsedEmitMetadataNotPortable(TransformNode { source: TransformSourceId(1), node: NodeId(_) })))"
-      }
-    },
-    {
-      "case_id": "decorator-binding/lifecycle/es2015/set/bundle-file-level-then-scoped-across-files",
-      "class": "T1",
-      "owner": "bundle parse-node metadata portability (H2.7d / A-INT3-CS): the System bundle snapshot refuses the printer's comment_range annotation on a parsed Identifier (second cause; the internal-flag cause is fixed)",
-      "disposition": "typed-error-no-exact-credit",
-      "native": {
-        "outcome": "typed-error",
-        "error": "Emit(Transform(ParsedEmitMetadataNotPortable(TransformNode { source: TransformSourceId(1), node: NodeId(_) })))"
-      }
-    },
-    {
-      "case_id": "decorator-binding/lifecycle/es2022/define/bundle-file-level-then-scoped-across-files",
-      "class": "T1",
-      "owner": "bundle parse-node metadata portability (H2.7d / A-INT3-CS): the System bundle snapshot refuses the printer's comment_range annotation on a parsed Identifier (second cause; the internal-flag cause is fixed)",
-      "disposition": "typed-error-no-exact-credit",
-      "native": {
-        "outcome": "typed-error",
-        "error": "Emit(Transform(ParsedEmitMetadataNotPortable(TransformNode { source: TransformSourceId(1), node: NodeId(_) })))"
-      }
-    },
-    {
-      "case_id": "decorator-binding/lifecycle/es2022/set/bundle-file-level-then-scoped-across-files",
-      "class": "T1",
-      "owner": "bundle parse-node metadata portability (H2.7d / A-INT3-CS): the System bundle snapshot refuses the printer's comment_range annotation on a parsed Identifier (second cause; the internal-flag cause is fixed)",
-      "disposition": "typed-error-no-exact-credit",
-      "native": {
-        "outcome": "typed-error",
-        "error": "Emit(Transform(ParsedEmitMetadataNotPortable(TransformNode { source: TransformSourceId(1), node: NodeId(_) })))"
-      }
-    },
-    {
       "case_id": "decorator-binding/lifecycle/esnext/define/bundle-computed-temps-two-files",
       "class": "R12",
       "owner": "builtins/system.rs: the System bundle's natively decorated export class statement lacks the two statement-end source map segments of its closing `};`",
@@ -201,16 +161,6 @@
             "bytes": 365
           }
         ]
-      }
-    },
-    {
-      "case_id": "decorator-binding/lifecycle/esnext/set/bundle-file-level-then-scoped-across-files",
-      "class": "T1",
-      "owner": "bundle parse-node metadata portability (H2.7d / A-INT3-CS): the System bundle snapshot refuses the printer's comment_range annotation on a parsed Identifier (second cause; the internal-flag cause is fixed)",
-      "disposition": "typed-error-no-exact-credit",
-      "native": {
-        "outcome": "typed-error",
-        "error": "Emit(Transform(ParsedEmitMetadataNotPortable(TransformNode { source: TransformSourceId(1), node: NodeId(_) })))"
       }
     }
   ]

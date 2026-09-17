@@ -328,6 +328,21 @@ COMPILER_DIRECT = {
         "fixtures": (("crates/compiler/tests/fixtures/h2-8a-jsdoc-return.json", 58, "id"),),
         "observers": ("scripts/observe-h2-8a-jsdoc-return.mjs",),
     },
+    # H2.8a-A-RES-BUNDLE-METADATA-T1: parse-node comment ranges carried from a
+    # bundle's JavaScript transform into its declaration transform (16
+    # complete commands + upstream emitNode probes, two tests).
+    "bundle-metadata-t1": {
+        "target": "bundle_metadata_t1_contract",
+        "test": ("bundle_metadata_t1_controls_match_complete_typescript_observations",
+                 "bundle_metadata_t1_parsed_packet_matches_typescript_after_javascript_probe"),
+        "tests": 2,
+        # The imported exact comparator module carries its own eight tests.
+        "filtered_tests": 8,
+        "fixtures": (("crates/compiler/tests/fixtures/bundle-metadata-t1.json", 18, "case_id"),),
+        "observers": ("scripts/observe-bundle-metadata-t1.mjs",),
+        "inputs": tuple(f"crates/compiler/tests/fixtures/bundle-metadata-t1-{name}.json"
+                        for name in ("inputs", "known-native", "known-packet")),
+    },
     "parameter-temporaries": {
         "target": "h2_5h_parameter_temporaries",
         "tests": 2,
@@ -539,7 +554,8 @@ def invocation(suite, needles, environ=None):
         for key in ("TSC_RS_DECL_COMMENT_FILTER", "TSC_RS_DECL_COMMENT_CAPTURE_DIR",
                     "TSC_RS_JSDOC_RETURN_FILTER", "TSC_RS_JSDOC_RETURN_CAPTURE_DIR",
                     "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR",
-                    "TSC_RS_REQUIRE_REWRITE_FILTER", "TSC_RS_H2_8A_CAPTURE_WRITES_DIR"):
+                    "TSC_RS_REQUIRE_REWRITE_FILTER", "TSC_RS_H2_8A_CAPTURE_WRITES_DIR",
+                    "TSC_RS_BUNDLE_METADATA_T1_CASE_SET", "TSC_RS_BUNDLE_METADATA_T1_DUMP_DIR"):
             env.pop(key, None)
         return compiler_direct_command([suite]), env
     if suite in EMITTER_DIRECT:

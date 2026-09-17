@@ -1,0 +1,667 @@
+{
+ "version": 1,
+ "description": "H2.8a-A-RES-BUNDLE-METADATA-T1 adjacent controls: parse-node commentRange carried from a bundle's JavaScript transform to its declaration transform (receiver source, endpoint kind, mount order, UTF-16 text, lifetimes).",
+ "cases": [
+  {
+   "case_id": "bundle-metadata-t1/receiver/es2015/static-get-second-file",
+   "family": "receiver",
+   "variant": "static-get-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/receiver/es2015/static-get-first-file",
+   "family": "receiver",
+   "variant": "static-get-first-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/receiver/es2015/static-get-both-files",
+   "family": "receiver",
+   "variant": "static-get-both-files",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static #p = 1;\n    static readP() { return A.#p; }\n}\nexport const tailB = A.readP();\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/receiver/es2015/static-set-second-file",
+   "family": "receiver",
+   "variant": "static-set-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static writeP(v: number) { B.#p = v; }\n}\nB.writeP(2);\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/receiver/es2015/static-compound-second-file",
+   "family": "receiver",
+   "variant": "static-compound-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static bump() { B.#p += 1; }\n}\nB.bump();\nexport const tailB = B.name;\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/receiver/es2015/static-this-second-file",
+   "family": "receiver",
+   "variant": "static-this-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return this.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/receiver/es2015/instance-this-second-file",
+   "family": "receiver",
+   "variant": "instance-this-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    #q = 1;\n    readQ() { return this.#q; }\n}\nexport const tailB = new B().readQ();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/receiver/es2015/nested-class-second-file",
+   "family": "receiver",
+   "variant": "nested-class-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "export function make() {\n    class B extends Object {\n        static #p = 1;\n        static readP() { return B.#p; }\n    }\n    return B.readP();\n}\nexport const tailB = make();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/decorated/es2022/static-get-second-file",
+   "family": "decorated",
+   "variant": "static-get-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\n@dec\nclass B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 9,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/decorated/esnext/static-get-second-file",
+   "family": "decorated",
+   "variant": "static-get-second-file",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "function dec(value: any, context: any): any { return value; }\n@dec\nclass B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 99,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/mount-order/es2015/json-before-annotated",
+   "family": "mount-order",
+   "variant": "json-before-annotated",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "import * as data from \"./data.json\";\nexport const n = data.n;\n"
+    },
+    {
+     "path": "/project/data.json",
+     "text": "{ \"n\": 1 }\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0",
+    "resolveJsonModule": true,
+    "moduleResolution": 2
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/mount-order/es2015/json-between-annotated",
+   "family": "mount-order",
+   "variant": "json-between-annotated",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static #p = 1;\n    static readP() { return A.#p; }\n}\nexport const tailB = A.readP();\n"
+    },
+    {
+     "path": "/project/data.json",
+     "text": "{ \"n\": 1 }\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "import * as data from \"./data.json\";\nexport const n = data.n;\nclass B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0",
+    "resolveJsonModule": true,
+    "moduleResolution": 2
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/utf16/es2015/non-bmp-before-receiver",
+   "family": "utf16",
+   "variant": "non-bmp-before-receiver",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "const s = \"😀😀\";\nclass B extends Object {\n    static #p = 1;\n    static readP() { return /* 😀 */ B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/lifetime/es2015/source-file-roots",
+   "family": "lifetime",
+   "variant": "source-file-roots",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 5,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "ignoreDeprecations": "6.0",
+    "outDir": "/project/out"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/lifetime/es2015/no-declaration",
+   "family": "lifetime",
+   "variant": "no-declaration",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/lifetime/es2015/emit-declaration-only",
+   "family": "lifetime",
+   "variant": "emit-declaration-only",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 2,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0",
+    "emitDeclarationOnly": true
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/residual/es2015/system-export-class-map",
+   "family": "residual",
+   "variant": "system-export-class-map",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "export class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 4,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  },
+  {
+   "case_id": "bundle-metadata-t1/residual/es2015/system-hoisted-class-map",
+   "family": "residual",
+   "variant": "system-hoisted-class-map",
+   "roots": [
+    "/project/main.ts",
+    "/project/second.ts"
+   ],
+   "files": [
+    {
+     "path": "/project/main.ts",
+     "text": "class A extends Object {\n    static f = 1;\n}\nexport const tailA = A.name;\n"
+    },
+    {
+     "path": "/project/second.ts",
+     "text": "class B extends Object {\n    static #p = 1;\n    static readP() { return B.#p; }\n}\nexport const tailB = B.readP();\n"
+    }
+   ],
+   "options": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipDefaultLibCheck": true,
+    "noErrorTruncation": true,
+    "newLine": 0,
+    "target": 2,
+    "module": 4,
+    "useDefineForClassFields": false,
+    "removeComments": false,
+    "outFile": "/project/out/bundle.js",
+    "ignoreDeprecations": "6.0"
+   }
+  }
+ ]
+}

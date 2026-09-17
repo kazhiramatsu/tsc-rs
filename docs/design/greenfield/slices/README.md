@@ -23,6 +23,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [H2.8a-A-RES-BUNDLE-METADATA-T1 bundle parse-node comment-range portability](h2-8a-bundle-metadata-t1/DESIGN.md) | Claude candidate at `84da0c027` + patch; integration, hosted validation and admission pending | Carry parsed `commentRange` (with its own source identity) from a bundle's JavaScript transform into the same command's declaration transform; retire the five T1 known-native rows; `bundle-metadata-t1` focused suite ([REPORT](h2-8a-bundle-metadata-t1/REPORT.md)) |
 | [C02 generated binding integration](h2-8a-generated-binding/integration/revised/README.md) | Integration candidate; hosted validation pending | Review F1/F2 repairs, carry consumed temp ordinals through print failures, and register direct156/pipeline768 inputs with strict known controls. |
 | [OPS-COVER-3N / 3O module identities and original JavaScript bundle recorder](witness-coverage/compiler-module-facets/README.md) | CI entry candidate; hosted pending | Add three module tests and one original recorder test, with pinned oracle checks and shared controls build. |
 | [Claude additional request: T1 bundle metadata](h2-8a-bundle-metadata-t1-claude-handoff.md) | Repair candidate request after #549 | Parsed comment-range identity and ordinary Bundle metadata lifetime; five recorded T1 cases. |

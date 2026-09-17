@@ -1,0 +1,13 @@
+# case bundle-metadata-t1/receiver/es2015/static-compound-second-file (candidate bytes, AMD/System per the input manifest)
+# left = Rust bundle.js.map, right = upstream bundle.js.map; tuples = (generated line, generated column, source line, source column), 0-based
+# bundle.js: identical
+# bundle.d.ts: identical
+# bundle.d.ts.map: identical
+segments 55 53
+--- a9529a83b93f3097-1-0-bundle.js.map
++++ receiver_es2015_static-compound-second-file-bundle.js.map
+@@ -28,4 +28,2 @@
+ (26, 32, 2, 20)
+-(26, 60, 2, 20)
+-(26, 62, 2, 21)
+ (26, 112, 2, 28)

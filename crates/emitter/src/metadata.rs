@@ -254,6 +254,13 @@ impl CommentRange {
         })
     }
 
+    /// Reassemble ownership from a source identity and an endpoint pair that
+    /// was already validated against that source's text. The parsed-metadata
+    /// packet remaps its source between arenas without re-deriving positions.
+    pub(crate) const fn from_parts(source: TransformSourceId, range: CommentSourceRange) -> Self {
+        Self { source, range }
+    }
+
     pub const fn source(self) -> TransformSourceId {
         self.source
     }

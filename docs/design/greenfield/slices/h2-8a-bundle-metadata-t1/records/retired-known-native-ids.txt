@@ -1,0 +1,5 @@
+decorator-binding/lifecycle/es2015/define/bundle-file-level-then-scoped-across-files
+decorator-binding/lifecycle/es2015/set/bundle-file-level-then-scoped-across-files
+decorator-binding/lifecycle/es2022/define/bundle-file-level-then-scoped-across-files
+decorator-binding/lifecycle/es2022/set/bundle-file-level-then-scoped-across-files
+decorator-binding/lifecycle/esnext/set/bundle-file-level-then-scoped-across-files

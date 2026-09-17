@@ -1,0 +1,18 @@
+# case bundle-metadata-t1/residual/es2015/system-hoisted-class-map (candidate bytes, AMD/System per the input manifest)
+# left = Rust bundle.js.map, right = upstream bundle.js.map; tuples = (generated line, generated column, source line, source column), 0-based
+# bundle.js: identical
+# bundle.d.ts: identical
+# bundle.d.ts.map: identical
+segments 51 55
+--- 5caede64e190dc48-1-0-bundle.js.map
++++ residual_es2015_system-hoisted-class-map-bundle.js.map
+@@ -6,2 +6,4 @@
+ (12, 38, 0, 22)
++(13, 13, 2, 1)
++(13, 14, 2, 1)
+ (14, 12, 1, 11)
+@@ -37,2 +39,4 @@
+ (27, 84, 2, 35)
++(28, 13, 3, 1)
++(28, 14, 3, 1)
+ (30, 12, 1, 11)
