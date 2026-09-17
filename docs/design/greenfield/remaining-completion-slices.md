@@ -7,6 +7,10 @@ CI 改修も main `bb2d51c89` にマージ済み。
 
 本書は [実行 schedule](post-h1-completion-slices.md) の現在の棚卸しと担当分割です。
 凍結済みの profile、ratchet、readiness manifest を書き換えるものではありません。
+**emitter後の具体的な順序・子スライス・到達点は[詳細ロードマップ](post-emitter-roadmap.md)、
+最初の依頼案は[移行基盤batch](slices/post-emitter-foundation-batch/README.md)を参照。**
+2026-09-17のmain `3b1f5fe87`を棚卸し基点とし、下記の各履歴の数値・確認SHAはそのまま保持する。
+後続ではemitter完了後のbaseで残差を再確認する。設計行だけでruntime-readyにはしない。
 **現在は[通常compiler emitterの完了まで](slices/emitter-final-batch/README.md)をClaudeへ一括依頼する。EF1〜8と追加で判明した必要producerの調査・実装候補はClaude、shared CI・hosted・最終qualification・PR/mergeはCodex／統合担当。その他の製品フェーズは統合担当が持つ。**
 C01〜C05、T1、POST-T1の提出・統合履歴は下記に保持する。
 候補の提出、main への統合、製品の qualification は別の完了条件です。
@@ -144,7 +148,7 @@ STAGE・profile admission・最終hosted・統合判断は統合担当のまま�
 | --- | --- | --- |
 | PLAN-BASE — 完了 | [固定 main `f9ef828a5` の台帳](slices/plan-base/README.md)。全 active profile の source/future/later-deferred、旧 global/class、known、parameter、direct、upstream exception と後続修復を照合 | 全15,642 corpus IDに disposition あり。再生成一致、判定境界7 tests。これは台帳の完了であり、修復・全 profile qualification の完了ではない |
 | VER1.0-MAP | 固定 TS7 の tests / CHANGES と H2 残項目を retained / intentional change / removed option / new feature に分類。parser/checker/resolver/emitter/libs/CLI/service の機能分母と依存を作る | PLAN-BASE と既存 native workflow。新しい参照を選ぶ場合も commit を固定。ES5/System/UMD/Node10/Classic/AMD/outFile 等を個別に disposition。廃止予定を 6.0.3 の修復完了として数えない |
-| OPS-COVER | [入口台帳・追加スライス](slices/witness-coverage/README.md)。64 standalone / 16 lib-bin の静的棚卸し完了。[OPS-COVER-2](slices/witness-coverage/emitter-direct/README.md) は emitter direct10 target・2239 row の個別選択入口を追加。[OPS-COVER-3A](slices/witness-coverage/declaration-map-cli/README.md) は E-only8 のCLI専用入口を追加。[OPS-COVER-3B](slices/witness-coverage/compiler-utf16/README.md) はUTF-16の3 targetを登録し、PR #532で統合済み（全hosted job・両gate成功）。[OPS-COVER-3C](slices/witness-coverage/compiler-literals/README.md) はliteral2 targetの入口を追加。[OPS-COVER-3D](slices/witness-coverage/compiler-declarations/README.md) はdeclaration3 target・129入力の入口を追加（PR #540で統合済み、全7 hosted job・両gate成功）。[OPS-COVER-3E](slices/witness-coverage/compiler-require-rewrite/README.md)でrequire-rewrite74専用入力を追加しC01とPR #542で統合済み。[OPS-COVER-3F/3G](slices/witness-coverage/compiler-config-prologue/README.md)でconfig/library24 test・96入力とprologue8入力の入口を追加し、PR #544で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3H/3I](slices/witness-coverage/compiler-recovery-map/README.md)でrecovery50とmap-option31専用入力・原本5 IDの2 targetを追加し、PR #545で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3J/3K](slices/witness-coverage/compiler-bundles/README.md)でbundle Programとdeclaration/mapの2 targetを登録し、PR #546で追加7 testsを含む全7 hosted replay job・両gateが成功。[OPS-COVER-3L/3M](slices/witness-coverage/compiler-declaration-maps/README.md)で宣言map出力/APIの2 target・11 testsを登録し、PR #547で統合済み（全8 hosted replay job・両gate成功、CLI比較70回一致）。[OPS-COVER-3N/3O](slices/witness-coverage/compiler-module-facets/README.md)でmodule identityと原本JavaScript bundle recorderの入口を追加し、PR #550で追加4 testsを含む全9 replay job・両gateが成功し統合済み。[OPS-COVER-4A/4B](slices/witness-coverage/foundations/README.md)でsyntax/binder/typesとhost/Programの16 targetを一括追加（PR #551で統合済み、macOS47 /Linux48 testsと全14 hosted checks成功）。POST-T1追加後のv23は73 standalone、残る直接入口なしは7 target | 次は OPS-COVER-3残部：compiler3とfilter残部、4：その他4とlib/bin。共有helperを全targetの実行証明とせず、case重複・選択・件数・時間・失敗伝播を証明 |
+| OPS-COVER | [入口台帳・追加スライス](slices/witness-coverage/README.md)。初期64 standalone / 16 lib-binの静的棚卸しから入口を拡充。[OPS-COVER-2](slices/witness-coverage/emitter-direct/README.md) は emitter direct10 target・2239 row の個別選択入口を追加。[OPS-COVER-3A](slices/witness-coverage/declaration-map-cli/README.md) は E-only8 のCLI専用入口を追加。[OPS-COVER-3B](slices/witness-coverage/compiler-utf16/README.md) はUTF-16の3 targetを登録し、PR #532で統合済み（全hosted job・両gate成功）。[OPS-COVER-3C](slices/witness-coverage/compiler-literals/README.md) はliteral2 targetの入口を追加。[OPS-COVER-3D](slices/witness-coverage/compiler-declarations/README.md) はdeclaration3 target・129入力の入口を追加（PR #540で統合済み、全7 hosted job・両gate成功）。[OPS-COVER-3E](slices/witness-coverage/compiler-require-rewrite/README.md)でrequire-rewrite74専用入力を追加しC01とPR #542で統合済み。[OPS-COVER-3F/3G](slices/witness-coverage/compiler-config-prologue/README.md)でconfig/library24 test・96入力とprologue8入力の入口を追加し、PR #544で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3H/3I](slices/witness-coverage/compiler-recovery-map/README.md)でrecovery50とmap-option31専用入力・原本5 IDの2 targetを追加し、PR #545で統合済み（全7 hosted job・両gate成功）。[OPS-COVER-3J/3K](slices/witness-coverage/compiler-bundles/README.md)でbundle Programとdeclaration/mapの2 targetを登録し、PR #546で追加7 testsを含む全7 hosted replay job・両gateが成功。[OPS-COVER-3L/3M](slices/witness-coverage/compiler-declaration-maps/README.md)で宣言map出力/APIの2 target・11 testsを登録し、PR #547で統合済み（全8 hosted replay job・両gate成功、CLI比較70回一致）。[OPS-COVER-3N/3O](slices/witness-coverage/compiler-module-facets/README.md)でmodule identityと原本JavaScript bundle recorderの入口を追加し、PR #550で追加4 testsを含む全9 replay job・両gateが成功し統合済み。[OPS-COVER-4A/4B](slices/witness-coverage/foundations/README.md)でsyntax/binder/typesとhost/Programの16 targetを一括追加（PR #551で統合済み、macOS47 /Linux48 testsと全14 hosted checks成功）。[CI予算整備](slices/witness-coverage/emitter-final-ci-budget/README.md)後のv24は73 standalone、残る直接入口なしは7 target。全65 suitesを保持し、controls25m21s・module-output20m42sへ再分割済み | 次は OPS-COVER-3残部：compiler3とfilter残部、4：その他4とlib/bin。共有helperを全targetの実行証明とせず、case重複・選択・件数・時間・失敗伝播を証明 |
 | OPS-BUDGET | 追加 suite の build / oracle / replay を測定し、変更 owner ごとの job 分割を維持 | OPS-COVER と各新規 target の実測。1 job 45 分を分割検討の目安、60 分を hard limit とする。重複した build による総 runner 時間も記録。worker 増でメモリ上限を隠さない |
 | OPS-DEBT | [EMPTY-SOURCE](slices/witness-coverage/compiler-config-prologue/empty-source.md)で基点のforced-empty不一致を再現・限定修復し、OPS-COVER-3F/3GとPR #544で合成検証・統合済み（全7 hosted job・両gate成功）。既存 lint・strict test failure を現行 SHA で owner ごとに確定し、独立修復 PR へ分ける | 過去の compiler contract / printer failure の記録はまず再現性を確認。base と新規退行を分離。該当 owner だけ検証し、全 workspace green が未確認ならそう記録。release の採用 gate に未処理を残さない |
 
@@ -236,15 +240,15 @@ registry 作成ではない。固定 TS7 の設計を参照し、fresh 計算と
 | L2.2 | up-to-date 判定、3 reuse state、root/options/reference/import/lib/package 比較、old-Program 候補作成 | L2.1。全 transition 後に fresh と一致し、parse/bind/check 回数と既存 Arc reuse を観測 |
 | L2.3a | C05 の module/type resolution cache を本番 snapshot へ組み込む | C05、L2.0/2.2。dependency ごとの正・負 reuse と invalidation、path/mode identity が一致 |
 | L2.3b | lib / config / package-json / directory / failed-lookup cache と相互 invalidation | L2.3a、CFG/HOST。cache 種別を owner が独立ならさらに分割。per-run cache の単なる長寿命化はしない |
-| L2.4 | publish-new-before-release-old、取消 refresh、stale candidate discard、service/builder interface と長期 qualification | L2.1〜3。取消で状態を壊さず、決定的な世代・RSS/cache 上限・関連既存回帰が green |
+| L2.4a / L2.4b | 4a：publish-new-before-release-old、取消 refresh、stale candidate discard、service/builder interface。4b：再利用を含む長期 qualification | 4aはL2.0/1からfresh計算でも正しさを先に証明。初期API/LSの必要scopeを接続する。4bはL2.2/3を合成し、決定的な世代・RSS/cache上限・関連回帰を確認。両方で旧L2.4全体を閉じる |
 | BLD1.0 | builder / build-info / project-reference の owner/schema/option inventory、native runner と restart oracle | VER-MAP、H2 の必要 artifact。既存 typescript7 helper にない build/watch package 実行入口を pin つきで追加 |
-| BLD1.1 | builder state、affected queues、signature/dependency 比較、unchanged-output suppression、pull/done | L2.4、BLD1.0、H2.8d。fresh full build と一致、順序・取消・failure continuation を比較 |
+| BLD1.1 | builder state、affected queues、signature/dependency 比較、unchanged-output suppression、pull/done | L2.4a、BLD1.0、必要なH2.8d。fresh full buildと一致、順序・取消・failure continuationを比較。再利用の製品qualificationにはL2.2/3/4bも必要 |
 | BLD1.2 | .tsbuildinfo、version/corruption、incremental CLI、build-info-only、restart | BLD1.1。byte 決定性、別 process の再開判断、partial/atomic I/O failure を比較 |
-| BLD1.3a | project-reference graph、redirect、cycle/order、up-to-date status | BLD1.2。solution runner の graph と出力・diagnostics が一致 |
+| BLD1.3a-G / BLD1.3a-S | G：project-reference graph、redirect、cycle/order。S：incrementalなup-to-date status | Gは必要なCFG/HOSTとL2.0から先行しL3-PROJ1bと共有。SはG＋BLD1.2。両方で旧3aを閉じ、solution runnerのgraphと出力・diagnosticsを比較 |
 | BLD1.3b | solution pull、clean/dry/force/verbose、timestamp-only work、partial graph | BLD1.3a。各 mode と failure/restart の output/exit が一致 |
-| BLD1.4 | builder / incremental / solution の全適用観測と resource qualification | BLD1.1〜3。長い graph、restart、bounded state を独立 job で検証 |
+| BLD1.4 | builder / incremental / solution の全適用観測と resource qualification | BLD1.1〜3、L2.4b。長いgraph、restart、bounded stateを独立jobで検証 |
 | W1.0 | virtual clock/scheduler、watch registrations、polling/fallback、coalescing、timer/close | VER-MAP、BLD1.0。実 sleep なしの決定的 event oracle、漏れのない解除 |
-| W1.1 | single-project watch、root/config/package/missing/type-root event、status/afterProgramCreate | W1.0、L2.4、必要な builder。宣言された依存だけ invalidation、event と command 結果が一致 |
+| W1.1 | single-project watch、root/config/package/missing/type-root event、status/afterProgramCreate | W1.0、L2.4aと必要なbuilder/cache。eventとcommand結果が一致。再利用と長期運転の完了にはL2.4bも必要 |
 | W1.2 | solution watch、project 間 invalidation、rebuild/timestamp-only | W1.1、BLD1.3。graph edit / error / cancel / recovery の順序を比較 |
 | W1.3 | churn、fault、cancel、platform、watch/timer/cache/RSS の qualification | W1.1/2。prompt close、stale diagnostics/writes なし。OS ごとの実測は REL1.0 と共有し重複実行を避ける |
 
@@ -264,7 +268,7 @@ API1.0で採用upstream commit・公開範囲・clientを固定してから下�
 | API1.2-HINT | [宣言 binding と initializer の hook EmitHint 修復](slices/api1-2-printer-hook-hints.md)（統合担当） | 新規72 caseと元のcomment-carry24 caseが完全一致×2。hint依存の置換、失敗後の再利用、全eventと出力を比較。PR #537で統合済み、全hosted jobと両gate成功。現在のClaude C01〜C05とは別作業 |
 | API1.2 | 採用TS7公開APIのemit/transform拡張、callback/write境界。旧before/after/afterDeclarationsとclone/originalは公開範囲を先に判定 | API1.0/1.1、必要なH2.8c/d。採用分のcallback順序・identity・error/repeated emit/cancelを一致させる。旧API全再現を自動で条件にしない |
 | L3.0 | Go LS / native FourSlash の query inventory、service host/snapshot/modes、typed request と multigeneration harness | VER-MAP、L2.0。採用 query ごとの complete results / span / cancel を固定。調査・harness は H2 終了前から可 |
-| L3-PROJ1 | configured/inferred/external project、open-file overlay、選択、config discovery、lifecycle | L3.0、L2.4、CFG/HOST。旧 L4.1 の必要責務をここへ移す。open/edit/close と project release を比較 |
+| L3-PROJ1a / L3-PROJ1b | a：単一configured/inferred projectとoverlay/config/lifecycle。b：複数/external projectの採用範囲、参照graph、選択・解放 | L3.0、L2.4a、必要なCFG/HOST。bのgraphはBLD1.3a-Gを共有。初期fresh経路と再利用qualificationを分け、両子で旧PROJ1の採用scopeを閉じる |
 | L3.1a | syntactic/semantic/partial-semantic diagnostics | L3-PROJ1、対応 checker。編集・option/project 変更後の診断順序と span が一致 |
 | L3.1b | classifications、outlining | L3.0/PROJ1。全採用 syntax/query の結果と incremental invalidation が一致 |
 | L3.1c | indentation、formatting | L3.0/PROJ1。text edits、trivia/newline/options、範囲指定の観測が一致 |
@@ -276,14 +280,14 @@ API1.0で採用upstream commit・公開範囲・clientを固定してから下�
 | L3.3c | quick info、signature help | L3.0/PROJ1、対応 checker。display parts / docs / parameter/span が一致 |
 | L3.4a | code fixes / fix-all | L3.1a/2a。diagnostic と fix identity、applicability、複数 file の text change が一致 |
 | L3.4b | refactors | L3.2/3 の必要 query。各 refactor owner を別子 slice にし、selection / applicability / edits / cancel を比較 |
-| L3.4c | organize imports / paste edits / inlay hints | L3.3 の必要 query。各独立 family を別 PR とし、options・edits・位置・競合を比較 |
+| L3.4c | organize imports / paste edits / inlay hints | L3.3の必要query。各独立familyを子sliceとし、options・edits・位置・競合を比較。互換な子は合成PRで検証・統合できる |
 | L3.5 | per-file emit/maps、採用 FourSlash/service 全体、長期 edit/query qualification | L3.1〜4、H2.8d。whole-Program の代用なし。fresh equality と resource 上限 |
 | L5.0 | 固定TS7 Go LSPのversion/capabilities、JSON-RPC2.0のrequest/notification/errorとnative typed interface、protocol/sync harness | L3.0、VER-MAP。独立の capability / request / error 分母。tsserver bridge は作らない |
 | L5.1 | initialize/shutdown、URI/path/workspace、UTF-16 sync/version/config | L5.0、L3-PROJ1。Unicode/case/symlink/stale version/reconnect/close の protocol tests |
 | L5.2a | navigation / rename / symbols / hierarchy を LSP へ対応 | L5.1、対応 L3.2。結果変換・capability の有無・workspace 境界を比較 |
 | L5.2b | completion / hover / signature / semantic tokens を対応 | L5.1、対応 L3.1/3。partial/optional result を含む protocol 観測 |
 | L5.2c | code actions / formatting / inlay hints / workspace edits を対応 | L5.1、対応 L3.1/4。versioned edits、無効要求、未採用 capability の不在も比較 |
-| L5.3a | concurrent scheduler、cancel/progress、partial results、error mapping | L5.1、L2.4。決定的 race/cancel harness。半端な engine state を publish しない |
+| L5.3a | concurrent scheduler、cancel/progress、partial results、error mapping | L5.1、L2.4a。基本の取消/stale抑止は最初のLSP経路から必要。ここで並行・background要求へ拡張し、長期qualificationはL2.4bと合成 |
 | L5.3b | background/region diagnostics、watch/reload、stale-result suppression | L5.3a、L3.1a/PROJ1、W1 の必要 host 部分。旧 L4.2 を移管し、古い世代の結果が editor に届かないことを検証 |
 | L5.4 | protocol/interop、latency/memory/churn/fault/platform と native server qualification | L5.2/3、対応 L3 と REL1.0 の platform 行。専用 hosted job と clean editor smoke。サービスの pass と protocol の pass は別記 |
 
@@ -325,7 +329,7 @@ pilotは既存機能の不足から選び、7.1の固定commitで仕様・trace�
 | REL1.0a | locale catalog と fallback、terminal/encoding profile | 採用 version と E-TERM1。非 vendored locale を pin し、各製品の適用範囲と exact output を検証 |
 | REL1.0b | Windows/POSIX、drive/UNC/case/symlink/permission/timestamp/watch の platform qualification | SYS/W/LSP の該当実装。platform ごとの hosted/manual evidence、未実行 profile は明示。共通観測を再利用する場合は同一入力・producer を確認 |
 | REL1.1 | tsc、compiler-library、native LSP の配布、stock libs/license/metadata、install/upgrade、再現可能 artifact | 採用製品と VER-CLOSE、REL1.0。clean 環境の entry/exit/version と package 再現性。legacy tsserver は必須配布物にしない |
-| REL1.2 | 全 finish line の最終報告と release | 必須の採用製品、VER、M9、REL1.0/1、OPS の採用 gate が完了。各 claim に分母・version・実行 ref・証拠・resource・残 disposition を紐付ける |
+| REL1.2 | 製品ごとのfinish line報告・releaseと、全体の完了記録 | 各採用製品に必要なVER、REL1.0/1、OPSとconfidence gateを満たす。既存M9は6.0.3契約に適用し7.1へ転用しない。各claimに分母・version・実行ref・証拠・resource・残dispositionを紐付ける |
 
 TS7 移行を H2.9 や legacy tooling 全実装の後まで待つ必要はない。
 MAP/PIN と必要な shared-producer 修復を先行し、**profile の明示移行前に既存 6.0.3 の対象を
@@ -350,33 +354,15 @@ MAP/PIN と必要な shared-producer 修復を先行し、**profile の明示移
 
 ## 9. 実行順と共通の完了条件
 
-```mermaid
-flowchart TD
-  P[PLAN-BASE / VER-MAP / OPS-COVER] --> A[H2.8a 残差と候補統合]
-  P --> V[TS7 pin と機能別移行]
-  A --> B[H2.8b host / System]
-  A --> C[H2.8c noCheck / transpile]
-  B --> D[H2.8d emit request]
-  C --> D
-  B --> E[H2.8e CLI]
-  D --> Q[H2.9 one-shot qualification]
-  E --> Q
-  P --> L[L2 再利用]
-  L --> BW[BLD1 / W1]
-  L --> LS[L3 service / projects]
-  LS --> LP[L5 native LSP]
-  D --> API[API1 公開 API]
-  V --> R[REL1 最終製品別 qualification / 配布]
-  Q --> R
-  BW --> R
-  LP --> R
-  API --> R
-  M[M9 安定 producer と 14 windows] --> R
-```
-
-図は製品間の概略。各表の依存が実装開始を決める。L3/L5 の inventory・protocol harness、
-C04/C05 の隔離調査を H2.9 待ちにしない。shared compiler 行に依存する機能だけ、その行の
-admission を待つ。期間の見積りは owner 分割と focused baseline 後に行い、現時点で
+最新の依存図と推奨batchは[emitter後ロードマップ](post-emitter-roadmap.md)を正とする。
+emitter完了→SYNC1/2・MAP→SYNC3/4＋実装pilotを最初の二batchとし、必要なcompiler/hostと
+snapshotを基にAPI、LS/LSP、build/watchへ分岐する。L2.4a/4bとBLD1.3a-G/3a-Sは、
+正しさ・共有graphの先行実装と、再利用・build全体のqualificationを分ける子IDである。
+L3/L5のinventory・protocol harnessや限定scopeをH2.9全終了待ちにしない。
+公開LS APIの完成をnative LSPの前提にも、BuildOrchestrator APIの完成をCLI build/watchの前提にもしない。
+shared compiler行に依存する機能は、その行のadmissionを待つ。
+M9の14 UTC windowsは既存6.0.3契約に属し、7.1製品の証拠へ自動継承しない。
+期間の見積りはowner分割とfocused baseline後に行い、現時点で
 「残り何件の不具合」「何日で全製品完了」という未計測の数を出さない。
 
 各表の行は設計上の境界。`A-RES-*` / `H2.9-RES-*` / `VER1.0-FEATURE-*` と広い query family は、その行の

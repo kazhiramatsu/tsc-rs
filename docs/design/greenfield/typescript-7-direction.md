@@ -15,6 +15,12 @@ and [API roadmap #63875](https://github.com/microsoft/TypeScript/issues/63875)
 are the investigation entries. The [tracking design](typescript-7-upstream-sync.md)
 records the evidence and distinguishes this recommendation from adoption.
 
+The [post-emitter roadmap](post-emitter-roadmap.md) now gives this direction
+concrete milestones, child slices and product-specific dependencies. Start with
+the [foundation batch](slices/post-emitter-foundation-batch/README.md), then prove
+the seven-step tracking loop through an actual Go-traced Rust implementation.
+Public API completeness is not a prerequisite for the native LSP track.
+
 This amendment supersedes the mandatory tsserver product / separate LSP
 adapter sequence in the older post-H1 and L2-L5 plans, and their requirement
 for separate approval merely to begin post-6.0.3 work. Routine selection and

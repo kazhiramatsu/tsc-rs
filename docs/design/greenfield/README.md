@@ -1,5 +1,13 @@
 # Greenfield execution guide (READ FIRST, FOLLOW EXACTLY)
 
+For work after the emitter milestone, use the 2026-09-17
+[post-emitter roadmap](post-emitter-roadmap.md) and its
+[first foundation batch](slices/post-emitter-foundation-batch/README.md).
+They refine the existing slice IDs into fixed-reference/test inventory,
+an end-to-end Go-trace/Rust-port pilot, compiler adoption, and API/LSP/build/watch
+tracks. They are planning documents, not runtime-ready packets; the current
+[emitter completion handoff](slices/emitter-final-batch/README.md) remains separate.
+
 For the 2026-09-15 status, start with the
 [remaining-task inventory and completion slices](remaining-completion-slices.md)
 and the [schedule checkpoint](post-h1-completion-slices.md). They separate Claude
