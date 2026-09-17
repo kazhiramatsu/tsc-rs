@@ -1566,7 +1566,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .arena_mut()?
             .metadata_mut(expression)
             .add_flags(EmitFlags::NO_TRAILING_COMMENTS);
+        // The comma sequence becomes a helper argument through
+        // parenthesizeExpressionForDisallowedComma (_tsc.js:20483-20488):
+        // the parentheses take the sequence's range (the update expression),
+        // so the argument maps its `(` and `)` to the update's ends.
         let value = self.create_parenthesized(expression)?;
+        self.context.factory()?.set_text_range(value, expression)?;
         expression = self.create_private_set(assignment_receiver, &slot, value)?;
         expression = self.set_original_and_range(expression, original)?;
         if let Some(result_binding) = &result_binding {
@@ -7769,20 +7774,30 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         })
     }
 
+    /// tsc-port: createCopiableReceiverExpr @6.0.3
+    /// tsc-span: _tsc.js:96567-96578
+    ///
+    /// The receiver is cloned first (`cloneNode`: a synthesized node with no
+    /// text range that keeps the receiver's emit metadata and `original`);
+    /// an inlineable clone is read directly, any other receiver is stored
+    /// in a hoisted temp whose initializer holds the clone. Neither the temp
+    /// nor the clone maps to the source receiver: the visited receiver node
+    /// itself is never placed in the transformed expression.
     fn stabilize_inline_receiver(
         &mut self,
         receiver: TransformNode,
     ) -> Result<StabilizedReceiver, TransformError> {
+        let clone = self.context.factory()?.clone_node(receiver)?;
         if self.is_simple_inlineable_expression(receiver)? {
             return Ok(StabilizedReceiver {
-                read: self.context.factory()?.clone_node(receiver)?,
+                read: clone,
                 initialized: None,
             });
         }
         let temporary = self.allocate_shadowable_temp_name()?;
         let read = self.create_binding_identifier(&temporary)?;
         let target = self.create_binding_identifier(&temporary)?;
-        let initialized = self.create_assignment(target, receiver)?;
+        let initialized = self.create_assignment(target, clone)?;
         Ok(StabilizedReceiver {
             read,
             initialized: Some(initialized),
