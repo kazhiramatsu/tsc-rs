@@ -83,6 +83,16 @@ product, not a blanket prerequisite for the LSP's internal interfaces.
 
 ## Introducing TypeScript 7 behavior
 
+The 2026-09-17 follow-on design for [native test layout and ongoing upstream
+tracking](typescript-7-upstream-sync.md) covers the user's request to align the
+test structure and introduce features from TS7 onward incrementally. The user
+specified seven steps: roadmap/Issue research, detailed specifications, upstream
+diffs, test selection, comparisons, implementation slices and required Go-to-Rust
+implementation. Investigation must retain the depth of the previous `_tsc.js`
+work, including actual Go execution traces of calls, decisions and state changes.
+The design builds on the existing native runner and probe workflow. Its new
+automation and layout remain planned; implementation follows the emitter milestone.
+
 The first follow-on task is the [native test/build/debug workflow](typescript-7-workflow.md),
 ahead of further H2 implementation, as directed by the user on 2026-09-06.
 Run compiler fixtures and native FourSlash tests at a fixed commit and use

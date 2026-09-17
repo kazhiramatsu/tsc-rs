@@ -5,6 +5,13 @@ This is the first implementation step of the user-approved
 upstream investigation loop; Rust compatibility and the accepted 6.0.3
 profile remain separate claims.
 
+The [test-layout and upstream-tracking design](typescript-7-upstream-sync.md)
+connects roadmap/Issue research, detailed specifications, diffs, test selection,
+actual Go traces, comparisons, implementation slices and required Rust ports.
+Its future automation reuses this runner and the print-debugging workflow below;
+inventory, arbitrary-reference comparison and slice generation are not supported
+commands yet.
+
 ## Pinned environment
 
 - Repository: `microsoft/TypeScript`, commit
