@@ -704,6 +704,7 @@ class WitnessTests(unittest.TestCase):
             "config-library": 96, "prologue-comments": 8,
             "utf16-recovery-corpus": 50, "map-option-projection": 31,
             "bundle-program": 27, "bundle-declarations": 56, "bundle-metadata-t1": 18,
+            "post-t1-residuals": 101,
             "module-identities": 56, "bundle-original-javascript": 4,
             "declaration-map-apis": 75, "declaration-maps": 84,
             "literal-update": 1396, "literal-update-pipeline": 22, "require-rewrite": 74,

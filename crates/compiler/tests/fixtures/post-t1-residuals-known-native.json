@@ -1,0 +1,6 @@
+{
+ "version": 1,
+ "route": "native-divergence-controls",
+ "note": "Native outcomes frozen at the candidate bytes for rows that still differ from upstream for a reason outside H2.8a-A-RES-POST-T1: the SHA-256 of every write with exit code, status writes and diagnostics. The comparator asserts each on both passes and counts it as known, never exact; a row that becomes exact fails until it is retired here.",
+ "cases": []
+}

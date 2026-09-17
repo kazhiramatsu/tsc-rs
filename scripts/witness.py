@@ -344,6 +344,22 @@ COMPILER_DIRECT = {
                         for name in ("inputs", "known-native", "known-packet"))
                   + ("scripts/generate-bundle-metadata-t1-inputs.mjs",),
     },
+    # H2.8a-A-RES-POST-T1: adjacent controls for the R9 / R12 / receiver-map /
+    # private-set-comments / decorator-comments residuals (101 complete
+    # commands + upstream emitNode probes for the bundle rows, two tests).
+    "post-t1-residuals": {
+        "target": "post_t1_residuals_contract",
+        "test": ("post_t1_residuals_controls_match_complete_typescript_observations",
+                 "post_t1_residuals_parsed_packet_matches_typescript_after_javascript_probe"),
+        "tests": 2,
+        # The imported exact comparator module carries its own eight tests.
+        "filtered_tests": 8,
+        "fixtures": (("crates/compiler/tests/fixtures/post-t1-residuals.json", 101, "case_id"),),
+        "observers": ("scripts/observe-post-t1-residuals.mjs",),
+        "inputs": tuple(f"crates/compiler/tests/fixtures/post-t1-residuals-{name}.json"
+                        for name in ("inputs", "known-native", "known-packet"))
+                  + ("scripts/generate-post-t1-residuals-inputs.mjs",),
+    },
     "parameter-temporaries": {
         "target": "h2_5h_parameter_temporaries",
         "tests": 2,
@@ -556,7 +572,8 @@ def invocation(suite, needles, environ=None):
                     "TSC_RS_JSDOC_RETURN_FILTER", "TSC_RS_JSDOC_RETURN_CAPTURE_DIR",
                     "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR",
                     "TSC_RS_REQUIRE_REWRITE_FILTER", "TSC_RS_H2_8A_CAPTURE_WRITES_DIR",
-                    "TSC_RS_BUNDLE_METADATA_T1_CASE_SET", "TSC_RS_BUNDLE_METADATA_T1_DUMP_DIR"):
+                    "TSC_RS_BUNDLE_METADATA_T1_CASE_SET", "TSC_RS_BUNDLE_METADATA_T1_DUMP_DIR",
+                    "TSC_RS_POST_T1_RESIDUALS_CASE_SET", "TSC_RS_POST_T1_RESIDUALS_DUMP_DIR"):
             env.pop(key, None)
         return compiler_direct_command([suite]), env
     if suite in EMITTER_DIRECT:

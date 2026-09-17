@@ -1,0 +1,4 @@
+argv: python3 scripts/witness.py post-t1-residuals --all
+env: CARGO_BUILD_JOBS=2 (taskpolicy -b nice -n 15) 
+exit: 1
+seconds: 463

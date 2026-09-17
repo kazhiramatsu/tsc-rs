@@ -1,0 +1,4 @@
+argv: env TSC_RS_POST_T1_RESIDUALS_DUMP_DIR=/private/tmp/claude-501/-Users-hiramatsu-dev-tsc-rs/5c0ca8e3-b16d-4ad8-b602-338200b8097b/scratchpad/before-new/dump cargo test --manifest-path crates/compiler/Cargo.toml --test post_t1_residuals_contract post_t1_residuals_controls_match_complete_typescript_observations -- --exact post_t1_residuals_parsed_packet_matches_typescript_after_javascript_probe --nocapture --test-threads=1
+env: CARGO_BUILD_JOBS=2 (taskpolicy -b nice -n 15) TSC_RS_POST_T1_RESIDUALS_DUMP_DIR=/private/tmp/claude-501/-Users-hiramatsu-dev-tsc-rs/5c0ca8e3-b16d-4ad8-b602-338200b8097b/scratchpad/before-new/dump
+exit: 101
+seconds: 167

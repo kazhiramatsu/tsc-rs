@@ -1,0 +1,6 @@
+{
+ "version": 1,
+ "route": "packet-divergence-controls",
+ "note": "Parse-node packet rows (after the JavaScript print, restored into the declaration arena) whose flags still differ from the upstream after-JavaScript emitNode probe for a recorded reason. The exact symmetric difference is frozen per case and asserted on both passes; comment ranges must still match exactly.",
+ "cases": []
+}

@@ -1,0 +1,4 @@
+argv: python3 scripts/witness.py bundle-metadata-t1 --all
+env: CARGO_BUILD_JOBS=2 (taskpolicy -b nice -n 15)
+exit: 0
+seconds: 66
