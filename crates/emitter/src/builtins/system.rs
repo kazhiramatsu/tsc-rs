@@ -818,9 +818,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             }
             NodeData::ClassDeclaration(data) => {
                 let key = self.context.arena().get_original_node(statement).node();
-                let name = data
+                let name_node = data
                     .name
-                    .and_then(|id| self.context.arena().node_ref(self.source, id))
+                    .and_then(|id| self.context.arena().node_ref(self.source, id));
+                let name = name_node
                     .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
                     .or_else(|| {
                         self.info
@@ -830,6 +831,20 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             .map(ToString::to_string)
                     });
                 if let Some(name) = name {
+                    // A class whose name transformTypeScript generated
+                    // (`default_1` of an anonymous default class) carries a
+                    // target binding; the hoisted `var`, the assignment
+                    // target and the export publication re-create the
+                    // spelling through `create_identifier`, so register the
+                    // binding under its text (tsc: `getLocalName(node)` is the
+                    // same generated identifier, _tsc.js:112606-112607).
+                    if let Some(binding) =
+                        name_node.and_then(|name| self.generated_binding_of_identifier(name))
+                    {
+                        self.generated_bindings
+                            .entry(name.clone())
+                            .or_insert(binding);
+                    }
                     self.push_hoisted_name(&name);
                 }
             }
