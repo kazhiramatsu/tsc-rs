@@ -1,7 +1,9 @@
 # Claude 向け高難度スライス：依頼資料一覧と共通手順
 
 作成日：2026-09-14。更新日：2026-09-17。文書種別：依頼資料・research。
-各資料を一つずつ Claude に渡して、現在の実装に残る差の監査と修復、または先行 prototype を依頼します。
+現在の依頼は[通常compiler emitterの完了までをまとめた一括依頼](emitter-final-batch/README.md)です。
+EF1〜8を入口に、追加で見つかった通常emitの必要修復も同じ依頼内で設計・実装します。
+以下のC01〜C05等は過去の依頼と統合の履歴として保持します。
 production readiness、accepted profile、runtime activation は各 owner の正式な条件で判断します。
 
 ## 現在の状態と依頼の選び方
@@ -16,9 +18,10 @@ Claude 担当 C01〜C05 と、それ以外の実装・統合・検証・配布�
 ② binding も [PR #549](https://github.com/kazhiramatsu/tsc-rs/pull/549) で統合済みです。
 当初の5件は候補統合が一巡しました。追加依頼の
 [T1：bundle の parse-node metadata 可搬性](h2-8a-bundle-metadata-t1-claude-handoff.md)も、PR #550でmain `eb6dc2c78`へ統合済みです。
-次の依頼は [R9 / R12 / private receiver map / コメント制御の5項目一括](h2-8a-post-t1-residuals-claude-handoff.md)。
-外部出力の7 complete commandsの修復と、別集計の3 packet probesの意味・所有権監査を扱います。
-子ごとの設計・focused検証・差分を保持し、一つの候補として提出します。hostedは統合担当が最終合成sourceでまとめて実行します。
+[POST-T1の5項目一括候補](h2-8a-post-t1-residuals/integration/README.md)もPR #555でmain `ce39261ac`へ統合済みです。最終候補で全14 hosted checksが成功しました。
+外部出力の7 complete-command差分と、別集計の3 packet差分は解消しています。
+新101対照は96 exact/5 known、packet79 exact。残る5件はprinterのbound-target末尾コメント転送で、ownerとIDを固定して残しています。
+次は[emitter完了一括依頼](emitter-final-batch/README.md)。確定差分、旧class/globalの再測定、未観測範囲、A-CLOSE候補までまとめてClaudeが担当します。統合担当はshared CI・hosted・最終認定・mergeを持ちます。
 [A-INT3-CS](h2-8a-printer-comment-carry/README.md) と
 [API1.2-HINT](api1-2-printer-hook-hints.md) は統合済みです。
 統合担当の[A-PC1](h2-8a-compact-body-comments.md)もPR #538で完了しています。
@@ -41,7 +44,7 @@ SUPER の hosted witness は primary 670（upstream 例外 2 は別記）、cont
 retained 530 が各 2 回一致し、direct は 28 一致・既知差分 4 を維持しました。
 既存 acceptance も 46 分 23 秒で成功し、PR #523 は main
 `d671d8417d725ce54a4cfc42b6e7127c03347646` にマージ済みです。
-新規依頼の開始点は、下記のとおり **SUPER がマージされた main** に固定します。
+当初5件の開始条件は下記のSUPER統合mainでした。現在のemitter一括依頼は、専用資料に従い**POST-T1 / PR #555を含むmain**から開始します。
 CI 改修も [PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) で main
 `bb2d51c89` にマージ済みです。新規依頼ではこの改修も含む最新 main を使い、
 古い worktree に新しい手順だけを当てないでください。
@@ -49,7 +52,7 @@ CI 改修も [PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) で main
 | 候補 | 個別資料 | 今回依頼する到達点 | 現在の扱い |
 | --- | --- | --- | --- |
 | ① UTF-16 リテラルの更新・伝播 | [A40-LITERAL-UPDATE](h2-8a-literal-update-claude-handoff.md) | 現行 factory の値更新・raw/quote/text-source/flags の残経路監査、差がある場合の修復 | `JsString` と templateFlags の移行済み部分を再実装しない。新規の失敗数は未計測 |
-| ② decorator の生成名・binding | [A41-BINDING](h2-8a-generated-binding-claude-handoff.md) | 現行の型付き binding に対する global/synthetic/nested/lifecycle の残経路監査と修復 | PR #549 で統合済み。failure-carry を修復。T1 5件も #550 で統合。残る R9/R12 4件は次の一括依頼へ |
+| ② decorator の生成名・binding | [A41-BINDING](h2-8a-generated-binding-claude-handoff.md) | 現行の型付き binding に対する global/synthetic/nested/lifecycle の残経路監査と修復 | PR #549 で統合済み。failure-carry を修復。T1 5件も #550 で統合。R9/R12の4件もPOST-T1で解消し、PR #555最終候補のpipeline767件がexact |
 | ③ printer の失敗時状態・再利用 | [A40-PRINT-FAILURE](h2-8a-printer-failure-claude-handoff.md) | 失敗順序・継続状態の observer、必要な隔離修復 | 提出済み、A-INT3 が統合。PR #527 / #528 で統合済み。提出分24/25 exact。生成名は②、追加 hook hint 差は API1.2-HINT。全 API 完了とは扱わない |
 | ④ noCheck / transpile パイプライン | [H2.8c 先行依頼](h2-8c-transpile-claude-handoff.md) | 3 経路の依存設計、source oracle、隔離 prototype | 提出・統合済み、PR #535。301入力の専用witnessを含む。CLI/config activationとH2.8c全体のqualificationは後続 |
 | ⑤ resolution cache 無効化 | [L2.3 先行依頼](l2-3-resolution-cache-claude-handoff.md) | snapshot/dependency 設計、実 resolver を使う隔離 prototype | PR #539 で bounded prototype を統合済み。Program 再利用への組込みは L2.3a/b |

@@ -2,6 +2,8 @@
 
 作成日：2026-09-17。設計は [DESIGN.md](DESIGN.md)。依頼書は [../h2-8a-post-t1-residuals-claude-handoff.md](../h2-8a-post-t1-residuals-claude-handoff.md)。
 記録は [records/](records/)。全件 replay / hosted / PR / admission は統合担当（§6）。
+提出後の統合候補 `2883e3c79` の全14 hosted checks、限定した再qualification、mergeは
+[統合記録](integration/README.md)を参照。以下の提出時点の観測・未実行一覧は履歴として保持する。
 
 ## 1. 開始点と候補
 
