@@ -1,6 +1,8 @@
 # 最終emitter検証のCI予算と実行記録
 
 2026-09-17。統合担当：Codex。開始main `c35e00ccb006e3b4e3e2643491e8fe3207595097`。
+[PR #557](https://github.com/kazhiramatsu/tsc-rs/pull/557)で統合済み。
+全14 checks成功後、main `733b750cc5507062a4a576378e3bcf4640c35f65`へmerge commitで取り込んだ。
 Claudeが通常compiler emitterの修復を進める間に、統合側の2項目をまとめて整備する。
 emitter/compiler本体、observer、入力、期待値、比較対象やadmissionは変更しない。
 
@@ -105,3 +107,7 @@ tree `9e47b211450b0ebab2411f9d173ae192345c4772`は最終sourceと一致した。
 H2.5gは8511 exactを2回、SUPER primaryは670 exact、pipelineは767 exact/0 known。
 T1は18 complete/15 packetがexact、POST-T1は96 exact/5 known/0 failedと79 exact packetを保持する。
 5 knownのprinter所有者、過去の限定qualificationとadmissionはこのCI整備で変更しない。
+
+[merge記録](hosted/merge.v1.json)は最終sourceを第2親として保持し、mergeのtreeが
+検証済みsource・全14 hosted checkoutsと一致することを確認する。
+emitter修復の提出時には、このCI変更を含むmainで統合担当が検証をまとめる。

@@ -519,3 +519,11 @@ are unchanged; dedicated inputs still select only their owners, with pinned Node
 Compiler-direct records each observer and Cargo batch start/end, elapsed wall time
 and failures. Shared Cargo timing includes build and replay together. The final
 hosted receipt records observed timing; historical test time is not a speed claim.
+
+PR #557 merged this runner change at `733b750cc5507062a4a576378e3bcf4640c35f65`
+after all 14 checks passed. Controls took 25m21s and module-output 20m42s,
+preserving their combined 23 suites / 81 tests. All 65 witness suites remain.
+All 61 compiler observer/Cargo executions had paired successful timing records.
+The longest replay job was 28m25s; total replay runner time was 141m48s,
+excluding plans, gates and main push. The receipt records host/cache limitations
+and the identical source, hosted-checkout and merge trees.

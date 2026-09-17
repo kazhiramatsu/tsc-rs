@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "pr": "https://github.com/kazhiramatsu/tsc-rs/pull/557",
+  "merged_at": "2026-09-17T07:09:24Z",
+  "candidate_commit": "bc4fa2c295dc20e45814f44ce8f460a6d959be0f",
+  "merge_commit": "733b750cc5507062a4a576378e3bcf4640c35f65",
+  "merge_parents": [
+    "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+    "bc4fa2c295dc20e45814f44ce8f460a6d959be0f"
+  ],
+  "merge_tree": "9e47b211450b0ebab2411f9d173ae192345c4772",
+  "tested_checkout": {
+    "commit": "f733713d44ff82110f7935431113323235b69c94",
+    "tree": "9e47b211450b0ebab2411f9d173ae192345c4772",
+    "parents": [
+      "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+      "bc4fa2c295dc20e45814f44ce8f460a6d959be0f"
+    ],
+    "same_tree_as_candidate": true
+  },
+  "same_tree_as_candidate_and_hosted": true,
+  "merge_method": "merge commit",
+  "production_oracle_ratchet_unchanged": true,
+  "hosted_receipt_sha256": "b4f7b37267c04cc44341356e8c70bc44ef951ab9178002a5217140c9133721cf",
+  "published_evidence_commit": "b0a93f9852fa35b1099128b10562ed00c623e4f0"
+}
