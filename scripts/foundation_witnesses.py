@@ -18,7 +18,9 @@ SUITES = {
                               "inputs": ("crates/compiler/tests/fixtures/utf16-literals-adjacent-probes-inputs.json",)},
     "syntax-recovery": {"crate": "syntax", "target": "recovery_provenance", "oracle": "utf16-recovery-boundary"},
     "syntax-emitter-recovery": {"crate": "syntax", "target": "emitter_recovery", "oracle": "emitter-recovery",
-                                "inputs": ("docs/design/greenfield/slices/emitter-final-batch/integration/cross-review/recovery-inputs-r20.json",)},
+                                "additional_oracles": ("await-flag-boundary",),
+                                "inputs": ("docs/design/greenfield/slices/emitter-final-batch/integration/cross-review/recovery-inputs-r20.json",
+                                           "crates/compiler/tests/fixtures/emitter-context-recovery.json")},
     "syntax-scanner-escapes": {"crate": "syntax", "target": "scanner_escape_diagnostics", "oracle": "utf16-scanner-escape-diagnostics"},
     "syntax-template-escapes": {"crate": "syntax", "target": "template_escape_flags"},
     "syntax-template-flags": {"crate": "syntax", "target": "template_flags", "oracle": "utf16-template-flags"},
@@ -47,6 +49,9 @@ def inputs(suite):
     if "oracle" in spec:
         paths.add(f"scripts/observe-{spec['oracle']}.mjs")
         paths.add(spec.get("fixture", f"crates/{spec['crate']}/tests/fixtures/{spec['oracle']}.json"))
+    for observer in spec.get("additional_oracles", ()):
+        paths.add(f"scripts/observe-{observer}.mjs")
+        paths.add(f"crates/{spec['crate']}/tests/fixtures/{observer}.json")
     return paths
 
 
@@ -127,8 +132,9 @@ def run(suites, env):
                 raise ValueError(f"{suite}: missing registered input: {path}")
         spec = SUITES[suite]
         batches.setdefault(spec["crate"], []).append(suite)
-        if "oracle" in spec and spec["oracle"] not in observers:
-            observers.append(spec["oracle"])
+        for observer in ([spec["oracle"]] if "oracle" in spec else []) + list(spec.get("additional_oracles", ())):
+            if observer not in observers:
+                observers.append(observer)
     started = time.monotonic()
     for observer in observers:
         subprocess.run(["node", f"scripts/observe-{observer}.mjs", "--check"], cwd=ROOT, env=env, check=True)

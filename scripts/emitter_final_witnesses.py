@@ -41,9 +41,36 @@ COMMENT_TESTS = (
     "emitter_residual_audit::exported_destructuring_comments_match_complete_typescript_commands",
     "async_arrow_body_ranges::async_arrow_body_ranges_matches_complete_typescript_observations",
 )
+SYSTEM_FIXTURES = (("system-binding-publication", 722), ("await-flag-commands", 604))
+SYSTEM_TESTS = (
+    "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
+    "emitter_residual_audit::await_flag_boundaries_match_complete_typescript_commands",
+)
+RECOVERY_FIXTURES = (
+    ("emitter-missing-await", 60), ("emitter-missing-declaration", 72),
+    ("emitter-missing-declaration-effects", 144), ("emitter-missing-declaration-scripts", 150),
+    ("emitter-missing-declaration-binding", 60), ("emitter-parameter-gap-recovery", 72),
+    ("emitter-parameter-gap-module", 6),
+    ("emitter-statement-gap-recovery", 228), ("emitter-context-recovery", 432),
+)
+RECOVERY_TESTS = tuple("h2_8a_import_helpers::" + name for name in (
+    "missing_await_recovery_matches_complete_typescript_observations",
+    "missing_declaration_recovery_matches_complete_typescript_observations",
+    "missing_declaration_effects_match_complete_typescript_observations",
+    "missing_declaration_scripts_match_complete_typescript_observations",
+    "missing_declaration_binding_matches_complete_typescript_observations",
+    "parameter_gap_recovery_matches_complete_typescript_observations",
+    "statement_gap_recovery_matches_complete_typescript_observations",
+    "context_recovery_matches_complete_typescript_observations",
+))
+CONTROL_SUITES = {
+    "emitter-comment-controls": (COMMENT_FIXTURES, COMMENT_TESTS),
+    "emitter-system-controls": (SYSTEM_FIXTURES, SYSTEM_TESTS),
+    "emitter-recovery-controls": (RECOVERY_FIXTURES, RECOVERY_TESTS),
+}
 SUITES = ("emitter-final", "emitter-universe-oracle",
           *(f"emitter-plan-base-{i}" for i in range(SHARDS)),
-          "emitter-global", "emitter-class-0", "emitter-class-1", "emitter-comment-controls")
+          "emitter-global", "emitter-class-0", "emitter-class-1", *CONTROL_SUITES)
 SELECTORS = ("TSC_RS_EMITTER_FINAL_CASE_FILTER", "TSC_RS_EMITTER_FINAL_CASE_SET",
              "TSC_RS_EMITTER_FINAL_SHARD", "TSC_RS_EMITTER_FINAL_CAPTURE_DIR",
              "TSC_RS_EMITTER_FINAL_FAILURE_DIR", "TSC_RS_H2_8A_CAPTURE_WRITES_DIR",
@@ -84,8 +111,8 @@ def class_bands(suite):
 def case_ids(suite):
     if suite not in SUITES:
         raise ValueError("unknown emitter final suite")
-    if suite == "emitter-comment-controls":
-        return [case for name, count in COMMENT_FIXTURES
+    if suite in CONTROL_SUITES:
+        return [case for name, count in CONTROL_SUITES[suite][0]
                 for case in ids(FIXTURES + name + ".json", count)]
     if suite.startswith("emitter-plan-base-"):
         part = int(suite.rsplit("-", 1)[1])
@@ -120,12 +147,22 @@ def case_ids(suite):
 
 def inputs(suite):
     common = {"scripts/emitter_final_witnesses.py"}
-    if suite == "emitter-comment-controls":
-        return common | {FIXTURES + name + ".json" for name, _ in COMMENT_FIXTURES} | {
-            "scripts/observe-" + name + ".mjs" for name, _ in COMMENT_FIXTURES} | {
-            "crates/compiler/tests/support/complete_command_corpus.rs",
-            "crates/compiler/tests/integration/emitter_residual_audit.rs",
-            "crates/compiler/tests/integration/async_arrow_body_ranges.rs"}
+    if suite in CONTROL_SUITES:
+        fixtures, _ = CONTROL_SUITES[suite]
+        consumers = {
+            "emitter-comment-controls": {
+                "crates/compiler/tests/support/complete_command_corpus.rs",
+                "crates/compiler/tests/integration/emitter_residual_audit.rs",
+                "crates/compiler/tests/integration/async_arrow_body_ranges.rs"},
+            "emitter-system-controls": {
+                "crates/compiler/tests/integration/emitter_residual_audit.rs",
+                "crates/compiler/tests/integration/h2_8a_import_helpers.rs",
+                "crates/syntax/tests/fixtures/await-flag-boundary.json"},
+            "emitter-recovery-controls": {
+                "crates/compiler/tests/integration/h2_8a_import_helpers.rs"},
+        }[suite]
+        return common | {FIXTURES + name + ".json" for name, _ in fixtures} | {
+            "scripts/observe-" + name + ".mjs" for name, _ in fixtures} | consumers
     universe = {"crates/compiler/tests/emitter_final_universe.rs",
                 FIXTURES + "emitter-final-known-native.json",
                 PACKET + "integration/records/retired-checker-known.v1.json",
@@ -181,9 +218,10 @@ def cargo(target, names=()):
 
 
 def commands(suite):
-    if suite == "emitter-comment-controls":
+    if suite in CONTROL_SUITES:
+        fixtures, tests = CONTROL_SUITES[suite]
         return [(["node", "scripts/observe-" + name + ".mjs", "--check"], None)
-                for name, _ in COMMENT_FIXTURES] + [(cargo("contracts", COMMENT_TESTS), len(COMMENT_TESTS))]
+                for name, _ in fixtures] + [(cargo("contracts", tests), len(tests))]
     if suite == "emitter-universe-oracle":
         return [(["node", "scripts/observe-emitter-final-universe.mjs", "--check", "--set", name], None)
                 for name in ("217", "plan-base")]
@@ -231,6 +269,10 @@ def validate_output(suite, command, expected_tests, output):
         results = re.findall(r"test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;", output)
         if results != [(str(expected_tests), "0", "0")]:
             raise ValueError(f"{suite}: missing, ignored or zero-test result: {results}")
+    if expected_tests is not None and suite in ("emitter-system-controls", "emitter-recovery-controls"):
+        observed = re.findall(r"EXACT x2 (\S+)", output)
+        if sorted(observed) != sorted(case_ids(suite)):
+            raise ValueError(f"{suite}: missing, duplicate or unexpected complete-command rows")
     if expected_tests is not None and "emitter_final_universe" in command:
         rows = len(case_ids(suite)) if suite.startswith("emitter-plan-base-") else 217
         total = 1798 if suite.startswith("emitter-plan-base-") else 217
