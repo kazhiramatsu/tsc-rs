@@ -312,7 +312,10 @@ impl ParseRecovery {
                 continue;
             };
             let array = source.arena.node_array(array);
-            if array.nodes.is_empty() {
+            // This proof owns one retained heritage expression and its
+            // surrounding recovery gap. Comma-separated heritage needs a
+            // separate separator/element proof; a tiled span alone is not it.
+            if array.nodes.len() != 1 {
                 continue;
             }
             let mut ancestors = BTreeSet::new();

@@ -520,7 +520,11 @@ fn skipped_parameter_gaps_require_a_retained_missing_await_operand() {
         );
     }
     let clean = source("function f(a = await => await) {}");
-    assert!(clean.parse_diagnostics.is_empty());
+    assert!(
+        clean.parse_diagnostics.is_empty(),
+        "{:?}",
+        clean.parse_diagnostics
+    );
     assert!(clean.has_only_parameter_gap_emit_recovery());
 }
 

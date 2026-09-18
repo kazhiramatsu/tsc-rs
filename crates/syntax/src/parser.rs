@@ -9503,7 +9503,10 @@ impl<'text> Parser<'text> {
                     }
                     continue;
                 }
-                NodeData::EnumDeclaration(_)
+                // createInterfaceDeclaration assigns ContainsTypeScript
+                // alone; heritage identifiers do not propagate await here.
+                NodeData::InterfaceDeclaration(_)
+                | NodeData::EnumDeclaration(_)
                 | NodeData::ModuleDeclaration(_)
                 | NodeData::ImportEqualsDeclaration(_)
                 | NodeData::ImportDeclaration(_)
