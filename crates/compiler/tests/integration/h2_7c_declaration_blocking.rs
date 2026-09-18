@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
-    load_config_program, load_emitting_config_program, load_emitting_program,
+    load_config_program, load_emitting_config_program, load_emitting_program, load_program,
     parse_config_root_plan, CompilerConfigHost, CompilerOptions, ConfigRootPlanRequest,
     LibraryCatalog, ProgramLoadLimits, ProgramOptions,
 };
@@ -145,6 +145,7 @@ pub(super) fn assert_cases_with_command_inspection<F>(
                     "allowJs" => options.allow_js = value.as_bool().unwrap(),
                     "checkJs" => options.check_js = value.as_bool(),
                     "noEmitForJsFiles" => options.no_emit_for_js_files = value.as_bool(),
+                    "noEmit" => options.no_emit = value.as_bool(),
                     "noEmitHelpers" => options.no_emit_helpers = value.as_bool(),
                     "resolveJsonModule" => options.resolve_json_module = value.as_bool(),
                     "emitBOM" => options.emit_bom = value.as_bool(),
@@ -205,7 +206,12 @@ pub(super) fn assert_cases_with_command_inspection<F>(
                             .expect("emitting config program")
                     }
                 } else {
-                    load_emitting_program(
+                    let load = if options.no_emit == Some(true) {
+                        load_program
+                    } else {
+                        load_emitting_program
+                    };
+                    load(
                         &host,
                         &roots,
                         options.clone(),

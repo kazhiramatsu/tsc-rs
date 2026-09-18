@@ -1,0 +1,12 @@
+{
+  "head_measured": "d772eb5540982b2883de131da6ac36d5f6a6133e",
+  "ci_run": 35383035108,
+  "job": 105723621705,
+  "selected_passed": 24,
+  "selected_failed": 0,
+  "selected_ignored": 0,
+  "actual_filtered": 430,
+  "prior_filtered_pin": 423,
+  "reason": "Seven new shared compiler contracts increased unselected membership; all 24 selected config/library tests passed. Keep strict selected/ignored/filtered validation, correct the measured filter pin.",
+  "source_observations_changed": false
+}
