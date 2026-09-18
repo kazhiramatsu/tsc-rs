@@ -65,6 +65,24 @@ class EmitterFinalTests(unittest.TestCase):
         self.assertEqual(plan["acceptance"], [])
         self.assertEqual(set(plan["witnesses"]), {"emitter-comment-controls", "utf16-recovery-corpus"})
 
+    def test_system_and_recovery_groups_require_every_registered_row(self):
+        final = witness.emitter_final_witnesses
+        for suite in ("emitter-system-controls", "emitter-recovery-controls"):
+            command, count = final.commands(suite)[-1]
+            rows = final.case_ids(suite)
+            summary = f"test result: ok. {count} passed; 0 failed; 0 ignored;\n"
+            lines = [f"complete command EXACT x2 {row}\n" for row in rows]
+            final.validate_output(suite, command, count, summary + "".join(lines))
+            for bad in (summary, summary + "".join(lines[1:]),
+                        summary + "".join([*lines, lines[0]]),
+                        summary + "".join([*lines[1:], "complete command EXACT x2 unexpected\n"])):
+                with self.subTest(suite=suite), self.assertRaises(ValueError):
+                    final.validate_output(suite, command, count, bad)
+            self.assertEqual(replay.WITNESS_GROUPS[suite], (suite,))
+        self.assertEqual(replay.WITNESS_GROUPS["emitter-comment-controls"],
+                         ("emitter-comment-controls",))
+        self.assertEqual(replay.WITNESS_GROUPS["emitter-global"], ("emitter-global",))
+
     def test_registered_exact_test_names_exist(self):
         source = "\n".join(path.read_text() for path in (ROOT / "crates/compiler/tests").rglob("*.rs"))
         for suite in witness.emitter_final_witnesses.SUITES:
@@ -83,7 +101,7 @@ class CompilerBudgetTests(unittest.TestCase):
         members = [suite for suites in replay.WITNESS_GROUPS.values() for suite in suites]
         self.assertCountEqual(members, witness.SUITES)
         self.assertEqual(len(members), len(set(members)))
-        self.assertEqual(len(replay.WITNESS_GROUPS), 16)
+        self.assertEqual(len(replay.WITNESS_GROUPS), 19)
         self.assertEqual(replay.WITNESS_GROUPS["module-output"],
                          ("declaration-map-apis", "declaration-maps", "require-rewrite", "declaration-specifiers"))
         workflow = (ROOT / ".github/workflows/witness.yml").read_text()
@@ -972,7 +990,7 @@ class WitnessTests(unittest.TestCase):
     def test_frozen_input_catalog_counts(self):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "syntax-entity-names": 2, "syntax-meta-property": 1, "syntax-literal-values": 1,
-            "syntax-recovery": 1, "syntax-emitter-recovery": 1, "syntax-scanner-escapes": 1, "syntax-template-escapes": 5,
+            "syntax-recovery": 1, "syntax-emitter-recovery": 2, "syntax-scanner-escapes": 1, "syntax-template-escapes": 5,
             "syntax-template-flags": 1, "binder-symbol-names": 2, "types-option-numbers": 3,
             "host-memory": 13 if sys.platform == "win32" else 14,
             "host-filesystem": {"linux": 9, "darwin": 8, "win32": 7}[sys.platform],
@@ -999,6 +1017,7 @@ class WitnessTests(unittest.TestCase):
             "utf16-identity-recovery": 79, "utf16-review-fix": 25, "utf16-tagged-template": 16,
             "utf16-literal-witnesses": 64, "utf16-original-commands": 4,
             "emitter-final": 1123, "emitter-comment-controls": 1503, "emitter-universe-oracle": 2015,
+            "emitter-system-controls": 1326, "emitter-recovery-controls": 1224,
             "emitter-plan-base-0": 450, "emitter-plan-base-1": 450,
             "emitter-plan-base-2": 449, "emitter-plan-base-3": 449,
             "emitter-global": 769, "emitter-class-0": 700, "emitter-class-1": 528,
