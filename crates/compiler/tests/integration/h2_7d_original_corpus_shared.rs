@@ -1248,7 +1248,8 @@ fn scalar_observation(value: tsc_diagnostics::JsStr<'_>) -> String {
 #[derive(Debug, Default)]
 pub(super) struct UniverseReplay {
     pub(super) exact: BTreeSet<String>,
-    pub(super) diverging: BTreeMap<String, String>,
+    pub(super) diverging: BTreeMap<String, Value>,
+    pub(super) all_ids: BTreeSet<String>,
 }
 
 /// Replay every case of a universe fixture (`crates/compiler/tests/fixtures/<name>`,
@@ -1259,7 +1260,11 @@ pub(super) struct UniverseReplay {
 /// retire policy. Mismatches are written to `TSC_RS_EMITTER_FINAL_FAILURE_DIR`
 /// when that directory is set.
 #[allow(dead_code)] // Only the emitter-final universe test includes this entry.
-pub(super) fn replay_universe_fixture(workspace_root: &Path, name: &str) -> UniverseReplay {
+pub(super) fn replay_universe_fixture(
+    workspace_root: &Path,
+    name: &str,
+    select: impl Fn(usize, &str) -> bool,
+) -> UniverseReplay {
     assert_eq!(
         workspace_root.canonicalize().unwrap(),
         workspace().canonicalize().unwrap()
@@ -1296,49 +1301,59 @@ pub(super) fn replay_universe_fixture(workspace_root: &Path, name: &str) -> Univ
     }
     let cases = indexed(&artifact);
     let libraries = libraries();
-    let mut report = UniverseReplay::default();
-    for (id, case) in &cases {
+    let mut report = UniverseReplay {
+        all_ids: cases.keys().map(|id| (*id).to_owned()).collect(),
+        ..UniverseReplay::default()
+    };
+    for (index, (id, case)) in cases.iter().enumerate() {
+        if !select(index, id) {
+            continue;
+        }
         assert_original_source(case);
         assert_eq!(case["repetitions"], 2);
         assert_eq!(case["input"]["route"], "whole-program");
-        let mut failures = Vec::new();
+        let expected = &case["typescript_observation"];
+        let mut outcomes = Vec::new();
         for repetition in 0..2 {
-            let compared = std::panic::catch_unwind(|| {
+            let observed = std::panic::catch_unwind(|| {
                 let host = memory_host(case, &artifact, &libraries);
-                let actual = observe(case, &host, &libraries);
-                let expected = &case["typescript_observation"];
-                if actual != *expected {
-                    if let Some(directory) = std::env::var_os("TSC_RS_EMITTER_FINAL_FAILURE_DIR") {
-                        let directory = PathBuf::from(directory);
-                        std::fs::create_dir_all(&directory).unwrap();
-                        std::fs::write(
-                            directory.join(format!("{}-{repetition}.json", digest(id))),
-                            serde_json::to_vec_pretty(
-                                &json!({"case_id":id,"repetition":repetition,
-                                "actual":actual,"expected":expected}),
-                            )
-                            .unwrap(),
-                        )
-                        .unwrap();
-                    }
-                }
-                assert_complete(&actual, expected);
+                observe(case, &host, &libraries)
             });
-            if let Err(error) = compared {
-                failures.push(format!(
-                    "repetition {repetition}: {}",
-                    panic_text(error.as_ref())
-                ));
+            let outcome = match observed {
+                Ok(actual) => json!({"kind": "complete", "observation": actual}),
+                Err(error) => json!({"kind": "failure", "message": panic_text(error.as_ref())}),
+            };
+            if outcome["observation"] != *expected {
+                if let Some(directory) = std::env::var_os("TSC_RS_EMITTER_FINAL_FAILURE_DIR") {
+                    let directory = PathBuf::from(directory);
+                    std::fs::create_dir_all(&directory).unwrap();
+                    std::fs::write(
+                        directory.join(format!("{}-{repetition}.json", digest(id))),
+                        serde_json::to_vec_pretty(&json!({"case_id": id,
+                            "repetition": repetition, "native": outcome, "expected": expected}))
+                        .unwrap(),
+                    )
+                    .unwrap();
+                }
             }
+            outcomes.push(outcome);
         }
-        if failures.is_empty() {
+        assert_eq!(
+            outcomes[0], outcomes[1],
+            "{id}: native observations must repeat exactly"
+        );
+        let outcome = outcomes.pop().unwrap();
+        if outcome["kind"] == "complete" && outcome["observation"] == *expected {
             report.exact.insert((*id).to_owned());
             eprintln!("emitter-final universe EXACT x2 {id}");
         } else {
-            eprintln!("emitter-final universe DIVERGING {id}: {}", failures[0]);
-            report
-                .diverging
-                .insert((*id).to_owned(), failures.join("\n"));
+            let detail = if outcome["kind"] == "failure" {
+                outcome["message"].as_str().unwrap().to_owned()
+            } else {
+                difference(&outcome["observation"], expected, "command").unwrap()
+            };
+            eprintln!("emitter-final universe DIVERGING {id}: {detail}");
+            report.diverging.insert((*id).to_owned(), outcome);
         }
     }
     report

@@ -5,7 +5,8 @@
 //! `scripts/observe-emitter-final-universe.mjs`). The comparator is the H2.8a original
 //! output-matrix comparator; `KNOWN` lists the attributed open rows and the retire
 //! assertion refuses a stale entry.
-use std::collections::BTreeSet;
+use serde_json::Value;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 #[allow(dead_code)] // The shared source also holds the D/E and output-matrix entries.
@@ -104,42 +105,188 @@ fn plan_base_rows_match_complete_production_commands() {
     );
 }
 
-fn replay(fixture: &str, expected_rows: usize, known_rows: &[(&str, &str)]) {
-    let report = h2_7d_original_corpus_shared::replay_universe_fixture(
-        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
-        fixture,
+fn shard(value: &str) -> (usize, usize) {
+    let (index, count) = value.split_once('/').expect("shard must be INDEX/COUNT");
+    let (index, count): (usize, usize) = (index.parse().unwrap(), count.parse().unwrap());
+    assert!(
+        count > 0 && count <= 16 && index < count,
+        "invalid universe shard"
     );
+    (index, count)
+}
+
+fn native_matches(actual: &Value, frozen: &Value) -> bool {
+    // The entire native command (or precise refusal), not just the case ID or
+    // the first diagnostic. A known checker mismatch must not mask emit drift.
+    actual == frozen
+}
+
+fn replay(fixture: &str, expected_rows: usize, known_rows: &[(&str, &str)]) {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let artifact: Value = serde_json::from_slice(
+        &std::fs::read(
+            workspace.join("crates/compiler/tests/fixtures/emitter-final-known-native.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(artifact["schema"], 1);
+    assert_eq!(artifact["kind"], "emitter-final-known-native");
+    let rows = artifact["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|row| row["fixture"] == fixture)
+        .collect::<Vec<_>>();
+    let native = rows
+        .iter()
+        .map(|row| (row["case_id"].as_str().unwrap(), *row))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(native.len(), rows.len(), "duplicate native row");
     let known = known_rows
         .iter()
         .map(|(id, _)| *id)
         .collect::<BTreeSet<_>>();
     assert_eq!(known.len(), known_rows.len(), "duplicate KNOWN row");
-    let total = report.exact.len() + report.diverging.len();
-    assert_eq!(total, expected_rows, "every {fixture} row replays");
+    assert_eq!(
+        native.keys().copied().collect::<BTreeSet<_>>(),
+        known,
+        "native observations and KNOWN IDs must have identical membership"
+    );
+    for (id, cause) in known_rows {
+        assert_eq!(native[id]["cause"], *cause, "{id}: owner/cause changed");
+    }
+    let shard = std::env::var("TSC_RS_EMITTER_FINAL_SHARD")
+        .ok()
+        .map(|s| shard(&s));
+    let filter = std::env::var("TSC_RS_EMITTER_FINAL_CASE_FILTER").ok();
+    let set = std::env::var("TSC_RS_EMITTER_FINAL_CASE_SET").unwrap_or_else(|_| "all".into());
+    assert!(
+        matches!(set.as_str(), "all" | "known"),
+        "case set must be all or known"
+    );
+    let select = |index: usize, id: &str| {
+        shard.is_none_or(|(shard, count)| index % count == shard)
+            && filter.as_ref().is_none_or(|filter| id.contains(filter))
+            && (set == "all" || known.contains(id))
+    };
+    let report = h2_7d_original_corpus_shared::replay_universe_fixture(&workspace, fixture, select);
+    assert_eq!(
+        report.all_ids.len(),
+        expected_rows,
+        "frozen universe membership"
+    );
+    assert!(
+        known.iter().all(|id| report.all_ids.contains(*id)),
+        "KNOWN row absent from fixture"
+    );
+    let selected = report
+        .all_ids
+        .iter()
+        .enumerate()
+        .filter(|(i, id)| select(*i, id))
+        .map(|(_, id)| id.as_str())
+        .collect::<BTreeSet<_>>();
+    assert!(!selected.is_empty(), "empty universe selection");
+    let executed = report
+        .exact
+        .iter()
+        .chain(report.diverging.keys())
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(executed, selected, "every selected row must replay");
     let stale = known
         .iter()
         .filter(|id| report.exact.contains(**id))
         .collect::<Vec<_>>();
-    let unattributed = report
+    let failures = report
         .diverging
         .iter()
-        .filter(|(id, _)| !known.contains(id.as_str()))
-        .map(|(id, detail)| format!("{id}: {detail}"))
+        .filter_map(|(id, actual)| match native.get(id.as_str()) {
+            None => Some(format!("{id}: unattributed divergence: {actual}")),
+            Some(row) if !native_matches(actual, &row["native"]) => Some(format!(
+                "{id}: recorded native divergence changed; owner/cause: {}",
+                row["cause"]
+            )),
+            Some(_) => None,
+        })
         .collect::<Vec<_>>();
     eprintln!(
-        "emitter-final universe {fixture}: exact {} / known {} / failed {}",
+        "emitter-final universe {fixture}: selected {}/{} / exact {} / known {} / failed {}",
+        selected.len(),
+        expected_rows,
         report.exact.len(),
-        report.diverging.len() - unattributed.len(),
-        unattributed.len()
+        report.diverging.len() - failures.len(),
+        failures.len()
     );
     assert!(
         stale.is_empty(),
         "KNOWN rows replay exact now; retire them: {stale:?}"
     );
     assert!(
-        unattributed.is_empty(),
-        "{} unattributed universe divergences:\n{}",
-        unattributed.len(),
-        unattributed.join("\n")
+        failures.is_empty(),
+        "{} universe divergences:\n{}",
+        failures.len(),
+        failures.join("\n")
     );
+}
+
+#[test]
+fn known_checker_divergence_rejects_changed_output_and_diagnostics() {
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/emitter-final-known-native.json")).unwrap();
+    let frozen = fixture["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| &row["native"])
+        .find(|native| {
+            native["kind"] == "complete"
+                && !native["observation"]["writes"]
+                    .as_array()
+                    .unwrap()
+                    .is_empty()
+        })
+        .unwrap();
+    assert!(native_matches(frozen, frozen));
+    let mut changed = frozen.clone();
+    changed["observation"]["writes"][0]["callback_utf8_base64"] =
+        Value::String("bmV3IGJ1Zw==".into());
+    assert!(!native_matches(&changed, frozen));
+    let mut changed = frozen.clone();
+    changed["observation"]["reported_diagnostics"] = serde_json::json!([]);
+    assert_ne!(changed, *frozen);
+    assert!(!native_matches(&changed, frozen));
+}
+
+#[test]
+fn known_refusal_rejects_changed_error_or_partial_writes() {
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/emitter-final-known-native.json")).unwrap();
+    let frozen = fixture["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| &row["native"])
+        .find(|native| native["kind"] == "failure")
+        .unwrap();
+    let mut changed = frozen.clone();
+    changed["message"] = Value::String("unexpected emitter panic".into());
+    assert!(!native_matches(&changed, frozen));
+    changed["message"] = Value::String(format!("{}; additional partial write", frozen["message"]));
+    assert!(!native_matches(&changed, frozen));
+}
+
+#[test]
+fn universe_shards_are_disjoint_and_complete() {
+    for size in [217, 1798] {
+        let mut selected = BTreeSet::new();
+        for part in 0..4 {
+            let (index, count) = shard(&format!("{part}/4"));
+            for row in (0..size).filter(|row| row % count == index) {
+                assert!(selected.insert(row));
+            }
+        }
+        assert_eq!(selected.len(), size);
+    }
 }
