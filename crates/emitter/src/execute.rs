@@ -113,7 +113,9 @@ fn validate_emit_options(
     _route: EmitRouteKind,
 ) -> Result<(), EmitFailure> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES5 || target > ScriptTarget::ES_NEXT {
+    // JSON is an internal parser mode, not an unknown future JS target.
+    // Filename-independent source-kind facts are not yet represented.
+    if target < ScriptTarget::ES5 || target == ScriptTarget::JSON {
         return unsupported("target");
     }
     if !matches!(
@@ -161,10 +163,8 @@ fn validate_emit_options(
         ),
         (options.incremental == Some(true), "incremental"),
         (options.composite == Some(true), "composite"),
-        (
-            options.assume_changes_only_affect_direct_dependencies == Some(true),
-            "assumeChangesOnlyAffectDirectDependencies",
-        ),
+        // assumeChangesOnlyAffectDirectDependencies changes the builder's
+        // affected-file traversal only. It is inert in this fresh Program.
         // `emitDecoratorMetadata` without `experimentalDecorators` is inert
         // for emit (only the legacy decorator transform reads it) and the
         // program reports TS5052; tsc emits normally (EF7-METADATA-INERT).
@@ -200,14 +200,6 @@ pub fn validate_forced_declaration_request(host: &dyn EmitHost) -> Result<(), Em
 fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Result<(), EmitFailure> {
     let options = host.compiler_options();
     validate_emit_options(options, operation, host.emit_route())?;
-    if options
-        .out_file
-        .as_ref()
-        .is_some_and(|path| !path.is_empty())
-        && options.import_helpers == Some(true)
-    {
-        return unsupported("importHelpers");
-    }
     for source_id in host.source_file_ids() {
         let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(*source_id),

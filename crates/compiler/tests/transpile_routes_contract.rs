@@ -47,14 +47,29 @@ fn fixtures() -> (Value, Value, BTreeMap<String, String>) {
     assert_eq!(inputs["schema"], "h2-8c-transpile-inputs.v1");
     assert_eq!(expected["schema"], "h2-8c-transpile-expected.v1");
     assert_eq!(inputs["typescript"]["version"], "6.0.3");
-    validate_manifest(&inputs, &expected, INPUTS, 287);
+    validate_manifest(&inputs, &expected, INPUTS, 291);
+    let catalog = LibraryCatalog::typescript_6_0_3("/lib");
+    let target_libraries = expected["numeric_target_default_libraries"]
+        .as_array()
+        .unwrap();
+    assert_eq!(target_libraries.len(), 3);
+    for row in target_libraries {
+        let options = CompilerOptions {
+            target: Some(row["target"].as_i64().unwrap() as i32),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            catalog.default_file_name(&options),
+            row["name"].as_str().unwrap()
+        );
+    }
     assert_eq!(
         inputs["route_counts"],
-        json!({"transpile-js":150,"transpile-dts":86,"program-no-check":51})
+        json!({"transpile-js":153,"transpile-dts":87,"program-no-check":51})
     );
     let known: Value = serde_json::from_str(KNOWN_OPEN).unwrap();
     assert_eq!(known["schema"], "h2-8c-transpile-known-open.v1");
-    assert_eq!(known["rows"].as_array().unwrap().len(), 15);
+    assert_eq!(known["rows"].as_array().unwrap().len(), 8);
     let known: BTreeMap<String, String> = known["rows"]
         .as_array()
         .unwrap()
@@ -66,10 +81,11 @@ fn fixtures() -> (Value, Value, BTreeMap<String, String>) {
             )
         })
         .collect();
-    assert_eq!(known.len(), 15, "duplicate known-open ID");
+    assert_eq!(known.len(), 8, "duplicate known-open ID");
     let native: Value = serde_json::from_str(KNOWN_NATIVE).unwrap();
     assert_eq!(native["schema"], "h2-8c-transpile-known-native.v1");
     let native_ids: BTreeSet<_> = native["observations"].as_object().unwrap().keys().collect();
+    assert_eq!(native["case_count"], native_ids.len());
     assert_eq!(native_ids, known.keys().collect());
     let ids: BTreeSet<_> = inputs["cases"]
         .as_array()
@@ -675,7 +691,7 @@ fn transpile_module_matches_typescript() {
         let result = run_transpile(case);
         (transpile_observation(&result), transpile_evidence(&result))
     });
-    assert_report(&report, 150);
+    assert_report(&report, 153);
 }
 
 #[test]
@@ -684,7 +700,7 @@ fn transpile_declaration_matches_typescript() {
         let result = run_transpile(case);
         (transpile_observation(&result), transpile_evidence(&result))
     });
-    assert_report(&report, 86);
+    assert_report(&report, 87);
 }
 
 #[test]
@@ -970,7 +986,7 @@ fn manifest_rejects_missing_duplicate_ids_and_changed_hash() {
             }
         }
         assert!(
-            std::panic::catch_unwind(|| validate_manifest(&inputs, &changed, INPUTS, 287)).is_err()
+            std::panic::catch_unwind(|| validate_manifest(&inputs, &changed, INPUTS, 291)).is_err()
         );
     }
 }

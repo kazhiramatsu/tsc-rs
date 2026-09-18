@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "fixture": "crates/compiler/tests/fixtures/emitter-cli-options.json",
+  "before_sha256": "c99ec9eb55531a51a1fb51d2158aa943b50454b33f7e8f08bd81cef70bbc7b8d",
+  "after_sha256": "5e898257c4232bb6f853d6c02fa6ad086bab538d68f0914eda441c2accb4f5e4",
+  "unchanged_cases": 54,
+  "added_cases": [
+    "emitter-cli-options/54/commonjs/es2015",
+    "emitter-cli-options/55/commonjs/es2015",
+    "emitter-cli-options/56/commonjs/es2015",
+    "emitter-cli-options/57/commonjs/es2015"
+  ],
+  "proof": "local/audit-cli-oracle-r5.json"
+}

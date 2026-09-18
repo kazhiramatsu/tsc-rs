@@ -897,11 +897,6 @@ pub(super) struct Es2015Visitor<'context, 'resolver, 'state> {
     use_define_for_class_fields: bool,
     print_state: &'state mut Es2015PrintState,
 
-    /// The variable declaration (initializer, name) being visited, so
-    /// `getAssignedName` can observe a synthesized parent that has no arena
-    /// parent link (a legacy-decorated `let default_1 = class {}`).
-    pending_assigned_name: Option<(Option<NodeId>, TransformNode)>,
-
     /// `currentText` (`skipTrivia` for the class-wrapper end positions;
     /// same-line tests ride the parse `PositionIndex`).
     current_text: String,
@@ -960,7 +955,6 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
             print_state,
             current_text,
             converted_loop_state: None,
-            pending_assigned_name: None,
             tagged_template_string_declarations: Vec::new(),
             generated_bindings: GeneratedBindingScopes::new(
                 reserved,
@@ -5218,13 +5212,7 @@ impl Es2015Visitor<'_, '_, '_> {
         // parent remains on the current expression.
         let name = match name {
             Some(name) => Some(name),
-            None => match self.assigned_name(node)? {
-                Some(name) => Some(name),
-                None => self
-                    .pending_assigned_name
-                    .filter(|(initializer, _)| *initializer == Some(node.node()))
-                    .map(|(_, name)| name),
-            },
+            None => self.assigned_name(node)?,
         };
         let name_is_plain_identifier = match name {
             Some(name) => {
@@ -5832,19 +5820,6 @@ impl Es2015Visitor<'_, '_, '_> {
             data.name.map(|id| self.node(id))
         };
         let name = name.ok_or(assembly_kind_error(SyntaxKind::VariableDeclaration, "name"))?;
-        let initializer = {
-            let NodeData::VariableDeclaration(data) = &self.context.arena().node(node)?.data else {
-                return Err(assembly_kind_error(
-                    SyntaxKind::VariableDeclaration,
-                    "variable declaration",
-                ));
-            };
-            data.initializer
-        };
-        // getAssignedName reads `node.parent`; a synthesized declaration from
-        // an earlier pass has no arena parent, so the visitor carries the
-        // declaration name for its own initializer (E-NAMES-BASE R9 lineage).
-        let saved_assigned_name = self.pending_assigned_name.replace((initializer, name));
         let updated = if self.is_binding_pattern(name)? {
             // `hoistTempVariables = (ancestorFacts & ExportedVariableStatement) !== 0`
             let exported = ancestor.intersects(HierarchyFacts::EXPORTED_VARIABLE_STATEMENT);
@@ -5867,7 +5842,6 @@ impl Es2015Visitor<'_, '_, '_> {
                 None => VisitOutcome::Elided,
             }
         };
-        self.pending_assigned_name = saved_assigned_name;
         exit_subtree(
             &mut self.print_state.hierarchy_facts,
             ancestor,

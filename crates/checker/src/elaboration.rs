@@ -216,7 +216,11 @@ impl<'a> CheckerState<'a> {
                 self.create_error(output.error_node.or(Some(error_node)), head_message, &[]);
             diagnostic.message = output.message;
             diagnostic.related = output.related;
-            return Ok((related, Some(diagnostic), true));
+            return Ok((
+                related,
+                Some(diagnostic),
+                output.used_containing_message_chain,
+            ));
         }
         if related {
             return Ok((true, None, false));
@@ -418,11 +422,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ba522e034925ca5fe1f8233c0d876dafe1973315638a5f524a6eac6d0b0c3505
     /// tsc-span: _tsc.js:64126-64205
     ///
-    /// The provenance tail after the inner relation row has been
-    /// created. The oracle host runs `noLib: true` and passes every
-    /// vendored lib as an ordinary root, so its `libFiles` set is
-    /// empty: `host.isSourceFileDefaultLibrary` is false for every
-    /// declaration in this program model.
+    /// The provenance tail after the inner relation row has been created.
+    /// Program file facts distinguish a default library from a user root;
+    /// a library-looking path by itself does not suppress related information.
     pub(crate) fn elementwise_elaboration_related(
         &mut self,
         target_type: TypeId,
@@ -438,6 +440,7 @@ impl<'a> CheckerState<'a> {
             if let Some(declaration) = self
                 .get_applicable_index_info(target_type, name_type)?
                 .and_then(|info| info.declaration)
+                .filter(|&declaration| !self.is_default_library_declaration(declaration))
             {
                 return Ok(Some(self.related_info_for_node(
                     declaration,
@@ -455,7 +458,9 @@ impl<'a> CheckerState<'a> {
                     .symbol
                     .and_then(|symbol| self.binder.symbol(symbol).declarations.first().copied())
             });
-        let Some(target_node) = target_node else {
+        let Some(target_node) =
+            target_node.filter(|&node| !self.is_default_library_declaration(node))
+        else {
             return Ok(None);
         };
 
@@ -483,6 +488,14 @@ impl<'a> CheckerState<'a> {
             &diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
             &[property_display.as_js(), (&target_text).into()],
         )))
+    }
+
+    fn is_default_library_declaration(&self, node: NodeId) -> bool {
+        let file = crate::ProgramFileId::from_raw(
+            u32::try_from(self.binder.file_index_of_node(node))
+                .expect("Program file index exceeds u32"),
+        );
+        self.binder.file_facts(file).is_default_library()
     }
 
     /// tsc-port: elaborateArrowFunction @6.0.3
@@ -973,11 +986,11 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn elaborate_literal_assignment_into_sink(
         &mut self,
         expression: NodeId,
+        source_type: TypeId,
         target_type: TypeId,
         probe_head: Option<&'static DiagnosticMessage>,
         sink: &mut ElaborationDiagnosticSink,
     ) -> CheckResult<ElaborationOutcome> {
-        let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
         self.elaborate_assignment_relation(expression, source_type, target_type, probe_head, sink)
     }
 
@@ -1013,6 +1026,25 @@ impl<'a> CheckerState<'a> {
         containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<(ElaborationOutcome, Vec<Diagnostic>)> {
         let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+        self.capture_literal_assignment_elaboration_from_types(
+            expression,
+            source_type,
+            target_type,
+            probe_head,
+            containing_message_chain,
+        )
+    }
+
+    /// Preserve a contextual source already checked by the JSX caller, as
+    /// upstream elaborateError does after its contextual stack is restored.
+    pub(crate) fn capture_literal_assignment_elaboration_from_types(
+        &mut self,
+        expression: NodeId,
+        source_type: TypeId,
+        target_type: TypeId,
+        probe_head: Option<&'static DiagnosticMessage>,
+        containing_message_chain: Option<MessageChain>,
+    ) -> CheckResult<(ElaborationOutcome, Vec<Diagnostic>)> {
         let mut sink = ElaborationDiagnosticSink::captured(containing_message_chain);
         let outcome = self.elaborate_assignment_relation(
             expression,

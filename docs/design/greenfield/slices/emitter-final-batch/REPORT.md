@@ -1,5 +1,7 @@
 # H2.8a-A-RES-EMITTER-FINAL — 結果報告（開始 SHA と最終 HEAD、ID/観測ごとの before → after、既存 positive、残る差、未実行）
 
+> 統合担当注記（2026-09-18）：以下はproducer r11の提出報告。追加監査で通常emitの残差と回帰を確認したため、§9.8の「emitter owner未解決0」は統合完了の根拠にしない。[追加監査記録](integration/residual-audit.md)と最終hosted receiptを参照。
+
 （作成中：各節は実測後に確定する。argv / env / exit / 秒数 / log hash は [records/](records/) の `*.meta.json`。）
 
 ## 1. 開始点と候補

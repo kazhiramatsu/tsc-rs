@@ -2474,6 +2474,11 @@ impl Printer {
                 })
         {
             if let Some(statement_array) = statement_array {
+                // emitSourceFileWorker closes its MultiLine statement list
+                // before emitBodyWithDetachedComments emits EOF comments.
+                // A removed final export can leave only synthesized statements
+                // and a comment tail whose separating newline was consumed.
+                writer.write_line(false);
                 self.emit_source_file_statement_list_trailing_comments(
                     transformation,
                     statement_array,
@@ -6858,6 +6863,11 @@ impl Printer {
             }
             NodeData::NotEmittedStatement(_) => Ok(()),
             NodeData::PartiallyEmittedExpression(data) => {
+                // Only a complete no-ASI phase can reach the forwarding lane;
+                // ordinary leading-only requests are consumed by this node.
+                debug_assert!(!matches!(deferred_source_comments,
+                    DeferredExpressionSourceCommentsState::Pending(deferred)
+                        if !deferred.owns_trailing()));
                 let expression = data.expression.and_then(|expression| {
                     transformation.arena().node_ref(node.source(), expression)
                 });
@@ -6872,7 +6882,7 @@ impl Printer {
                     true,
                     writer,
                 )?;
-                self.emit_node_id_with_forwarded_source_comments(
+                self.emit_expression_child_with_source_comments(
                     transformation,
                     node.source(),
                     expression.node(),
@@ -7434,7 +7444,7 @@ impl Printer {
                     .arena()
                     .node_ref(node.source(), name_id)
                     .ok_or(PrinterError::UnknownStatement(name_id.0))?;
-                let expression_outcome = self.emit_access_target_with_source_comments(
+                let expression_outcome = self.emit_expression_child_with_source_comments(
                     transformation,
                     node.source(),
                     expression_id,
@@ -7561,7 +7571,7 @@ impl Printer {
                             parent: SyntaxKind::ElementAccessExpression,
                             field: "expression",
                         })?;
-                let expression_outcome = self.emit_access_target_with_source_comments(
+                let expression_outcome = self.emit_expression_child_with_source_comments(
                     transformation,
                     node.source(),
                     expression_id,
@@ -14321,7 +14331,7 @@ impl Printer {
         Ok(())
     }
 
-    /// The target of a property or element access. tsc's
+    /// A runtime child of an access or partially-emitted wrapper. tsc's
     /// `emitExpression(node.expression, …)` runs the target's own comments
     /// phase inside the access node's container claim, so a same-line
     /// comment after the target (`(_a = ns).dec /* c */.bind(_a)`) is written
@@ -14329,8 +14339,11 @@ impl Printer {
     /// inherited NoNested extent suppresses the phase as for every child.
     /// Otherwise the target receives the ordinary nested phase, and its
     /// visited trailing anchor lets the access token skip that boundary
-    /// instead of claiming it a second time through a parsed token. A
-    /// synthesized access parent (the `.bind` call built around a bound
+    /// instead of claiming it a second time through a parsed token.
+    /// Partially-emitted wrappers use the same ordinary child phase: an
+    /// erased assertion has a later end than its runtime expression, so the
+    /// child owns same-line comments before the erased syntax.
+    /// A synthesized access parent (the `.bind` call built around a bound
     /// decorator target) has no parsed token and never claimed that end.
     ///
     /// tsc-port: emitPropertyAccessExpression / emitElementAccessExpression @6.0.3
@@ -14338,7 +14351,7 @@ impl Printer {
     /// tsc-port: pipelineEmitWithComments @6.0.3
     /// tsc-span: _tsc.js:120978-121046
     #[allow(clippy::too_many_arguments)]
-    fn emit_access_target_with_source_comments(
+    fn emit_expression_child_with_source_comments(
         &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
@@ -16431,25 +16444,10 @@ impl Printer {
                     return Ok(());
                 };
                 let position = expression_range.start().value() as usize;
-                let trailing = collect_source_comment_ranges(source.text(), position, true);
-                let excluded = trailing
-                    .iter()
-                    .map(|comment| (comment.start, comment.end))
-                    .collect::<BTreeSet<_>>();
-                emit_source_trailing_comments_of_position(source.text(), position, writer);
-                if trailing.last().is_some_and(|comment| {
-                    comment.kind == SourceCommentKind::Block && !comment.has_trailing_new_line
-                }) && !writer.has_trailing_whitespace()
-                {
-                    writer.write_space(" ");
-                }
-                emit_source_leading_comments_of_position(
-                    source.text(),
-                    position,
-                    &excluded,
-                    false,
-                    writer,
-                );
+                emit_source_intervening_comments_of_position(source.text(), position, writer);
+                // The child's ordinary phase owns leading comments here.
+                // emitPartiallyEmittedExpression requests only trailing
+                // comments at expression.pos before emitting the child.
             }
         } else if wrapper_record.end != expression_record.end {
             let SourceRange::Original(expression_range) = expression_range else {

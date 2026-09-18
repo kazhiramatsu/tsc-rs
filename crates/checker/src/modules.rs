@@ -126,6 +126,8 @@ pub(crate) enum ModuleResolutionMode {
 }
 
 pub(crate) const EMIT_HELPER_EXTENDS: u32 = 1 << 0;
+pub(crate) const EMIT_HELPER_ASSIGN: u32 = 1 << 1;
+pub(crate) const EMIT_HELPER_REST: u32 = 1 << 2;
 pub(crate) const EMIT_HELPER_DECORATE: u32 = 1 << 3;
 pub(crate) const EMIT_HELPER_AWAITER: u32 = 1 << 6;
 pub(crate) const EMIT_HELPER_GENERATOR: u32 = 1 << 7;
@@ -3002,8 +3004,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: reportInvalidImportEqualsExportMember @6.0.3
     /// tsc-hash: 8c4469049e4a46f4f4745eede49d15e95046313726a19d94760a76b79f324fb3
     /// tsc-span: _tsc.js:48945-48958
-    ///
-    /// The isInJSFile middle arm is JS-only (constant-dead).
     fn report_invalid_import_equals_export_member(
         &mut self,
         name: NodeId,
@@ -3016,6 +3016,13 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::_0_can_only_be_imported_by_using_a_default_import
             } else {
                 &diagnostics::_0_can_only_be_imported_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
+            };
+            self.error_at_js(Some(name), message, &[(declaration_name).into()]);
+        } else if self.is_in_js_file(name) {
+            let message = if es_module_interop {
+                &diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_using_a_default_import
+            } else {
+                &diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
             };
             self.error_at_js(Some(name), message, &[(declaration_name).into()]);
         } else if es_module_interop {
@@ -6274,15 +6281,11 @@ impl<'a> CheckerState<'a> {
         while helper <= EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES {
             if unchecked & helper != 0 {
                 for &name in Self::external_emit_helper_names(helper, legacy_decorators) {
-                    let exported = exports
-                        .get(&escape_leading_underscores(name))
-                        .copied()
-                        .filter(|&symbol| {
-                            self.binder
-                                .symbol(symbol)
-                                .flags
-                                .intersects(SymbolFlags::VALUE)
-                        });
+                    let exported = self.get_symbol_in_table(
+                        &exports,
+                        &escape_leading_underscores(name),
+                        SymbolFlags::VALUE,
+                    )?;
                     let symbol = self.resolve_symbol_ex(exported, false)?;
                     let Some(symbol) = symbol.filter(|&symbol| symbol != self.unknown_symbol)
                     else {
@@ -6328,8 +6331,8 @@ impl<'a> CheckerState<'a> {
     fn external_emit_helper_names(helper: u32, legacy_decorators: bool) -> &'static [&'static str] {
         match helper {
             EMIT_HELPER_EXTENDS => &["__extends"],
-            2 => &["__assign"],
-            4 => &["__rest"],
+            EMIT_HELPER_ASSIGN => &["__assign"],
+            EMIT_HELPER_REST => &["__rest"],
             EMIT_HELPER_DECORATE if legacy_decorators => &["__decorate"],
             EMIT_HELPER_DECORATE => &["__esDecorate", "__runInitializers"],
             16 => &["__metadata"],
@@ -8250,8 +8253,25 @@ impl<'a> CheckerState<'a> {
                     &[],
                 );
             }
-            // The isolatedModules global-script row remains outside this
-            // slice.
+            if (self.options.isolated_modules == Some(true)
+                || self.options.verbatim_module_syntax == Some(true))
+                && self
+                    .binder
+                    .source_of_node(node)
+                    .external_module_indicator
+                    .is_none()
+            {
+                let option_name = if self.options.verbatim_module_syntax == Some(true) {
+                    "verbatimModuleSyntax"
+                } else {
+                    "isolatedModules"
+                };
+                self.error_at_js(
+                    Some(name),
+                    &diagnostics::Namespaces_are_not_allowed_in_global_script_files_when_0_is_enabled_If_this_file_is_not_intended_to_be_a_global_script_set_moduleDetection_to_force_or_add_an_empty_export_statement,
+                    &[option_name.into()],
+                );
+            }
             if self.binder.symbol(symbol).declarations.len() > 1 {
                 let first_non_ambient =
                     self.get_first_non_ambient_class_or_function_declaration(symbol);
@@ -8867,6 +8887,25 @@ impl<'a> CheckerState<'a> {
             };
             let display = self.emit_symbol_to_string_default(symbol)?;
             self.error_at_js(Some(node), message, &[(&display).into()]);
+        } else if self.kind_of(node) != SyntaxKind::ExportSpecifier
+            && self.options.isolated_modules == Some(true)
+            && symbol_flags.intersects(SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE)
+            && self
+                .find_ancestor(Some(node), |state, ancestor| {
+                    if state.is_type_only_import_or_export_declaration(ancestor) {
+                        Ancestor::Yes
+                    } else {
+                        Ancestor::No
+                    }
+                })
+                .is_none()
+        {
+            let display = self.emit_symbol_to_string_default(symbol)?;
+            self.error_at_js(
+                Some(node),
+                &diagnostics::Import_0_conflicts_with_local_value_so_must_be_declared_with_a_type_only_import_when_isolatedModules_is_enabled,
+                &[display.as_js()],
+            );
         }
 
         let isolated_modules_like = self.options.isolated_modules == Some(true)
@@ -8929,6 +8968,25 @@ impl<'a> CheckerState<'a> {
                             } else {
                                 self.error_at_js(Some(node), message, &[(&display).into()]);
                             }
+                        }
+                        if is_type
+                            && self.kind_of(node) == SyntaxKind::ImportEqualsDeclaration
+                            && node_util::get_effective_modifier_flags(
+                                self.binder.source_of_node(node),
+                                node,
+                            )
+                            .intersects(ModifierFlags::EXPORT)
+                        {
+                            let option_name = if self.options.verbatim_module_syntax == Some(true) {
+                                "verbatimModuleSyntax"
+                            } else {
+                                "isolatedModules"
+                            };
+                            self.error_at_js(
+                                Some(node),
+                                &diagnostics::Cannot_use_export_import_on_a_type_or_type_only_namespace_when_0_is_enabled,
+                                &[option_name.into()],
+                            );
                         }
                     }
                     SyntaxKind::ExportSpecifier => {

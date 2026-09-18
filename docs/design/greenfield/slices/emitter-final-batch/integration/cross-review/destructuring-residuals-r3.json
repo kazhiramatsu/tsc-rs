@@ -1,0 +1,796 @@
+[
+  {
+    "case_id": "import-helpers/checker-audit/module-destructuring/early-alias",
+    "capture_index": 0,
+    "capture_kind": "supplemental-complete-command",
+    "actual": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBTSxDQUFDLEdBQUcsRUFBQyxDQUFDLEVBQUMsQ0FBQyxFQUFDLENBQUM7QUFBZ0MsWUFBQSxTQUFDLEdBQUksQ0FBQyxFQUFMLENBQU0ifQ==",
+          "callback_utf8_bytes": 184,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBTSxDQUFDLEdBQUcsRUFBQyxDQUFDLEVBQUMsQ0FBQyxFQUFDLENBQUM7QUFBZ0MsWUFBQSxTQUFDLEdBQUksQ0FBQyxFQUFMLENBQU0ifQ==",
+          "materialized_utf8_bytes": 184,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_diagnostics": null,
+          "data_source_map_url_pos": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmEgPSBleHBvcnRzLmIgPSB2b2lkIDA7CmNvbnN0IG8gPSB7IGE6IDEgfTsKZXhwb3J0cy5iID0gZXhwb3J0cy5hID0gby5hOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "callback_utf8_bytes": 190,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmEgPSBleHBvcnRzLmIgPSB2b2lkIDA7CmNvbnN0IG8gPSB7IGE6IDEgfTsKZXhwb3J0cy5iID0gZXhwb3J0cy5hID0gby5hOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "materialized_utf8_bytes": 190,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_diagnostics": [],
+          "data_source_map_url_pos": 158
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 5101,
+          "category": "Error",
+          "file": "/project/tsconfig.json",
+          "start": 209,
+          "length": 20,
+          "message": "Option 'downlevelIteration' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC;AAAgC,YAAA,SAAC,GAAI,CAAC,EAAL,CAAM\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    },
+    "error": null,
+    "partial_writes": null,
+    "expected": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBTSxDQUFDLEdBQUcsRUFBQyxDQUFDLEVBQUMsQ0FBQyxFQUFDLENBQUM7QUFBZ0MsWUFBQSxTQUFDLEdBQUksQ0FBQyxFQUFMLENBQU07QUFBekIsWUFBa0IsU0FBQyxDQUFsQiJ9",
+          "callback_utf8_bytes": 207,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBTSxDQUFDLEdBQUcsRUFBQyxDQUFDLEVBQUMsQ0FBQyxFQUFDLENBQUM7QUFBZ0MsWUFBQSxTQUFDLEdBQUksQ0FBQyxFQUFMLENBQU07QUFBekIsWUFBa0IsU0FBQyxDQUFsQiJ9",
+          "materialized_utf8_bytes": 207,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmEgPSBleHBvcnRzLmIgPSB2b2lkIDA7CmNvbnN0IG8gPSB7IGE6IDEgfTsKZXhwb3J0cy5iID0gZXhwb3J0cy5hID0gby5hOwpleHBvcnRzLmIgPSBleHBvcnRzLmE7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "callback_utf8_bytes": 213,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmEgPSBleHBvcnRzLmIgPSB2b2lkIDA7CmNvbnN0IG8gPSB7IGE6IDEgfTsKZXhwb3J0cy5iID0gZXhwb3J0cy5hID0gby5hOwpleHBvcnRzLmIgPSBleHBvcnRzLmE7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "materialized_utf8_bytes": 213,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 181,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 5101,
+          "category": "Error",
+          "file": "/project/tsconfig.json",
+          "start": 209,
+          "length": 20,
+          "message": "Option 'downlevelIteration' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC;AAAgC,YAAA,SAAC,GAAI,CAAC,EAAL,CAAM;AAAzB,YAAkB,SAAC,CAAlB\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    },
+    "writes": [
+      {
+        "side": "actual",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.a = exports.b = void 0;\nconst o = { a: 1 };\nexports.b = exports.a = o.a;\n//# sourceMappingURL=main.js.map"
+      },
+      {
+        "side": "expected",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.a = exports.b = void 0;\nconst o = { a: 1 };\nexports.b = exports.a = o.a;\nexports.b = exports.a;\n//# sourceMappingURL=main.js.map"
+      }
+    ]
+  },
+  {
+    "case_id": "import-helpers/checker-audit/rest/es2018/true/assignment",
+    "capture_index": 0,
+    "capture_kind": "supplemental-complete-command",
+    "actual": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBRSxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBQyxDQUFDO0FBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxFQUFFLElBQUksR0FBRyxFQUFFLENBQUM7QUFBNkIsb0JBQUk7QUFBaEMsQ0FBRSxDQUFDLEdBQWEsQ0FBQyxJQUFaLGVBQUcsSUFBSSxVQUFJLENBQUMsRUFBaEIsS0FBWSxDQUFJLENBQUMsQ0FBQyJ9",
+          "callback_utf8_bytes": 318,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBRSxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBQyxDQUFDO0FBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxFQUFFLElBQUksR0FBRyxFQUFFLENBQUM7QUFBNkIsb0JBQUk7QUFBaEMsQ0FBRSxDQUFDLEdBQWEsQ0FBQyxJQUFaLGVBQUcsSUFBSSxVQUFJLENBQUMsRUFBaEIsS0FBWSxDQUFJLENBQUMsQ0FBQyJ9",
+          "materialized_utf8_bytes": 318,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_diagnostics": null,
+          "data_source_map_url_pos": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMucmVzdCA9IHZvaWQgMDsKY29uc3QgbyA9IHsgYTogMSwgYjogMiB9OwpsZXQgYSA9IDAsIHJlc3QgPSB7fTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKKGEgPSBvLmEsIGV4cG9ydHMucmVzdCA9IHJlc3QgPSBfX3Jlc3QobywgWyJhIl0pKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 743,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMucmVzdCA9IHZvaWQgMDsKY29uc3QgbyA9IHsgYTogMSwgYjogMiB9OwpsZXQgYSA9IDAsIHJlc3QgPSB7fTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKKGEgPSBvLmEsIGV4cG9ydHMucmVzdCA9IHJlc3QgPSBfX3Jlc3QobywgWyJhIl0pKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 743,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_diagnostics": [],
+          "data_source_map_url_pos": 711
+        }
+      ],
+      "reported_diagnostics": [],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAC,IAAI,CAAC,GAAG,CAAC,EAAE,IAAI,GAAG,EAAE,CAAC;AAA6B,oBAAI;AAAhC,CAAE,CAAC,GAAa,CAAC,IAAZ,eAAG,IAAI,UAAI,CAAC,EAAhB,KAAY,CAAI,CAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 0
+    },
+    "error": null,
+    "partial_writes": null,
+    "expected": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBRSxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBQyxDQUFDO0FBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxFQUFFLElBQUksR0FBRyxFQUFFLENBQUM7QUFBNkIsb0JBQUk7QUFBaEMsQ0FBRSxDQUFDLEdBQWEsQ0FBQyxJQUFaLGVBQUcsSUFBSSxVQUFJLENBQUMsRUFBaEIsS0FBWSxDQUFELENBQU0sQ0FBQyJ9",
+          "callback_utf8_bytes": 318,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBRSxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBQyxDQUFDO0FBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxFQUFFLElBQUksR0FBRyxFQUFFLENBQUM7QUFBNkIsb0JBQUk7QUFBaEMsQ0FBRSxDQUFDLEdBQWEsQ0FBQyxJQUFaLGVBQUcsSUFBSSxVQUFJLENBQUMsRUFBaEIsS0FBWSxDQUFELENBQU0sQ0FBQyJ9",
+          "materialized_utf8_bytes": 318,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMucmVzdCA9IHZvaWQgMDsKY29uc3QgbyA9IHsgYTogMSwgYjogMiB9OwpsZXQgYSA9IDAsIHJlc3QgPSB7fTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKKGEgPSBvLmEsIGV4cG9ydHMucmVzdCA9IHJlc3QgPSBfX3Jlc3QobywgWyJhIl0pKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 743,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMucmVzdCA9IHZvaWQgMDsKY29uc3QgbyA9IHsgYTogMSwgYjogMiB9OwpsZXQgYSA9IDAsIHJlc3QgPSB7fTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKKGEgPSBvLmEsIGV4cG9ydHMucmVzdCA9IHJlc3QgPSBfX3Jlc3QobywgWyJhIl0pKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 743,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 711,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAC,IAAI,CAAC,GAAG,CAAC,EAAE,IAAI,GAAG,EAAE,CAAC;AAA6B,oBAAI;AAAhC,CAAE,CAAC,GAAa,CAAC,IAAZ,eAAG,IAAI,UAAI,CAAC,EAAhB,KAAY,CAAD,CAAM,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 0
+    },
+    "writes": [
+      {
+        "side": "actual",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nvar __rest = (this && this.__rest) || function (s, e) {\n    var t = {};\n    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)\n        t[p] = s[p];\n    if (s != null && typeof Object.getOwnPropertySymbols === \"function\")\n        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {\n            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))\n                t[p[i]] = s[p[i]];\n        }\n    return t;\n};\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.rest = void 0;\nconst o = { a: 1, b: 2 };\nlet a = 0, rest = {};\nexports.rest = rest;\n(a = o.a, exports.rest = rest = __rest(o, [\"a\"]));\n//# sourceMappingURL=main.js.map"
+      },
+      {
+        "side": "expected",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nvar __rest = (this && this.__rest) || function (s, e) {\n    var t = {};\n    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)\n        t[p] = s[p];\n    if (s != null && typeof Object.getOwnPropertySymbols === \"function\")\n        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {\n            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))\n                t[p[i]] = s[p[i]];\n        }\n    return t;\n};\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.rest = void 0;\nconst o = { a: 1, b: 2 };\nlet a = 0, rest = {};\nexports.rest = rest;\n(a = o.a, exports.rest = rest = __rest(o, [\"a\"]));\n//# sourceMappingURL=main.js.map"
+      }
+    ]
+  },
+  {
+    "case_id": "import-helpers/checker-audit/adjacent-helper/es2015/false/read-assignment",
+    "capture_index": 0,
+    "capture_kind": "supplemental-complete-command",
+    "actual": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxJQUFJLEtBQUssR0FBRyxDQUFDLEVBQUUsSUFBSSxHQUFhLEVBQUUsQ0FBQztBQUFvQyxvQkFBSTtBQUF2QyxLQUFBLE9BQW1CLENBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFBLEVBQXhCLEtBQUssVUFBRSxlQUFHLElBQUksY0FBVSxDQUFDIn0=",
+          "callback_utf8_bytes": 260,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxJQUFJLEtBQUssR0FBRyxDQUFDLEVBQUUsSUFBSSxHQUFhLEVBQUUsQ0FBQztBQUFvQyxvQkFBSTtBQUF2QyxLQUFBLE9BQW1CLENBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFBLEVBQXhCLEtBQUssVUFBRSxlQUFHLElBQUksY0FBVSxDQUFDIn0=",
+          "materialized_utf8_bytes": 260,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_diagnostics": null,
+          "data_source_map_url_pos": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZWFkID0gKHRoaXMgJiYgdGhpcy5fX3JlYWQpIHx8IGZ1bmN0aW9uIChvLCBuKSB7CiAgICB2YXIgbSA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgb1tTeW1ib2wuaXRlcmF0b3JdOwogICAgaWYgKCFtKSByZXR1cm4gbzsKICAgIHZhciBpID0gbS5jYWxsKG8pLCByLCBhciA9IFtdLCBlOwogICAgdHJ5IHsKICAgICAgICB3aGlsZSAoKG4gPT09IHZvaWQgMCB8fCBuLS0gPiAwKSAmJiAhKHIgPSBpLm5leHQoKSkuZG9uZSkgYXIucHVzaChyLnZhbHVlKTsKICAgIH0KICAgIGNhdGNoIChlcnJvcikgeyBlID0geyBlcnJvcjogZXJyb3IgfTsgfQogICAgZmluYWxseSB7CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgaWYgKHIgJiYgIXIuZG9uZSAmJiAobSA9IGlbInJldHVybiJdKSkgbS5jYWxsKGkpOwogICAgICAgIH0KICAgICAgICBmaW5hbGx5IHsgaWYgKGUpIHRocm93IGUuZXJyb3I7IH0KICAgIH0KICAgIHJldHVybiBhcjsKfTsKdmFyIF9hOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlc3QgPSB2b2lkIDA7CmxldCBmaXJzdCA9IDAsIHJlc3QgPSBbXTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKX2EgPSBfX3JlYWQoWzEsIDJdKSwgZmlyc3QgPSBfYVswXSwgZXhwb3J0cy5yZXN0ID0gcmVzdCA9IF9hLnNsaWNlKDEpOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "callback_utf8_bytes": 748,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZWFkID0gKHRoaXMgJiYgdGhpcy5fX3JlYWQpIHx8IGZ1bmN0aW9uIChvLCBuKSB7CiAgICB2YXIgbSA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgb1tTeW1ib2wuaXRlcmF0b3JdOwogICAgaWYgKCFtKSByZXR1cm4gbzsKICAgIHZhciBpID0gbS5jYWxsKG8pLCByLCBhciA9IFtdLCBlOwogICAgdHJ5IHsKICAgICAgICB3aGlsZSAoKG4gPT09IHZvaWQgMCB8fCBuLS0gPiAwKSAmJiAhKHIgPSBpLm5leHQoKSkuZG9uZSkgYXIucHVzaChyLnZhbHVlKTsKICAgIH0KICAgIGNhdGNoIChlcnJvcikgeyBlID0geyBlcnJvcjogZXJyb3IgfTsgfQogICAgZmluYWxseSB7CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgaWYgKHIgJiYgIXIuZG9uZSAmJiAobSA9IGlbInJldHVybiJdKSkgbS5jYWxsKGkpOwogICAgICAgIH0KICAgICAgICBmaW5hbGx5IHsgaWYgKGUpIHRocm93IGUuZXJyb3I7IH0KICAgIH0KICAgIHJldHVybiBhcjsKfTsKdmFyIF9hOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlc3QgPSB2b2lkIDA7CmxldCBmaXJzdCA9IDAsIHJlc3QgPSBbXTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKX2EgPSBfX3JlYWQoWzEsIDJdKSwgZmlyc3QgPSBfYVswXSwgZXhwb3J0cy5yZXN0ID0gcmVzdCA9IF9hLnNsaWNlKDEpOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "materialized_utf8_bytes": 748,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_diagnostics": [],
+          "data_source_map_url_pos": 716
+        }
+      ],
+      "reported_diagnostics": [],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;AAAA,IAAI,KAAK,GAAG,CAAC,EAAE,IAAI,GAAa,EAAE,CAAC;AAAoC,oBAAI;AAAvC,KAAA,OAAmB,CAAC,CAAC,EAAE,CAAC,CAAC,CAAA,EAAxB,KAAK,UAAE,eAAG,IAAI,cAAU,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 0
+    },
+    "error": null,
+    "partial_writes": null,
+    "expected": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxJQUFJLEtBQUssR0FBRyxDQUFDLEVBQUUsSUFBSSxHQUFhLEVBQUUsQ0FBQztBQUFvQyxvQkFBSTtBQUF2QyxLQUFBLE9BQW1CLENBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFBLEVBQXhCLEtBQUssVUFBRSxlQUFHLElBQUksY0FBQSxDQUFXIn0=",
+          "callback_utf8_bytes": 260,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxJQUFJLEtBQUssR0FBRyxDQUFDLEVBQUUsSUFBSSxHQUFhLEVBQUUsQ0FBQztBQUFvQyxvQkFBSTtBQUF2QyxLQUFBLE9BQW1CLENBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFBLEVBQXhCLEtBQUssVUFBRSxlQUFHLElBQUksY0FBQSxDQUFXIn0=",
+          "materialized_utf8_bytes": 260,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZWFkID0gKHRoaXMgJiYgdGhpcy5fX3JlYWQpIHx8IGZ1bmN0aW9uIChvLCBuKSB7CiAgICB2YXIgbSA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgb1tTeW1ib2wuaXRlcmF0b3JdOwogICAgaWYgKCFtKSByZXR1cm4gbzsKICAgIHZhciBpID0gbS5jYWxsKG8pLCByLCBhciA9IFtdLCBlOwogICAgdHJ5IHsKICAgICAgICB3aGlsZSAoKG4gPT09IHZvaWQgMCB8fCBuLS0gPiAwKSAmJiAhKHIgPSBpLm5leHQoKSkuZG9uZSkgYXIucHVzaChyLnZhbHVlKTsKICAgIH0KICAgIGNhdGNoIChlcnJvcikgeyBlID0geyBlcnJvcjogZXJyb3IgfTsgfQogICAgZmluYWxseSB7CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgaWYgKHIgJiYgIXIuZG9uZSAmJiAobSA9IGlbInJldHVybiJdKSkgbS5jYWxsKGkpOwogICAgICAgIH0KICAgICAgICBmaW5hbGx5IHsgaWYgKGUpIHRocm93IGUuZXJyb3I7IH0KICAgIH0KICAgIHJldHVybiBhcjsKfTsKdmFyIF9hOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlc3QgPSB2b2lkIDA7CmxldCBmaXJzdCA9IDAsIHJlc3QgPSBbXTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKX2EgPSBfX3JlYWQoWzEsIDJdKSwgZmlyc3QgPSBfYVswXSwgZXhwb3J0cy5yZXN0ID0gcmVzdCA9IF9hLnNsaWNlKDEpOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "callback_utf8_bytes": 748,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZWFkID0gKHRoaXMgJiYgdGhpcy5fX3JlYWQpIHx8IGZ1bmN0aW9uIChvLCBuKSB7CiAgICB2YXIgbSA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgb1tTeW1ib2wuaXRlcmF0b3JdOwogICAgaWYgKCFtKSByZXR1cm4gbzsKICAgIHZhciBpID0gbS5jYWxsKG8pLCByLCBhciA9IFtdLCBlOwogICAgdHJ5IHsKICAgICAgICB3aGlsZSAoKG4gPT09IHZvaWQgMCB8fCBuLS0gPiAwKSAmJiAhKHIgPSBpLm5leHQoKSkuZG9uZSkgYXIucHVzaChyLnZhbHVlKTsKICAgIH0KICAgIGNhdGNoIChlcnJvcikgeyBlID0geyBlcnJvcjogZXJyb3IgfTsgfQogICAgZmluYWxseSB7CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgaWYgKHIgJiYgIXIuZG9uZSAmJiAobSA9IGlbInJldHVybiJdKSkgbS5jYWxsKGkpOwogICAgICAgIH0KICAgICAgICBmaW5hbGx5IHsgaWYgKGUpIHRocm93IGUuZXJyb3I7IH0KICAgIH0KICAgIHJldHVybiBhcjsKfTsKdmFyIF9hOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlc3QgPSB2b2lkIDA7CmxldCBmaXJzdCA9IDAsIHJlc3QgPSBbXTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKX2EgPSBfX3JlYWQoWzEsIDJdKSwgZmlyc3QgPSBfYVswXSwgZXhwb3J0cy5yZXN0ID0gcmVzdCA9IF9hLnNsaWNlKDEpOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "materialized_utf8_bytes": 748,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 716,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;AAAA,IAAI,KAAK,GAAG,CAAC,EAAE,IAAI,GAAa,EAAE,CAAC;AAAoC,oBAAI;AAAvC,KAAA,OAAmB,CAAC,CAAC,EAAE,CAAC,CAAC,CAAA,EAAxB,KAAK,UAAE,eAAG,IAAI,cAAA,CAAW\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 0
+    },
+    "writes": [
+      {
+        "side": "actual",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nvar __read = (this && this.__read) || function (o, n) {\n    var m = typeof Symbol === \"function\" && o[Symbol.iterator];\n    if (!m) return o;\n    var i = m.call(o), r, ar = [], e;\n    try {\n        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);\n    }\n    catch (error) { e = { error: error }; }\n    finally {\n        try {\n            if (r && !r.done && (m = i[\"return\"])) m.call(i);\n        }\n        finally { if (e) throw e.error; }\n    }\n    return ar;\n};\nvar _a;\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.rest = void 0;\nlet first = 0, rest = [];\nexports.rest = rest;\n_a = __read([1, 2]), first = _a[0], exports.rest = rest = _a.slice(1);\n//# sourceMappingURL=main.js.map"
+      },
+      {
+        "side": "expected",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nvar __read = (this && this.__read) || function (o, n) {\n    var m = typeof Symbol === \"function\" && o[Symbol.iterator];\n    if (!m) return o;\n    var i = m.call(o), r, ar = [], e;\n    try {\n        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);\n    }\n    catch (error) { e = { error: error }; }\n    finally {\n        try {\n            if (r && !r.done && (m = i[\"return\"])) m.call(i);\n        }\n        finally { if (e) throw e.error; }\n    }\n    return ar;\n};\nvar _a;\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.rest = void 0;\nlet first = 0, rest = [];\nexports.rest = rest;\n_a = __read([1, 2]), first = _a[0], exports.rest = rest = _a.slice(1);\n//# sourceMappingURL=main.js.map"
+      }
+    ]
+  },
+  {
+    "case_id": "import-helpers/checker-audit/adjacent-helper/es2015/true/read-assignment",
+    "capture_index": 0,
+    "capture_kind": "supplemental-complete-command",
+    "actual": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxJQUFJLEtBQUssR0FBRyxDQUFDLEVBQUUsSUFBSSxHQUFhLEVBQUUsQ0FBQztBQUFvQyxvQkFBSTtBQUF2QyxLQUFBLE9BQW1CLENBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFBLEVBQXhCLEtBQUssVUFBRSxlQUFHLElBQUksY0FBVSxDQUFDIn0=",
+          "callback_utf8_bytes": 260,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxJQUFJLEtBQUssR0FBRyxDQUFDLEVBQUUsSUFBSSxHQUFhLEVBQUUsQ0FBQztBQUFvQyxvQkFBSTtBQUF2QyxLQUFBLE9BQW1CLENBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFBLEVBQXhCLEtBQUssVUFBRSxlQUFHLElBQUksY0FBVSxDQUFDIn0=",
+          "materialized_utf8_bytes": 260,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_diagnostics": null,
+          "data_source_map_url_pos": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZWFkID0gKHRoaXMgJiYgdGhpcy5fX3JlYWQpIHx8IGZ1bmN0aW9uIChvLCBuKSB7CiAgICB2YXIgbSA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgb1tTeW1ib2wuaXRlcmF0b3JdOwogICAgaWYgKCFtKSByZXR1cm4gbzsKICAgIHZhciBpID0gbS5jYWxsKG8pLCByLCBhciA9IFtdLCBlOwogICAgdHJ5IHsKICAgICAgICB3aGlsZSAoKG4gPT09IHZvaWQgMCB8fCBuLS0gPiAwKSAmJiAhKHIgPSBpLm5leHQoKSkuZG9uZSkgYXIucHVzaChyLnZhbHVlKTsKICAgIH0KICAgIGNhdGNoIChlcnJvcikgeyBlID0geyBlcnJvcjogZXJyb3IgfTsgfQogICAgZmluYWxseSB7CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgaWYgKHIgJiYgIXIuZG9uZSAmJiAobSA9IGlbInJldHVybiJdKSkgbS5jYWxsKGkpOwogICAgICAgIH0KICAgICAgICBmaW5hbGx5IHsgaWYgKGUpIHRocm93IGUuZXJyb3I7IH0KICAgIH0KICAgIHJldHVybiBhcjsKfTsKdmFyIF9hOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlc3QgPSB2b2lkIDA7CmxldCBmaXJzdCA9IDAsIHJlc3QgPSBbXTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKX2EgPSBfX3JlYWQoWzEsIDJdKSwgZmlyc3QgPSBfYVswXSwgZXhwb3J0cy5yZXN0ID0gcmVzdCA9IF9hLnNsaWNlKDEpOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "callback_utf8_bytes": 748,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZWFkID0gKHRoaXMgJiYgdGhpcy5fX3JlYWQpIHx8IGZ1bmN0aW9uIChvLCBuKSB7CiAgICB2YXIgbSA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgb1tTeW1ib2wuaXRlcmF0b3JdOwogICAgaWYgKCFtKSByZXR1cm4gbzsKICAgIHZhciBpID0gbS5jYWxsKG8pLCByLCBhciA9IFtdLCBlOwogICAgdHJ5IHsKICAgICAgICB3aGlsZSAoKG4gPT09IHZvaWQgMCB8fCBuLS0gPiAwKSAmJiAhKHIgPSBpLm5leHQoKSkuZG9uZSkgYXIucHVzaChyLnZhbHVlKTsKICAgIH0KICAgIGNhdGNoIChlcnJvcikgeyBlID0geyBlcnJvcjogZXJyb3IgfTsgfQogICAgZmluYWxseSB7CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgaWYgKHIgJiYgIXIuZG9uZSAmJiAobSA9IGlbInJldHVybiJdKSkgbS5jYWxsKGkpOwogICAgICAgIH0KICAgICAgICBmaW5hbGx5IHsgaWYgKGUpIHRocm93IGUuZXJyb3I7IH0KICAgIH0KICAgIHJldHVybiBhcjsKfTsKdmFyIF9hOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlc3QgPSB2b2lkIDA7CmxldCBmaXJzdCA9IDAsIHJlc3QgPSBbXTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKX2EgPSBfX3JlYWQoWzEsIDJdKSwgZmlyc3QgPSBfYVswXSwgZXhwb3J0cy5yZXN0ID0gcmVzdCA9IF9hLnNsaWNlKDEpOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "materialized_utf8_bytes": 748,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_diagnostics": [],
+          "data_source_map_url_pos": 716
+        }
+      ],
+      "reported_diagnostics": [],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;AAAA,IAAI,KAAK,GAAG,CAAC,EAAE,IAAI,GAAa,EAAE,CAAC;AAAoC,oBAAI;AAAvC,KAAA,OAAmB,CAAC,CAAC,EAAE,CAAC,CAAC,CAAA,EAAxB,KAAK,UAAE,eAAG,IAAI,cAAU,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 0
+    },
+    "error": null,
+    "partial_writes": null,
+    "expected": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxJQUFJLEtBQUssR0FBRyxDQUFDLEVBQUUsSUFBSSxHQUFhLEVBQUUsQ0FBQztBQUFvQyxvQkFBSTtBQUF2QyxLQUFBLE9BQW1CLENBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFBLEVBQXhCLEtBQUssVUFBRSxlQUFHLElBQUksY0FBQSxDQUFXIn0=",
+          "callback_utf8_bytes": 260,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxJQUFJLEtBQUssR0FBRyxDQUFDLEVBQUUsSUFBSSxHQUFhLEVBQUUsQ0FBQztBQUFvQyxvQkFBSTtBQUF2QyxLQUFBLE9BQW1CLENBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFBLEVBQXhCLEtBQUssVUFBRSxlQUFHLElBQUksY0FBQSxDQUFXIn0=",
+          "materialized_utf8_bytes": 260,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZWFkID0gKHRoaXMgJiYgdGhpcy5fX3JlYWQpIHx8IGZ1bmN0aW9uIChvLCBuKSB7CiAgICB2YXIgbSA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgb1tTeW1ib2wuaXRlcmF0b3JdOwogICAgaWYgKCFtKSByZXR1cm4gbzsKICAgIHZhciBpID0gbS5jYWxsKG8pLCByLCBhciA9IFtdLCBlOwogICAgdHJ5IHsKICAgICAgICB3aGlsZSAoKG4gPT09IHZvaWQgMCB8fCBuLS0gPiAwKSAmJiAhKHIgPSBpLm5leHQoKSkuZG9uZSkgYXIucHVzaChyLnZhbHVlKTsKICAgIH0KICAgIGNhdGNoIChlcnJvcikgeyBlID0geyBlcnJvcjogZXJyb3IgfTsgfQogICAgZmluYWxseSB7CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgaWYgKHIgJiYgIXIuZG9uZSAmJiAobSA9IGlbInJldHVybiJdKSkgbS5jYWxsKGkpOwogICAgICAgIH0KICAgICAgICBmaW5hbGx5IHsgaWYgKGUpIHRocm93IGUuZXJyb3I7IH0KICAgIH0KICAgIHJldHVybiBhcjsKfTsKdmFyIF9hOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlc3QgPSB2b2lkIDA7CmxldCBmaXJzdCA9IDAsIHJlc3QgPSBbXTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKX2EgPSBfX3JlYWQoWzEsIDJdKSwgZmlyc3QgPSBfYVswXSwgZXhwb3J0cy5yZXN0ID0gcmVzdCA9IF9hLnNsaWNlKDEpOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "callback_utf8_bytes": 748,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZWFkID0gKHRoaXMgJiYgdGhpcy5fX3JlYWQpIHx8IGZ1bmN0aW9uIChvLCBuKSB7CiAgICB2YXIgbSA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgb1tTeW1ib2wuaXRlcmF0b3JdOwogICAgaWYgKCFtKSByZXR1cm4gbzsKICAgIHZhciBpID0gbS5jYWxsKG8pLCByLCBhciA9IFtdLCBlOwogICAgdHJ5IHsKICAgICAgICB3aGlsZSAoKG4gPT09IHZvaWQgMCB8fCBuLS0gPiAwKSAmJiAhKHIgPSBpLm5leHQoKSkuZG9uZSkgYXIucHVzaChyLnZhbHVlKTsKICAgIH0KICAgIGNhdGNoIChlcnJvcikgeyBlID0geyBlcnJvcjogZXJyb3IgfTsgfQogICAgZmluYWxseSB7CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgaWYgKHIgJiYgIXIuZG9uZSAmJiAobSA9IGlbInJldHVybiJdKSkgbS5jYWxsKGkpOwogICAgICAgIH0KICAgICAgICBmaW5hbGx5IHsgaWYgKGUpIHRocm93IGUuZXJyb3I7IH0KICAgIH0KICAgIHJldHVybiBhcjsKfTsKdmFyIF9hOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlc3QgPSB2b2lkIDA7CmxldCBmaXJzdCA9IDAsIHJlc3QgPSBbXTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKX2EgPSBfX3JlYWQoWzEsIDJdKSwgZmlyc3QgPSBfYVswXSwgZXhwb3J0cy5yZXN0ID0gcmVzdCA9IF9hLnNsaWNlKDEpOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "materialized_utf8_bytes": 748,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 716,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;AAAA,IAAI,KAAK,GAAG,CAAC,EAAE,IAAI,GAAa,EAAE,CAAC;AAAoC,oBAAI;AAAvC,KAAA,OAAmB,CAAC,CAAC,EAAE,CAAC,CAAC,CAAA,EAAxB,KAAK,UAAE,eAAG,IAAI,cAAA,CAAW\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 0
+    },
+    "writes": [
+      {
+        "side": "actual",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nvar __read = (this && this.__read) || function (o, n) {\n    var m = typeof Symbol === \"function\" && o[Symbol.iterator];\n    if (!m) return o;\n    var i = m.call(o), r, ar = [], e;\n    try {\n        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);\n    }\n    catch (error) { e = { error: error }; }\n    finally {\n        try {\n            if (r && !r.done && (m = i[\"return\"])) m.call(i);\n        }\n        finally { if (e) throw e.error; }\n    }\n    return ar;\n};\nvar _a;\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.rest = void 0;\nlet first = 0, rest = [];\nexports.rest = rest;\n_a = __read([1, 2]), first = _a[0], exports.rest = rest = _a.slice(1);\n//# sourceMappingURL=main.js.map"
+      },
+      {
+        "side": "expected",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nvar __read = (this && this.__read) || function (o, n) {\n    var m = typeof Symbol === \"function\" && o[Symbol.iterator];\n    if (!m) return o;\n    var i = m.call(o), r, ar = [], e;\n    try {\n        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);\n    }\n    catch (error) { e = { error: error }; }\n    finally {\n        try {\n            if (r && !r.done && (m = i[\"return\"])) m.call(i);\n        }\n        finally { if (e) throw e.error; }\n    }\n    return ar;\n};\nvar _a;\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.rest = void 0;\nlet first = 0, rest = [];\nexports.rest = rest;\n_a = __read([1, 2]), first = _a[0], exports.rest = rest = _a.slice(1);\n//# sourceMappingURL=main.js.map"
+      }
+    ]
+  },
+  {
+    "case_id": "import-helpers/checker-audit/rest/es2018/false/assignment",
+    "capture_index": 0,
+    "capture_kind": "supplemental-complete-command",
+    "actual": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBRSxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBQyxDQUFDO0FBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxFQUFFLElBQUksR0FBRyxFQUFFLENBQUM7QUFBNkIsb0JBQUk7QUFBaEMsQ0FBRSxDQUFDLEdBQWEsQ0FBQyxJQUFaLGVBQUcsSUFBSSxVQUFJLENBQUMsRUFBaEIsS0FBWSxDQUFJLENBQUMsQ0FBQyJ9",
+          "callback_utf8_bytes": 318,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBRSxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBQyxDQUFDO0FBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxFQUFFLElBQUksR0FBRyxFQUFFLENBQUM7QUFBNkIsb0JBQUk7QUFBaEMsQ0FBRSxDQUFDLEdBQWEsQ0FBQyxJQUFaLGVBQUcsSUFBSSxVQUFJLENBQUMsRUFBaEIsS0FBWSxDQUFJLENBQUMsQ0FBQyJ9",
+          "materialized_utf8_bytes": 318,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_diagnostics": null,
+          "data_source_map_url_pos": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMucmVzdCA9IHZvaWQgMDsKY29uc3QgbyA9IHsgYTogMSwgYjogMiB9OwpsZXQgYSA9IDAsIHJlc3QgPSB7fTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKKGEgPSBvLmEsIGV4cG9ydHMucmVzdCA9IHJlc3QgPSBfX3Jlc3QobywgWyJhIl0pKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 743,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMucmVzdCA9IHZvaWQgMDsKY29uc3QgbyA9IHsgYTogMSwgYjogMiB9OwpsZXQgYSA9IDAsIHJlc3QgPSB7fTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKKGEgPSBvLmEsIGV4cG9ydHMucmVzdCA9IHJlc3QgPSBfX3Jlc3QobywgWyJhIl0pKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 743,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_diagnostics": [],
+          "data_source_map_url_pos": 711
+        }
+      ],
+      "reported_diagnostics": [],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAC,IAAI,CAAC,GAAG,CAAC,EAAE,IAAI,GAAG,EAAE,CAAC;AAA6B,oBAAI;AAAhC,CAAE,CAAC,GAAa,CAAC,IAAZ,eAAG,IAAI,UAAI,CAAC,EAAhB,KAAY,CAAI,CAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 0
+    },
+    "error": null,
+    "partial_writes": null,
+    "expected": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBRSxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBQyxDQUFDO0FBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxFQUFFLElBQUksR0FBRyxFQUFFLENBQUM7QUFBNkIsb0JBQUk7QUFBaEMsQ0FBRSxDQUFDLEdBQWEsQ0FBQyxJQUFaLGVBQUcsSUFBSSxVQUFJLENBQUMsRUFBaEIsS0FBWSxDQUFELENBQU0sQ0FBQyJ9",
+          "callback_utf8_bytes": 318,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBRSxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBQyxDQUFDO0FBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxFQUFFLElBQUksR0FBRyxFQUFFLENBQUM7QUFBNkIsb0JBQUk7QUFBaEMsQ0FBRSxDQUFDLEdBQWEsQ0FBQyxJQUFaLGVBQUcsSUFBSSxVQUFJLENBQUMsRUFBaEIsS0FBWSxDQUFELENBQU0sQ0FBQyJ9",
+          "materialized_utf8_bytes": 318,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMucmVzdCA9IHZvaWQgMDsKY29uc3QgbyA9IHsgYTogMSwgYjogMiB9OwpsZXQgYSA9IDAsIHJlc3QgPSB7fTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKKGEgPSBvLmEsIGV4cG9ydHMucmVzdCA9IHJlc3QgPSBfX3Jlc3QobywgWyJhIl0pKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 743,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMucmVzdCA9IHZvaWQgMDsKY29uc3QgbyA9IHsgYTogMSwgYjogMiB9OwpsZXQgYSA9IDAsIHJlc3QgPSB7fTsKZXhwb3J0cy5yZXN0ID0gcmVzdDsKKGEgPSBvLmEsIGV4cG9ydHMucmVzdCA9IHJlc3QgPSBfX3Jlc3QobywgWyJhIl0pKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 743,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 711,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAC,IAAI,CAAC,GAAG,CAAC,EAAE,IAAI,GAAG,EAAE,CAAC;AAA6B,oBAAI;AAAhC,CAAE,CAAC,GAAa,CAAC,IAAZ,eAAG,IAAI,UAAI,CAAC,EAAhB,KAAY,CAAD,CAAM,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 0
+    },
+    "writes": [
+      {
+        "side": "actual",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nvar __rest = (this && this.__rest) || function (s, e) {\n    var t = {};\n    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)\n        t[p] = s[p];\n    if (s != null && typeof Object.getOwnPropertySymbols === \"function\")\n        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {\n            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))\n                t[p[i]] = s[p[i]];\n        }\n    return t;\n};\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.rest = void 0;\nconst o = { a: 1, b: 2 };\nlet a = 0, rest = {};\nexports.rest = rest;\n(a = o.a, exports.rest = rest = __rest(o, [\"a\"]));\n//# sourceMappingURL=main.js.map"
+      },
+      {
+        "side": "expected",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nvar __rest = (this && this.__rest) || function (s, e) {\n    var t = {};\n    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)\n        t[p] = s[p];\n    if (s != null && typeof Object.getOwnPropertySymbols === \"function\")\n        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {\n            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))\n                t[p[i]] = s[p[i]];\n        }\n    return t;\n};\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.rest = void 0;\nconst o = { a: 1, b: 2 };\nlet a = 0, rest = {};\nexports.rest = rest;\n(a = o.a, exports.rest = rest = __rest(o, [\"a\"]));\n//# sourceMappingURL=main.js.map"
+      }
+    ]
+  },
+  {
+    "case_id": "import-helpers/checker-audit/module-destructuring/es2018/alias-rest",
+    "capture_index": 0,
+    "capture_kind": "supplemental-complete-command",
+    "actual": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBQyxDQUFDLEVBQUMsQ0FBQyxFQUFDLENBQUMsRUFBQyxDQUFDO0FBQWUsU0FBQyxHQUFhLENBQUMsSUFBWixnQkFBRyxZQUFJLFVBQUksQ0FBQyxFQUFoQixLQUFZLENBQUQsQ0FBTSJ9",
+          "callback_utf8_bytes": 246,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBQyxDQUFDLEVBQUMsQ0FBQyxFQUFDLENBQUMsRUFBQyxDQUFDO0FBQWUsU0FBQyxHQUFhLENBQUMsSUFBWixnQkFBRyxZQUFJLFVBQUksQ0FBQyxFQUFoQixLQUFZLENBQUQsQ0FBTSJ9",
+          "materialized_utf8_bytes": 246,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_diagnostics": null,
+          "data_source_map_url_pos": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMub3RoZXIgPSBleHBvcnRzLnJlc3QgPSBleHBvcnRzLmEgPSB2b2lkIDA7CmNvbnN0IG8gPSB7IGE6IDEsIGI6IDIgfTsKZXhwb3J0cy5hID0gby5hLCBleHBvcnRzLm90aGVyID0gZXhwb3J0cy5yZXN0ID0gX19yZXN0KG8sIFsiYSJdKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 743,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMub3RoZXIgPSBleHBvcnRzLnJlc3QgPSBleHBvcnRzLmEgPSB2b2lkIDA7CmNvbnN0IG8gPSB7IGE6IDEsIGI6IDIgfTsKZXhwb3J0cy5hID0gby5hLCBleHBvcnRzLm90aGVyID0gZXhwb3J0cy5yZXN0ID0gX19yZXN0KG8sIFsiYSJdKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 743,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_diagnostics": [],
+          "data_source_map_url_pos": 711
+        }
+      ],
+      "reported_diagnostics": [],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC;AAAe,SAAC,GAAa,CAAC,IAAZ,gBAAG,YAAI,UAAI,CAAC,EAAhB,KAAY,CAAD,CAAM\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 0
+    },
+    "error": null,
+    "partial_writes": null,
+    "expected": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBQyxDQUFDLEVBQUMsQ0FBQyxFQUFDLENBQUMsRUFBQyxDQUFDO0FBQWUsU0FBQyxHQUFhLENBQUMsSUFBWixnQkFBRyxZQUFJLFVBQUksQ0FBQyxFQUFoQixLQUFZLENBQUQsQ0FBTTtBQUFpQixnQkFBM0IsWUFBSSxDQUE0QiJ9",
+          "callback_utf8_bytes": 270,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFNLENBQUMsR0FBRyxFQUFDLENBQUMsRUFBQyxDQUFDLEVBQUMsQ0FBQyxFQUFDLENBQUMsRUFBQyxDQUFDO0FBQWUsU0FBQyxHQUFhLENBQUMsSUFBWixnQkFBRyxZQUFJLFVBQUksQ0FBQyxFQUFoQixLQUFZLENBQUQsQ0FBTTtBQUFpQixnQkFBM0IsWUFBSSxDQUE0QiJ9",
+          "materialized_utf8_bytes": 270,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMub3RoZXIgPSBleHBvcnRzLnJlc3QgPSBleHBvcnRzLmEgPSB2b2lkIDA7CmNvbnN0IG8gPSB7IGE6IDEsIGI6IDIgfTsKZXhwb3J0cy5hID0gby5hLCBleHBvcnRzLm90aGVyID0gZXhwb3J0cy5yZXN0ID0gX19yZXN0KG8sIFsiYSJdKTsKZXhwb3J0cy5vdGhlciA9IGV4cG9ydHMucmVzdDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 773,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMub3RoZXIgPSBleHBvcnRzLnJlc3QgPSBleHBvcnRzLmEgPSB2b2lkIDA7CmNvbnN0IG8gPSB7IGE6IDEsIGI6IDIgfTsKZXhwb3J0cy5hID0gby5hLCBleHBvcnRzLm90aGVyID0gZXhwb3J0cy5yZXN0ID0gX19yZXN0KG8sIFsiYSJdKTsKZXhwb3J0cy5vdGhlciA9IGV4cG9ydHMucmVzdDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 773,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 741,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC;AAAe,SAAC,GAAa,CAAC,IAAZ,gBAAG,YAAI,UAAI,CAAC,EAAhB,KAAY,CAAD,CAAM;AAAiB,gBAA3B,YAAI,CAA4B\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 0
+    },
+    "writes": [
+      {
+        "side": "actual",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nvar __rest = (this && this.__rest) || function (s, e) {\n    var t = {};\n    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)\n        t[p] = s[p];\n    if (s != null && typeof Object.getOwnPropertySymbols === \"function\")\n        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {\n            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))\n                t[p[i]] = s[p[i]];\n        }\n    return t;\n};\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.other = exports.rest = exports.a = void 0;\nconst o = { a: 1, b: 2 };\nexports.a = o.a, exports.other = exports.rest = __rest(o, [\"a\"]);\n//# sourceMappingURL=main.js.map"
+      },
+      {
+        "side": "expected",
+        "path": "/project/out/main.js",
+        "text": "\"use strict\";\nvar __rest = (this && this.__rest) || function (s, e) {\n    var t = {};\n    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)\n        t[p] = s[p];\n    if (s != null && typeof Object.getOwnPropertySymbols === \"function\")\n        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {\n            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))\n                t[p[i]] = s[p[i]];\n        }\n    return t;\n};\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.other = exports.rest = exports.a = void 0;\nconst o = { a: 1, b: 2 };\nexports.a = o.a, exports.other = exports.rest = __rest(o, [\"a\"]);\nexports.other = exports.rest;\n//# sourceMappingURL=main.js.map"
+      }
+    ]
+  }
+]

@@ -319,14 +319,14 @@ impl EmitHost for TestEmitHost {
     }
 
     fn current_directory(&self) -> tsc_diagnostics::JsStr<'_> {
-        (&self.current_directory)
+        self.current_directory
             .to_str()
             .expect("scalar mock host directory")
             .into()
     }
 
     fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
-        (&self.common_source_directory)
+        self.common_source_directory
             .to_str()
             .expect("scalar mock host directory")
             .into()
@@ -1026,6 +1026,4 @@ fn sink_errors_continue_and_emitted_files_remain_independent_from_disposition() 
     );
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

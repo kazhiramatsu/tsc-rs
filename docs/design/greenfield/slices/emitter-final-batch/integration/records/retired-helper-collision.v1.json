@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "evidence": "local/audit-helper-retire.log.gz",
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/importHelpersWithLocalCollisions.ts#module%3Des2015",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "H2.5h corpus-adoption: tslib helper import aliasing a colliding source identifier (typed refusal)",
+      "native": {
+        "kind": "failure",
+        "message": "ordinary Program/command: Emit(Transform(UnsupportedCompilerOption { option: \"importHelpers\", detail: \"a tslib helper import aliasing a colliding source identifier is owned by the H2.5h corpus-adoption slice\" })); partial callback paths/SHA256: []"
+      }
+    }
+  ]
+}

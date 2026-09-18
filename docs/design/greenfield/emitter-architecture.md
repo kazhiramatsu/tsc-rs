@@ -206,7 +206,7 @@ type exists.
 
 | ID | Concern and invariant | Current Rust owners | Lifecycle / validation | Evidence or next owner |
 | --- | --- | --- | --- | --- |
-| `E-ENTRY` | No-emit and emit are distinct typed entries; no-emit constructs no emitter-only component. | `tsc_compiler::ProgramSession::{run,emit}`; `tsc_emitter::emit_files_with_activity` (public) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. | frozen H2.5g profile (`0653e10d`); H0/H1 no-emit canaries |
+| `E-ENTRY` | No-emit and emit are distinct typed entries; no-emit constructs no emitter-only component. | `tsc_compiler::ProgramSession::{run,emit}`; `tsc_emitter::emit_files_with_activity` (public) | `active-unqualified` for the emitter-final CLI named-option admission; [integration audit](slices/emitter-final-batch/integration/residual-audit.md), 2026-09-18. Prior qualifications remain historical. | frozen H2.5g profile (`0653e10d`); H0/H1 no-emit canaries |
 | `E-PROTOCOL` | Read host, semantic resolver, artifact, sink, and outcome have separate ownership; planning cannot observe syntax, checked syntax exists only within the live checker/resolver scope, and sink errors become diagnostics at the write boundary. | `tsc_emitter::{EmitHost,EmitResolver,EmitArtifact,OutputSink,EmitOutcome}` (public); private `tsc_compiler::{PreparedEmitHost,CheckedEmitHost}`; `tsc_checker::emit::CheckerSession` implementation in `crates/checker/src/emit.rs` | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile; every output slice preserves this boundary |
 | `E-DECL-ACTIVITY` | H2.7c counts declaration option/API requests, including suppressed output, cache hits and empty calls. H2.7b retains per-member transform counts; disabled flags and the prior JavaScript gate do not enter H2.7c. | `H2ActivityCanary::h2_7c_profile`; `emit_files_with_activity`, `emit_forced_declarations_with_activity`, `DeclarationSession::get_declaration_diagnostics` | `active-unqualified`; code audit 2026-09-07, candidate on `fd95c196` | Profile/negative controls; full H2.7c request-sequence and H2.7b regression comparisons; hosted acceptance before landing |
 | `E-DECL-PATH` | Declaration callback paths retain the requested relative directory, including explicit dot segments. Source-prefix selection and collision comparison use canonical paths; config conversion owns its absolute option projection. | Private emitter `source_file_path_in_new_dir`, `declaration_output_path`, `canonical_case_key`; `EmitHost::canonical_output_path` | `active-unqualified`; code audit 2026-09-07, candidate on `95f30f0f` | [H2.7c twelfth packet](slices/h2-7c.md); all 244 focused windows pass; exact callback text checked across 34 declarationDir windows and the original-input probe (31 exact / one rootDir refusal); 19 output-plan controls pass; hosted acceptance before landing |
@@ -255,10 +255,10 @@ type exists.
 | `E-COMMENT-PHASES-A36` | Ordinary modifier node comments precede list spacing; class keyword positional leading comments do not replay the preceding modifier trailing phase; spread fixed tokens hand actual comment progress to their expression. Source-file statements establish their comment range scope before their worker so a child modifier cannot replay the statement prefix. The existing immutable three-sided scope and metadata flags retain their ownership. | Private `crate::printer::{PositionCommentPhase,Printer::{write_transformed_source_file,emit_modifiers,emit_token_with_source_leading_comments,emit_comments_at_cursor_with_phase,emit_spread_expression}}`; existing `DeferredExpressionSourceComments`, `EmitContext`, `TokenEmission`, `CommentResume` | `active-qualified` for the A6-36 focused printer profile (2026-09-10). General ordinary-node phase migration, ESNext ellipsis admission and retained-accessor/module-cursor owners remain open. | [A6-36](slices/h2-8a-token-comment-phases.md):270/293 complete commands exact twice in each of two independent jobs (55 repairs/215 prior positives/23 outside);96 direct metadata controls and3 original commands exact twice;494 emitter units/451 contracts and32 prior direct controls pass. |
 | `E-COMMENTS-H` | ES2015 wrapper/loop/generator relocations have no approved owner/resume matrix. Their packet depends on the complete enclosing scope from `E-COMMENT-SCOPE-H`; relocation metadata cannot substitute for that scope. | No approved new symbol | `planned`; H2.5h-a | packet maps every generated-node category and transition after the global scope model is frozen |
 | `E-POSITIONS` | Source bytes, source/generated UTF-16, synthetic ranges, and source switches remain typed domains. | Public `tsc_emitter` position/writer/hook types; definitions in private `position`, `writer`, `metadata`, and `printer` modules | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H1/H2.5f protect predecessor behavior. | H2.5g profile and H1 Unicode/newline controls |
-| `E-MAPS` | Hook/range seams exist, but actual source-map generation is not compatible. | `tsc_emitter::{SourceMapRange,SourceMapRecorder,DisabledSourceMapRecorder,SourceMapHookEvent,SourceMapHookPhase,SourceMapObservation}` (public) | `dormant`; candidate audit 2026-08-14 | H2.6 activation and map evidence |
+| `E-MAPS` | JavaScript and declaration maps are active products; source/original/token positions, recorder callbacks and generated UTF-16 positions require complete-command comparisons. | Public source-map recorder/range APIs and private printer/map generation workers | `active-unqualified` for the changed emitter-final map behavior; audit 2026-09-18 | [Integration audit](slices/emitter-final-batch/integration/residual-audit.md), declaration/map, class/global and decorator complete-command replays |
 | `E-STRINGS` | JavaScript string values preserve UTF-16 code units; lexical spelling and synthesized cooked values have distinct provenance. | Public `tsc_emitter::JavaScriptString` and `EmitMetadata` accessors/setters; `pub(crate)` metadata fields for cooked value, quote choice, and text-source identity; private printer quote routines | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile and literal/JSX/module controls |
 | `E-OUTPUT-SCRIPT` | JavaScript artifacts are constructed before the first sink callback; callback order and `emittedFiles` stay independent. | `tsc_emitter::{emit_files_with_activity,EmitArtifact,MemoryOutputSink,FsOutputSink,EmitOutcome}` (public) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile and H1 sink-failure controls |
-| `E-OUTPUT-FUTURE` | Multi-product write/report ordering remains non-compatible. | Dormant product arms in public artifact/plan/outcome types | `dormant`; candidate audit 2026-08-14 | H2.6/H2.7/H2.8 activation |
+| `E-OUTPUT-FUTURE` | JavaScript, declarations, their maps and AMD/System/global bundles are active output products. Build-info/builder integration remains unsupported. | Public artifact/plan/outcome types and private emit scheduling/output workers | `active-unqualified` for the changed emitter-final output behavior; audit 2026-09-18 | [Integration audit](slices/emitter-final-batch/integration/residual-audit.md), bundle/declaration/map and output-filesystem complete-command replays |
 
 `E-PRINTER-BASE`'s variable-declaration producer supplies `Unspecified` for
 binding names and `Expression` for initializers, independently of node kind.
@@ -551,7 +551,7 @@ slice artifacts; a packet must read and pin those identities afresh.
 | `E-ORDER-*` | `getTransformers`, `getScriptTransformers`, and each registered transform root |
 | `E-NAMES-*`, `E-HELPERS-*` | Generated-name, lexical-environment, helper-request, helper-reference provenance, and helper-emission dependencies reached from the active transform roots; each slice regenerates the exact closure |
 | `E-PRINTER-*`, `E-COMMENTS-*` | `createPrinter`, `emitParametersForArrow`, `emitList`/`emitNodeListItems`, `pipelineEmitWithComments`, their token/comment closures, and `createParenthesizerRules` |
-| `E-POSITIONS`, `E-MAPS` | `createTextWriter`, source-map range accessors, and `createSourceMapGenerator` when H2.6 activates it |
+| `E-POSITIONS`, `E-MAPS` | `createTextWriter`, source-map range accessors, and `createSourceMapGenerator` and current JavaScript/declaration map recorders it |
 | `E-STRINGS` | Literal/factory/printer paths reached by each active transform; exact owners are per-branch and must not be collapsed to one generic string helper |
 | `E-SYNTAX-FACTS` | scanner/parser token-flag capture, node creation, clone/update, incremental copy/equality, and every transform-flag consumer reached by the admitted owner graph |
 
@@ -687,13 +687,15 @@ production implementation. The packet must state hook composition, generated
 binding finalization, provenance for every wrapper/state-machine node, comment
 owner/resume transitions, expression contexts, and typed helper IR.
 
-### `EA-GAP-MAPS-DECLS` — dormant products
+### `EA-GAP-MAPS-DECLS` — active products and remaining builder scope
 
-The recorder hooks and output slots deliberately exist, but
-`DisabledSourceMapRecorder`, declaration printing, bundle roots, declaration
-maps, and build info are not compatibility. H2.6 and H2.7 must re-audit that
-all source/original/token/comment facts survived intervening H2 transforms;
-the existence of a dormant enum arm is not evidence.
+H2.6–H2.8 activated JavaScript maps, declarations, declaration maps and bundle
+roots. Their compatibility is bounded by the complete-command and API fixtures
+named in the integration records. The emitter-final audit found real map and
+output regressions outside its original 217/1798 rows and requires the expanded
+hosted replays before requalification. `DisabledSourceMapRecorder` remains a
+valid no-recording route; it does not describe the state of all map support.
+Build info, incremental/composite builders and watch integration remain open.
 
 ## 7. Adjacent and historical source disposition
 

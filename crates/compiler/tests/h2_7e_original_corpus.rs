@@ -177,7 +177,7 @@ fn assert_original_cli_corpus() {
     );
     let observations = frozen(
         "ratchets/h2-7de-observations.v1.json",
-        "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+        "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9",
     );
     // This test runs independently of the Program comparator. Retain the
     // immutable oracle/input checks that comparator previously ran first,

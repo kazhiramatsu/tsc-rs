@@ -94,8 +94,7 @@ impl Transformer for StandardDecoratorTransformer {
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
         if self.target < ScriptTarget::ES5
-            || self.target > ScriptTarget::ES_NEXT
-            || (self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields)
+            || (self.target >= ScriptTarget::ES_NEXT && self.use_define_for_class_fields)
         {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "standard-decorator transform",
@@ -5662,7 +5661,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn visit_function_like_body(
         &mut self,
         original: TransformNode,
-        data: NodeData,
+        mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
         self.start_lexical_environment();
         // tsc-port: visitParameterList @6.0.3 — the parameters are visited
@@ -5678,17 +5677,18 @@ impl<'context> StandardDecoratorVisitor<'context> {
             NodeData::SetAccessor(data) => data.parameters,
             _ => None,
         };
-        let updated = self
+        // visitFunctionBody completes its lexical environment before the
+        // enclosing factory update applies arrow-concise parenthesization.
+        // Otherwise a comma body is wrapped before it becomes a return body.
+        let visited = self
             .visit_parameter_list(parameters)
-            .and_then(|()| self.update_generic(original, data));
+            .and_then(|()| try_visit_each_child(&mut data, self));
         let (temporaries, initialization_statements) =
             self.end_lexical_environment_with_initialization_statements();
-        let updated = updated?;
+        visited?;
         if temporaries.is_empty() && initialization_statements.is_empty() {
-            return Ok(updated);
+            return self.update_data(original, data);
         }
-        let updated_node = self.node(updated);
-        let mut data = self.context.arena().node(updated_node)?.data.clone();
         let body = match &data {
             NodeData::ArrowFunction(data) => data.body,
             NodeData::FunctionExpression(data) => data.body,
@@ -5701,7 +5701,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         };
         let Some(body) = body else {
             return Err(TransformError::RequiredChildRemoved {
-                parent: self.context.arena().node(updated_node)?.kind,
+                parent: self.context.arena().node(original)?.kind,
                 field: "body for hoisted temporaries",
             });
         };
@@ -5729,11 +5729,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
             NodeData::ClassStaticBlockDeclaration(data) => data.body = Some(merged.node()),
             _ => {}
         }
-        let flags = flags_after_update(self.context.arena(), updated_node, &data)?;
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
         Ok(self
             .context
             .factory()?
-            .update_node(updated_node, data, flags)?
+            .update_node(original, data, flags)?
             .node())
     }
 

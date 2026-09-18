@@ -2829,8 +2829,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Index { ty: variable, .. } = self.tables.type_of(constraint).data else {
             return Ok(None);
         };
-        // getActualTypeVariable is identity until Substitution types
-        // become constructible in 9.6a.
+        let variable = self.get_actual_type_variable(variable)?;
         Ok(self
             .tables
             .flags_of(variable)
@@ -4663,8 +4662,8 @@ impl<'a> CheckerState<'a> {
     /// slot before binding (the 57717 re-entrancy guard) and the
     /// combined table rewrites it; an Err unwind reverts to Vacant.
     /// Dynamic JS assignment declarations share the ordinary
-    /// lateBindMember path. The cjsExportMerged block remains elided
-    /// project-wide. Early/late name collisions merge through
+    /// lateBindMember path. A CommonJS clone also folds already resolved
+    /// declaration-owned tables. Early/late name collisions merge through
     /// combineSymbolTables → mergeSymbol (5.9c, on 5.8d machinery).
     fn get_resolved_members_or_exports_of_symbol(
         &mut self,
@@ -4795,7 +4794,7 @@ impl<'a> CheckerState<'a> {
             // tables run through mergeSymbolTable — entries hop
             // through getMergedSymbol, and a key collision merges via
             // mergeSymbol (5.8d machinery).
-            let resolved = if early.is_empty() {
+            let mut resolved = if early.is_empty() {
                 late
             } else if late.is_empty() {
                 early
@@ -4812,6 +4811,32 @@ impl<'a> CheckerState<'a> {
                 }
                 combined
             };
+            if state
+                .symbol_flags(symbol)
+                .intersects(SymbolFlags::TRANSIENT)
+                && state.links.symbol(symbol).cjs_export_merged.is_some()
+            {
+                for declaration in state.binder.symbol(symbol).declarations.clone() {
+                    let Some(original) = state.binder.node_symbol(declaration) else {
+                        continue;
+                    };
+                    let table = if is_static {
+                        state.links.symbol(original).resolved_exports.resolved()
+                    } else {
+                        state.links.symbol(original).resolved_members.resolved()
+                    };
+                    if let Some(table) = table {
+                        for (name, member) in table {
+                            let member = match resolved.get(&name).copied() {
+                                None => member,
+                                Some(existing) if existing == member => continue,
+                                Some(existing) => state.merge_symbol(existing, member, false),
+                            };
+                            resolved.insert(name, member);
+                        }
+                    }
+                }
+            }
             Ok(resolved)
         })(self, &mut freshly_bound);
         match result {
@@ -6236,6 +6261,7 @@ impl<'a> CheckerState<'a> {
         let base_type_node = self
             .get_base_type_node_of_class(class_type)
             .expect("base signatures imply an extends clause");
+        let is_javascript = self.is_in_js_file(base_type_node);
         let argument_nodes = match self.data_of(base_type_node) {
             NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
             _ => Vec::new(),
@@ -6250,7 +6276,7 @@ impl<'a> CheckerState<'a> {
             let base_type_parameters = self.signature_of(base_signature).type_parameters.clone();
             let min = self.get_min_type_argument_count(base_type_parameters.as_deref());
             let max = base_type_parameters.as_ref().map_or(0, Vec::len);
-            if type_arg_count < min || type_arg_count > max {
+            if !is_javascript && (type_arg_count < min || type_arg_count > max) {
                 continue;
             }
             let signature = if max > 0 {
@@ -6259,7 +6285,7 @@ impl<'a> CheckerState<'a> {
                         Some(&type_arguments),
                         base_type_parameters.as_deref(),
                         min,
-                        /*is_javascript*/ false,
+                        is_javascript,
                     )?
                     .unwrap_or_default();
                 self.create_signature_instantiation(base_signature, Some(&filled))?
@@ -9099,6 +9125,41 @@ impl<'a> CheckerState<'a> {
                     .symbol_flags(object_member)
                     .intersects(SymbolFlags::VALUE)
             {
+                if let (Some(export_declaration), Some(object_declaration)) = (
+                    self.binder.symbol(export_member).value_declaration,
+                    self.binder.symbol(object_member).value_declaration,
+                ) {
+                    if self.binder.file_index_of_node(export_declaration)
+                        != self.binder.file_index_of_node(object_declaration)
+                    {
+                        let object_name = self
+                            .name_of_named_declaration(object_declaration)
+                            .unwrap_or(object_declaration);
+                        let display = tsc_binder::unescape_leading_underscores(&name);
+                        let object_related = self.related_info_for_node_js(
+                            object_name,
+                            &diagnostics::_0_was_also_declared_here,
+                            &[display],
+                        );
+                        self.error_at_with_related_js(
+                            Some(export_declaration),
+                            &diagnostics::Duplicate_identifier_0,
+                            &[display],
+                            vec![object_related],
+                        );
+                        let export_related = self.related_info_for_node_js(
+                            export_declaration,
+                            &diagnostics::_0_was_also_declared_here,
+                            &[display],
+                        );
+                        self.error_at_with_related_js(
+                            Some(object_name),
+                            &diagnostics::Duplicate_identifier_0,
+                            &[display],
+                            vec![export_related],
+                        );
+                    }
+                }
                 let flags = self.symbol_flags(export_member) | self.symbol_flags(object_member);
                 let union_member = self.binder.create_symbol(flags, name.clone());
                 let export_type = self.get_type_of_symbol(export_member)?;

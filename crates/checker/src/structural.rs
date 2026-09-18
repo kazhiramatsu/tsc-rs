@@ -903,7 +903,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
             if self
                 .st
-                .is_deeply_nested_type(target, &self.target_stack, self.target_depth, 10)
+                .is_deeply_nested_type(target, &self.target_stack, self.target_depth, 10)?
             {
                 return Ok(Ternary::MAYBE);
             }
@@ -1212,7 +1212,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
             if self
                 .st
-                .is_deeply_nested_type(source, &self.source_stack, self.source_depth, 10)
+                .is_deeply_nested_type(source, &self.source_stack, self.source_depth, 10)?
             {
                 return Ok(Ternary::MAYBE);
             }

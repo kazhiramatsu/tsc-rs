@@ -372,7 +372,7 @@ COMPILER_DIRECT = {
     "transpile-routes": {
         "target": "transpile_routes_contract",
         "tests": 9,
-        "fixtures": (("crates/compiler/tests/fixtures/h2_8c_transpile/inputs.v1.json", 287, "id"),
+        "fixtures": (("crates/compiler/tests/fixtures/h2_8c_transpile/inputs.v1.json", 291, "id"),
                      ("crates/compiler/tests/fixtures/h2_8c_transpile/review-inputs.v1.json", 14, "id")),
         "observers": ("scripts/observe-transpile-routes.mjs",),
         "inputs": tuple(f"crates/compiler/tests/fixtures/h2_8c_transpile/{name}.v1.json"

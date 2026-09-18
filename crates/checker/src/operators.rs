@@ -2151,8 +2151,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 23abed05f2a1cd6909230e50cff0ff0fe51d816decbc52346c01aee660f610d5
     /// tsc-span: _tsc.js:79619-79666
     ///
-    /// The ObjectSpreadRest emit-helper row is importHelpers-gated
-    /// (a no-op without the option — unmodeled).
+    /// ObjectSpreadRest requests its imported helper only below ES2018.
     fn check_object_literal_destructuring_property_assignment(
         &mut self,
         object_literal_type: TypeId,
@@ -2227,6 +2226,9 @@ impl<'a> CheckerState<'a> {
                     );
                     return Ok(());
                 }
+                if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2018 {
+                    self.check_external_emit_helpers(property, crate::modules::EMIT_HELPER_REST)?;
+                }
                 let expression = match self.data_of(property) {
                     NodeData::SpreadAssignment(data) => data.expression,
                     _ => None,
@@ -2279,8 +2281,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: dd986f2465f4953c7dcc207c5ee398ca69a859a73dc40a9e9d9bbbc4d16d20df
     /// tsc-span: _tsc.js:79667-79682
     ///
-    /// The DestructuringAssignment emit-helper row is
-    /// importHelpers-gated (no-op).
+    /// Downlevel iteration requests the Read helper below ES2015.
     fn check_array_literal_assignment(
         &mut self,
         node: NodeId,
@@ -2291,6 +2292,11 @@ impl<'a> CheckerState<'a> {
             NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements),
             _ => unreachable!("kind/data agree"),
         };
+        if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
+            && self.options.downlevel_iteration == Some(true)
+        {
+            self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_READ)?;
+        }
         let undefined_type = self.tables.intrinsics.undefined;
         let possibly_out_of_bounds_type = self.check_iterated_type_or_element_type(
             IterationUse::from_bits(

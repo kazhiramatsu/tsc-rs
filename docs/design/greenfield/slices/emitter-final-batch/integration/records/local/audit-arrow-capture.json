@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/decorator_super_contract-a552933c534748b0",
+    "--exact",
+    "h2_8a_decorator_super::decorator_super_forms_match_complete_typescript_observations",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T12:42:43.662274+00:00",
+  "head": "ed71c45343b2063414d5563c9b5455631d7c5c68",
+  "tracked_clean": false,
+  "diff_sha256": "f8469195d71bf611f7b486850c1a37b30c3271bf9b78d4aecbbdff5b0b1b3391",
+  "env": {
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/tmp/emitter-arrow-audit",
+    "TSC_RS_DECORATOR_SUPER_CASE_SET": "decorator-super/es2015/set/discard/arrow-expression-body",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 2.713,
+  "log_sha256": "2c1dd5bf92271c2aa5f990d00520095da8b7700da63cc8e75e6d14794f2c7cc3",
+  "log_bytes": 11505
+}

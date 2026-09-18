@@ -11,12 +11,24 @@ fn import_helpers_matches_complete_typescript_observations() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 111);
+    assert_eq!(cases.len(), 480);
+    let filter = std::env::var("TSC_RS_IMPORT_HELPERS_CASE_FILTER").ok();
+    let cases: Vec<_> = cases
+        .iter()
+        .filter(|case| {
+            filter
+                .as_ref()
+                .is_none_or(|filter| case["case_id"].as_str().unwrap().contains(filter))
+        })
+        .collect();
+    assert!(!cases.is_empty(), "empty import helpers selection");
+    let selected = cases.len();
     let mut failures = Vec::new();
+    let mut known = 0;
     for case in cases {
         let case_id = case["case_id"].as_str().unwrap();
         let result = std::panic::catch_unwind(|| {
-            super::h2_7c_declaration_blocking::assert_cases_with_inspection(
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
                 &serde_json::json!({"cases":[case]}),
                 true,
                 capture_complete_command,
@@ -24,10 +36,21 @@ fn import_helpers_matches_complete_typescript_observations() {
         });
         if result.is_err() {
             failures.push(case_id);
+        } else if case.get("rust_expected_parse_recovery").is_some() {
+            known += 1;
+            eprintln!(
+                "external helper imports KNOWN x2 {case_id}: {}",
+                case["rust_expected_parse_recovery"]["cause"]
+            );
         } else {
             eprintln!("external helper imports EXACT x2 {case_id}");
         }
     }
+    eprintln!(
+        "external helper imports SUMMARY exact={} known={known} failed={} selected={selected}",
+        selected - failures.len() - known,
+        failures.len()
+    );
     assert!(
         failures.is_empty(),
         "complete external helper imports failures: {failures:?}"
@@ -40,6 +63,7 @@ fn capture_complete_command(
     case_id: &str,
     prepared: &tsc_program::PreparedProgram,
     expected: &Value,
+    additional_options_diagnostics: &[Diagnostic],
 ) {
     use sha2::Digest;
     let Some(directory) = std::env::var_os("TSC_RS_H2_8A_CAPTURE_WRITES_DIR") else {
@@ -53,8 +77,11 @@ fn capture_complete_command(
         .find(|index| !directory.join(format!("{key}-{index}.json")).exists())
         .unwrap();
     let mut sink = tsc_compiler::MemoryOutputSink::new();
-    let command =
-        tsc_compiler::ProgramSession::new(prepared.clone()).emit_command_for_harness(&mut sink);
+    let command = tsc_compiler::ProgramSession::new(prepared.clone())
+        .emit_command_for_harness_with_options_diagnostics(
+            &mut sink,
+            additional_options_diagnostics,
+        );
     let writes = sink
         .writes()
         .iter()

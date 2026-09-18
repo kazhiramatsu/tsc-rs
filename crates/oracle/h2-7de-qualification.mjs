@@ -10,9 +10,9 @@ const generator = "crates/oracle/h2-7de-qualification.mjs";
 const contract = ".github/ci/contracts/h2-7de-qualification.schema.json";
 const target = "ratchets/h2-7de-qualification.v1.json";
 const frozen = [
-  ["ratchets/h2-7de-candidates.v1.json", "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d"],
+  ["ratchets/h2-7de-candidates.v1.json", "956514a27a7c9d4504f2bd364f07492b758660c4c6d525201ba62d1389a04db2"],
   ["ratchets/h2-7de-candidate-inputs.v1.json", "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a"],
-  ["ratchets/h2-7de-observations.v1.json", "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2"],
+  ["ratchets/h2-7de-observations.v1.json", "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9"],
 ];
 const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 const bytes = relative => fs.readFileSync(path.join(root, relative));

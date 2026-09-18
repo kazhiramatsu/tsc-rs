@@ -808,7 +808,7 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
-    fn is_array_or_tuple_or_intersection(&mut self, ty: TypeId) -> CheckResult<bool> {
+    pub(crate) fn is_array_or_tuple_or_intersection(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self.is_array_type(ty)? || self.tables.is_tuple_type(ty) {
             return Ok(true);
         }

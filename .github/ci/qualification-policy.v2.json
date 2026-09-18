@@ -35,30 +35,30 @@
       "crates/xtask/src/h2_3c_acceptance.rs": "e5c97a5dd07cb68160204852295138bacac43e7603a0b21895c6fd169540a460",
       "crates/xtask/src/h2_3d_acceptance.rs": "325ebd13b45303c9882e0a4e06585ce4f1d2efc863323c452002179571cf8f14",
       "crates/xtask/src/h2_7c_acceptance.rs": "44afa0ac864a435e73780855a3bb48965c958c972c0da9a27e58705cb0308337",
-      "crates/xtask/src/h2_7de_acceptance.rs": "aac2e55e99b57e93883b0f9efac20b04dca9290621a0f91b26365845efcec61c",
-      "crates/xtask/src/h2_6c_de_promotions.rs": "8cc81afce400364c9d0d4eeec7ad6fe08fb772c5f2ed94f7910d27b54ee8d5d0",
+      "crates/xtask/src/h2_7de_acceptance.rs": "2d9eec2efda0850514e5ca07352d52341fe9076f67458cb28485683ed54a8afe",
+      "crates/xtask/src/h2_6c_de_promotions.rs": "1b1158d50dd03a7eab3aba6309903a26d521b8e74aa921c3241cba1a5a899982",
       "crates/xtask/src/h2_6c_output_promotions.rs": "378fd26d046e748e3a3bb462662bba03cee2c9a9065b02331ec3a549ac642556",
-      "crates/xtask/src/h2_6c_refusal_migrations.rs": "ca5670a55fbb7b079ebd2ff9a1e937234f14657a43557d7a6710eafca5c04782",
-      "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": "88c9b1088a134e7eb7491149e6c503b37905eee0866ae47f4f5c5c21e313d1c6",
+      "crates/xtask/src/h2_6c_refusal_migrations.rs": "67e8ba7d207d9fb400f148d59c9d73476e017137c64b6fe484f781a6d643c7fd",
+      "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": "ee8064ca9ed67923ed859b21a1fd825e46175f401e2a59384601e5a2627e06a0",
       "crates/compiler/tests/integration/h2_7c_corpus.rs": "83a2ccc769ec27e6eaf99b73d9a8e5dc755c71d0fedccbb6c0931347df6ee882",
-      "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "8cdd9a5ea31923c515d35ae475f54595d116635ea635e685ddb41ecc8d1e6460",
+      "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "aeed252632deb74a99f716ef7d9e5d54ae0613887e9c3e1a3765efd3184a570e",
       "crates/compiler/tests/support/witness_libraries.rs": "946901c1cd6af4e1e46ad4ba82d2aece80952ffe3d721e39f76a1ac0f8ea131d",
       "crates/compiler/tests/integration/h2_7c_declaration_getters.rs": "8b0cc4edf30dfafae21904d332a8f714a8a28437eb10be5a4a017c251ffe8060",
       "crates/compiler/tests/integration/h2_7c_forced_declarations.rs": "e53407fd07652b383a4b9e91e4753210c8f841d7747a5a274a69c7f1630c1969",
       "crates/compiler/tests/integration/h2_7c_strip_internal.rs": "1356a92b17cc5db3685ef5da88f28860f62495592f26cea2282b45d91c14ec4b",
-      "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": "6be733fdbc4171e4a7a9272007a419275cb3fc069aaae3fb7c344cbc80e201bd",
-      "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs": "fe190da333d2d4d0d0cb7df4098f067f5eda4f331841f5171166354ede56c9ef"
+      "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": "6559ce86ae25c6b3d2d9a82e74f0739bf7b42f26257de3e1c8c8db5f1d22b068",
+      "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs": "8b08bc29b715396a68106331b8d4a7b92538e320b6079c5c7895d09fd69471a5"
     },
     "execution_source_sha256": {
       ".github/workflows/ci.yml": "de915626e641960446a9d08a62203069d27e43819b6429ac1a5154c182f2759e",
       ".github/workflows/witness.yml": "aa6103235da53ac62342b8b251dc504e14f32b924263f1caabc383d63f80e143",
       ".github/ci/replay.py": "7b826057beea2957dcba0e07bfcb69532ab728373260d4bdd1669d44038cd683",
-      "scripts/witness.py": "44389f25e88f000b4a6f366f686cd56066b8799496f1c5169947da084dad5652",
+      "scripts/witness.py": "d86a2c6cca621817fab7093b7573ac2e8c5f702240b72f539d91441144b94c4e",
       "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
       "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa",
-      ".github/ci/test_replay.py": "2c503aa45a792c8ca7fdbe488bf35b418a1f6e300ffdaf521cdb406915caafa9",
+      ".github/ci/test_replay.py": "f254616112cf296a4f3ad569492bcd5473fc8b9ae44a67a7aac25beb1a23085a",
       "scripts/foundation_witnesses.py": "a183fe0a97e74b7698401d1b1df20ee3cb925e763e40e219933f52bc39cf6b59",
-      "scripts/emitter_final_witnesses.py": "45054e1e47c6a487168d21b452c8d6fb9297db37025e8a49d7abd2ea575c4c3a"
+      "scripts/emitter_final_witnesses.py": "fad09ff5e41945ac1f5b2df6ce4c84e2d750b30c2a3116ec8933a5ab1e1e6e22"
     }
   },
   "local_full_gate": {

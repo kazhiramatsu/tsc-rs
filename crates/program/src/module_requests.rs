@@ -291,7 +291,7 @@ fn plan_module_requests_worker(
     let file_name = source.path().display();
     let import_syntax_affects_resolution = import_syntax_affects_module_resolution(options);
     let (static_mode, dynamic_mode) = if import_syntax_affects_resolution {
-        let file_emit_kind = file_emit_module_kind(source, file_name, module_kind)?;
+        let file_emit_kind = file_emit_module_kind(source, module_kind)?;
         (
             static_request_mode(source, file_emit_kind)?,
             dynamic_import_mode(source, module_kind, file_emit_kind)?,
@@ -1292,7 +1292,6 @@ fn is_javascript_file_name(file_name: JsStr<'_>) -> bool {
 /// the computed `module` kind is used.
 fn file_emit_module_kind(
     source: &PreparedSourceFile,
-    file_name: JsStr<'_>,
     module_kind: i32,
 ) -> Result<i32, ResolutionError> {
     if let Some(mode) = source.implied_node_format_for_emit() {
@@ -1308,16 +1307,9 @@ fn file_emit_module_kind(
         });
     }
 
-    if (100..=199).contains(&module_kind) {
-        return Err(unsupported(
-            source,
-            format!(
-                "{} has no authoritative implied Node format for module kind {module_kind}",
-                file_name.to_string_lossy()
-            ),
-        ));
-    }
-
+    // An absent impliedNodeFormat is meaningful, including incompatible
+    // Node module + Bundler resolution options. tsc falls back to module;
+    // option diagnostics do not prevent construction of the request graph.
     Ok(module_kind)
 }
 
@@ -1334,7 +1326,7 @@ fn static_request_mode(
         // returns undefined for these legacy emit formats; retain the
         // resolver's ordinary (unspecified) mode instead of inventing a
         // CommonJS/ESNext condition.
-        0 | 2..=4 => Ok(ResolutionMode::Unspecified),
+        0 | 2..=4 | 100..=199 => Ok(ResolutionMode::Unspecified),
         5..=99 | 200 => Ok(ResolutionMode::EsNext),
         other => Err(unsupported(
             source,

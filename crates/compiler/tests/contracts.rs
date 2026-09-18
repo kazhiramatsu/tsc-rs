@@ -8,6 +8,8 @@ mod declaration_resolver_replay_decision_equal;
 mod declaration_transformer_replay_decision_equal;
 #[path = "integration/emit_session_contract.rs"]
 mod emit_session_contract;
+#[path = "integration/emitter_residual_audit.rs"]
+mod emitter_residual_audit;
 #[path = "integration/es2015_generators_witness_contract.rs"]
 mod es2015_generators_witness_contract;
 #[path = "integration/filesystem_loader_contract.rs"]

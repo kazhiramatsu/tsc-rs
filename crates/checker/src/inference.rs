@@ -1005,28 +1005,30 @@ impl<'a> CheckerState<'a> {
         self.reverse_mapped_source_stack.push(source);
         self.reverse_mapped_target_stack.push(target);
         let saved_flags = self.reverse_expanding_flags;
-        if self.is_deeply_nested_type(
-            source,
-            &self.reverse_mapped_source_stack,
-            self.reverse_mapped_source_stack.len(),
-            2,
-        ) {
-            self.reverse_expanding_flags |= ExpandingFlags::SOURCE;
-        }
-        if self.is_deeply_nested_type(
-            target,
-            &self.reverse_mapped_target_stack,
-            self.reverse_mapped_target_stack.len(),
-            2,
-        ) {
-            self.reverse_expanding_flags |= ExpandingFlags::TARGET;
-        }
-        let result = if self.reverse_expanding_flags != ExpandingFlags::BOTH {
-            self.infer_reverse_mapped_type_worker(source, target, constraint)
-                .map(Some)
-        } else {
-            Ok(None)
-        };
+        let result = (|| {
+            if self.is_deeply_nested_type(
+                source,
+                &self.reverse_mapped_source_stack.clone(),
+                self.reverse_mapped_source_stack.len(),
+                2,
+            )? {
+                self.reverse_expanding_flags |= ExpandingFlags::SOURCE;
+            }
+            if self.is_deeply_nested_type(
+                target,
+                &self.reverse_mapped_target_stack.clone(),
+                self.reverse_mapped_target_stack.len(),
+                2,
+            )? {
+                self.reverse_expanding_flags |= ExpandingFlags::TARGET;
+            }
+            if self.reverse_expanding_flags != ExpandingFlags::BOTH {
+                self.infer_reverse_mapped_type_worker(source, target, constraint)
+                    .map(Some)
+            } else {
+                Ok(None)
+            }
+        })();
         self.reverse_mapped_target_stack.pop();
         self.reverse_mapped_source_stack.pop();
         self.reverse_expanding_flags = saved_flags;
@@ -2381,13 +2383,13 @@ impl InferTypesWalker<'_, '_> {
         self.target_stack.push(target);
         if self
             .st
-            .is_deeply_nested_type(source, &self.source_stack, self.source_stack.len(), 2)
+            .is_deeply_nested_type(source, &self.source_stack, self.source_stack.len(), 2)?
         {
             self.expanding_flags |= ExpandingFlags::SOURCE;
         }
         if self
             .st
-            .is_deeply_nested_type(target, &self.target_stack, self.target_stack.len(), 2)
+            .is_deeply_nested_type(target, &self.target_stack, self.target_stack.len(), 2)?
         {
             self.expanding_flags |= ExpandingFlags::TARGET;
         }

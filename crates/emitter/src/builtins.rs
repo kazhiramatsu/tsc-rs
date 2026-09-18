@@ -282,10 +282,10 @@ fn get_script_transformers_with_optional_host<'transformers>(
             detail: "bundle module names require a Program emit host",
         });
     }
-    if target < ScriptTarget::ES5 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES5 || target == ScriptTarget::JSON {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
-            detail: "H2.5h admits ES5 through ESNext (ES3 computes as unset per _computedOptions.target)",
+            detail: "emit requires an ES5-or-later JavaScript target; internal JSON source-kind facts are deferred",
         });
     }
     if !matches!(
@@ -503,6 +503,7 @@ pub fn transform_ecmascript_module_with_host<'host>(
         import_helpers: options.import_helpers == Some(true),
         host,
         current_source: None,
+        helper_aliases: BTreeMap::new(),
         target: options.emit_script_target(),
     })
 }
@@ -1172,6 +1173,9 @@ struct EcmaScriptModuleTransformer<'host> {
     host: Option<&'host dyn EmitHost>,
     /// The source whose helper references are being qualified at print time.
     current_source: Option<TransformSourceId>,
+    /// One generated binding per colliding helper and source. Import aliases
+    /// and helper references share its finalized file-level name.
+    helper_aliases: BTreeMap<(TransformSourceId, String), TransformNode>,
     // The synthesized require/createRequire bindings choose their
     // declaration keyword by language version (tsc: `languageVersion >=
     // ES2015 ? Const : None`, _tsc.js:113555/113591).
@@ -1258,7 +1262,11 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
                     || format == Some(MODULE_ES_NEXT)
                     || self.module_kind == MODULE_PRESERVE);
             if named_imports {
-                insert_external_helpers_import_declaration(context, source)?;
+                insert_external_helpers_import_declaration(
+                    context,
+                    source,
+                    &mut self.helper_aliases,
+                )?;
             } else {
                 insert_external_helpers_import_equals_declaration(context, source)?;
             }
@@ -1364,8 +1372,7 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
         hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        if hint != EmitHint::Expression
-            || context.arena().node(node)?.kind != SyntaxKind::Identifier
+        if context.arena().node(node)?.kind != SyntaxKind::Identifier
             || !context
                 .arena()
                 .metadata(node)
@@ -1376,6 +1383,14 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
         let Some(source) = self.current_source else {
             return Ok(node);
         };
+        if let NodeData::Identifier(identifier) = &context.arena().node(node)?.data {
+            if let Some(alias) = self.helper_aliases.get(&(source, identifier.text.clone())) {
+                return Ok(*alias);
+            }
+        }
+        if hint != EmitHint::Expression {
+            return Ok(node);
+        }
         let Some(namespace) = get_external_helpers_module_name(context.arena(), source)? else {
             return Ok(node);
         };
@@ -1421,6 +1436,7 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
 
     fn dispose(&mut self) {
         self.current_source = None;
+        self.helper_aliases.clear();
     }
 }
 
@@ -2151,12 +2167,13 @@ impl NodeDataChildVisitor for RelativeModuleSpecifierVisitor<'_> {
 /// inlining their texts (the printer suppresses unscoped helper bodies
 /// for the recorded source import). Import names come from the transcribed
 /// helper table (`EmitHelper::import_name`), sorted case-sensitively and
-/// deduplicated. The upstream aliasing arm for a helper name that is not
-/// file-level unique remains a typed fail-closed seam. CommonJS-format
+/// deduplicated. Colliding names use a shared optimistic file-level binding
+/// for the import alias and the print-time helper substitutions. CommonJS-format
 /// imports are owned by CommonJsModuleTransformer.
 fn insert_external_helpers_import_declaration(
     context: &mut TransformationContext,
     source: TransformSourceId,
+    aliases: &mut BTreeMap<(TransformSourceId, String), TransformNode>,
 ) -> Result<(), TransformError> {
     let mut names: BTreeSet<&'static str> = BTreeSet::new();
     for helper in context.requested_emit_helpers() {
@@ -2172,14 +2189,6 @@ fn insert_external_helpers_import_declaration(
     // references themselves and must not count).
     let source_names =
         target_bindings::ParsedSourceIdentifierNames::collect(context.arena(), source)?;
-    for name in &names {
-        if source_names.contains(name) {
-            return Err(TransformError::UnsupportedCompilerOption {
-                option: "importHelpers",
-                detail: "a tslib helper import aliasing a colliding source identifier is owned by the H2.5h corpus-adoption slice",
-            });
-        }
-    }
     let mut specifiers = Vec::with_capacity(names.len());
     for name in names {
         let identifier = context.factory()?.create_node(
@@ -2190,11 +2199,23 @@ fn insert_external_helpers_import_declaration(
             }),
             TransformFlags::NONE,
         )?;
+        let alias = if source_names.contains(name) {
+            let alias = context.factory()?.create_unique_name(
+                source,
+                name,
+                crate::GeneratedIdentifierFlags::OPTIMISTIC
+                    | crate::GeneratedIdentifierFlags::FILE_LEVEL,
+            )?;
+            aliases.insert((source, name.to_owned()), alias);
+            Some(alias)
+        } else {
+            None
+        };
         let specifier = context.factory()?.create_node(
             source,
             NodeData::ImportSpecifier(tsc_syntax::nodes::ImportSpecifierData {
-                name: Some(identifier.node()),
-                property_name: None,
+                name: Some(alias.unwrap_or(identifier).node()),
+                property_name: alias.map(|_| identifier.node()),
                 is_type_only: false,
             }),
             TransformFlags::NONE,
@@ -2606,6 +2627,7 @@ fn transform_module_with_optional_host<'resolver>(
         rewrite_relative_import_extensions: options
             .rewrite_relative_import_extensions
             .unwrap_or(false),
+        downlevel_iteration: options.downlevel_iteration == Some(true),
         target: options.emit_script_target(),
         import_helpers: options.import_helpers.unwrap_or(false),
         current_source: None,
@@ -2626,6 +2648,7 @@ struct CommonJsModuleTransformer<'resolver> {
     // keyword by language version (tsc: `languageVersion >= ES2015 ?
     // Const : None`, _tsc.js:111241/111277/111338).
     target: ScriptTarget,
+    downlevel_iteration: bool,
     import_helpers: bool,
     current_source: Option<TransformSourceId>,
 }
@@ -2738,6 +2761,7 @@ impl Transformer for CommonJsModuleTransformer<'_> {
                 has_dynamic_import,
                 preserves_native_parameter_defaults: self.preserves_native_parameter_defaults,
                 rewrite_relative_import_extensions: self.rewrite_relative_import_extensions,
+                downlevel_iteration: self.downlevel_iteration,
                 target: self.target,
             },
             info,
@@ -4943,6 +4967,7 @@ struct CommonJsVisitorOptions {
     has_dynamic_import: bool,
     preserves_native_parameter_defaults: bool,
     rewrite_relative_import_extensions: bool,
+    downlevel_iteration: bool,
     target: ScriptTarget,
 }
 
@@ -5116,6 +5141,7 @@ struct CommonJsVisitor<'context, 'resolver> {
     has_dynamic_import: bool,
     preserves_native_parameter_defaults: bool,
     rewrite_relative_import_extensions: bool,
+    downlevel_iteration: bool,
     target: ScriptTarget,
     info: CommonJsModuleInfo,
     generated_module_bindings: BTreeMap<String, target_bindings::TargetBinding>,
@@ -5151,6 +5177,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             has_dynamic_import: options.has_dynamic_import,
             preserves_native_parameter_defaults: options.preserves_native_parameter_defaults,
             rewrite_relative_import_extensions: options.rewrite_relative_import_extensions,
+            downlevel_iteration: options.downlevel_iteration,
             target: options.target,
             info,
             generated_module_bindings: BTreeMap::new(),
@@ -6668,6 +6695,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     )?;
                     exported_expressions.push(expression);
                     exported_range_name.get_or_insert(None);
+                    if self.info.appends_declaration_exports() {
+                        trailing
+                            .extend(self.create_declaration_export_statements(declaration, true)?);
+                    }
                 }
                 continue;
             }
@@ -6775,7 +6806,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 && self.info.appends_declaration_exports()
                 && variable_has_initializer(self.context.arena(), updated)?
             {
-                trailing.extend(self.create_declaration_export_statements(declaration)?);
+                trailing.extend(self.create_declaration_export_statements(declaration, false)?);
             }
         }
         if !exported_expressions.is_empty() {
@@ -7258,7 +7289,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         };
         let mut assignments = Vec::new();
         for declaration in declarations {
-            assignments.extend(self.create_declaration_export_statements(declaration)?);
+            assignments.extend(self.create_declaration_export_statements(declaration, false)?);
         }
         Ok(assignments)
     }
@@ -7375,16 +7406,22 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     fn create_declaration_export_statements(
         &mut self,
         declaration: TransformNode,
+        direct_export: bool,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let plans = self.declaration_export_plans(declaration)?;
         let mut statements = Vec::with_capacity(plans.len());
         for plan in plans {
-            let value = self.context.factory()?.clone_node(plan.local)?;
-            self.context.factory()?.set_text_range(value, plan.local)?;
-            self.context
-                .arena_mut()?
-                .metadata_mut(value)
-                .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+            let value = if direct_export && !self.is_local_name(plan.local) {
+                self.create_substituted_declaration_export_value(plan.local)?
+            } else {
+                let value = self.context.factory()?.clone_node(plan.local)?;
+                self.context.factory()?.set_text_range(value, plan.local)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(value)
+                    .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+                value
+            };
             let target = self.create_export_access_from_module_name(&plan.exported_name)?;
             let assignment = self.create_assignment(target, value)?;
             let statement = self.create_expression_statement(assignment)?;
@@ -8656,7 +8693,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             expressions.push(value);
         }
         let expression = self.inline_module_destructuring_expressions(expressions, value)?;
-        self.set_original_and_range(expression, original)?;
+        self.context
+            .arena_mut()?
+            .set_original_node(expression, Some(original))?;
         Ok(expression)
     }
 
@@ -8690,12 +8729,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         original: Option<TransformNode>,
     ) -> Result<(), TransformError> {
         match self.context.arena().node(target)?.data.clone() {
-            NodeData::ObjectLiteralExpression(data) => {
-                self.flatten_module_object_pattern(expressions, data.properties, value, original)
-            }
-            NodeData::ObjectBindingPattern(data) => {
-                self.flatten_module_object_pattern(expressions, data.elements, value, original)
-            }
+            NodeData::ObjectLiteralExpression(data) => self.flatten_module_object_pattern(
+                expressions,
+                target,
+                data.properties,
+                value,
+                original,
+            ),
+            NodeData::ObjectBindingPattern(data) => self.flatten_module_object_pattern(
+                expressions,
+                target,
+                data.elements,
+                value,
+                original,
+            ),
             NodeData::ArrayLiteralExpression(data) => {
                 self.flatten_module_array_pattern(expressions, data.elements, value, original)
             }
@@ -8713,9 +8760,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 self.flatten_module_destructuring_target(expressions, target, value, original)
             }
             _ => {
-                let assignment = self.create_module_export_assignment(target, value)?;
+                let assignment = self.create_module_export_assignment(target, value, original)?;
                 if let Some(original) = original {
-                    self.set_original_and_range(assignment, original)?;
+                    self.context
+                        .arena_mut()?
+                        .set_original_node(assignment, Some(original))?;
                 }
                 expressions.push(assignment);
                 Ok(())
@@ -8761,22 +8810,36 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     fn flatten_module_object_pattern(
         &mut self,
         expressions: &mut Vec<TransformNode>,
+        pattern: TransformNode,
         elements: Option<NodeArrayId>,
         mut value: TransformNode,
         original: Option<TransformNode>,
     ) -> Result<(), TransformError> {
         let elements = node_array_nodes(self.context.arena(), self.source, elements)?;
         if elements.len() != 1 {
-            value =
-                self.ensure_module_destructuring_identifier(expressions, value, true, original)?;
+            let declaration = original.is_some_and(|original| {
+                self.context.arena().node(original).is_ok_and(|node| {
+                    matches!(
+                        node.kind,
+                        SyntaxKind::VariableDeclaration
+                            | SyntaxKind::Parameter
+                            | SyntaxKind::BindingElement
+                    )
+                })
+            });
+            value = self.ensure_module_destructuring_identifier(
+                expressions,
+                value,
+                !declaration || !elements.is_empty(),
+                original,
+            )?;
         }
         let mut excluded = Vec::new();
         for (index, node) in elements.iter().copied().enumerate() {
             let element = self.module_destructuring_element(node)?;
             if element.rest {
                 if index + 1 == elements.len() {
-                    let rest =
-                        self.create_module_object_rest(value, &excluded, element.original)?;
+                    let rest = self.create_module_object_rest(value, &excluded, pattern)?;
                     self.flatten_module_destructuring_element(expressions, element, rest)?;
                 }
                 continue;
@@ -8797,16 +8860,54 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         original: Option<TransformNode>,
     ) -> Result<(), TransformError> {
         let elements = node_array_nodes(self.context.arena(), self.source, elements)?;
-        let all_omitted = !elements.is_empty()
-            && elements.iter().all(|element| {
-                self.context
-                    .arena()
-                    .node(*element)
-                    .is_ok_and(|node| node.kind == SyntaxKind::OmittedExpression)
-            });
-        if elements.len() != 1 || all_omitted {
+        let all_omitted = elements.iter().all(|element| {
+            self.context
+                .arena()
+                .node(*element)
+                .is_ok_and(|node| node.kind == SyntaxKind::OmittedExpression)
+        });
+        if self.downlevel_iteration {
+            self.context.request_emit_helper(helpers::read())?;
+            let helper = self
+                .context
+                .factory()?
+                .create_unscoped_helper_identifier(self.source, EmitHelperName::Read)?;
+            let last_is_rest = elements
+                .last()
+                .copied()
+                .map(|element| {
+                    self.module_destructuring_element(element)
+                        .map(|element| element.rest)
+                })
+                .transpose()?
+                .unwrap_or(false);
+            let mut arguments = vec![value];
+            if !last_is_rest {
+                arguments.push(self.create_numeric_literal(&elements.len().to_string())?);
+            }
+            let read = self.create_call(helper, arguments)?;
+            if let Some(original) = original {
+                self.context.factory()?.set_text_range(read, original)?;
+            }
             value =
-                self.ensure_module_destructuring_identifier(expressions, value, true, original)?;
+                self.ensure_module_destructuring_identifier(expressions, read, false, original)?;
+        } else if elements.len() != 1 || all_omitted {
+            let declaration = original.is_some_and(|original| {
+                self.context.arena().node(original).is_ok_and(|node| {
+                    matches!(
+                        node.kind,
+                        SyntaxKind::VariableDeclaration
+                            | SyntaxKind::Parameter
+                            | SyntaxKind::BindingElement
+                    )
+                })
+            });
+            value = self.ensure_module_destructuring_identifier(
+                expressions,
+                value,
+                !declaration || !elements.is_empty(),
+                original,
+            )?;
         }
         for (index, node) in elements.into_iter().enumerate() {
             if self.context.arena().node(node)?.kind == SyntaxKind::OmittedExpression {
@@ -8815,11 +8916,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let element = self.module_destructuring_element(node)?;
             let element_value = if element.rest {
                 let base = self.context.factory()?.clone_node(value)?;
+                self.context.factory()?.set_text_range(base, value)?;
                 let slice = self.create_property_access(base, "slice")?;
                 let index = self.create_numeric_literal(&index.to_string())?;
                 self.create_call(slice, vec![index])?
             } else {
                 let base = self.context.factory()?.clone_node(value)?;
+                self.context.factory()?.set_text_range(base, value)?;
                 let index = self.create_numeric_literal(&index.to_string())?;
                 self.create_element_access(base, index)?
             };
@@ -8832,6 +8935,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         target: TransformNode,
         value: TransformNode,
+        original: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let Some(plan) = self.export_assignment_plan(target)? else {
             let target = self
@@ -8841,14 +8945,32 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             return self.create_assignment(target, value);
         };
         let mut expression = if plan.direct_export_storage {
-            value
+            let export = plan
+                .exports
+                .iter()
+                .find(|export| export.as_js() == plan.local_name.as_str())
+                .expect("direct export storage includes its own export name");
+            let access = self.create_export_access_from_module_name(export)?;
+            self.context.factory()?.set_text_range(access, target)?;
+            self.create_assignment(access, value)?
         } else {
-            let target = self.create_identifier(&plan.local_name)?;
+            let target = self
+                .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
+                    visitor.visit(target.node())
+                })?;
             self.create_assignment(target, value)?
         };
         for export in plan.exports {
-            let target = self.create_export_access_from_module_name(&export)?;
-            expression = self.create_assignment(target, expression)?;
+            if plan.direct_export_storage && export.as_js() == plan.local_name.as_str() {
+                continue;
+            }
+            let access = self.create_export_access_from_module_name(&export)?;
+            expression = self.create_assignment(access, expression)?;
+            if let Some(original) = original {
+                self.context
+                    .factory()?
+                    .set_text_range(expression, original)?;
+            }
         }
         Ok(expression)
     }
@@ -8866,6 +8988,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 field: "property name",
             })?;
         let base = self.context.factory()?.clone_node(value)?;
+        self.context.factory()?.set_text_range(base, value)?;
         if let NodeData::ComputedPropertyName(data) =
             self.context.arena().node(property_name)?.data.clone()
         {
@@ -8966,8 +9089,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .context
             .factory()?
             .create_unscoped_helper_identifier(self.source, EmitHelperName::Rest)?;
-        let value = self.context.factory()?.clone_node(value)?;
-        self.create_call(helper, vec![value, excluded])
+        let argument = self.context.factory()?.clone_node(value)?;
+        self.context.factory()?.set_text_range(argument, value)?;
+        self.create_call(helper, vec![argument, excluded])
     }
 
     fn ensure_module_destructuring_identifier(
@@ -14838,9 +14962,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .clone();
             let container = self.create_identifier(&container_name)?;
             let property = self.context.factory()?.clone_node(name_node)?;
-            self.context
-                .factory()?
-                .set_text_range(property, name_node)?;
             let target = self.context.factory()?.create_node(
                 self.source,
                 NodeData::PropertyAccessExpression(
@@ -14853,6 +14974,10 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 TransformFlags::NONE,
             )?;
             self.context.factory()?.set_text_range(target, name_node)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(target)
+                .add_flags(EmitFlags::NO_COMMENTS);
             let assignment = self.create_assignment(target, module_reference)?;
             let statement = self.create_expression_statement(assignment)?;
             self.set_original_and_range(statement, original)?;
@@ -16148,11 +16273,6 @@ fn preflight_source(
             owner_slice: "H2.9",
         });
     }
-    if has_advanced_comment_placement(syntax.text()) {
-        return Err(TransformError::AdvancedCommentPlacementDeferred {
-            owner_slice: "H2.8a",
-        });
-    }
     const MAX_TRANSFORM_DEPTH: usize = 256;
     let mut stack = vec![(syntax.root, 1usize)];
     while let Some((id, depth)) = stack.pop() {
@@ -16184,78 +16304,6 @@ fn preflight_source(
         });
     }
     Ok(())
-}
-
-fn has_advanced_comment_placement(text: &str) -> bool {
-    has_comment_between_private_name_and_in(text)
-        || has_commented_optional_chain_type_assertion(text)
-}
-
-fn has_comment_between_private_name_and_in(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    let mut cursor = 0usize;
-    while cursor < bytes.len() {
-        if bytes[cursor] != b'#' {
-            cursor += 1;
-            continue;
-        }
-        let mut next = cursor + 1;
-        let name_start = next;
-        while bytes
-            .get(next)
-            .is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$'))
-        {
-            next += 1;
-        }
-        if next == name_start {
-            cursor += 1;
-            continue;
-        }
-        while bytes
-            .get(next)
-            .is_some_and(|byte| matches!(byte, b' ' | b'\t'))
-        {
-            next += 1;
-        }
-        if bytes.get(next..next + 2) != Some(b"/*") {
-            cursor = next;
-            continue;
-        }
-        loop {
-            while bytes.get(next).is_some_and(u8::is_ascii_whitespace) {
-                next += 1;
-            }
-            if bytes.get(next..next + 2) != Some(b"/*") {
-                break;
-            }
-            next += 2;
-            while next + 1 < bytes.len() && bytes.get(next..next + 2) != Some(b"*/") {
-                next += 1;
-            }
-            next = (next + 2).min(bytes.len());
-        }
-        if bytes.get(next..next + 2) == Some(b"in")
-            && bytes
-                .get(next + 2)
-                .is_none_or(|byte| !byte.is_ascii_alphanumeric() && !matches!(byte, b'_' | b'$'))
-        {
-            return true;
-        }
-        cursor = next.max(cursor + 1);
-    }
-    false
-}
-
-fn has_commented_optional_chain_type_assertion(text: &str) -> bool {
-    text.lines().any(|line| {
-        line.contains("/*")
-            && line.contains("?.")
-            && (line.contains(" as ")
-                || line
-                    .find('<')
-                    .zip(line.find('>'))
-                    .is_some_and(|(left, right)| left < right))
-    })
 }
 
 fn parameter_has_property_modifier(source: &tsc_syntax::SourceFile, node: &Node) -> bool {

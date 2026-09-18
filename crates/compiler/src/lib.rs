@@ -167,8 +167,16 @@ pub struct EmitCommandOutcome {
 
 impl EmitCommandOutcome {
     fn new(outcome: CliEmitSessionOutcome, current_directory: JsStr<'_>) -> Self {
+        Self::with_options_diagnostics(outcome, current_directory, &[])
+    }
+
+    fn with_options_diagnostics(
+        outcome: CliEmitSessionOutcome,
+        current_directory: JsStr<'_>,
+        additional_options_diagnostics: &[Diagnostic],
+    ) -> Self {
         let checked_source_files = outcome.checked_source_files;
-        let (emit, diagnostics, _) = outcome.into_reported(&[]);
+        let (emit, diagnostics, _) = outcome.into_reported(additional_options_diagnostics);
         let (status_writes, exit_code) =
             cli::emit_command_status(current_directory, &emit, &diagnostics);
         Self {
@@ -1028,6 +1036,21 @@ impl ProgramSession {
         self,
         sink: &mut dyn OutputSink,
     ) -> Result<EmitCommandOutcome, DriverError> {
+        self.emit_command_for_harness_with_options_diagnostics(sink, &[])
+    }
+
+    /// Retain the config plan's separately owned option diagnostics for a
+    /// no-emit command, at the same reporting boundary used by the CLI.
+    /// Emitting config programs already own these diagnostics themselves.
+    #[doc(hidden)]
+    pub fn emit_command_for_harness_with_options_diagnostics(
+        self,
+        sink: &mut dyn OutputSink,
+        additional_options_diagnostics: &[Diagnostic],
+    ) -> Result<EmitCommandOutcome, DriverError> {
+        if !additional_options_diagnostics.is_empty() {
+            self.require_mode(PreparedProgramMode::NoEmit)?;
+        }
         let current_directory = self.prepared.current_directory().display().to_owned();
         if self.prepared.mode() == PreparedProgramMode::NoEmit {
             let options = self.prepared.compiler_options().clone();
@@ -1051,6 +1074,7 @@ impl ProgramSession {
                 Some(prepared)
                     if outcome.syntactic_diagnostics.is_empty()
                         && outcome.options_diagnostics.is_empty()
+                        && additional_options_diagnostics.is_empty()
                         && outcome.global_diagnostics.is_empty()
                         && outcome.semantic_diagnostics.is_empty() =>
                 {
@@ -1070,7 +1094,11 @@ impl ProgramSession {
                 work_counters: outcome.work_counters,
                 checked_source_files: 0,
             };
-            return Ok(EmitCommandOutcome::new(reported, current_directory.as_js()));
+            return Ok(EmitCommandOutcome::with_options_diagnostics(
+                reported,
+                current_directory.as_js(),
+                additional_options_diagnostics,
+            ));
         }
         self.emit_for_cli(sink)
             .map(|outcome| EmitCommandOutcome::new(outcome, current_directory.as_js()))

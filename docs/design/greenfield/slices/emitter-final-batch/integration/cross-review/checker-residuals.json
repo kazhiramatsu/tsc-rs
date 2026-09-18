@@ -1,0 +1,3668 @@
+[
+  {
+    "case_id": "typescript-6.0.3/compiler/contextuallyTypedParametersOptionalInJSDoc.ts#default",
+    "cause": "checker (JS): contextual typing of JSDoc optional parameters (TS2345 position/type)",
+    "source": {
+      "path": "contextuallyTypedParametersOptionalInJSDoc.ts",
+      "bytes": 533,
+      "sha256": "8ded7c5edc6e91c5fd1291e98d2e73874600b72389f45aa3ce17e7cef8ca42c2",
+      "git_blob_sha1": "d7d06582d6f4221fa4af31bd3d24cd836fa965d8"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/index.js"
+      ],
+      "files": [
+        {
+          "path": "/.src/index.js",
+          "text": "/**\n * \n * @param {number} num \n */\nfunction acceptNum(num) {}\n\n/**\n * @typedef {(a: string, b: number) => void} Fn\n */\n\n/** @type {Fn} */\nconst fn1 =\n  /**\n   * @param [b]\n   */\n  function self(a, b) {\n    acceptNum(b); // error\n    self(\"\");\n    self(\"\", undefined);\n  };\n\n/** @type {Fn} */\nconst fn2 =\n  /**\n   * @param {number} [b]\n   */\n  function self(a, b) {\n    acceptNum(b); // error\n    self(\"\");\n    self(\"\", undefined);\n  };\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "strict",
+        "true"
+      ],
+      [
+        "checkJs",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "filename",
+        "index.js"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/index.js",
+        "start": 217,
+        "length": 1,
+        "message": "Argument of type 'number | undefined' is not assignable to parameter of type 'number'.\n  Type 'undefined' is not assignable to type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/index.js",
+        "start": 380,
+        "length": 1,
+        "message": "Argument of type 'number | undefined' is not assignable to parameter of type 'number'.\n  Type 'undefined' is not assignable to type 'number'.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/index.js",
+        "start": 257,
+        "length": 9,
+        "message": "Argument of type 'undefined' is not assignable to parameter of type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/index.js",
+        "start": 380,
+        "length": 1,
+        "message": "Argument of type 'number | undefined' is not assignable to parameter of type 'number'.\n  Type 'undefined' is not assignable to type 'number'.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/deeplyNestedMappedTypes.ts#default",
+    "cause": "checker: mapped-type instantiation depth / type display (TS2322 set)",
+    "source": {
+      "path": "deeplyNestedMappedTypes.ts",
+      "bytes": 4971,
+      "sha256": "b23b7b0602918635dcbb6dba6afd06bc6a0468d28fe64eeb6070a5aaeb282574",
+      "git_blob_sha1": "b25d7addd9cdf9aad60e41ab85c0c2fed3f6373d"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/deeplyNestedMappedTypes.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/deeplyNestedMappedTypes.ts",
+          "text": "// Simplified repro from #55535\n\ntype Id<T> = { [K in keyof T]: Id<T[K]> };\n\ntype Foo1 = Id<{ x: { y: { z: { a: { b: { c: number } } } } } }>;\ntype Foo2 = Id<{ x: { y: { z: { a: { b: { c: string } } } } } }>;\n\ndeclare const foo1: Foo1;\nconst foo2: Foo2 = foo1;  // Error expected\n\ntype Id2<T> = { [K in keyof T]: Id2<Id2<T[K]>> };\n\ntype Foo3 = Id2<{ x: { y: { z: { a: { b: { c: number } } } } } }>;\ntype Foo4 = Id2<{ x: { y: { z: { a: { b: { c: string } } } } } }>;\n\ndeclare const foo3: Foo3;\nconst foo4: Foo4 = foo3;  // Error expected\n\n// Repro from issue linked in #55535\n\ntype RequiredDeep<T> = { [K in keyof T]-?: RequiredDeep<T[K]> };\n\ntype A = { a?: { b: { c: 1 | { d: 2000 } }}}\ntype B = { a?: { b: { c: { d: { e: { f: { g: 2 }}}}, x: 1000 }}}\n\ntype C = RequiredDeep<A>;\ntype D = RequiredDeep<B>;\n\ntype Test1 = [C, D] extends [D, C] ? true : false;  // false\ntype Test2 = C extends D ? true : false;  // false\ntype Test3 = D extends C ? true : false;  // false\n\n// Simplified repro from #54246\n\n// Except for the final non-recursive Record<K, V>, object types produced by NestedRecord all have the same symbol\n// and thus are considered deeply nested after three levels of nesting. Ideally we'd detect that recursion in this\n// type always terminates, but we're unaware of a general algorithm that accomplishes this.\n\ntype NestedRecord<K extends string, V> = K extends `${infer K0}.${infer KR}` ? { [P in K0]: NestedRecord<KR, V> } : Record<K, V>;\n\ntype Bar1 = NestedRecord<\"x.y.z.a.b.c\", number>;\ntype Bar2 = NestedRecord<\"x.y.z.a.b.c\", string>;\n\ndeclare const bar1: Bar1;\nconst bar2: Bar2 = bar1;  // Error expected\n\n// Repro from #56138\n\nexport type Input = Static<typeof Input>\nexport const Input = Type.Object({\n    level1: Type.Object({\n        level2: Type.Object({\n            foo: Type.String(),\n        })\n    })\n})\n\nexport type Output = Static<typeof Output>\nexport const Output = Type.Object({\n    level1: Type.Object({\n        level2: Type.Object({\n            foo: Type.String(),\n            bar: Type.String(),\n        })\n    })\n})\n\nfunction problematicFunction1(ors: Input[]): Output[] {\n    return ors;  // Error\n}\n\nfunction problematicFunction2<T extends Output[]>(ors: Input[]): T {\n    return ors;  // Error\n}\n\nfunction problematicFunction3(ors: (typeof Input.static)[]): Output[] {\n    return ors;  // Error\n}\n\nexport type Evaluate<T> = T extends infer O ? { [K in keyof O]: O[K] } : never\n\nexport declare const Readonly: unique symbol;\nexport declare const Optional: unique symbol;\nexport declare const Hint: unique symbol;\nexport declare const Kind: unique symbol;\n\nexport interface TKind {\n    [Kind]: string\n}\nexport interface TSchema extends TKind {\n    [Readonly]?: string\n    [Optional]?: string\n    [Hint]?: string\n    params: unknown[]\n    static: unknown\n}\n\nexport type TReadonlyOptional<T extends TSchema> = TOptional<T> & TReadonly<T>\nexport type TReadonly<T extends TSchema> = T & { [Readonly]: 'Readonly' }\nexport type TOptional<T extends TSchema> = T & { [Optional]: 'Optional' }\n\nexport interface TString extends TSchema {\n    [Kind]: 'String';\n    static: string;\n    type: 'string';\n}\n\nexport type ReadonlyOptionalPropertyKeys<T extends TProperties> = { [K in keyof T]: T[K] extends TReadonly<TSchema> ? (T[K] extends TOptional<T[K]> ? K : never) : never }[keyof T]\nexport type ReadonlyPropertyKeys<T extends TProperties> = { [K in keyof T]: T[K] extends TReadonly<TSchema> ? (T[K] extends TOptional<T[K]> ? never : K) : never }[keyof T]\nexport type OptionalPropertyKeys<T extends TProperties> = { [K in keyof T]: T[K] extends TOptional<TSchema> ? (T[K] extends TReadonly<T[K]> ? never : K) : never }[keyof T]\nexport type RequiredPropertyKeys<T extends TProperties> = keyof Omit<T, ReadonlyOptionalPropertyKeys<T> | ReadonlyPropertyKeys<T> | OptionalPropertyKeys<T>>\nexport type PropertiesReducer<T extends TProperties, R extends Record<keyof any, unknown>> = Evaluate<(\n    Readonly<Partial<Pick<R, ReadonlyOptionalPropertyKeys<T>>>> &\n    Readonly<Pick<R, ReadonlyPropertyKeys<T>>> &\n    Partial<Pick<R, OptionalPropertyKeys<T>>> &\n    Required<Pick<R, RequiredPropertyKeys<T>>>\n)>\nexport type PropertiesReduce<T extends TProperties, P extends unknown[]> = PropertiesReducer<T, {\n    [K in keyof T]: Static<T[K], P>\n}>\nexport type TPropertyKey = string | number\nexport type TProperties = Record<TPropertyKey, TSchema>\nexport interface TObject<T extends TProperties = TProperties> extends TSchema {\n    [Kind]: 'Object'\n    static: PropertiesReduce<T, this['params']>\n    type: 'object'\n    properties: T\n}\n\nexport type Static<T extends TSchema, P extends unknown[] = []> = (T & { params: P; })['static']\n\ndeclare namespace Type {\n    function Object<T extends TProperties>(object: T): TObject<T>\n    function String(): TString\n}\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "strict",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/deeplyNestedMappedTypes.ts",
+        "start": 242,
+        "length": 4,
+        "message": "Type 'Id<{ x: { y: { z: { a: { b: { c: number; }; }; }; }; }; }>' is not assignable to type 'Id<{ x: { y: { z: { a: { b: { c: string; }; }; }; }; }; }>'.\n  The types of 'x.y.z.a.b.c' are incompatible between these types.\n    Type 'number' is not assignable to type 'string'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/deeplyNestedMappedTypes.ts",
+        "start": 499,
+        "length": 4,
+        "message": "Type 'Id2<{ x: { y: { z: { a: { b: { c: number; }; }; }; }; }; }>' is not assignable to type 'Id2<{ x: { y: { z: { a: { b: { c: string; }; }; }; }; }; }>'.\n  The types of 'x.y.z.a.b.c' are incompatible between these types.\n    Type 'number' is not assignable to type 'string'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/deeplyNestedMappedTypes.ts",
+        "start": 2116,
+        "length": 6,
+        "message": "Type '{ level1: { level2: { foo: string; }; }; }[]' is not assignable to type '{ level1: { level2: { foo: string; bar: string; }; }; }[]'.\n  Type '{ level1: { level2: { foo: string; }; }; }' is not assignable to type '{ level1: { level2: { foo: string; bar: string; }; }; }'.\n    The types of 'level1.level2' are incompatible between these types.\n      Property 'bar' is missing in type '{ foo: string; }' but required in type '{ foo: string; bar: string; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/deeplyNestedMappedTypes.ts",
+            "start": 2014,
+            "length": 18,
+            "message": "'bar' is declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/deeplyNestedMappedTypes.ts",
+        "start": 2214,
+        "length": 6,
+        "message": "Type '{ level1: { level2: { foo: string; }; }; }[]' is not assignable to type 'T'.\n  'T' could be instantiated with an arbitrary type which could be unrelated to '{ level1: { level2: { foo: string; }; }; }[]'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/deeplyNestedMappedTypes.ts",
+        "start": 2315,
+        "length": 6,
+        "message": "Type '{ level1: { level2: { foo: string; }; }; }[]' is not assignable to type '{ level1: { level2: { foo: string; bar: string; }; }; }[]'.\n  Type '{ level1: { level2: { foo: string; }; }; }' is not assignable to type '{ level1: { level2: { foo: string; bar: string; }; }; }'.\n    The types of 'level1.level2' are incompatible between these types.\n      Property 'bar' is missing in type '{ foo: string; }' but required in type '{ foo: string; bar: string; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/deeplyNestedMappedTypes.ts",
+            "start": 2014,
+            "length": 18,
+            "message": "'bar' is declared here.",
+            "related_information": null
+          }
+        ]
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/deeplyNestedMappedTypes.ts",
+        "start": 2214,
+        "length": 6,
+        "message": "Type '({} & {} & {} & { level1: {} & {} & {} & { level2: {} & {} & {} & { foo: string; }; }; })[]' is not assignable to type 'T'.\n  '({} & {} & {} & { level1: {} & {} & {} & { level2: {} & {} & {} & { foo: string; }; }; })[]' is assignable to the constraint of type 'T', but 'T' could be instantiated with a different subtype of constraint '({} & {} & {} & { level1: {} & {} & {} & { level2: {} & {} & {} & { foo: string; bar: string; }; }; })[]'.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/excessPropertyCheckIntersectionWithRecursiveType.ts#default",
+    "cause": "checker: relatedInformation (6501) elaboration on lib index signature",
+    "source": {
+      "path": "excessPropertyCheckIntersectionWithRecursiveType.ts",
+      "bytes": 2204,
+      "sha256": "ecd07573b3c73aaa06eaf5822aebbb9fe092ede7513f393c42c2917a65a73c29",
+      "git_blob_sha1": "2c28abee8a3e75823b342eca9db4890d271cc88e"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+          "text": "// repro from #44750\n\ntype Request = { l1: { l2: boolean } };\ntype Example<T> = { ex?: T | null };\n\ntype Schema1<T> = (T extends boolean ? { type: 'boolean'; } : { props: { [P in keyof T]: Schema1<T[P]> }; }) & Example<T>;\n\nexport const schemaObj1: Schema1<Request> = {\n  props: {\n    l1: {\n      props: {\n        l2: { type: 'boolean' },\n        invalid: false,\n      },\n    },\n  },\n}\n\ntype Schema2<T> = (T extends boolean ? { type: 'boolean'; } & Example<T> : { props: { [P in keyof T]: Schema2<T[P]> }; } & Example<T>);\n\nexport const schemaObj2: Schema2<Request> = {\n  props: {\n    l1: {\n      props: {\n        l2: { type: 'boolean' },\n        invalid: false,\n      },\n    },\n  },\n}\n\ntype Schema3<T> = Example<T> & (T extends boolean ? { type: 'boolean'; } : { props: { [P in keyof T]: Schema3<T[P]> }; });\n\nexport const schemaObj3: Schema3<Request> = {\n  props: {\n    l1: {\n      props: {\n        l2: { type: 'boolean' },\n        invalid: false,\n      },\n    },\n  },\n}\n\ntype Schema4<T> = (T extends boolean ? { type: 'boolean'; } & Example<T> : { props: Example<T> & { [P in keyof T]: Schema4<T[P]> }; });\n\nexport const schemaObj4: Schema4<Request> = {\n  props: {\n    l1: {\n      props: {\n        l2: { type: 'boolean' },\n        invalid: false,\n      },\n    },\n  },\n}\n\n// repro from #40405\n\ntype Length<T extends any[]> = T[\"length\"];\ntype Prepend<V, T extends any[]> = ((head: V, ...args: T) => void) extends (\n  ...args: infer R\n) => void\n  ? R\n  : any;\n\ntype BuildTree<T, N extends number = -1, I extends any[] = []> = {\n  1: T;\n  0: T & { children: BuildTree<T, N, Prepend<any, I>>[] };\n}[Length<I> extends N ? 1 : 0];\n\ninterface User {\n  name: string;\n}\n\ntype GrandUser = BuildTree<User, 2>;\n\nconst grandUser: GrandUser = {\n  name: \"Grand User\",\n  children: [\n    {\n      name: \"Son\",\n      children: [\n        {\n          name: \"Grand son\",\n          children: [\n            {\n              name: \"123\",\n              children: [\n                {\n                  name: \"Some other name\",\n                },\n              ],\n            },\n          ],\n        },\n      ],\n    },\n  ],\n};\n\ngrandUser.children[0].children[0].children[0];\n\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "strict",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 347,
+        "length": 7,
+        "message": "Object literal may only specify known properties, and 'invalid' does not exist in type '{ l2: Schema1<boolean>; }'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+            "start": 164,
+            "length": 5,
+            "message": "The expected type comes from property 'props' which is declared here on type 'Schema1<{ l2: boolean; }>'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 647,
+        "length": 7,
+        "message": "Object literal may only specify known properties, and 'invalid' does not exist in type '{ l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+            "start": 464,
+            "length": 5,
+            "message": "The expected type comes from property 'props' which is declared here on type '{ props: { l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }; } & Example<{ l2: boolean; }>'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 934,
+        "length": 7,
+        "message": "Object literal may only specify known properties, and 'invalid' does not exist in type '{ l2: Schema3<boolean>; }'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+            "start": 764,
+            "length": 5,
+            "message": "The expected type comes from property 'props' which is declared here on type 'Schema3<{ l2: boolean; }>'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 1234,
+        "length": 7,
+        "message": "Object literal may only specify known properties, and 'invalid' does not exist in type 'Example<{ l2: boolean; }> & { l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+            "start": 1051,
+            "length": 5,
+            "message": "The expected type comes from property 'props' which is declared here on type '{ props: Example<{ l2: boolean; }> & { l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }; }'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 1862,
+        "length": 8,
+        "message": "Object literal may only specify known properties, and 'children' does not exist in type 'User'.",
+        "related_information": null
+      },
+      {
+        "code": 2339,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 2136,
+        "length": 8,
+        "message": "Property 'children' does not exist on type 'User'.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 347,
+        "length": 7,
+        "message": "Object literal may only specify known properties, and 'invalid' does not exist in type '{ l2: Schema1<boolean>; }'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+            "start": 164,
+            "length": 5,
+            "message": "The expected type comes from property 'props' which is declared here on type 'Schema1<{ l2: boolean; }>'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 647,
+        "length": 7,
+        "message": "Object literal may only specify known properties, and 'invalid' does not exist in type '{ l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+            "start": 464,
+            "length": 5,
+            "message": "The expected type comes from property 'props' which is declared here on type '{ props: { l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }; } & Example<{ l2: boolean; }>'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 934,
+        "length": 7,
+        "message": "Object literal may only specify known properties, and 'invalid' does not exist in type '{ l2: Schema3<boolean>; }'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+            "start": 764,
+            "length": 5,
+            "message": "The expected type comes from property 'props' which is declared here on type 'Schema3<{ l2: boolean; }>'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 1234,
+        "length": 7,
+        "message": "Object literal may only specify known properties, and 'invalid' does not exist in type 'Example<{ l2: boolean; }> & { l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+            "start": 1051,
+            "length": 5,
+            "message": "The expected type comes from property 'props' which is declared here on type '{ props: Example<{ l2: boolean; }> & { l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }; }'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 1862,
+        "length": 8,
+        "message": "Object literal may only specify known properties, and 'children' does not exist in type 'User'.",
+        "related_information": [
+          {
+            "code": 6501,
+            "category": "Message",
+            "file": "/lib/lib.es5.d.ts",
+            "start": 70549,
+            "length": 15,
+            "message": "The expected type comes from this index signature.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2339,
+        "category": "Error",
+        "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+        "start": 2136,
+        "length": 8,
+        "message": "Property 'children' does not exist on type 'User'.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/genericDefaultsJs.ts#default",
+    "cause": "checker (JS): TS2351 reported for JS generic defaults",
+    "source": {
+      "path": "genericDefaultsJs.ts",
+      "bytes": 1556,
+      "sha256": "f59f97cdabe09fcf71f72a2aae26cabb9889741953d7a39c1d0b3e609db33040",
+      "git_blob_sha1": "c57db4d090e5dc961575a0d58093a71aefc9e0fd"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/decls.d.ts",
+        "/.src/main.js"
+      ],
+      "files": [
+        {
+          "path": "/.src/decls.d.ts",
+          "text": "declare function f0<T>(x?: T): T;\ndeclare function f1<T, U = number>(x?: T): [T, U];\ndeclare class C0<T> {\n    y: T;\n    constructor(x?: T);\n}\ndeclare class C1<T, U = number> {\n    y: [T, U];\n    constructor(x?: T);\n}"
+        },
+        {
+          "path": "/.src/main.js",
+          "text": "const f0_v0 = f0();\nconst f0_v1 = f0(1);\n\nconst f1_c0 = f1();\nconst f1_c1 = f1(1);\n\nconst C0_v0 = new C0();\nconst C0_v0_y = C0_v0.y;\n\nconst C0_v1 = new C0(1);\nconst C0_v1_y = C0_v1.y;\n\nconst C1_v0 = new C1();\nconst C1_v0_y = C1_v0.y;\n\nconst C1_v1 = new C1(1);\nconst C1_v1_y = C1_v1.y;\n\nclass C0_B0 extends C0 {}\nclass C0_B1 extends C0 {\n    constructor() {\n        super();\n    }\n}\nclass C0_B2 extends C0 {\n    constructor() {\n        super(1);\n    }\n}\n\nconst C0_B0_v0 = new C0_B0();\nconst C0_B0_v0_y = C0_B0_v0.y;\n\nconst C0_B0_v1 = new C0_B0(1);\nconst C0_B0_v1_y = C0_B0_v1.y;\n\nconst C0_B1_v0 = new C0_B1();\nconst C0_B1_v0_y = C0_B1_v0.y;\n\nconst C0_B2_v0 = new C0_B2();\nconst C0_B2_v0_y = C0_B2_v0.y;\n\nclass C1_B0 extends C1 {}\nclass C1_B1 extends C1 {\n    constructor() {\n        super();\n    }\n}\nclass C1_B2 extends C1 {\n    constructor() {\n        super(1);\n    }\n}\n\nconst C1_B0_v0 = new C1_B0();\nconst C1_B0_v0_y = C1_B0_v0.y;\n\nconst C1_B0_v1 = new C1_B0(1);\nconst C1_B0_v1_y = C1_B0_v1.y;\n\nconst C1_B1_v0 = new C1_B1();\nconst C1_B1_v0_y = C1_B1_v0.y;\n\nconst C1_B2_v0 = new C1_B2();\nconst C1_B2_v0_y = C1_B2_v0.y;\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "strict",
+        "false"
+      ],
+      [
+        "checkJs",
+        "true"
+      ],
+      [
+        "allowJs",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "filename",
+        "main.js"
+      ]
+    ],
+    "typescript_diagnostics": [],
+    "native_diagnostics": [
+      {
+        "code": 2351,
+        "category": "Error",
+        "file": "/.src/main.js",
+        "start": 475,
+        "length": 5,
+        "message": "This expression is not constructable.\n  Type 'typeof C0_B0' has no construct signatures.",
+        "related_information": null
+      },
+      {
+        "code": 2351,
+        "category": "Error",
+        "file": "/.src/main.js",
+        "start": 537,
+        "length": 5,
+        "message": "This expression is not constructable.\n  Type 'typeof C0_B0' has no construct signatures.",
+        "related_information": null
+      },
+      {
+        "code": 2351,
+        "category": "Error",
+        "file": "/.src/main.js",
+        "start": 892,
+        "length": 5,
+        "message": "This expression is not constructable.\n  Type 'typeof C1_B0' has no construct signatures.",
+        "related_information": null
+      },
+      {
+        "code": 2351,
+        "category": "Error",
+        "file": "/.src/main.js",
+        "start": 954,
+        "length": 5,
+        "message": "This expression is not constructable.\n  Type 'typeof C1_B0' has no construct signatures.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/importNonExportedMember9.ts#default",
+    "cause": "checker: TS2616 vs TS2597 diagnostic choice",
+    "source": {
+      "path": "importNonExportedMember9.ts",
+      "bytes": 212,
+      "sha256": "9f2687b929163f38143e908a04fe72a4913a7c4d873e9eb4b0057fb962b1a9f4",
+      "git_blob_sha1": "f6c7e4d7ccd90928b532f771fd87e488a0463cf4"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/a.ts",
+        "/.src/b.js"
+      ],
+      "files": [
+        {
+          "path": "/.src/a.ts",
+          "text": "class Foo {}\nexport = Foo;\n"
+        },
+        {
+          "path": "/.src/b.js",
+          "text": "import { Foo } from './a';"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "esModuleInterop",
+        "true"
+      ],
+      [
+        "module",
+        "commonjs"
+      ],
+      [
+        "checkJs",
+        "true"
+      ],
+      [
+        "allowJs",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "Filename",
+        "b.js"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2597,
+        "category": "Error",
+        "file": "/.src/b.js",
+        "start": 9,
+        "length": 3,
+        "message": "'Foo' can only be imported by using a 'require' call or by using a default import.",
+        "related_information": null
+      },
+      {
+        "code": 2497,
+        "category": "Error",
+        "file": "/.src/b.js",
+        "start": 20,
+        "length": 5,
+        "message": "This module can only be referenced with ECMAScript imports/exports by turning on the 'esModuleInterop' flag and referencing its default export.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2616,
+        "category": "Error",
+        "file": "/.src/b.js",
+        "start": 9,
+        "length": 3,
+        "message": "'Foo' can only be imported by using 'import Foo = require(\"./a\")' or a default import.",
+        "related_information": null
+      },
+      {
+        "code": 2497,
+        "category": "Error",
+        "file": "/.src/b.js",
+        "start": 20,
+        "length": 5,
+        "message": "This module can only be referenced with ECMAScript imports/exports by turning on the 'esModuleInterop' flag and referencing its default export.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/isolatedModulesExportDeclarationType.ts#default",
+    "cause": "checker (isolatedModules): TS2865 sketchy alias local merge",
+    "source": {
+      "path": "isolatedModulesExportDeclarationType.ts",
+      "bytes": 613,
+      "sha256": "d9d1a55a2cea39dc8f035cb5600fb5041f05fece79d110434946ab13411bb56f",
+      "git_blob_sha1": "7553559c62280e556fd17422afd68e528121d3d9"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/type.ts",
+        "/test1.ts",
+        "/test2.ts",
+        "/test3.ts",
+        "/test4.ts"
+      ],
+      "files": [
+        {
+          "path": "/type.ts",
+          "text": "export type T = number;\n"
+        },
+        {
+          "path": "/test1.ts",
+          "text": "import { T } from \"./type\";\nconst T = 0;      // Error as of #56354\nexport default T; // Ok\n"
+        },
+        {
+          "path": "/test2.ts",
+          "text": "import { T } from \"./type\";\ntype T = number;  // Merge error\nexport default T; // Transpiler could assume the alias resolves to a value?\n"
+        },
+        {
+          "path": "/test3.ts",
+          "text": "import { T } from \"./type\";\nexport default T; // Error\n"
+        },
+        {
+          "path": "/test4.ts",
+          "text": "// @ts-expect-error\nimport unresolved from \"./doesntexist\";\nexport default unresolved;\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "module",
+        "commonjs"
+      ],
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "isolatedModules",
+        "true"
+      ],
+      [
+        "noTypesAndSymbols",
+        "true"
+      ],
+      [
+        "Filename",
+        "/test4.ts"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2865,
+        "category": "Error",
+        "file": "/test1.ts",
+        "start": 9,
+        "length": 1,
+        "message": "Import 'T' conflicts with local value, so must be declared with a type-only import when 'isolatedModules' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 2440,
+        "category": "Error",
+        "file": "/test2.ts",
+        "start": 9,
+        "length": 1,
+        "message": "Import declaration conflicts with local declaration of 'T'.",
+        "related_information": null
+      },
+      {
+        "code": 1292,
+        "category": "Error",
+        "file": "/test2.ts",
+        "start": 76,
+        "length": 1,
+        "message": "'T' resolves to a type and must be marked type-only in this file before re-exporting when 'isolatedModules' is enabled. Consider using 'export type { T as default }'.",
+        "related_information": null
+      },
+      {
+        "code": 1292,
+        "category": "Error",
+        "file": "/test3.ts",
+        "start": 43,
+        "length": 1,
+        "message": "'T' resolves to a type and must be marked type-only in this file before re-exporting when 'isolatedModules' is enabled. Consider using 'export type { T as default }'.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2440,
+        "category": "Error",
+        "file": "/test2.ts",
+        "start": 9,
+        "length": 1,
+        "message": "Import declaration conflicts with local declaration of 'T'.",
+        "related_information": null
+      },
+      {
+        "code": 1292,
+        "category": "Error",
+        "file": "/test2.ts",
+        "start": 76,
+        "length": 1,
+        "message": "'T' resolves to a type and must be marked type-only in this file before re-exporting when 'isolatedModules' is enabled. Consider using 'export type { T as default }'.",
+        "related_information": null
+      },
+      {
+        "code": 1292,
+        "category": "Error",
+        "file": "/test3.ts",
+        "start": 43,
+        "length": 1,
+        "message": "'T' resolves to a type and must be marked type-only in this file before re-exporting when 'isolatedModules' is enabled. Consider using 'export type { T as default }'.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/isolatedModulesExportImportUninstantiatedNamespace.ts#default",
+    "cause": "checker (isolatedModules): TS1269",
+    "source": {
+      "path": "isolatedModulesExportImportUninstantiatedNamespace.ts",
+      "bytes": 499,
+      "sha256": "7953b8c751b8f843ac71854c19aaa7ed75f819aa2ddcd700f24bcae518c36c2f",
+      "git_blob_sha1": "dc38a38c3f3d72555a3ff8fe1751e7ab97bf983d"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/jsx.ts",
+        "/.src/factory.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/jsx.ts",
+          "text": "export namespace JSXInternal {\n  export type HTMLAttributes = string\n  export type ComponentChildren = string\n}\n"
+        },
+        {
+          "path": "/.src/factory.ts",
+          "text": "import { JSXInternal } from \"./jsx\"\n\nexport import JSX = JSXInternal;\n\nexport function createElement<ElementType extends HTMLElement>(\n  tagName: string,\n  attributes: JSX.HTMLAttributes,\n  ...children: JSX.ComponentChildren[]\n): any {\n  //...\n}\n\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "module",
+        "esnext"
+      ],
+      [
+        "isolatedModules",
+        "true"
+      ],
+      [
+        "noTypesAndSymbols",
+        "true"
+      ],
+      [
+        "Filename",
+        "factory.ts"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 1269,
+        "category": "Error",
+        "file": "/.src/factory.ts",
+        "start": 37,
+        "length": 32,
+        "message": "Cannot use 'export import' on a type or type-only namespace when 'isolatedModules' is enabled.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": []
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/isolatedModulesGlobalNamespacesAndEnums.ts#default",
+    "cause": "checker (isolatedModules): global namespace/enum diagnostics",
+    "source": {
+      "path": "isolatedModulesGlobalNamespacesAndEnums.ts",
+      "bytes": 595,
+      "sha256": "21d0673ef0be634bc82dce878fd11e1f090551921b1ad303233e62cf1244e4d0",
+      "git_blob_sha1": "fd56146b5321a72b0c10c9116e70bda6f29fccef"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/script-namespaces.ts",
+        "/.src/module-namespaces.ts",
+        "/.src/enum1.ts",
+        "/.src/enum2.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/script-namespaces.ts",
+          "text": "namespace Instantiated {\n    export const x = 1;\n}\nnamespace Uninstantiated {\n    export type T = number;\n}\ndeclare namespace Ambient {\n    export const x: number;\n}\n"
+        },
+        {
+          "path": "/.src/module-namespaces.ts",
+          "text": "export namespace Instantiated {\n    export const x = 1;\n}\n"
+        },
+        {
+          "path": "/.src/enum1.ts",
+          "text": "enum Enum { A, B, C }\ndeclare enum Enum { X = 1_000_000 }\nconst d = 'd';\n"
+        },
+        {
+          "path": "/.src/enum2.ts",
+          "text": "enum Enum {\n    D = d,\n    E = A, // error\n    Y = X, // error\n    Z = Enum.A\n}\n\ndeclare enum Enum {\n    F = A\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "module",
+        "commonjs"
+      ],
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "isolatedModules",
+        "true"
+      ],
+      [
+        "Filename",
+        "enum2.ts"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 18055,
+        "category": "Error",
+        "file": "/.src/enum2.ts",
+        "start": 20,
+        "length": 1,
+        "message": "'Enum.D' has a string type, but must have syntactically recognizable string syntax when 'isolatedModules' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 1281,
+        "category": "Error",
+        "file": "/.src/enum2.ts",
+        "start": 31,
+        "length": 1,
+        "message": "Cannot access 'A' from another file without qualification when 'isolatedModules' is enabled. Use 'Enum.A' instead.",
+        "related_information": null
+      },
+      {
+        "code": 1281,
+        "category": "Error",
+        "file": "/.src/enum2.ts",
+        "start": 51,
+        "length": 1,
+        "message": "Cannot access 'X' from another file without qualification when 'isolatedModules' is enabled. Use 'Enum.X' instead.",
+        "related_information": null
+      },
+      {
+        "code": 1280,
+        "category": "Error",
+        "file": "/.src/script-namespaces.ts",
+        "start": 10,
+        "length": 12,
+        "message": "Namespaces are not allowed in global script files when 'isolatedModules' is enabled. If this file is not intended to be a global script, set 'moduleDetection' to 'force' or add an empty 'export {}' statement.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 18055,
+        "category": "Error",
+        "file": "/.src/enum2.ts",
+        "start": 20,
+        "length": 1,
+        "message": "'Enum.D' has a string type, but must have syntactically recognizable string syntax when 'isolatedModules' is enabled.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/isolatedModulesReExportType.ts#default",
+    "cause": "checker (isolatedModules): TS1269 export import of a type",
+    "source": {
+      "path": "isolatedModulesReExportType.ts",
+      "bytes": 1390,
+      "sha256": "19939c1bc9f04d16168bf6443bfb589cafd35124c603df4604b2eba22d0fed8d",
+      "git_blob_sha1": "8cee42c9657ca99a4ffbefb1931196e8516ab1ca"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/user.ts"
+      ],
+      "files": [
+        {
+          "path": "/user.ts",
+          "text": "// Error, can't re-export something that's only a type.\nexport { T } from \"./exportT\";\nexport import T2 = require(\"./exportEqualsT\");\n\n// OK, has a value side\nexport { C } from \"./exportValue\";\n\n// OK, even though the namespace it exports is only types.\nimport * as NS from \"./exportT\";\nexport { NS };\n\n// OK, syntactically clear that a type is being re-exported.\nexport type T3 = T;\n\n// Error, not clear (to an isolated module) whether `T4` is a type.\nimport { T } from \"./exportT\";\nexport { T as T4 };\n\n// Ok, type-only import indicates that the export can be elided.\nimport type { T as TT } from \"./exportT\";\nexport { TT };\n\n// Error, type-only declaration is in a different file.\nimport { C as CC } from \"./reExportValueAsTypeOnly\";\nexport { CC };\n"
+        },
+        {
+          "path": "/exportT.ts",
+          "text": "export type T = number;\n"
+        },
+        {
+          "path": "/exportValue.ts",
+          "text": "export class C {}\n"
+        },
+        {
+          "path": "/exportEqualsT.ts",
+          "text": "declare type T = number;\nexport = T;\n"
+        },
+        {
+          "path": "/node_modules/foo/bar.d.ts",
+          "text": "export type T = number;\n"
+        },
+        {
+          "path": "/node_modules/foo/index.d.ts",
+          "text": "export { T } from \"./bar\"; // In a declaration file, so not an error.\n"
+        },
+        {
+          "path": "/node_modules/baz/index.d.ts",
+          "text": "declare module \"baz\" {\n    export { T } from \"foo\"; // Also allowed.\n}\n"
+        },
+        {
+          "path": "/reExportValueAsTypeOnly.ts",
+          "text": "export type { C } from \"./exportValue\";\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "module",
+        "commonjs"
+      ],
+      [
+        "isolatedModules",
+        "true"
+      ],
+      [
+        "Filename",
+        "/user.ts"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 1205,
+        "category": "Error",
+        "file": "/user.ts",
+        "start": 65,
+        "length": 1,
+        "message": "Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.",
+        "related_information": null
+      },
+      {
+        "code": 1269,
+        "category": "Error",
+        "file": "/user.ts",
+        "start": 87,
+        "length": 46,
+        "message": "Cannot use 'export import' on a type or type-only namespace when 'isolatedModules' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 1205,
+        "category": "Error",
+        "file": "/user.ts",
+        "start": 493,
+        "length": 7,
+        "message": "Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.",
+        "related_information": null
+      },
+      {
+        "code": 1448,
+        "category": "Error",
+        "file": "/user.ts",
+        "start": 746,
+        "length": 2,
+        "message": "'CC' resolves to a type-only declaration and must be re-exported using a type-only re-export when 'isolatedModules' is enabled.",
+        "related_information": [
+          {
+            "code": 1377,
+            "category": "Message",
+            "file": "/reExportValueAsTypeOnly.ts",
+            "start": 14,
+            "length": 1,
+            "message": "'CC' was exported here.",
+            "related_information": null
+          }
+        ]
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 1205,
+        "category": "Error",
+        "file": "/user.ts",
+        "start": 65,
+        "length": 1,
+        "message": "Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.",
+        "related_information": null
+      },
+      {
+        "code": 1205,
+        "category": "Error",
+        "file": "/user.ts",
+        "start": 493,
+        "length": 7,
+        "message": "Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.",
+        "related_information": null
+      },
+      {
+        "code": 1448,
+        "category": "Error",
+        "file": "/user.ts",
+        "start": 746,
+        "length": 2,
+        "message": "'CC' resolves to a type-only declaration and must be re-exported using a type-only re-export when 'isolatedModules' is enabled.",
+        "related_information": [
+          {
+            "code": 1377,
+            "category": "Message",
+            "file": "/reExportValueAsTypeOnly.ts",
+            "start": 14,
+            "length": 1,
+            "message": "'CC' was exported here.",
+            "related_information": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/isolatedModulesShadowGlobalTypeNotValue.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dfalse",
+    "cause": "checker (isolatedModules): TS2866",
+    "source": {
+      "path": "isolatedModulesShadowGlobalTypeNotValue.ts",
+      "bytes": 1231,
+      "sha256": "5955058a004ba24a5ad56335c3634cbe5ab6d7297cedc77ac59c1b5c3f6b6946",
+      "git_blob_sha1": "02b8acb1b3de6ea5321da57f53fc58cdb160a08a"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/types.ts",
+        "/.src/node.d.ts",
+        "/.src/bad.ts",
+        "/.src/good.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/types.ts",
+          "text": "export interface Date {\n    day: number;\n    month: number;\n    year: number;\n}\n\nexport namespace Event {\n    export type T = any;\n}\n"
+        },
+        {
+          "path": "/.src/node.d.ts",
+          "text": "declare module 'node:console' {\n    global {\n        interface Console {\n            Console: console.ConsoleConstructor;\n        }\n        namespace console {\n            interface ConsoleConstructor {\n                prototype: Console;\n                new (): Console;\n            }\n        }\n        var console: Console;\n    }\n    export = globalThis.console;\n}\n"
+        },
+        {
+          "path": "/.src/bad.ts",
+          "text": "import { Date, Event } from './types';\nfunction foo(a: Date) {\n    const b = new Date(a.year, a.month, a.day);\n    return b.getTime();\n}\nfunction bar() {\n    return new Event('bar') as Event.T;\n}\n"
+        },
+        {
+          "path": "/.src/good.ts",
+          "text": "import type { Date, Event } from './types';\nimport { Console } from 'node:console';\nfunction foo(a: Date) {\n    const b = new Date(a.year, a.month, a.day);\n    return b.getTime();\n}\nfunction bar() {\n    return new Event('bar') as Event.T;\n}\nconst baz: Console = new Console();\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "module",
+        "commonjs"
+      ],
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "isolatedModules",
+        "true"
+      ],
+      [
+        "verbatimModuleSyntax",
+        "false"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "noTypesAndSymbols",
+        "true"
+      ],
+      [
+        "filename",
+        "./good.ts"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2866,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 4,
+        "message": "Import 'Date' conflicts with global value used in this file, so must be declared with a type-only import when 'isolatedModules' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 2866,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 15,
+        "length": 5,
+        "message": "Import 'Event' conflicts with global value used in this file, so must be declared with a type-only import when 'isolatedModules' is enabled.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": []
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/isolatedModulesShadowGlobalTypeNotValue.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dtrue",
+    "cause": "checker (isolatedModules): TS2866",
+    "source": {
+      "path": "isolatedModulesShadowGlobalTypeNotValue.ts",
+      "bytes": 1231,
+      "sha256": "5955058a004ba24a5ad56335c3634cbe5ab6d7297cedc77ac59c1b5c3f6b6946",
+      "git_blob_sha1": "02b8acb1b3de6ea5321da57f53fc58cdb160a08a"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/types.ts",
+        "/.src/node.d.ts",
+        "/.src/bad.ts",
+        "/.src/good.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/types.ts",
+          "text": "export interface Date {\n    day: number;\n    month: number;\n    year: number;\n}\n\nexport namespace Event {\n    export type T = any;\n}\n"
+        },
+        {
+          "path": "/.src/node.d.ts",
+          "text": "declare module 'node:console' {\n    global {\n        interface Console {\n            Console: console.ConsoleConstructor;\n        }\n        namespace console {\n            interface ConsoleConstructor {\n                prototype: Console;\n                new (): Console;\n            }\n        }\n        var console: Console;\n    }\n    export = globalThis.console;\n}\n"
+        },
+        {
+          "path": "/.src/bad.ts",
+          "text": "import { Date, Event } from './types';\nfunction foo(a: Date) {\n    const b = new Date(a.year, a.month, a.day);\n    return b.getTime();\n}\nfunction bar() {\n    return new Event('bar') as Event.T;\n}\n"
+        },
+        {
+          "path": "/.src/good.ts",
+          "text": "import type { Date, Event } from './types';\nimport { Console } from 'node:console';\nfunction foo(a: Date) {\n    const b = new Date(a.year, a.month, a.day);\n    return b.getTime();\n}\nfunction bar() {\n    return new Event('bar') as Event.T;\n}\nconst baz: Console = new Console();\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "module",
+        "commonjs"
+      ],
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "isolatedModules",
+        "true"
+      ],
+      [
+        "verbatimModuleSyntax",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "noTypesAndSymbols",
+        "true"
+      ],
+      [
+        "filename",
+        "./good.ts"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 1295,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 4,
+        "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+        "related_information": null
+      },
+      {
+        "code": 1484,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 4,
+        "message": "'Date' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 2866,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 4,
+        "message": "Import 'Date' conflicts with global value used in this file, so must be declared with a type-only import when 'isolatedModules' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 1295,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 15,
+        "length": 5,
+        "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+        "related_information": null
+      },
+      {
+        "code": 1484,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 15,
+        "length": 5,
+        "message": "'Event' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 2866,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 15,
+        "length": 5,
+        "message": "Import 'Event' conflicts with global value used in this file, so must be declared with a type-only import when 'isolatedModules' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 1295,
+        "category": "Error",
+        "file": "/.src/good.ts",
+        "start": 53,
+        "length": 7,
+        "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 1295,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 4,
+        "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+        "related_information": null
+      },
+      {
+        "code": 1484,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 4,
+        "message": "'Date' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 1295,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 15,
+        "length": 5,
+        "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+        "related_information": null
+      },
+      {
+        "code": 1484,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 15,
+        "length": 5,
+        "message": "'Event' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 1295,
+        "category": "Error",
+        "file": "/.src/good.ts",
+        "start": 53,
+        "length": 7,
+        "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/isolatedModulesSketchyAliasLocalMerge.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dfalse",
+    "cause": "checker (isolatedModules): TS2865",
+    "source": {
+      "path": "isolatedModulesSketchyAliasLocalMerge.ts",
+      "bytes": 371,
+      "sha256": "a71ccb93d4848eab3fcc90ea9d98a1e6463ecf7395c1ab55def53e7d74f56554",
+      "git_blob_sha1": "07b5644adab01055d1921e22521b2913151796ef"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/types.ts",
+        "/.src/bad.ts",
+        "/.src/good.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/types.ts",
+          "text": "export type FC = () => void;\n"
+        },
+        {
+          "path": "/.src/bad.ts",
+          "text": "import { FC } from \"./types\";\nlet FC: FC | null = null;\n"
+        },
+        {
+          "path": "/.src/good.ts",
+          "text": "import type { FC } from \"./types\";\nlet FC: FC | null = null;\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "module",
+        "commonjs"
+      ],
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "isolatedModules",
+        "true"
+      ],
+      [
+        "verbatimModuleSyntax",
+        "false"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "noTypesAndSymbols",
+        "true"
+      ],
+      [
+        "Filename",
+        "good.ts"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2865,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 2,
+        "message": "Import 'FC' conflicts with local value, so must be declared with a type-only import when 'isolatedModules' is enabled.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": []
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/isolatedModulesSketchyAliasLocalMerge.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dtrue",
+    "cause": "checker (isolatedModules): TS2865",
+    "source": {
+      "path": "isolatedModulesSketchyAliasLocalMerge.ts",
+      "bytes": 371,
+      "sha256": "a71ccb93d4848eab3fcc90ea9d98a1e6463ecf7395c1ab55def53e7d74f56554",
+      "git_blob_sha1": "07b5644adab01055d1921e22521b2913151796ef"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/types.ts",
+        "/.src/bad.ts",
+        "/.src/good.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/types.ts",
+          "text": "export type FC = () => void;\n"
+        },
+        {
+          "path": "/.src/bad.ts",
+          "text": "import { FC } from \"./types\";\nlet FC: FC | null = null;\n"
+        },
+        {
+          "path": "/.src/good.ts",
+          "text": "import type { FC } from \"./types\";\nlet FC: FC | null = null;\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "module",
+        "commonjs"
+      ],
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "isolatedModules",
+        "true"
+      ],
+      [
+        "verbatimModuleSyntax",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "noTypesAndSymbols",
+        "true"
+      ],
+      [
+        "Filename",
+        "good.ts"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 1295,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 2,
+        "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+        "related_information": null
+      },
+      {
+        "code": 1484,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 2,
+        "message": "'FC' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "related_information": null
+      },
+      {
+        "code": 2865,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 2,
+        "message": "Import 'FC' conflicts with local value, so must be declared with a type-only import when 'isolatedModules' is enabled.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 1295,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 2,
+        "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+        "related_information": null
+      },
+      {
+        "code": 1484,
+        "category": "Error",
+        "file": "/.src/bad.ts",
+        "start": 9,
+        "length": 2,
+        "message": "'FC' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/jsExportMemberMergedWithModuleAugmentation2.ts#default",
+    "cause": "checker (JS): TS2300 duplicate identifier across module augmentation",
+    "source": {
+      "path": "jsExportMemberMergedWithModuleAugmentation2.ts",
+      "bytes": 250,
+      "sha256": "644cc200603024cf4d49931a25f411b33e5289ec7e69457d7cc8d7845e222d6c",
+      "git_blob_sha1": "b61d8284dcdd96e66df28a2d795edc62ff55f2b3"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/test.js",
+        "/index.ts"
+      ],
+      "files": [
+        {
+          "path": "/test.js",
+          "text": "module.exports = {\n  a: \"ok\"\n};\n"
+        },
+        {
+          "path": "/index.ts",
+          "text": "import { a } from \"./test\";\n\ndeclare module \"./test\" {\n  export const a: number;\n}\n\na.toFixed();\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "allowJs",
+        "true"
+      ],
+      [
+        "checkJs",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "Filename",
+        "/index.ts"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2300,
+        "category": "Error",
+        "file": "/index.ts",
+        "start": 70,
+        "length": 1,
+        "message": "Duplicate identifier 'a'.",
+        "related_information": [
+          {
+            "code": 6203,
+            "category": "Message",
+            "file": "/test.js",
+            "start": 21,
+            "length": 1,
+            "message": "'a' was also declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2551,
+        "category": "Error",
+        "file": "/index.ts",
+        "start": 86,
+        "length": 7,
+        "message": "Property 'toFixed' does not exist on type 'string'. Did you mean 'fixed'?",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/lib/lib.es2015.core.d.ts",
+            "start": 18973,
+            "length": 16,
+            "message": "'fixed' is declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2300,
+        "category": "Error",
+        "file": "/test.js",
+        "start": 21,
+        "length": 1,
+        "message": "Duplicate identifier 'a'.",
+        "related_information": [
+          {
+            "code": 6203,
+            "category": "Message",
+            "file": "/index.ts",
+            "start": 70,
+            "length": 1,
+            "message": "'a' was also declared here.",
+            "related_information": null
+          }
+        ]
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2551,
+        "category": "Error",
+        "file": "/index.ts",
+        "start": 86,
+        "length": 7,
+        "message": "Property 'toFixed' does not exist on type 'string'. Did you mean 'fixed'?",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/lib/lib.es2015.core.d.ts",
+            "start": 18973,
+            "length": 16,
+            "message": "'fixed' is declared here.",
+            "related_information": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/jsExtendsImplicitAny.ts#default",
+    "cause": "checker (JS): TS2351 reported for JS class heritage",
+    "source": {
+      "path": "jsExtendsImplicitAny.ts",
+      "bytes": 329,
+      "sha256": "fc234c3552ee96e7c13ced0581b9516158a7303430183cd09e8c946e9e2e7f25",
+      "git_blob_sha1": "e8daea428c2192434ab2e471b9dc0ba56132a57f"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/a.d.ts",
+        "/b.js"
+      ],
+      "files": [
+        {
+          "path": "/a.d.ts",
+          "text": "declare class A<T> { x: T; }\n"
+        },
+        {
+          "path": "/b.js",
+          "text": "class B extends A {}\nnew B().x;\n\n/** @augments A */\nclass C extends A { }\nnew C().x;\n\n/** @augments A<number, number, number> */\nclass D extends A {}\nnew D().x;"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "allowJs",
+        "true"
+      ],
+      [
+        "checkJs",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "noImplicitAny",
+        "true"
+      ],
+      [
+        "Filename",
+        "/b.js"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 8026,
+        "category": "Error",
+        "file": "/b.js",
+        "start": 16,
+        "length": 1,
+        "message": "Expected A<T> type arguments; provide these with an '@extends' tag.",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/b.js",
+        "start": 47,
+        "length": 1,
+        "message": "Generic type 'A<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/b.js",
+        "start": 100,
+        "length": 25,
+        "message": "Generic type 'A<T>' requires 1 type argument(s).",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 8026,
+        "category": "Error",
+        "file": "/b.js",
+        "start": 16,
+        "length": 1,
+        "message": "Expected A<T> type arguments; provide these with an '@extends' tag.",
+        "related_information": null
+      },
+      {
+        "code": 2351,
+        "category": "Error",
+        "file": "/b.js",
+        "start": 25,
+        "length": 1,
+        "message": "This expression is not constructable.\n  Type 'typeof B' has no construct signatures.",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/b.js",
+        "start": 47,
+        "length": 1,
+        "message": "Generic type 'A<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2351,
+        "category": "Error",
+        "file": "/b.js",
+        "start": 78,
+        "length": 1,
+        "message": "This expression is not constructable.\n  Type 'typeof C' has no construct signatures.",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/b.js",
+        "start": 100,
+        "length": 25,
+        "message": "Generic type 'A<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2351,
+        "category": "Error",
+        "file": "/b.js",
+        "start": 154,
+        "length": 1,
+        "message": "This expression is not constructable.\n  Type 'typeof D' has no construct signatures.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/jsFileCompilationConstructorOverloadSyntax.ts#default",
+    "cause": "checker (JS): diagnostic span length",
+    "source": {
+      "path": "jsFileCompilationConstructorOverloadSyntax.ts",
+      "bytes": 102,
+      "sha256": "643f4db29e3c06747a9d9a630e4eac27e02902ed8e0886900fc109c668ebe865",
+      "git_blob_sha1": "e4e78edd1ed60dd01ff6e2a0ed9931e81457e62d"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/a.js"
+      ],
+      "files": [
+        {
+          "path": "/.src/a.js",
+          "text": "class A {\n  constructor();\n}\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "allowJs",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "filename",
+        "a.js"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 8017,
+        "category": "Error",
+        "file": "/.src/a.js",
+        "start": 12,
+        "length": 11,
+        "message": "Signature declarations can only be used in TypeScript files.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 8017,
+        "category": "Error",
+        "file": "/.src/a.js",
+        "start": 12,
+        "length": 14,
+        "message": "Signature declarations can only be used in TypeScript files.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/jsdocArrayObjectPromiseNoImplicitAny.ts#default",
+    "cause": "checker (JS): relatedInformation (6500) elaboration on lib property",
+    "source": {
+      "path": "jsdocArrayObjectPromiseNoImplicitAny.ts",
+      "bytes": 873,
+      "sha256": "588d19c0deb49b674fa7aa66893f19f2a57d78c510f5604e826f09feb0363606",
+      "git_blob_sha1": "205c6d163ef868db5059365be6ece3ed5863c2ee"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/jsdocArrayObjectPromiseNoImplicitAny.js"
+      ],
+      "files": [
+        {
+          "path": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+          "text": "/** @type {Array} */\nvar notAnyArray = [5];\n\n/** @type {Array<number>} */\nvar numberArray = [5];\n\n/**\n * @param {Array} arr\n * @return {Array}\n */\nfunction returnNotAnyArray(arr) {\n  return arr;\n}\n\n/** @type {Promise} */\nvar notAnyPromise = Promise.resolve(5);\n\n/** @type {Promise<number>} */\nvar numberPromise = Promise.resolve(5);\n\n/**\n * @param {Promise} pr\n * @return {Promise}\n */\nfunction returnNotAnyPromise(pr) {\n  return pr;\n}\n\n/** @type {Object} */\nvar notAnyObject = {valueOf: 1}; // error since assigning to Object, not any.\n\n/** @type {Object<string, number>} */\nvar paramedObject = {valueOf: 1};\n\n/**\n * @param {Object} obj\n * @return {Object}\n */\nfunction returnNotAnyObject(obj) {\n  return obj;\n}\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "lib",
+        "es2015"
+      ],
+      [
+        "strict",
+        "true"
+      ],
+      [
+        "allowJs",
+        "true"
+      ],
+      [
+        "checkJs",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "fileName",
+        "jsdocArrayObjectPromiseNoImplicitAny.js"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 11,
+        "length": 5,
+        "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 113,
+        "length": 5,
+        "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 136,
+        "length": 5,
+        "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 209,
+        "length": 7,
+        "message": "Generic type 'Promise<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 349,
+        "length": 7,
+        "message": "Generic type 'Promise<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 373,
+        "length": 7,
+        "message": "Generic type 'Promise<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 479,
+        "length": 7,
+        "message": "Type 'number' is not assignable to type '() => Object'.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 11,
+        "length": 5,
+        "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 113,
+        "length": 5,
+        "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 136,
+        "length": 5,
+        "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 209,
+        "length": 7,
+        "message": "Generic type 'Promise<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 349,
+        "length": 7,
+        "message": "Generic type 'Promise<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2314,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 373,
+        "length": 7,
+        "message": "Generic type 'Promise<T>' requires 1 type argument(s).",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+        "start": 479,
+        "length": 7,
+        "message": "Type 'number' is not assignable to type '() => Object'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/lib/lib.es5.d.ts",
+            "start": 4412,
+            "length": 18,
+            "message": "The expected type comes from property 'valueOf' which is declared here on type 'Object'",
+            "related_information": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/jsdocTypedefBeforeParenthesizedExpression.ts#default",
+    "cause": "checker (JS): spurious TS2300 for a JSDoc typedef",
+    "source": {
+      "path": "jsdocTypedefBeforeParenthesizedExpression.ts",
+      "bytes": 344,
+      "sha256": "04c70586784c6d8793b2db0653cb841d9e17b9a631e53299ba8db6051e650b58",
+      "git_blob_sha1": "6794d607676dce2d69aad9baebc11a29241c5a38"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/test.js"
+      ],
+      "files": [
+        {
+          "path": "/.src/test.js",
+          "text": "// @ts-check\n/** @typedef {number} NotADuplicateIdentifier */\n\n(2 * 2);\n\n/** @typedef {number} AlsoNotADuplicate */\n\n(2 * 2) + 1;\n\n\n/**\n * \n * @param a {NotADuplicateIdentifier}\n * @param b {AlsoNotADuplicate}\n */\nfunction makeSureTypedefsAreStillRecognized(a, b) {}\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "allowJs",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "filename",
+        "test.js"
+      ]
+    ],
+    "typescript_diagnostics": [],
+    "native_diagnostics": [
+      {
+        "code": 2300,
+        "category": "Error",
+        "file": "/.src/test.js",
+        "start": 95,
+        "length": 17,
+        "message": "Duplicate identifier 'AlsoNotADuplicate'.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx#default",
+    "cause": "checker: literal type display in TS2322 message",
+    "source": {
+      "path": "jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+      "bytes": 369,
+      "sha256": "bbf0149b40520c4cb9fc592855a5b3863dd6860d71a19e59f8180cf78582b2aa",
+      "git_blob_sha1": "19aa9503ab2d695ee0ec28381faff5c6b45c9bae"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx"
+      ],
+      "files": [
+        {
+          "path": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+          "text": "// https://github.com/microsoft/TypeScript/issues/55240\n\ndeclare namespace JSX {\n  interface IntrinsicElements {\n    [k: `foo${string}`]: { prop: string };\n    [k: `foobar${string}`]: { prop: 'literal' };\n  }\n}\n\n<foobaz prop=\"smth\" />;\n<foobaz prop={10} />;\n\n<foobarbaz prop=\"literal\"/>;\n<foobarbaz prop=\"smth\"/>;\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "jsx",
+        "preserve"
+      ],
+      [
+        "noEmit",
+        "true"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+        "start": 244,
+        "length": 4,
+        "message": "Type 'number' is not assignable to type 'string'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+            "start": 140,
+            "length": 4,
+            "message": "The expected type comes from property 'prop' which is declared here on type '{ prop: string; }'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+        "start": 299,
+        "length": 4,
+        "message": "Type '\"smth\"' is not assignable to type '\"literal\"'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+            "start": 140,
+            "length": 4,
+            "message": "The expected type comes from property 'prop' which is declared here on type '{ prop: string; } & { prop: \"literal\"; }'",
+            "related_information": null
+          }
+        ]
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+        "start": 244,
+        "length": 4,
+        "message": "Type 'number' is not assignable to type 'string'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+            "start": 140,
+            "length": 4,
+            "message": "The expected type comes from property 'prop' which is declared here on type '{ prop: string; }'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+        "start": 299,
+        "length": 4,
+        "message": "Type 'string' is not assignable to type '\"literal\"'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+            "start": 140,
+            "length": 4,
+            "message": "The expected type comes from property 'prop' which is declared here on type '{ prop: string; } & { prop: \"literal\"; }'",
+            "related_information": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/mappedArrayTupleIntersections.ts#default",
+    "cause": "checker: spurious diagnostic on mapped tuple intersection",
+    "source": {
+      "path": "mappedArrayTupleIntersections.ts",
+      "bytes": 573,
+      "sha256": "374a5469da090eaf6666baf2ee5a7624c436b7b9ba7fd605ca5c471a27ff3dff",
+      "git_blob_sha1": "d1146a09727c5eadad4d90a10ac42e80e0ace183"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/mappedArrayTupleIntersections.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/mappedArrayTupleIntersections.ts",
+          "text": "type Box<T> = { value: T };\ntype Boxify<T> = { [K in keyof T]: Box<T[K]> };\n\ntype T1 = Boxify<string[]>;\ntype T2 = Boxify<[string, string]>;\ntype T3 = Boxify<string[] & unknown[]>;\ntype T4 = Boxify<string[] & [string, string]>;\ntype T5 = Boxify<string[] & { x: string }>;\n\n// https://github.com/microsoft/TypeScript/issues/57744\n\ntype MustBeArray<T extends any[]> = T;\n\ntype Hmm<T extends any[]> = T extends number[] ?\n    MustBeArray<{ [I in keyof T]: 1 }> :\n    never;\n\ntype X = Hmm<[3, 4, 5]>;\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "strict",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ]
+    ],
+    "typescript_diagnostics": [],
+    "native_diagnostics": [
+      {
+        "code": 2344,
+        "category": "Error",
+        "file": "/.src/mappedArrayTupleIntersections.ts",
+        "start": 435,
+        "length": 21,
+        "message": "Type '{ [I in keyof T]: 1; }' does not satisfy the constraint 'any[]'.\n  Types of property 'toString' are incompatible.\n    Type 'number' is not assignable to type '() => string'.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/recursiveConditionalCrash4.ts#default",
+    "cause": "checker: missing TS2589 (excessive instantiation depth)",
+    "source": {
+      "path": "recursiveConditionalCrash4.ts",
+      "bytes": 495,
+      "sha256": "85718105dbf2c4db3415908c79828deb724db58e44d4b4475d172f2a401a950f",
+      "git_blob_sha1": "d6cb24c3e37f3ce380aa505b3a849a0b80774f3d"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/recursiveConditionalCrash4.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/recursiveConditionalCrash4.ts",
+          "text": "// Repros from #53783\n\ntype LengthDown<\n  Str extends string,\n  Length extends number | bigint,\n  It\n> = It extends StrIter.Iterator\n  ? StrIter.CutAt<Str, It> extends `${infer $Rest}`\n    ? LengthDown<$Rest, Add<Length, StrIter.Value<It>>, It>\n    : LengthDown<Str, Length, StrIter.Prev<It>>\n  : Length;\n\ntype Foo<T> = T extends unknown\n  ? unknown extends `${infer $Rest}`\n    ? Foo<T>\n    : Foo<unknown>\n  : unknown;\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "strict",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2503,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 116,
+        "length": 7,
+        "message": "Cannot find namespace 'StrIter'.",
+        "related_information": null
+      },
+      {
+        "code": 2503,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 137,
+        "length": 7,
+        "message": "Cannot find namespace 'StrIter'.",
+        "related_information": null
+      },
+      {
+        "code": 2304,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 209,
+        "length": 3,
+        "message": "Cannot find name 'Add'.",
+        "related_information": null
+      },
+      {
+        "code": 2503,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 221,
+        "length": 7,
+        "message": "Cannot find namespace 'StrIter'.",
+        "related_information": null
+      },
+      {
+        "code": 2589,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 251,
+        "length": 41,
+        "message": "Type instantiation is excessively deep and possibly infinite.",
+        "related_information": null
+      },
+      {
+        "code": 2503,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 275,
+        "length": 7,
+        "message": "Cannot find namespace 'StrIter'.",
+        "related_information": null
+      },
+      {
+        "code": 2589,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 394,
+        "length": 12,
+        "message": "Type instantiation is excessively deep and possibly infinite.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2503,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 116,
+        "length": 7,
+        "message": "Cannot find namespace 'StrIter'.",
+        "related_information": null
+      },
+      {
+        "code": 2503,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 137,
+        "length": 7,
+        "message": "Cannot find namespace 'StrIter'.",
+        "related_information": null
+      },
+      {
+        "code": 2304,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 209,
+        "length": 3,
+        "message": "Cannot find name 'Add'.",
+        "related_information": null
+      },
+      {
+        "code": 2503,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 221,
+        "length": 7,
+        "message": "Cannot find namespace 'StrIter'.",
+        "related_information": null
+      },
+      {
+        "code": 2503,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 275,
+        "length": 7,
+        "message": "Cannot find namespace 'StrIter'.",
+        "related_information": null
+      },
+      {
+        "code": 2589,
+        "category": "Error",
+        "file": "/.src/recursiveConditionalCrash4.ts",
+        "start": 394,
+        "length": 12,
+        "message": "Type instantiation is excessively deep and possibly infinite.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/relationComplexityError.ts#default",
+    "cause": "checker: TS2859 relation complexity budget",
+    "source": {
+      "path": "relationComplexityError.ts",
+      "bytes": 379,
+      "sha256": "a174300e3b45d62f84e72f7381d4c03875d70764c90e66e8ddf59549134d2f45",
+      "git_blob_sha1": "7b83dcf8dc6fd367ff5576386f822e735b2d4bfd"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/relationComplexityError.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/relationComplexityError.ts",
+          "text": "// Repro from #55630\n\ntype Digits = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7';\ntype T1 = `${Digits}${Digits}${Digits}${Digits}` | undefined;\ntype T2 = { a: string } | { b: number };\n\nfunction f1(x: T1, y: T1 & T2) {\n    x = y;\n}\n\nfunction f2(x: T1 | null, y: T1 & T2) {\n    x = y;  // Complexity error\n}\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "strict",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2859,
+        "category": "Error",
+        "file": "/.src/relationComplexityError.ts",
+        "start": 278,
+        "length": 1,
+        "message": "Excessive complexity comparing types 'T1 & T2' and 'T1 | null'.",
+        "related_information": null
+      },
+      {
+        "code": 2859,
+        "category": "Error",
+        "file": "/.src/relationComplexityError.ts",
+        "start": 278,
+        "length": 5,
+        "message": "Excessive complexity comparing types 'T1 & T2' and 'T1 | null'.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/relationComplexityError.ts",
+        "start": 224,
+        "length": 1,
+        "message": "Type 'T1 & T2' is not assignable to type 'T1'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/relationComplexityError.ts",
+        "start": 278,
+        "length": 1,
+        "message": "Type 'T1 & T2' is not assignable to type 'T1 | null'.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/tslibMultipleMissingHelper.ts#default",
+    "cause": "checker: TS2343 missing tslib helpers",
+    "source": {
+      "path": "tslibMultipleMissingHelper.ts",
+      "bytes": 1251,
+      "sha256": "f5b0634b8ba3a90c21c106a4039474c20f68e4a7850406f6fd9f48873132b403",
+      "git_blob_sha1": "229b0fc8a9506260b2ace656d1b424ba8bfa024b"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/package1/index.ts",
+        "/package1/other.ts",
+        "/package2/index.ts"
+      ],
+      "files": [
+        {
+          "path": "/package1/index.ts",
+          "text": "export {};\nasync function foo(): Promise<void> {}\nasync function bar(): Promise<void> {}\n"
+        },
+        {
+          "path": "/package1/other.ts",
+          "text": "export {};\nexport async function noop(): Promise<void> {}\nexport function spread({ a, ...rest }: { a: number, b: number}) {\n    return { c: \"c\", ...rest };\n}\n"
+        },
+        {
+          "path": "/package2/index.ts",
+          "text": "export {};\nasync function foo(): Promise<void> {}\n"
+        },
+        {
+          "path": "/package1/node_modules/tslib/package.json",
+          "text": "{\n    \"name\": \"tslib\",\n    \"main\": \"tslib.js\",\n    \"typings\": \"tslib.d.ts\"\n}\n"
+        },
+        {
+          "path": "/package1/node_modules/tslib/tslib.d.ts",
+          "text": "export const notAHelper: any;\n"
+        },
+        {
+          "path": "/package1/node_modules/tslib/tslib.js",
+          "text": "module.exports.notAHelper = 3;\n"
+        },
+        {
+          "path": "/package2/node_modules/tslib/package.json",
+          "text": "{\n    \"name\": \"tslib\",\n    \"main\": \"tslib.js\",\n    \"typings\": \"tslib.d.ts\"\n}\n"
+        },
+        {
+          "path": "/package2/node_modules/tslib/tslib.d.ts",
+          "text": "export const notAHelper: any;\n"
+        },
+        {
+          "path": "/package2/node_modules/tslib/tslib.js",
+          "text": "module.exports.notAHelper = 3;"
+        }
+      ],
+      "config": {
+        "path": "/tsconfig.json",
+        "text": "{\n    \"compilerOptions\": {\n        \"strict\": true,\n        \"target\": \"ES2016\",\n        \"importHelpers\": true,\n        \"module\": \"commonjs\",\n    }\n}\n"
+      },
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "filename",
+        "/package2/node_modules/tslib/tslib.js"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2343,
+        "category": "Error",
+        "file": "/package1/index.ts",
+        "start": 26,
+        "length": 3,
+        "message": "This syntax requires an imported helper named '__awaiter' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.",
+        "related_information": null
+      },
+      {
+        "code": 2343,
+        "category": "Error",
+        "file": "/package1/other.ts",
+        "start": 89,
+        "length": 4,
+        "message": "This syntax requires an imported helper named '__rest' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.",
+        "related_information": null
+      },
+      {
+        "code": 2343,
+        "category": "Error",
+        "file": "/package2/index.ts",
+        "start": 26,
+        "length": 3,
+        "message": "This syntax requires an imported helper named '__awaiter' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2343,
+        "category": "Error",
+        "file": "/package1/index.ts",
+        "start": 26,
+        "length": 3,
+        "message": "This syntax requires an imported helper named '__awaiter' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.",
+        "related_information": null
+      },
+      {
+        "code": 2343,
+        "category": "Error",
+        "file": "/package2/index.ts",
+        "start": 26,
+        "length": 3,
+        "message": "This syntax requires an imported helper named '__awaiter' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/tslibReExportHelpers2.ts#default",
+    "cause": "checker: TS2343 for a helper re-exported through an ESM tslib entry",
+    "source": {
+      "path": "tslibReExportHelpers2.ts",
+      "bytes": 969,
+      "sha256": "fe39782ea56fb2ee7a1bd921a302e64575de23af179dcc95f1a28ef9a61992fd",
+      "git_blob_sha1": "c08fdcff651615156eb8dbab23582dfa92cf9c06"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/node_modules/tslib/index.d.ts",
+        "/node_modules/tslib/index.d.mts",
+        "/index.mts"
+      ],
+      "files": [
+        {
+          "path": "/node_modules/tslib/index.d.ts",
+          "text": "export declare function __classPrivateFieldGet<T extends object, V>(\n  receiver: T,\n  state: { has(o: T): boolean, get(o: T): V | undefined },\n  kind?: \"f\"\n): V;\nexport declare function __classPrivateFieldGet<T extends new (...args: any[]) => unknown, V>(\n  receiver: T,\n  state: T,\n  kind: \"f\",\n  f: { value: V }\n): V;\n"
+        },
+        {
+          "path": "/node_modules/tslib/index.d.mts",
+          "text": "export { __classPrivateFieldGet } from \"./index.js\";\n"
+        },
+        {
+          "path": "/node_modules/tslib/package.json",
+          "text": "{\n    \"name\": \"tslib\",\n    \"version\": \"1.0.0\",\n    \"types\": \"index.d.ts\",\n    \"exports\": {\n        \".\": {\n            \"types\": {\n                \"import\": \"./index.d.mts\",\n                \"default\": \"./index.d.ts\"\n            }\n        }\n    }\n}\n"
+        },
+        {
+          "path": "/index.mts",
+          "text": "export class Foo {\n  constructor() {\n    console.log(Foo.#test());\n  }\n\n  static #test() {\n    return 'success';\n  }\n}\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "module",
+        "nodenext"
+      ],
+      [
+        "importHelpers",
+        "true"
+      ],
+      [
+        "target",
+        "es2021"
+      ],
+      [
+        "Filename",
+        "/index.mts"
+      ]
+    ],
+    "typescript_diagnostics": [],
+    "native_diagnostics": [
+      {
+        "code": 2343,
+        "category": "Error",
+        "file": "/index.mts",
+        "start": 53,
+        "length": 9,
+        "message": "This syntax requires an imported helper named '__classPrivateFieldGet' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.",
+        "related_information": null
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/expressions/typeSatisfaction/typeSatisfaction_errorLocations1.ts#default",
+    "cause": "checker: relatedInformation (6500) elaboration on lib property",
+    "source": {
+      "path": "expressions/typeSatisfaction/typeSatisfaction_errorLocations1.ts",
+      "bytes": 1507,
+      "sha256": "ac31958cb6451ee457354fdbeccdfc39546b7e4b89210728768b1bb8b01c1975",
+      "git_blob_sha1": "1d1e2e22ce6e29e73b0e56e18529bb0919dc6aec"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/typeSatisfaction_errorLocations1.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/typeSatisfaction_errorLocations1.ts",
+          "text": "const obj1 = { a: 1 };\n\nconst fn1 = (s: { a: true }) => {};\nfn1({} satisfies unknown);\nfn1({ a: 1 } satisfies unknown);\nfn1(obj1 satisfies unknown);\n\nclass Cls1 {\n  constructor(p: { a: true }) {}\n}\nnew Cls1({} satisfies unknown);\nnew Cls1({ a: 1 } satisfies unknown);\nnew Cls1(obj1 satisfies unknown);\n\nfunction fn2<T extends { a: true }[]>(f: (...args: T) => void) {\n  f({ a: true } satisfies unknown);\n  const o = { a: true as const };\n  f(o satisfies unknown);\n}\n\nconst tuple1: [boolean, boolean] = [true, 100 satisfies unknown];\n\nconst obj2 = { a: 10, b: true } satisfies Record<string, number>;\n\nconst literal1 = 1 satisfies boolean;\nconst literal2: true = 1 satisfies number;\n\ndeclare function fn3(...args: unknown[]): void;\nfn3(10, ...([10, \"20\"] satisfies number[]));\nconst tuple2 = [10, \"20\"] as const;\nfn3(10, ...(tuple2 satisfies number[]));\n\ndeclare function fn4(...args: number[]): void;\nfn4(10, ...([\"10\", \"20\"] satisfies readonly string[]));\nconst tuple3 = [\"10\", \"20\"] as const;\nfn4(10, ...(tuple3 satisfies readonly string[]));\n\nfunction fn5(): number {\n  return \"foo\" satisfies unknown;\n}\n\nfunction fn6(): number {\n  return \"foo\" satisfies number;\n}\n\n((): { a: true } => ({}) satisfies unknown)();\n((): { a: true } => ({ a: 1 }) satisfies unknown)();\n((): { a: true } => obj1 satisfies unknown)();\n\n((): { a: true } => (({}) satisfies unknown) satisfies unknown)();\n((): { a: true } => ((({}) satisfies unknown)) satisfies unknown)();\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "strict",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 64,
+        "length": 2,
+        "message": "Argument of type '{}' is not assignable to parameter of type '{ a: true; }'.\n  Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 42,
+            "length": 1,
+            "message": "'a' is declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 93,
+        "length": 1,
+        "message": "Type 'number' is not assignable to type 'true'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 42,
+            "length": 1,
+            "message": "The expected type comes from property 'a' which is declared here on type '{ a: true; }'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 124,
+        "length": 4,
+        "message": "Argument of type '{ a: number; }' is not assignable to parameter of type '{ a: true; }'.\n  Types of property 'a' are incompatible.\n    Type 'number' is not assignable to type 'true'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 207,
+        "length": 2,
+        "message": "Argument of type '{}' is not assignable to parameter of type '{ a: true; }'.\n  Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 182,
+            "length": 1,
+            "message": "'a' is declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 241,
+        "length": 1,
+        "message": "Type 'number' is not assignable to type 'true'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 182,
+            "length": 1,
+            "message": "The expected type comes from property 'a' which is declared here on type '{ a: true; }'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 277,
+        "length": 4,
+        "message": "Argument of type '{ a: number; }' is not assignable to parameter of type '{ a: true; }'.\n  Types of property 'a' are incompatible.\n    Type 'number' is not assignable to type 'true'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 372,
+        "length": 11,
+        "message": "Argument of type '[{ a: boolean; }]' is not assignable to parameter of type 'T'.\n  'T' could be instantiated with an arbitrary type which could be unrelated to '[{ a: boolean; }]'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 442,
+        "length": 1,
+        "message": "Argument of type '[{ a: true; }]' is not assignable to parameter of type 'T'.\n  '[{ a: true; }]' is assignable to the constraint of type 'T', but 'T' could be instantiated with a different subtype of constraint '{ a: true; }[]'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 509,
+        "length": 3,
+        "message": "Type 'number' is not assignable to type 'boolean'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 556,
+        "length": 1,
+        "message": "Type 'boolean' is not assignable to type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 1360,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 620,
+        "length": 9,
+        "message": "Type 'number' does not satisfy the expected type 'boolean'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 645,
+        "length": 8,
+        "message": "Type '1' is not assignable to type 'true'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 748,
+        "length": 4,
+        "message": "Type 'string' is not assignable to type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 1360,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 831,
+        "length": 9,
+        "message": "Type 'readonly [10, \"20\"]' does not satisfy the expected type 'number[]'.\n  The type 'readonly [10, \"20\"]' is 'readonly' and cannot be assigned to the mutable type 'number[]'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 909,
+        "length": 45,
+        "message": "Argument of type 'string' is not assignable to parameter of type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1003,
+        "length": 39,
+        "message": "Argument of type 'string' is not assignable to parameter of type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1073,
+        "length": 6,
+        "message": "Type 'string' is not assignable to type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1135,
+        "length": 6,
+        "message": "Type 'string' is not assignable to type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 1360,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1148,
+        "length": 9,
+        "message": "Type 'string' does not satisfy the expected type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 2741,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1190,
+        "length": 2,
+        "message": "Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 1176,
+            "length": 1,
+            "message": "'a' is declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1239,
+        "length": 1,
+        "message": "Type 'number' is not assignable to type 'true'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 1223,
+            "length": 1,
+            "message": "The expected type comes from property 'a' which is declared here on type '{ a: true; }'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1289,
+        "length": 4,
+        "message": "Type '{ a: number; }' is not assignable to type '{ a: true; }'.\n  Types of property 'a' are incompatible.\n    Type 'number' is not assignable to type 'true'.",
+        "related_information": null
+      },
+      {
+        "code": 2741,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1339,
+        "length": 2,
+        "message": "Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 1324,
+            "length": 1,
+            "message": "'a' is declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2741,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1407,
+        "length": 2,
+        "message": "Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 1391,
+            "length": 1,
+            "message": "'a' is declared here.",
+            "related_information": null
+          }
+        ]
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 64,
+        "length": 2,
+        "message": "Argument of type '{}' is not assignable to parameter of type '{ a: true; }'.\n  Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 42,
+            "length": 1,
+            "message": "'a' is declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 93,
+        "length": 1,
+        "message": "Type 'number' is not assignable to type 'true'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 42,
+            "length": 1,
+            "message": "The expected type comes from property 'a' which is declared here on type '{ a: true; }'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 124,
+        "length": 4,
+        "message": "Argument of type '{ a: number; }' is not assignable to parameter of type '{ a: true; }'.\n  Types of property 'a' are incompatible.\n    Type 'number' is not assignable to type 'true'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 207,
+        "length": 2,
+        "message": "Argument of type '{}' is not assignable to parameter of type '{ a: true; }'.\n  Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 182,
+            "length": 1,
+            "message": "'a' is declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 241,
+        "length": 1,
+        "message": "Type 'number' is not assignable to type 'true'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 182,
+            "length": 1,
+            "message": "The expected type comes from property 'a' which is declared here on type '{ a: true; }'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 277,
+        "length": 4,
+        "message": "Argument of type '{ a: number; }' is not assignable to parameter of type '{ a: true; }'.\n  Types of property 'a' are incompatible.\n    Type 'number' is not assignable to type 'true'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 372,
+        "length": 11,
+        "message": "Argument of type '[{ a: boolean; }]' is not assignable to parameter of type 'T'.\n  'T' could be instantiated with an arbitrary type which could be unrelated to '[{ a: boolean; }]'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 442,
+        "length": 1,
+        "message": "Argument of type '[{ a: true; }]' is not assignable to parameter of type 'T'.\n  '[{ a: true; }]' is assignable to the constraint of type 'T', but 'T' could be instantiated with a different subtype of constraint '{ a: true; }[]'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 509,
+        "length": 3,
+        "message": "Type 'number' is not assignable to type 'boolean'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 556,
+        "length": 1,
+        "message": "Type 'boolean' is not assignable to type 'number'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/lib/lib.es5.d.ts",
+            "start": 74260,
+            "length": 20,
+            "message": "The expected type comes from property 'b' which is declared here on type 'Record<string, number>'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 1360,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 620,
+        "length": 9,
+        "message": "Type 'number' does not satisfy the expected type 'boolean'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 645,
+        "length": 8,
+        "message": "Type '1' is not assignable to type 'true'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 748,
+        "length": 4,
+        "message": "Type 'string' is not assignable to type 'number'.",
+        "related_information": [
+          {
+            "code": 6501,
+            "category": "Message",
+            "file": "/lib/lib.es5.d.ts",
+            "start": 70549,
+            "length": 15,
+            "message": "The expected type comes from this index signature.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 1360,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 831,
+        "length": 9,
+        "message": "Type 'readonly [10, \"20\"]' does not satisfy the expected type 'number[]'.\n  The type 'readonly [10, \"20\"]' is 'readonly' and cannot be assigned to the mutable type 'number[]'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 909,
+        "length": 45,
+        "message": "Argument of type 'string' is not assignable to parameter of type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1003,
+        "length": 39,
+        "message": "Argument of type 'string' is not assignable to parameter of type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1073,
+        "length": 6,
+        "message": "Type 'string' is not assignable to type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1135,
+        "length": 6,
+        "message": "Type 'string' is not assignable to type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 1360,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1148,
+        "length": 9,
+        "message": "Type 'string' does not satisfy the expected type 'number'.",
+        "related_information": null
+      },
+      {
+        "code": 2741,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1190,
+        "length": 2,
+        "message": "Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 1176,
+            "length": 1,
+            "message": "'a' is declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1239,
+        "length": 1,
+        "message": "Type 'number' is not assignable to type 'true'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 1223,
+            "length": 1,
+            "message": "The expected type comes from property 'a' which is declared here on type '{ a: true; }'",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1289,
+        "length": 4,
+        "message": "Type '{ a: number; }' is not assignable to type '{ a: true; }'.\n  Types of property 'a' are incompatible.\n    Type 'number' is not assignable to type 'true'.",
+        "related_information": null
+      },
+      {
+        "code": 2741,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1339,
+        "length": 2,
+        "message": "Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 1324,
+            "length": 1,
+            "message": "'a' is declared here.",
+            "related_information": null
+          }
+        ]
+      },
+      {
+        "code": 2741,
+        "category": "Error",
+        "file": "/.src/typeSatisfaction_errorLocations1.ts",
+        "start": 1407,
+        "length": 2,
+        "message": "Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/typeSatisfaction_errorLocations1.ts",
+            "start": 1391,
+            "length": 1,
+            "message": "'a' is declared here.",
+            "related_information": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/jsdoc/checkJsdocSatisfiesTag9.ts#default",
+    "cause": "checker (JS): relatedInformation (6500) elaboration",
+    "source": {
+      "path": "jsdoc/checkJsdocSatisfiesTag9.ts",
+      "bytes": 479,
+      "sha256": "f66790ed4395025797534af5e1e77ff54a8643986a5bd6a4ed500cb1f47d69f6",
+      "git_blob_sha1": "2cac022311b9453c854f1139600886c019c2d773"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/a.js"
+      ],
+      "files": [
+        {
+          "path": "/a.js",
+          "text": "/**\n * @typedef {Object} Color\n * @property {number} r\n * @property {number} g\n * @property {number} b\n */\n\n// All of these should be Colors, but I only use some of them here.\nexport const Palette = /** @satisfies {Record<string, Color>} */ ({\n    white: { r: 255, g: 255, b: 255 },\n    black: { r: 0, g: 0, d: 0 }, // <- oops! 'd' in place of 'b'\n    blue: { r: 0, g: 0, b: 255 },\n});\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "allowJS",
+        "true"
+      ],
+      [
+        "checkJs",
+        "true"
+      ],
+      [
+        "filename",
+        "/a.js"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/a.js",
+        "start": 308,
+        "length": 1,
+        "message": "Object literal may only specify known properties, and 'd' does not exist in type 'Color'.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2353,
+        "category": "Error",
+        "file": "/a.js",
+        "start": 308,
+        "length": 1,
+        "message": "Object literal may only specify known properties, and 'd' does not exist in type 'Color'.",
+        "related_information": [
+          {
+            "code": 6500,
+            "category": "Message",
+            "file": "/lib/lib.es5.d.ts",
+            "start": 74260,
+            "length": 20,
+            "message": "The expected type comes from property 'black' which is declared here on type 'Record<string, Color>'",
+            "related_information": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypedefAndLatebound.ts#default",
+    "cause": "checker (JS): extra diagnostic for late-bound typedef",
+    "source": {
+      "path": "jsdoc/declarations/jsDeclarationsTypedefAndLatebound.ts",
+      "bytes": 561,
+      "sha256": "4e8527e799547a849555b4041b5148b51c09f51680baa301893153c6695ea3c0",
+      "git_blob_sha1": "bf74112da7eabaadb7bb8ea4ffcb15156520de9e"
+    },
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/index.js",
+        "/.src/LazySet.js"
+      ],
+      "files": [
+        {
+          "path": "/.src/index.js",
+          "text": "const LazySet = require(\"./LazySet\");\n\n/** @type {LazySet} */\nconst stringSet = undefined;\nstringSet.addAll(stringSet);\n\n"
+        },
+        {
+          "path": "/.src/LazySet.js",
+          "text": "// Comment out this JSDoc, and note that the errors index.js go away.\n/**\n * @typedef {Object} SomeObject\n */\nclass LazySet {\n    /**\n     * @param {LazySet} iterable\n     */\n    addAll(iterable) {}\n    [Symbol.iterator]() {}\n}\n\nmodule.exports = LazySet;\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "settings": [
+      [
+        "target",
+        "es2015"
+      ],
+      [
+        "lib",
+        "es2017"
+      ],
+      [
+        "allowJs",
+        "true"
+      ],
+      [
+        "checkJs",
+        "true"
+      ],
+      [
+        "noEmit",
+        "true"
+      ],
+      [
+        "filename",
+        "LazySet.js"
+      ]
+    ],
+    "typescript_diagnostics": [
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/index.js",
+        "start": 68,
+        "length": 9,
+        "message": "Type 'undefined' is not assignable to type 'LazySet'.",
+        "related_information": null
+      }
+    ],
+    "native_diagnostics": [
+      {
+        "code": 2322,
+        "category": "Error",
+        "file": "/.src/index.js",
+        "start": 68,
+        "length": 9,
+        "message": "Type 'undefined' is not assignable to type 'LazySet'.",
+        "related_information": null
+      },
+      {
+        "code": 2345,
+        "category": "Error",
+        "file": "/.src/index.js",
+        "start": 108,
+        "length": 9,
+        "message": "Argument of type 'import(\"/.src/LazySet\")' is not assignable to parameter of type 'import(\"/.src/LazySet\")'.\n  Property '[Symbol.iterator]' is missing in type 'import(\"/.src/LazySet\")' but required in type 'import(\"/.src/LazySet\")'.",
+        "related_information": [
+          {
+            "code": 2728,
+            "category": "Message",
+            "file": "/.src/LazySet.js",
+            "start": 203,
+            "length": 17,
+            "message": "'[Symbol.iterator]' is declared here.",
+            "related_information": null
+          }
+        ]
+      }
+    ]
+  }
+]

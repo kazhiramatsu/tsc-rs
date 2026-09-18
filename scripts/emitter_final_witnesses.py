@@ -27,7 +27,8 @@ SUITES = ("emitter-final", "emitter-universe-oracle",
           "emitter-global", "emitter-class-0", "emitter-class-1")
 SELECTORS = ("TSC_RS_EMITTER_FINAL_CASE_FILTER", "TSC_RS_EMITTER_FINAL_CASE_SET",
              "TSC_RS_EMITTER_FINAL_SHARD", "TSC_RS_EMITTER_FINAL_CAPTURE_DIR",
-             "TSC_RS_EMITTER_FINAL_FAILURE_DIR", "TSC_RS_H2_8A_CAPTURE_WRITES_DIR")
+             "TSC_RS_EMITTER_FINAL_FAILURE_DIR", "TSC_RS_H2_8A_CAPTURE_WRITES_DIR",
+             "TSC_RS_IMPORT_HELPERS_CASE_FILTER")
 
 
 def read(name):
@@ -72,13 +73,20 @@ def case_ids(suite):
     historical = [f"{group}/{case}" for group in ("EF2", "EF3", "EF4", "EF5", "EF6")
                   for case in groups[group]["cases"]]
     historical.append("EF3-shared-H2.6a/typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern.ts#target%3Des2015")
-    return historical + universe + ids(FIXTURES + "output-matrix.json", 22) + ids(FIXTURES + "output-matrix-filesystem.json", 4)
+    return (historical + universe + ids(FIXTURES + "output-matrix.json", 22)
+            + ids(FIXTURES + "output-matrix-filesystem.json", 4)
+            + ids(FIXTURES + "output-filesystem.json", 24) + ids(FIXTURES + "import-helpers.json", 480)
+            + ids(FIXTURES + "emitter-audit-class-regressions.json", 24)
+            + ids(FIXTURES + "emitter-cli-options.json", 58)
+            + ["typescript-6.0.3/compiler/jsFileCompilationAwaitModifier.ts#default",
+               "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeAliases.ts#default"])
 
 
 def inputs(suite):
     common = {"scripts/emitter_final_witnesses.py"}
     universe = {"crates/compiler/tests/emitter_final_universe.rs",
                 FIXTURES + "emitter-final-known-native.json",
+                PACKET + "integration/records/retired-checker-known.v1.json",
                 "scripts/observe-emitter-final-universe.mjs"}
     if suite.startswith("emitter-plan-base-"):
         return common | universe | {FIXTURES + "emitter-final-universe-plan-base.json.zst",
@@ -94,10 +102,16 @@ def inputs(suite):
     if suite == "emitter-global":
         return common | {"crates/compiler/tests/h2_8a_original_corpus.rs"}
     return common | universe | {FIXTURES + name for name in (
-        "emitter-final-universe.json", "output-matrix.json", "output-matrix-filesystem.json")} | {
+        "emitter-final-universe.json", "output-matrix.json", "output-matrix-filesystem.json", "emitter-cli-options.json",
+        "output-filesystem.json", "import-helpers.json", "emitter-audit-class-regressions.json")} | {
         PACKET + "inventory.v1.json", PACKET + "ef7/universe-217.v1.json",
         "crates/compiler/tests/emitter_final_rows.rs", "crates/compiler/tests/emitter_final_batch.rs",
-        "crates/compiler/tests/integration/h2_8a_output_matrix.rs", "scripts/observe-output-matrix.mjs"}
+        "crates/compiler/tests/integration/h2_8a_output_matrix.rs", "scripts/observe-output-matrix.mjs",
+        "crates/compiler/tests/integration/h2_8a_output_filesystem.rs",
+        "crates/compiler/tests/integration/h2_8a_import_helpers.rs", "scripts/observe-import-helpers.mjs",
+        "crates/compiler/tests/integration/emitter_residual_audit.rs",
+        "crates/compiler/tests/integration/cli_contract.rs", "scripts/observe-emitter-cli-options.mjs",
+        "crates/program/tests/integration/module_request_contract.rs"}
 
 
 def environment(suite, environ=None):
@@ -137,9 +151,18 @@ def commands(suite):
                   "sourceMapWithNonCaseSensitiveFileNames", "sourceMapWithNonCaseSensitiveFileNamesAndOutDir",
                   "sourceMapWithCaseSensitiveFileNames", "sourceMapWithCaseSensitiveFileNamesAndOutDir"))], None),
             (["node", "scripts/observe-output-matrix.mjs", "--check"], None),
+            (["node", "scripts/observe-import-helpers.mjs", "--check"], None),
+            (["node", "scripts/observe-emitter-cli-options.mjs", "--check"], None),
+            (["cargo", "test", "--manifest-path", "crates/program/Cargo.toml", "--test", "contracts",
+              "module_request_contract::", "--", "--nocapture", "--test-threads=1"], 40),
             (cargo("emitter_final_rows"), 1), (cargo("emitter_final_batch"), 11),
             (cargo("contracts", ("h2_8a_output_matrix::output_matrix_matches_complete_typescript_observations",
-                                 "h2_8a_output_matrix::output_matrix_filesystem_matches_complete_typescript_observations")), 2),
+                                 "h2_8a_output_matrix::output_matrix_filesystem_matches_complete_typescript_observations",
+                                 "h2_8a_import_helpers::import_helpers_matches_complete_typescript_observations",
+                                 "h2_8a_output_filesystem::output_filesystem_matches_complete_typescript_observations",
+                                 "emitter_residual_audit::javascript_regressions_match_complete_original_commands",
+                                 "emitter_residual_audit::anonymous_class_names_match_complete_original_commands",
+                                 "cli_contract::implemented_emit_option_names_match_typescript_cli_and_config")), 7),
             (cargo("emitter_final_universe", ("universe_rows_match_complete_production_commands",
                  "known_checker_divergence_rejects_changed_output_and_diagnostics",
                  "known_refusal_rejects_changed_error_or_partial_writes", "universe_shards_are_disjoint_and_complete")), 4)]

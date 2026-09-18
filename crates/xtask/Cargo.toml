@@ -32,3 +32,4 @@ tsc-program.workspace = true
 tsc-syntax.workspace = true
 tsc-types.workspace = true
 yaml-rust2 = { version = "0.11", default-features = false }
+zstd = "0.13"

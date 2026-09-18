@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "before_sha256": "66486a9f09ba68411d59596c688ff633ee74a2aa50d169801a8da8842637ca06",
+  "after_sha256": "2220c6428a9317105477ec99c38f35a7d8027b483a42c0bfff2e929ead1a9058",
+  "unchanged_inputs_and_typescript_observations": 468,
+  "repetitions": 2,
+  "typed_boundaries": [
+    {
+      "case_id": "import-helpers/comment-boundary/es2015/remove-false/optional-line-comment",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2015/remove-false/optional-own-line",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2015/remove-true/optional-line-comment",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2015/remove-true/optional-own-line",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2022/remove-false/optional-line-comment",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2022/remove-false/optional-own-line",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2022/remove-true/optional-line-comment",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2022/remove-true/optional-own-line",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/esnext/remove-false/optional-line-comment",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/esnext/remove-false/optional-own-line",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/esnext/remove-true/optional-line-comment",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/esnext/remove-true/optional-own-line",
+      "expected": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    }
+  ],
+  "added_valid_case_ids": [
+    "import-helpers/comment-valid/es2015/remove-false/optional-line-comment",
+    "import-helpers/comment-valid/es2015/remove-false/optional-own-line",
+    "import-helpers/comment-valid/es2015/remove-true/optional-line-comment",
+    "import-helpers/comment-valid/es2015/remove-true/optional-own-line",
+    "import-helpers/comment-valid/es2022/remove-false/optional-line-comment",
+    "import-helpers/comment-valid/es2022/remove-false/optional-own-line",
+    "import-helpers/comment-valid/es2022/remove-true/optional-line-comment",
+    "import-helpers/comment-valid/es2022/remove-true/optional-own-line",
+    "import-helpers/comment-valid/esnext/remove-false/optional-line-comment",
+    "import-helpers/comment-valid/esnext/remove-false/optional-own-line",
+    "import-helpers/comment-valid/esnext/remove-true/optional-line-comment",
+    "import-helpers/comment-valid/esnext/remove-true/optional-own-line"
+  ],
+  "oracle_proof": "local/audit-comment-oracle-r7.json",
+  "prior_failure_proof": "local/audit-complete-commands-r5.json",
+  "classification_is_not_compatibility_success": true
+}

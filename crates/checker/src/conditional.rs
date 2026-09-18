@@ -138,7 +138,9 @@ impl<'a> CheckerState<'a> {
             let actual_check_type = self.get_actual_type_variable(root_data.check_type)?;
             let check_type = self.instantiate_type(actual_check_type, mapper)?;
             let extends_type = self.instantiate_type(root_data.extends_type, mapper)?;
-            if self.tables.is_error_type(check_type) || self.tables.is_error_type(extends_type) {
+            if check_type == self.tables.intrinsics.error
+                || extends_type == self.tables.intrinsics.error
+            {
                 return Ok(self.tables.intrinsics.error);
             }
             if check_type == self.tables.intrinsics.wildcard

@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
-    load_emitting_config_program, load_emitting_program, parse_config_root_plan,
-    CompilerConfigHost, CompilerOptions, ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits,
-    ProgramOptions,
+    load_config_program, load_emitting_config_program, load_emitting_program,
+    parse_config_root_plan, CompilerConfigHost, CompilerOptions, ConfigRootPlanRequest,
+    LibraryCatalog, ProgramLoadLimits, ProgramOptions,
 };
 
 use super::h2_7b_w4a_controls::assert_exact_observation;
@@ -40,6 +40,21 @@ pub(super) fn assert_cases_with_inspection(
     command_reporting: bool,
     inspect: fn(&str, &tsc_program::PreparedProgram, &Value),
 ) {
+    assert_cases_with_command_inspection(
+        artifact,
+        command_reporting,
+        |id, prepared, expected, _| inspect(id, prepared, expected),
+    );
+}
+
+pub(super) fn assert_cases_with_command_inspection<F>(
+    artifact: &Value,
+    command_reporting: bool,
+    inspect: F,
+) where
+    F: Fn(&str, &tsc_program::PreparedProgram, &Value, &[tsc_diagnostics::Diagnostic])
+        + std::panic::RefUnwindSafe,
+{
     let cases = artifact["cases"].as_array().expect("cases");
     let mut failures = Vec::new();
     for case in cases {
@@ -160,6 +175,7 @@ pub(super) fn assert_cases_with_inspection(
             let catalog = LibraryCatalog::typescript_6_0_3("/lib");
             let limits = ProgramLoadLimits::new(256, 2048, 64, 16 * 1024 * 1024, 128 * 1024 * 1024);
             for _ in 0..2 {
+                let mut additional_options_diagnostics = Vec::new();
                 let prepared = if let Some(config) = case["config"].as_str() {
                     let plan = parse_config_root_plan(
                         &CompilerConfigHost::new(&host),
@@ -173,8 +189,21 @@ pub(super) fn assert_cases_with_inspection(
                         },
                     )
                     .expect("config plan");
-                    load_emitting_config_program(&host, &plan, &catalog, limits)
-                        .expect("config program")
+                    if plan.compiler_options().no_emit == Some(true) {
+                        additional_options_diagnostics.extend(
+                            plan.option_diagnostics()
+                                .iter()
+                                .filter(|diagnostic| {
+                                    tsc_program::is_non_fatal_option_diagnostic(diagnostic)
+                                })
+                                .cloned(),
+                        );
+                        load_config_program(&host, &plan, &catalog, limits)
+                            .expect("checking config program")
+                    } else {
+                        load_emitting_config_program(&host, &plan, &catalog, limits)
+                            .expect("emitting config program")
+                    }
                 } else {
                     load_emitting_program(
                         &host,
@@ -186,7 +215,45 @@ pub(super) fn assert_cases_with_inspection(
                     )
                     .expect("direct program")
                 };
-                inspect(case_id, &prepared, &case["typescript_observation"]);
+                inspect(
+                    case_id,
+                    &prepared,
+                    &case["typescript_observation"],
+                    &additional_options_diagnostics,
+                );
+                if let Some(boundary) = case.get("rust_expected_parse_recovery") {
+                    assert!(
+                        command_reporting,
+                        "parse boundary requires the complete command route"
+                    );
+                    assert!(!boundary["cause"].as_str().unwrap().is_empty());
+                    assert_eq!(boundary["partial_writes"], serde_json::json!([]));
+                    let mut sink = tsc_compiler::MemoryOutputSink::new();
+                    let result = tsc_compiler::ProgramSession::new(prepared)
+                        .emit_command_for_harness_with_options_diagnostics(
+                            &mut sink,
+                            &additional_options_diagnostics,
+                        );
+                    match result {
+                        Err(tsc_compiler::DriverError::Emit(tsc_emitter::EmitFailure::Transform(error))) => {
+                            let tsc_emitter::TransformError::ParseDiagnosticsDeferred {
+                                count, recovery_events, owner_slice,
+                            } = error.as_ref() else {
+                                panic!("{case_id}: changed parse boundary: {error}");
+                            };
+                            assert_eq!(*count as u64, boundary["count"].as_u64().unwrap(), "{case_id}");
+                            assert_eq!(*recovery_events as u64, boundary["recovery_events"].as_u64().unwrap(), "{case_id}");
+                            assert_eq!(*owner_slice, boundary["owner_slice"].as_str().unwrap(), "{case_id}");
+                        }
+                        Err(error) => panic!("{case_id}: changed parse boundary: {error}"),
+                        Ok(_) => panic!("{case_id}: retire the parse refusal and compare the complete TypeScript observation"),
+                    }
+                    assert!(
+                        sink.writes().is_empty(),
+                        "{case_id}: no partial writes before refusal"
+                    );
+                    continue;
+                }
                 // H2.8a now executes the unchanged complete TS observations for
                 // historical outDir references. Other later-owner guards remain.
                 if let Some(option) = case["rust_expected_unsupported_option"]
@@ -209,13 +276,15 @@ pub(super) fn assert_cases_with_inspection(
                     );
                     continue;
                 }
-                let blocked = prepared.compiler_options().no_emit_on_error == Some(true)
-                    && case["typescript_observation"]["emit_result"]["emit_skipped"] == true;
+                let blocked = prepared.compiler_options().no_emit == Some(true)
+                    || prepared.compiler_options().no_emit_on_error == Some(true)
+                        && case["typescript_observation"]["emit_result"]["emit_skipped"] == true;
                 let activity = if command_reporting {
-                    super::h2_7b_w4a_controls::assert_command_observation(
+                    super::h2_7b_w4a_controls::assert_command_observation_with_options(
                         case_id,
                         prepared,
                         &case["typescript_observation"],
+                        &additional_options_diagnostics,
                     )
                 } else {
                     assert_exact_observation(case_id, prepared, &case["typescript_observation"])

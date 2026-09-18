@@ -531,11 +531,7 @@ impl<'a> CheckerState<'a> {
             },
         };
         let is_optional = declaration.is_some_and(|declaration| {
-            self.initializer_of(declaration).is_none()
-                && matches!(
-                    self.data_of(declaration),
-                    NodeData::Parameter(data) if data.question_token.is_some()
-                )
+            self.initializer_of(declaration).is_none() && self.is_optional_declaration(declaration)
         });
         let mut ty = self.tables.add_optionality(base, false, is_optional);
         self.links.set_symbol_type_contextual(

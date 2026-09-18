@@ -490,7 +490,12 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         if self.target < ScriptTarget::ES2015 || self.is_async_generator(function)? {
             return Ok(AsyncSuperCapture::default());
         }
-        let resolver_node = self.resolver_node(function)?;
+        // A constructor synthesized by class-fields lowering has no checked
+        // syntax node. getNodeCheckFlags contributes no async-super facts for
+        // that node; do not send its arena-local id to the resolver.
+        let Some(resolver_node) = self.context.arena().parse_tree_resolver_node(function)? else {
+            return Ok(AsyncSuperCapture::default());
+        };
         let has_assignment = self.resolver.has_node_check_flag(
             resolver_node,
             NodeCheckFlags::METHOD_WITH_SUPER_PROPERTY_ASSIGNMENT_IN_ASYNC.bits() as u32,
@@ -1653,7 +1658,9 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                     Vec::new()
                 };
                 if let Some(binding) = lexical_arguments.capture_binding() {
-                    statements.push(self.create_capture_arguments_statement(binding)?);
+                    // TypeScript inserts both declarations after the standard
+                    // prologue, with the arguments capture inserted last.
+                    statements.insert(0, self.create_capture_arguments_statement(binding)?);
                 }
                 statements.push(self.create_return_statement(Some(awaiter))?);
                 self.create_block(statements, true)?

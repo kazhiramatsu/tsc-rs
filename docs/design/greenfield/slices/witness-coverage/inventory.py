@@ -103,8 +103,11 @@ def command_rows(replay):
                     targets = [(argv[at + 1], name) for name in names]
                 else:
                     options = argv[argv.index('--manifest-path') + 2:argv.index('--')]
-                    assert options and len(options) % 2 == 0 and options[::2] == ['--test'] * (len(options) // 2), argv
-                    targets = [(target, None) for target in options[1::2]]
+                    if len(options) == 3 and options[0] == '--test' and not options[2].startswith('-'):
+                        targets = [(options[1], options[2])]
+                    else:
+                        assert options and len(options) % 2 == 0 and options[::2] == ['--test'] * (len(options) // 2), argv
+                        targets = [(target, None) for target in options[1::2]]
                 for target, test_filter in targets:
                     rows.append({'group': group, 'suite': suite, 'package': f'tsc-rs-{owner}',
                                  'target': target, 'filter': test_filter,
@@ -252,7 +255,7 @@ def main():
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--write', action='store_true', help='write a NEW snapshot only')
     action.add_argument('--check', action='store_true', help='compare current source with the frozen snapshot')
-    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v26.json')
+    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v27.json')
     args = parser.parse_args()
     if args.check:
         source_commit = json.loads(args.output.read_text())['source_commit']

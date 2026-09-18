@@ -1,5 +1,8 @@
 # Emitter final r11 integration
 
+追加監査で通常emitの残差・回帰を確認した。提出REPORTの「emitter owner未解決0」を
+そのまま完了判定には採用しない。[追加監査と修復状況](residual-audit.md)を参照。
+
 2026-09-18。producer canonical `~/dev/tsc-rs-emitter-final` の未commit r11を、
 main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
@@ -29,15 +32,15 @@ System/moduleのhelper/import/export、printerのcommentとsource spelling、opt
 ### KNOWNを新しい不具合の免除にしない
 
 提出のKNOWNはIDと原因を保持していたが、比較では「そのIDが何らかの差分を持つ」ことしか要求しなかった。
-新しい `emitter-final-known-native.json` はr11の68行のnative outcomeも固定する。
-27 checker行はwrite/diagnostics/source order/emit result/exit等の全観測を、41拒否行は正確な拒否理由を比較する。
+`emitter-final-known-native.json` は受領時のr11の68行のnative outcomeを固定した。追加監査で解決した32行を退役archiveへ移し、現在のKNOWN36行にのみ残す。
+受領時の27 checker行はwrite/diagnostics/source order/emit result/exit等の全観測を、41拒否行は正確な拒否理由を比較した。checker全27行は完全一致を確認して退役した。残る36 parse-recovery拒否行は引き続き完全なnative拒否を比較する。
 command構築時の拒否はpartial callbackのpath/hashも既存messageに含む。
 2回の独立観測が一致し、ID集合・owner/cause・native outcomeがすべて一致したときだけKNOWNとして認める。
 exactになったKNOWNと、新しく差分が出た行は引き続き失敗する。
 [由来](records/known-native-provenance.v1.json)と `local/known-native-68.log.gz` を参照。
 
-68行はH2.9 parse recovery 36、module resolution request plan 4、H2.5h helper collision 1、checker 27。
-互換成功に数えない。「emitter owner 0」はこれらの解決済みを意味しない。
+受領時68行はH2.9 parse recovery 36、module resolution request plan 4、H2.5h helper collision 1、checker 27。追加監査後はparse recovery36行のみ。helper1、resolution4、checker27は各2回の完全一致を確認して退役した。
+残るparse refusalは互換成功に数えない。受領時の「emitter owner 0」は残差全体の解決済みを意味しない。
 
 ### Case-insensitive oracleと修復済み台帳
 
@@ -62,7 +65,7 @@ H2.5h 12、H2.6a 1、H2.6c 8の既知差分台帳を空にした。
 
 | suite | 固定した観測範囲 |
 | --- | --- |
-| emitter-final | oracle対照4、EF2/EF3 21所属、EF2–EF6 batch11 tests、EF8 22＋4 commands、EF7 217＋guard3 tests |
+| emitter-final | oracle対照4、EF2/EF3 21所属、EF2–EF6 batch11 tests、EF8 22＋4、filesystem24、helpers/controls480（468 exact＋12 typed boundary）、CLI58、class24、global2、EF7 217＋guard3 tests、request-plan40 tests |
 | emitter-universe-oracle | TypeScript 6.0.3で217＋1798を各2回再観測 |
 | emitter-plan-base-0..3 | sorted IDのmodulo 4、450/450/449/449行を各2回 |
 | emitter-global | 既存global output-only 769行を各2回 |
@@ -71,7 +74,7 @@ H2.5h 12、H2.6a 1、H2.6c 8の既知差分台帳を空にした。
 重複する観測所属なので件数を足して互換ケース総数にしない。PLAN-BASEの約70分のローカル直列測定は
 hosted一jobへ持ち込まない。専用fixtureは担当suiteを選び、shared sourceは全既存群を含める。
 editing selectorsを除去し、zero/ignored testsと欠けたshard summaryを拒否する。
-入口台帳v26はcomposite runnerを実Cargo commandsへ展開する。
+入口台帳v27はcomposite runnerを実Cargo commandsへ展開する。
 
 ## Validationとarchitecture
 
@@ -81,9 +84,23 @@ macOS background priority・Cargo 2 workersで逐次実行し、canonicalのtarg
 ローカル途中のhash drift失敗は、oracle修正後に旧pinを検出したもので記録から除外しない。
 最終候補の成功とhosted receiptsは完了後に追記する。
 
-現在変更中の11 concernsは `active-unqualified` に戻した。
+現在変更中の14 concernsは `active-unqualified` に戻した。
 [以前のqualification](records/architecture-before.v1.json)を保存し、最終immutable headの実測後に
 変更した範囲だけ再qualifyする。E-PLAN-SCRIPTのoption admission、resolver/checker facts、
 metadata/class provenance、async capture、name allocation、helper import、printer/commentが対象。
 H2.9/一般checker全体、disposed-transform/API再emit、build/watch、TS7移行の完了には拡張しない。
 STAGE・TypeScript 6.0.3 pin・製品全体のadmission policyは変更しない。
+
+## 追加監査候補
+
+最初の統合CIは23 checks中13成功・10失敗。失敗は隠さず全jobを
+[保存](hosted/progress-ed71c45343b2.json)し、原因ごとの修復と追加比較を
+[残差監査](residual-audit.md)に記録した。helper alias、resolution fallback、匿名class名、
+async super identity、arrow factory更新順、namespace map、EOF comment、過剰なoption/comment拒否、
+CLI named valuesを修復対象とした。既存範囲を縮めず、current artifact consumersのhashも同期する。
+
+影響が大きい・未知の変更については、実際にClaude Codeへ独立調査を依頼し、Codexの
+原因分析・観測と[突き合わせ](cross-review/decisions.md)た。意見が食い違った場合も
+実測を優先し、review回答だけで成功判定しない。source-kind JSON / parse recovery /
+stableTypeOrderingは共有基盤の未解決境界として残す。数値targetの1234と内部JSON値100は
+区別し、後者を別名で互換成功に数えない。
