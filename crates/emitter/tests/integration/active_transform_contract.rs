@@ -12704,8 +12704,19 @@ fn private_member_definition_comments_follow_tsc_ownership() {
     );
 }
 
+/// TypeScript 6.0.3 prints the inter-statement comment of a single-line
+/// function body twice: `emitNodeListItems` (SingleLineFunctionBodyStatements)
+/// calls `emitTrailingCommentsOfPosition(second.pos)` for the second statement
+/// after `first();` already emitted the same range through
+/// `emitTrailingCommentsOfNode`. The hoisted private method body is no
+/// exception (`_A_method = function _A_method() { first(); /* c */ /* c */
+/// second(); }` from `_tsc.js` and `transpileModule`, target ES2015 and
+/// ES2022; the `compact-body-comments` witness suite's `middle/*` rows freeze
+/// the same duplication for parsed bodies). The earlier `1` expectation was
+/// an assumption, not an observation; see
+/// docs/design/greenfield/slices/emitter-final-batch/records/compact-private-body/.
 #[test]
-fn compact_private_function_body_emits_inter_statement_comment_once() {
+fn compact_private_function_body_duplicates_inter_statement_comment_like_tsc() {
     const BETWEEN: &str = "/* PRIVATE_BODY_BETWEEN */";
     const OUTER: &str = "// PRIVATE_MEMBER_OUTER_TRAILING";
     let text = transform_and_print_at_target(
@@ -12718,22 +12729,12 @@ fn compact_private_function_body_emits_inter_statement_comment_once() {
         ScriptTarget::ES2015,
     );
 
-    assert_eq!(text.matches(BETWEEN).count(), 1, "{text}");
+    assert_eq!(text.matches(BETWEEN).count(), 2, "{text}");
     assert_eq!(text.matches(OUTER).count(), 0, "{text}");
-    let function = text
-        .find("_A_method = function _A_method()")
-        .expect("private method definition");
-    let first = text[function..]
-        .find("first();")
-        .map(|offset| function + offset)
-        .expect("first compact statement");
-    let between = text.find(BETWEEN).expect("inter-statement comment");
-    let second = text[between..]
-        .find("second();")
-        .map(|offset| between + offset)
-        .expect("second compact statement");
     assert!(
-        function < first && first < between && between < second,
+        text.contains(
+            "_A_method = function _A_method() { first(); /* PRIVATE_BODY_BETWEEN */ /* PRIVATE_BODY_BETWEEN */ second(); }"
+        ),
         "{text}"
     );
 }
