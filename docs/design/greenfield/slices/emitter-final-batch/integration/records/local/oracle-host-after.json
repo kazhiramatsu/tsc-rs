@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "crates/oracle/h2-6c-qualification.mjs",
+    "--check-cases",
+    "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts#default",
+    "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts#default",
+    "typescript-6.0.3/compiler/sourceMapWithCaseSensitiveFileNames.ts#default",
+    "typescript-6.0.3/compiler/sourceMapWithCaseSensitiveFileNamesAndOutDir.ts#default"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-integration",
+  "started_at": "2026-09-18T11:36:24.487181+00:00",
+  "head": "fb5e8b4e10f6ad853393d26162dd5223ed157632",
+  "diff_sha256": "df5166331c9c642dcbeca2781f8293fc0ee6d1c46c0063b213c417bae362147a",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 4.863,
+  "log_sha256": "a9928b3a509744ca7ad38058dc941266a05276eb6fb335d052cb549b8776f465",
+  "log_bytes": 449
+}

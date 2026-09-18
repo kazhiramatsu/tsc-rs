@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "artifacts": [
+    {
+      "path": "ratchets/h2-7de-candidates.v1.json",
+      "changed_fields": [
+        "inputs"
+      ],
+      "cases_unchanged": 325,
+      "before_sha256": "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d",
+      "after_sha256": "956514a27a7c9d4504f2bd364f07492b758660c4c6d525201ba62d1389a04db2"
+    },
+    {
+      "path": "ratchets/h2-7de-candidate-inputs.v1.json",
+      "changed_fields": [],
+      "cases_unchanged": 325,
+      "before_sha256": "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a",
+      "after_sha256": "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a"
+    },
+    {
+      "path": "ratchets/h2-7de-observations.v1.json",
+      "changed_fields": [
+        "inputs"
+      ],
+      "cases_unchanged": 323,
+      "before_sha256": "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+      "after_sha256": "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "changed_fields": [
+        "inputs"
+      ],
+      "cases_unchanged": 809,
+      "before_sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c",
+      "after_sha256": "00ee25c764febf07a21f708814a211e93decbd247d8bdb5d04412f282ee4d54a"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "changed_fields": [],
+      "cases_unchanged": 809,
+      "before_sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b",
+      "after_sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "changed_fields": [
+        "inputs"
+      ],
+      "cases_unchanged": 809,
+      "before_sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87",
+      "after_sha256": "5464caa2b2a26e04482d3656ffadff844c708f9e44b9feb5c54ccd7b8d77ab2f"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "retired": [
+    {
+      "path": "ratchets/h2-5h-known-divergences.v1.json",
+      "sha256": "ba8647a8ff3cebf7baacdf8476ff3ceacffdd3dc70cb92806e58c2a355a5e115",
+      "before": {
+        "schema": 1,
+        "cases": []
+      },
+      "reason": "all original rows exact twice in local/rows-oracle-corrected.log.gz"
+    },
+    {
+      "path": "ratchets/h2-6a-known-divergences.v1.json",
+      "sha256": "74cc297811dd33c71093a4ed995480e577cccc48828b24f3ee3c282be02db9b0",
+      "before": {
+        "schema": 1,
+        "cases": []
+      },
+      "reason": "all original rows exact twice in local/rows-oracle-corrected.log.gz"
+    },
+    {
+      "path": "ratchets/h2-6c-known-divergences.v1.json",
+      "sha256": "93853b5bb7a9af23f0855b0198f5058f633d60a03e1df429ccc323df6e6eac51",
+      "before": {
+        "schema": 1,
+        "cases": []
+      },
+      "reason": "all original rows exact twice in local/rows-oracle-corrected.log.gz"
+    }
+  ]
+}

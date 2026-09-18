@@ -1,0 +1,15 @@
+{
+  "name": "emitter-contracts-focused-r8",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 33,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "cargo test -p tsc-rs-emitter --test contracts -- anonymous_class_expression_reuses multiline_array_of_lowered_class_wrappers",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T15:18:25Z",
+  "seconds": 46,
+  "exit": 0,
+  "log_sha256": "8ea9c21ce59ecda1bead4dce8bb934ab5a89672f6468c28cb810258f6a62945c",
+  "log_bytes": 769
+}

@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es2015", "outFile": "testfiles/fooResult.js", "sourceMap": true, "newLine": "crlf", "noErrorTruncation": true, "skipDefaultLibCheck": true }, "files": ["testFiles/app.ts", "testFiles/app2.ts"] }

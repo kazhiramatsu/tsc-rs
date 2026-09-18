@@ -1,0 +1,15 @@
+{
+  "name": "emitter-lib-r7b",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 24,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "cargo test -p tsc-rs-emitter --lib",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T10:37:39Z",
+  "seconds": 207,
+  "exit": 0,
+  "log_sha256": "2fe02606be346d9d17fd4e4700d4d6de999fd98ba15e7da4baa5116b87f8eebb",
+  "log_bytes": 42432
+}

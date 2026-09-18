@@ -1,0 +1,360 @@
+{
+  "logs": [
+    "universe-r11",
+    "universe-plan-base-r11"
+  ],
+  "deterministic_complete_capture_pairs": [
+    {
+      "case_id": "typescript-6.0.3/compiler/contextuallyTypedParametersOptionalInJSDoc.ts#default",
+      "captures": [
+        {
+          "filename": "9e28c54893290dd76d30277fd296db8e3b7d930bf04dc63c3a62a8f79dd062f5-0.json",
+          "sha256": "d0c4fc6c8b36f6d6b1b1c9f48518992e5993ec88b7c976acc676c23752676801"
+        },
+        {
+          "filename": "9e28c54893290dd76d30277fd296db8e3b7d930bf04dc63c3a62a8f79dd062f5-1.json",
+          "sha256": "07a01d60dc0abefd8fb169d28331c14eb73019ff53b31d3c4b04534d2ab00c3b"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/deeplyNestedMappedTypes.ts#default",
+      "captures": [
+        {
+          "filename": "f25d4b5ed1c7dc6890ea23610f7ed1d94dc30dead2df4b0e5cf6c4a2d546abac-0.json",
+          "sha256": "d5631f3eb60312af1cda812c46a4110df6ce63d422ec208833e3d7d81043239c"
+        },
+        {
+          "filename": "f25d4b5ed1c7dc6890ea23610f7ed1d94dc30dead2df4b0e5cf6c4a2d546abac-1.json",
+          "sha256": "fd15f7b41e4fee51336bbf16445cae8059493658394522a928765ea34a50eedf"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/excessPropertyCheckIntersectionWithRecursiveType.ts#default",
+      "captures": [
+        {
+          "filename": "d97925bceb28f93ee0b171658b050a485667f7f8ddc01d35d3493f321f79c147-0.json",
+          "sha256": "4ddb8aa88d62aedd8184cbbfdfd3ac9147cc857149e849cbc31abeac41909a0b"
+        },
+        {
+          "filename": "d97925bceb28f93ee0b171658b050a485667f7f8ddc01d35d3493f321f79c147-1.json",
+          "sha256": "010efdc914f8d9af74effc486ca1035179816815dfc44915adcfbdae2c5ebfea"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/genericDefaultsJs.ts#default",
+      "captures": [
+        {
+          "filename": "22d75d32fc4c99b24580d3d861e0d4c0d48a76cd76766915700169612cbb4f84-0.json",
+          "sha256": "b024c26feeda82905837a1d4146f1797f08a041fe55bf947e51e1f171bd1af5a"
+        },
+        {
+          "filename": "22d75d32fc4c99b24580d3d861e0d4c0d48a76cd76766915700169612cbb4f84-1.json",
+          "sha256": "81b3efc7e25229601bc9fd9d09034505bdb3b71e2327ddf753e317305a54387e"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/importNonExportedMember9.ts#default",
+      "captures": [
+        {
+          "filename": "338117c0095466a16a0d6919cd42f00105c6b273b562786fc9a2702d7ecef31f-0.json",
+          "sha256": "d8437bbede1b17f17e7a91ae44686ecb68109623ba705714b05381303c29d04f"
+        },
+        {
+          "filename": "338117c0095466a16a0d6919cd42f00105c6b273b562786fc9a2702d7ecef31f-1.json",
+          "sha256": "ba633c1eba77089fe7d9b03022d846e164cb9767df49be384ba6a0a4796eebb3"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesExportDeclarationType.ts#default",
+      "captures": [
+        {
+          "filename": "f1eee1d7d6fd5b4d27ffab1ad128e1513012e87991f7c92fba0ba50487c41966-0.json",
+          "sha256": "4cc852121f0678651cc47b473088de9e499e821e76733bb3f9ab0a075b3af555"
+        },
+        {
+          "filename": "f1eee1d7d6fd5b4d27ffab1ad128e1513012e87991f7c92fba0ba50487c41966-1.json",
+          "sha256": "71f8c3b3103de93349305455300e45eea890d014a0338085b085224204458702"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesExportImportUninstantiatedNamespace.ts#default",
+      "captures": [
+        {
+          "filename": "b94fc20ac2ffe3fd15c3f3dfa7c3e981a137a4ce04c5378b65b753d294865374-0.json",
+          "sha256": "ef3f00644793324f2445e834cab9f687180a94acc2322f81267d6354a3062f07"
+        },
+        {
+          "filename": "b94fc20ac2ffe3fd15c3f3dfa7c3e981a137a4ce04c5378b65b753d294865374-1.json",
+          "sha256": "186b5315b95b756fd675d77a7672ba69c0c5e18f0ba93dab9f639e8a9fcc83ec"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesGlobalNamespacesAndEnums.ts#default",
+      "captures": [
+        {
+          "filename": "c89332bb9ec36aed48ea3ca30814b7e5a9f56ba3ed8b39536ecd2ec583a45a16-0.json",
+          "sha256": "31c5a1220248799f555a66a1942e28d5cb788baa4361e8f0d3b7deb04afeabd3"
+        },
+        {
+          "filename": "c89332bb9ec36aed48ea3ca30814b7e5a9f56ba3ed8b39536ecd2ec583a45a16-1.json",
+          "sha256": "3e50673f42328b688066948568003bc0d437ce243344c712b832960e4dc95e49"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesReExportType.ts#default",
+      "captures": [
+        {
+          "filename": "55696a7bf67f930612563682c7805885557bad4b0583971b9658faa94a4bff0e-0.json",
+          "sha256": "bb840472a73f190d109bccd16bdcef878ece394549f42a5cf8aa361a53c73073"
+        },
+        {
+          "filename": "55696a7bf67f930612563682c7805885557bad4b0583971b9658faa94a4bff0e-1.json",
+          "sha256": "f5f752e8eeb7b3aae5c7d87a261368bf8abca7695d6b5c259508c8fc46be8043"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesShadowGlobalTypeNotValue.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dfalse",
+      "captures": [
+        {
+          "filename": "74670d5b8da9a796cedc5b34dec8ed685826d4770894110df18ec09ba2a6eb02-0.json",
+          "sha256": "aeb8b80fdd5916aedf2662218752560ae5c1685dc0dd7a5438391a47b81dc1f7"
+        },
+        {
+          "filename": "74670d5b8da9a796cedc5b34dec8ed685826d4770894110df18ec09ba2a6eb02-1.json",
+          "sha256": "732ab376ad9c1bfbdae491e545a17dc3d14b707fdb2cd4aa13bbd6dcffecf6d0"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesShadowGlobalTypeNotValue.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dtrue",
+      "captures": [
+        {
+          "filename": "fffba23392fdde37b09d6010b222329b66bc364c718a711634961488504d4599-0.json",
+          "sha256": "ab7b25bfde78139232ebbae7260fc4221051cd1667c63d30465012ff826f10e6"
+        },
+        {
+          "filename": "fffba23392fdde37b09d6010b222329b66bc364c718a711634961488504d4599-1.json",
+          "sha256": "4fc5e6be242c81e776658e57c77ce0c3ca47261757119321ba0bd5bdbb1a2e9e"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesSketchyAliasLocalMerge.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dfalse",
+      "captures": [
+        {
+          "filename": "399c6cb7c5672dc9ee63ee87c82c845bfbed7cb94d7eb453263771b99fba9ec6-0.json",
+          "sha256": "2ffcfa3decddcbaaf2bba3f027d87a44158fbc5e35656d0bbd35595f445a95ac"
+        },
+        {
+          "filename": "399c6cb7c5672dc9ee63ee87c82c845bfbed7cb94d7eb453263771b99fba9ec6-1.json",
+          "sha256": "f83511939ad8a8fa884105a6bc7e6b6a21b49859d091580d06be4fad366bc72e"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesSketchyAliasLocalMerge.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dtrue",
+      "captures": [
+        {
+          "filename": "3167e04ea144247aa7f8ed5e91a68af86309f80699addd19005033482b66349e-0.json",
+          "sha256": "062a0eabb8105404b2b5eb7cb518515fecf771b4fb470d5797787149acdd6921"
+        },
+        {
+          "filename": "3167e04ea144247aa7f8ed5e91a68af86309f80699addd19005033482b66349e-1.json",
+          "sha256": "ac48cfba46a5a01e94d3a19a1ecc793615c6d22e7fe4e2a1c19a670cc88e9c1c"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsExportMemberMergedWithModuleAugmentation2.ts#default",
+      "captures": [
+        {
+          "filename": "5ce031eef01d4531ac9e05f26c23f8707e57077c67b6764523936a1bc5243b48-0.json",
+          "sha256": "f9ce5a339f73572f64752b0b214fdf3b99306469cd2f5f003406e318d711add7"
+        },
+        {
+          "filename": "5ce031eef01d4531ac9e05f26c23f8707e57077c67b6764523936a1bc5243b48-1.json",
+          "sha256": "a09577f97b8acbbee82bba46bb1cdd24611c87760f59994998d39d02c75c6366"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsExtendsImplicitAny.ts#default",
+      "captures": [
+        {
+          "filename": "af9388d3c95237fd88a06b6273ed2c30f1b6bd7c7336d036872771dba4c95f9e-0.json",
+          "sha256": "7df96ae2502a77e41a2ef71a18066f2d5a5fe391c2d510acdb98cc1975599293"
+        },
+        {
+          "filename": "af9388d3c95237fd88a06b6273ed2c30f1b6bd7c7336d036872771dba4c95f9e-1.json",
+          "sha256": "243b4ba43129f34024cbbad1ef7c3b8b7a40e689570953ba3e1c0dc900290463"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileCompilationConstructorOverloadSyntax.ts#default",
+      "captures": [
+        {
+          "filename": "aabfbc8ce908ac8ee2196980e4ae9535f15e446896513291b9a888293d7313bf-0.json",
+          "sha256": "6589dc5f89c9a63eb35233e5d9c19913e0606e089d87fd965884cf824e9fa6ef"
+        },
+        {
+          "filename": "aabfbc8ce908ac8ee2196980e4ae9535f15e446896513291b9a888293d7313bf-1.json",
+          "sha256": "d4db8fc3e02f0046daf3ad9ad51d7b51a9bda72f067ee7e744ec7a8d3de3d360"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsdocArrayObjectPromiseNoImplicitAny.ts#default",
+      "captures": [
+        {
+          "filename": "304204b414b467cfb78253d044a6517b4d87708645777013cf5197467a7df0a9-0.json",
+          "sha256": "2888f377dbe82b0fe983b919df5d9b871d219382c900943c5ec3ffd43eb1993a"
+        },
+        {
+          "filename": "304204b414b467cfb78253d044a6517b4d87708645777013cf5197467a7df0a9-1.json",
+          "sha256": "163cec5acd247506c002d27c67576a3cd104666d5e9927e3959089d3e422a99d"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsdocTypedefBeforeParenthesizedExpression.ts#default",
+      "captures": [
+        {
+          "filename": "7847746812b6714e36e59ecca672adcdc07b608b35786abfcd2c4ceea13f9872-0.json",
+          "sha256": "db6d33c57a4b5331662d0f306148841e0ce1245929d0796f4977dda6c3597d58"
+        },
+        {
+          "filename": "7847746812b6714e36e59ecca672adcdc07b608b35786abfcd2c4ceea13f9872-1.json",
+          "sha256": "2575f46968733c2aef31ec99fe8680f68b1ed31ddb2b06224ab490e56d125757"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx#default",
+      "captures": [
+        {
+          "filename": "22b1ceb0c0989f24a2aa63e4a2faf9489d3097a152fa2562a3c3f1161c98c1d5-0.json",
+          "sha256": "1cf1e577ce3f8ddb3001d02d3081b0d9ec10cc93f44ee40c7f70d07ea2a331dd"
+        },
+        {
+          "filename": "22b1ceb0c0989f24a2aa63e4a2faf9489d3097a152fa2562a3c3f1161c98c1d5-1.json",
+          "sha256": "c64777ddc6c99eb9fb2e260d4ee7e4607c5d29e86f429af246b266e483f69ad9"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/mappedArrayTupleIntersections.ts#default",
+      "captures": [
+        {
+          "filename": "c1185a0db28c1f47be1d5aa47f507b5ace335aa99dac266cbf815ab2c8d0268a-0.json",
+          "sha256": "9da0b902cd96aced26ad1013cf25b80ab20f9e8beab4ff7abd72d5a056d2d832"
+        },
+        {
+          "filename": "c1185a0db28c1f47be1d5aa47f507b5ace335aa99dac266cbf815ab2c8d0268a-1.json",
+          "sha256": "48f8e2fe2d66d2e91195e0d54c680fe14af707afdecb4f86158b493bc0b9952b"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/recursiveConditionalCrash4.ts#default",
+      "captures": [
+        {
+          "filename": "15d612864fc31c79528d8422364b31014655b154a383780777de51476ca89012-0.json",
+          "sha256": "4d99f43c1a12077e8a25803eb6acb9cb0e9a95061cae1a83b2330622b7b1699d"
+        },
+        {
+          "filename": "15d612864fc31c79528d8422364b31014655b154a383780777de51476ca89012-1.json",
+          "sha256": "77755c677a718d7df9985527864df9154b5d0e991dccbc15d887e5bc3a03f3bd"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/relationComplexityError.ts#default",
+      "captures": [
+        {
+          "filename": "0faca31aedddfca049c769b2a18cd0e0ab667103ae7dfedcccdbb3b97cba7d21-0.json",
+          "sha256": "8187bc48d8ac45ba599db63b930166009743cd923cca0656c59dcd9edd1938fb"
+        },
+        {
+          "filename": "0faca31aedddfca049c769b2a18cd0e0ab667103ae7dfedcccdbb3b97cba7d21-1.json",
+          "sha256": "0b1b45e8735a225da644776bc83fb7dd99b77c430a16f2e007661d9de1f42ff4"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/tslibMultipleMissingHelper.ts#default",
+      "captures": [
+        {
+          "filename": "ad428dbf1844d7d576f15df9dada5dcbcc6dfc992bbfd5b532b5032eaaa6b72b-0.json",
+          "sha256": "7e0fb013cd2038cb8962a1bd74f8c3834abbb9d9efa4c85458d745f0a8d8600b"
+        },
+        {
+          "filename": "ad428dbf1844d7d576f15df9dada5dcbcc6dfc992bbfd5b532b5032eaaa6b72b-1.json",
+          "sha256": "39cfd16afdcb1542d1aee48ea0215b9c031b74375cb781552b4e8f876ded8c77"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/tslibReExportHelpers2.ts#default",
+      "captures": [
+        {
+          "filename": "54296c507d9235d14cb8e7c9a3c63ca9cb3578c7e5d6011d44893eb3ba722b48-0.json",
+          "sha256": "2a34ab64fd62cc2917f56bfcdcce0375be50f8e7b7d681c32ffa176759742892"
+        },
+        {
+          "filename": "54296c507d9235d14cb8e7c9a3c63ca9cb3578c7e5d6011d44893eb3ba722b48-1.json",
+          "sha256": "6b867ac06d89217e1293a19c7e1547ed86f7c8a0700c8c11fbd7d70e98566d43"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/typeSatisfaction/typeSatisfaction_errorLocations1.ts#default",
+      "captures": [
+        {
+          "filename": "747d7d2847d5d03dc99b1b5b3245f258e29dce13c5700e545b972bb3a7913bb9-0.json",
+          "sha256": "dfe65d2c2f57bec1ba5b0d784a3ac32732caf7a2140a28a6a2ba5a636791bfe0"
+        },
+        {
+          "filename": "747d7d2847d5d03dc99b1b5b3245f258e29dce13c5700e545b972bb3a7913bb9-1.json",
+          "sha256": "86255fa7ffe9f3852c156645039f7e43f23b0af6e85bece0cf0dcd38ac216376"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/checkJsdocSatisfiesTag9.ts#default",
+      "captures": [
+        {
+          "filename": "929f3c2be5192c1c6faa62a6687fbdc308b401eb219da198e385299cd8b5105f-0.json",
+          "sha256": "7b92f7b3538c9e452a9faff230dd1779e25f9a5b8d350ef922dda9ce9a0c23d3"
+        },
+        {
+          "filename": "929f3c2be5192c1c6faa62a6687fbdc308b401eb219da198e385299cd8b5105f-1.json",
+          "sha256": "e2810c84208a14cd0b24b16e3fc8eb739583fcc602558ecdc59120b21ad1fe12"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypedefAndLatebound.ts#default",
+      "captures": [
+        {
+          "filename": "f8727254d325a89abc21413ec34a0c3f0c4c55ef64d3a326edd51e3d0a4656ab-0.json",
+          "sha256": "2c0c759042792e274ae2d42543889c8a413fd8e76b6adcb0b3db187d3ced8a1a"
+        },
+        {
+          "filename": "f8727254d325a89abc21413ec34a0c3f0c4c55ef64d3a326edd51e3d0a4656ab-1.json",
+          "sha256": "22f697772b0de2cb71bec9d0c1f6482e8589f5e33965ced2e2fe6cf7a2c0d973"
+        }
+      ]
+    }
+  ],
+  "fixture_sha256": "a7953178462aa399f9839390a0dc42910a9a253db69dcbd2154559768ff017c9"
+}

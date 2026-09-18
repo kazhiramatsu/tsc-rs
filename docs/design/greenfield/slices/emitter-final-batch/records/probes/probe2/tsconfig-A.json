@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es2022", "module": "commonjs", "outDir": "out", "strict": false, "useDefineForClassFields": false, "experimentalDecorators": false, "ignoreDeprecations": "6.0" }, "files": ["main.ts"] }

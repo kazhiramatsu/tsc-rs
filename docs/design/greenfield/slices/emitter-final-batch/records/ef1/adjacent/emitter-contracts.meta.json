@@ -1,0 +1,13 @@
+{
+  "name": "emitter-contracts",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 7,
+  "env": [],
+  "argv": "cargo test -p tsc-rs-emitter --test contracts",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T07:07:29Z",
+  "seconds": 26,
+  "exit": 101,
+  "log_sha256": "2297027de69ffb73953163d7789b63e693692c47a92ba6428b5c7bf49c886caf",
+  "log_bytes": 48610
+}

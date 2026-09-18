@@ -1,0 +1,46 @@
+{
+ "old": {
+  "host_use_case_sensitive_file_names": true,
+  "writes": [
+   {
+    "path": "A:/foo/bar.js",
+    "sha256": "5b6b66d96e77477066d52f84af5ebc16d33235467aac5f37598b0c0b2571d290",
+    "bom": false,
+    "text": "\"use strict\";\r\nvar x;\r\n"
+   },
+   {
+    "path": "a:/foo/baz.js",
+    "sha256": "310acc0a40b15219c894c75b65961131260cf6a369be36b6f510257405a6e855",
+    "bom": false,
+    "text": "\"use strict\";\r\nvar y;\r\n"
+   }
+  ],
+  "diagnostics": [
+   {
+    "code": 5009,
+    "file": null,
+    "message": "Cannot find the common subdirectory path for the input files."
+   }
+  ],
+  "exit": 2
+ },
+ "new": {
+  "host_use_case_sensitive_file_names": false,
+  "writes": [
+   {
+    "path": "A:/bar.js",
+    "sha256": "5b6b66d96e77477066d52f84af5ebc16d33235467aac5f37598b0c0b2571d290",
+    "bom": false,
+    "text": "\"use strict\";\r\nvar x;\r\n"
+   },
+   {
+    "path": "A:/baz.js",
+    "sha256": "310acc0a40b15219c894c75b65961131260cf6a369be36b6f510257405a6e855",
+    "bom": false,
+    "text": "\"use strict\";\r\nvar y;\r\n"
+   }
+  ],
+  "diagnostics": [],
+  "exit": 0
+ }
+}

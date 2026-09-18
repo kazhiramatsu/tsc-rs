@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es5", "downlevelIteration": true, "outDir": "out", "newLine": "lf", "ignoreDeprecations": "6.0" }, "files": ["main.ts"] }

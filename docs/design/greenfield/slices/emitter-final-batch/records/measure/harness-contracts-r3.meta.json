@@ -1,0 +1,13 @@
+{
+  "name": "harness-contracts-r3",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 15,
+  "env": [],
+  "argv": "cargo test -p tsc-rs-harness --test contracts",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T07:44:18Z",
+  "seconds": 126,
+  "exit": 0,
+  "log_sha256": "fc1337ef0510225601574526a9ea95aaf0c1762a4a93d71f49e1726d8862309c",
+  "log_bytes": 8427
+}

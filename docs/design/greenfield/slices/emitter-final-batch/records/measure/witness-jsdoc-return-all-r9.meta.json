@@ -1,0 +1,20 @@
+{
+  "name": "witness-jsdoc-return-all-r9",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "python3",
+    "scripts/witness.py",
+    "jsdoc-return",
+    "--all"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T04:14:21Z",
+  "seconds": 106,
+  "exit": 0,
+  "log_sha256": "f9b96b8b9ed819de0cb353e67d8c8d536408d842df56cb00fc5ec78ecf9fbb24",
+  "log_bytes": 3978
+}

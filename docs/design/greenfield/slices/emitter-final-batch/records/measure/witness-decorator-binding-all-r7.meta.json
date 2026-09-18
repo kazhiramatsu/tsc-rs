@@ -1,0 +1,15 @@
+{
+  "name": "witness-decorator-binding-all-r7",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 24,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "python3 scripts/witness.py decorator-binding --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T10:59:45Z",
+  "seconds": 60,
+  "exit": 0,
+  "log_sha256": "b2859e0c90130b235f110af6eabdfe1229bfae77adb272ead6013d03d6c67515",
+  "log_bytes": 36206
+}

@@ -1,0 +1,22 @@
+{
+  "name": "build-cli-r9b",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "build",
+    "-p",
+    "tsc-rs-compiler",
+    "--bin",
+    "tsc-rs"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T01:24:45Z",
+  "seconds": 919,
+  "exit": 0,
+  "log_sha256": "ecf05c1e38dc1f1ed6834cbc363c01ee010fe9553b96f28e040f252f0acfa11b",
+  "log_bytes": 415
+}

@@ -1,0 +1,164 @@
+{
+  "base": "3b1f5fe87fd31e3b303bb44bd257342735452ed9",
+  "commits": [
+    {
+      "commit": "53f8fcf8ff4b023aab7f5f0adfa0041d7d1f78ac",
+      "title": "checker: retain source identity on cross-file emit resolver nodes",
+      "causes": "EF6-UMD-FACTORY",
+      "files": [
+        "crates/checker/src/emit.rs"
+      ]
+    },
+    {
+      "commit": "e30982d08e902a1cbb218be6a2b8af8054d6d39d",
+      "title": "checker: preserve JSDoc links in declaration comments",
+      "causes": "EF6-JSDOC-LINK",
+      "files": [
+        "crates/checker/src/node_builder/type_nodes.rs"
+      ]
+    },
+    {
+      "commit": "5163681821c434d3537de2c2ce1d6458e463dd21",
+      "title": "checker: resolve containers of assigned class expressions",
+      "causes": "EF6-IMPORT-TYPE-SELF",
+      "files": [
+        "crates/checker/src/check.rs"
+      ]
+    },
+    {
+      "commit": "f476808038ae609afcc590fe5835871eb1846be8",
+      "title": "checker: publish missing global Iterable diagnostics",
+      "causes": "EF3-ITERABLE-2318",
+      "files": [
+        "crates/checker/src/globals.rs"
+      ]
+    },
+    {
+      "commit": "f4ca6f234b74379d8575a14fbe42c23d01e47f8c",
+      "title": "checker: validate enum values under isolated module options",
+      "causes": "EF7-ENUM-18055, EF7-ENUM-ISOLATED, EF7-ENUM-18056",
+      "files": [
+        "crates/checker/src/evaluate.rs",
+        "crates/checker/src/resolve.rs"
+      ]
+    },
+    {
+      "commit": "1e3da45879b64a63d82e951e4c506cd64746ecf7",
+      "title": "checker: retain async aliases and check emitted helper requirements",
+      "causes": "EF2-ASYNC-ALIAS-MARK, EF7-ASYNC-HELPER-CHECKS, EF7-JSDOC-CHECK-NODE, EF7-VERBATIM-GATE",
+      "files": [
+        "crates/binder/src/node_util.rs",
+        "crates/checker/src/functions.rs",
+        "crates/checker/src/modules.rs"
+      ]
+    },
+    {
+      "commit": "d0e49dba067dea10a708dcae43881c5ffd588846",
+      "title": "checker: use written symbol names in class property diagnostics",
+      "causes": "EF7-SYMBOL-WRITTEN-FACE",
+      "files": [
+        "crates/checker/src/access.rs"
+      ]
+    },
+    {
+      "commit": "98f085fc28a895db2046b9707f159761c9d05ffd",
+      "title": "emitter: preserve binding identity and numbering through ES5 lowering",
+      "causes": "EF2-CLASS-NAME, EF2-ARROW-PARENS, EF4-DEFAULT-NAME, EF4-ARROW-CRASH, EF5-ESCAPED, EF5-BARE-CLONE-SPELLING, EF2-BLOCK-SCOPED-DECORATED, EF2-ALIAS-NUMBERING, EF2-AWAIT-USING-MISSING-NAME, EF2-LOOP-VARIABLE-POLICY, EF7-OBJECT-LITERAL-INDENTED, EF7-SCOPED-NUMBERED-NAMES",
+      "files": [
+        "crates/emitter/src/metadata.rs",
+        "crates/emitter/src/factory.rs",
+        "crates/emitter/src/builtins/es2015.rs",
+        "crates/emitter/src/builtins/target_bindings.rs",
+        "crates/emitter/src/builtins/generated_bindings.rs",
+        "crates/emitter/src/builtins/legacy_decorators.rs",
+        "crates/emitter/src/builtins/es_next.rs"
+      ]
+    },
+    {
+      "commit": "cbd1ed184068c837eebf777d4498247e2253a43d",
+      "title": "emitter: preserve async captures, generator bodies and yield precedence",
+      "causes": "EF2-PROMISE-CTOR, EF2-ASYNC-SUPER, EF2-ASYNC-GEN-BODY-FLAG, EF2-TOP-LEVEL-FOR-AWAIT, EF7-YIELD-PARENS, EF7-EXPORTED-REST-HOIST, EF7-ASYNC-ACCESSOR-BODY, EF7-ASYNC-SHORTHAND-ASSIGNMENT, EF7-ASYNC-ARROW-SUPER-CAPTURE, EF7-GENERATOR-LOOP-VARIABLE",
+      "files": [
+        "crates/emitter/src/builtins/es2017.rs",
+        "crates/emitter/src/builtins/es2018.rs",
+        "crates/emitter/src/builtins/generators.rs"
+      ]
+    },
+    {
+      "commit": "4cd67e2c5acad239a6ef43705b6f29288a1ba6cc",
+      "title": "emitter: carry class receiver, name and comment ownership across transforms",
+      "causes": "EF4-NESTED-THIS, EF4-FILE-THIS-CAPTURE, EF2-ARROW-BLOCK-ORDER, EF7-USING-HOISTED-CLASS-NAME, EF7-STATIC-ACCESSOR-RECEIVER, EF7-DECORATED-STATIC-FIELD-COMMENT",
+      "files": [
+        "crates/emitter/src/builtins/class_fields.rs",
+        "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "crates/emitter/src/builtins/standard_decorators.rs"
+      ]
+    },
+    {
+      "commit": "8258cf7623b58e56cfcb5c4530b218d14fef3e54",
+      "title": "emitter: retain module exports and helpers through composed lowering",
+      "causes": "EF6-UMD-FACTORY, EF7-SYSTEM-USING-EXPORT, EF7-ASYNC-ARROW-LEXICAL-THIS, EF7-CJS-FLATTENED-EXPORT-NAME, EF7-CJS-EXPORT-INLINE, EF7-SYSTEM-IMPORT-HELPERS, EF7-HELPERS-IMPORT-PROLOGUE, EF7-VERBATIM-EXPORT-ASSIGNMENT, EF7-SYSTEM-IMPORT-EQUALS-EXPORTS, EF7-SYSTEM-NAMESPACE-ALIAS, EF7-SYSTEM-EXECUTE-ASYNC, EF7-SYSTEM-HOISTED-DEFAULT-EXPORT, EF7-VERBATIM-IMPORT-EXPORT-ELISION, EF7-ES5-ANONYMOUS-DEFAULT-CLASS-NAME, EF7-PRESERVE-CJS-HELPERS",
+      "files": [
+        "crates/emitter/src/builtins.rs",
+        "crates/emitter/src/builtins/system.rs"
+      ]
+    },
+    {
+      "commit": "77fed35b4f5fd775af2986932ebb12b520be7b79",
+      "title": "emitter: preserve comment phases at access and statement boundaries",
+      "causes": "EF1-ACCESS-TARGET-PHASE, EF2-READ-COMMENT, EF2-DETACHED-COMMENT, EF2-COMMENT-BOUNDARY, EF7-MEMBER-NAME-LEADING-COMMENT, EF7-DECORATOR-PARSE-PARENS; compact-private-body expectation observed from pinned tsc",
+      "files": [
+        "crates/emitter/src/printer.rs",
+        "crates/emitter/tests/integration/active_transform_contract.rs"
+      ]
+    },
+    {
+      "commit": "f30d4cdf99d23b0f10da6b105d4bfe81d838471f",
+      "title": "emitter: admit implemented ordinary emit option routes",
+      "causes": "EF3-ISOLATED, EF3-CASE-CANONICAL, EF7-VERBATIM-GATE, EF7-METADATA-INERT, EF7-NOCHECK-ROUTE; touched-source clippy hygiene",
+      "files": [
+        "crates/emitter/src/execute.rs",
+        "crates/emitter/src/declaration_map.rs"
+      ]
+    },
+    {
+      "commit": "3cade38f0f23ff550f08e079f341801dcd1de220",
+      "title": "harness: preserve map family option floors",
+      "causes": "EF3-HARNESS-FLOOR",
+      "files": [
+        "crates/harness/src/upstream_suites/execution.rs"
+      ]
+    },
+    {
+      "commit": "2eb0b763d97361b9bc532dbd9dec765077f9a723",
+      "title": "test: retire repaired decorator and transpile observations",
+      "causes": "EF1 five known native rows and EF2/EF7 seven transpile rows now match upstream",
+      "files": [
+        "crates/compiler/tests/fixtures/post-t1-residuals-known-native.json",
+        "crates/compiler/tests/fixtures/h2_8c_transpile/known-native.v1.json",
+        "crates/compiler/tests/fixtures/h2_8c_transpile/known-open.v1.json",
+        "crates/compiler/tests/transpile_routes_contract.rs"
+      ]
+    },
+    {
+      "commit": "fb5e8b4e10f6ad853393d26162dd5223ed157632",
+      "title": "test: replay emitter final rows, universe and output axes",
+      "causes": "EF2/EF3 21 memberships, EF4/EF5 40 class rows, EF6 14 global rows, EF7 217+1798 rows, EF8 26 axes",
+      "files": [
+        "crates/compiler/tests/contracts.rs",
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+        "crates/compiler/tests/integration/h2_8a_output_filesystem.rs",
+        "crates/compiler/tests/integration/h2_8a_output_matrix.rs",
+        "crates/compiler/tests/emitter_final_rows.rs",
+        "crates/compiler/tests/emitter_final_batch.rs",
+        "crates/compiler/tests/emitter_final_universe.rs",
+        "crates/compiler/tests/fixtures/emitter-final-universe.json",
+        "crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst",
+        "crates/compiler/tests/fixtures/output-matrix.json",
+        "crates/compiler/tests/fixtures/output-matrix-filesystem.json",
+        "scripts/observe-emitter-final-universe.mjs",
+        "scripts/observe-output-matrix.mjs"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "clippy-r9a",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "clippy",
+    "--workspace",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T00:47:30Z",
+  "seconds": 10,
+  "exit": 101,
+  "log_sha256": "05c6f942e30120da415dcdaeb62644dd2b0453de1fad7d9833740dfb3603be77",
+  "log_bytes": 111068
+}

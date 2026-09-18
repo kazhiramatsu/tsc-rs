@@ -1,0 +1,20 @@
+{
+  "name": "witness-post-t1-residuals-all-r9a",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "python3",
+    "scripts/witness.py",
+    "post-t1-residuals",
+    "--all"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T00:49:08Z",
+  "seconds": 408,
+  "exit": 0,
+  "log_sha256": "4d84e34757c0f82550a082ddad639094efb48fd625a1b13e9a999e83d655259c",
+  "log_bytes": 93899
+}

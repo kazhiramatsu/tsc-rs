@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es5", "module": "commonjs", "outDir": "out", "lib": ["es2015"], "ignoreDeprecations": "6.0" }, "files": ["task.ts", "test.ts"] }

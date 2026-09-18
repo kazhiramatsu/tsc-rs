@@ -1,0 +1,15 @@
+{
+  "name": "witness-transpile-routes-all-r7b",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 26,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "python3 scripts/witness.py transpile-routes --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T11:39:45Z",
+  "seconds": 71,
+  "exit": 1,
+  "log_sha256": "9739eee8231a61adda3083b8025d54b5ba06cad3da47a3e8c91d15443c60620d",
+  "log_bytes": 53725
+}

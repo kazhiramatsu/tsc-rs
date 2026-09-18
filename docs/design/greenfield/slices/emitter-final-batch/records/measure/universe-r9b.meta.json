@@ -1,0 +1,26 @@
+{
+  "name": "universe-r9b",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "env",
+    "TSC_RS_EMITTER_FINAL_FAILURE_DIR=$S/universe-failures",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "emitter_final_universe",
+    "--",
+    "--nocapture"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T01:06:14Z",
+  "seconds": 267,
+  "exit": 101,
+  "log_sha256": "bb834b097c61d7f52a51234bb472206060e7524a92368debeefca17ec95c1a6b",
+  "log_bytes": 188997
+}

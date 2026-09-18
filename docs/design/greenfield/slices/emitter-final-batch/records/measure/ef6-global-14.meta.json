@@ -1,0 +1,13 @@
+{
+  "name": "ef6-global-14",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 7,
+  "env": [],
+  "argv": "cargo test -p tsc-rs-compiler --test emitter_final_batch ef6_historical_global_rows_match_complete_production_commands -- --exact --nocapture --test-threads=1",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T07:09:51Z",
+  "seconds": 43,
+  "exit": 101,
+  "log_sha256": "d562d8fa1663220e898b2af240cd44cf43b3cecab46dd5f5a35047f5194fa583",
+  "log_bytes": 5975
+}

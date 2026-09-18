@@ -2,7 +2,7 @@
 
 2026-09-17。統合担当：Codex。**最終emitter向けCI予算整備をPR #557で統合。全10 replay job・両gateを含む14 checks成功。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v24.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v26.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -199,3 +199,5 @@ filter名、command owner、source/fixture path、driverの関数名はJSON台�
 現在のClaude依頼は[通常compiler emitter完了一括](../emitter-final-batch/README.md)。必要なfocused入口の候補と実測を提出し、shared runner/planner/hostedへの登録・分割と最終全件検証は統合担当が持つ。
 
 [最終emitter検証のCI予算整備](emitter-final-ci-budget/README.md)で入口台帳v24へ更新。重いrequire-rewrite / declaration-specifiersを既存宣言mapのjobへ移し、module-outputとして4 suitesをまとめる。入口数は73 standaloneのまま、観測・test件数は変更しない。PR #557で全14 checksが成功し統合済み。controls25m21s、module-output20m42s、全replayの最長28m25s。全65 witness suitesと、移動先を含むcompiler23 suites/81 testsを保持し、61 observer/Cargo実行の開始・終了・所要時間を記録した。比較条件、全log、mergeと検証treeの一致は同記録を参照。
+
+2026-09-18 emitter-final統合候補：EF7を217行＋PLAN-BASE 4 shards、oracle再観測、EF8・既存差分21行・batch、global769、class1228へ登録。入口台帳v26はcomposite runnerの実Cargo commandも展開する。最終結果は[統合記録](../emitter-final-batch/integration/README.md)を参照。

@@ -1,0 +1,30 @@
+{
+  "name": "universe-plan-base-r9",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "nice",
+    "-n",
+    "15",
+    "env",
+    "TSC_RS_EMITTER_FINAL_FAILURE_DIR=$S/universe-plan-base-failures",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "emitter_final_universe",
+    "plan_base_rows",
+    "--",
+    "--nocapture"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T03:08:12Z",
+  "seconds": 3283,
+  "exit": 101,
+  "log_sha256": "9c9f3fa43e7f6e6ba3f73d6abc589a50add9510f6fa9933ef5b7487ad1778714",
+  "log_bytes": 409556
+}

@@ -1,0 +1,1 @@
+{ "compilerOptions": { "allowJs": true, "checkJs": true, "target": "es5", "outDir": "out", "declaration": true, "newLine": "lf", "ignoreDeprecations": "6.0" }, "files": ["index.js"] }

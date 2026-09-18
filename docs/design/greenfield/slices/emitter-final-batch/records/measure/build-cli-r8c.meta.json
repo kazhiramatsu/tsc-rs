@@ -1,0 +1,15 @@
+{
+  "name": "build-cli-r8c",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 30,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "cargo build -p tsc-rs-compiler --bin tsc-rs",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T12:21:32Z",
+  "seconds": 449,
+  "exit": 0,
+  "log_sha256": "643ff2df9ba7039e8e6dfdec92f1a0ec3b770d2eef8ac88cd7c817c5be695a1e",
+  "log_bytes": 357
+}

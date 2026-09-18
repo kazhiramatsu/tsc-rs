@@ -1,0 +1,78 @@
+--- crates/oracle/h2-6c-qualification.mjs	2026-09-17 15:27:54
++++ /private/tmp/claude-501/-Users-hiramatsu-dev-tsc-rs/01907deb-0413-43b0-9dc0-4f5a56bb8a5f/scratchpad/remint/h2-6c-qualification.proposed.mjs	2026-09-17 22:15:57
+@@ -701,8 +701,23 @@
+   };
+ }
+ 
++function useCaseSensitiveFileNamesSetting(settings) {
++  // The compiler-runner harness applies `@useCaseSensitiveFileNames` to its
++  // virtual file system host (TypeScript's `harness/harnessIO.ts`); the
++  // compiler option surface never sees it. Default: case-sensitive.
++  const configured = exactSetting(settings, "useCaseSensitiveFileNames");
++  if (configured === undefined) return true;
++  const value = String(configured).trim().toLowerCase();
++  requireCondition(value === "true" || value === "false", `invalid @useCaseSensitiveFileNames: ${configured}`);
++  return value === "true";
++}
++
+ function createProgramCase(loaded, selection, settings, options) {
+   const cwd = currentDirectory(settings);
++  const useCaseSensitiveFileNames = useCaseSensitiveFileNamesSetting(settings);
++  // Canonical keys select the fixture; the fixture keeps its original path
++  // spelling (`unit.name`) for the SourceFile name and every emitted path.
++  const canonicalize = ts.createGetCanonicalFileName(useCaseSensitiveFileNames);
+   const unitByPath = new Map();
+   for (const id of selection.vfs_write_order) {
+     const unit = loaded.units[id];
+@@ -718,25 +733,27 @@
+       symlinkByPath.set(link, target);
+     }
+   }
++  const vfsByCanonicalPath = new Map([...vfsByPath].map(([path, fixture]) => [canonicalize(path), fixture]));
++  const symlinkByCanonicalPath = new Map([...symlinkByPath].map(([link, target]) => [canonicalize(link), target]));
+   const baseHost = ts.createCompilerHost(options, true);
+   const directoryOverlay = createHermeticDirectoryOverlay(vfsByPath.keys(), {
+     currentDirectory: cwd,
+-    useCaseSensitiveFileNames: true,
++    useCaseSensitiveFileNames,
+     fallbackHost: baseHost,
+   });
+   const host = {
+     ...baseHost,
+     getCurrentDirectory: () => cwd,
+-    useCaseSensitiveFileNames: () => true,
+-    getCanonicalFileName: (fileName) => fileName,
++    useCaseSensitiveFileNames: () => useCaseSensitiveFileNames,
++    getCanonicalFileName: canonicalize,
+     trace() {},
+     fileExists(fileName) {
+       const normalized = ts.normalizePath(fileName);
+-      return vfsByPath.has(normalized) || baseHost.fileExists(normalized);
++      return vfsByCanonicalPath.has(canonicalize(normalized)) || baseHost.fileExists(normalized);
+     },
+     readFile(fileName) {
+       const normalized = ts.normalizePath(fileName);
+-      return vfsByPath.get(normalized)?.unit.text ?? baseHost.readFile(normalized);
++      return vfsByCanonicalPath.get(canonicalize(normalized))?.unit.text ?? baseHost.readFile(normalized);
+     },
+     directoryExists(directory) {
+       return directoryOverlay.directoryExists(directory);
+@@ -746,14 +763,15 @@
+     },
+     realpath(fileName) {
+       const normalized = ts.normalizePath(fileName);
+-      if (symlinkByPath.has(normalized)) return symlinkByPath.get(normalized);
+-      return vfsByPath.has(normalized)
++      const canonical = canonicalize(normalized);
++      if (symlinkByCanonicalPath.has(canonical)) return symlinkByCanonicalPath.get(canonical);
++      return vfsByCanonicalPath.has(canonical)
+         ? normalized
+         : (baseHost.realpath?.(normalized) ?? normalized);
+     },
+     getSourceFile(fileName, languageVersion) {
+       const normalized = ts.normalizePath(fileName);
+-      const fixture = vfsByPath.get(normalized);
++      const fixture = vfsByCanonicalPath.get(canonicalize(normalized));
+       if (!fixture) return baseHost.getSourceFile(fileName, languageVersion);
+       return ts.createSourceFile(
+         normalized,
