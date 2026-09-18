@@ -77,10 +77,8 @@ const EF3_SHARED_H2_6A_ROW: &str = "typescript-6.0.3/compiler/sourceMapValidatio
 /// decoratedBlockScopedClass2 (EF2-ALIAS-NUMBERING, r8); ES5For-of37
 /// (EF2-DETACHED-COMMENT, r8); sourceMapValidationDestructuringForArrayBindingPattern
 /// ×2 profiles (EF3-ITERABLE-2318, r8).
-const KNOWN: &[&str] = &[
-    "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts#default",
-    "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts#default",
-];
+// Integration: both case-insensitive oracle controls are now exact twice.
+const KNOWN: &[&str] = &[];
 
 #[derive(Clone, Copy, Debug)]
 struct Profile {

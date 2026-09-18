@@ -1,13 +1,4 @@
 {
   "schema": 1,
-  "cases": [
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern.ts#target%3Des2015",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 0,
-      "diagnostics_diverging": true,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    }
-  ]
+  "cases": []
 }
