@@ -2188,9 +2188,11 @@ impl<'a> CheckerState<'a> {
             Some(&diagnostics::Enum_0_used_before_its_declaration)
         } else {
             debug_assert!(flags.intersects(SymbolFlags::CONST_ENUM));
-            // getIsolatedModules(compilerOptions): option unmodeled ⇒
-            // false ⇒ no message.
-            None
+            // getIsolatedModules(compilerOptions) = isolatedModules ||
+            // verbatimModuleSyntax (48468-48470; EF7-ENUM-ISOLATED).
+            (self.options.isolated_modules == Some(true)
+                || self.options.verbatim_module_syntax == Some(true))
+            .then_some(&diagnostics::Enum_0_used_before_its_declaration)
         };
         if let Some(message) = message {
             let related = self.create_error(
