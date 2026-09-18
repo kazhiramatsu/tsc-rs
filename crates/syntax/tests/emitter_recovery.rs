@@ -120,7 +120,7 @@ fn assert_context_control_admission() {
             let target = match config["compilerOptions"]["target"].as_str().unwrap() {
                 "es5" => ScriptTarget::ES5,
                 "es2015" => ScriptTarget::ES2015,
-                "esnext" => ScriptTarget::ESNext,
+                "esnext" => ScriptTarget::ES_NEXT,
                 other => panic!("unexpected context-control target: {other}"),
             };
             assert_eq!(case["typescript_observation"]["emit_refused"], false);
