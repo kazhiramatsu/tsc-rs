@@ -1085,9 +1085,21 @@ impl<'context> EsNextVisitor<'context> {
             if let Some(name) = data.name {
                 self.hoist_binding_pattern(self.node(name), declaration, exported, plan)?;
                 if let Some(initializer) = data.initializer {
-                    let target = self.create_runtime_assignment_target(
-                        RuntimeAssignmentTarget::VariableInitializerClone(self.node(name)),
-                    )?;
+                    let name = self.node(name);
+                    let target = if matches!(
+                        self.context.arena().node(name)?.kind,
+                        SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                    ) {
+                        super::flatten_destructuring::convert_to_assignment_pattern(
+                            self.context,
+                            self.source,
+                            name,
+                        )?
+                    } else {
+                        self.create_runtime_assignment_target(
+                            RuntimeAssignmentTarget::VariableInitializerClone(name),
+                        )?
+                    };
                     let assignment = self.create_assignment(target, self.node(initializer))?;
                     self.set_original_and_range(assignment, declaration)?;
                     assignments.push(assignment);

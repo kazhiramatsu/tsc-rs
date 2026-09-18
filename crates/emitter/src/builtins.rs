@@ -4070,7 +4070,10 @@ impl CommonJsModuleInfo {
                         let declaration = if let Some(resolver_node) =
                             arena.parse_tree_resolver_node(local_name)?
                         {
-                            resolver.get_referenced_value_declaration(resolver_node)?
+                            match resolver.get_referenced_import_declaration(resolver_node)? {
+                                Some(declaration) => Some(declaration),
+                                None => resolver.get_referenced_value_declaration(resolver_node)?,
+                            }
                         } else {
                             None
                         };
@@ -4914,37 +4917,6 @@ pub(super) fn constructor_prologue(
         standard_end,
         custom_end,
     })
-}
-
-pub(super) fn first_runtime_declaration_original(
-    arena: &TransformArena,
-    source: TransformSourceId,
-    statements: Option<NodeArrayId>,
-) -> Result<Option<TransformNode>, TransformError> {
-    let Some(statements) = statements.and_then(|id| arena.node_array_ref(source, id)) else {
-        return Ok(None);
-    };
-    for id in &arena.node_array(statements)?.nodes {
-        let Some(statement) = arena.node_ref(source, *id) else {
-            continue;
-        };
-        if is_prologue_statement(arena, statement)? {
-            continue;
-        }
-        // A TypeScript-erasure anchor owns a source range but no runtime
-        // declaration. In particular, it must not donate an ambient module's
-        // leading comments to a generated `__esModule` marker.
-        if arena.node(statement)?.kind == SyntaxKind::NotEmittedStatement {
-            continue;
-        }
-        let original = arena.get_original_node(statement);
-        return Ok(matches!(
-            arena.node(original)?.kind,
-            SyntaxKind::EnumDeclaration | SyntaxKind::ModuleDeclaration
-        )
-        .then_some(original));
-    }
-    Ok(None)
 }
 
 fn variable_has_initializer(

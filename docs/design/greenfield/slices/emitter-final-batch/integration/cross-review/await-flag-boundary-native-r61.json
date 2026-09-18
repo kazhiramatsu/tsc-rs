@@ -1,0 +1,378 @@
+{
+  "cases": [
+    {
+      "await_context": [
+        false,
+        false
+      ],
+      "diagnostics": [],
+      "exact": true,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; interface I extends await<string> {}"
+    },
+    {
+      "await_context": [
+        false,
+        false
+      ],
+      "diagnostics": [],
+      "exact": true,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; interface await {}"
+    },
+    {
+      "await_context": [
+        false,
+        false
+      ],
+      "diagnostics": [],
+      "exact": true,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; interface I { [await]: any; }"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [],
+      "exact": false,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; type T = await<string>;"
+    },
+    {
+      "await_context": [
+        false,
+        true,
+        true,
+        true
+      ],
+      "diagnostics": [
+        {
+          "code": 2457,
+          "length": 5,
+          "message": "Type alias name cannot be 'await'.",
+          "start": 16
+        },
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 22
+        }
+      ],
+      "exact": false,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; type await = number;"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [],
+      "exact": false,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; let a: await<string>;"
+    },
+    {
+      "await_context": [
+        false,
+        false
+      ],
+      "diagnostics": [],
+      "exact": true,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; function f<T extends await>() {}"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 37
+        }
+      ],
+      "exact": false,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; const f = <T extends await>() => 1;"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 34
+        }
+      ],
+      "exact": false,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; class C<T extends await> {}"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [],
+      "exact": false,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; class C { p: await<string>; }"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [],
+      "exact": false,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; class C { await() {} }"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [],
+      "exact": false,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; const x = { await: 1 };"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 29
+        }
+      ],
+      "exact": true,
+      "expected_await_context": [
+        false,
+        true
+      ],
+      "expected_diagnostics": [
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 29
+        }
+      ],
+      "text": "export {}; const x = { [await]: 1 };"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [],
+      "exact": false,
+      "expected_await_context": [
+        false,
+        false
+      ],
+      "expected_diagnostics": [],
+      "text": "export {}; const x = source.await;"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 33
+        }
+      ],
+      "exact": true,
+      "expected_await_context": [
+        false,
+        true
+      ],
+      "expected_diagnostics": [
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 33
+        }
+      ],
+      "text": "export {}; const x = source[await];"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [
+        {
+          "code": 1109,
+          "length": 5,
+          "message": "Expression expected.",
+          "start": 27
+        },
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 32
+        },
+        {
+          "code": 1005,
+          "length": 1,
+          "message": "',' expected.",
+          "start": 39
+        }
+      ],
+      "exact": true,
+      "expected_await_context": [
+        false,
+        true
+      ],
+      "expected_diagnostics": [
+        {
+          "code": 1109,
+          "length": 5,
+          "message": "Expression expected.",
+          "start": 27
+        },
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 32
+        },
+        {
+          "code": 1005,
+          "length": 1,
+          "message": "',' expected.",
+          "start": 39
+        }
+      ],
+      "text": "export {}; class C extends await<string> {}"
+    },
+    {
+      "await_context": [
+        false,
+        true
+      ],
+      "diagnostics": [
+        {
+          "code": 1109,
+          "length": 5,
+          "message": "Expression expected.",
+          "start": 30
+        },
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 35
+        },
+        {
+          "code": 1005,
+          "length": 1,
+          "message": "',' expected.",
+          "start": 42
+        }
+      ],
+      "exact": true,
+      "expected_await_context": [
+        false,
+        true
+      ],
+      "expected_diagnostics": [
+        {
+          "code": 1109,
+          "length": 5,
+          "message": "Expression expected.",
+          "start": 30
+        },
+        {
+          "code": 1109,
+          "length": 1,
+          "message": "Expression expected.",
+          "start": 35
+        },
+        {
+          "code": 1005,
+          "length": 1,
+          "message": "',' expected.",
+          "start": 42
+        }
+      ],
+      "text": "export {}; class C implements await<string> {}"
+    }
+  ],
+  "rust_head": "a288635ac",
+  "parser_sha256": "d77dc70ee12f2ee0cd66590c9c3c39e887ca51983827551bc2d9190b2576badd",
+  "purpose": "Direct syntax probe of diagnostics and root await flags, not complete-command qualification"
+}

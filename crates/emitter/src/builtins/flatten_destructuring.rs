@@ -13,8 +13,8 @@
 use tsc_syntax::{NodeData, SyntaxKind};
 
 use crate::{
-    factory::EmitHelperName, SourceRange, TransformError, TransformFlags, TransformNode,
-    TransformSourceId, TransformationContext,
+    factory::EmitHelperName, EmitHelper, SourceRange, TransformError, TransformFlags,
+    TransformNode, TransformSourceId, TransformationContext,
 };
 
 use super::{generated_bindings::GeneratedBindingScopes, helpers, target_bindings::TargetBinding};
@@ -58,6 +58,36 @@ pub(super) trait FlattenHost {
     fn flatten_source(&self) -> TransformSourceId;
     fn downlevel_iteration(&self) -> bool;
     fn generated_bindings(&mut self) -> &mut GeneratedBindingScopes;
+    /// Module transforms may own a different hoist/name domain. The default
+    /// preserves the target-pass allocation and declaration order.
+    fn allocate_flatten_temp(&mut self, hoist: bool) -> Result<TargetBinding, TransformError>
+    where
+        Self: Sized,
+    {
+        let name = if hoist {
+            self.generated_bindings().allocate_temp()
+        } else {
+            self.generated_bindings().allocate_local_temp()
+        };
+        let binding = TargetBinding::allocate(self.context(), name)?;
+        if hoist {
+            let declaration = create_generated_identifier(self, &binding)?;
+            self.context().hoist_variable_declaration(declaration)?;
+        }
+        Ok(binding)
+    }
+    /// Print-time assignment substitution projected by eager module visitors.
+    /// Called only after the plain assignment has its range and original node.
+    fn complete_flattened_assignment(
+        &mut self,
+        _target: TransformNode,
+        assignment: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        Ok(assignment)
+    }
+    fn request_flatten_helper(&mut self, helper: EmitHelper) -> Result<(), TransformError> {
+        self.context().request_emit_helper(helper)
+    }
     /// `Debug.checkDefined(visitNode(node, visitor, isExpression))`.
     fn visit_expression(&mut self, node: TransformNode) -> Result<TransformNode, TransformError>;
     /// `visitNode(node, visitor, isBindingOrAssignmentElement)` — the
@@ -289,11 +319,11 @@ pub(super) fn flatten_destructuring_binding<H: FlattenHost>(
         if fx.hoist_temp_variables {
             let pending = std::mem::take(&mut fx.pending_expressions);
             let value = inline_expressions(host, pending)?;
-            let temp = allocate_flatten_temp(host, /*hoist*/ false)?;
+            let temp = host.allocate_flatten_temp(/*hoist*/ false)?;
             let target = create_generated_identifier(host, &temp)?;
             emit_binding_or_assignment(host, &mut fx, target, value, None, None)?;
         } else {
-            let temp = allocate_flatten_temp(host, /*hoist*/ true)?;
+            let temp = host.allocate_flatten_temp(/*hoist*/ true)?;
             let last =
                 fx.pending_declarations
                     .last_mut()
@@ -415,6 +445,11 @@ fn emit_binding_or_assignment<H: FlattenHost>(
                     .arena_mut()?
                     .set_original_node(expression, Some(original))?;
             }
+            let expression = if fx.use_assignment_completion {
+                expression
+            } else {
+                host.complete_flattened_assignment(target, expression)?
+            };
             emit_expression(fx, expression);
         }
     }
@@ -436,7 +471,7 @@ fn ensure_identifier<H: FlattenHost>(
     {
         return Ok(value);
     }
-    let temp = allocate_flatten_temp(host, fx.hoist_temp_variables)?;
+    let temp = host.allocate_flatten_temp(fx.hoist_temp_variables)?;
     if fx.hoist_temp_variables {
         let target = create_generated_identifier(host, &temp)?;
         let assignment = create_assignment(host, target, value)?;
@@ -451,27 +486,6 @@ fn ensure_identifier<H: FlattenHost>(
         emit_binding_or_assignment(host, fx, target, value, location, None)?;
     }
     create_generated_identifier(host, &temp)
-}
-
-/// The `createTempVariable(/*recordTempVariable*/ void 0)` +
-/// `hoistVariableDeclaration` mapping under the E-NAMES-H eager model
-/// (the reviewed `es2018.rs:3531-3548` precedent): a hoisted temp reserves
-/// through ancestor scopes and registers a `var` hoist; a pending-declared
-/// temp allocates locally and is declared by its own emitted binding.
-fn allocate_flatten_temp<H: FlattenHost>(
-    host: &mut H,
-    hoist: bool,
-) -> Result<TargetBinding, TransformError> {
-    if hoist {
-        let name = host.generated_bindings().allocate_temp();
-        let binding = TargetBinding::allocate(host.context(), name)?;
-        let declaration = create_generated_identifier(host, &binding)?;
-        host.context().hoist_variable_declaration(declaration)?;
-        Ok(binding)
-    } else {
-        let name = host.generated_bindings().allocate_local_temp();
-        TargetBinding::allocate(host.context(), name)
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -711,7 +725,7 @@ fn flatten_array_binding_or_assignment_pattern<H: FlattenHost>(
                     && !is_simple_binding_or_assignment_element(host, element)?)
             {
                 fx.has_transformed_prior_element = true;
-                let temp = allocate_flatten_temp(host, fx.hoist_temp_variables)?;
+                let temp = host.allocate_flatten_temp(fx.hoist_temp_variables)?;
                 let reference = create_generated_identifier(host, &temp)?;
                 rest_containing_elements.push((reference, element));
                 let placeholder = create_generated_identifier(host, &temp)?;
@@ -977,7 +991,7 @@ fn create_rest_helper_call<H: FlattenHost>(
     computed_temp_variables: &[TransformNode],
     location: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    host.context().request_emit_helper(helpers::object_rest())?;
+    host.request_flatten_helper(helpers::object_rest())?;
     let mut property_names = Vec::new();
     let mut computed_offset = 0usize;
     for element in &elements[..elements.len().saturating_sub(1)] {
@@ -1029,7 +1043,7 @@ fn create_read_helper_call<H: FlattenHost>(
     iterator_record: TransformNode,
     count: Option<usize>,
 ) -> Result<TransformNode, TransformError> {
-    host.context().request_emit_helper(helpers::read())?;
+    host.request_flatten_helper(helpers::read())?;
     let source = host.flatten_source();
     let helper = host
         .context()
@@ -1056,7 +1070,10 @@ fn create_flatten_object_pattern<H: FlattenHost>(
 ) -> Result<TransformNode, TransformError> {
     match kind {
         FlattenPatternKind::Binding => make_object_binding_pattern(host, elements),
-        FlattenPatternKind::Assignment => make_object_assignment_pattern(host, elements),
+        FlattenPatternKind::Assignment => {
+            let source = host.flatten_source();
+            make_object_assignment_pattern(host.context(), source, elements)
+        }
     }
 }
 
@@ -1067,7 +1084,10 @@ fn create_flatten_array_pattern<H: FlattenHost>(
 ) -> Result<TransformNode, TransformError> {
     match kind {
         FlattenPatternKind::Binding => make_array_binding_pattern(host, elements),
-        FlattenPatternKind::Assignment => make_array_assignment_pattern(host, elements),
+        FlattenPatternKind::Assignment => {
+            let source = host.flatten_source();
+            make_array_assignment_pattern(host.context(), source, elements)
+        }
     }
 }
 
@@ -1121,21 +1141,20 @@ fn make_array_binding_pattern<H: FlattenHost>(
 /// tsc-port: makeArrayAssignmentPattern @6.0.3
 /// tsc-hash: f1bd32dfcb0316067e434c2091cb8d51614bf8f81baa20e7e753a53bb91a297d
 /// tsc-span: _tsc.js:93677-93680
-fn make_array_assignment_pattern<H: FlattenHost>(
-    host: &mut H,
+fn make_array_assignment_pattern(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
     elements: Vec<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
     let mut converted = Vec::with_capacity(elements.len());
     for element in elements {
-        converted.push(convert_to_array_assignment_element(host, element)?);
+        converted.push(convert_to_array_assignment_element(
+            context, source, element,
+        )?);
     }
-    let source = host.flatten_source();
-    let elements = host
-        .context()
-        .factory()?
-        .create_node_array(source, converted)?;
-    let flags = host.context_ref().arena().array_transform_flags(elements);
-    host.context().factory()?.create_node(
+    let elements = context.factory()?.create_node_array(source, converted)?;
+    let flags = context.arena().array_transform_flags(elements);
+    context.factory()?.create_node(
         source,
         NodeData::ArrayLiteralExpression(tsc_syntax::nodes::ArrayLiteralExpressionData {
             elements: Some(elements.array()),
@@ -1183,21 +1202,20 @@ fn make_object_binding_pattern<H: FlattenHost>(
 /// tsc-port: makeObjectAssignmentPattern @6.0.3
 /// tsc-hash: b4b3a87526d8fe5aa891460fdb6d316503a622c7ddbab26cff50af715c91fe87
 /// tsc-span: _tsc.js:93685-93688
-fn make_object_assignment_pattern<H: FlattenHost>(
-    host: &mut H,
+fn make_object_assignment_pattern(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
     elements: Vec<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
     let mut converted = Vec::with_capacity(elements.len());
     for element in elements {
-        converted.push(convert_to_object_assignment_element(host, element)?);
+        converted.push(convert_to_object_assignment_element(
+            context, source, element,
+        )?);
     }
-    let source = host.flatten_source();
-    let elements = host
-        .context()
-        .factory()?
-        .create_node_array(source, converted)?;
-    let flags = host.context_ref().arena().array_transform_flags(elements);
-    host.context().factory()?.create_node(
+    let elements = context.factory()?.create_node_array(source, converted)?;
+    let flags = context.arena().array_transform_flags(elements);
+    context.factory()?.create_node(
         source,
         NodeData::ObjectLiteralExpression(tsc_syntax::nodes::ObjectLiteralExpressionData {
             properties: Some(elements.array()),
@@ -1243,123 +1261,109 @@ const fn make_assignment_element(name: TransformNode) -> TransformNode {
 /// tsc-port: convertToArrayAssignmentElement @6.0.3
 /// tsc-hash: a53d9e38c4ae559cf9c2cd29ef7b8bb1f189b05f53f47ca88e0ca5228c1c23bb
 /// tsc-span: _tsc.js:20716-20732
-fn convert_to_array_assignment_element<H: FlattenHost>(
-    host: &mut H,
+fn convert_to_array_assignment_element(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
     element: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    if let NodeData::BindingElement(data) = host.context_ref().arena().node(element)?.data.clone() {
+    if let NodeData::BindingElement(data) = context.arena().node(element)?.data.clone() {
         let name = data
             .name
-            .and_then(|name| {
-                host.context_ref()
-                    .arena()
-                    .node_ref(host.flatten_source(), name)
-            })
+            .and_then(|name| context.arena().node_ref(source, name))
             .ok_or(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::BindingElement,
                 field: "name",
             })?;
         if data.dot_dot_dot_token.is_some() {
-            require_identifier(host, name)?;
-            let flags = host.context_ref().arena().propagate_child_flags(name)?
+            require_identifier(context, name)?;
+            let flags = context.arena().propagate_child_flags(name)?
                 | TransformFlags::CONTAINS_ES_2015
                 | TransformFlags::CONTAINS_REST_OR_SPREAD;
-            let source = host.flatten_source();
-            let spread = host.context().factory()?.create_node(
+            let spread = context.factory()?.create_node(
                 source,
                 NodeData::SpreadElement(tsc_syntax::nodes::SpreadElementData {
                     expression: Some(name.node()),
                 }),
                 flags,
             )?;
-            return with_original_and_range(host, spread, element);
+            return with_original_and_range(context, spread, element);
         }
-        let expression = convert_to_assignment_element_target(host, name)?;
+        let expression = convert_to_assignment_element_target(context, source, name)?;
         return match data.initializer {
             Some(initializer) => {
-                let initializer = host
-                    .context_ref()
-                    .arena()
-                    .node_ref(host.flatten_source(), initializer)
-                    .ok_or(TransformError::RequiredChildRemoved {
+                let initializer = context.arena().node_ref(source, initializer).ok_or(
+                    TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::BindingElement,
                         field: "initializer",
-                    })?;
-                let assignment = create_assignment(host, expression, initializer)?;
-                with_original_and_range(host, assignment, element)
+                    },
+                )?;
+                let assignment =
+                    create_assignment_in_context(context, source, expression, initializer)?;
+                with_original_and_range(context, assignment, element)
             }
             None => Ok(expression),
         };
     }
-    require_not_binding_shape(host, element, "array assignment element")?;
+    require_not_binding_shape(context, element, "array assignment element")?;
     Ok(element)
 }
 
 /// tsc-port: convertToObjectAssignmentElement @6.0.3
 /// tsc-hash: ceda6ad456fc04784db6d09c68f51944a485356b200901d4289907922e469b09
 /// tsc-span: _tsc.js:20733-20747
-fn convert_to_object_assignment_element<H: FlattenHost>(
-    host: &mut H,
+fn convert_to_object_assignment_element(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
     element: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    if let NodeData::BindingElement(data) = host.context_ref().arena().node(element)?.data.clone() {
+    if let NodeData::BindingElement(data) = context.arena().node(element)?.data.clone() {
         let name = data
             .name
-            .and_then(|name| {
-                host.context_ref()
-                    .arena()
-                    .node_ref(host.flatten_source(), name)
-            })
+            .and_then(|name| context.arena().node_ref(source, name))
             .ok_or(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::BindingElement,
                 field: "name",
             })?;
         if data.dot_dot_dot_token.is_some() {
-            require_identifier(host, name)?;
-            let flags = host.context_ref().arena().propagate_child_flags(name)?
+            require_identifier(context, name)?;
+            let flags = context.arena().propagate_child_flags(name)?
                 | TransformFlags::CONTAINS_ES_2018
                 | TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD;
-            let source = host.flatten_source();
-            let spread = host.context().factory()?.create_node(
+            let spread = context.factory()?.create_node(
                 source,
                 NodeData::SpreadAssignment(tsc_syntax::nodes::SpreadAssignmentData {
                     expression: Some(name.node()),
                 }),
                 flags,
             )?;
-            return with_original_and_range(host, spread, element);
+            return with_original_and_range(context, spread, element);
         }
         if let Some(property_name) = data.property_name {
-            let property_name = host
-                .context_ref()
-                .arena()
-                .node_ref(host.flatten_source(), property_name)
-                .ok_or(TransformError::RequiredChildRemoved {
+            let property_name = context.arena().node_ref(source, property_name).ok_or(
+                TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::BindingElement,
                     field: "property name",
-                })?;
-            let expression = convert_to_assignment_element_target(host, name)?;
+                },
+            )?;
+            let expression = convert_to_assignment_element_target(context, source, name)?;
             let initializer = match data.initializer {
                 Some(initializer) => {
-                    let initializer = host
-                        .context_ref()
-                        .arena()
-                        .node_ref(host.flatten_source(), initializer)
-                        .ok_or(TransformError::RequiredChildRemoved {
+                    let initializer = context.arena().node_ref(source, initializer).ok_or(
+                        TransformError::RequiredChildRemoved {
                             parent: SyntaxKind::BindingElement,
                             field: "initializer",
-                        })?;
-                    create_assignment(host, expression, initializer)?
+                        },
+                    )?;
+                    create_assignment_in_context(context, source, expression, initializer)?
                 }
                 None => expression,
             };
             let flags = {
-                let arena = host.context_ref().arena();
+                let arena = context.arena();
                 arena.propagate_child_flags(property_name)?
                     | arena.propagate_child_flags(initializer)?
             };
-            let source = host.flatten_source();
-            let assignment = host.context().factory()?.create_node(
+            let assignment = context.factory()?.create_node(
                 source,
                 NodeData::PropertyAssignment(tsc_syntax::nodes::PropertyAssignmentData {
                     name: Some(property_name.node()),
@@ -1370,24 +1374,21 @@ fn convert_to_object_assignment_element<H: FlattenHost>(
                 }),
                 flags,
             )?;
-            return with_original_and_range(host, assignment, element);
+            return with_original_and_range(context, assignment, element);
         }
-        require_identifier(host, name)?;
-        let initializer = data.initializer.and_then(|initializer| {
-            host.context_ref()
-                .arena()
-                .node_ref(host.flatten_source(), initializer)
-        });
+        require_identifier(context, name)?;
+        let initializer = data
+            .initializer
+            .and_then(|initializer| context.arena().node_ref(source, initializer));
         let flags = {
-            let arena = host.context_ref().arena();
+            let arena = context.arena();
             let mut flags = arena.propagate_child_flags(name)? | TransformFlags::CONTAINS_ES_2015;
             if let Some(initializer) = initializer {
                 flags |= arena.propagate_child_flags(initializer)?;
             }
             flags
         };
-        let source = host.flatten_source();
-        let shorthand = host.context().factory()?.create_node(
+        let shorthand = context.factory()?.create_node(
             source,
             NodeData::ShorthandPropertyAssignment(
                 tsc_syntax::nodes::ShorthandPropertyAssignmentData {
@@ -1401,25 +1402,26 @@ fn convert_to_object_assignment_element<H: FlattenHost>(
             ),
             flags,
         )?;
-        return with_original_and_range(host, shorthand, element);
+        return with_original_and_range(context, shorthand, element);
     }
-    require_not_binding_shape(host, element, "object assignment element")?;
+    require_not_binding_shape(context, element, "object assignment element")?;
     Ok(element)
 }
 
 /// tsc-port: convertToAssignmentPattern @6.0.3
 /// tsc-hash: 63b77454be5b3cb32c2723a1990da4cb9ac84663c7182dcb8c955302aba5b6a9
 /// tsc-span: _tsc.js:20748-20757
-fn convert_to_assignment_pattern<H: FlattenHost>(
-    host: &mut H,
+pub(super) fn convert_to_assignment_pattern(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
     node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    match host.context_ref().arena().node(node)?.kind {
+    match context.arena().node(node)?.kind {
         SyntaxKind::ArrayBindingPattern | SyntaxKind::ArrayLiteralExpression => {
-            convert_to_array_assignment_pattern(host, node)
+            convert_to_array_assignment_pattern(context, source, node)
         }
         SyntaxKind::ObjectBindingPattern | SyntaxKind::ObjectLiteralExpression => {
-            convert_to_object_assignment_pattern(host, node)
+            convert_to_object_assignment_pattern(context, source, node)
         }
         kind => Err(TransformError::RequiredChildRemoved {
             parent: kind,
@@ -1431,20 +1433,20 @@ fn convert_to_assignment_pattern<H: FlattenHost>(
 /// tsc-port: convertToObjectAssignmentPattern @6.0.3
 /// tsc-hash: e6f6e3aa9e2039d2937eea5b5032475643399a980d61a32b504b0a33fd4b9f0d
 /// tsc-span: _tsc.js:20758-20769
-fn convert_to_object_assignment_pattern<H: FlattenHost>(
-    host: &mut H,
+fn convert_to_object_assignment_pattern(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
     node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    match host.context_ref().arena().node(node)?.kind {
+    match context.arena().node(node)?.kind {
         SyntaxKind::ObjectBindingPattern => {
-            let NodeData::ObjectBindingPattern(data) =
-                host.context_ref().arena().node(node)?.data.clone()
+            let NodeData::ObjectBindingPattern(data) = context.arena().node(node)?.data.clone()
             else {
                 unreachable!("kind checked above");
             };
-            let elements = array_nodes(host, data.elements)?;
-            let literal = make_object_assignment_pattern(host, elements)?;
-            with_original_and_range(host, literal, node)
+            let elements = array_nodes_in_context(context, source, data.elements)?;
+            let literal = make_object_assignment_pattern(context, source, elements)?;
+            with_original_and_range(context, literal, node)
         }
         SyntaxKind::ObjectLiteralExpression => Ok(node),
         kind => Err(TransformError::RequiredChildRemoved {
@@ -1457,20 +1459,20 @@ fn convert_to_object_assignment_pattern<H: FlattenHost>(
 /// tsc-port: convertToArrayAssignmentPattern @6.0.3
 /// tsc-hash: 395755484303c41fbecc2ff8af6fc8509f4b4480fe1bb957772acec107f002ed
 /// tsc-span: _tsc.js:20770-20781
-fn convert_to_array_assignment_pattern<H: FlattenHost>(
-    host: &mut H,
+fn convert_to_array_assignment_pattern(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
     node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    match host.context_ref().arena().node(node)?.kind {
+    match context.arena().node(node)?.kind {
         SyntaxKind::ArrayBindingPattern => {
-            let NodeData::ArrayBindingPattern(data) =
-                host.context_ref().arena().node(node)?.data.clone()
+            let NodeData::ArrayBindingPattern(data) = context.arena().node(node)?.data.clone()
             else {
                 unreachable!("kind checked above");
             };
-            let elements = array_nodes(host, data.elements)?;
-            let literal = make_array_assignment_pattern(host, elements)?;
-            with_original_and_range(host, literal, node)
+            let elements = array_nodes_in_context(context, source, data.elements)?;
+            let literal = make_array_assignment_pattern(context, source, elements)?;
+            with_original_and_range(context, literal, node)
         }
         SyntaxKind::ArrayLiteralExpression => Ok(node),
         kind => Err(TransformError::RequiredChildRemoved {
@@ -1483,17 +1485,18 @@ fn convert_to_array_assignment_pattern<H: FlattenHost>(
 /// tsc-port: convertToAssignmentElementTarget @6.0.3
 /// tsc-hash: d2b8e01bb66232d9ecebbf2b7b8874357bfaf509cc0423b7ed4655c545ab2e0c
 /// tsc-span: _tsc.js:20782-20787
-fn convert_to_assignment_element_target<H: FlattenHost>(
-    host: &mut H,
+fn convert_to_assignment_element_target(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
     node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
     if matches!(
-        host.context_ref().arena().node(node)?.kind,
+        context.arena().node(node)?.kind,
         SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
     ) {
-        return convert_to_assignment_pattern(host, node);
+        return convert_to_assignment_pattern(context, source, node);
     }
-    require_not_binding_shape(host, node, "assignment element target")?;
+    require_not_binding_shape(context, node, "assignment element target")?;
     Ok(node)
 }
 
@@ -1951,8 +1954,11 @@ fn node_is_synthesized<H: FlattenHost>(
 // Construction plumbing (the es2018 idioms over the shared factory)
 // ---------------------------------------------------------------------------
 
-fn require_identifier<H: FlattenHost>(host: &H, node: TransformNode) -> Result<(), TransformError> {
-    let kind = host.context_ref().arena().node(node)?.kind;
+fn require_identifier(
+    context: &TransformationContext,
+    node: TransformNode,
+) -> Result<(), TransformError> {
+    let kind = context.arena().node(node)?.kind;
     if kind != SyntaxKind::Identifier {
         return Err(TransformError::RequiredChildRemoved {
             parent: kind,
@@ -1962,12 +1968,12 @@ fn require_identifier<H: FlattenHost>(host: &H, node: TransformNode) -> Result<(
     Ok(())
 }
 
-fn require_not_binding_shape<H: FlattenHost>(
-    host: &H,
+fn require_not_binding_shape(
+    context: &TransformationContext,
     node: TransformNode,
     field: &'static str,
 ) -> Result<(), TransformError> {
-    let kind = host.context_ref().arena().node(node)?.kind;
+    let kind = context.arena().node(node)?.kind;
     if matches!(
         kind,
         SyntaxKind::BindingElement
@@ -1982,15 +1988,15 @@ fn require_not_binding_shape<H: FlattenHost>(
     Ok(())
 }
 
-fn with_original_and_range<H: FlattenHost>(
-    host: &mut H,
+fn with_original_and_range(
+    context: &mut TransformationContext,
     node: TransformNode,
     original: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    host.context()
+    context
         .arena_mut()?
         .set_original_node(node, Some(original))?;
-    host.context().factory()?.set_text_range(node, original)?;
+    context.factory()?.set_text_range(node, original)?;
     Ok(node)
 }
 
@@ -1998,20 +2004,24 @@ fn array_nodes<H: FlattenHost>(
     host: &H,
     array: Option<tsc_syntax::NodeArrayId>,
 ) -> Result<Vec<TransformNode>, TransformError> {
-    let Some(array) = array.and_then(|array| {
-        host.context_ref()
-            .arena()
-            .node_array_ref(host.flatten_source(), array)
-    }) else {
+    array_nodes_in_context(host.context_ref(), host.flatten_source(), array)
+}
+
+fn array_nodes_in_context(
+    context: &TransformationContext,
+    source: TransformSourceId,
+    array: Option<tsc_syntax::NodeArrayId>,
+) -> Result<Vec<TransformNode>, TransformError> {
+    let Some(array) = array.and_then(|array| context.arena().node_array_ref(source, array)) else {
         return Ok(Vec::new());
     };
-    let nodes = host.context_ref().arena().node_array(array)?.nodes.clone();
+    let nodes = context.arena().node_array(array)?.nodes.clone();
     nodes
         .iter()
         .map(|node| {
-            host.context_ref()
+            context
                 .arena()
-                .node_ref(host.flatten_source(), *node)
+                .node_ref(source, *node)
                 .ok_or(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::SyntaxList,
                     field: "array element",
@@ -2232,19 +2242,44 @@ fn create_binary<H: FlattenHost>(
     right: TransformNode,
 ) -> Result<TransformNode, TransformError> {
     let source = host.flatten_source();
+    create_binary_in_context(host.context(), source, left, operator, right)
+}
+
+fn create_assignment_in_context(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
+    left: TransformNode,
+    right: TransformNode,
+) -> Result<TransformNode, TransformError> {
+    create_binary_in_context(context, source, left, SyntaxKind::EqualsToken, right)
+}
+
+fn create_binary_in_context(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
+    left: TransformNode,
+    operator: SyntaxKind,
+    right: TransformNode,
+) -> Result<TransformNode, TransformError> {
     let operator_kind = operator;
-    let operator =
-        host.context()
-            .factory()?
-            .create_token(source, operator, TransformFlags::NONE)?;
-    let mut flags = child_flags(host, &[left, operator, right])?;
+    let operator = context
+        .factory()?
+        .create_token(source, operator, TransformFlags::NONE)?;
+    let mut flags =
+        [left, operator, right]
+            .into_iter()
+            .try_fold(TransformFlags::NONE, |flags, node| {
+                context
+                    .arena()
+                    .propagate_child_flags(node)
+                    .map(|child| flags | child)
+            })?;
     // `createBinaryExpression`'s EqualsToken facet arms
     // (_tsc.js:22794-22801): a literal-pattern left marks the
     // destructuring assignment for the downstream owners.
     if operator_kind == SyntaxKind::EqualsToken {
-        let left_kind = host.context_ref().arena().node(left)?.kind;
-        let pattern_flags = if host
-            .context_ref()
+        let left_kind = context.arena().node(left)?.kind;
+        let pattern_flags = if context
             .arena()
             .transform_flags(left)
             .contains(TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD)
@@ -2264,7 +2299,7 @@ fn create_binary<H: FlattenHost>(
                 | pattern_flags;
         }
     }
-    host.context().factory()?.create_node(
+    context.factory()?.create_node(
         source,
         NodeData::BinaryExpression(tsc_syntax::nodes::BinaryExpressionData {
             left: Some(left.node()),

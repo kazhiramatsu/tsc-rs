@@ -1,0 +1,9 @@
+# Independent analysis of r55 remaining differences
+
+The running f0 complete-command comparison found three initial causes. Failed tuples are retained in the r55 receipt/log; final counts await completion.
+
+1. `append_exports_of_import_binding` ranges every generated value to the parsed import name. This matches print-time substitution of default/named imports but not namespace imports: upstream `getDeclarationName` carries NoSourceMap and namespace has no substituted property access. The source range must only be set on the actual property/element substitution; an unqualified namespace value stays synthetic/no-map.
+2. `transform_hoisted_using_statement` creates a fresh declaration list instead of updating the original list. That loses the list's source start, mapping the `using` keyword to the removed `export` start. Update the original declarations array, declaration list, and variable statement, preserving original ranges/flags and filtering export modifiers. Preserve generated leaf names and their identity.
+3. `hoist_external_helpers_import` currently runs before all source statements. Upstream `createSystemModuleBody` first runs `copyPrologue`, including CustomPrologue statements through topLevelVisitor, then visits the synthetic external helper import. ES2015 synthesized temp vars are custom prologues, so their hoists precede tslib; ordinary declarations follow it. Copy standard prologues, ensure strict, visit the contiguous CustomPrologue prefix with the existing top-level System visitor, then hoist tslib and process the rest. Do not merely reorder names by spelling or put all temps first.
+
+These are local algorithm corrections inferred from pinned _tsc.js and strict failed command tuples. They await application until the ongoing Opus59 source review releases the frozen System file, then native verification without expectation changes.

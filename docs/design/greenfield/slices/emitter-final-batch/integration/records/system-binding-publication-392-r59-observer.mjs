@@ -11,54 +11,6 @@ const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
 assert.ok(["--write", "--check"].includes(process.argv[2]));
 const shapes = [
- ["await-static-block", "export {}; class C { static { await source; } }"],
- ["await-class-field", "export {}; class C { p = await source; }"],
- ["await-computed-method", "export {}; class C { [await source]() {} }"],
- ["await-method-parameter", "export {}; class C { m(a = await source) {} }"],
- ["await-nested-static-block", "export {}; class C { static { class D { static { await source; } } source(D); } }"],
- ["await-static-arrow", "export {}; class C { static { source(async () => await source); } }"],
- ["import-optional-property", "import {value} from \"./dep\"; export const v = value /*a*/ ?. /*b*/ x;"],
- ["import-optional-element", "import {value} from \"./dep\"; export const v = value\n /*a*/ ?.[ /*b*/ 'x' ];"],
- ["import-optional-call", "import {value} from \"./dep\"; export const v = value /*a*/ ?. /*b*/ ();"],
- ["using-object-pattern", "using r = source; export let {x,y} = source;"],
- ["using-array-pattern", "using r = source; export let [p,q] = source;"],
- ["using-nested-rest-pattern", "using r = source; export let {a: {b}, ...rest} = source;"],
- ["using-local-pattern", "using r = source; let {m} = source; source(m); export {};"],
- ["namespace-first", "namespace N { export const x = 1; } export {N};"],
- ["namespace-ambient", "declare const ambient: any; export namespace N { export const x = 1; }"],
- ["enum-first", "export enum E { A }"],
- ["namespace-doc", "/** namespace doc */\nexport namespace N { export const x = 1; }"],
- ["capture-this", "export const f = () => this;"],
- ["capture-this-and-pattern", "export const f = () => this; export let [a] = source;"],
- ["optional-property-comment", "export const v = source /*a*/ ?. /*b*/ x;"],
- ["optional-element-before-comment", "export const v = source /*a*/ ?. /*b*/ ['x'];"],
- ["optional-element-inside-comment", "export const v = source ?.[ /*b*/ 'x' /*c*/ ];"],
- ["optional-call-comment", "export const v = source /*a*/ ?. /*b*/ ();"],
- ["optional-property-clean", "export const v = source?.x;"],
- ["optional-element-clean", "export const v = source?.['x'];"],
- ["optional-call-clean", "export const v = source?.();"],
- ["optional-property-before-newline", "export const v = source\n /*a*/ ?.x;"],
- ["optional-property-after-newline", "export const v = source?.\n /*b*/ x;"],
- ["optional-element-newline", "export const v = source\n /*a*/ ?.[ /*b*/ 'x' ];"],
- ["optional-call-newline", "export const v = source\n /*a*/ ?.\n /*b*/ ();"],
- ["optional-element-empty-comment", "export const v = source?. /**/ [/**/ 'x'];"],
- ["using-declarations-comments", "export using /*c*/ r = source, /*d*/ s = source;"],
-
- ["destructure-rest-only", "export let x: any; function g(o: any) { ({...x} = o); } source(g);"],
- ["destructure-alias-only", "let z; export {z as w}; function g(o: any) { [z] = o; } source(g);"],
- ["destructure-mixed-alias", "let z; export {z as w}; export let x; [x,z] = source;"],
- ["destructure-for-of-head", "export let x; for ([x] of source) { source(x); }"],
- ["destructure-chained", "export let x,y; [x] = [y] = source;"],
- ["destructure-call-value", "export let x; source([x] = source());"],
- ["import-destructure", "import {value} from \"./dep\"; export {value}; [value] = source;"],
- ["destructure-property-target", "export let x; [source.p,x] = source;"],
- ["destructure-postfix-default", "export let x,y=0; [x = y++] = source;"],
- ["destructure-local-temporaries", "export let x=0,y=0; function g(o: any) { const v = x++; [x,y] = o; return [v,([x] = o)]; } source(g);"],
- ["destructure-swap", "export let x: any=0; let a: any; [x,a] = [a,x];"],
- ["destructure-key", "export let x; ({[source()]:x} = source);"],
- ["destructure-comments", "export let x; [/* first */ x] = source; ({ /* second */ x } = source);"],
- ["scope-comma-update", "export let x=0; const f = () => { (source(), x++); }; source(f);"],
-
  ["scope-export-vs-local", "export let x = 0; export function f() { return x++; } function g() { return x++; } source(f,g);"],
  ["scope-parameter-patterns", "export let x = 0; const h = function (a = x++, {b} = {}, c = 1, ...r) { return [a,b,c,r,x++]; }; source(h);"],
  ["scope-computed-getter", "export let x = 0; class C { get [x++]() { return x++; } } source(C);"],
@@ -126,12 +78,12 @@ for (const target of ["es5", "es2015", "esnext"])
     for (const [shape, text] of shapes) {
       const main = "/project/main.ts";
       inputs.push({case_id: `system-binding-publication/${target}/remove-${removeComments}/${shape}`,
-        roots: [main], files: [{path: main, text: (["namespace-first", "enum-first", "namespace-doc"].includes(shape) ? "" : "declare const source: any;\n") + text + "\n"}, ...(shape.startsWith("import-") ? [{path: "/project/dep.ts", text: "export let value: any; export default value;\n"}] : [])], options: {},
+        roots: [main], files: [{path: main, text: "declare const source: any;\n" + text + "\n"}, ...(shape.startsWith("import-") ? [{path: "/project/dep.ts", text: "export let value: any; export default value;\n"}] : [])], options: {},
         config: JSON.stringify({compilerOptions: {target, module: "system", removeComments, lib: ["esnext"],
           strict: false, skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
           ignoreDeprecations: "6.0", outDir: "/project/out"}, files: [main.slice(9)]})});
     }
-assert.equal(inputs.length, 630);
+assert.equal(inputs.length, 354);
 for (const target of ["es5", "es2015"])
   for (const removeComments of [false, true])
     for (const [shape] of shapes.filter(([name]) => name.startsWith("import-") || name === "export-import-assignment")) {
@@ -140,46 +92,14 @@ for (const target of ["es5", "es2015"])
       const config = JSON.parse(input.config); config.compilerOptions.module = "commonjs";
       input.config = JSON.stringify(config); inputs.push(input);
     }
-assert.equal(inputs.length, 682);
+assert.equal(inputs.length, 390);
 for (const remove of [false, true]) {
   const input = structuredClone(inputs.find(row => row.case_id === `system-binding-publication/es2015/remove-${remove}/scope-earlier-temp`));
   input.case_id = input.case_id.replace("/es2015/", "/es2019/");
   const config = JSON.parse(input.config); config.compilerOptions.target = "es2019";
   input.config = JSON.stringify(config); inputs.push(input);
 }
-assert.equal(inputs.length, 684);
-for (const target of ["es2015", "esnext"])
-  for (const importHelpers of [false, true])
-    for (const [shape, text, read] of [
-      ["late-read-binding", "export let [x] = source;", true],
-      ["late-rest-binding", "export let {x,...rest} = source;", false],
-      ["late-read-assignment", "export let x; [x] = source;", true],
-      ["late-rest-assignment", "export let x,rest; ({x,...rest} = source);", false],
-    ])
-      for (const secondFile of [false, true]) {
-        const main = "/project/main.ts", after = "/project/after.ts";
-        const roots = secondFile ? [main, after] : [main];
-        inputs.push({case_id: `system-binding-publication/${target}/helpers-${importHelpers}/${shape}/second-${secondFile}`,
-          roots, files: [{path: main, text: "declare const source: any;\n" + text + "\n"}, ...(secondFile ? [{path: after, text: "export const after = 1;\n"}] : [])], options: {},
-          config: JSON.stringify({compilerOptions: {target, module: "system", importHelpers, downlevelIteration: read,
-            lib: ["esnext"], strict: false, skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
-            ignoreDeprecations: "6.0", outDir: "/project/out"}, files: roots.map(root => root.slice(9))})});
-      }
-assert.equal(inputs.length, 716);
-for (const target of ["es5", "es2015"])
-  for (const remove of [false, true]) {
-    const input = structuredClone(inputs.find(row => row.case_id === `system-binding-publication/${target}/remove-${remove}/using-object-pattern`));
-    input.case_id += "/commonjs-control";
-    const config = JSON.parse(input.config); config.compilerOptions.module = "commonjs";
-    input.config = JSON.stringify(config); inputs.push(input);
-  }
-for (const remove of [false, true]) {
-  const input = structuredClone(inputs.find(row => row.case_id === `system-binding-publication/es5/remove-${remove}/capture-this`));
-  input.case_id += "/import-helpers-control";
-  const config = JSON.parse(input.config); config.compilerOptions.importHelpers = true;
-  input.config = JSON.stringify(config); inputs.push(input);
-}
-assert.equal(inputs.length, 722);
+assert.equal(inputs.length, 392);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),

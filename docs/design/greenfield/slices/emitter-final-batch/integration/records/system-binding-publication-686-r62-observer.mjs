@@ -11,12 +11,6 @@ const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
 assert.ok(["--write", "--check"].includes(process.argv[2]));
 const shapes = [
- ["await-static-block", "export {}; class C { static { await source; } }"],
- ["await-class-field", "export {}; class C { p = await source; }"],
- ["await-computed-method", "export {}; class C { [await source]() {} }"],
- ["await-method-parameter", "export {}; class C { m(a = await source) {} }"],
- ["await-nested-static-block", "export {}; class C { static { class D { static { await source; } } source(D); } }"],
- ["await-static-arrow", "export {}; class C { static { source(async () => await source); } }"],
  ["import-optional-property", "import {value} from \"./dep\"; export const v = value /*a*/ ?. /*b*/ x;"],
  ["import-optional-element", "import {value} from \"./dep\"; export const v = value\n /*a*/ ?.[ /*b*/ 'x' ];"],
  ["import-optional-call", "import {value} from \"./dep\"; export const v = value /*a*/ ?. /*b*/ ();"],
@@ -131,7 +125,7 @@ for (const target of ["es5", "es2015", "esnext"])
           strict: false, skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
           ignoreDeprecations: "6.0", outDir: "/project/out"}, files: [main.slice(9)]})});
     }
-assert.equal(inputs.length, 630);
+assert.equal(inputs.length, 594);
 for (const target of ["es5", "es2015"])
   for (const removeComments of [false, true])
     for (const [shape] of shapes.filter(([name]) => name.startsWith("import-") || name === "export-import-assignment")) {
@@ -140,14 +134,14 @@ for (const target of ["es5", "es2015"])
       const config = JSON.parse(input.config); config.compilerOptions.module = "commonjs";
       input.config = JSON.stringify(config); inputs.push(input);
     }
-assert.equal(inputs.length, 682);
+assert.equal(inputs.length, 646);
 for (const remove of [false, true]) {
   const input = structuredClone(inputs.find(row => row.case_id === `system-binding-publication/es2015/remove-${remove}/scope-earlier-temp`));
   input.case_id = input.case_id.replace("/es2015/", "/es2019/");
   const config = JSON.parse(input.config); config.compilerOptions.target = "es2019";
   input.config = JSON.stringify(config); inputs.push(input);
 }
-assert.equal(inputs.length, 684);
+assert.equal(inputs.length, 648);
 for (const target of ["es2015", "esnext"])
   for (const importHelpers of [false, true])
     for (const [shape, text, read] of [
@@ -165,7 +159,7 @@ for (const target of ["es2015", "esnext"])
             lib: ["esnext"], strict: false, skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
             ignoreDeprecations: "6.0", outDir: "/project/out"}, files: roots.map(root => root.slice(9))})});
       }
-assert.equal(inputs.length, 716);
+assert.equal(inputs.length, 680);
 for (const target of ["es5", "es2015"])
   for (const remove of [false, true]) {
     const input = structuredClone(inputs.find(row => row.case_id === `system-binding-publication/${target}/remove-${remove}/using-object-pattern`));
@@ -179,7 +173,7 @@ for (const remove of [false, true]) {
   const config = JSON.parse(input.config); config.compilerOptions.importHelpers = true;
   input.config = JSON.stringify(config); inputs.push(input);
 }
-assert.equal(inputs.length, 722);
+assert.equal(inputs.length, 686);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),

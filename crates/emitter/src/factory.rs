@@ -6166,6 +6166,9 @@ impl<'arena> NodeFactory<'arena> {
             NodeData::VariableDeclaration(data) => data.initializer,
             NodeData::PropertyAssignment(data) => data.initializer,
             NodeData::ShorthandPropertyAssignment(data) => data.object_assignment_initializer,
+            NodeData::CaseClause(data) => data.expression,
+            NodeData::SwitchStatement(data) => data.expression,
+            NodeData::ForOfStatement(data) => data.expression,
             _ => None,
         };
         let Some(initializer) = initializer else {
@@ -6191,6 +6194,9 @@ impl<'arena> NodeFactory<'arena> {
             NodeData::ShorthandPropertyAssignment(data) => {
                 data.object_assignment_initializer = Some(parenthesized.node)
             }
+            NodeData::CaseClause(data) => data.expression = Some(parenthesized.node),
+            NodeData::SwitchStatement(data) => data.expression = Some(parenthesized.node),
+            NodeData::ForOfStatement(data) => data.expression = Some(parenthesized.node),
             _ => unreachable!("initializer owner was checked above"),
         }
         Ok(())

@@ -2,22 +2,24 @@ use crate::transform::try_visit_transform_children;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
-use tsc_types::{CompilerOptions, JsStr, JsString, NodeFlags};
+use tsc_types::{CompilerOptions, JsStr, JsString, NodeFlags, ScriptTarget};
 
 use crate::{
     factory::EmitHelperName, EmitExportContainerMode, EmitFlags, EmitHint, EmitHost, EmitResolver,
-    EmitResolverNode, TransformArena, TransformError, TransformFlags, TransformNode,
-    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
-    UnsupportedEmitFeature,
+    EmitResolverNode, LexicalEnvironment, LexicalEnvironmentFlags, TransformArena, TransformError,
+    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
+    TransformationContext, Transformer, UnsupportedEmitFeature,
 };
 
+use super::flatten_destructuring::{flatten_destructuring_assignment, FlattenHost, FlattenLevel};
+use super::generated_bindings::GeneratedBindingScopes;
 use super::target_bindings::TargetBinding;
 use super::{
-    first_runtime_declaration_original, flags_after_update, generated_module_name, has_modifier,
-    identifier_or_literal_text, identifier_text_owned, is_identifier_export_name,
-    is_prologue_statement, node_array_nodes, parsed_source_file_statement_array,
-    source_contains_dynamic_import, source_file_statement_nodes, string_literal_text,
-    variable_declarations, CommonJsModuleInfo, ImportBinding,
+    flags_after_update, generated_module_name, has_modifier, identifier_or_literal_text,
+    identifier_text_owned, is_identifier_export_name, is_prologue_statement, node_array_nodes,
+    parsed_source_file_statement_array, source_contains_dynamic_import,
+    source_file_statement_nodes, string_literal_text, variable_declarations, CommonJsModuleInfo,
+    ImportBinding,
 };
 
 /// tsc-port: transformSystemModule @6.0.3
@@ -31,6 +33,7 @@ pub(super) fn transform_system_module<'resolver>(
     Box::new(SystemModuleTransformer {
         resolver,
         host,
+        target: options.emit_script_target(),
         always_strict: options.always_strict_effective(),
         downlevel_iteration: options.downlevel_iteration == Some(true),
         import_helpers: options.import_helpers == Some(true),
@@ -42,6 +45,7 @@ pub(super) fn transform_system_module<'resolver>(
 struct SystemModuleTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
     host: Option<&'resolver dyn EmitHost>,
+    target: ScriptTarget,
     always_strict: bool,
     downlevel_iteration: bool,
     import_helpers: bool,
@@ -122,15 +126,7 @@ impl Transformer for SystemModuleTransformer<'_> {
             self.resolver,
             self.host,
         )?;
-        let mut visitor = SystemVisitor::new(
-            context,
-            source,
-            self.resolver,
-            self.host,
-            info,
-            self.always_strict,
-            self.downlevel_iteration,
-        )?;
+        let mut visitor = SystemVisitor::new(context, source, info, self)?;
         let updated = visitor.transform_source_file(root)?;
         visitor.context.arena_mut()?.replace_root(source, updated)?;
         Ok(TransformRoot::SourceFile(source))
@@ -244,8 +240,7 @@ fn source_contains_top_level_await(
             | NodeData::MethodDeclaration(_)
             | NodeData::Constructor(_)
             | NodeData::GetAccessor(_)
-            | NodeData::SetAccessor(_)
-            | NodeData::ClassStaticBlockDeclaration(_) => continue,
+            | NodeData::SetAccessor(_) => continue,
             _ => {}
         }
         tsc_syntax::for_each_child(
@@ -487,6 +482,7 @@ struct SystemVisitor<'context, 'resolver> {
     resolver: &'resolver dyn EmitResolver,
     host: Option<&'resolver dyn EmitHost>,
     info: SystemModuleInfo,
+    target: ScriptTarget,
     always_strict: bool,
     downlevel_iteration: bool,
     exports_name: String,
@@ -497,7 +493,13 @@ struct SystemVisitor<'context, 'resolver> {
     hoisted_names: Vec<String>,
     hoisted_declarations: Vec<TransformNode>,
     temp_ordinal: usize,
+    function_scope_depth: usize,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+}
+
+enum SystemUpdateTemp {
+    Module(String),
+    Function(TargetBinding),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -646,12 +648,17 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn new(
         context: &'context mut TransformationContext,
         source: TransformSourceId,
-        resolver: &'resolver dyn EmitResolver,
-        host: Option<&'resolver dyn EmitHost>,
         info: SystemModuleInfo,
-        always_strict: bool,
-        downlevel_iteration: bool,
+        transformer: &SystemModuleTransformer<'resolver>,
     ) -> Result<Self, TransformError> {
+        let SystemModuleTransformer {
+            resolver,
+            host,
+            target,
+            always_strict,
+            downlevel_iteration,
+            ..
+        } = *transformer;
         let mut used_names = collect_identifier_texts(context.arena(), source);
         used_names.extend(
             info.common
@@ -681,6 +688,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             resolver,
             host,
             info,
+            target,
             always_strict,
             downlevel_iteration,
             exports_name,
@@ -691,6 +699,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             hoisted_names: Vec::new(),
             hoisted_declarations: Vec::new(),
             temp_ordinal: 0,
+            function_scope_depth: 0,
             arrays: BTreeMap::new(),
         })
     }
@@ -715,8 +724,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let parsed_statement_array =
             parsed_source_file_statement_array(self.context.arena(), root)?;
         let source_owner = SystemBlockScopeOwner::source_file(root);
-        self.hoist_external_helpers_import()?;
-
         let mut outer = Vec::new();
         let mut offset = 0usize;
         while offset < input.len() && is_prologue_statement(self.context.arena(), input[offset])? {
@@ -737,6 +744,21 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             outer.push(self.create_use_strict()?);
         }
 
+        let standard_prologue_end = outer.len();
+        // copyPrologue visits the contiguous CustomPrologue prefix before
+        // externalHelpersImportDeclaration. Earlier-pass temp vars therefore
+        // keep their hoist order before tslib, without moving ordinary vars.
+        while offset < input.len() && self.is_custom_prologue(input[offset]) {
+            let statement = input[offset];
+            if self.context.arena().node(statement)?.kind == SyntaxKind::FunctionDeclaration {
+                let transformed = self.transform_hoisted_function(statement, true)?;
+                self.hoisted_declarations.extend(transformed);
+            } else {
+                outer.extend(self.transform_execute_statement(statement, source_owner)?);
+            }
+            offset += 1;
+        }
+        self.hoist_external_helpers_import()?;
         let mut execute = Vec::new();
         for statement in input.into_iter().skip(offset) {
             if self.context.arena().node(statement)?.kind == SyntaxKind::FunctionDeclaration {
@@ -764,7 +786,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             for name in self.hoisted_names.clone() {
                 declarations.push(self.create_variable_declaration(&name, None)?);
             }
-            outer.push(self.create_variable_statement(declarations, NodeFlags::NONE)?);
+            let statement = self.create_variable_statement(declarations, NodeFlags::NONE)?;
+            outer.insert(standard_prologue_end, statement);
         }
         outer.push(self.create_module_name_statement()?);
         outer.append(&mut self.hoisted_declarations);
@@ -838,14 +861,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         arguments.push(body_function);
         let call = self.create_call(register, arguments)?;
         let wrapper = self.create_expression_statement(call)?;
-        if let Some(first) =
-            first_runtime_declaration_original(self.context.arena(), self.source, original_array)?
-        {
-            self.set_original_and_range(wrapper, first)?;
-            self.context.arena_mut()?.metadata_mut(wrapper).add_flags(
-                crate::EmitFlags::NO_LEADING_COMMENTS | crate::EmitFlags::NO_TRAILING_COMMENTS,
-            );
-        }
+        // createSystemModuleBody leaves the wrapper synthetic. Only the
+        // enclosing statement array inherits the original source range.
 
         let statements = if let Some(original) =
             original_array.and_then(|id| self.context.arena().node_array_ref(self.source, id))
@@ -872,7 +889,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     }
 
     fn hoist_external_helpers_import(&mut self) -> Result<(), TransformError> {
-        // The synthetic helpers import is visited before source statements.
+        // The synthetic helpers import follows copyPrologue and precedes
+        // the remaining source statements.
         if let Some(declaration) = self.info.common.external_helpers_import_declaration {
             if let NodeData::ImportEqualsDeclaration(data) =
                 self.context.arena().node(declaration)?.data.clone()
@@ -1015,8 +1033,18 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         } else {
             Vec::new()
         };
+        let exported = has_modifier(
+            self.context.arena(),
+            self.source,
+            data.modifiers,
+            SyntaxKind::ExportKeyword,
+        )?;
         data.modifiers = self.remove_export_modifiers(data.modifiers)?;
-        let function = self.update_generic(original, NodeData::FunctionDeclaration(data))?;
+        let function = if exported {
+            self.update_generic(original, NodeData::FunctionDeclaration(data))?
+        } else {
+            self.visit_function_like(original, NodeData::FunctionDeclaration(data))?
+        };
         let mut output = vec![function];
         if let Some(local) = local {
             for export in exports {
@@ -1491,7 +1519,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             let target = self.create_identifier(&binding.generated_name)?;
             let value =
                 super::create_import_binding_access(self.context, self.source, target, &binding)?;
-            self.context.factory()?.set_text_range(value, local_name)?;
+            // Named/default imports substitute a ranged access. A namespace
+            // keeps getDeclarationName's NoSourceMap behavior instead.
+            if binding.property.is_some() {
+                self.context.factory()?.set_text_range(value, local_name)?;
+            }
             let call = self.create_export_call_with_name(&export, value)?;
             let statement = self.create_expression_statement(call)?;
             statements.push(statement);
@@ -1754,7 +1786,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .map(NodeFlags::from_bits)
             .unwrap_or(NodeFlags::NONE);
         if list_flags.intersects(NodeFlags::USING) {
-            return self.transform_hoisted_using_statement(original, declarations, list_flags);
+            return self.transform_hoisted_using_statement(original, declarations);
         }
         let mut initialization_expressions = Vec::new();
         let mut trailing_exports = Vec::new();
@@ -1813,7 +1845,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         &mut self,
         original: TransformNode,
         declarations: Vec<TransformNode>,
-        list_flags: NodeFlags,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let mut renamed = Vec::new();
         let mut trailing_exports = Vec::new();
@@ -1851,8 +1882,39 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             trailing_exports
                 .extend(self.append_variable_declaration_exports(declaration, variable.name)?);
         }
-        let statement = self.create_variable_statement(renamed, list_flags)?;
-        self.set_original_and_range(statement, original)?;
+        // Preserve the declaration-list position: it starts after any
+        // removed export modifier and owns the using keyword's source map.
+        let NodeData::VariableStatement(mut data) =
+            self.context.arena().node(original)?.data.clone()
+        else {
+            unreachable!("using is a variable statement")
+        };
+        let list = self.node(data.declaration_list.ok_or(
+            TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::VariableStatement,
+                field: "declaration_list",
+            },
+        )?);
+        let NodeData::VariableDeclarationList(mut list_data) =
+            self.context.arena().node(list)?.data.clone()
+        else {
+            unreachable!("using has a variable declaration list")
+        };
+        // Upstream passes a plain declarations vector to the updated list;
+        // its new NodeArray is synthetic even though the list remains ranged.
+        list_data.declarations = Some(
+            self.context
+                .factory()?
+                .create_node_array(self.source, renamed)?
+                .array(),
+        );
+
+        let updated_list =
+            self.update_generic_without_visit(list, NodeData::VariableDeclarationList(list_data))?;
+        data.declaration_list = Some(updated_list.node());
+        data.modifiers = self.remove_export_modifiers(data.modifiers)?;
+        let statement =
+            self.update_generic_without_visit(original, NodeData::VariableStatement(data))?;
         let mut output = vec![statement];
         output.extend(trailing_exports);
         Ok(output)
@@ -2098,6 +2160,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         reuse_identifier: bool,
         location: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        debug_assert_eq!(
+            self.function_scope_depth, 0,
+            "declaration flattening is module-owned"
+        );
         if reuse_identifier && self.context.arena().node(value)?.kind == SyntaxKind::Identifier {
             return Ok(value);
         }
@@ -2340,11 +2406,70 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
         let record = self.context.arena().node(original)?.clone();
         match record.data {
+            NodeData::ExpressionStatement(mut data) => {
+                data.expression = data
+                    .expression
+                    .map(|id| self.visit_expression(id, true).map(TransformNode::node))
+                    .transpose()?;
+                self.update_generic_without_visit(original, NodeData::ExpressionStatement(data))
+            }
+            NodeData::ParenthesizedExpression(mut data) => {
+                data.expression = data
+                    .expression
+                    .map(|id| {
+                        self.visit_expression(id, value_is_discarded)
+                            .map(TransformNode::node)
+                    })
+                    .transpose()?;
+                self.update_generic_without_visit(original, NodeData::ParenthesizedExpression(data))
+            }
+            NodeData::PartiallyEmittedExpression(mut data) => {
+                data.expression = data
+                    .expression
+                    .map(|id| {
+                        self.visit_expression(id, value_is_discarded)
+                            .map(TransformNode::node)
+                    })
+                    .transpose()?;
+                self.update_generic_without_visit(
+                    original,
+                    NodeData::PartiallyEmittedExpression(data),
+                )
+            }
+            NodeData::ForStatement(mut data) => {
+                data.initializer = data
+                    .initializer
+                    .map(|id| self.visit_expression(id, true).map(TransformNode::node))
+                    .transpose()?;
+                data.condition = data
+                    .condition
+                    .map(|id| self.visit(id).map(TransformNode::node))
+                    .transpose()?;
+                data.incrementor = data
+                    .incrementor
+                    .map(|id| self.visit_expression(id, true).map(TransformNode::node))
+                    .transpose()?;
+                data.statement = data
+                    .statement
+                    .map(|id| self.visit(id).map(TransformNode::node))
+                    .transpose()?;
+                self.update_generic_without_visit(original, NodeData::ForStatement(data))
+            }
+            data @ (NodeData::FunctionDeclaration(_)
+            | NodeData::FunctionExpression(_)
+            | NodeData::ArrowFunction(_)
+            | NodeData::MethodDeclaration(_)
+            | NodeData::GetAccessor(_)
+            | NodeData::SetAccessor(_)
+            | NodeData::Constructor(_)
+            | NodeData::ClassStaticBlockDeclaration(_)) => self.visit_function_like(original, data),
             NodeData::Token => Ok(original),
             NodeData::Identifier(_) => self.substitute_import_identifier(original),
             NodeData::CallExpression(data) => self.visit_call_expression(original, data),
             NodeData::MetaProperty(data) => self.visit_meta_property(original, data),
-            NodeData::BinaryExpression(data) => self.visit_binary_expression(original, data),
+            NodeData::BinaryExpression(data) => {
+                self.visit_binary_expression(original, data, value_is_discarded)
+            }
             NodeData::PrefixUnaryExpression(data) => self.visit_prefix_expression(original, data),
             NodeData::PostfixUnaryExpression(data) => {
                 self.visit_postfix_expression(original, data, value_is_discarded)
@@ -2354,6 +2479,426 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             }
             data => self.update_generic(original, data),
         }
+    }
+
+    /// System uses normal visitEachChild function environments except for
+    /// exported hoisted function declarations. Names and decorators are visited
+    /// in the enclosing environment; parameters and body share a new one.
+    fn visit_function_like(
+        &mut self,
+        original: TransformNode,
+        mut data: NodeData,
+    ) -> Result<TransformNode, TransformError> {
+        let kind = self.context.arena().node(original)?.kind;
+        let (parameters, body) = match &mut data {
+            NodeData::FunctionDeclaration(data) => (data.parameters.take(), data.body.take()),
+            NodeData::FunctionExpression(data) => (data.parameters.take(), data.body.take()),
+            NodeData::ArrowFunction(data) => (data.parameters.take(), data.body.take()),
+            NodeData::MethodDeclaration(data) => (data.parameters.take(), data.body.take()),
+            NodeData::GetAccessor(data) => (data.parameters.take(), data.body.take()),
+            NodeData::SetAccessor(data) => (data.parameters.take(), data.body.take()),
+            NodeData::Constructor(data) => (data.parameters.take(), data.body.take()),
+            NodeData::ClassStaticBlockDeclaration(data) => (None, data.body.take()),
+            _ => unreachable!("function-like visitor requires a function scope"),
+        };
+        try_visit_transform_children(&mut data, self)?;
+        self.context.start_lexical_environment()?;
+        self.function_scope_depth += 1;
+        let operation: Result<_, TransformError> = (|| {
+            let parameters = if let Some(parameters) = parameters {
+                self.context
+                    .set_lexical_environment_flags(LexicalEnvironmentFlags::IN_PARAMETERS, true)?;
+                let original_array = self.array(parameters);
+                let mut visited = Vec::new();
+                for parameter in
+                    node_array_nodes(self.context.arena(), self.source, Some(parameters))?
+                {
+                    visited.push(self.visit(parameter.node())?);
+                }
+                if self.target >= ScriptTarget::ES2015
+                    && self
+                        .context
+                        .lexical_environment_flags()
+                        .contains(LexicalEnvironmentFlags::VARIABLES_HOISTED_IN_PARAMETERS)
+                {
+                    for parameter in &mut visited {
+                        *parameter = self.lower_parameter_default(*parameter)?;
+                    }
+                }
+                self.context
+                    .set_lexical_environment_flags(LexicalEnvironmentFlags::IN_PARAMETERS, false)?;
+                Some(
+                    self.context
+                        .factory()?
+                        .update_node_array(original_array, visited)?
+                        .array(),
+                )
+            } else {
+                None
+            };
+            self.context.suspend_lexical_environment()?;
+            self.context.resume_lexical_environment()?;
+            let body = body
+                .map(|id| self.visit(id).map(TransformNode::node))
+                .transpose()?;
+            Ok((parameters, body))
+        })();
+        let environment = self.context.end_lexical_environment();
+        self.function_scope_depth -= 1;
+        let (parameters, body) = operation?;
+        let environment = environment?;
+        let body = self.merge_function_lexical_environment(kind, body, environment)?;
+        match &mut data {
+            NodeData::FunctionDeclaration(data) => {
+                data.parameters = parameters;
+                data.body = body;
+            }
+            NodeData::FunctionExpression(data) => {
+                data.parameters = parameters;
+                data.body = body;
+            }
+            NodeData::ArrowFunction(data) => {
+                data.parameters = parameters;
+                data.body = body;
+            }
+            NodeData::MethodDeclaration(data) => {
+                data.parameters = parameters;
+                data.body = body;
+            }
+            NodeData::GetAccessor(data) => {
+                data.parameters = parameters;
+                data.body = body;
+            }
+            NodeData::SetAccessor(data) => {
+                data.parameters = parameters;
+                data.body = body;
+            }
+            NodeData::Constructor(data) => {
+                data.parameters = parameters;
+                data.body = body;
+            }
+            NodeData::ClassStaticBlockDeclaration(data) => data.body = body,
+            _ => unreachable!("function-like visitor preserves kind"),
+        }
+        self.update_generic_without_visit(original, data)
+    }
+
+    fn merge_function_lexical_environment(
+        &mut self,
+        kind: SyntaxKind,
+        body: Option<NodeId>,
+        environment: LexicalEnvironment,
+    ) -> Result<Option<NodeId>, TransformError> {
+        if environment.is_empty() {
+            return Ok(body);
+        }
+        let block = if let Some(body) = body {
+            let body = self.node(body);
+            if self.context.arena().node(body)?.kind == SyntaxKind::Block {
+                body
+            } else if kind == SyntaxKind::ArrowFunction {
+                let statement = self.create_return_statement(body)?;
+                self.context.factory()?.set_text_range(statement, body)?;
+                let block = self.create_block(vec![statement], false)?;
+                self.context.factory()?.set_text_range(block, body)?;
+                block
+            } else {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: kind,
+                    field: "block function body",
+                });
+            }
+        } else {
+            self.create_block(Vec::new(), false)?
+        };
+        let NodeData::Block(mut data) = self.context.arena().node(block)?.data.clone() else {
+            unreachable!("function body is a block")
+        };
+        data.statements = self.merge_statement_array(data.statements, environment)?;
+        Ok(Some(
+            self.update_generic_without_visit(block, NodeData::Block(data))?
+                .node(),
+        ))
+    }
+
+    fn allocate_update_temp(&mut self) -> Result<SystemUpdateTemp, TransformError> {
+        if self.function_scope_depth == 0 {
+            let name = self.next_temp_name();
+            self.push_hoisted_name(&name);
+            Ok(SystemUpdateTemp::Module(name))
+        } else {
+            let binding = TargetBinding::allocate(self.context, "_a".to_owned())?;
+            let name = self.create_function_temp_reference(&binding)?;
+            self.context.hoist_variable_declaration(name)?;
+            Ok(SystemUpdateTemp::Function(binding))
+        }
+    }
+
+    fn create_update_temp_reference(
+        &mut self,
+        temp: &SystemUpdateTemp,
+    ) -> Result<TransformNode, TransformError> {
+        match temp {
+            SystemUpdateTemp::Module(name) => self.create_identifier(name),
+            SystemUpdateTemp::Function(binding) => self.create_function_temp_reference(binding),
+        }
+    }
+
+    fn create_function_temp_reference(
+        &mut self,
+        binding: &TargetBinding,
+    ) -> Result<TransformNode, TransformError> {
+        // Bypass the module's spelling-keyed table: an outer `_a` is a
+        // different binding even when the final local name is also `_a`.
+        let text = binding.provisional_name();
+        let name = self.context.factory()?.create_node(
+            self.source,
+            NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+                text: text.to_owned(),
+                escaped_text: tsc_syntax::escape_leading_underscores(text),
+            }),
+            TransformFlags::NONE,
+        )?;
+        binding.write_generated_metadata(self.context.arena_mut()?, name);
+        Ok(name)
+    }
+
+    fn create_named_variable_declaration(
+        &mut self,
+        name: TransformNode,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
+                name: Some(name.node()),
+                exclamation_token: None,
+                r#type: None,
+                initializer: initializer.map(TransformNode::node),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_strict_undefined_check(
+        &mut self,
+        value: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let undefined = self.create_void_zero()?;
+        self.create_binary(value, SyntaxKind::EqualsEqualsEqualsToken, undefined)
+    }
+
+    fn lower_parameter_default(
+        &mut self,
+        parameter: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::Parameter,
+                field: "parameter data",
+            });
+        };
+        if data.dot_dot_dot_token.is_some() {
+            return Ok(parameter);
+        }
+        let name =
+            data.name
+                .map(|name| self.node(name))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::Parameter,
+                    field: "name",
+                })?;
+        let name_kind = self.context.arena().node(name)?.kind;
+
+        if matches!(
+            name_kind,
+            SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+        ) {
+            let alias = TargetBinding::allocate(self.context, "_a".to_owned())?;
+            let value = if let Some(initializer) = data.initializer.map(|id| self.node(id)) {
+                let condition_name = self.create_function_temp_reference(&alias)?;
+                let condition = self.create_strict_undefined_check(condition_name)?;
+                let fallback_name = self.create_function_temp_reference(&alias)?;
+                self.create_conditional(condition, initializer, fallback_name)?
+            } else {
+                self.create_function_temp_reference(&alias)?
+            };
+            let declaration = self.create_named_variable_declaration(name, Some(value))?;
+            let statement = self.create_variable_statement(vec![declaration], NodeFlags::NONE)?;
+            self.context.add_initialization_statement(statement)?;
+            let alias_name = self.create_function_temp_reference(&alias)?;
+            data.name = Some(alias_name.node());
+            data.initializer = None;
+        } else if let Some(initializer) = data.initializer.map(|id| self.node(id)) {
+            // tsc-port: addDefaultValueAssignmentForInitializer @6.0.3
+            // tsc-hash: 40b44ee01a36e04f01c1117674832a11a865d16bb40a5fc6c1da6395ad60d4a2
+            // tsc-span: _tsc.js:91239-91276
+            // Preserve name identity and the parameter's assignment/block
+            // ranges while suppressing the moved initializer's own maps and
+            // comments.
+            let condition_name = self.context.factory()?.clone_node(name)?;
+            let condition = self.create_strict_undefined_check(condition_name)?;
+            let assignment_name = self.context.factory()?.clone_node(name)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(assignment_name)
+                .set_flags(EmitFlags::NO_SOURCE_MAP);
+            self.context
+                .arena_mut()?
+                .metadata_mut(initializer)
+                .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+            let assignment = self.create_assignment(assignment_name, initializer)?;
+            self.context
+                .factory()?
+                .set_text_range(assignment, parameter)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(assignment)
+                .set_flags(EmitFlags::NO_COMMENTS);
+            let statement = self.create_expression_statement(assignment)?;
+            let block = self.create_block(vec![statement], false)?;
+            self.context.factory()?.set_text_range(block, parameter)?;
+            self.context.arena_mut()?.metadata_mut(block).set_flags(
+                EmitFlags::SINGLE_LINE
+                    | EmitFlags::NO_TRAILING_SOURCE_MAP
+                    | EmitFlags::NO_TOKEN_SOURCE_MAPS
+                    | EmitFlags::NO_COMMENTS,
+            );
+            let flags = self.context.arena().transform_flags(condition)
+                | self.context.arena().transform_flags(block);
+            let if_statement = self.context.factory()?.create_node(
+                self.source,
+                NodeData::IfStatement(tsc_syntax::nodes::IfStatementData {
+                    expression: Some(condition.node()),
+                    then_statement: Some(block.node()),
+                    else_statement: None,
+                }),
+                flags,
+            )?;
+            self.context.add_initialization_statement(if_statement)?;
+            data.initializer = None;
+        }
+
+        let flags = flags_after_update(
+            self.context.arena(),
+            parameter,
+            &NodeData::Parameter(data.clone()),
+        )?;
+        self.context
+            .factory()?
+            .update_node(parameter, NodeData::Parameter(data), flags)
+    }
+
+    fn merge_statement_array(
+        &mut self,
+        statements: Option<NodeArrayId>,
+        lexical_environment: LexicalEnvironment,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        let original = statements.map(|statements| self.array(statements));
+        let mut statements = node_array_nodes(self.context.arena(), self.source, statements)?;
+        let standard_end = statements
+            .iter()
+            .take_while(|statement| {
+                is_prologue_statement(self.context.arena(), **statement).unwrap_or(false)
+            })
+            .count();
+        let function_end = standard_end
+            + statements[standard_end..]
+                .iter()
+                .take_while(|statement| self.is_hoisted_function(**statement).unwrap_or(false))
+                .count();
+        let variable_end = function_end
+            + statements[function_end..]
+                .iter()
+                .take_while(|statement| {
+                    self.is_hoisted_variable_statement(**statement)
+                        .unwrap_or(false)
+                })
+                .count();
+
+        let initialization = lexical_environment.initialization_statements().to_vec();
+        if !initialization.is_empty() {
+            statements.splice(variable_end..variable_end, initialization);
+        }
+
+        if !lexical_environment.variable_declarations().is_empty() {
+            let mut declarations =
+                Vec::with_capacity(lexical_environment.variable_declarations().len());
+            for name in lexical_environment.variable_declarations() {
+                let declaration = self.create_named_variable_declaration(*name, None)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(declaration)
+                    .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+                declarations.push(declaration);
+            }
+            let statement = self.create_variable_statement(declarations, NodeFlags::NONE)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .add_flags(EmitFlags::CUSTOM_PROLOGUE);
+            statements.insert(function_end, statement);
+        }
+
+        if !lexical_environment.function_declarations().is_empty() {
+            statements.splice(
+                standard_end..standard_end,
+                lexical_environment.function_declarations().iter().copied(),
+            );
+        }
+
+        let updated = if let Some(original) = original {
+            self.context
+                .factory()?
+                .update_node_array(original, statements)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, statements)?
+        };
+        Ok(Some(updated.array()))
+    }
+
+    fn is_hoisted_function(&self, statement: TransformNode) -> Result<bool, TransformError> {
+        Ok(self.is_custom_prologue(statement)
+            && self.context.arena().node(statement)?.kind == SyntaxKind::FunctionDeclaration)
+    }
+
+    fn is_hoisted_variable_statement(
+        &self,
+        statement: TransformNode,
+    ) -> Result<bool, TransformError> {
+        if !self.is_custom_prologue(statement) {
+            return Ok(false);
+        }
+        let NodeData::VariableStatement(data) = &self.context.arena().node(statement)?.data else {
+            return Ok(false);
+        };
+        let Some(list) = data
+            .declaration_list
+            .and_then(|list| self.context.arena().node_ref(self.source, list))
+        else {
+            return Ok(false);
+        };
+        let NodeData::VariableDeclarationList(list) = &self.context.arena().node(list)?.data else {
+            return Ok(false);
+        };
+        Ok(node_array_nodes(self.context.arena(), self.source, list.declarations)?.iter().all(|declaration| {
+            matches!(
+                self.context.arena().node(*declaration).ok().map(|node| &node.data),
+                Some(NodeData::VariableDeclaration(data))
+                    if data.initializer.is_none()
+                        && data.name.is_some_and(|name| self.context.arena().node(self.node(name)).is_ok_and(|name| name.kind == SyntaxKind::Identifier))
+            )
+        }))
+    }
+
+    fn is_custom_prologue(&self, statement: TransformNode) -> bool {
+        self.context
+            .arena()
+            .metadata(statement)
+            .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::CUSTOM_PROLOGUE))
     }
 
     fn visit_call_expression(
@@ -2471,11 +3016,92 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         self.create_property_access(context, "meta")
     }
 
+    /// tsc-port: hasExportedReferenceInDestructuringTarget @6.0.3
+    /// tsc-span: _tsc.js:113120-113141
+    fn has_exported_reference_in_destructuring_target(
+        &self,
+        node: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let child = match &self.context.arena().node(node)?.data {
+            NodeData::BinaryExpression(data)
+                if data.operator_token.is_some_and(|id| {
+                    self.context
+                        .arena()
+                        .node(self.node(id))
+                        .is_ok_and(|node| node.kind == SyntaxKind::EqualsToken)
+                }) =>
+            {
+                data.left
+            }
+            NodeData::SpreadElement(data) => data.expression,
+            NodeData::ShorthandPropertyAssignment(data) => data.name,
+            NodeData::PropertyAssignment(data) => data.initializer,
+            NodeData::ObjectLiteralExpression(data) => {
+                for member in node_array_nodes(self.context.arena(), self.source, data.properties)?
+                {
+                    if self.has_exported_reference_in_destructuring_target(member)? {
+                        return Ok(true);
+                    }
+                }
+                return Ok(false);
+            }
+            NodeData::ArrayLiteralExpression(data) => {
+                for element in node_array_nodes(self.context.arena(), self.source, data.elements)? {
+                    if self.has_exported_reference_in_destructuring_target(element)? {
+                        return Ok(true);
+                    }
+                }
+                return Ok(false);
+            }
+            NodeData::Identifier(_) => {
+                let Some(reference) = self.context.arena().parse_tree_resolver_node(node)? else {
+                    return Ok(false);
+                };
+                let Some(container) = self.resolver.get_referenced_export_container(
+                    reference,
+                    EmitExportContainerMode::Reference,
+                )?
+                else {
+                    return Ok(false);
+                };
+                return Ok(container.source() == reference.source()
+                    && self.context.arena().node(self.node(container.node()))?.kind
+                        == SyntaxKind::SourceFile);
+            }
+            // Upstream intentionally does not traverse object SpreadAssignment
+            // here, nor does an alias-only export count as an export container.
+            _ => None,
+        };
+        match child {
+            Some(child) => self.has_exported_reference_in_destructuring_target(self.node(child)),
+            None => Ok(false),
+        }
+    }
+
     fn visit_binary_expression(
         &mut self,
         original: TransformNode,
         mut data: tsc_syntax::nodes::BinaryExpressionData,
+        value_is_discarded: bool,
     ) -> Result<TransformNode, TransformError> {
+        if let (Some(left), Some(operator)) = (data.left, data.operator_token) {
+            let left = self.node(left);
+            if self.context.arena().node(self.node(operator))?.kind == SyntaxKind::EqualsToken
+                && matches!(
+                    self.context.arena().node(left)?.kind,
+                    SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
+                )
+                && self.has_exported_reference_in_destructuring_target(left)?
+            {
+                return flatten_destructuring_assignment(
+                    self,
+                    original,
+                    FlattenLevel::All,
+                    !value_is_discarded,
+                    false,
+                );
+            }
+        }
         let exports = if data
             .operator_token
             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -2573,6 +3199,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             let current = self.context.factory()?.clone_node(
                 original_operand.expect("an exported postfix update has an identifier operand"),
             )?;
+            let current = self.substitute_import_identifier(current)?;
             let comma = self.create_binary(update, SyntaxKind::CommaToken, current)?;
             self.context.factory()?.set_text_range(comma, original)?;
             let mut expression = self.create_parenthesized(comma)?;
@@ -2585,14 +3212,14 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             }
             return Ok(expression);
         }
-        let temp = self.next_temp_name();
-        self.push_hoisted_name(&temp);
-        let temp_target = self.create_identifier(&temp)?;
+        let temp = self.allocate_update_temp()?;
+        let temp_target = self.create_update_temp_reference(&temp)?;
         let save = self.create_assignment(temp_target, update)?;
         self.context.factory()?.set_text_range(save, original)?;
         let current = self.context.factory()?.clone_node(
             original_operand.expect("an exported postfix update has an identifier operand"),
         )?;
+        let current = self.substitute_import_identifier(current)?;
         let mut expression = self.create_binary(save, SyntaxKind::CommaToken, current)?;
         self.context
             .factory()?
@@ -2600,7 +3227,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         for export in exports {
             expression = self.create_export_call_with_name(&export, expression)?;
         }
-        let temp_value = self.create_identifier(&temp)?;
+        let temp_value = self.create_update_temp_reference(&temp)?;
         let result = self.create_binary(expression, SyntaxKind::CommaToken, temp_value)?;
         self.context.factory()?.set_text_range(result, original)?;
         Ok(result)
@@ -2756,13 +3383,21 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             })
             .transpose()?
             .unwrap_or(false);
-        let mut value_declaration = self
+        // getReferencedDeclaration selects import identity before looking
+        // for value declarations, including invalid-but-emittable writes.
+        let import_declaration = self
             .resolver
-            .get_referenced_value_declaration(resolver_node)?;
+            .get_referenced_import_declaration(resolver_node)?;
+        let mut value_declaration = if import_declaration.is_some() {
+            import_declaration
+        } else {
+            self.resolver
+                .get_referenced_value_declaration(resolver_node)?
+        };
         let mut exports = value_declaration
             .and_then(|declaration| self.info.common.exported_bindings.get(&declaration.node()))
             .cloned();
-        if exports.is_none() {
+        if import_declaration.is_none() && exports.is_none() {
             for declaration in self
                 .resolver
                 .get_referenced_value_declarations(resolver_node)?
@@ -2795,6 +3430,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 NodeData::EnumDeclaration(data) => data.name,
                 NodeData::FunctionDeclaration(data) => data.name,
                 NodeData::FunctionExpression(data) => data.name,
+                NodeData::ImportEqualsDeclaration(data) => data.name,
+                NodeData::ImportClause(data) => data.name,
+                NodeData::ImportSpecifier(data) => data.name,
+                NodeData::NamespaceImport(data) => data.name,
                 _ => None,
             };
             if let Some(name) = name {
@@ -3751,6 +4390,64 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
 
     const fn array(&self, id: NodeArrayId) -> TransformNodeArray {
         TransformNodeArray::new(self.source, id)
+    }
+}
+
+impl FlattenHost for SystemVisitor<'_, '_> {
+    fn context(&mut self) -> &mut TransformationContext {
+        self.context
+    }
+    fn context_ref(&self) -> &TransformationContext {
+        self.context
+    }
+    fn flatten_source(&self) -> TransformSourceId {
+        self.source
+    }
+    fn downlevel_iteration(&self) -> bool {
+        self.downlevel_iteration
+    }
+    fn generated_bindings(&mut self) -> &mut GeneratedBindingScopes {
+        unreachable!("System owns temp allocation through allocate_flatten_temp")
+    }
+    fn allocate_flatten_temp(&mut self, hoist: bool) -> Result<TargetBinding, TransformError> {
+        debug_assert!(hoist, "System only flattens assignments");
+        let binding = if self.function_scope_depth == 0 {
+            let name = self.next_temp_name();
+            self.push_hoisted_name(&name);
+            let binding = TargetBinding::allocate_planned(self.context, name.clone())?;
+            self.generated_bindings.insert(name, binding.clone());
+            binding
+        } else {
+            let binding = TargetBinding::allocate(self.context, "_a".to_owned())?;
+            let name = self.create_function_temp_reference(&binding)?;
+            self.context.hoist_variable_declaration(name)?;
+            binding
+        };
+        Ok(binding)
+    }
+    fn visit_expression(&mut self, node: TransformNode) -> Result<TransformNode, TransformError> {
+        self.visit(node.node())
+    }
+    fn visit_binding_or_assignment_element(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.visit(node.node())
+    }
+    fn complete_flattened_assignment(
+        &mut self,
+        target: TransformNode,
+        mut assignment: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        for export in self.exports_for_identifier(target)? {
+            assignment = self.create_export_call_with_name(&export, assignment)?;
+        }
+        Ok(assignment)
+    }
+    fn request_flatten_helper(&mut self, _helper: crate::EmitHelper) -> Result<(), TransformError> {
+        // System moves only helpers attached by preceding transforms.
+        // A __read/__rest first requested here is an unbound late reference.
+        Ok(())
     }
 }
 

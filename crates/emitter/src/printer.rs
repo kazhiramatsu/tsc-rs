@@ -7468,11 +7468,6 @@ impl Printer {
                     deferred_source_comments,
                     writer,
                 )?;
-                let token_kind = if data.question_dot_token.is_some() {
-                    SyntaxKind::QuestionDotToken
-                } else {
-                    SyntaxKind::DotToken
-                };
                 let token_cursor = self.node_end_cursor(transformation, expression)?;
                 // getLinesBetweenNodes only consults source lines when the
                 // parent and both children carry source positions. A class
@@ -7484,12 +7479,23 @@ impl Printer {
                     .node_has_source_text_range(transformation, node)?
                     && self.node_has_source_text_range(transformation, expression)?
                     && self.node_has_source_text_range(transformation, name)?;
-                let break_before_dot = preserve_source_lines
+                let preserve_token_lines = if let Some(question_dot) = data.question_dot_token {
+                    let token = transformation
+                        .arena()
+                        .node_ref(node.source(), question_dot)
+                        .ok_or(PrinterError::UnknownStatement(question_dot.0))?;
+                    self.node_has_source_text_range(transformation, node)?
+                        && self.node_has_source_text_range(transformation, expression)?
+                        && self.node_has_source_text_range(transformation, token)?
+                } else {
+                    preserve_source_lines
+                };
+                let break_before_dot = preserve_token_lines
                     && self.source_gap_has_line_break(
                         transformation,
                         node.source(),
                         expression_id,
-                        name_id,
+                        data.question_dot_token.unwrap_or(name_id),
                     )?;
                 let token_anchor = if let Some(anchor) = deferred_source_comments
                     .visited_trailing_anchor_at(token_cursor)
@@ -7522,14 +7528,25 @@ impl Printer {
                 {
                     writer.write_punctuation(".");
                 }
-                let token = self.emit_token_with_comments(
-                    transformation,
-                    node,
-                    FixedToken::punctuation(token_kind),
-                    token_anchor,
-                    false,
-                    writer,
-                )?;
+                let token = if let Some(question_dot) = data.question_dot_token {
+                    self.emit_access_question_dot(
+                        transformation,
+                        node,
+                        question_dot,
+                        token_anchor,
+                        expression_context,
+                        writer,
+                    )?
+                } else {
+                    self.emit_token_with_comments(
+                        transformation,
+                        node,
+                        FixedToken::punctuation(SyntaxKind::DotToken),
+                        token_anchor,
+                        false,
+                        writer,
+                    )?
+                };
                 let token_owned_prefix =
                     self.token_owned_child_prefix(transformation, token, Some(name))?;
                 let container_owned_prefix =
@@ -7595,24 +7612,28 @@ impl Printer {
                     deferred_source_comments,
                     writer,
                 )?;
-                let open_cursor = if let Some(question_dot) = data
-                    .question_dot_token
-                    .and_then(|id| transformation.arena().node_ref(node.source(), id))
-                {
-                    writer.write_punctuation("?.");
-                    self.original_node_end_cursor(transformation, question_dot)?
-                } else {
-                    expression
-                        .map(|expression| self.node_end_cursor(transformation, expression))
-                        .transpose()?
-                        .unwrap_or(TokenCursor::Synthetic)
-                };
+                let open_cursor = expression
+                    .map(|expression| self.node_end_cursor(transformation, expression))
+                    .transpose()?
+                    .unwrap_or(TokenCursor::Synthetic);
                 let open_anchor = deferred_source_comments
                     .visited_trailing_anchor_at(open_cursor)
                     .or_else(|| {
                         Self::access_target_trailing_anchor_at(expression_outcome, open_cursor)
                     })
                     .unwrap_or_else(|| TokenAnchor::from(open_cursor));
+                if let Some(question_dot) = data.question_dot_token {
+                    self.emit_access_question_dot(
+                        transformation,
+                        node,
+                        question_dot,
+                        open_anchor,
+                        expression_context,
+                        writer,
+                    )?;
+                }
+                // tsc anchors `[` at the receiver's end even after emitting
+                // the optional token through its ordinary node pipeline.
                 let open = self.emit_token_with_comments(
                     transformation,
                     node,
@@ -14153,6 +14174,54 @@ impl Printer {
             ExpressionSourceCommentsOutcome::Complete { .. }
         ));
         Ok(())
+    }
+
+    /// Unlike a fixed dot, `?.` is emitted as a node, with its own source
+    /// map boundaries and comment phase. Carry its trailing claim forward
+    /// to the property name without moving the token's source-map position.
+    /// tsc-port: emitPropertyAccessExpression / emitElementAccessExpression @6.0.3
+    /// tsc-span: _tsc.js:118223-118273
+    #[allow(clippy::too_many_arguments)]
+    fn emit_access_question_dot(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        id: NodeId,
+        preceding: TokenAnchor,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<TokenEmission, PrinterError> {
+        let token = transformation
+            .arena()
+            .node_ref(parent.source(), id)
+            .ok_or(PrinterError::UnknownStatement(id.0))?;
+        let cursor = self.node_end_cursor(transformation, token)?;
+        if expression_context.nested_comments_suppressed() {
+            self.emit_node_with_hint(
+                transformation,
+                token,
+                EmitHint::Unspecified,
+                expression_context,
+                writer,
+            )?;
+            return Ok(TokenEmission::new(cursor, None));
+        }
+        let deferred = DeferredExpressionSourceComments::leading_and_trailing(
+            parent,
+            TokenEmission::new(preceding.cursor(), preceding.comment_resume()),
+            expression_context.comments(),
+        );
+        let outcome = self.emit_node_with_hint_and_source_comments(
+            transformation,
+            token,
+            EmitHint::Unspecified,
+            expression_context,
+            Some(deferred),
+            writer,
+        )?;
+        let resume = Self::access_target_trailing_anchor_at(Some(outcome), cursor)
+            .and_then(TokenAnchor::comment_resume);
+        Ok(TokenEmission::new(cursor, resume))
     }
 
     /// tsc prints a class member's name through the ordinary pipeline
