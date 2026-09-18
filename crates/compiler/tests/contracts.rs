@@ -299,3 +299,6 @@ mod h2_8b_config_entity_commands;
 
 #[path = "integration/h2_8b_config_diagnostic_routing.rs"]
 mod h2_8b_config_diagnostic_routing;
+
+#[path = "integration/async_arrow_body_ranges.rs"]
+mod async_arrow_body_ranges;
