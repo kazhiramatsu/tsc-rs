@@ -506,6 +506,11 @@ pub struct EmitMetadata {
     /// its empty scalar payload must never be used as a semantic lookup key.
     /// Keep the JS value through clones/updates until the UTF-16 writer.
     pub(crate) unchecked_identifier_text: Option<tsc_diagnostics::JsString>,
+    /// The node is `cloneNode(parsedIdentifier)` (+ `setTextRange`): tsc's
+    /// `getTextOfNode` prints such a clone from the source text, so an
+    /// escaped spelling (`\u0046oo`) survives the clone even though this
+    /// arena keeps the clone's own positions synthetic.
+    pub(crate) cloned_identifier_spelling: bool,
     pub(crate) helpers: Vec<Box<str>>,
     /// Facts owned by the original SourceFile, not inherited by clone/update
     /// metadata merging (tsc's mergeEmitNode does not copy these fields).
@@ -589,6 +594,12 @@ pub struct EmitMetadata {
     /// hoisted into a class variable: the finalizer allocates its temp letter
     /// in the private-name domain of the printing scope, in print order.
     pub(crate) generated_binding_private_temp: bool,
+    /// A generated identifier that stands in for tsc's print-time
+    /// colliding-name substitution (`substituteIdentifier`): tsc never
+    /// pre-generates it (`generateNames` skips non-generated names), so the
+    /// finalize walk names it at its traversal position, not at the
+    /// enclosing body's naming moment.
+    pub(crate) generated_binding_print_order: bool,
     /// Whether a class-fields lowering rewrote this class expression's
     /// evaluation into a generated-alias assignment (`class_1 = class ...`):
     /// the assigned-name harvest must then see the GENERATED left-hand side
@@ -804,6 +815,14 @@ impl EmitMetadata {
         self.generated_binding_private_temp = true;
     }
 
+    pub(crate) const fn generated_binding_print_order(&self) -> bool {
+        self.generated_binding_print_order
+    }
+
+    pub(crate) fn mark_generated_binding_print_order(&mut self) {
+        self.generated_binding_print_order = true;
+    }
+
     pub(crate) const fn class_expression_alias_assigned(&self) -> bool {
         self.class_expression_alias_assigned
     }
@@ -823,6 +842,24 @@ impl EmitMetadata {
     /// tsc-port: mergeEmitNode @6.0.3
     /// tsc-hash: 6d9f4af1f1fa79b494c5ef7b570972925000f7939cd16ffe520855a67583f375
     /// tsc-span: _tsc.js:25218-25277
+    /// tsc's `mergeEmitNode` copies no `autoGenerate` information; a node that
+    /// takes an identifier as its original (a concise arrow body converted to
+    /// a block) keeps no generated-binding identity.
+    pub(crate) fn clear_generated_binding(&mut self) {
+        self.generated_binding_id = None;
+        self.generated_binding_temp_ordinal = None;
+        self.generated_binding_base = None;
+        self.generated_binding_preferred_base = None;
+        self.generated_binding_role_suffix = None;
+        self.generated_binding_file_level_optimistic = false;
+        self.generated_binding_planned_name_authoritative = false;
+        self.generated_binding_reserved_in_nested_scopes = false;
+        self.generated_binding_loop_variable = false;
+        self.generated_binding_private_temp = false;
+        self.generated_binding_print_order = false;
+        self.generated_binding_derived_from = None;
+    }
+
     pub(crate) fn merge_from(&mut self, source: &Self) {
         if !source.flags.is_empty() {
             self.flags = source.flags;
@@ -860,6 +897,12 @@ impl EmitMetadata {
         if source.unchecked_identifier_text.is_some() {
             self.unchecked_identifier_text = source.unchecked_identifier_text.clone();
         }
+        // A getName-derived clone chain keeps the parsed spelling: this port's
+        // transforms hand later passes their own (position-synthetic) clones
+        // where upstream still holds the parsed name, so the mark travels with
+        // the chain. The upstream bare-clone sites that print `idText`
+        // (`createExportExpression`) clear it explicitly.
+        self.cloned_identifier_spelling |= source.cloned_identifier_spelling;
         for helper in &source.helpers {
             if !self.helpers.contains(helper) {
                 self.helpers.push(helper.clone());
@@ -908,6 +951,8 @@ impl EmitMetadata {
         self.generated_binding_planned_name_authoritative |=
             source.generated_binding_planned_name_authoritative;
         self.generated_binding_private_temp |= source.generated_binding_private_temp;
+        self.generated_binding_print_order |= source.generated_binding_print_order;
+        self.generated_binding_loop_variable |= source.generated_binding_loop_variable;
         self.generated_binding_reserved_in_nested_scopes |=
             source.generated_binding_reserved_in_nested_scopes;
         if source.referenced_import_declaration.is_some() {

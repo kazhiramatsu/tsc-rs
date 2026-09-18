@@ -889,10 +889,11 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             } else {
                 class_expression
             };
+        let declaration_name = self.create_declaration_head_name(name)?;
         let declaration = self.context.factory()?.create_node(
             self.source,
             NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
-                name: Some(name),
+                name: Some(declaration_name),
                 exclamation_token: None,
                 r#type: None,
                 initializer: Some(initializer.node()),
@@ -4378,6 +4379,39 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     .ok_or_else(|| TransformError::UnknownNode(self.node(*id)))
             })
             .collect()
+    }
+
+    /// `declName` (_tsc.js:98576-98584): `getInternalName(node, false, true)`
+    /// below ES2015, `getLocalName(node, false, true)` otherwise — a clone of
+    /// the parsed class name carrying `LocalName` (plus `InternalName` for
+    /// ES5) and `NoComments`, so the ES2015 block-scoped-binding substitution
+    /// renames the wrapper's local name but leaves this internal one alone.
+    /// A generated name (`default_1`) is the generated identifier itself.
+    fn create_declaration_head_name(&mut self, name: NodeId) -> Result<NodeId, TransformError> {
+        let name_node = self.node(name);
+        let is_plain_identifier = matches!(
+            self.context.arena().node(name_node)?.data,
+            NodeData::Identifier(_)
+        ) && self
+            .context
+            .arena()
+            .metadata(name_node)
+            .and_then(|metadata| metadata.generated_binding_id())
+            .is_none();
+        if !is_plain_identifier {
+            return Ok(name);
+        }
+        let clone = self.context.factory()?.clone_node(name_node)?;
+        self.context.factory()?.set_text_range(clone, name_node)?;
+        let mut flags = EmitFlags::LOCAL_NAME | EmitFlags::NO_COMMENTS;
+        if self.target < ScriptTarget::ES2015 {
+            flags |= EmitFlags::INTERNAL_NAME;
+        }
+        self.context
+            .arena_mut()?
+            .metadata_mut(clone)
+            .add_flags(flags);
+        Ok(clone.node())
     }
 
     const fn node(&self, id: NodeId) -> TransformNode {
