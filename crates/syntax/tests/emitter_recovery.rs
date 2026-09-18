@@ -83,7 +83,7 @@ fn original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts() 
             let recovery = source.parse_recovery();
             let events: Vec<_> = recovery.events().iter().map(|event| json!({
                 "kind": format!("{:?}", event.kind), "start": event.start, "length": event.length,
-                "diagnostic_index": event.diagnostic_index,
+                "diagnostic_index": event.diagnostic_index, "full_start": event.full_start,
                 "missing_node": event.missing_node.map(|node| json!({"kind": node.kind as u16, "position": node.position})),
             })).collect();
             let actions: Vec<_> = recovery.actions().iter().map(|action| match *action {

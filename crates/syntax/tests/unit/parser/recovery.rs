@@ -796,3 +796,78 @@ fn statement_gap_recovery_rejects_unowned_or_forged_events() {
         });
     });
 }
+
+#[test]
+fn decorator_await_consumption_has_a_typed_token_skip_and_missing_head() {
+    for text in [
+        "export {}; @await class C {}",
+        "export {}; @ /*😀*/await(1) class C {}",
+        "export {}; class C { @await method() {} }",
+        "async function f() { @ /*😀*/await.foo(1) class C {} }",
+    ] {
+        let parsed = source(text);
+        assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+        let skips: Vec<_> = parsed
+            .parse_recovery()
+            .actions()
+            .iter()
+            .filter_map(|action| match action {
+                ParseRecoveryAction::TokenSkipped {
+                    token,
+                    start,
+                    length,
+                    site: ParseTokenSkipSite::DecoratorAwait,
+                    ..
+                } => Some((*token, *start, *length)),
+                _ => None,
+            })
+            .collect();
+        let start = text[..text.find("await").unwrap()].encode_utf16().count() as u32;
+        assert_eq!(skips, [(SyntaxKind::AwaitKeyword, start, 5)], "{text}");
+        let events: Vec<_> = parsed
+            .parse_recovery()
+            .events()
+            .iter()
+            .filter(|event| event.start == start && event.missing_node.is_some())
+            .collect();
+        assert_eq!(events.len(), 1, "{text}");
+        let event = events[0];
+        assert!(event.diagnostic_index.is_some());
+        let missing = event.missing_node.unwrap();
+        assert_eq!(missing.kind, SyntaxKind::Identifier);
+        assert_eq!(missing.position, event.full_start);
+        let full_start = parsed.positions().utf16_to_byte(event.full_start).unwrap();
+        let token_start = crate::skip_trivia(text, full_start as usize);
+        assert_eq!(
+            parsed.positions().byte_to_utf16(token_start as u32),
+            Some(start)
+        );
+        if text.contains("/*😀*/") {
+            assert!(event.full_start < start);
+        }
+        assert!(!parsed.has_only_parameter_gap_emit_recovery());
+    }
+}
+
+#[test]
+fn clean_decorator_await_identifiers_do_not_acquire_skip_provenance() {
+    for text in [
+        "@await class C {}",
+        "@await(1) class C {}",
+        "export {}; @dec class C {}",
+    ] {
+        let parsed = source(text);
+        assert!(parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(parsed
+            .parse_recovery()
+            .actions()
+            .iter()
+            .all(|action| !matches!(
+                action,
+                ParseRecoveryAction::TokenSkipped {
+                    site: ParseTokenSkipSite::DecoratorAwait,
+                    ..
+                }
+            )));
+    }
+}

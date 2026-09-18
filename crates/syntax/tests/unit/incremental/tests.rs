@@ -1172,3 +1172,18 @@ const b = tag`\uD800`; const stable = 1; const tail = 2;"#;
     let untagged = before.replace("tag`", "`");
     compare_incremental(&untagged, untagged.find("\\unicode").unwrap(), 8, "ok");
 }
+
+#[test]
+fn decorator_await_skip_provenance_survives_edits_inside_and_around_reparse() {
+    let before = "export {}; const before = 1; @ /*😀*/await(1) class C {} const after = 2;";
+    for (old, new) in [
+        ("before", "renamed_before"),
+        ("after", "renamed_after"),
+        ("😀", "comment"),
+        ("await", "dec"),
+    ] {
+        compare_incremental(before, before.find(old).unwrap(), old.len(), new);
+    }
+    let before = "@ /*😀*/await(1) class C {}";
+    compare_incremental(before, 0, 0, "export {}; ");
+}

@@ -4743,6 +4743,9 @@ impl<'text> Parser<'text> {
             let is_identifier = self.is_identifier();
             let await_expression =
                 self.create_identifier_node(is_identifier, Some(&gen::Expression_expected), None);
+            // This branch consumes the invalid await token after producing
+            // an empty chain head. Retain its typed recovery provenance.
+            self.record_token_skip(ParseTokenSkipSite::DecoratorAwait);
             self.next_token();
             let member_expression = self.parse_member_expression_rest(pos, await_expression, true);
             return self.parse_call_expression_rest(pos, member_expression);

@@ -57,6 +57,7 @@ pub enum ParseTokenSkipSite {
     TypePredicateArrow,
     TypeAnnotationCall,
     TopLevelAwaitReparse,
+    DecoratorAwait,
 }
 
 /// Recovery operations that need not produce a diagnostic event. Positions
