@@ -539,7 +539,10 @@ impl<'a> CheckerState<'a> {
                     .any(|declaration| self.is_class_instance_property(declaration))
             {
                 if let Some(error_node) = error_node {
-                    let prop_name = self.symbol_display_name(prop);
+                    // 74895: symbolToString(prop) — the declaration-backed
+                    // written face (a JS `this['x']` declaration prints its
+                    // quoted literal), not the bare symbol name.
+                    let prop_name = self.symbol_name_as_written_slice(prop);
                     self.error_at_js(
                         Some(error_node),
                         &tsc_diagnostics::gen::Class_field_0_defined_by_the_parent_class_is_not_accessible_in_the_child_class_via_super,
@@ -569,8 +572,11 @@ impl<'a> CheckerState<'a> {
                     && self.is_node_used_during_class_initialization(location)
                 {
                     if let Some(error_node) = error_node {
-                        let prop_name = self.symbol_display_name(prop);
-                        let class_name = self.symbol_display_name(parent_symbol);
+                        // 74904: symbolToString(prop), symbolToString(parentSymbol)
+                        // — the written faces (an anonymous class expression
+                        // assigned to `const Foo` prints `Foo`, not `__class`).
+                        let prop_name = self.symbol_name_as_written_slice(prop);
+                        let class_name = self.symbol_name_as_written_slice(parent_symbol);
                         self.error_at_js(
                             Some(error_node),
                             &tsc_diagnostics::gen::Abstract_property_0_in_class_1_cannot_be_accessed_in_the_constructor,

@@ -1,0 +1,96 @@
+{
+ "schema": "h2-8c-transpile-known-open.v1",
+ "base": "526c2b37ad9d0ff7e932e1d76e658b8cf139807f",
+ "rows": [
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationSingleFileHasErrors.ts~default~module~declarationSingleFileHasErrors.ts",
+   "reason": "inherited: parse-diagnostic emit recovery is deferred to H2.9 (DriverError ParseDiagnosticsDeferred); TypeScript emits with recovery. Owner: H2.9. Not H2.8c-specific.",
+   "kind": "inherited-h2.9"
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/declarationSingleFileHasErrorsReported.ts~default~module~declarationSingleFileHasErrorsReported.ts",
+   "reason": "inherited: parse-diagnostic emit recovery is deferred to H2.9 (DriverError ParseDiagnosticsDeferred); TypeScript emits with recovery. Owner: H2.9. Not H2.8c-specific.",
+   "kind": "inherited-h2.9"
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/syntax-error-report-on",
+   "reason": "inherited: parse-diagnostic emit recovery is deferred to H2.9 (DriverError ParseDiagnosticsDeferred); TypeScript emits with recovery. Owner: H2.9. Not H2.8c-specific.",
+   "kind": "inherited-h2.9"
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/syntax-error-report-off",
+   "reason": "inherited: parse-diagnostic emit recovery is deferred to H2.9 (DriverError ParseDiagnosticsDeferred); TypeScript emits with recovery. Owner: H2.9. Not H2.8c-specific.",
+   "kind": "inherited-h2.9"
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/syntax-error-report-absent",
+   "reason": "inherited: parse-diagnostic emit recovery is deferred to H2.9 (DriverError ParseDiagnosticsDeferred); TypeScript emits with recovery. Owner: H2.9. Not H2.8c-specific.",
+   "kind": "inherited-h2.9"
+  },
+  {
+   "id": "h2-8c/program-no-check/syntax-error/still-emits",
+   "reason": "inherited: parse-diagnostic emit recovery is deferred to H2.9 (DriverError ParseDiagnosticsDeferred); TypeScript emits with recovery. Owner: H2.9. Not H2.8c-specific.",
+   "kind": "inherited-h2.9"
+  },
+  {
+   "id": "h2-8c/transpile-js/text/unicode",
+   "reason": "inherited: parse-diagnostic emit recovery is deferred to H2.9 (DriverError ParseDiagnosticsDeferred); TypeScript emits with recovery. Owner: H2.9. Not H2.8c-specific. (TypeScript itself reports 9 syntactic diagnostics for the `\\u{1F600}x` identifier and emits with recovery.)",
+   "kind": "inherited-h2.9"
+  },
+  {
+   "id": "h2-8c/transpile-js/diag/option-invalid-enum-number",
+   "reason": "Rust-only: TS6046 is produced identically, but TypeScript keeps target=1234 and emits (ESNext-like); the Rust emitter admission refuses an out-of-range target (unsupported emit compiler option: target). Recorded as a typed refusal, not a compatibility credit.",
+   "kind": "rust-unsupported"
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/es2015-flags",
+   "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/es2015-flags): `var arguments_1 = arguments;` is emitted after the `const _super = Object.create(...)` statement instead of before it. Owner: emitter (builtins es2017). Not H2.8c-specific.",
+   "kind": "inherited-emitter"
+  },
+  {
+   "id": "h2-8c/program-no-check/flags/es2015-async-super",
+   "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/es2015-flags): `var arguments_1 = arguments;` is emitted after the `const _super = Object.create(...)` statement instead of before it. Owner: emitter (builtins es2017). Not H2.8c-specific.",
+   "kind": "inherited-emitter"
+  },
+  {
+   "id": "h2-8c/program-no-check/control-checked/es2015-flags",
+   "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/es2015-flags): `var arguments_1 = arguments;` is emitted after the `const _super = Object.create(...)` statement instead of before it. Owner: emitter (builtins es2017). Not H2.8c-specific.",
+   "kind": "inherited-emitter"
+  },
+  {
+   "id": "h2-8c/transpile-js/lang/import-helpers",
+   "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/import-helpers): `export const {a, ...r} = {a: 1}` at ES5+commonjs+importHelpers prints `exports.{ a, ...r } = ...` instead of the comma-sequenced `(_a = ..., _a).a` / `tslib_1.__rest` form. Owner: emitter (commonjs export of destructuring with rest). Not H2.8c-specific.",
+   "kind": "inherited-emitter"
+  },
+  {
+   "id": "h2-8c/program-no-check/no-check/import-helpers",
+   "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/import-helpers): `export const {a, ...r} = {a: 1}` at ES5+commonjs+importHelpers prints `exports.{ a, ...r } = ...` instead of the comma-sequenced `(_a = ..., _a).a` / `tslib_1.__rest` form. Owner: emitter (commonjs export of destructuring with rest). Not H2.8c-specific.",
+   "kind": "inherited-emitter"
+  },
+  {
+   "id": "h2-8c/program-no-check/control-checked/import-helpers",
+   "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/import-helpers): `export const {a, ...r} = {a: 1}` at ES5+commonjs+importHelpers prints `exports.{ a, ...r } = ...` instead of the comma-sequenced `(_a = ..., _a).a` / `tslib_1.__rest` form. Owner: emitter (commonjs export of destructuring with rest). Not H2.8c-specific.",
+   "kind": "inherited-emitter"
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithInlineSourceMapBasic.ts~inlineSourceMap=true~module~namespace.ts",
+   "reason": "inherited source-map difference reproduced under the checked Program route (control-checked/namespace-source-map): the mapping for `export import inner = internal;` inside a nested namespace carries an extra segment (`OAAA,KAAK` vs `YAAK`). Owner: emitter source maps (import-equals export in namespaces). Not H2.8c-specific.",
+   "kind": "inherited-emitter"
+  },
+  {
+   "id": "h2-8c/transpile-js/inventory/jsWithSourceMapBasic.ts~sourceMap=true~module~namespace.ts",
+   "reason": "inherited source-map difference reproduced under the checked Program route (control-checked/namespace-source-map): the mapping for `export import inner = internal;` inside a nested namespace carries an extra segment (`OAAA,KAAK` vs `YAAK`). Owner: emitter source maps (import-equals export in namespaces). Not H2.8c-specific.",
+   "kind": "inherited-emitter"
+  },
+  {
+   "id": "h2-8c/program-no-check/no-check/namespace-source-map",
+   "reason": "inherited source-map difference reproduced under the checked Program route (control-checked/namespace-source-map): the mapping for `export import inner = internal;` inside a nested namespace carries an extra segment (`OAAA,KAAK` vs `YAAK`). Owner: emitter source maps (import-equals export in namespaces). Not H2.8c-specific.",
+   "kind": "inherited-emitter"
+  },
+  {
+   "id": "h2-8c/program-no-check/control-checked/namespace-source-map",
+   "reason": "inherited source-map difference reproduced under the checked Program route (control-checked/namespace-source-map): the mapping for `export import inner = internal;` inside a nested namespace carries an extra segment (`OAAA,KAAK` vs `YAAK`). Owner: emitter source maps (import-equals export in namespaces). Not H2.8c-specific.",
+   "kind": "inherited-emitter"
+  }
+ ]
+}

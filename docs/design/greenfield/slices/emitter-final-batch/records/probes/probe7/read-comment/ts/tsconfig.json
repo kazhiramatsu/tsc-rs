@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es5", "module": "commonjs", "outDir": "out", "downlevelIteration": true, "lib": ["es2018"], "ignoreDeprecations": "6.0" }, "files": ["main.ts"] }

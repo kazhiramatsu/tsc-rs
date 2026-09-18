@@ -856,12 +856,20 @@ impl TransformArena {
             return Ok(());
         }
         let source_metadata = original.and_then(|original| self.metadata.get(&original).cloned());
+        let node_is_member_name = matches!(
+            self.node(node)?.data,
+            NodeData::Identifier(_) | NodeData::PrivateIdentifier(_)
+        );
         let metadata = self.metadata.entry(node).or_default();
         metadata.original = original;
         metadata.original_is_semantic = false;
         if let Some(source_metadata) = source_metadata {
+            let generated_binding_before = metadata.generated_binding_id;
             metadata.merge_from(&source_metadata);
             metadata.original = original;
+            if !node_is_member_name && generated_binding_before.is_none() {
+                metadata.clear_generated_binding();
+            }
         }
         Ok(())
     }
@@ -1451,7 +1459,7 @@ pub(crate) fn private_identifier_expression_flags(
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Associativity {
+pub(crate) enum Associativity {
     Left,
     Right,
 }
@@ -1459,7 +1467,7 @@ enum Associativity {
 const PRECEDENCE_INVALID: i8 = -1;
 const PRECEDENCE_COMMA: i8 = 0;
 const PRECEDENCE_SPREAD: i8 = 1;
-const PRECEDENCE_YIELD: i8 = 2;
+pub(crate) const PRECEDENCE_YIELD: i8 = 2;
 const PRECEDENCE_ASSIGNMENT: i8 = 3;
 const PRECEDENCE_CONDITIONAL: i8 = 4;
 const PRECEDENCE_RELATIONAL: i8 = 11;
@@ -5549,6 +5557,28 @@ impl<'arena> NodeFactory<'arena> {
         Ok(clone)
     }
 
+    /// `setParent(setTextRange(cloneNode(name), name), name.parent)` — the
+    /// `getName` family (_tsc.js:24788-24799) threads the parsed name's range
+    /// and parent through the clone, so `getTextOfNode` prints it from the
+    /// source text (`\u0046oo` keeps its escape). A bare `cloneNode(name)`
+    /// (`createExportExpression`, the generators' hoisted names) stays
+    /// synthetic and prints `idText`. Adaptation sites that keep the clone
+    /// position-synthetic for other reasons request the source spelling
+    /// through this constructor instead of threading the range.
+    pub fn clone_node_with_source_spelling(
+        &mut self,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let clone = self.clone_node(original)?;
+        if matches!(
+            self.arena.node(clone)?.data,
+            NodeData::Identifier(_) | NodeData::PrivateIdentifier(_)
+        ) {
+            self.arena.metadata_mut(clone).cloned_identifier_spelling = true;
+        }
+        Ok(clone)
+    }
+
     /// tsrs-native: cross-kind declaration creation must retain the original
     /// node's arena-owned JSDoc array (h2-7a-m-4 §5.12).
     pub(crate) fn set_js_doc_from_original(
@@ -5894,7 +5924,35 @@ impl<'arena> NodeFactory<'arena> {
         self.parenthesize_conditional_operands(source, data)?;
         self.parenthesize_initializer_for_disallowed_comma(source, data)?;
         self.parenthesize_computed_property_name_expression(source, data)?;
-        self.parenthesize_export_assignment_expression(source, data)
+        self.parenthesize_export_assignment_expression(source, data)?;
+        self.parenthesize_updated_arrow_concise_body(source, data)
+    }
+
+    /// tsc-port: updateArrowFunction @6.0.3 (through createArrowFunction's
+    /// `parenthesizeConciseBodyOfArrowFunction`)
+    /// tsc-span: _tsc.js:22701-22735
+    ///
+    /// A transform that replaces an arrow's concise body (the TypeScript
+    /// pass erasing `({ … } as T)[x]` into partially emitted expressions)
+    /// reaches this rule instead of the constructor; the leftmost object
+    /// literal or comma sequence still needs the virtual parentheses.
+    fn parenthesize_updated_arrow_concise_body(
+        &mut self,
+        source: TransformSourceId,
+        data: &mut NodeData,
+    ) -> Result<(), TransformError> {
+        let NodeData::ArrowFunction(arrow) = data else {
+            return Ok(());
+        };
+        let Some(body) = arrow
+            .body
+            .and_then(|body| self.arena.node_ref(source, body))
+        else {
+            return Ok(());
+        };
+        let parenthesized = self.parenthesize_concise_body(body)?;
+        arrow.body = Some(parenthesized.node);
+        Ok(())
     }
 
     /// tsc-port: parenthesizeExpressionsOfCommaDelimitedList @6.0.3
@@ -7826,7 +7884,7 @@ const fn operator_has_associative_property(operator: SyntaxKind) -> bool {
     )
 }
 
-const fn binary_operator_associativity(operator: SyntaxKind) -> Associativity {
+pub(crate) const fn binary_operator_associativity(operator: SyntaxKind) -> Associativity {
     if matches!(
         operator,
         SyntaxKind::AsteriskAsteriskToken
@@ -7853,7 +7911,7 @@ const fn binary_operator_associativity(operator: SyntaxKind) -> Associativity {
     }
 }
 
-const fn binary_operator_precedence(operator: SyntaxKind) -> i8 {
+pub(crate) const fn binary_operator_precedence(operator: SyntaxKind) -> i8 {
     match operator {
         SyntaxKind::CommaToken => PRECEDENCE_COMMA,
         SyntaxKind::EqualsToken

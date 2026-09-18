@@ -1357,6 +1357,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
             observe_phase,
             None,
             None,
+            ProgramFileFacts::ORDINARY,
         )
         .result;
     }
@@ -1387,6 +1388,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
         observe_phase,
         None,
         None,
+        ProgramFileFacts::ORDINARY,
     )
     .result
 }
@@ -1432,6 +1434,7 @@ pub fn check_program_with_owned_libs_at<'cwd>(
         &mut observe_phase,
         None,
         None,
+        ProgramFileFacts::DEFAULT_LIBRARY,
     )
     .result
 }
@@ -1711,6 +1714,7 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
                 &mut observe_phase,
                 Some(&run),
                 emit_operation,
+                ProgramFileFacts::DEFAULT_LIBRARY,
             )
         } else {
             let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
@@ -1733,6 +1737,7 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
                 &mut observe_phase,
                 Some(&run),
                 emit_operation,
+                ProgramFileFacts::DEFAULT_LIBRARY,
             )
         }
     } else {
@@ -1754,6 +1759,7 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
             &mut observe_phase,
             Some(&run),
             emit_operation,
+            ProgramFileFacts::DEFAULT_LIBRARY,
         )
     };
     match execution.authoritative_failure {
@@ -1804,6 +1810,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     observe_phase: &mut impl FnMut(CheckPhase),
     authoritative_run: Option<&AuthoritativeRun<'_>>,
     emit_operation: Option<&mut CheckedEmitOperation<'_>>,
+    lib_facts: ProgramFileFacts,
 ) -> CheckExecution {
     let current_directory = current_directory.into();
     let mut file_diagnostics = Vec::new();
@@ -2065,7 +2072,10 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         // ownership. This is the one-shot H0 adapter: dropping the consumed
         // ProgramSession drops the complete store and cannot leave a process
         // cache behind.
-        let mut file_facts = vec![ProgramFileFacts::DEFAULT_LIBRARY; lib_count];
+        // Prefix storage and diagnostic scheduling do not determine default
+        // library membership. The legacy oracle prepends ordinary roots under
+        // noLib; owned/authoritative Programs supply their catalog libraries.
+        let mut file_facts = vec![lib_facts; lib_count];
         file_facts.resize(
             lib_count + program_sources.len(),
             ProgramFileFacts::ORDINARY,

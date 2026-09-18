@@ -1179,26 +1179,36 @@ fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call
         ..CompilerOptions::default()
     };
 
-    // `sourceMap` left this refusal table at h2-6a-m-3 (the runtime
-    // flip); its positive coverage lives in
-    // source_map_emit_witness_contract and the promoted
-    // source-map-control of the h1 qualification contract.
-
+    // Keep this historical profile entry name; its former refusal now emits.
+    // The complete original command is also frozen in emitter-session-retirements.
     let mut out_file = base();
     out_file.module = Some(2);
     out_file.out_file = Some("/project/bundle.js".to_owned().into());
-    let mut sink = CountingSink::default();
-    let error = ProgramSession::new(prepared_with_sources(
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared_with_sources(
         out_file,
         &[("/project/bundled.ts", "export const bundled = true;\n")],
     ))
     .emit(&mut sink)
-    .expect_err("AMD outFile remains owned by a later bundle slice");
+    .expect("AMD outFile emits through the production bundle path");
+    assert!(!outcome.emit_skipped());
+    assert!(outcome.diagnostics().is_empty());
+    assert_eq!(sink.writes().len(), 1);
     assert_eq!(
-        error,
-        DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "outFile" })
+        sink.writes()[0].path().scalar_test_path(),
+        Path::new("/project/bundle.js")
     );
-    assert_eq!(sink.writes, 0);
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        concat!(
+            "define(\"bundled\", [\"require\", \"exports\"], function (require, exports) {\n",
+            "    \"use strict\";\n",
+            "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "    exports.bundled = void 0;\n",
+            "    exports.bundled = true;\n",
+            "});\n",
+        )
+    );
 
     let mut sink = MemoryOutputSink::new();
     let outcome = ProgramSession::new(prepared_with_sources(
@@ -1650,32 +1660,41 @@ fn h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed() {
         out_dir: Some(out_dir.to_owned().into()),
         ..CompilerOptions::default()
     };
-    for (case, compiler_options, source) in [
+    for (case, compiler_options, source, output) in [
         (
-            "TypeScript-only outDir remains H2.8a",
+            "TypeScript-only outDir",
             options("/project/dist", false),
             ("/project/input.ts", "const value: number = 1;\n"),
+            "/project/dist/input.js",
         ),
         (
-            "relative JavaScript outDir remains H2.8a",
+            "relative JavaScript outDir",
             options("dist", true),
             ("/project/input.js", "const value = 1;\n"),
+            "dist/input.js",
         ),
     ] {
-        let mut sink = CountingSink::default();
-        let error = ProgramSession::new(prepared_with_sources(compiler_options, &[source]))
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared_with_sources(compiler_options, &[source]))
             .emit(&mut sink)
-            .expect_err(case);
+            .expect(case);
+        assert!(!outcome.emit_skipped(), "{case}");
+        assert!(outcome.diagnostics().is_empty(), "{case}");
+        assert_eq!(sink.writes().len(), 1, "{case}");
         assert_eq!(
-            error,
-            DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "outDir" }),
+            sink.writes()[0].path().scalar_test_path(),
+            Path::new(output),
             "{case}"
         );
-        assert_eq!(sink.writes, 0, "{case}");
+        assert_eq!(
+            sink.writes()[0].callback_text(),
+            "\"use strict\";\nconst value = 1;\n",
+            "{case}"
+        );
     }
 
-    let mut sink = CountingSink::default();
-    let error = ProgramSession::new(prepared_with_sources(
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared_with_sources(
         options("/project/dist", true),
         &[
             ("/project/input.js", "const js = 1;\n"),
@@ -1683,12 +1702,9 @@ fn h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed() {
         ],
     ))
     .emit(&mut sink)
-    .expect_err("mixed-source outDir remains H2.8a");
-    assert_eq!(
-        error,
-        DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "outDir" })
-    );
-    assert_eq!(sink.writes, 0);
+    .expect("mixed outDir is supported; colliding output is blocked");
+    assert!(outcome.emit_skipped());
+    assert!(sink.writes().is_empty());
 
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared_with_sources(

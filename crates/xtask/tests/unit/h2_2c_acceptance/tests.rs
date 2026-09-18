@@ -668,6 +668,13 @@ fn h2_6c_divergence_manifest_requires_absence_named_owner_and_nonempty_facets() 
 
     store(serde_json::json!({ "schema": 1, "cases": [] }));
     assert!(super::load_h2_6c_divergence_manifest(&root).is_err());
+    super::write_h2_6c_divergence_manifest(&root, &[]).expect("retire empty manifest");
+    assert!(!path.exists());
+    assert!(super::load_h2_6c_divergence_manifest(&root)
+        .unwrap()
+        .is_empty());
+    super::write_h2_6c_divergence_manifest(&root, &[]).expect("already absent remains absent");
+    assert!(!path.exists());
 
     let entry = serde_json::json!({
         "case_id": "case-a",

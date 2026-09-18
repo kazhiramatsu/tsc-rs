@@ -1,0 +1,13 @@
+{
+  "name": "check-r6",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 21,
+  "env": [],
+  "argv": "cargo check -p tsc-rs-emitter -p tsc-rs-checker",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T08:17:16Z",
+  "seconds": 26,
+  "exit": 0,
+  "log_sha256": "646ca27b973e4b6e86468dd7b7e5a349e68f07df8055eac19aefc5c760a2b623",
+  "log_bytes": 832
+}

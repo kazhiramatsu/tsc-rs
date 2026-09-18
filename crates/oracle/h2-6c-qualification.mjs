@@ -701,8 +701,19 @@ function explicitRootSelection(loaded, settings, options) {
   };
 }
 
+function useCaseSensitiveFileNamesSetting(settings) {
+  // A compiler-runner VFS directive, not a CompilerOptions property.
+  const configured = exactSetting(settings, "useCaseSensitiveFileNames");
+  if (configured === undefined) return true;
+  const value = String(configured).trim().toLowerCase();
+  requireCondition(value === "true" || value === "false", `invalid @useCaseSensitiveFileNames: ${configured}`);
+  return value === "true";
+}
+
 function createProgramCase(loaded, selection, settings, options) {
   const cwd = currentDirectory(settings);
+  const useCaseSensitiveFileNames = useCaseSensitiveFileNamesSetting(settings);
+  const canonicalize = ts.createGetCanonicalFileName(useCaseSensitiveFileNames);
   const unitByPath = new Map();
   for (const id of selection.vfs_write_order) {
     const unit = loaded.units[id];
@@ -718,25 +729,28 @@ function createProgramCase(loaded, selection, settings, options) {
       symlinkByPath.set(link, target);
     }
   }
+  // Preserve source/output spelling; only VFS lookup keys are canonical.
+  const canonicalFiles = new Map([...vfsByPath].map(([name, file]) => [canonicalize(name), file]));
+  const canonicalLinks = new Map([...symlinkByPath].map(([name, target]) => [canonicalize(name), target]));
   const baseHost = ts.createCompilerHost(options, true);
   const directoryOverlay = createHermeticDirectoryOverlay(vfsByPath.keys(), {
     currentDirectory: cwd,
-    useCaseSensitiveFileNames: true,
+    useCaseSensitiveFileNames,
     fallbackHost: baseHost,
   });
   const host = {
     ...baseHost,
     getCurrentDirectory: () => cwd,
-    useCaseSensitiveFileNames: () => true,
-    getCanonicalFileName: (fileName) => fileName,
+    useCaseSensitiveFileNames: () => useCaseSensitiveFileNames,
+    getCanonicalFileName: canonicalize,
     trace() {},
     fileExists(fileName) {
       const normalized = ts.normalizePath(fileName);
-      return vfsByPath.has(normalized) || baseHost.fileExists(normalized);
+      return canonicalFiles.has(canonicalize(normalized)) || baseHost.fileExists(normalized);
     },
     readFile(fileName) {
       const normalized = ts.normalizePath(fileName);
-      return vfsByPath.get(normalized)?.unit.text ?? baseHost.readFile(normalized);
+      return canonicalFiles.get(canonicalize(normalized))?.unit.text ?? baseHost.readFile(normalized);
     },
     directoryExists(directory) {
       return directoryOverlay.directoryExists(directory);
@@ -746,14 +760,14 @@ function createProgramCase(loaded, selection, settings, options) {
     },
     realpath(fileName) {
       const normalized = ts.normalizePath(fileName);
-      if (symlinkByPath.has(normalized)) return symlinkByPath.get(normalized);
-      return vfsByPath.has(normalized)
+      if (canonicalLinks.has(canonicalize(normalized))) return canonicalLinks.get(canonicalize(normalized));
+      return canonicalFiles.has(canonicalize(normalized))
         ? normalized
         : (baseHost.realpath?.(normalized) ?? normalized);
     },
     getSourceFile(fileName, languageVersion) {
       const normalized = ts.normalizePath(fileName);
-      const fixture = vfsByPath.get(normalized);
+      const fixture = canonicalFiles.get(canonicalize(normalized));
       if (!fixture) return baseHost.getSourceFile(fileName, languageVersion);
       return ts.createSourceFile(
         normalized,
@@ -1860,6 +1874,9 @@ function resolveDirectiveRow(row, input, configPlanBySource, cache) {
     facets,
     settings: [...settings],
     selection,
+    // Invalidate observations minted by the old identity-only host. Rows
+    // using the unchanged case-sensitive contract retain their identity.
+    ...(useCaseSensitiveFileNamesSetting(settings) ? {} : { case_insensitive_host_contract: 1 }),
     units: loaded.units.map((unit) => ({
       id: unit.original_id,
       name: unit.name,
@@ -2630,8 +2647,27 @@ function runProbe(count) {
   }
 }
 
+function checkSelectedCases(caseIds) {
+  requireCondition(caseIds.length > 0 && new Set(caseIds).size === caseIds.length,
+    "--check-cases requires distinct full case IDs");
+  const selected = new Set(caseIds);
+  const rows = readCensus().cases.filter(row => selected.has(row.case_id));
+  requireCondition(rows.length === selected.size, "unknown H2.6c case ID");
+  const prepared = prepareRows(rows);
+  const frozen = new Map(readJson(TARGET_RELATIVE_PATH).cases.map(row => [row.case_id, row]));
+  for (const resolved of prepared.resolved) {
+    const actual = makeCaseRecord(resolved); // two fresh TypeScript Programs
+    requireCondition(canonical(actual) === canonical(frozen.get(resolved.row.case_id)),
+      `${resolved.row.case_id}: frozen complete observation differs`);
+    process.stdout.write(`H2.6c selected EXACT x2 ${resolved.row.case_id}\n`);
+  }
+  process.stdout.write(`H2.6c selected check passed: ${rows.length} cases\n`);
+}
+
 validateRuntime();
-if (MODE === INTERNAL_CHECK_SHARD_MODE) {
+if (MODE === "--check-cases") {
+  checkSelectedCases(process.argv.slice(3));
+} else if (MODE === INTERNAL_CHECK_SHARD_MODE) {
   shardAssignment = parseShardArguments(process.argv);
   const artifact = buildArtifact();
   process.stdout.write(render({
@@ -2674,5 +2710,5 @@ if (MODE === INTERNAL_CHECK_SHARD_MODE) {
 } else if (MODE === undefined) {
   process.stdout.write(render(buildArtifact()));
 } else {
-  fail("usage: h2-6c-qualification.mjs [--preflight|--write|--check|--probe N]");
+  fail("usage: h2-6c-qualification.mjs [--preflight|--write|--check|--check-cases ID ...|--probe N]");
 }

@@ -18,12 +18,67 @@ spec.loader.exec_module(replay)
 witness = replay.witness
 
 
+class EmitterFinalTests(unittest.TestCase):
+    def test_plan_base_shards_cover_frozen_membership_once(self):
+        final = witness.emitter_final_witnesses
+        parts = [final.case_ids(f"emitter-plan-base-{i}") for i in range(4)]
+        combined = [case for part in parts for case in part]
+        self.assertEqual(len(combined), len(set(combined)))
+        self.assertEqual(sorted(combined), final.ids(final.FIXTURES + "emitter-final-universe-plan-base.json.zst", 1798))
+        self.assertEqual([len(part) for part in parts], [450, 450, 449, 449])
+
+    def test_fixture_changes_select_the_complete_shard_family(self):
+        plan = replay.selection(["crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst"])
+        self.assertEqual(set(plan["witnesses"]), {"emitter-universe-oracle", *(f"emitter-plan-base-{i}" for i in range(4))})
+        for i in range(2):
+            suite = f"emitter-class-{i}"
+            name, _ = witness.emitter_final_witnesses.class_bands(suite)[0]
+            plan = replay.selection([f"crates/compiler/tests/fixtures/{name}.json"])
+            self.assertIn(suite, plan["witnesses"])
+            if name in witness.RETAINED_FIXTURES:
+                self.assertIn("retained", plan["witnesses"])
+
+    def test_hosted_shards_clear_interactive_selectors(self):
+        final = witness.emitter_final_witnesses
+        inherited = {key: "narrow" for key in final.SELECTORS}
+        inherited["PATH"] = "preserved"
+        env = final.environment("emitter-plan-base-2", inherited)
+        self.assertEqual(env["TSC_RS_EMITTER_FINAL_SHARD"], "2/4")
+        self.assertEqual(env["PATH"], "preserved")
+        self.assertFalse(set(final.SELECTORS) - {"TSC_RS_EMITTER_FINAL_SHARD"} & env.keys())
+        self.assertFalse(set(final.SELECTORS) & final.environment("emitter-final", inherited).keys())
+
+    def test_hosted_universe_rejects_partial_zero_and_ignored_replays(self):
+        final = witness.emitter_final_witnesses
+        command, count = final.commands("emitter-plan-base-0")[0]
+        good = ("test result: ok. 1 passed; 0 failed; 0 ignored;\n"
+                "emitter-final universe fixture: selected 450/1798 / exact 430 / known 20 / failed 0\n")
+        final.validate_output("emitter-plan-base-0", command, count, good)
+        for bad in ("", good * 2, good.replace("1 passed", "0 passed"),
+                    good.replace("0 ignored", "1 ignored"), good.replace("450/1798", "449/1798"),
+                    good.replace("known 20", "known 19"), good.replace("failed 0", "failed 1")):
+            with self.subTest(output=bad), self.assertRaises(ValueError):
+                final.validate_output("emitter-plan-base-0", command, count, bad)
+
+    def test_registered_exact_test_names_exist(self):
+        source = "\n".join(path.read_text() for path in (ROOT / "crates/compiler/tests").rglob("*.rs"))
+        for suite in witness.emitter_final_witnesses.SUITES:
+            for command, count in witness.emitter_final_witnesses.commands(suite):
+                if count is None or "--exact" not in command:
+                    continue
+                names = [command[command.index("--test") + 2],
+                         *(arg for arg in command[command.index("--exact") + 1:] if not arg.startswith("--"))]
+                self.assertEqual(len(names), count)
+                for name in names:
+                    self.assertRegex(source, r"fn " + re.escape(name.rsplit("::", 1)[-1]) + r"\(")
+
+
 class CompilerBudgetTests(unittest.TestCase):
     def test_module_output_partition_preserves_all_suites_and_dedicated_selection(self):
         members = [suite for suites in replay.WITNESS_GROUPS.values() for suite in suites]
         self.assertCountEqual(members, witness.SUITES)
         self.assertEqual(len(members), len(set(members)))
-        self.assertEqual(len(replay.WITNESS_GROUPS), 7)
+        self.assertEqual(len(replay.WITNESS_GROUPS), 16)
         self.assertEqual(replay.WITNESS_GROUPS["module-output"],
                          ("declaration-map-apis", "declaration-maps", "require-rewrite", "declaration-specifiers"))
         workflow = (ROOT / ".github/workflows/witness.yml").read_text()
@@ -918,7 +973,7 @@ class WitnessTests(unittest.TestCase):
             "program-module-paths": 3, "program-raw-source": 1,
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
             "followup3": 48, "retained": 530, "direct": 32, "printer": 142, "bundle-sinks": 10,
-            "declaration-map-cli": 8, "transpile-routes": 301, "resolution-cache": 26,
+            "declaration-map-cli": 8, "transpile-routes": 305, "resolution-cache": 26,
             "compact-body-comments": 240, "parameter-temporaries": 68,
             "config-library": 96, "prologue-comments": 8,
             "utf16-recovery-corpus": 50, "map-option-projection": 31,
@@ -936,6 +991,10 @@ class WitnessTests(unittest.TestCase):
             "mapped-type-members": 328, "token-comment-phase-metadata": 96,
             "utf16-identity-recovery": 79, "utf16-review-fix": 25, "utf16-tagged-template": 16,
             "utf16-literal-witnesses": 64, "utf16-original-commands": 4,
+            "emitter-final": 1123, "emitter-universe-oracle": 2015,
+            "emitter-plan-base-0": 450, "emitter-plan-base-1": 450,
+            "emitter-plan-base-2": 449, "emitter-plan-base-3": 449,
+            "emitter-global": 769, "emitter-class-0": 700, "emitter-class-1": 528,
         })
 
     def test_transpile_runner_requires_all_nine_tests_after_both_oracles(self):

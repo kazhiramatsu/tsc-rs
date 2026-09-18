@@ -1,0 +1,223 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "8cf87926718aee7fa1e1689eaabe33ffc234ec027a987c09411f5133461cdfd1",
+  "cases": [
+    {
+      "case_id": "emitter-session-retirements/amd-outfile",
+      "options": {
+        "noEmit": false,
+        "target": 99,
+        "module": 2,
+        "outFile": "/project/bundle.js"
+      },
+      "roots": [
+        "/project/bundled.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/bundled.ts",
+          "text": "export const bundled = true;\n"
+        }
+      ],
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZGVmaW5lKCJidW5kbGVkIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLmJ1bmRsZWQgPSB2b2lkIDA7CiAgICBleHBvcnRzLmJ1bmRsZWQgPSB0cnVlOwp9KTsK",
+            "callback_utf8_bytes": 219,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVmaW5lKCJidW5kbGVkIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLmJ1bmRsZWQgPSB2b2lkIDA7CiAgICBleHBvcnRzLmJ1bmRsZWQgPSB0cnVlOwp9KTsK",
+            "materialized_utf8_bytes": 219,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/bundled.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "emitter-session-retirements/typescript-outdir",
+      "options": {
+        "noEmit": false,
+        "target": 99,
+        "module": 200,
+        "outDir": "/project/dist"
+      },
+      "roots": [
+        "/project/input.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/input.ts",
+          "text": "const value: number = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCB2YWx1ZSA9IDE7Cg==",
+            "callback_utf8_bytes": 31,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCB2YWx1ZSA9IDE7Cg==",
+            "materialized_utf8_bytes": 31,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "emitter-session-retirements/javascript-relative-outdir",
+      "options": {
+        "noEmit": false,
+        "target": 99,
+        "module": 200,
+        "allowJs": true,
+        "outDir": "dist"
+      },
+      "roots": [
+        "/project/input.js"
+      ],
+      "files": [
+        {
+          "path": "/project/input.js",
+          "text": "const value = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "dist/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCB2YWx1ZSA9IDE7Cg==",
+            "callback_utf8_bytes": 31,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCB2YWx1ZSA9IDE7Cg==",
+            "materialized_utf8_bytes": 31,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "emitter-session-retirements/mixed-outdir-collision",
+      "options": {
+        "noEmit": false,
+        "target": 99,
+        "module": 200,
+        "allowJs": true,
+        "outDir": "/project/dist"
+      },
+      "roots": [
+        "/project/input.js",
+        "/project/input.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/input.js",
+          "text": "const js = 1;\n"
+        },
+        {
+          "path": "/project/input.ts",
+          "text": "const ts: number = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5056,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/dist/input.js' because it would be overwritten by multiple input files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    }
+  ]
+}

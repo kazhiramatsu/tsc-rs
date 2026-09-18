@@ -3301,12 +3301,14 @@ impl<'a> CheckerState<'a> {
             _ => node,
         };
         if let Some(attributes) = attributes_node {
-            let (elaborated, diagnostics) = self.capture_literal_assignment_elaboration(
-                attributes,
-                param_type,
-                Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
-                containing_message_chain.clone(),
-            )?;
+            let (elaborated, diagnostics) = self
+                .capture_literal_assignment_elaboration_from_types(
+                    attributes,
+                    check_attributes_type,
+                    param_type,
+                    Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                    containing_message_chain.clone(),
+                )?;
             if elaborated.reported() {
                 return Ok(Some(
                     self.applicability_errors_from_diagnostics(diagnostics, mode),
@@ -6127,7 +6129,12 @@ impl<'a> CheckerState<'a> {
             let Some(name_node) = data.name else {
                 continue;
             };
-            let initializer = data.initializer;
+            let initializer =
+                data.initializer
+                    .and_then(|initializer| match self.data_of(initializer) {
+                        NodeData::JsxExpression(data) => data.expression,
+                        _ => Some(initializer),
+                    });
             let name = self.jsx_attribute_name_text(name_node);
             if name.contains('-') {
                 continue;
@@ -6149,6 +6156,7 @@ impl<'a> CheckerState<'a> {
                 if self
                     .elaborate_literal_assignment_into_sink(
                         initializer,
+                        source_type,
                         target_type,
                         Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
                         sink,
@@ -6159,6 +6167,19 @@ impl<'a> CheckerState<'a> {
                     continue;
                 }
             }
+            let specific_source = if let Some(initializer) = initializer {
+                self.push_contextual_type(initializer, Some(source_type), false);
+                let result = self.check_expression_for_mutable_location(
+                    initializer,
+                    CheckMode::CONTEXTUAL,
+                    false,
+                );
+                self.pop_contextual_type();
+                result?
+            } else {
+                source_type
+            };
+            let original_target = target_type;
             let (source_type, target_type) = self.remove_missing_for_member_report(
                 source,
                 target,
@@ -6166,14 +6187,35 @@ impl<'a> CheckerState<'a> {
                 source_type,
                 target_type,
             )?;
-            let (_, mut diagnostic, used_containing_message_chain) = self
+            let (specific_source, _) = self.remove_missing_for_member_report(
+                source,
+                target,
+                &name,
+                specific_source,
+                original_target,
+            )?;
+            let (specific_related, mut diagnostic, mut used_containing_message_chain) = self
                 .capture_type_assignable_to_diagnostic_for_sink(
-                    source_type,
+                    specific_source,
                     target_type,
                     name_node,
                     &diagnostics::Type_0_is_not_assignable_to_type_1,
                     sink,
                 )?;
+            if specific_related && specific_source != source_type {
+                let (_, fallback, fallback_used_chain) = self
+                    .capture_type_assignable_to_diagnostic_for_sink(
+                        source_type,
+                        target_type,
+                        name_node,
+                        &diagnostics::Type_0_is_not_assignable_to_type_1,
+                        sink,
+                    )?;
+                if fallback.is_some() {
+                    diagnostic = fallback;
+                    used_containing_message_chain = fallback_used_chain;
+                }
+            }
             if let Some(diagnostic) = &mut diagnostic {
                 let name_type = self.tables.get_string_literal_type(&name);
                 if let Some(related) = self.elementwise_elaboration_related(target, name_type)? {
@@ -6237,22 +6279,13 @@ impl<'a> CheckerState<'a> {
                 )?;
                 // checkTypeAssignableToAndOptionallyElaborate(attrType,
                 // result, errorNode=tagName, expr=attributes).
-                let initially_related = self.is_type_assignable_to(attr_type, result)?;
-                if !initially_related {
-                    let elaborated = self.elaborate_literal_assignment(
-                        attributes,
-                        result,
-                        Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
-                    )?;
-                    if !elaborated.reported() {
-                        self.check_type_assignable_to(
-                            attr_type,
-                            result,
-                            Some(tag_name),
-                            &diagnostics::Type_0_is_not_assignable_to_type_1,
-                        )?;
-                    }
-                }
+                self.check_type_assignable_to_and_optionally_elaborate(
+                    attr_type,
+                    result,
+                    Some(tag_name),
+                    attributes,
+                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                )?;
                 let type_argument_nodes = self.nodes_of(type_arguments);
                 if !type_argument_nodes.is_empty() {
                     for &type_argument in &type_argument_nodes {

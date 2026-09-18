@@ -5148,10 +5148,11 @@ impl GeneratorsVisitor<'_, '_> {
         let provisional = self
             .generated_bindings
             .allocate_loop_variable(/*reserve_in_nested_scopes*/ false);
-        // Planned-authoritative: the finalize walk keeps the `_i`-family
-        // spelling verbatim (the B-4 collision lattice is its owner's
-        // concern; no B-3 fixture occupies the family).
-        TargetBinding::allocate_planned(self.context, provisional)
+        // `createLoopVariable()`: the visit-time `_i` is provisional and the
+        // finalize walk re-assigns it per printer scope (`makeTempVariableName
+        // (TempFlags._i)` resets with every function's tempFlags), exactly like
+        // the ES2015 for-of loop variable (EF7-GENERATOR-LOOP-VARIABLE).
+        TargetBinding::allocate_planned_loop(self.context, provisional)
     }
 
     fn create_generated_identifier(

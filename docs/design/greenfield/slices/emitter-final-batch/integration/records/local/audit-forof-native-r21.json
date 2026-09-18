@@ -1,0 +1,35 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "contracts",
+    "h2_8a_import_helpers::import_helpers_matches_complete_typescript_observations",
+    "--",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T16:58:21.291982+00:00",
+  "head": "52f0247d38e91facb8e70a0285a7397520f45da1",
+  "tracked_clean": false,
+  "diff_sha256": "3e8d9584836afbb5dffd2e7be1463fc330a0c22b37e1441b612a42902efe9828",
+  "env": {
+    "TSC_RS_IMPORT_HELPERS_CASE_FILTER": "emitter-audit/forof",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit/target/forof-r21-capture",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 412.62,
+  "log_sha256": "5e9d23bd2fb9ba401c710fcdef49eebaa1f7be2c24b3628e2abde6da251b17f5",
+  "log_bytes": 10808
+}

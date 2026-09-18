@@ -1,0 +1,18 @@
+--- vendor/typescript-6.0.3/lib/typescript.js
++++ ts-mod.js
+@@ -116424,6 +116424,7 @@
+     return singleOrMany(statements);
+   }
+   function createAllExportExpressions(name, value, location) {
++    console.error('CAEE name=%s[%s,%s] isExportName=%s location=%s[%s,%s]', name.escapedText, name.pos, name.end, !!(getEmitFlags(name) & 16384), location && ts.SyntaxKind ? location.kind : location && location.kind, location && location.pos, location && location.end);
+     const exportedNames = getExports(name);
+     if (exportedNames) {
+       let expression = isExportName(name) ? value : factory2.createAssignment(name, value);
+@@ -116620,6 +116621,7 @@
+     return statement;
+   }
+   function createExportExpression(name, value, location, liveBinding) {
++    console.error('CEE name=%s[%s,%s] location=%s[%s,%s] clone=[%s,%s]', name.escapedText, name.pos, name.end, location && location.kind, location && location.pos, location && location.end, factory2.cloneNode(name).pos, factory2.cloneNode(name).end);
+     return setTextRange(
+       liveBinding ? factory2.createCallExpression(
+         factory2.createPropertyAccessExpression(

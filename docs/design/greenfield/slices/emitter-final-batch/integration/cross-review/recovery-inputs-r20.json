@@ -1,0 +1,4132 @@
+[
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction6_es2017.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction6_es2017.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction6_es2017.ts",
+          "text": "var foo = async (a = await): Promise<void> => {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 4
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction6_es2017.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.es2017.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction6_es2017.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jIChhID0gYXdhaXQgKSA9PiB7DQp9Ow0K",
+          "callback_utf8_bytes": 54,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jIChhID0gYXdhaXQgKSA9PiB7DQp9Ow0K",
+          "materialized_utf8_bytes": 54,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction6_es2017.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction6_es2017.ts",
+          "start": 26,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction7_es2017.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction7_es2017.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction7_es2017.ts",
+          "text": "var bar = async (): Promise<void> => {\n  // 'await' here is an identifier, and not an await expression.\n  var foo = async (a = await): Promise<void> => {\n  }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 4
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction7_es2017.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.es2017.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction7_es2017.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGJhciA9IGFzeW5jICgpID0+IHsNCiAgICAvLyAnYXdhaXQnIGhlcmUgaXMgYW4gaWRlbnRpZmllciwgYW5kIG5vdCBhbiBhd2FpdCBleHByZXNzaW9uLg0KICAgIHZhciBmb28gPSBhc3luYyAoYSA9IGF3YWl0ICkgPT4gew0KICAgIH07DQp9Ow0K",
+          "callback_utf8_bytes": 159,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGJhciA9IGFzeW5jICgpID0+IHsNCiAgICAvLyAnYXdhaXQnIGhlcmUgaXMgYW4gaWRlbnRpZmllciwgYW5kIG5vdCBhbiBhd2FpdCBleHByZXNzaW9uLg0KICAgIHZhciBmb28gPSBhc3luYyAoYSA9IGF3YWl0ICkgPT4gew0KICAgIH07DQp9Ow0K",
+          "materialized_utf8_bytes": 159,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction7_es2017.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction7_es2017.ts",
+          "start": 132,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction8_es2017.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction8_es2017.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction8_es2017.ts",
+          "text": "var foo = async (): Promise<void> => {\n  var v = { [await]: foo }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 4
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction8_es2017.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.es2017.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction8_es2017.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jICgpID0+IHsNCiAgICB2YXIgdiA9IHsgW2F3YWl0IF06IGZvbyB9Ow0KfTsNCg==",
+          "callback_utf8_bytes": 76,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jICgpID0+IHsNCiAgICB2YXIgdiA9IHsgW2F3YWl0IF06IGZvbyB9Ow0KfTsNCg==",
+          "materialized_utf8_bytes": 76,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction8_es2017.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction8_es2017.ts",
+          "start": 57,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction9_es2017.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction9_es2017.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction9_es2017.ts",
+          "text": "var foo = async (a = await => await): Promise<void> => {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "strict": false,
+      "target": 4
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction9_es2017.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.es2017.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction9_es2017.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jKGEgPSBhd2FpdCA9PiBhd2FpdCksIFByb21pc2U7DQo7DQp7DQp9DQo=",
+          "callback_utf8_bytes": 71,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jKGEgPSBhd2FpdCA9PiBhd2FpdCksIFByb21pc2U7DQo7DQp7DQp9DQo=",
+          "materialized_utf8_bytes": 71,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction9_es2017.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es2017.ts",
+          "start": 36,
+          "length": 1,
+          "message": "',' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es2017.ts",
+          "start": 45,
+          "length": 1,
+          "message": "',' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es2017.ts",
+          "start": 52,
+          "length": 2,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration10_es2017.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration10_es2017.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration10_es2017.ts",
+          "text": "async function foo(a = await => await): Promise<void> {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "strict": false,
+      "target": 4
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration10_es2017.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.es2017.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration10_es2017.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24gZm9vKGEgPSBhd2FpdCAsIGF3YWl0KSB7DQp9DQo=",
+          "callback_utf8_bytes": 59,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24gZm9vKGEgPSBhd2FpdCAsIGF3YWl0KSB7DQp9DQo=",
+          "materialized_utf8_bytes": 59,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration10_es2017.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration10_es2017.ts",
+          "start": 29,
+          "length": 2,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration6_es2017.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration6_es2017.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration6_es2017.ts",
+          "text": "async function foo(a = await): Promise<void> {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 4
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration6_es2017.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.es2017.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration6_es2017.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24gZm9vKGEgPSBhd2FpdCApIHsNCn0NCg==",
+          "callback_utf8_bytes": 52,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24gZm9vKGEgPSBhd2FpdCApIHsNCn0NCg==",
+          "materialized_utf8_bytes": 52,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration6_es2017.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration6_es2017.ts",
+          "start": 28,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration7_es2017.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration7_es2017.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration7_es2017.ts",
+          "text": "async function bar(): Promise<void> {\n  // 'await' here is an identifier, and not a yield expression.\n  async function foo(a = await): Promise<void> {\n  }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 4
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration7_es2017.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.es2017.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration7_es2017.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24gYmFyKCkgew0KICAgIC8vICdhd2FpdCcgaGVyZSBpcyBhbiBpZGVudGlmaWVyLCBhbmQgbm90IGEgeWllbGQgZXhwcmVzc2lvbi4NCiAgICBhc3luYyBmdW5jdGlvbiBmb28oYSA9IGF3YWl0ICkgew0KICAgIH0NCn0NCg==",
+          "callback_utf8_bytes": 154,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24gYmFyKCkgew0KICAgIC8vICdhd2FpdCcgaGVyZSBpcyBhbiBpZGVudGlmaWVyLCBhbmQgbm90IGEgeWllbGQgZXhwcmVzc2lvbi4NCiAgICBhc3luYyBmdW5jdGlvbiBmb28oYSA9IGF3YWl0ICkgew0KICAgIH0NCn0NCg==",
+          "materialized_utf8_bytes": 154,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration7_es2017.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration7_es2017.ts",
+          "start": 132,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration9_es2017.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration9_es2017.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration9_es2017.ts",
+          "text": "async function foo(): Promise<void> {\n  var v = { [await]: foo }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 4
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration9_es2017.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.es2017.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration9_es2017.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24gZm9vKCkgew0KICAgIHZhciB2ID0geyBbYXdhaXQgXTogZm9vIH07DQp9DQo=",
+          "callback_utf8_bytes": 74,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24gZm9vKCkgew0KICAgIHZhciB2ID0geyBbYXdhaXQgXTogZm9vIH07DQp9DQo=",
+          "materialized_utf8_bytes": 74,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration9_es2017.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration9_es2017.ts",
+          "start": 56,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction6_es5.ts#target%3Des2015",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction6_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction6_es5.ts",
+          "text": "var foo = async (a = await): Promise<void> => {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction6_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction6_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9ICguLi5hcmdzXzEpID0+IF9fYXdhaXRlcih2b2lkIDAsIFsuLi5hcmdzXzFdLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KfSk7DQo=",
+          "callback_utf8_bytes": 110,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9ICguLi5hcmdzXzEpID0+IF9fYXdhaXRlcih2b2lkIDAsIFsuLi5hcmdzXzFdLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KfSk7DQo=",
+          "materialized_utf8_bytes": 110,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction6_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction6_es5.ts",
+          "start": 26,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction6_es5.ts#target%3Des5",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction6_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction6_es5.ts",
+          "text": "var foo = async (a = await): Promise<void> => {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 1
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction6_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction6_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGZ1bmN0aW9uICgpIHsNCiAgICB2YXIgYXJnc18xID0gW107DQogICAgZm9yICh2YXIgX2kgPSAwOyBfaSA8IGFyZ3VtZW50cy5sZW5ndGg7IF9pKyspIHsNCiAgICAgICAgYXJnc18xW19pXSA9IGFyZ3VtZW50c1tfaV07DQogICAgfQ0KICAgIHJldHVybiBfX2F3YWl0ZXIodm9pZCAwLCBfX3NwcmVhZEFycmF5KFtdLCBhcmdzXzEsIHRydWUpLCB2b2lkIDAsIGZ1bmN0aW9uIChhKSB7DQogICAgICAgIGlmIChhID09PSB2b2lkIDApIHsgYSA9IF9hLnNlbnQoKTsgfQ0KICAgICAgICByZXR1cm4gX19nZW5lcmF0b3IodGhpcywgZnVuY3Rpb24gKF9hKSB7DQogICAgICAgICAgICBzd2l0Y2ggKF9hLmxhYmVsKSB7DQogICAgICAgICAgICAgICAgY2FzZSAwOiByZXR1cm4gWzQgLyp5aWVsZCovLCBdOw0KICAgICAgICAgICAgICAgIGNhc2UgMTogcmV0dXJuIFsyIC8qcmV0dXJuKi9dOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9KTsNCiAgICB9KTsNCn07DQo=",
+          "callback_utf8_bytes": 512,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGZ1bmN0aW9uICgpIHsNCiAgICB2YXIgYXJnc18xID0gW107DQogICAgZm9yICh2YXIgX2kgPSAwOyBfaSA8IGFyZ3VtZW50cy5sZW5ndGg7IF9pKyspIHsNCiAgICAgICAgYXJnc18xW19pXSA9IGFyZ3VtZW50c1tfaV07DQogICAgfQ0KICAgIHJldHVybiBfX2F3YWl0ZXIodm9pZCAwLCBfX3NwcmVhZEFycmF5KFtdLCBhcmdzXzEsIHRydWUpLCB2b2lkIDAsIGZ1bmN0aW9uIChhKSB7DQogICAgICAgIGlmIChhID09PSB2b2lkIDApIHsgYSA9IF9hLnNlbnQoKTsgfQ0KICAgICAgICByZXR1cm4gX19nZW5lcmF0b3IodGhpcywgZnVuY3Rpb24gKF9hKSB7DQogICAgICAgICAgICBzd2l0Y2ggKF9hLmxhYmVsKSB7DQogICAgICAgICAgICAgICAgY2FzZSAwOiByZXR1cm4gWzQgLyp5aWVsZCovLCBdOw0KICAgICAgICAgICAgICAgIGNhc2UgMTogcmV0dXJuIFsyIC8qcmV0dXJuKi9dOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9KTsNCiAgICB9KTsNCn07DQo=",
+          "materialized_utf8_bytes": 512,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction6_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction6_es5.ts",
+          "start": 26,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction7_es5.ts#target%3Des2015",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction7_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction7_es5.ts",
+          "text": "var bar = async (): Promise<void> => {\n  // 'await' here is an identifier, and not an await expression.\n  var foo = async (a = await): Promise<void> => {\n  }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction7_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction7_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGJhciA9ICgpID0+IF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgew0KICAgIC8vICdhd2FpdCcgaGVyZSBpcyBhbiBpZGVudGlmaWVyLCBhbmQgbm90IGFuIGF3YWl0IGV4cHJlc3Npb24uDQogICAgdmFyIGZvbyA9ICguLi5hcmdzXzEpID0+IF9fYXdhaXRlcih2b2lkIDAsIFsuLi5hcmdzXzFdLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KICAgIH0pOw0KfSk7DQo=",
+          "callback_utf8_bytes": 257,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGJhciA9ICgpID0+IF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgew0KICAgIC8vICdhd2FpdCcgaGVyZSBpcyBhbiBpZGVudGlmaWVyLCBhbmQgbm90IGFuIGF3YWl0IGV4cHJlc3Npb24uDQogICAgdmFyIGZvbyA9ICguLi5hcmdzXzEpID0+IF9fYXdhaXRlcih2b2lkIDAsIFsuLi5hcmdzXzFdLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KICAgIH0pOw0KfSk7DQo=",
+          "materialized_utf8_bytes": 257,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction7_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction7_es5.ts",
+          "start": 132,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction7_es5.ts#target%3Des5",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction7_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction7_es5.ts",
+          "text": "var bar = async (): Promise<void> => {\n  // 'await' here is an identifier, and not an await expression.\n  var foo = async (a = await): Promise<void> => {\n  }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 1
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction7_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction7_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGJhciA9IGZ1bmN0aW9uICgpIHsgcmV0dXJuIF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiAoKSB7DQogICAgdmFyIGZvbzsNCiAgICByZXR1cm4gX19nZW5lcmF0b3IodGhpcywgZnVuY3Rpb24gKF9hKSB7DQogICAgICAgIGZvbyA9IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIHZhciBhcmdzXzEgPSBbXTsNCiAgICAgICAgICAgIGZvciAodmFyIF9pID0gMDsgX2kgPCBhcmd1bWVudHMubGVuZ3RoOyBfaSsrKSB7DQogICAgICAgICAgICAgICAgYXJnc18xW19pXSA9IGFyZ3VtZW50c1tfaV07DQogICAgICAgICAgICB9DQogICAgICAgICAgICByZXR1cm4gX19hd2FpdGVyKHZvaWQgMCwgX19zcHJlYWRBcnJheShbXSwgYXJnc18xLCB0cnVlKSwgdm9pZCAwLCBmdW5jdGlvbiAoYSkgew0KICAgICAgICAgICAgICAgIGlmIChhID09PSB2b2lkIDApIHsgYSA9IF9hLnNlbnQoKTsgfQ0KICAgICAgICAgICAgICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2EpIHsNCiAgICAgICAgICAgICAgICAgICAgc3dpdGNoIChfYS5sYWJlbCkgew0KICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAwOiByZXR1cm4gWzQgLyp5aWVsZCovLCBdOw0KICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAxOiByZXR1cm4gWzIgLypyZXR1cm4qL107DQogICAgICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICB9KTsNCiAgICAgICAgICAgIH0pOw0KICAgICAgICB9Ow0KICAgICAgICByZXR1cm4gWzIgLypyZXR1cm4qL107DQogICAgfSk7DQp9KTsgfTsNCg==",
+          "callback_utf8_bytes": 817,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGJhciA9IGZ1bmN0aW9uICgpIHsgcmV0dXJuIF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiAoKSB7DQogICAgdmFyIGZvbzsNCiAgICByZXR1cm4gX19nZW5lcmF0b3IodGhpcywgZnVuY3Rpb24gKF9hKSB7DQogICAgICAgIGZvbyA9IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIHZhciBhcmdzXzEgPSBbXTsNCiAgICAgICAgICAgIGZvciAodmFyIF9pID0gMDsgX2kgPCBhcmd1bWVudHMubGVuZ3RoOyBfaSsrKSB7DQogICAgICAgICAgICAgICAgYXJnc18xW19pXSA9IGFyZ3VtZW50c1tfaV07DQogICAgICAgICAgICB9DQogICAgICAgICAgICByZXR1cm4gX19hd2FpdGVyKHZvaWQgMCwgX19zcHJlYWRBcnJheShbXSwgYXJnc18xLCB0cnVlKSwgdm9pZCAwLCBmdW5jdGlvbiAoYSkgew0KICAgICAgICAgICAgICAgIGlmIChhID09PSB2b2lkIDApIHsgYSA9IF9hLnNlbnQoKTsgfQ0KICAgICAgICAgICAgICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2EpIHsNCiAgICAgICAgICAgICAgICAgICAgc3dpdGNoIChfYS5sYWJlbCkgew0KICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAwOiByZXR1cm4gWzQgLyp5aWVsZCovLCBdOw0KICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAxOiByZXR1cm4gWzIgLypyZXR1cm4qL107DQogICAgICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICB9KTsNCiAgICAgICAgICAgIH0pOw0KICAgICAgICB9Ow0KICAgICAgICByZXR1cm4gWzIgLypyZXR1cm4qL107DQogICAgfSk7DQp9KTsgfTsNCg==",
+          "materialized_utf8_bytes": 817,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction7_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction7_es5.ts",
+          "start": 132,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction8_es5.ts#target%3Des2015",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction8_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction8_es5.ts",
+          "text": "var foo = async (): Promise<void> => {\n  var v = { [await]: foo }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction8_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction8_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9ICgpID0+IF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgew0KICAgIHZhciB2ID0geyBbeWllbGQgXTogZm9vIH07DQp9KTsNCg==",
+          "callback_utf8_bytes": 118,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9ICgpID0+IF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgew0KICAgIHZhciB2ID0geyBbeWllbGQgXTogZm9vIH07DQp9KTsNCg==",
+          "materialized_utf8_bytes": 118,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction8_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction8_es5.ts",
+          "start": 57,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction8_es5.ts#target%3Des5",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction8_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction8_es5.ts",
+          "text": "var foo = async (): Promise<void> => {\n  var v = { [await]: foo }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 1
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction8_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction8_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGZ1bmN0aW9uICgpIHsgcmV0dXJuIF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiAoKSB7DQogICAgdmFyIHY7DQogICAgdmFyIF9hOw0KICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2IpIHsNCiAgICAgICAgc3dpdGNoIChfYi5sYWJlbCkgew0KICAgICAgICAgICAgY2FzZSAwOg0KICAgICAgICAgICAgICAgIF9hID0ge307DQogICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgXTsNCiAgICAgICAgICAgIGNhc2UgMToNCiAgICAgICAgICAgICAgICB2ID0gKF9hW19iLnNlbnQoKV0gPSBmb28sIF9hKTsNCiAgICAgICAgICAgICAgICByZXR1cm4gWzIgLypyZXR1cm4qL107DQogICAgICAgIH0NCiAgICB9KTsNCn0pOyB9Ow0K",
+          "callback_utf8_bytes": 420,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGZ1bmN0aW9uICgpIHsgcmV0dXJuIF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiAoKSB7DQogICAgdmFyIHY7DQogICAgdmFyIF9hOw0KICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2IpIHsNCiAgICAgICAgc3dpdGNoIChfYi5sYWJlbCkgew0KICAgICAgICAgICAgY2FzZSAwOg0KICAgICAgICAgICAgICAgIF9hID0ge307DQogICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgXTsNCiAgICAgICAgICAgIGNhc2UgMToNCiAgICAgICAgICAgICAgICB2ID0gKF9hW19iLnNlbnQoKV0gPSBmb28sIF9hKTsNCiAgICAgICAgICAgICAgICByZXR1cm4gWzIgLypyZXR1cm4qL107DQogICAgICAgIH0NCiAgICB9KTsNCn0pOyB9Ow0K",
+          "materialized_utf8_bytes": 420,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction8_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction8_es5.ts",
+          "start": 57,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction9_es5.ts#target%3Des2015",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction9_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction9_es5.ts",
+          "text": "var foo = async (a = await => await): Promise<void> => {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "strict": false,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction9_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction9_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jKGEgPSBhd2FpdCA9PiBhd2FpdCksIFByb21pc2U7DQo7DQp7DQp9DQo=",
+          "callback_utf8_bytes": 71,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jKGEgPSBhd2FpdCA9PiBhd2FpdCksIFByb21pc2U7DQo7DQp7DQp9DQo=",
+          "materialized_utf8_bytes": 71,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction9_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es5.ts",
+          "start": 36,
+          "length": 1,
+          "message": "',' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es5.ts",
+          "start": 45,
+          "length": 1,
+          "message": "',' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es5.ts",
+          "start": 52,
+          "length": 2,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction9_es5.ts#target%3Des5",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction9_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction9_es5.ts",
+          "text": "var foo = async (a = await => await): Promise<void> => {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "strict": false,
+      "target": 1
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction9_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction9_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jKGEgPSBmdW5jdGlvbiAoYXdhaXQpIHsgcmV0dXJuIGF3YWl0OyB9KSwgUHJvbWlzZTsNCjsNCnsNCn0NCg==",
+          "callback_utf8_bytes": 91,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jKGEgPSBmdW5jdGlvbiAoYXdhaXQpIHsgcmV0dXJuIGF3YWl0OyB9KSwgUHJvbWlzZTsNCjsNCnsNCn0NCg==",
+          "materialized_utf8_bytes": 91,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction9_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es5.ts",
+          "start": 36,
+          "length": 1,
+          "message": "',' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es5.ts",
+          "start": 45,
+          "length": 1,
+          "message": "',' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es5.ts",
+          "start": 52,
+          "length": 2,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration10_es5.ts#target%3Des2015",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration10_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration10_es5.ts",
+          "text": "async function foo(a = await => await): Promise<void> {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "strict": false,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration10_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration10_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICwgYXdhaXQpIHsNCiAgICB9KTsNCn0NCg==",
+          "callback_utf8_bytes": 124,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICwgYXdhaXQpIHsNCiAgICB9KTsNCn0NCg==",
+          "materialized_utf8_bytes": 124,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration10_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration10_es5.ts",
+          "start": 29,
+          "length": 2,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration10_es5.ts#target%3Des5",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration10_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration10_es5.ts",
+          "text": "async function foo(a = await => await): Promise<void> {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "strict": false,
+      "target": 1
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration10_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration10_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uIChhLCBhd2FpdCkgew0KICAgICAgICBpZiAoYSA9PT0gdm9pZCAwKSB7IGEgPSBfYS5zZW50KCk7IH0NCiAgICAgICAgcmV0dXJuIF9fZ2VuZXJhdG9yKHRoaXMsIGZ1bmN0aW9uIChfYSkgew0KICAgICAgICAgICAgc3dpdGNoIChfYS5sYWJlbCkgew0KICAgICAgICAgICAgICAgIGNhc2UgMDogcmV0dXJuIFs0IC8qeWllbGQqLywgXTsNCiAgICAgICAgICAgICAgICBjYXNlIDE6IHJldHVybiBbMiAvKnJldHVybiovXTsNCiAgICAgICAgICAgIH0NCiAgICAgICAgfSk7DQogICAgfSk7DQp9DQo=",
+          "callback_utf8_bytes": 368,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uIChhLCBhd2FpdCkgew0KICAgICAgICBpZiAoYSA9PT0gdm9pZCAwKSB7IGEgPSBfYS5zZW50KCk7IH0NCiAgICAgICAgcmV0dXJuIF9fZ2VuZXJhdG9yKHRoaXMsIGZ1bmN0aW9uIChfYSkgew0KICAgICAgICAgICAgc3dpdGNoIChfYS5sYWJlbCkgew0KICAgICAgICAgICAgICAgIGNhc2UgMDogcmV0dXJuIFs0IC8qeWllbGQqLywgXTsNCiAgICAgICAgICAgICAgICBjYXNlIDE6IHJldHVybiBbMiAvKnJldHVybiovXTsNCiAgICAgICAgICAgIH0NCiAgICAgICAgfSk7DQogICAgfSk7DQp9DQo=",
+          "materialized_utf8_bytes": 368,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration10_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration10_es5.ts",
+          "start": 29,
+          "length": 2,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration6_es5.ts#target%3Des2015",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration6_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration6_es5.ts",
+          "text": "async function foo(a = await): Promise<void> {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration6_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration6_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KICAgIH0pOw0KfQ0K",
+          "callback_utf8_bytes": 117,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KICAgIH0pOw0KfQ0K",
+          "materialized_utf8_bytes": 117,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration6_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration6_es5.ts",
+          "start": 28,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration6_es5.ts#target%3Des5",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration6_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration6_es5.ts",
+          "text": "async function foo(a = await): Promise<void> {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 1
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration6_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration6_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uIChhKSB7DQogICAgICAgIGlmIChhID09PSB2b2lkIDApIHsgYSA9IF9hLnNlbnQoKTsgfQ0KICAgICAgICByZXR1cm4gX19nZW5lcmF0b3IodGhpcywgZnVuY3Rpb24gKF9hKSB7DQogICAgICAgICAgICBzd2l0Y2ggKF9hLmxhYmVsKSB7DQogICAgICAgICAgICAgICAgY2FzZSAwOiByZXR1cm4gWzQgLyp5aWVsZCovLCBdOw0KICAgICAgICAgICAgICAgIGNhc2UgMTogcmV0dXJuIFsyIC8qcmV0dXJuKi9dOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9KTsNCiAgICB9KTsNCn0NCg==",
+          "callback_utf8_bytes": 361,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uIChhKSB7DQogICAgICAgIGlmIChhID09PSB2b2lkIDApIHsgYSA9IF9hLnNlbnQoKTsgfQ0KICAgICAgICByZXR1cm4gX19nZW5lcmF0b3IodGhpcywgZnVuY3Rpb24gKF9hKSB7DQogICAgICAgICAgICBzd2l0Y2ggKF9hLmxhYmVsKSB7DQogICAgICAgICAgICAgICAgY2FzZSAwOiByZXR1cm4gWzQgLyp5aWVsZCovLCBdOw0KICAgICAgICAgICAgICAgIGNhc2UgMTogcmV0dXJuIFsyIC8qcmV0dXJuKi9dOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9KTsNCiAgICB9KTsNCn0NCg==",
+          "materialized_utf8_bytes": 361,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration6_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration6_es5.ts",
+          "start": 28,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts#target%3Des2015",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration7_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration7_es5.ts",
+          "text": "async function bar(): Promise<void> {\n  // 'await' here is an identifier, and not a yield expression.\n  async function foo(a = await): Promise<void> {\n  }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration7_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration7_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gYmFyKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uKiAoKSB7DQogICAgICAgIC8vICdhd2FpdCcgaGVyZSBpcyBhbiBpZGVudGlmaWVyLCBhbmQgbm90IGEgeWllbGQgZXhwcmVzc2lvbi4NCiAgICAgICAgZnVuY3Rpb24gZm9vKCkgew0KICAgICAgICAgICAgcmV0dXJuIF9fYXdhaXRlcih0aGlzLCBhcmd1bWVudHMsIHZvaWQgMCwgZnVuY3Rpb24qIChhID0geWllbGQgKSB7DQogICAgICAgICAgICB9KTsNCiAgICAgICAgfQ0KICAgIH0pOw0KfQ0K",
+          "callback_utf8_bytes": 309,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gYmFyKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uKiAoKSB7DQogICAgICAgIC8vICdhd2FpdCcgaGVyZSBpcyBhbiBpZGVudGlmaWVyLCBhbmQgbm90IGEgeWllbGQgZXhwcmVzc2lvbi4NCiAgICAgICAgZnVuY3Rpb24gZm9vKCkgew0KICAgICAgICAgICAgcmV0dXJuIF9fYXdhaXRlcih0aGlzLCBhcmd1bWVudHMsIHZvaWQgMCwgZnVuY3Rpb24qIChhID0geWllbGQgKSB7DQogICAgICAgICAgICB9KTsNCiAgICAgICAgfQ0KICAgIH0pOw0KfQ0K",
+          "materialized_utf8_bytes": 309,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration7_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration7_es5.ts",
+          "start": 132,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts#target%3Des5",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration7_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration7_es5.ts",
+          "text": "async function bar(): Promise<void> {\n  // 'await' here is an identifier, and not a yield expression.\n  async function foo(a = await): Promise<void> {\n  }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 1
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration7_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration7_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gYmFyKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uICgpIHsNCiAgICAgICAgLy8gJ2F3YWl0JyBoZXJlIGlzIGFuIGlkZW50aWZpZXIsIGFuZCBub3QgYSB5aWVsZCBleHByZXNzaW9uLg0KICAgICAgICBmdW5jdGlvbiBmb28oKSB7DQogICAgICAgICAgICByZXR1cm4gX19hd2FpdGVyKHRoaXMsIGFyZ3VtZW50cywgdm9pZCAwLCBmdW5jdGlvbiAoYSkgew0KICAgICAgICAgICAgICAgIGlmIChhID09PSB2b2lkIDApIHsgYSA9IF9hLnNlbnQoKTsgfQ0KICAgICAgICAgICAgICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2EpIHsNCiAgICAgICAgICAgICAgICAgICAgc3dpdGNoIChfYS5sYWJlbCkgew0KICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAwOiByZXR1cm4gWzQgLyp5aWVsZCovLCBdOw0KICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAxOiByZXR1cm4gWzIgLypyZXR1cm4qL107DQogICAgICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICB9KTsNCiAgICAgICAgICAgIH0pOw0KICAgICAgICB9DQogICAgICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2EpIHsNCiAgICAgICAgICAgIHJldHVybiBbMiAvKnJldHVybiovXTsNCiAgICAgICAgfSk7DQogICAgfSk7DQp9DQo=",
+          "callback_utf8_bytes": 707,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gYmFyKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uICgpIHsNCiAgICAgICAgLy8gJ2F3YWl0JyBoZXJlIGlzIGFuIGlkZW50aWZpZXIsIGFuZCBub3QgYSB5aWVsZCBleHByZXNzaW9uLg0KICAgICAgICBmdW5jdGlvbiBmb28oKSB7DQogICAgICAgICAgICByZXR1cm4gX19hd2FpdGVyKHRoaXMsIGFyZ3VtZW50cywgdm9pZCAwLCBmdW5jdGlvbiAoYSkgew0KICAgICAgICAgICAgICAgIGlmIChhID09PSB2b2lkIDApIHsgYSA9IF9hLnNlbnQoKTsgfQ0KICAgICAgICAgICAgICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2EpIHsNCiAgICAgICAgICAgICAgICAgICAgc3dpdGNoIChfYS5sYWJlbCkgew0KICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAwOiByZXR1cm4gWzQgLyp5aWVsZCovLCBdOw0KICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAxOiByZXR1cm4gWzIgLypyZXR1cm4qL107DQogICAgICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICB9KTsNCiAgICAgICAgICAgIH0pOw0KICAgICAgICB9DQogICAgICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2EpIHsNCiAgICAgICAgICAgIHJldHVybiBbMiAvKnJldHVybiovXTsNCiAgICAgICAgfSk7DQogICAgfSk7DQp9DQo=",
+          "materialized_utf8_bytes": 707,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration7_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration7_es5.ts",
+          "start": 132,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration9_es5.ts#target%3Des2015",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration9_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration9_es5.ts",
+          "text": "async function foo(): Promise<void> {\n  var v = { [await]: foo }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration9_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration9_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uKiAoKSB7DQogICAgICAgIHZhciB2ID0geyBbeWllbGQgXTogZm9vIH07DQogICAgfSk7DQp9DQo=",
+          "callback_utf8_bytes": 140,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uKiAoKSB7DQogICAgICAgIHZhciB2ID0geyBbeWllbGQgXTogZm9vIH07DQogICAgfSk7DQp9DQo=",
+          "materialized_utf8_bytes": 140,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration9_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration9_es5.ts",
+          "start": 56,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration9_es5.ts#target%3Des5",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration9_es5.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration9_es5.ts",
+          "text": "async function foo(): Promise<void> {\n  var v = { [await]: foo }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "lib": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts"
+      ],
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 1
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration9_es5.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration9_es5.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uICgpIHsNCiAgICAgICAgdmFyIHY7DQogICAgICAgIHZhciBfYTsNCiAgICAgICAgcmV0dXJuIF9fZ2VuZXJhdG9yKHRoaXMsIGZ1bmN0aW9uIChfYikgew0KICAgICAgICAgICAgc3dpdGNoIChfYi5sYWJlbCkgew0KICAgICAgICAgICAgICAgIGNhc2UgMDoNCiAgICAgICAgICAgICAgICAgICAgX2EgPSB7fTsNCiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgXTsNCiAgICAgICAgICAgICAgICBjYXNlIDE6DQogICAgICAgICAgICAgICAgICAgIHYgPSAoX2FbX2Iuc2VudCgpXSA9IGZvbywgX2EpOw0KICAgICAgICAgICAgICAgICAgICByZXR1cm4gWzIgLypyZXR1cm4qL107DQogICAgICAgICAgICB9DQogICAgICAgIH0pOw0KICAgIH0pOw0KfQ0K",
+          "callback_utf8_bytes": 468,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uICgpIHsNCiAgICAgICAgdmFyIHY7DQogICAgICAgIHZhciBfYTsNCiAgICAgICAgcmV0dXJuIF9fZ2VuZXJhdG9yKHRoaXMsIGZ1bmN0aW9uIChfYikgew0KICAgICAgICAgICAgc3dpdGNoIChfYi5sYWJlbCkgew0KICAgICAgICAgICAgICAgIGNhc2UgMDoNCiAgICAgICAgICAgICAgICAgICAgX2EgPSB7fTsNCiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgXTsNCiAgICAgICAgICAgICAgICBjYXNlIDE6DQogICAgICAgICAgICAgICAgICAgIHYgPSAoX2FbX2Iuc2VudCgpXSA9IGZvbywgX2EpOw0KICAgICAgICAgICAgICAgICAgICByZXR1cm4gWzIgLypyZXR1cm4qL107DQogICAgICAgICAgICB9DQogICAgICAgIH0pOw0KICAgIH0pOw0KfQ0K",
+          "materialized_utf8_bytes": 468,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration9_es5.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration9_es5.ts",
+          "start": 56,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction6_es6.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction6_es6.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction6_es6.ts",
+          "text": "var foo = async (a = await): Promise<void> => {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction6_es6.ts"
+      ],
+      "standard_libraries": [
+        "lib.es6.d.ts",
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction6_es6.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9ICguLi5hcmdzXzEpID0+IF9fYXdhaXRlcih2b2lkIDAsIFsuLi5hcmdzXzFdLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KfSk7DQo=",
+          "callback_utf8_bytes": 110,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9ICguLi5hcmdzXzEpID0+IF9fYXdhaXRlcih2b2lkIDAsIFsuLi5hcmdzXzFdLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KfSk7DQo=",
+          "materialized_utf8_bytes": 110,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction6_es6.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction6_es6.ts",
+          "start": 26,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction7_es6.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction7_es6.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction7_es6.ts",
+          "text": "var bar = async (): Promise<void> => {\n  // 'await' here is an identifier, and not an await expression.\n  var foo = async (a = await): Promise<void> => {\n  }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction7_es6.ts"
+      ],
+      "standard_libraries": [
+        "lib.es6.d.ts",
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction7_es6.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGJhciA9ICgpID0+IF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgew0KICAgIC8vICdhd2FpdCcgaGVyZSBpcyBhbiBpZGVudGlmaWVyLCBhbmQgbm90IGFuIGF3YWl0IGV4cHJlc3Npb24uDQogICAgdmFyIGZvbyA9ICguLi5hcmdzXzEpID0+IF9fYXdhaXRlcih2b2lkIDAsIFsuLi5hcmdzXzFdLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KICAgIH0pOw0KfSk7DQo=",
+          "callback_utf8_bytes": 257,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGJhciA9ICgpID0+IF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgew0KICAgIC8vICdhd2FpdCcgaGVyZSBpcyBhbiBpZGVudGlmaWVyLCBhbmQgbm90IGFuIGF3YWl0IGV4cHJlc3Npb24uDQogICAgdmFyIGZvbyA9ICguLi5hcmdzXzEpID0+IF9fYXdhaXRlcih2b2lkIDAsIFsuLi5hcmdzXzFdLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KICAgIH0pOw0KfSk7DQo=",
+          "materialized_utf8_bytes": 257,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction7_es6.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction7_es6.ts",
+          "start": 132,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction8_es6.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction8_es6.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction8_es6.ts",
+          "text": "var foo = async (): Promise<void> => {\n  var v = { [await]: foo }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction8_es6.ts"
+      ],
+      "standard_libraries": [
+        "lib.es6.d.ts",
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction8_es6.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9ICgpID0+IF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgew0KICAgIHZhciB2ID0geyBbeWllbGQgXTogZm9vIH07DQp9KTsNCg==",
+          "callback_utf8_bytes": 118,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9ICgpID0+IF9fYXdhaXRlcih2b2lkIDAsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgew0KICAgIHZhciB2ID0geyBbeWllbGQgXTogZm9vIH07DQp9KTsNCg==",
+          "materialized_utf8_bytes": 118,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction8_es6.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction8_es6.ts",
+          "start": 57,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction9_es6.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncArrowFunction9_es6.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction9_es6.ts",
+          "text": "var foo = async (a = await => await): Promise<void> => {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "strict": false,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncArrowFunction9_es6.ts"
+      ],
+      "standard_libraries": [
+        "lib.es6.d.ts",
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncArrowFunction9_es6.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jKGEgPSBhd2FpdCA9PiBhd2FpdCksIFByb21pc2U7DQo7DQp7DQp9DQo=",
+          "callback_utf8_bytes": 71,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZvbyA9IGFzeW5jKGEgPSBhd2FpdCA9PiBhd2FpdCksIFByb21pc2U7DQo7DQp7DQp9DQo=",
+          "materialized_utf8_bytes": 71,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncArrowFunction9_es6.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es6.ts",
+          "start": 36,
+          "length": 1,
+          "message": "',' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es6.ts",
+          "start": 45,
+          "length": 1,
+          "message": "',' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncArrowFunction9_es6.ts",
+          "start": 52,
+          "length": 2,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration10_es6.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration10_es6.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration10_es6.ts",
+          "text": "async function foo(a = await => await): Promise<void> {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "strict": false,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration10_es6.ts"
+      ],
+      "standard_libraries": [
+        "lib.es6.d.ts",
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration10_es6.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICwgYXdhaXQpIHsNCiAgICB9KTsNCn0NCg==",
+          "callback_utf8_bytes": 124,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICwgYXdhaXQpIHsNCiAgICB9KTsNCn0NCg==",
+          "materialized_utf8_bytes": 124,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration10_es6.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration10_es6.ts",
+          "start": 29,
+          "length": 2,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration6_es6.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration6_es6.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration6_es6.ts",
+          "text": "async function foo(a = await): Promise<void> {\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration6_es6.ts"
+      ],
+      "standard_libraries": [
+        "lib.es6.d.ts",
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration6_es6.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KICAgIH0pOw0KfQ0K",
+          "callback_utf8_bytes": 117,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgYXJndW1lbnRzLCB2b2lkIDAsIGZ1bmN0aW9uKiAoYSA9IHlpZWxkICkgew0KICAgIH0pOw0KfQ0K",
+          "materialized_utf8_bytes": 117,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration6_es6.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration6_es6.ts",
+          "start": 28,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration7_es6.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration7_es6.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration7_es6.ts",
+          "text": "async function bar(): Promise<void> {\n  // 'await' here is an identifier, and not a yield expression.\n  async function foo(a = await): Promise<void> {\n  }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration7_es6.ts"
+      ],
+      "standard_libraries": [
+        "lib.es6.d.ts",
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration7_es6.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gYmFyKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uKiAoKSB7DQogICAgICAgIC8vICdhd2FpdCcgaGVyZSBpcyBhbiBpZGVudGlmaWVyLCBhbmQgbm90IGEgeWllbGQgZXhwcmVzc2lvbi4NCiAgICAgICAgZnVuY3Rpb24gZm9vKCkgew0KICAgICAgICAgICAgcmV0dXJuIF9fYXdhaXRlcih0aGlzLCBhcmd1bWVudHMsIHZvaWQgMCwgZnVuY3Rpb24qIChhID0geWllbGQgKSB7DQogICAgICAgICAgICB9KTsNCiAgICAgICAgfQ0KICAgIH0pOw0KfQ0K",
+          "callback_utf8_bytes": 309,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gYmFyKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uKiAoKSB7DQogICAgICAgIC8vICdhd2FpdCcgaGVyZSBpcyBhbiBpZGVudGlmaWVyLCBhbmQgbm90IGEgeWllbGQgZXhwcmVzc2lvbi4NCiAgICAgICAgZnVuY3Rpb24gZm9vKCkgew0KICAgICAgICAgICAgcmV0dXJuIF9fYXdhaXRlcih0aGlzLCBhcmd1bWVudHMsIHZvaWQgMCwgZnVuY3Rpb24qIChhID0geWllbGQgKSB7DQogICAgICAgICAgICB9KTsNCiAgICAgICAgfQ0KICAgIH0pOw0KfQ0K",
+          "materialized_utf8_bytes": 309,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration7_es6.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration7_es6.ts",
+          "start": 132,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration9_es6.ts#default",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/asyncFunctionDeclaration9_es6.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration9_es6.ts",
+          "text": "async function foo(): Promise<void> {\n  var v = { [await]: foo }\n}"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 2
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/asyncFunctionDeclaration9_es6.ts"
+      ],
+      "standard_libraries": [
+        "lib.es6.d.ts",
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/asyncFunctionDeclaration9_es6.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uKiAoKSB7DQogICAgICAgIHZhciB2ID0geyBbeWllbGQgXTogZm9vIH07DQogICAgfSk7DQp9DQo=",
+          "callback_utf8_bytes": 140,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiBfX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uKiAoKSB7DQogICAgICAgIHZhciB2ID0geyBbeWllbGQgXTogZm9vIH07DQogICAgfSk7DQp9DQo=",
+          "materialized_utf8_bytes": 140,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/asyncFunctionDeclaration9_es6.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/asyncFunctionDeclaration9_es6.ts",
+          "start": 56,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.3.ts#experimentaldecorators%3Dtrue",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/esDecorators-decoratorExpression.3.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/esDecorators-decoratorExpression.3.ts",
+          "text": "declare let g: <T>(...args: any) => any;\n\n// existing errors\n\n{ @g<number> class C {} }\n\n{ @g()<number> class C {} }\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "experimentalDecorators": true,
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 99
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/esDecorators-decoratorExpression.3.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.es2018.d.ts",
+        "lib.es2019.d.ts",
+        "lib.es2020.d.ts",
+        "lib.es2021.d.ts",
+        "lib.es2022.d.ts",
+        "lib.es2023.d.ts",
+        "lib.es2024.d.ts",
+        "lib.es2025.d.ts",
+        "lib.esnext.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.dom.asynciterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asyncgenerator.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.es2018.intl.d.ts",
+        "lib.es2018.promise.d.ts",
+        "lib.es2018.regexp.d.ts",
+        "lib.es2019.array.d.ts",
+        "lib.es2019.object.d.ts",
+        "lib.es2019.string.d.ts",
+        "lib.es2019.symbol.d.ts",
+        "lib.es2019.intl.d.ts",
+        "lib.es2020.bigint.d.ts",
+        "lib.es2020.date.d.ts",
+        "lib.es2020.promise.d.ts",
+        "lib.es2020.sharedmemory.d.ts",
+        "lib.es2020.string.d.ts",
+        "lib.es2020.symbol.wellknown.d.ts",
+        "lib.es2020.intl.d.ts",
+        "lib.es2020.number.d.ts",
+        "lib.es2021.promise.d.ts",
+        "lib.es2021.string.d.ts",
+        "lib.es2021.weakref.d.ts",
+        "lib.es2021.intl.d.ts",
+        "lib.es2022.array.d.ts",
+        "lib.es2022.error.d.ts",
+        "lib.es2022.intl.d.ts",
+        "lib.es2022.object.d.ts",
+        "lib.es2022.string.d.ts",
+        "lib.es2022.regexp.d.ts",
+        "lib.es2023.array.d.ts",
+        "lib.es2023.collection.d.ts",
+        "lib.es2023.intl.d.ts",
+        "lib.es2024.arraybuffer.d.ts",
+        "lib.es2024.collection.d.ts",
+        "lib.es2024.object.d.ts",
+        "lib.es2024.promise.d.ts",
+        "lib.es2024.regexp.d.ts",
+        "lib.es2024.sharedmemory.d.ts",
+        "lib.es2024.string.d.ts",
+        "lib.es2025.collection.d.ts",
+        "lib.es2025.float16.d.ts",
+        "lib.es2025.intl.d.ts",
+        "lib.es2025.iterator.d.ts",
+        "lib.es2025.promise.d.ts",
+        "lib.es2025.regexp.d.ts",
+        "lib.esnext.array.d.ts",
+        "lib.esnext.collection.d.ts",
+        "lib.esnext.date.d.ts",
+        "lib.esnext.decorators.d.ts",
+        "lib.esnext.disposable.d.ts",
+        "lib.esnext.error.d.ts",
+        "lib.esnext.intl.d.ts",
+        "lib.esnext.sharedmemory.d.ts",
+        "lib.esnext.temporal.d.ts",
+        "lib.esnext.typedarrays.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.esnext.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/esDecorators-decoratorExpression.3.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gZXhpc3RpbmcgZXJyb3JzDQp7DQogICAgY2xhc3MgQyB7DQogICAgfTsNCn0NCnsNCiAgICBjbGFzcyBDIHsNCiAgICB9Ow0KfQ0K",
+          "callback_utf8_bytes": 93,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gZXhpc3RpbmcgZXJyb3JzDQp7DQogICAgY2xhc3MgQyB7DQogICAgfTsNCn0NCnsNCiAgICBjbGFzcyBDIHsNCiAgICB9Ow0KfQ0K",
+          "materialized_utf8_bytes": 93,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/esDecorators-decoratorExpression.3.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1146,
+          "category": "Error",
+          "file": "/.src/esDecorators-decoratorExpression.3.ts",
+          "start": 66,
+          "length": 0,
+          "message": "Declaration expected.",
+          "related_information": null
+        },
+        {
+          "code": 1146,
+          "category": "Error",
+          "file": "/.src/esDecorators-decoratorExpression.3.ts",
+          "start": 95,
+          "length": 0,
+          "message": "Declaration expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.1.ts#module%3Des2022",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/topLevelAwaitErrors.1.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/topLevelAwaitErrors.1.ts",
+          "text": "export {};\n\n// reparse call as invalid await should error\nawait (1,);\nawait <number, string>(1);\n\n// reparse tagged template as invalid await should error\nawait <number, string> ``;\n\n// reparse class extends clause should fail\nclass C extends await<string> {\n}\n\n// await in class decorators should fail\n@(await)\nclass C1 {}\n\n@await(x)\nclass C2 {}\n\n@await\nclass C3 {}\n\n// await in member decorators should fail\nclass C4 {\n    @await\n    [\"foo\"]() {}\n}\nclass C5 {\n    @await(1)\n    [\"foo\"]() {}\n}\nclass C6 {\n    @(await)\n    [\"foo\"]() {}\n}\n\n// await in parameter decorators should fail\nclass C7 {\n    method1(@await [x]) {}\n    method2(@await(1) [x]) {}\n    method3(@(await) [x]) {}\n}\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "experimentalDecorators": true,
+      "module": 7,
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "strict": false,
+      "target": 99
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/topLevelAwaitErrors.1.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.es2018.d.ts",
+        "lib.es2019.d.ts",
+        "lib.es2020.d.ts",
+        "lib.es2021.d.ts",
+        "lib.es2022.d.ts",
+        "lib.es2023.d.ts",
+        "lib.es2024.d.ts",
+        "lib.es2025.d.ts",
+        "lib.esnext.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.dom.asynciterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asyncgenerator.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.es2018.intl.d.ts",
+        "lib.es2018.promise.d.ts",
+        "lib.es2018.regexp.d.ts",
+        "lib.es2019.array.d.ts",
+        "lib.es2019.object.d.ts",
+        "lib.es2019.string.d.ts",
+        "lib.es2019.symbol.d.ts",
+        "lib.es2019.intl.d.ts",
+        "lib.es2020.bigint.d.ts",
+        "lib.es2020.date.d.ts",
+        "lib.es2020.promise.d.ts",
+        "lib.es2020.sharedmemory.d.ts",
+        "lib.es2020.string.d.ts",
+        "lib.es2020.symbol.wellknown.d.ts",
+        "lib.es2020.intl.d.ts",
+        "lib.es2020.number.d.ts",
+        "lib.es2021.promise.d.ts",
+        "lib.es2021.string.d.ts",
+        "lib.es2021.weakref.d.ts",
+        "lib.es2021.intl.d.ts",
+        "lib.es2022.array.d.ts",
+        "lib.es2022.error.d.ts",
+        "lib.es2022.intl.d.ts",
+        "lib.es2022.object.d.ts",
+        "lib.es2022.string.d.ts",
+        "lib.es2022.regexp.d.ts",
+        "lib.es2023.array.d.ts",
+        "lib.es2023.collection.d.ts",
+        "lib.es2023.intl.d.ts",
+        "lib.es2024.arraybuffer.d.ts",
+        "lib.es2024.collection.d.ts",
+        "lib.es2024.object.d.ts",
+        "lib.es2024.promise.d.ts",
+        "lib.es2024.regexp.d.ts",
+        "lib.es2024.sharedmemory.d.ts",
+        "lib.es2024.string.d.ts",
+        "lib.es2025.collection.d.ts",
+        "lib.es2025.float16.d.ts",
+        "lib.es2025.intl.d.ts",
+        "lib.es2025.iterator.d.ts",
+        "lib.es2025.promise.d.ts",
+        "lib.es2025.regexp.d.ts",
+        "lib.esnext.array.d.ts",
+        "lib.esnext.collection.d.ts",
+        "lib.esnext.date.d.ts",
+        "lib.esnext.decorators.d.ts",
+        "lib.esnext.disposable.d.ts",
+        "lib.esnext.error.d.ts",
+        "lib.esnext.intl.d.ts",
+        "lib.esnext.sharedmemory.d.ts",
+        "lib.esnext.temporal.d.ts",
+        "lib.esnext.typedarrays.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.esnext.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/topLevelAwaitErrors.1.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "Ly8gcmVwYXJzZSBjYWxsIGFzIGludmFsaWQgYXdhaXQgc2hvdWxkIGVycm9yDQphd2FpdCAoMSwgKTsNCmF3YWl0ICwgc3RyaW5nID4gKDEpOw0KLy8gcmVwYXJzZSB0YWdnZWQgdGVtcGxhdGUgYXMgaW52YWxpZCBhd2FpdCBzaG91bGQgZXJyb3INCmF3YWl0ICwgc3RyaW5nID4gYGA7DQovLyByZXBhcnNlIGNsYXNzIGV4dGVuZHMgY2xhdXNlIHNob3VsZCBmYWlsDQpjbGFzcyBDIGV4dGVuZHMgc3RyaW5nIHsNCn0NCi8vIGF3YWl0IGluIGNsYXNzIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmxldCBDMSA9IGNsYXNzIEMxIHsNCn07DQpDMSA9IF9fZGVjb3JhdGUoWw0KICAgIChhd2FpdCApDQpdLCBDMSk7DQpsZXQgQzIgPSBjbGFzcyBDMiB7DQp9Ow0KQzIgPSBfX2RlY29yYXRlKFsNCiAgICAoeCkNCl0sIEMyKTsNCmxldCBDMyA9IGNsYXNzIEMzIHsNCn07DQpDMyA9IF9fZGVjb3JhdGUoWw0KXSwgQzMpOw0KLy8gYXdhaXQgaW4gbWVtYmVyIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmNsYXNzIEM0IHsNCiAgICBbImZvbyJdKCkgeyB9DQp9DQpfX2RlY29yYXRlKFsNCl0sIEM0LnByb3RvdHlwZSwgImZvbyIsIG51bGwpOw0KY2xhc3MgQzUgew0KICAgIFsiZm9vIl0oKSB7IH0NCn0NCl9fZGVjb3JhdGUoWw0KICAgICgxKQ0KXSwgQzUucHJvdG90eXBlLCAiZm9vIiwgbnVsbCk7DQpjbGFzcyBDNiB7DQogICAgWyJmb28iXSgpIHsgfQ0KfQ0KX19kZWNvcmF0ZShbDQogICAgKGF3YWl0ICkNCl0sIEM2LnByb3RvdHlwZSwgImZvbyIsIG51bGwpOw0KLy8gYXdhaXQgaW4gcGFyYW1ldGVyIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmNsYXNzIEM3IHsNCiAgICBtZXRob2QxKFt4XSkgeyB9DQogICAgbWV0aG9kMihbeF0pIHsgfQ0KICAgIG1ldGhvZDMoW3hdKSB7IH0NCn0NCl9fZGVjb3JhdGUoWw0KICAgIF9fcGFyYW0oMCwgKQ0KXSwgQzcucHJvdG90eXBlLCAibWV0aG9kMSIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgX19wYXJhbSgwLCAoMSkpDQpdLCBDNy5wcm90b3R5cGUsICJtZXRob2QyIiwgbnVsbCk7DQpfX2RlY29yYXRlKFsNCiAgICBfX3BhcmFtKDAsIChhd2FpdCApKQ0KXSwgQzcucHJvdG90eXBlLCAibWV0aG9kMyIsIG51bGwpOw0KZXhwb3J0IHt9Ow0K",
+          "callback_utf8_bytes": 1122,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "Ly8gcmVwYXJzZSBjYWxsIGFzIGludmFsaWQgYXdhaXQgc2hvdWxkIGVycm9yDQphd2FpdCAoMSwgKTsNCmF3YWl0ICwgc3RyaW5nID4gKDEpOw0KLy8gcmVwYXJzZSB0YWdnZWQgdGVtcGxhdGUgYXMgaW52YWxpZCBhd2FpdCBzaG91bGQgZXJyb3INCmF3YWl0ICwgc3RyaW5nID4gYGA7DQovLyByZXBhcnNlIGNsYXNzIGV4dGVuZHMgY2xhdXNlIHNob3VsZCBmYWlsDQpjbGFzcyBDIGV4dGVuZHMgc3RyaW5nIHsNCn0NCi8vIGF3YWl0IGluIGNsYXNzIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmxldCBDMSA9IGNsYXNzIEMxIHsNCn07DQpDMSA9IF9fZGVjb3JhdGUoWw0KICAgIChhd2FpdCApDQpdLCBDMSk7DQpsZXQgQzIgPSBjbGFzcyBDMiB7DQp9Ow0KQzIgPSBfX2RlY29yYXRlKFsNCiAgICAoeCkNCl0sIEMyKTsNCmxldCBDMyA9IGNsYXNzIEMzIHsNCn07DQpDMyA9IF9fZGVjb3JhdGUoWw0KXSwgQzMpOw0KLy8gYXdhaXQgaW4gbWVtYmVyIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmNsYXNzIEM0IHsNCiAgICBbImZvbyJdKCkgeyB9DQp9DQpfX2RlY29yYXRlKFsNCl0sIEM0LnByb3RvdHlwZSwgImZvbyIsIG51bGwpOw0KY2xhc3MgQzUgew0KICAgIFsiZm9vIl0oKSB7IH0NCn0NCl9fZGVjb3JhdGUoWw0KICAgICgxKQ0KXSwgQzUucHJvdG90eXBlLCAiZm9vIiwgbnVsbCk7DQpjbGFzcyBDNiB7DQogICAgWyJmb28iXSgpIHsgfQ0KfQ0KX19kZWNvcmF0ZShbDQogICAgKGF3YWl0ICkNCl0sIEM2LnByb3RvdHlwZSwgImZvbyIsIG51bGwpOw0KLy8gYXdhaXQgaW4gcGFyYW1ldGVyIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmNsYXNzIEM3IHsNCiAgICBtZXRob2QxKFt4XSkgeyB9DQogICAgbWV0aG9kMihbeF0pIHsgfQ0KICAgIG1ldGhvZDMoW3hdKSB7IH0NCn0NCl9fZGVjb3JhdGUoWw0KICAgIF9fcGFyYW0oMCwgKQ0KXSwgQzcucHJvdG90eXBlLCAibWV0aG9kMSIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgX19wYXJhbSgwLCAoMSkpDQpdLCBDNy5wcm90b3R5cGUsICJtZXRob2QyIiwgbnVsbCk7DQpfX2RlY29yYXRlKFsNCiAgICBfX3BhcmFtKDAsIChhd2FpdCApKQ0KXSwgQzcucHJvdG90eXBlLCAibWV0aG9kMyIsIG51bGwpOw0KZXhwb3J0IHt9Ow0K",
+          "materialized_utf8_bytes": 1122,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/topLevelAwaitErrors.1.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 67,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 83,
+          "length": 1,
+          "message": "'>' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 168,
+          "length": 1,
+          "message": "'>' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 243,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 248,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 255,
+          "length": 1,
+          "message": "',' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 310,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 326,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 349,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 426,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 467,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 517,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 608,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 635,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 671,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.1.ts#module%3Desnext",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/topLevelAwaitErrors.1.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/topLevelAwaitErrors.1.ts",
+          "text": "export {};\n\n// reparse call as invalid await should error\nawait (1,);\nawait <number, string>(1);\n\n// reparse tagged template as invalid await should error\nawait <number, string> ``;\n\n// reparse class extends clause should fail\nclass C extends await<string> {\n}\n\n// await in class decorators should fail\n@(await)\nclass C1 {}\n\n@await(x)\nclass C2 {}\n\n@await\nclass C3 {}\n\n// await in member decorators should fail\nclass C4 {\n    @await\n    [\"foo\"]() {}\n}\nclass C5 {\n    @await(1)\n    [\"foo\"]() {}\n}\nclass C6 {\n    @(await)\n    [\"foo\"]() {}\n}\n\n// await in parameter decorators should fail\nclass C7 {\n    method1(@await [x]) {}\n    method2(@await(1) [x]) {}\n    method3(@(await) [x]) {}\n}\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "experimentalDecorators": true,
+      "module": 99,
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "strict": false,
+      "target": 99
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/topLevelAwaitErrors.1.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.es2018.d.ts",
+        "lib.es2019.d.ts",
+        "lib.es2020.d.ts",
+        "lib.es2021.d.ts",
+        "lib.es2022.d.ts",
+        "lib.es2023.d.ts",
+        "lib.es2024.d.ts",
+        "lib.es2025.d.ts",
+        "lib.esnext.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.dom.asynciterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asyncgenerator.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.es2018.intl.d.ts",
+        "lib.es2018.promise.d.ts",
+        "lib.es2018.regexp.d.ts",
+        "lib.es2019.array.d.ts",
+        "lib.es2019.object.d.ts",
+        "lib.es2019.string.d.ts",
+        "lib.es2019.symbol.d.ts",
+        "lib.es2019.intl.d.ts",
+        "lib.es2020.bigint.d.ts",
+        "lib.es2020.date.d.ts",
+        "lib.es2020.promise.d.ts",
+        "lib.es2020.sharedmemory.d.ts",
+        "lib.es2020.string.d.ts",
+        "lib.es2020.symbol.wellknown.d.ts",
+        "lib.es2020.intl.d.ts",
+        "lib.es2020.number.d.ts",
+        "lib.es2021.promise.d.ts",
+        "lib.es2021.string.d.ts",
+        "lib.es2021.weakref.d.ts",
+        "lib.es2021.intl.d.ts",
+        "lib.es2022.array.d.ts",
+        "lib.es2022.error.d.ts",
+        "lib.es2022.intl.d.ts",
+        "lib.es2022.object.d.ts",
+        "lib.es2022.string.d.ts",
+        "lib.es2022.regexp.d.ts",
+        "lib.es2023.array.d.ts",
+        "lib.es2023.collection.d.ts",
+        "lib.es2023.intl.d.ts",
+        "lib.es2024.arraybuffer.d.ts",
+        "lib.es2024.collection.d.ts",
+        "lib.es2024.object.d.ts",
+        "lib.es2024.promise.d.ts",
+        "lib.es2024.regexp.d.ts",
+        "lib.es2024.sharedmemory.d.ts",
+        "lib.es2024.string.d.ts",
+        "lib.es2025.collection.d.ts",
+        "lib.es2025.float16.d.ts",
+        "lib.es2025.intl.d.ts",
+        "lib.es2025.iterator.d.ts",
+        "lib.es2025.promise.d.ts",
+        "lib.es2025.regexp.d.ts",
+        "lib.esnext.array.d.ts",
+        "lib.esnext.collection.d.ts",
+        "lib.esnext.date.d.ts",
+        "lib.esnext.decorators.d.ts",
+        "lib.esnext.disposable.d.ts",
+        "lib.esnext.error.d.ts",
+        "lib.esnext.intl.d.ts",
+        "lib.esnext.sharedmemory.d.ts",
+        "lib.esnext.temporal.d.ts",
+        "lib.esnext.typedarrays.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.esnext.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/topLevelAwaitErrors.1.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "Ly8gcmVwYXJzZSBjYWxsIGFzIGludmFsaWQgYXdhaXQgc2hvdWxkIGVycm9yDQphd2FpdCAoMSwgKTsNCmF3YWl0ICwgc3RyaW5nID4gKDEpOw0KLy8gcmVwYXJzZSB0YWdnZWQgdGVtcGxhdGUgYXMgaW52YWxpZCBhd2FpdCBzaG91bGQgZXJyb3INCmF3YWl0ICwgc3RyaW5nID4gYGA7DQovLyByZXBhcnNlIGNsYXNzIGV4dGVuZHMgY2xhdXNlIHNob3VsZCBmYWlsDQpjbGFzcyBDIGV4dGVuZHMgc3RyaW5nIHsNCn0NCi8vIGF3YWl0IGluIGNsYXNzIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmxldCBDMSA9IGNsYXNzIEMxIHsNCn07DQpDMSA9IF9fZGVjb3JhdGUoWw0KICAgIChhd2FpdCApDQpdLCBDMSk7DQpsZXQgQzIgPSBjbGFzcyBDMiB7DQp9Ow0KQzIgPSBfX2RlY29yYXRlKFsNCiAgICAoeCkNCl0sIEMyKTsNCmxldCBDMyA9IGNsYXNzIEMzIHsNCn07DQpDMyA9IF9fZGVjb3JhdGUoWw0KXSwgQzMpOw0KLy8gYXdhaXQgaW4gbWVtYmVyIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmNsYXNzIEM0IHsNCiAgICBbImZvbyJdKCkgeyB9DQp9DQpfX2RlY29yYXRlKFsNCl0sIEM0LnByb3RvdHlwZSwgImZvbyIsIG51bGwpOw0KY2xhc3MgQzUgew0KICAgIFsiZm9vIl0oKSB7IH0NCn0NCl9fZGVjb3JhdGUoWw0KICAgICgxKQ0KXSwgQzUucHJvdG90eXBlLCAiZm9vIiwgbnVsbCk7DQpjbGFzcyBDNiB7DQogICAgWyJmb28iXSgpIHsgfQ0KfQ0KX19kZWNvcmF0ZShbDQogICAgKGF3YWl0ICkNCl0sIEM2LnByb3RvdHlwZSwgImZvbyIsIG51bGwpOw0KLy8gYXdhaXQgaW4gcGFyYW1ldGVyIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmNsYXNzIEM3IHsNCiAgICBtZXRob2QxKFt4XSkgeyB9DQogICAgbWV0aG9kMihbeF0pIHsgfQ0KICAgIG1ldGhvZDMoW3hdKSB7IH0NCn0NCl9fZGVjb3JhdGUoWw0KICAgIF9fcGFyYW0oMCwgKQ0KXSwgQzcucHJvdG90eXBlLCAibWV0aG9kMSIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgX19wYXJhbSgwLCAoMSkpDQpdLCBDNy5wcm90b3R5cGUsICJtZXRob2QyIiwgbnVsbCk7DQpfX2RlY29yYXRlKFsNCiAgICBfX3BhcmFtKDAsIChhd2FpdCApKQ0KXSwgQzcucHJvdG90eXBlLCAibWV0aG9kMyIsIG51bGwpOw0KZXhwb3J0IHt9Ow0K",
+          "callback_utf8_bytes": 1122,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "Ly8gcmVwYXJzZSBjYWxsIGFzIGludmFsaWQgYXdhaXQgc2hvdWxkIGVycm9yDQphd2FpdCAoMSwgKTsNCmF3YWl0ICwgc3RyaW5nID4gKDEpOw0KLy8gcmVwYXJzZSB0YWdnZWQgdGVtcGxhdGUgYXMgaW52YWxpZCBhd2FpdCBzaG91bGQgZXJyb3INCmF3YWl0ICwgc3RyaW5nID4gYGA7DQovLyByZXBhcnNlIGNsYXNzIGV4dGVuZHMgY2xhdXNlIHNob3VsZCBmYWlsDQpjbGFzcyBDIGV4dGVuZHMgc3RyaW5nIHsNCn0NCi8vIGF3YWl0IGluIGNsYXNzIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmxldCBDMSA9IGNsYXNzIEMxIHsNCn07DQpDMSA9IF9fZGVjb3JhdGUoWw0KICAgIChhd2FpdCApDQpdLCBDMSk7DQpsZXQgQzIgPSBjbGFzcyBDMiB7DQp9Ow0KQzIgPSBfX2RlY29yYXRlKFsNCiAgICAoeCkNCl0sIEMyKTsNCmxldCBDMyA9IGNsYXNzIEMzIHsNCn07DQpDMyA9IF9fZGVjb3JhdGUoWw0KXSwgQzMpOw0KLy8gYXdhaXQgaW4gbWVtYmVyIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmNsYXNzIEM0IHsNCiAgICBbImZvbyJdKCkgeyB9DQp9DQpfX2RlY29yYXRlKFsNCl0sIEM0LnByb3RvdHlwZSwgImZvbyIsIG51bGwpOw0KY2xhc3MgQzUgew0KICAgIFsiZm9vIl0oKSB7IH0NCn0NCl9fZGVjb3JhdGUoWw0KICAgICgxKQ0KXSwgQzUucHJvdG90eXBlLCAiZm9vIiwgbnVsbCk7DQpjbGFzcyBDNiB7DQogICAgWyJmb28iXSgpIHsgfQ0KfQ0KX19kZWNvcmF0ZShbDQogICAgKGF3YWl0ICkNCl0sIEM2LnByb3RvdHlwZSwgImZvbyIsIG51bGwpOw0KLy8gYXdhaXQgaW4gcGFyYW1ldGVyIGRlY29yYXRvcnMgc2hvdWxkIGZhaWwNCmNsYXNzIEM3IHsNCiAgICBtZXRob2QxKFt4XSkgeyB9DQogICAgbWV0aG9kMihbeF0pIHsgfQ0KICAgIG1ldGhvZDMoW3hdKSB7IH0NCn0NCl9fZGVjb3JhdGUoWw0KICAgIF9fcGFyYW0oMCwgKQ0KXSwgQzcucHJvdG90eXBlLCAibWV0aG9kMSIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgX19wYXJhbSgwLCAoMSkpDQpdLCBDNy5wcm90b3R5cGUsICJtZXRob2QyIiwgbnVsbCk7DQpfX2RlY29yYXRlKFsNCiAgICBfX3BhcmFtKDAsIChhd2FpdCApKQ0KXSwgQzcucHJvdG90eXBlLCAibWV0aG9kMyIsIG51bGwpOw0KZXhwb3J0IHt9Ow0K",
+          "materialized_utf8_bytes": 1122,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/topLevelAwaitErrors.1.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 67,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 83,
+          "length": 1,
+          "message": "'>' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 168,
+          "length": 1,
+          "message": "'>' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 243,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 248,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 255,
+          "length": 1,
+          "message": "',' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 310,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 326,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 349,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 426,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 467,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 517,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 608,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 635,
+          "length": 5,
+          "message": "Expression expected.",
+          "related_information": null
+        },
+        {
+          "code": 1109,
+          "category": "Error",
+          "file": "/.src/topLevelAwaitErrors.1.ts",
+          "start": 671,
+          "length": 1,
+          "message": "Expression expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.3.ts#experimentaldecorators%3Dfalse",
+    "input": {
+      "route": "whole-program",
+      "current_directory": "/.src",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/.src/esDecorators-decoratorExpression.3.ts"
+      ],
+      "files": [
+        {
+          "path": "/.src/esDecorators-decoratorExpression.3.ts",
+          "text": "declare let g: <T>(...args: any) => any;\n\n// existing errors\n\n{ @g<number> class C {} }\n\n{ @g()<number> class C {} }\n"
+        }
+      ],
+      "config": null,
+      "vfs_symlinks": [],
+      "shared_mount": null,
+      "default_library_file_name": null
+    },
+    "options": {
+      "experimentalDecorators": false,
+      "newLine": 0,
+      "noEmitHelpers": true,
+      "noErrorTruncation": true,
+      "noResolve": false,
+      "skipDefaultLibCheck": true,
+      "target": 99
+    },
+    "expected": {
+      "program_source_order": [
+        "/.src/esDecorators-decoratorExpression.3.ts"
+      ],
+      "standard_libraries": [
+        "lib.es5.d.ts",
+        "lib.es2015.d.ts",
+        "lib.es2016.d.ts",
+        "lib.es2017.d.ts",
+        "lib.es2018.d.ts",
+        "lib.es2019.d.ts",
+        "lib.es2020.d.ts",
+        "lib.es2021.d.ts",
+        "lib.es2022.d.ts",
+        "lib.es2023.d.ts",
+        "lib.es2024.d.ts",
+        "lib.es2025.d.ts",
+        "lib.esnext.d.ts",
+        "lib.dom.d.ts",
+        "lib.dom.iterable.d.ts",
+        "lib.dom.asynciterable.d.ts",
+        "lib.webworker.importscripts.d.ts",
+        "lib.scripthost.d.ts",
+        "lib.es2015.core.d.ts",
+        "lib.es2015.collection.d.ts",
+        "lib.es2015.generator.d.ts",
+        "lib.es2015.iterable.d.ts",
+        "lib.es2015.promise.d.ts",
+        "lib.es2015.proxy.d.ts",
+        "lib.es2015.reflect.d.ts",
+        "lib.es2015.symbol.d.ts",
+        "lib.es2015.symbol.wellknown.d.ts",
+        "lib.es2016.array.include.d.ts",
+        "lib.es2016.intl.d.ts",
+        "lib.es2017.arraybuffer.d.ts",
+        "lib.es2017.date.d.ts",
+        "lib.es2017.object.d.ts",
+        "lib.es2017.sharedmemory.d.ts",
+        "lib.es2017.string.d.ts",
+        "lib.es2017.intl.d.ts",
+        "lib.es2017.typedarrays.d.ts",
+        "lib.es2018.asyncgenerator.d.ts",
+        "lib.es2018.asynciterable.d.ts",
+        "lib.es2018.intl.d.ts",
+        "lib.es2018.promise.d.ts",
+        "lib.es2018.regexp.d.ts",
+        "lib.es2019.array.d.ts",
+        "lib.es2019.object.d.ts",
+        "lib.es2019.string.d.ts",
+        "lib.es2019.symbol.d.ts",
+        "lib.es2019.intl.d.ts",
+        "lib.es2020.bigint.d.ts",
+        "lib.es2020.date.d.ts",
+        "lib.es2020.promise.d.ts",
+        "lib.es2020.sharedmemory.d.ts",
+        "lib.es2020.string.d.ts",
+        "lib.es2020.symbol.wellknown.d.ts",
+        "lib.es2020.intl.d.ts",
+        "lib.es2020.number.d.ts",
+        "lib.es2021.promise.d.ts",
+        "lib.es2021.string.d.ts",
+        "lib.es2021.weakref.d.ts",
+        "lib.es2021.intl.d.ts",
+        "lib.es2022.array.d.ts",
+        "lib.es2022.error.d.ts",
+        "lib.es2022.intl.d.ts",
+        "lib.es2022.object.d.ts",
+        "lib.es2022.string.d.ts",
+        "lib.es2022.regexp.d.ts",
+        "lib.es2023.array.d.ts",
+        "lib.es2023.collection.d.ts",
+        "lib.es2023.intl.d.ts",
+        "lib.es2024.arraybuffer.d.ts",
+        "lib.es2024.collection.d.ts",
+        "lib.es2024.object.d.ts",
+        "lib.es2024.promise.d.ts",
+        "lib.es2024.regexp.d.ts",
+        "lib.es2024.sharedmemory.d.ts",
+        "lib.es2024.string.d.ts",
+        "lib.es2025.collection.d.ts",
+        "lib.es2025.float16.d.ts",
+        "lib.es2025.intl.d.ts",
+        "lib.es2025.iterator.d.ts",
+        "lib.es2025.promise.d.ts",
+        "lib.es2025.regexp.d.ts",
+        "lib.esnext.array.d.ts",
+        "lib.esnext.collection.d.ts",
+        "lib.esnext.date.d.ts",
+        "lib.esnext.decorators.d.ts",
+        "lib.esnext.disposable.d.ts",
+        "lib.esnext.error.d.ts",
+        "lib.esnext.intl.d.ts",
+        "lib.esnext.sharedmemory.d.ts",
+        "lib.esnext.temporal.d.ts",
+        "lib.esnext.typedarrays.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "lib.esnext.full.d.ts"
+      ],
+      "writes": [
+        {
+          "index": 0,
+          "path": "/.src/esDecorators-decoratorExpression.3.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gZXhpc3RpbmcgZXJyb3JzDQp7DQogICAgY2xhc3MgQyB7DQogICAgfTsNCn0NCnsNCiAgICBjbGFzcyBDIHsNCiAgICB9Ow0KfQ0K",
+          "callback_utf8_bytes": 93,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gZXhpc3RpbmcgZXJyb3JzDQp7DQogICAgY2xhc3MgQyB7DQogICAgfTsNCn0NCnsNCiAgICBjbGFzcyBDIHsNCiAgICB9Ow0KfQ0K",
+          "materialized_utf8_bytes": 93,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/.src/esDecorators-decoratorExpression.3.ts"
+          ],
+          "data_present": true,
+          "data_keys": [
+            "sourceMapUrlPos",
+            "diagnostics"
+          ],
+          "data_source_map_url_pos": null,
+          "data_diagnostics": [],
+          "data_build_info": null
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1146,
+          "category": "Error",
+          "file": "/.src/esDecorators-decoratorExpression.3.ts",
+          "start": 66,
+          "length": 0,
+          "message": "Declaration expected.",
+          "related_information": null
+        },
+        {
+          "code": 1146,
+          "category": "Error",
+          "file": "/.src/esDecorators-decoratorExpression.3.ts",
+          "start": 95,
+          "length": 0,
+          "message": "Declaration expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": null
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  }
+]

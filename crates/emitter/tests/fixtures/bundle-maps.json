@@ -12,7 +12,7 @@
   "inputs": [
     {
       "path": "crates/emitter/tests/fixtures/bundle-declarations.json",
-      "sha256": "f7563f8ab4b076cf41f2188fe433fec6a30a7508edb10a623206efc6827ee9fa"
+      "sha256": "b94439b8f519e60ef5ce0ee5f9f525ccf0287e5234965193fdca854569039421"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/typescript.js",

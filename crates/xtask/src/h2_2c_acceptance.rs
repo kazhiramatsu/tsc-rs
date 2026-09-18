@@ -5403,6 +5403,16 @@ fn write_h2_6c_divergence_manifest(
     workspace: &Path,
     diverging: &[(String, H2VectorDivergence)],
 ) -> Result<(), Box<dyn Error>> {
+    let path = workspace.join(H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH);
+    if diverging.is_empty() {
+        match fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        println!("H2.6c divergence manifest retired: 0 entries");
+        return Ok(());
+    }
     let cases = diverging
         .iter()
         .map(|(case_id, divergence)| {
@@ -5421,10 +5431,7 @@ fn write_h2_6c_divergence_manifest(
         .collect::<Vec<_>>();
     let body = serde_json::json!({ "schema": 1, "cases": cases });
     let rendered = format!("{}\n", serde_json::to_string_pretty(&body)?);
-    fs::write(
-        workspace.join(H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH),
-        rendered,
-    )?;
+    fs::write(path, rendered)?;
     println!(
         "H2.6c divergence manifest written: {} entries (owner {H2_6C_DIVERGENCE_OWNER})",
         diverging.len()

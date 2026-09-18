@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 import foundation_witnesses
+import emitter_final_witnesses
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "crates/compiler/tests/fixtures"
@@ -136,7 +137,7 @@ COMPILER_DIRECT = {
         "test": "original_javascript_declaration_bundles_match_typescript_twice",
         "tests": 1,
         "filtered_tests": 3,
-        "fixtures": (("docs/design/greenfield/slices/witness-coverage/compiler-module-facets/original-javascript-inputs.v1.json",
+        "fixtures": (("docs/design/greenfield/slices/witness-coverage/compiler-module-facets/original-javascript-inputs.v2.json",
                       4, "case_id"),),
         # Shared ratchet/oracle dependencies retain the planner's full fallback.
         "observers": ("scripts/observe-bundle-original-javascript.mjs",),
@@ -249,7 +250,7 @@ COMPILER_DIRECT = {
             "h2_8b_library_replacement::library_order_controls_match_program_membership",
         ),
         "tests": 24,
-        "filtered_tests": 423,
+        "filtered_tests": 430,
         "sources": tuple(f"crates/compiler/tests/integration/{module}.rs" for module in (
             "h2_8b_config_commands",
             "h2_8b_config_conversion_commands",
@@ -371,7 +372,7 @@ COMPILER_DIRECT = {
     "transpile-routes": {
         "target": "transpile_routes_contract",
         "tests": 9,
-        "fixtures": (("crates/compiler/tests/fixtures/h2_8c_transpile/inputs.v1.json", 287, "id"),
+        "fixtures": (("crates/compiler/tests/fixtures/h2_8c_transpile/inputs.v1.json", 291, "id"),
                      ("crates/compiler/tests/fixtures/h2_8c_transpile/review-inputs.v1.json", 14, "id")),
         "observers": ("scripts/observe-transpile-routes.mjs",),
         "inputs": tuple(f"crates/compiler/tests/fixtures/h2_8c_transpile/{name}.v1.json"
@@ -439,7 +440,8 @@ BINDING = {
     },
 }
 SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks", "declaration-map-cli",
-          *EMITTER_DIRECT, *COMPILER_DIRECT, *BINDING, "resolution-cache", *foundation_witnesses.SUITES)
+          *EMITTER_DIRECT, *COMPILER_DIRECT, *BINDING, "resolution-cache", *foundation_witnesses.SUITES,
+          *emitter_final_witnesses.SUITES)
 RESOLUTION_INPUTS = {
     "crates/program/tests/resolution_cache_contract.rs",
     "crates/program/tests/fixtures/resolution_cache/manifest.v1.json",
@@ -464,6 +466,8 @@ def read_cases(file):
 
 
 def case_ids(suite):
+    if suite in emitter_final_witnesses.SUITES:
+        return emitter_final_witnesses.case_ids(suite)
     if suite in foundation_witnesses.SUITES:
         return foundation_witnesses.test_names(suite)
     if suite == "resolution-cache":
@@ -556,6 +560,10 @@ def invocation(suite, needles, environ=None):
                 "TSC_RS_H2_8A_KNOWN_NATIVE_DUMP_DIR"):
         env.pop(key, None)
     env.setdefault("CARGO_BUILD_JOBS", "2")
+    if suite in emitter_final_witnesses.SUITES:
+        if needles:
+            raise ValueError(f"{suite}: registered shard runs together; use --all")
+        return [sys.executable, "scripts/emitter_final_witnesses.py", suite], emitter_final_witnesses.environment(suite, env)
     if suite in foundation_witnesses.SUITES:
         if needles:
             raise ValueError(f"{suite}: foundation target runs together; use --all")
@@ -890,6 +898,9 @@ def main(argv=None):
                    if key.startswith("TSC_RS_") and (key.endswith("CASE_SET") or key.endswith("CASE_FILTER"))}
     print(shlex.join(["env", *[f"{key}={value}" for key, value in sorted(assignments.items())], *command]), flush=True)
     if args.dry_run:
+        if args.suite in emitter_final_witnesses.SUITES:
+            for command, _ in emitter_final_witnesses.commands(args.suite):
+                print(shlex.join(command))
         if args.suite in foundation_witnesses.SUITES:
             spec = foundation_witnesses.SUITES[args.suite]
             if "oracle" in spec:

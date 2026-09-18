@@ -1,0 +1,20 @@
+{
+  "name": "witness-prologue-comments-all-r9a",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "python3",
+    "scripts/witness.py",
+    "prologue-comments",
+    "--all"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T00:48:05Z",
+  "seconds": 12,
+  "exit": 0,
+  "log_sha256": "4ad26ad01b8efb90da81eff9b9fb9fac799866fb2a79c910e48aae987bab4aca",
+  "log_bytes": 1083
+}

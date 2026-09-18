@@ -702,10 +702,35 @@ impl<'context> EsNextVisitor<'context> {
         } else {
             (None, None)
         };
-        let base = binding_name
-            .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned))
-            .unwrap_or_else(|| "value".to_owned());
-        let temp_binding = self.allocate_generated_binding(&base)?;
+        // `firstOrUndefined(declarations) || createVariableDeclaration(
+        // createTempVariable(undefined))` (_tsc.js:103430-103433): a
+        // `for (await using of x)` head parses as an EMPTY declaration
+        // list, so the using variable is a synthesized temp (`_e`) and the
+        // loop binding `getGeneratedNameForNode(temp)` derives from it
+        // (`_e_1`).
+        let synthesized_declaration_name = match binding_name {
+            Some(_) => None,
+            None => {
+                let provisional = self.allocate_generated_name("_tmp");
+                let temp_binding = TargetBinding::allocate(self.context, provisional)?;
+                let name = self.create_generated_identifier(&temp_binding)?;
+                Some((temp_binding, name))
+            }
+        };
+        let temp_binding = match (&binding_name, &synthesized_declaration_name) {
+            (Some(name), _) => {
+                let base = self
+                    .identifier_text(self.node(*name))
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| "value".to_owned());
+                self.allocate_generated_binding(&base)?
+            }
+            (None, Some((temp_binding, _))) => {
+                let provisional = self.allocate_generated_name(temp_binding.provisional_name());
+                TargetBinding::allocate_numbered_derived(self.context, temp_binding, provisional)?
+            }
+            (None, None) => unreachable!("an empty using list synthesizes its declaration"),
+        };
         let temp = self.create_generated_identifier(&temp_binding)?;
         let loop_declaration = self.create_variable_declaration(temp, None)?;
         data.initializer = Some(
@@ -715,7 +740,11 @@ impl<'context> EsNextVisitor<'context> {
         data.await_modifier = self.visit_optional_node(data.await_modifier)?;
         data.expression = self.visit_optional_node(data.expression)?;
 
-        let using_name = binding_name.unwrap_or(temp.node());
+        let using_name = match (binding_name, &synthesized_declaration_name) {
+            (Some(name), _) => name,
+            (None, Some((_, name))) => name.node(),
+            (None, None) => unreachable!("an empty using list synthesizes its declaration"),
+        };
         let using_declaration = if let Some(original_declaration) = original_declaration {
             let NodeData::VariableDeclaration(mut declaration) = self
                 .context
@@ -1451,6 +1480,7 @@ impl<'context> EsNextVisitor<'context> {
             metadata.generated_binding_role_suffix().map(str::to_owned),
             metadata.generated_binding_is_file_level_optimistic(),
             metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_is_loop_variable(),
             metadata.generated_binding_reserved_in_nested_scopes(),
             metadata.generated_binding_is_private_temp(),
         ))

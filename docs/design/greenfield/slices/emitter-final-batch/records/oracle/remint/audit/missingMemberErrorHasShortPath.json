@@ -1,0 +1,52 @@
+{
+ "old": {
+  "host_use_case_sensitive_file_names": true,
+  "writes": [
+   {
+    "path": "C:/foo/bar/Baz/src/utils.js",
+    "sha256": "cc309bf2e196bf0a87f59586eeba6df08f91af5d5919a3aa499cdf43cbef16ae",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\nexports.exist = exist;\r\nfunction exist() { }\r\n"
+   },
+   {
+    "path": "C:/foo/bar/Baz/src/sample.js",
+    "sha256": "a282f117907160bc377d7823e06253856d18b7165276d37e660f34fd524a8e0d",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\nconst utils_js_1 = require(\"./utils.js\");\r\n(0, utils_js_1.exit)();\r\n"
+   }
+  ],
+  "diagnostics": [
+   {
+    "code": 2724,
+    "file": "C:/foo/bar/Baz/src/sample.ts",
+    "message": "'\"./utils.js\"' has no exported member named 'exit'. Did you mean 'exist'?"
+   }
+  ],
+  "exit": 2
+ },
+ "new": {
+  "host_use_case_sensitive_file_names": false,
+  "writes": [
+   {
+    "path": "C:/foo/bar/Baz/src/utils.js",
+    "sha256": "cc309bf2e196bf0a87f59586eeba6df08f91af5d5919a3aa499cdf43cbef16ae",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\nexports.exist = exist;\r\nfunction exist() { }\r\n"
+   },
+   {
+    "path": "C:/foo/bar/Baz/src/sample.js",
+    "sha256": "a282f117907160bc377d7823e06253856d18b7165276d37e660f34fd524a8e0d",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\nconst utils_js_1 = require(\"./utils.js\");\r\n(0, utils_js_1.exit)();\r\n"
+   }
+  ],
+  "diagnostics": [
+   {
+    "code": 2724,
+    "file": "C:/foo/bar/Baz/src/sample.ts",
+    "message": "'\"./utils.js\"' has no exported member named 'exit'. Did you mean 'exist'?"
+   }
+  ],
+  "exit": 2
+ }
+}

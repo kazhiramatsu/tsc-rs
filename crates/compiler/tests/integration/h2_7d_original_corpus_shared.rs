@@ -11,15 +11,15 @@ use tsc_diagnostics::{Diagnostic, MessageChain};
 use tsc_emitter::{EmitArtifact, EmitArtifactKind, EmitWriteMetadata};
 use tsc_host::{CompilerHost, MemoryCompilerHost};
 use tsc_program::{
-    load_emitting_program, parse_config_root_plan, CompilerConfigHost, CompilerOptions,
-    ConfigRootPlanRequest, LibraryCatalog, PreparedProgram, ProgramLoadError, ProgramLoadLimits,
-    ProgramLoadOperation, ProgramOptions, ProgramPath,
+    load_emitting_program, load_program, parse_config_root_plan, CompilerConfigHost,
+    CompilerOptions, ConfigRootPlanRequest, LibraryCatalog, PreparedProgram, ProgramLoadError,
+    ProgramLoadLimits, ProgramLoadOperation, ProgramOptions, ProgramPath,
 };
 
 const SOURCE_COMMIT: &str = "050880ce59e30b356b686bd3144efe24f875ebc8";
 const CENSUS: (&str, &str) = (
     "ratchets/h2-7de-candidates.v1.json",
-    "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d",
+    "956514a27a7c9d4504f2bd364f07492b758660c4c6d525201ba62d1389a04db2",
 );
 const INPUTS: (&str, &str) = (
     "ratchets/h2-7de-candidate-inputs.v1.json",
@@ -27,7 +27,7 @@ const INPUTS: (&str, &str) = (
 );
 const ORACLE: (&str, &str) = (
     "ratchets/h2-7de-observations.v1.json",
-    "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+    "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9",
 );
 
 fn workspace() -> PathBuf {
@@ -338,6 +338,61 @@ fn projected_options(case: &Value, host: &dyn CompilerHost) -> (CompilerOptions,
             }
             "isolatedModules" => options.isolated_modules = Some(value.as_bool().unwrap()),
             "noEmitHelpers" => options.no_emit_helpers = Some(value.as_bool().unwrap()),
+            // EF7 universe rows (emitter-final-universe.json) reach these five
+            // options; the 809 originals never did.
+            "experimentalDecorators" => options.experimental_decorators = value.as_bool().unwrap(),
+            "emitDecoratorMetadata" => {
+                options.emit_decorator_metadata = Some(value.as_bool().unwrap())
+            }
+            "noUnusedLocals" => options.no_unused_locals = Some(value.as_bool().unwrap()),
+            "noUnusedParameters" => options.no_unused_parameters = Some(value.as_bool().unwrap()),
+            "strictBuiltinIteratorReturn" => {
+                options.strict_builtin_iterator_return = Some(value.as_bool().unwrap())
+            }
+            // EF7 plan-base rows (emitter-final-universe-plan-base.json).
+            "allowUnusedLabels" => options.allow_unused_labels = Some(value.as_bool().unwrap()),
+            "customConditions" => {
+                options.custom_conditions =
+                    Some(strings(value).into_iter().map(Into::into).collect())
+            }
+            "downlevelIteration" => options.downlevel_iteration = Some(value.as_bool().unwrap()),
+            "erasableSyntaxOnly" => options.erasable_syntax_only = Some(value.as_bool().unwrap()),
+            "exactOptionalPropertyTypes" => {
+                options.exact_optional_property_types = Some(value.as_bool().unwrap())
+            }
+            "importsNotUsedAsValues" => {
+                options.imports_not_used_as_values = Some(value.as_i64().unwrap() as i32)
+            }
+            "libReplacement" => options.lib_replacement = Some(value.as_bool().unwrap()),
+            "noCheck" => options.no_check = Some(value.as_bool().unwrap()),
+            "noFallthroughCasesInSwitch" => {
+                options.no_fallthrough_cases_in_switch = Some(value.as_bool().unwrap())
+            }
+            "noImplicitOverride" => options.no_implicit_override = Some(value.as_bool().unwrap()),
+            "noImplicitReturns" => options.no_implicit_returns = Some(value.as_bool().unwrap()),
+            "noImplicitThis" => options.no_implicit_this = Some(value.as_bool().unwrap()),
+            "noUncheckedIndexedAccess" => {
+                options.no_unchecked_indexed_access = Some(value.as_bool().unwrap())
+            }
+            "noUncheckedSideEffectImports" => {
+                options.no_unchecked_side_effect_imports = Some(value.as_bool().unwrap())
+            }
+            "out" => options.out = Some(value.as_str().unwrap().into()),
+            "preserveValueImports" => {
+                options.preserve_value_imports = Some(value.as_bool().unwrap())
+            }
+            "resolvePackageJsonExports" => {
+                options.resolve_package_json_exports = Some(value.as_bool().unwrap())
+            }
+            "resolvePackageJsonImports" => {
+                options.resolve_package_json_imports = Some(value.as_bool().unwrap())
+            }
+            "stableTypeOrdering" => options.stable_type_ordering = Some(value.as_bool().unwrap()),
+            "pretty" => {
+                // Console-presentation flag of the frozen `@pretty` directive;
+                // the observer records diagnostic objects, not rendered text.
+                assert!(value.is_boolean());
+            }
             "rewriteRelativeImportExtensions" => {
                 options.rewrite_relative_import_extensions = Some(value.as_bool().unwrap())
             }
@@ -396,6 +451,8 @@ fn projected_options(case: &Value, host: &dyn CompilerHost) -> (CompilerOptions,
                 options.isolated_declarations = Some(value.as_bool().unwrap())
             }
             "noEmit" => options.no_emit = Some(value.as_bool().unwrap()),
+            "noEmitOnError" => options.no_emit_on_error = Some(value.as_bool().unwrap()),
+            "preserveConstEnums" => options.preserve_const_enums = Some(value.as_bool().unwrap()),
             "noErrorTruncation" => options.no_error_truncation = Some(value.as_bool().unwrap()),
             "noImplicitAny" => options.no_implicit_any = Some(value.as_bool().unwrap()),
             "noResolve" => options.no_resolve = Some(value.as_bool().unwrap()),
@@ -487,14 +544,16 @@ fn prepared(case: &Value, host: &dyn CompilerHost) -> Result<PreparedProgram, Pr
         .into_iter()
         .map(PathBuf::from)
         .collect::<Vec<_>>();
-    load_emitting_program(
-        host,
-        &roots,
-        options,
-        program,
-        &LibraryCatalog::typescript_6_0_3("/lib"),
-        ProgramLoadLimits::new(256, 2048, 64, 16 * 1024 * 1024, 128 * 1024 * 1024),
-    )
+    let catalog = LibraryCatalog::typescript_6_0_3("/lib");
+    let limits = ProgramLoadLimits::new(256, 2048, 64, 16 * 1024 * 1024, 128 * 1024 * 1024);
+    // The CLI's explicit-files route (`execute_explicit_files`): an effective
+    // `noEmit` program is the H0 checking program, whose command reports the
+    // ordered diagnostic stream with tsc's empty build-info emit result.
+    if options.no_emit == Some(true) {
+        load_program(host, &roots, options, program, &catalog, limits)
+    } else {
+        load_emitting_program(host, &roots, options, program, &catalog, limits)
+    }
 }
 
 fn message(chain: &MessageChain, indent: usize, text: &mut String) {
@@ -1180,4 +1239,122 @@ fn scalar_observation(value: tsc_diagnostics::JsStr<'_>) -> String {
         .as_str()
         .expect("non-scalar JS value cannot match this scalar frozen observation")
         .to_owned()
+}
+
+/// One EF7 universe row's replay result (the fixture row keeps the frozen
+/// TypeScript tuple; the comparison is the same complete-command comparator
+/// as the 769 original candidates).
+#[allow(dead_code)] // Only the emitter-final universe test includes this entry.
+#[derive(Debug, Default)]
+pub(super) struct UniverseReplay {
+    pub(super) exact: BTreeSet<String>,
+    pub(super) diverging: BTreeMap<String, Value>,
+    pub(super) all_ids: BTreeSet<String>,
+}
+
+/// Replay every case of a universe fixture (`crates/compiler/tests/fixtures/<name>`,
+/// the `emitter-final-universe` schema: original candidate-input rows plus their
+/// fresh `typescript_observation`) twice through the ordinary Program command,
+/// exactly like `assert_output_matrix_cases`. Nothing is asserted here beyond the
+/// fixture pins and the two-repetition contract; the caller owns the KNOWN /
+/// retire policy. Mismatches are written to `TSC_RS_EMITTER_FINAL_FAILURE_DIR`
+/// when that directory is set.
+#[allow(dead_code)] // Only the emitter-final universe test includes this entry.
+pub(super) fn replay_universe_fixture(
+    workspace_root: &Path,
+    name: &str,
+    select: impl Fn(usize, &str) -> bool,
+) -> UniverseReplay {
+    assert_eq!(
+        workspace_root.canonicalize().unwrap(),
+        workspace().canonicalize().unwrap()
+    );
+    // Plain JSON, or zstd-compressed JSON (`<name>.zst`) for the multi-megabyte
+    // plan-base set; the pins refer to the decoded bytes' inputs either way.
+    let path = workspace()
+        .join("crates/compiler/tests/fixtures")
+        .join(name);
+    let bytes = if path.is_file() {
+        std::fs::read(&path).unwrap()
+    } else {
+        let compressed = path.with_file_name(format!("{name}.zst"));
+        zstd::stream::decode_all(std::fs::read(&compressed).unwrap().as_slice()).unwrap()
+    };
+    let artifact: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(artifact["kind"], "emitter-final-universe");
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    for pin in artifact["inputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain([&artifact["generator"]])
+    {
+        assert_eq!(
+            json!(digest(
+                std::fs::read(workspace().join(pin["path"].as_str().unwrap())).unwrap()
+            )),
+            pin["sha256"],
+            "{}",
+            pin["path"]
+        );
+    }
+    let cases = indexed(&artifact);
+    let libraries = libraries();
+    let mut report = UniverseReplay {
+        all_ids: cases.keys().map(|id| (*id).to_owned()).collect(),
+        ..UniverseReplay::default()
+    };
+    for (index, (id, case)) in cases.iter().enumerate() {
+        if !select(index, id) {
+            continue;
+        }
+        assert_original_source(case);
+        assert_eq!(case["repetitions"], 2);
+        assert_eq!(case["input"]["route"], "whole-program");
+        let expected = &case["typescript_observation"];
+        let mut outcomes = Vec::new();
+        for repetition in 0..2 {
+            let observed = std::panic::catch_unwind(|| {
+                let host = memory_host(case, &artifact, &libraries);
+                observe(case, &host, &libraries)
+            });
+            let outcome = match observed {
+                Ok(actual) => json!({"kind": "complete", "observation": actual}),
+                Err(error) => json!({"kind": "failure", "message": panic_text(error.as_ref())}),
+            };
+            if outcome["observation"] != *expected {
+                if let Some(directory) = std::env::var_os("TSC_RS_EMITTER_FINAL_FAILURE_DIR") {
+                    let directory = PathBuf::from(directory);
+                    std::fs::create_dir_all(&directory).unwrap();
+                    std::fs::write(
+                        directory.join(format!("{}-{repetition}.json", digest(id))),
+                        serde_json::to_vec_pretty(&json!({"case_id": id,
+                            "repetition": repetition, "native": outcome, "expected": expected}))
+                        .unwrap(),
+                    )
+                    .unwrap();
+                }
+            }
+            outcomes.push(outcome);
+        }
+        assert_eq!(
+            outcomes[0], outcomes[1],
+            "{id}: native observations must repeat exactly"
+        );
+        let outcome = outcomes.pop().unwrap();
+        if outcome["kind"] == "complete" && outcome["observation"] == *expected {
+            report.exact.insert((*id).to_owned());
+            eprintln!("emitter-final universe EXACT x2 {id}");
+        } else {
+            let detail = if outcome["kind"] == "failure" {
+                outcome["message"].as_str().unwrap().to_owned()
+            } else {
+                difference(&outcome["observation"], expected, "command").unwrap()
+            };
+            eprintln!("emitter-final universe DIVERGING {id}: {detail}");
+            report.diverging.insert((*id).to_owned(), outcome);
+        }
+    }
+    report
 }

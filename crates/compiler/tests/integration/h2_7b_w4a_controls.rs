@@ -283,7 +283,7 @@ pub(super) fn assert_observation(
     prepared: tsc_program::PreparedProgram,
     expected: &Value,
 ) {
-    assert_observation_with_listing(case_id, prepared, expected, false, false);
+    assert_observation_with_listing(case_id, prepared, expected, false, false, &[]);
 }
 
 /// Preserve the actual emittedFiles presence for new direct-option windows;
@@ -293,15 +293,23 @@ pub(super) fn assert_exact_observation(
     prepared: tsc_program::PreparedProgram,
     expected: &Value,
 ) -> tsc_emitter::H2ActivityCounters {
-    assert_observation_with_listing(case_id, prepared, expected, true, false)
+    assert_observation_with_listing(case_id, prepared, expected, true, false, &[])
 }
 
-pub(super) fn assert_command_observation(
+pub(super) fn assert_command_observation_with_options(
     case_id: &str,
     prepared: tsc_program::PreparedProgram,
     expected: &Value,
+    additional_options_diagnostics: &[tsc_diagnostics::Diagnostic],
 ) -> tsc_emitter::H2ActivityCounters {
-    assert_observation_with_listing(case_id, prepared, expected, true, true)
+    assert_observation_with_listing(
+        case_id,
+        prepared,
+        expected,
+        true,
+        true,
+        additional_options_diagnostics,
+    )
 }
 
 fn assert_observation_with_listing(
@@ -310,11 +318,15 @@ fn assert_observation_with_listing(
     expected: &Value,
     exact_listing: bool,
     command_reporting: bool,
+    additional_options_diagnostics: &[tsc_diagnostics::Diagnostic],
 ) -> tsc_emitter::H2ActivityCounters {
     let mut sink = MemoryOutputSink::new();
     let (outcome, reported, command_status) = if command_reporting {
         let command = ProgramSession::new(prepared)
-            .emit_command_for_harness(&mut sink)
+            .emit_command_for_harness_with_options_diagnostics(
+                &mut sink,
+                additional_options_diagnostics,
+            )
             .unwrap_or_else(|error| panic!("{case_id}: production command completes: {error}"));
         (
             command.emit().clone(),

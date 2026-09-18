@@ -338,12 +338,18 @@ impl EmitResolver for CheckerSession<'_> {
         node: EmitResolverNode,
         mode: EmitExportContainerMode,
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        // A container or declaration may live in another file (a UMD
+        // `export as namespace` alias resolved from a JSX factory, an alias
+        // imported through a different source): project it with its own
+        // source so the emitter's same-source guards see the truth.
         self.with_resolver_node(
             EmitResolverMethod::GetReferencedExportContainer,
             node,
-            |state, reference| state.emit_get_referenced_export_container(reference, mode),
+            |state, reference| {
+                let container = state.emit_get_referenced_export_container(reference, mode)?;
+                Ok(container.map(|container| project_resolver_node(state, container)))
+            },
         )
-        .map(|container| container.map(|container| EmitResolverNode::new(node.source(), container)))
     }
 
     fn get_external_module_file_from_declaration(
@@ -368,11 +374,11 @@ impl EmitResolver for CheckerSession<'_> {
         self.with_resolver_node(
             EmitResolverMethod::GetReferencedImportDeclaration,
             node,
-            CheckerState::emit_get_referenced_import_declaration,
+            |state, reference| {
+                let declaration = state.emit_get_referenced_import_declaration(reference)?;
+                Ok(declaration.map(|declaration| project_resolver_node(state, declaration)))
+            },
         )
-        .map(|declaration| {
-            declaration.map(|declaration| EmitResolverNode::new(node.source(), declaration))
-        })
     }
 
     fn get_referenced_import_declaration_at_location(
@@ -384,11 +390,12 @@ impl EmitResolver for CheckerSession<'_> {
             EmitResolverMethod::GetReferencedImportDeclarationAtLocation,
             node,
             location,
-            CheckerState::emit_get_referenced_import_declaration_at_location,
+            |state, reference, location| {
+                let declaration = state
+                    .emit_get_referenced_import_declaration_at_location(reference, location)?;
+                Ok(declaration.map(|declaration| project_resolver_node(state, declaration)))
+            },
         )
-        .map(|declaration| {
-            declaration.map(|declaration| EmitResolverNode::new(node.source(), declaration))
-        })
     }
 
     fn get_jsx_factory_import_declaration(
@@ -399,11 +406,11 @@ impl EmitResolver for CheckerSession<'_> {
         self.with_resolver_node(
             EmitResolverMethod::GetJsxFactoryImportDeclaration,
             node,
-            |state, location| state.emit_get_jsx_factory_import_declaration(location, name),
+            |state, location| {
+                let declaration = state.emit_get_jsx_factory_import_declaration(location, name)?;
+                Ok(declaration.map(|declaration| project_resolver_node(state, declaration)))
+            },
         )
-        .map(|declaration| {
-            declaration.map(|declaration| EmitResolverNode::new(node.source(), declaration))
-        })
     }
 
     fn get_jsx_factory_export_container(
@@ -414,9 +421,11 @@ impl EmitResolver for CheckerSession<'_> {
         self.with_resolver_node(
             EmitResolverMethod::GetJsxFactoryExportContainer,
             node,
-            |state, location| state.emit_get_jsx_factory_export_container(location, name),
+            |state, location| {
+                let container = state.emit_get_jsx_factory_export_container(location, name)?;
+                Ok(container.map(|container| project_resolver_node(state, container)))
+            },
         )
-        .map(|container| container.map(|container| EmitResolverNode::new(node.source(), container)))
     }
 
     fn get_referenced_value_declaration(

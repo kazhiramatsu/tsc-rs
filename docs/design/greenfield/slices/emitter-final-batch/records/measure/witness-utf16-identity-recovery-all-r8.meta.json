@@ -1,0 +1,15 @@
+{
+  "name": "witness-utf16-identity-recovery-all-r8",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 33,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "python3 scripts/witness.py utf16-identity-recovery --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T15:36:17Z",
+  "seconds": 191,
+  "exit": 0,
+  "log_sha256": "fd34f820e356435cd400944bc29c79084b9ca36d09dc8a992d7c9ad610a7f4b2",
+  "log_bytes": 1444
+}

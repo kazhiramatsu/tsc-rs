@@ -1,0 +1,20 @@
+{
+  "name": "witness-utf16-literal-escaping-all-r11",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "python3",
+    "scripts/witness.py",
+    "utf16-literal-escaping",
+    "--all"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T06:36:23Z",
+  "seconds": 18,
+  "exit": 0,
+  "log_sha256": "cc61a9b2262536a5125399c7129bd68f3f1e26fdfa883f9091d125335a586007",
+  "log_bytes": 1313
+}

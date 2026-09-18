@@ -822,17 +822,24 @@ fn substitution_identifier_clone(
     node: TransformNode,
     binding: &TargetBinding,
 ) -> Result<TransformNode, TransformError> {
+    // The finalize walk already spelled this binding (its declaration is
+    // in the tree); a substitution clone created during the print reuses
+    // that spelling, falling back to the provisional name only for a
+    // binding the walk never met.
+    let text = context
+        .generated_binding_name(binding.id())
+        .map(str::to_owned)
+        .unwrap_or_else(|| binding.provisional_name().to_owned());
     let clone = {
         let mut factory = context.substitution_factory()?;
-        let created = factory.create_node(
+        factory.create_node(
             node.source(),
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: binding.provisional_name().to_owned(),
-                text: binding.provisional_name().to_owned(),
+                escaped_text: text.clone(),
+                text,
             }),
             TransformFlags::NONE,
-        )?;
-        created
+        )?
     };
     binding.write_generated_metadata(context.arena_mut()?, clone);
     let (source_map_range, comment_range) = {
@@ -1176,6 +1183,65 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         Ok(identifier)
     }
 
+    /// Walk the original chain from `node`; the first class or function
+    /// declaration whose current name is a generated identifier donates that
+    /// identifier's binding.
+    fn generated_declaration_name_binding_on_chain(
+        &self,
+        node: TransformNode,
+    ) -> Option<TargetBinding> {
+        let arena = self.context.arena();
+        let mut current = node;
+        let mut remaining = 64usize;
+        loop {
+            let name = match arena.node(current).ok()?.data {
+                NodeData::ClassDeclaration(ref data) => data.name,
+                NodeData::FunctionDeclaration(ref data) => data.name,
+                NodeData::ClassExpression(ref data) => data.name,
+                NodeData::FunctionExpression(ref data) => data.name,
+                _ => None,
+            };
+            if let Some(binding) = name
+                .map(|id| TransformNode::new(current.source(), id))
+                .and_then(|name| self.generated_binding_of_identifier(name))
+            {
+                return Some(binding);
+            }
+            let original = arena
+                .metadata(current)
+                .and_then(|metadata| metadata.original())?;
+            if original == current || remaining == 0 {
+                return None;
+            }
+            remaining -= 1;
+            current = original;
+        }
+    }
+
+    /// The generated binding an identifier already carries (written by an
+    /// earlier transform's `write_generated_metadata`).
+    fn generated_binding_of_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
+        let metadata = self.context.arena().metadata(name)?;
+        let id = metadata.generated_binding_id()?;
+        let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
+            return None;
+        };
+        Some(TargetBinding::from_existing(
+            id,
+            identifier.text.clone(),
+            metadata.generated_binding_base().map(str::to_owned),
+            metadata
+                .generated_binding_preferred_base()
+                .map(str::to_owned),
+            metadata.generated_binding_role_suffix().map(str::to_owned),
+            metadata.generated_binding_is_file_level_optimistic(),
+            metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_is_loop_variable(),
+            metadata.generated_binding_reserved_in_nested_scopes(),
+            metadata.generated_binding_is_private_temp(),
+        ))
+    }
+
     /// `getGeneratedNameForNode(node)` — `generateNameCached`: ONE binding
     /// per parse-tree node, cached in the print state (print-time
     /// substitution reads the same cache). Identifier-named nodes take the
@@ -1186,6 +1252,16 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        // The printer resolves a `GeneratedIdentifierFlags.Node` name through
+        // `getNodeForGeneratedName` (`_tsc.js:28084-28102`): it follows the
+        // `original` chain from the requesting node to its root before
+        // `generateNameForNode` classifies that node, and `generateNameCached`
+        // keys the spelling on the resolved node. A decorated class lowered
+        // by the ES-decorators pass is an unnamed class expression whose
+        // original is the named declaration, so its ES5 constructor function
+        // is `D_1`, never a member of the `class_1` family.
+        let requested = node;
+        let node = self.context.arena().get_original_node(node);
         let key = (node.source(), node.node());
         if let Some(binding) = self
             .print_state
@@ -1193,6 +1269,16 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
             .get(&key)
             .cloned()
         {
+            return self.create_generated_identifier(&binding);
+        }
+        // `generateNameCached(node)` is one slot per declaration for every
+        // pass: transformTypeScript already named an anonymous default
+        // declaration (`default_1`) and left that generated identifier as the
+        // declaration's name on the intermediate node of the original chain.
+        if let Some(binding) = self.generated_declaration_name_binding_on_chain(requested) {
+            self.print_state
+                .generated_names_for_nodes
+                .insert(key, binding.clone());
             return self.create_generated_identifier(&binding);
         }
         // generateNameForNode arms (`_tsc.js:120876-120933`): identifier →
@@ -2694,6 +2780,13 @@ impl Es2015Visitor<'_, '_, '_> {
     /// tsc-hash: 3f9c650aa2a11cdb26e226e22fbc8255a36e911c4c9e4f62f02f5e338cafbfd8
     /// tsc-span: _tsc.js:105072-105088
     fn visit_identifier(&mut self, node: TransformNode) -> Result<TransformNode, TransformError> {
+        if self.is_static_this_substitute(node)? {
+            // Class-fields substitutes a static initializer's `this` while
+            // visiting, where tsc keeps the token until print-time
+            // substitution; the retained token would reach visitThisKeyword,
+            // so its hierarchy facts (`var _this = this` capture) apply here.
+            self.note_lexical_this_use();
+        }
         if self.converted_loop_state.is_some() {
             let is_arguments = {
                 match self.context.arena().parse_tree_resolver_node(node)? {
@@ -3005,6 +3098,53 @@ impl Es2015Visitor<'_, '_, '_> {
     /// tsc-port: visitThisKeyword @6.0.3
     /// tsc-hash: 04811031550ee1ad94085e3b8fa9e441793913e58aeb63e40ed07a21739908a8
     /// tsc-span: _tsc.js:105055-105068
+    /// An identifier standing in for a static initializer's `this`
+    /// (class-fields' transform-time substitute keeps the token as its
+    /// original and its transform flags).
+    fn is_static_this_substitute(&self, node: TransformNode) -> Result<bool, TransformError> {
+        if !self
+            .transform_flags(node)
+            .contains(TransformFlags::CONTAINS_LEXICAL_THIS)
+        {
+            return Ok(false);
+        }
+        let original = self.context.arena().get_original_node(node);
+        Ok(
+            original != node
+                && self.context.arena().node(original)?.kind == SyntaxKind::ThisKeyword,
+        )
+    }
+
+    /// The hierarchy-fact half of `visitThisKeyword` (_tsc.js:105055-105068).
+    fn note_lexical_this_use(&mut self) {
+        self.print_state.hierarchy_facts = self
+            .print_state
+            .hierarchy_facts
+            .union(HierarchyFacts::LEXICAL_THIS);
+        if self
+            .print_state
+            .hierarchy_facts
+            .intersects(HierarchyFacts::ARROW_FUNCTION)
+            && !self
+                .print_state
+                .hierarchy_facts
+                .intersects(HierarchyFacts::STATIC_INITIALIZER)
+        {
+            self.print_state.hierarchy_facts = self
+                .print_state
+                .hierarchy_facts
+                .union(HierarchyFacts::CAPTURED_LEXICAL_THIS);
+        }
+        if self.converted_loop_state.is_some()
+            && self
+                .print_state
+                .hierarchy_facts
+                .intersects(HierarchyFacts::ARROW_FUNCTION)
+        {
+            self.loop_state_mut().contains_lexical_this = true;
+        }
+    }
+
     fn visit_this_keyword(&mut self, node: TransformNode) -> Result<TransformNode, TransformError> {
         self.print_state.hierarchy_facts = self
             .print_state
@@ -4086,8 +4226,7 @@ impl Es2015Visitor<'_, '_, '_> {
     ) -> Result<bool, TransformError> {
         if self.binding_pattern_has_elements(name)? {
             let rval = self.get_generated_name_for_node(parameter)?;
-            let declarations = flatten_destructuring_binding(
-                self,
+            let declarations = self.flatten_destructuring_binding_materialized(
                 parameter,
                 FlattenLevel::All,
                 Some(rval),
@@ -4286,8 +4425,7 @@ impl Es2015Visitor<'_, '_, '_> {
         self.start_on_new_line(for_statement)?;
         prologue_statements.push(for_statement);
         if !name_is_identifier {
-            let declarations = flatten_destructuring_binding(
-                self,
+            let declarations = self.flatten_destructuring_binding_materialized(
                 parameter,
                 FlattenLevel::All,
                 Some(expression_name),
@@ -5088,9 +5226,31 @@ impl Es2015Visitor<'_, '_, '_> {
             }
             None => false,
         };
+        // `getName` (_tsc.js:24788-24799) takes the generated-name path for a
+        // generated assigned name, and `getNodeForGeneratedName`
+        // (_tsc.js:28084-28102) resolves that identifier through its own
+        // original chain to the declaration it was generated for — the same
+        // cache slot `generateNameCached` uses for this node. An anonymous
+        // default class named `default_1` by transformTypeScript therefore
+        // keeps `default_1` as its ES5 constructor name instead of a second
+        // numbered allocation.
+        if let Some(binding) = name
+            .filter(|_| !name_is_plain_identifier)
+            .and_then(|name| self.generated_binding_of_identifier(name))
+        {
+            let origin = self.context.arena().get_original_node(node);
+            self.print_state
+                .generated_names_for_nodes
+                .entry((origin.source(), origin.node()))
+                .or_insert_with(|| binding.clone());
+            return self.create_generated_identifier(&binding);
+        }
         if name_is_plain_identifier {
             let name = name.expect("plain identifier name");
-            let clone = self.clone_node(name)?;
+            let clone = self
+                .context
+                .factory()?
+                .clone_node_with_source_spelling(name)?;
             // `setTextRange(cloneNode(nodeName), nodeName)` — the range
             // rides the MAP/comment channels here: upstream suppresses the
             // member-access line break through the SYNTHESIZED dot token,
@@ -5604,6 +5764,16 @@ impl Es2015Visitor<'_, '_, '_> {
         if self.is_binding_pattern(name)? {
             return self.visit_variable_declaration(node);
         }
+        // The same declaration-name materialization as
+        // `visit_variable_declaration` (the `let` list path reaches
+        // `visitEachChild` directly upstream).
+        let (node, name) = match self.colliding_declaration_name_substitute(name)? {
+            Some(generated) => (
+                self.update_variable_declaration_name(node, generated)?,
+                generated,
+            ),
+            None => (node, name),
+        };
         if !has_initializer && self.should_emit_explicit_initializer_for_let_declaration(node)? {
             let void_zero = self.create_void_zero()?;
             let updated_data =
@@ -5624,6 +5794,35 @@ impl Es2015Visitor<'_, '_, '_> {
             Some(updated) => VisitOutcome::One(updated),
             None => VisitOutcome::Elided,
         })
+    }
+
+    /// Materialize the declaration names produced by the shared flattener
+    /// just as ordinary ES2015 declarations do. The parsed leaf is renamed
+    /// during printing upstream; this owner records the same generated
+    /// identity before the composed-tree naming walk.
+    fn flatten_destructuring_binding_materialized(
+        &mut self,
+        node: TransformNode,
+        level: FlattenLevel,
+        value: Option<TransformNode>,
+        hoist_temp_variables: bool,
+        skip_initializer: bool,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let mut declarations = flatten_destructuring_binding(
+            self,
+            node,
+            level,
+            value,
+            hoist_temp_variables,
+            skip_initializer,
+        )?;
+        for declaration in &mut declarations {
+            let name = get_name_of_declaration(self.context, *declaration)?;
+            if let Some(generated) = self.colliding_declaration_name_substitute(name)? {
+                *declaration = self.update_variable_declaration_name(*declaration, generated)?;
+            }
+        }
+        Ok(declarations)
     }
 
     /// tsc-port: visitVariableDeclaration @6.0.3
@@ -5651,8 +5850,7 @@ impl Es2015Visitor<'_, '_, '_> {
         let updated = if self.is_binding_pattern(name)? {
             // `hoistTempVariables = (ancestorFacts & ExportedVariableStatement) !== 0`
             let exported = ancestor.intersects(HierarchyFacts::EXPORTED_VARIABLE_STATEMENT);
-            let declarations = flatten_destructuring_binding(
-                self,
+            let declarations = self.flatten_destructuring_binding_materialized(
                 node,
                 FlattenLevel::All,
                 /*rval*/ None,
@@ -5661,6 +5859,10 @@ impl Es2015Visitor<'_, '_, '_> {
             )?;
             VisitOutcome::Many(declarations)
         } else {
+            let node = match self.colliding_declaration_name_substitute(name)? {
+                Some(generated) => self.update_variable_declaration_name(node, generated)?,
+                None => node,
+            };
             match self.visit_each_child(node)? {
                 Some(node) => VisitOutcome::One(node),
                 None => VisitOutcome::Elided,
@@ -5673,6 +5875,96 @@ impl Es2015Visitor<'_, '_, '_> {
             HierarchyFacts::NONE,
         );
         Ok(updated)
+    }
+
+    /// The declaration-name half of `substituteIdentifier`
+    /// (_tsc.js:108009-108019) applied while visiting: tsc renames a
+    /// colliding block-scoped declaration's name at print time from the same
+    /// `generateNameCached` slot, so materializing that generated identifier
+    /// here changes no bytes but lets the transformer-time finalize walk
+    /// order it in emission order against the other numbered bindings (the
+    /// legacy decorator class alias becomes `C_2` after the wrapper's
+    /// `var C_1`). Internal names (`getInternalName` clones) keep their
+    /// spelling exactly as the print-time rule skips them.
+    fn colliding_declaration_name_substitute(
+        &mut self,
+        name: TransformNode,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        // substituteIdentifier runs only once block-scoped substitutions are
+        // enabled (_tsc.js:108011-108019); the enabling sites (a block-scoped
+        // declaration list or `for` initializer, a named class expression)
+        // all precede the visit of the names they cover, so the visit-time
+        // gate sees the same state the print-time one would.
+        if !self
+            .print_state
+            .enabled_substitutions
+            .intersects(Es2015SubstitutionFlags::BLOCK_SCOPED_BINDINGS)
+            || !matches!(
+                self.context.arena().node(name)?.data,
+                NodeData::Identifier(_)
+            )
+            || is_internal_name(self.context, name)
+        {
+            return Ok(None);
+        }
+        let Some(original) = parse_tree_identifier(self.context, name)? else {
+            return Ok(None);
+        };
+        // isNameOfDeclarationWithCollidingName (_tsc.js:108020-108029).
+        let colliding = {
+            let arena = self.context.arena();
+            let Some(parent) = arena.node(original)?.parent else {
+                return Ok(None);
+            };
+            let parent = TransformNode::new(original.source(), parent);
+            let name_matches = match &arena.node(parent)?.data {
+                NodeData::BindingElement(data) => data.name == Some(original.node()),
+                NodeData::ClassDeclaration(data) => data.name == Some(original.node()),
+                NodeData::EnumDeclaration(data) => data.name == Some(original.node()),
+                NodeData::VariableDeclaration(data) => data.name == Some(original.node()),
+                _ => false,
+            };
+            if !name_matches {
+                return Ok(None);
+            }
+            match arena.parse_tree_resolver_node(parent)? {
+                Some(reference) => self
+                    .resolver
+                    .is_declaration_with_colliding_name(reference)?,
+                None => false,
+            }
+        };
+        if !colliding {
+            return Ok(None);
+        }
+        let generated = self.get_generated_name_for_node(original)?;
+        self.context.factory()?.set_text_range(generated, name)?;
+        // Not pre-generated by `generateNames` upstream (the parsed name is
+        // not a generated identifier there): name it in emission order.
+        self.context
+            .arena_mut()?
+            .metadata_mut(generated)
+            .mark_generated_binding_print_order();
+        Ok(Some(generated))
+    }
+
+    fn update_variable_declaration_name(
+        &mut self,
+        node: TransformNode,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::VariableDeclaration(mut data) = self.context.arena().node(node)?.data.clone()
+        else {
+            return Err(assembly_kind_error(
+                SyntaxKind::VariableDeclaration,
+                "variable declaration",
+            ));
+        };
+        data.name = Some(name.node());
+        let flags = self.context.arena().transform_flags(node);
+        self.context
+            .factory()?
+            .update_node(node, NodeData::VariableDeclaration(data), flags)
     }
 
     /// tsc-port: visitLabeledStatement @6.0.3
@@ -5850,8 +6142,7 @@ impl Es2015Visitor<'_, '_, '_> {
             let new_variable_declaration = self.create_variable_declaration_plain(temp, None)?;
             self.set_text_range(new_variable_declaration, variable_declaration)?;
             let temp_reference = self.create_generated_identifier(&temp_binding)?;
-            let vars = flatten_destructuring_binding(
-                self,
+            let vars = self.flatten_destructuring_binding_materialized(
                 variable_declaration,
                 FlattenLevel::All,
                 Some(temp_reference),
@@ -6211,8 +6502,18 @@ impl Es2015Visitor<'_, '_, '_> {
                 Some(name) => self.kind(self.node(name))? == SyntaxKind::ComputedPropertyName,
                 None => false,
             };
-            if contains_yield_in_async || is_computed {
-                has_computed = is_computed;
+            // `property.transformFlags & ContainsYield && hierarchyFacts &
+            // AsyncFunctionBody || (hasComputed = isComputedPropertyName)`:
+            // the assignment is skipped when the yield arm short-circuits, so
+            // a yield-containing computed property under an async body does
+            // not mark the initial literal `Indented`
+            // (EF7-OBJECT-LITERAL-INDENTED).
+            if contains_yield_in_async {
+                num_initial_properties = Some(index);
+                break;
+            }
+            if is_computed {
+                has_computed = true;
                 num_initial_properties = Some(index);
                 break;
             }
@@ -11761,13 +12062,10 @@ impl Es2015Visitor<'_, '_, '_> {
                         "loop parameter name",
                     ))?
             };
-            // `map(state.loopParameters, p => p.name)` passes the parsed
-            // name NODE itself, whose range records in the map; the arena
-            // clone stays, so the donor's range rides as an explicit
-            // source-map range (h2-6a-m-2 §8-A).
-            let argument = self.clone_node(name)?;
-            self.set_source_map_range_from(argument, name)?;
-            call_arguments.push(argument);
+            // Upstream passes the parsed parameter name itself. Preserve
+            // its range for print-time colliding-name substitution as well
+            // as for the ordinary identifier map path.
+            call_arguments.push(name);
         }
         let call = self.create_call(function_reference, call_arguments)?;
         let call_result = if contains_yield {
@@ -12109,8 +12407,7 @@ impl Es2015Visitor<'_, '_, '_> {
             };
             if first_is_pattern {
                 let declaration = first_original_declaration.expect("pattern declaration");
-                let flattened = flatten_destructuring_binding(
-                    self,
+                let flattened = self.flatten_destructuring_binding_materialized(
                     declaration,
                     FlattenLevel::All,
                     Some(bound_value),
@@ -12155,6 +12452,12 @@ impl Es2015Visitor<'_, '_, '_> {
                         self.create_generated_identifier(&binding)?
                     }
                 };
+                // Upstream substitutes the parsed declaration name while
+                // printing. Materialize that binding here so the composed-
+                // tree finalizer observes its emission order.
+                let declaration_name = self
+                    .colliding_declaration_name_substitute(declaration_name)?
+                    .unwrap_or(declaration_name);
                 let declaration =
                     self.create_variable_declaration_plain(declaration_name, Some(bound_value))?;
                 let list = self.create_variable_declaration_list(vec![declaration])?;

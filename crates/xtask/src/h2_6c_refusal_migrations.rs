@@ -12,16 +12,10 @@ struct Migration {
     current_observation_sha256: &'static str,
 }
 
-// Completed old-input collector: 56721751cdf2368c3af395a789de1aa1fc36203089030468748ab5e728e4ea3e
-static CURRENT: &[Migration] = &[Migration {
-    case_id: "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts#default",
-    old_case_sha256: "f860d9b17947d19fcf944a086191f4d733782b2e281508fdcb434f9a15a06909",
-    old_input_sha256: "2ab06b77deb11818a34fbb809f2491a3a9be5f925c8f5955df8a41bbe0653e61",
-    new_input_sha256: "a7b13d679a286ca29f6c7513cb15d5e53e877be7e124b12c4652a35204b6f3e5",
-    retained_vector_sha256: "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef",
-    current_option: "useCaseSensitiveFileNames",
-    current_observation_sha256: "3b23b78f3efdd8f2b31e56bd9b6b58a9a35d08378fa775e6460f5ffae5756a9a",
-}];
+// The final case-sensitive-host refusal is now an exact D/E promotion. Its
+// previous identities and refusal are retained in the emitter-final packet's
+// records/retired-h2-6c-refusal-migrations.v1.json. No live refusal remains.
+static CURRENT: &[Migration] = &[];
 
 pub(super) enum CaseOutcome {
     Compared(H2VectorCaseOutcome),
@@ -77,7 +71,7 @@ pub(super) fn validate(
     let census = frozen(
         workspace,
         "ratchets/h2-7de-candidates.v1.json",
-        "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d",
+        "956514a27a7c9d4504f2bd364f07492b758660c4c6d525201ba62d1389a04db2",
     )?;
     let inputs = frozen(
         workspace,
@@ -87,7 +81,7 @@ pub(super) fn validate(
     let oracle = frozen(
         workspace,
         "ratchets/h2-7de-observations.v1.json",
-        "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+        "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9",
     )?;
     let mut ids = BTreeSet::new();
     for row in CURRENT {
@@ -268,9 +262,6 @@ pub(super) fn validate_ordinary_results(
     results: &[Result<H2VectorCaseOutcome, String>],
     listed: &HashMap<String, H2VectorDivergence>,
 ) -> Result<(), Box<dyn Error>> {
-    if CURRENT.is_empty() {
-        return Ok(());
-    }
     for result in results {
         let observed = result.as_ref().map_err(|error| failure(error.clone()))?;
         if !observed.deferred

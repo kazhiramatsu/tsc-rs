@@ -165,7 +165,7 @@ fn validate_artifact(
     for (name, hash) in [
         (
             CENSUS,
-            "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d",
+            "956514a27a7c9d4504f2bd364f07492b758660c4c6d525201ba62d1389a04db2",
         ),
         (
             INPUTS,
@@ -173,7 +173,7 @@ fn validate_artifact(
         ),
         (
             OBSERVATIONS,
-            "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+            "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9",
         ),
     ] {
         let bytes = std::fs::read(workspace.join(name))?;

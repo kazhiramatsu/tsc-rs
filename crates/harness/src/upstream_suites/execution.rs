@@ -1259,9 +1259,29 @@ fn apply_compiler_setting(
                 compiler_options.out_file = Some(value.to_owned().into());
             }
         }
-        "noemithelpers"
-        | "outdir"
-        | "declarationdir"
+        // The map-family floors replay frozen TypeScript observations that
+        // the upstream harness took with these directives applied: dropping
+        // them here made the H2.6c `outDir` / `noEmitHelpers` rows known
+        // divergences whose only cause was this projection
+        // (H2.8a-A-RES-EMITTER-FINAL EF3). The established, source-map and
+        // declaration floors keep their frozen admission scope unchanged.
+        "outdir" => {
+            if matches!(
+                floor,
+                EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
+            ) {
+                compiler_options.out_dir = Some(value.to_owned().into());
+            }
+        }
+        "noemithelpers" => {
+            if matches!(
+                floor,
+                EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
+            ) {
+                compiler_options.no_emit_helpers = Some(boolean()?);
+            }
+        }
+        "declarationdir"
         | "incremental"
         | "assumechangesonlyaffectdirectdependencies"
         | "stripinternal"

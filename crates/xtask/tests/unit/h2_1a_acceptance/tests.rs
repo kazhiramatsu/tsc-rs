@@ -130,7 +130,7 @@ fn current_source_promotions_compare_original_observations_and_pin_their_owner()
     )
     .expect("parse H2.1a qualification");
     let cases = artifact["cases"].as_array().expect("qualification cases");
-    assert_eq!(super::CURRENT_EXACT_SOURCE_PROMOTIONS.len(), 2);
+    assert_eq!(super::CURRENT_EXACT_SOURCE_PROMOTIONS.len(), 4);
     let mut writes = 0;
     let mut diagnostics = 0;
     for (case_id, _, required_slice) in super::CURRENT_EXACT_SOURCE_PROMOTIONS {
@@ -158,5 +158,5 @@ fn current_source_promotions_compare_original_observations_and_pin_their_owner()
         wrong_identity["case_fingerprint_sha256"] = serde_json::json!("changed");
         assert!(super::current_exact_source_promotion(&wrong_identity).is_err());
     }
-    assert_eq!((writes, diagnostics), (2, 3));
+    assert_eq!((writes, diagnostics), (4, 10));
 }

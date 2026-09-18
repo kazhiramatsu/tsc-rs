@@ -1,13 +1,13 @@
 {
  "schema": "h2-8c-transpile-expected.v1",
- "inputs_sha256": "cfec84eebb013708d458e7841ffcef262d95519b094a5b9381ae8f5e66967573",
+ "inputs_sha256": "cfae93399067b33cdde53668218c5730dac7c6d3cdf336ac06235775e65939d0",
  "typescript": {
   "version": "6.0.3",
   "bundle": "vendor/typescript-6.0.3/lib/typescript.js",
   "bundle_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
  },
  "node": "v25.2.1",
- "case_count": 287,
+ "case_count": 291,
  "repeat_state_separation": [
   {
    "id": "h2-8c/transpile-js/repeat/first",
@@ -77078,6 +77078,1273 @@
      ]
     }
    }
+  },
+  {
+   "id": "h2-8c/transpile-js/numeric-target/transform-99",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 150,
+     "utf8_base64": "ZXhwb3J0IGNsYXNzIEMgewogICAgI3ZhbHVlID0gMTsKICAgIHZhbHVlID0gdGhpcy4jdmFsdWU7Cn0KZXhwb3J0IGNvbnN0IHJlYWQgPSBhc3luYyAodmFsdWUpID0+IHZhbHVlPy52YWx1ZSA/PyAwOwovLyMgc291cmNlTWFwcGluZ1VSTD1tb2R1bGUuanMubWFw",
+     "utf8_sha256": "f645420763c33059abbcf4aa68d2eb1a85a2e5dc37260aa0fa5f4dc56118abcc"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [],
+    "sourceMapText": {
+     "present": true,
+     "utf16_units": 272,
+     "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibW9kdWxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsibW9kdWxlLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sT0FBTyxDQUFDO0lBQUcsTUFBTSxHQUFHLENBQUMsQ0FBQztJQUFDLEtBQUssR0FBVyxJQUFJLENBQUMsTUFBTSxDQUFDO0NBQUU7QUFDM0QsTUFBTSxDQUFDLE1BQU0sSUFBSSxHQUFHLEtBQUssRUFBRSxLQUFTLEVBQUUsRUFBRSxDQUFDLEtBQUssRUFBRSxLQUFLLElBQUksQ0FBQyxDQUFDIn0=",
+     "utf8_sha256": "51744ec4702969ff0acef55b2b9320b6cc6b72689a4afa407ee3d5a8c3625ef3"
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 0,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 99,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "sourceMap": true,
+     "suppressOutputPathCheck": true,
+     "target": 99,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": [
+      {
+       "input_source_file_names": [
+        "module.ts"
+       ],
+       "source_map_json": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,OAAO,CAAC;IAAG,MAAM,GAAG,CAAC,CAAC;IAAC,KAAK,GAAW,IAAI,CAAC,MAAM,CAAC;CAAE;AAC3D,MAAM,CAAC,MAAM,IAAI,GAAG,KAAK,EAAE,KAAS,EAAE,EAAE,CAAC,KAAK,EAAE,KAAK,IAAI,CAAC,CAAC\"}"
+      }
+     ]
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "writeFile",
+       "module.js.map"
+      ],
+      [
+       "writeFile",
+       "module.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/transpile-js/numeric-target/transform-100",
+   "route": "transpile-js",
+   "observation": {
+    "exception": {
+     "message": "Debug Failure. Output generation failed"
+    },
+    "outputText": null,
+    "diagnostics_present": null,
+    "diagnostics": null,
+    "sourceMapText": null
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "JSON",
+    "is_declaration_file": false,
+    "external_module": false,
+    "fixup_diagnostics": 1,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 99,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "sourceMap": true,
+     "suppressOutputPathCheck": true,
+     "target": 100,
+     "tsBuildInfoFile": null,
+     "types": null,
+     "useDefineForClassFields": false
+    },
+    "syntactic_diagnostics": [
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 0,
+      "length": 7,
+      "message": "'{' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1327,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 8,
+      "length": 5,
+      "message": "String literal with double quotes expected.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 14,
+      "length": 3,
+      "message": "':' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1328,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 14,
+      "length": 3,
+      "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 17,
+      "length": 1,
+      "message": "',' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1136,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 19,
+      "length": 3,
+      "message": "Property assignment expected.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 22,
+      "length": 1,
+      "message": "',' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1136,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 24,
+      "length": 1,
+      "message": "Property assignment expected.",
+      "related_information": null
+     },
+     {
+      "code": 1136,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 25,
+      "length": 3,
+      "message": "Property assignment expected.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 29,
+      "length": 6,
+      "message": "',' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1327,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 36,
+      "length": 5,
+      "message": "String literal with double quotes expected.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 42,
+      "length": 1,
+      "message": "':' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1328,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 42,
+      "length": 1,
+      "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 44,
+      "length": 1,
+      "message": "',' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1327,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 46,
+      "length": 6,
+      "message": "String literal with double quotes expected.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 53,
+      "length": 1,
+      "message": "':' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1328,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 53,
+      "length": 3,
+      "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 56,
+      "length": 1,
+      "message": "',' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1327,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 58,
+      "length": 5,
+      "message": "String literal with double quotes expected.",
+      "related_information": null
+     },
+     {
+      "code": 1328,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 65,
+      "length": 20,
+      "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 85,
+      "length": 1,
+      "message": "',' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1012,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 89,
+      "length": 6,
+      "message": "Unexpected token.",
+      "related_information": null
+     },
+     {
+      "code": 1327,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 96,
+      "length": 5,
+      "message": "String literal with double quotes expected.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 102,
+      "length": 4,
+      "message": "':' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1328,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 102,
+      "length": 45,
+      "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+      "related_information": null
+     },
+     {
+      "code": 8009,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 121,
+      "length": 1,
+      "message": "The '?' modifier can only be used in TypeScript files.",
+      "related_information": null
+     },
+     {
+      "code": 8010,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 124,
+      "length": 1,
+      "message": "Type annotations can only be used in TypeScript files.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 147,
+      "length": 1,
+      "message": "',' expected.",
+      "related_information": null
+     },
+     {
+      "code": 1005,
+      "category": "Error",
+      "file": "module.ts",
+      "start": 149,
+      "length": 0,
+      "message": "'}' expected.",
+      "related_information": null
+     }
+    ],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": []
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/transpile-js/numeric-target/transform-1234",
+   "route": "transpile-js",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 150,
+     "utf8_base64": "ZXhwb3J0IGNsYXNzIEMgewogICAgI3ZhbHVlID0gMTsKICAgIHZhbHVlID0gdGhpcy4jdmFsdWU7Cn0KZXhwb3J0IGNvbnN0IHJlYWQgPSBhc3luYyAodmFsdWUpID0+IHZhbHVlPy52YWx1ZSA/PyAwOwovLyMgc291cmNlTWFwcGluZ1VSTD1tb2R1bGUuanMubWFw",
+     "utf8_sha256": "f645420763c33059abbcf4aa68d2eb1a85a2e5dc37260aa0fa5f4dc56118abcc"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [
+     {
+      "code": 6046,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+      "related_information": null
+     }
+    ],
+    "sourceMapText": {
+     "present": true,
+     "utf16_units": 272,
+     "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibW9kdWxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsibW9kdWxlLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sT0FBTyxDQUFDO0lBQUcsTUFBTSxHQUFHLENBQUMsQ0FBQztJQUFDLEtBQUssR0FBVyxJQUFJLENBQUMsTUFBTSxDQUFDO0NBQUU7QUFDM0QsTUFBTSxDQUFDLE1BQU0sSUFBSSxHQUFHLEtBQUssRUFBRSxLQUFTLEVBQUUsRUFBRSxDQUFDLEtBQUssRUFBRSxLQUFLLElBQUksQ0FBQyxDQUFDIn0=",
+     "utf8_sha256": "51744ec4702969ff0acef55b2b9320b6cc6b72689a4afa407ee3d5a8c3625ef3"
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 1,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": false,
+     "declarationDir": null,
+     "declarationMap": false,
+     "emitDeclarationOnly": null,
+     "incremental": null,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "module": 99,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": true,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "sourceMap": true,
+     "suppressOutputPathCheck": true,
+     "target": 1234,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Array'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Boolean'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'CallableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Function'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'IArguments'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'NewableFunction'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Number'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'Object'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'RegExp'.",
+      "related_information": null
+     },
+     {
+      "code": 2318,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Cannot find global type 'String'.",
+      "related_information": null
+     }
+    ],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": [
+      {
+       "input_source_file_names": [
+        "module.ts"
+       ],
+       "source_map_json": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,OAAO,CAAC;IAAG,MAAM,GAAG,CAAC,CAAC;IAAC,KAAK,GAAW,IAAI,CAAC,MAAM,CAAC;CAAE;AAC3D,MAAM,CAAC,MAAM,IAAI,GAAG,KAAK,EAAE,KAAS,EAAE,EAAE,CAAC,KAAK,EAAE,KAAK,IAAI,CAAC,CAAC\"}"
+      }
+     ]
+    },
+    "source_files": [
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "writeFile",
+       "module.js.map"
+      ],
+      [
+       "writeFile",
+       "module.js"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": false
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  },
+  {
+   "id": "h2-8c/transpile-dts/numeric-target/declaration-1234",
+   "route": "transpile-dts",
+   "observation": {
+    "exception": null,
+    "outputText": {
+     "present": true,
+     "utf16_units": 118,
+     "utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsKZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7CiAgICB2YWx1ZTogbnVtYmVyOwp9Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1vZHVsZS5kLnRzLm1hcA==",
+     "utf8_sha256": "5ec950762c9be1a82a7c93e9cca4b76baff86f5b2747abf04e63a88d6e306a1d"
+    },
+    "diagnostics_present": true,
+    "diagnostics": [
+     {
+      "code": 6046,
+      "category": "Error",
+      "file": null,
+      "start": null,
+      "length": null,
+      "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+      "related_information": null
+     }
+    ],
+    "sourceMapText": {
+     "present": true,
+     "utf16_units": 180,
+     "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibW9kdWxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJtb2R1bGUudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssRUFBRSxNQUFVLENBQUM7QUFDL0IscUJBQWEsQ0FBQztJQUFHLEtBQUssRUFBRSxNQUFNLENBQUs7Q0FBRSJ9",
+     "utf8_sha256": "44af988734f223370704f94d90bd95ee5889df6d2fa69195e2535b6dfeff42c3"
+    }
+   },
+   "internal": {
+    "input_file_name": "module.ts",
+    "implied_node_format": null,
+    "script_kind": "TS",
+    "is_declaration_file": false,
+    "external_module": true,
+    "fixup_diagnostics": 1,
+    "forced_options": [
+     [
+      "incremental",
+      null
+     ],
+     [
+      "declaration",
+      null
+     ],
+     [
+      "emitDeclarationOnly",
+      null
+     ],
+     [
+      "noCheck",
+      true
+     ],
+     [
+      "noEmit",
+      null
+     ],
+     [
+      "lib",
+      null
+     ],
+     [
+      "outFile",
+      null
+     ],
+     [
+      "composite",
+      null
+     ],
+     [
+      "tsBuildInfoFile",
+      null
+     ],
+     [
+      "isolatedModules",
+      true
+     ],
+     [
+      "paths",
+      null
+     ],
+     [
+      "rootDirs",
+      null
+     ],
+     [
+      "types",
+      null
+     ],
+     [
+      "allowImportingTsExtensions",
+      null
+     ],
+     [
+      "out",
+      null
+     ],
+     [
+      "noLib",
+      true
+     ],
+     [
+      "noResolve",
+      true
+     ],
+     [
+      "noEmitOnError",
+      null
+     ],
+     [
+      "declarationDir",
+      null
+     ]
+    ],
+    "effective_options": {
+     "allowImportingTsExtensions": null,
+     "allowNonTsExtensions": true,
+     "composite": null,
+     "declaration": true,
+     "declarationDir": null,
+     "declarationMap": true,
+     "emitDeclarationOnly": true,
+     "incremental": null,
+     "isolatedDeclarations": true,
+     "isolatedModules": true,
+     "jsx": 1,
+     "lib": null,
+     "noCheck": true,
+     "noEmit": null,
+     "noEmitOnError": null,
+     "noLib": false,
+     "noResolve": true,
+     "out": null,
+     "outFile": null,
+     "paths": null,
+     "rootDirs": null,
+     "suppressOutputPathCheck": true,
+     "target": 1234,
+     "tsBuildInfoFile": null,
+     "types": null
+    },
+    "syntactic_diagnostics": [],
+    "options_diagnostics": [],
+    "semantic_diagnostics_evidence": [],
+    "global_diagnostics_evidence": [],
+    "emit_result": {
+     "emit_skipped": false,
+     "diagnostics": [],
+     "emitted_files": null,
+     "source_maps": [
+      {
+       "input_source_file_names": [
+        "module.ts"
+       ],
+       "source_map_json": "{\"version\":3,\"file\":\"module.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,EAAE,MAAU,CAAC;AAC/B,qBAAa,CAAC;IAAG,KAAK,EAAE,MAAM,CAAK;CAAE\"}"
+      }
+     ]
+    },
+    "source_files": [
+     "lib.d.ts",
+     "module.ts"
+    ],
+    "trace": {
+     "host": [
+      [
+       "getSourceFile",
+       "module.ts"
+      ],
+      [
+       "getSourceFile",
+       "lib.d.ts"
+      ],
+      [
+       "writeFile",
+       "module.d.ts.map"
+      ],
+      [
+       "writeFile",
+       "module.d.ts"
+      ]
+     ],
+     "emit_resolver_requests": [
+      {
+       "source_file": null,
+       "skip_diagnostics": true
+      }
+     ],
+     "checker_get_diagnostics": 0
+    },
+    "replica_public_result_matches": true
+   }
+  }
+ ],
+ "numeric_target_default_libraries": [
+  {
+   "target": 99,
+   "name": "lib.esnext.full.d.ts"
+  },
+  {
+   "target": 100,
+   "name": "lib.d.ts"
+  },
+  {
+   "target": 1234,
+   "name": "lib.d.ts"
   }
  ]
 }

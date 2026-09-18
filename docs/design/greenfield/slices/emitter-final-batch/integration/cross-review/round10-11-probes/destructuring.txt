@@ -1,0 +1,136 @@
+##### import-helpers/checker-audit/rest/es2017/false/variable
+JS identical
+MAP expected: ;;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAe,SAAC,GAAa,CAAC,IAAT,QAAA,IAAI,UAAI,CAAC,EAAhB,KAAY,EAAK
+MAP actual  : ;;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAe,eAAC,EAAK,QAAA,IAAI,UAAI,CAAC,EAAhB,KAAY,EAAK
+SRC /project/main.ts 'const o = {a: 1, b: 2}; export const {a, ...rest} = o;\n'
+SETTINGS {"compilerOptions":{"strict":true,"skipDefaultLibCheck":true,"noErrorTruncation":true,"sourceMap":true,"outDir":"/project/out","esModuleInterop":true,"importHelpers":false,"module":"commonjs","target":"es2017"},"files":["main.ts","ambient.d.ts"]}
+##### import-helpers/checker-audit/adjacent-helper/es2015/true/read-variable
+--- expected
++++ actual
+@@ -2,16 +1,0 @@
+-var __read = (this && this.__read) || function (o, n) {
+-    var m = typeof Symbol === "function" && o[Symbol.iterator];
+-    if (!m) return o;
+-    var i = m.call(o), r, ar = [], e;
+-    try {
+-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+-    }
+-    catch (error) { e = { error: error }; }
+-    finally {
+-        try {
+-            if (r && !r.done && (m = i["return"])) m.call(i);
+-        }
+-        finally { if (e) throw e.error; }
+-    }
+-    return ar;
+-};
+@@ -21 +5 @@
+-_a = __read([1, 2]), exports.first = _a[0], exports.rest = _a.slice(1);
++_a = [1, 2], exports.first = _a[0], exports.rest = _a.slice(1);
+SRC /project/main.ts 'export const [first, ...rest] = [1, 2];\n'
+SETTINGS {"compilerOptions":{"strict":true,"skipDefaultLibCheck":true,"noErrorTruncation":true,"sourceMap":true,"outDir":"/project/out","esModuleInterop":true,"importHelpers":true,"module":"commonjs","target":"es2015","downlevelIteration":true,"ignoreDeprecations":"6.0"},"files":["main.ts","ambient.d.ts"]}
+##### import-helpers/checker-audit/rest/es2017/true/variable
+JS identical
+MAP expected: ;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAe,SAAC,GAAa,CAAC,IAAT,QAAA,IAAI,kBAAI,CAAC,EAAhB,KAAY,EAAK
+MAP actual  : ;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAe,eAAC,EAAK,QAAA,IAAI,kBAAI,CAAC,EAAhB,KAAY,EAAK
+SRC /project/main.ts 'const o = {a: 1, b: 2}; export const {a, ...rest} = o;\n'
+SETTINGS {"compilerOptions":{"strict":true,"skipDefaultLibCheck":true,"noErrorTruncation":true,"sourceMap":true,"outDir":"/project/out","esModuleInterop":true,"importHelpers":true,"module":"commonjs","target":"es2017"},"files":["main.ts","ambient.d.ts"]}
+##### import-helpers/checker-audit/rest/es2018/true/variable
+JS identical
+MAP expected: ;;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAe,SAAC,GAAa,CAAC,IAAT,YAAI,UAAI,CAAC,EAAhB,KAAY,EAAK
+MAP actual  : ;;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAe,eAAC,EAAE,yBAAA,KAAO,CAAA,CAAM
+SRC /project/main.ts 'const o = {a: 1, b: 2}; export const {a, ...rest} = o;\n'
+SETTINGS {"compilerOptions":{"strict":true,"skipDefaultLibCheck":true,"noErrorTruncation":true,"sourceMap":true,"outDir":"/project/out","esModuleInterop":true,"importHelpers":true,"module":"commonjs","target":"es2018"},"files":["main.ts","ambient.d.ts"]}
+##### import-helpers/checker-audit/rest/es2018/true/assignment
+JS identical
+MAP expected: ;;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAC,IAAI,CAAC,GAAG,CAAC,EAAE,IAAI,GAAG,EAAE,CAAC;AAA6B,oBAAI;AAAhC,CAAE,CAAC,GAAa,CAAC,IAAZ,eAAG,IAAI,UAAI,CAAC,EAAhB,KAAY,CAAD,CAAM,CAAC
+MAP actual  : ;;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAC,IAAI,CAAC,GAAG,CAAC,EAAE,IAAI,GAAG,EAAE,CAAC;AAA6B,oBAAI;AAAhC,CAAE,CAAC,MAAA,EAAE,gCAAA,KAAO,CAAK,CAAC,CAAC
+SRC /project/main.ts 'const o = {a: 1, b: 2}; let a = 0, rest = {}; ({a, ...rest} = o); export {rest};\n'
+SETTINGS {"compilerOptions":{"strict":true,"skipDefaultLibCheck":true,"noErrorTruncation":true,"sourceMap":true,"outDir":"/project/out","esModuleInterop":true,"importHelpers":true,"module":"commonjs","target":"es2018"},"files":["main.ts","ambient.d.ts"]}
+##### import-helpers/checker-audit/adjacent-helper/es2015/false/read-assignment
+--- expected
++++ actual
+@@ -2,16 +1,0 @@
+-var __read = (this && this.__read) || function (o, n) {
+-    var m = typeof Symbol === "function" && o[Symbol.iterator];
+-    if (!m) return o;
+-    var i = m.call(o), r, ar = [], e;
+-    try {
+-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+-    }
+-    catch (error) { e = { error: error }; }
+-    finally {
+-        try {
+-            if (r && !r.done && (m = i["return"])) m.call(i);
+-        }
+-        finally { if (e) throw e.error; }
+-    }
+-    return ar;
+-};
+@@ -23 +7 @@
+-_a = __read([1, 2]), first = _a[0], exports.rest = rest = _a.slice(1);
++_a = [1, 2], first = _a[0], exports.rest = rest = _a.slice(1);
+SRC /project/main.ts 'let first = 0, rest: number[] = []; [first, ...rest] = [1, 2]; export {rest};\n'
+SETTINGS {"compilerOptions":{"strict":true,"skipDefaultLibCheck":true,"noErrorTruncation":true,"sourceMap":true,"outDir":"/project/out","esModuleInterop":true,"importHelpers":false,"module":"commonjs","target":"es2015","downlevelIteration":true,"ignoreDeprecations":"6.0"},"files":["main.ts","ambient.d.ts"]}
+##### import-helpers/checker-audit/adjacent-helper/es2015/true/read-assignment
+--- expected
++++ actual
+@@ -2,16 +1,0 @@
+-var __read = (this && this.__read) || function (o, n) {
+-    var m = typeof Symbol === "function" && o[Symbol.iterator];
+-    if (!m) return o;
+-    var i = m.call(o), r, ar = [], e;
+-    try {
+-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+-    }
+-    catch (error) { e = { error: error }; }
+-    finally {
+-        try {
+-            if (r && !r.done && (m = i["return"])) m.call(i);
+-        }
+-        finally { if (e) throw e.error; }
+-    }
+-    return ar;
+-};
+@@ -23 +7 @@
+-_a = __read([1, 2]), first = _a[0], exports.rest = rest = _a.slice(1);
++_a = [1, 2], first = _a[0], exports.rest = rest = _a.slice(1);
+SRC /project/main.ts 'let first = 0, rest: number[] = []; [first, ...rest] = [1, 2]; export {rest};\n'
+SETTINGS {"compilerOptions":{"strict":true,"skipDefaultLibCheck":true,"noErrorTruncation":true,"sourceMap":true,"outDir":"/project/out","esModuleInterop":true,"importHelpers":true,"module":"commonjs","target":"es2015","downlevelIteration":true,"ignoreDeprecations":"6.0"},"files":["main.ts","ambient.d.ts"]}
+##### import-helpers/checker-audit/rest/es2018/false/variable
+JS identical
+MAP expected: ;;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAe,SAAC,GAAa,CAAC,IAAT,YAAI,UAAI,CAAC,EAAhB,KAAY,EAAK
+MAP actual  : ;;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAe,eAAC,EAAE,yBAAA,KAAO,CAAA,CAAM
+SRC /project/main.ts 'const o = {a: 1, b: 2}; export const {a, ...rest} = o;\n'
+SETTINGS {"compilerOptions":{"strict":true,"skipDefaultLibCheck":true,"noErrorTruncation":true,"sourceMap":true,"outDir":"/project/out","esModuleInterop":true,"importHelpers":false,"module":"commonjs","target":"es2018"},"files":["main.ts","ambient.d.ts"]}
+##### import-helpers/checker-audit/adjacent-helper/es2015/false/read-variable
+--- expected
++++ actual
+@@ -2,16 +1,0 @@
+-var __read = (this && this.__read) || function (o, n) {
+-    var m = typeof Symbol === "function" && o[Symbol.iterator];
+-    if (!m) return o;
+-    var i = m.call(o), r, ar = [], e;
+-    try {
+-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+-    }
+-    catch (error) { e = { error: error }; }
+-    finally {
+-        try {
+-            if (r && !r.done && (m = i["return"])) m.call(i);
+-        }
+-        finally { if (e) throw e.error; }
+-    }
+-    return ar;
+-};
+@@ -21 +5 @@
+-_a = __read([1, 2]), exports.first = _a[0], exports.rest = _a.slice(1);
++_a = [1, 2], exports.first = _a[0], exports.rest = _a.slice(1);
+SRC /project/main.ts 'export const [first, ...rest] = [1, 2];\n'
+SETTINGS {"compilerOptions":{"strict":true,"skipDefaultLibCheck":true,"noErrorTruncation":true,"sourceMap":true,"outDir":"/project/out","esModuleInterop":true,"importHelpers":false,"module":"commonjs","target":"es2015","downlevelIteration":true,"ignoreDeprecations":"6.0"},"files":["main.ts","ambient.d.ts"]}
+##### import-helpers/checker-audit/rest/es2018/false/assignment
+JS identical
+MAP expected: ;;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAC,IAAI,CAAC,GAAG,CAAC,EAAE,IAAI,GAAG,EAAE,CAAC;AAA6B,oBAAI;AAAhC,CAAE,CAAC,GAAa,CAAC,IAAZ,eAAG,IAAI,UAAI,CAAC,EAAhB,KAAY,CAAD,CAAM,CAAC
+MAP actual  : ;;;;;;;;;;;;;;AAAA,MAAM,CAAC,GAAG,EAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAC,CAAC;AAAC,IAAI,CAAC,GAAG,CAAC,EAAE,IAAI,GAAG,EAAE,CAAC;AAA6B,oBAAI;AAAhC,CAAE,CAAC,MAAA,EAAE,gCAAA,KAAO,CAAK,CAAC,CAAC
+SRC /project/main.ts 'const o = {a: 1, b: 2}; let a = 0, rest = {}; ({a, ...rest} = o); export {rest};\n'
+SETTINGS {"compilerOptions":{"strict":true,"skipDefaultLibCheck":true,"noErrorTruncation":true,"sourceMap":true,"outDir":"/project/out","esModuleInterop":true,"importHelpers":false,"module":"commonjs","target":"es2018"},"files":["main.ts","ambient.d.ts"]}

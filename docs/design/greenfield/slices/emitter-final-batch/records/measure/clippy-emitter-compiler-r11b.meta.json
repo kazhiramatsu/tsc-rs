@@ -1,0 +1,27 @@
+{
+  "name": "clippy-emitter-compiler-r11b",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "clippy",
+    "-p",
+    "tsc-rs-emitter",
+    "-p",
+    "tsc-rs-compiler",
+    "--all-targets",
+    "--no-deps",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T08:10:40Z",
+  "seconds": 37,
+  "exit": 101,
+  "log_sha256": "83b4e266f059b66919f97b43f455f68f1cad0c0c55f3d828af25d598d24ec4d8",
+  "log_bytes": 3748
+}

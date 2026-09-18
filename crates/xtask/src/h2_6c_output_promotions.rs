@@ -1,4 +1,4 @@
-//! Measured exact promotions of the original H2.6c output-directory inputs.
+//! Measured exact promotions of original H2.6c output inputs.
 //! Frozen old tuples and current complete comparisons remain authoritative.
 use super::*;
 
@@ -14,6 +14,16 @@ pub(super) struct Promotion {
 // Completed two-run measurement: 88ae0f0db6329e2f124b2e8244cc166f52533760e06b583f6c40f429c2a947b5
 // No new D/E input is substituted for these old compiler/project requests.
 static CURRENT: &[Promotion] = &[
+    // The emitter-final EF3 replay verifies the former isolatedModules refusal
+    // against both unchanged complete observations, including source maps.
+    Promotion {
+        case_id: "typescript-6.0.3/compiler/isolatedModulesSourceMap.ts#default",
+        old_case_sha256: "4249c3923d545b2cccb9cde97f3beeff9aec45e46bb437aa33d32cb5c3ce9a50",
+        old_input_sha256: "54abf8ed93154599c1e02f2075cc7ab0d8f1ba64e6f04debd44bdd0d065f8f64",
+        old_expected_tuple_sha256: "f81a11b2f6047767ad3f7249f9e4253ab71094aa7f1ae9e6927c355864275b26",
+        old_refused_option: "isolatedModules",
+        declaration_members: 0,
+    },
     Promotion {
         case_id: "typescript-6.0.3/compiler/commonSourceDirectory.ts#default",
         old_case_sha256: "c6f5288dafdb0ebfe2638bdb07613c60c8cd58ff8033eab02167dca18566a9fb",

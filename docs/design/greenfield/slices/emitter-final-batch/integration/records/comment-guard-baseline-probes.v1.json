@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "status": "baseline-cli-reproduction; final-candidate comparison is the frozen command matrix",
+  "executable_sha256": "911c0902fd4b8f7355374412bf087e99443ac9e498853d48229c24e63db7a1be",
+  "cases": [
+    {
+      "name": "string-private",
+      "source": "export const value = \"#x /* comment */ in\";\n",
+      "argv": [
+        "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/tsc-rs",
+        "--noLib",
+        "--target",
+        "esnext",
+        "--module",
+        "esnext",
+        "--outDir",
+        "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/emitter-comment-audit-f0rztetd/out",
+        "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/emitter-comment-audit-f0rztetd/string-private.ts"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "tsc-rs: --module currently admits only 'preserve', got \"esnext\"\n",
+      "js_exists": false,
+      "config_attempt": {
+        "argv": [
+          "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/tsc-rs",
+          "--project",
+          "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/emitter-comment-config-xzmaddf4/tsconfig.json"
+        ],
+        "exit": 2,
+        "stdout": "",
+        "stderr": "tsc-rs: compiler failure: advanced comment placement during emit is deferred to H2.8a\n",
+        "js_exists": false
+      }
+    },
+    {
+      "name": "string-optional",
+      "source": "export const value = \"a?.b /* comment */ as T\";\n",
+      "argv": [
+        "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/tsc-rs",
+        "--noLib",
+        "--target",
+        "esnext",
+        "--module",
+        "esnext",
+        "--outDir",
+        "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/emitter-comment-audit-f0rztetd/out",
+        "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/emitter-comment-audit-f0rztetd/string-optional.ts"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "tsc-rs: --module currently admits only 'preserve', got \"esnext\"\n",
+      "js_exists": false,
+      "config_attempt": {
+        "argv": [
+          "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/tsc-rs",
+          "--project",
+          "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/emitter-comment-config-dwc6wndo/tsconfig.json"
+        ],
+        "exit": 2,
+        "stdout": "",
+        "stderr": "tsc-rs: compiler failure: advanced comment placement during emit is deferred to H2.8a\n",
+        "js_exists": false
+      }
+    }
+  ],
+  "note": "Initial explicit CLI attempt exposed the obsolete module-name admission; config attempts then reproduced AdvancedCommentPlacementDeferred for both valid string literals."
+}

@@ -1,0 +1,17 @@
+{
+  "name": "probes-r11",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "$S/run-probes.sh"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T05:14:12Z",
+  "seconds": 137,
+  "exit": 1,
+  "log_sha256": "19db771fb3a357fe1d0cdf47bafd9d3f7495fa839baf8ae763bee70e03e1637d",
+  "log_bytes": 149
+}

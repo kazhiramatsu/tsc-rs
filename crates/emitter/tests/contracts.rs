@@ -1,3 +1,6 @@
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+
 #[path = "integration/active_transform_contract.rs"]
 mod active_transform_contract;
 #[path = "integration/artifact_sink_contract.rs"]

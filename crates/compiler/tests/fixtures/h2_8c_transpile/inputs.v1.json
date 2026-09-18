@@ -6,10 +6,10 @@
   "bundle_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
  },
  "generator": "scripts/observe-transpile-routes.mjs",
- "case_count": 287,
+ "case_count": 291,
  "route_counts": {
-  "transpile-js": 150,
-  "transpile-dts": 86,
+  "transpile-js": 153,
+  "transpile-dts": 87,
   "program-no-check": 51
  },
  "cases": [
@@ -3996,6 +3996,58 @@
     "module": "commonjs",
     "declaration": true
    }
+  },
+  {
+   "id": "h2-8c/transpile-js/numeric-target/transform-99",
+   "route": "transpile-js",
+   "text": "export class C { #value = 1; value: number = this.#value; }\nexport const read = async (value?: C) => value?.value ?? 0;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": 99,
+    "module": "esnext",
+    "sourceMap": true
+   },
+   "text_sha256": "76ffd170b3e73cc19fe05cfef4044a32837dd2320586d88dc95ea6f07af6c2e0",
+   "text_utf16_units": 120
+  },
+  {
+   "id": "h2-8c/transpile-js/numeric-target/transform-100",
+   "route": "transpile-js",
+   "text": "declare const dec: any;\n@dec export class C { #value = 1; value: number = this.#value; }\nexport const read = async (value?: C) => value?.value ?? 0;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": 100,
+    "module": "esnext",
+    "sourceMap": true,
+    "useDefineForClassFields": false
+   },
+   "text_sha256": "8989fae93f1d827c96b58ebf1fc44d69655e8746da1affb1edc5cb1ca56de9df",
+   "text_utf16_units": 149
+  },
+  {
+   "id": "h2-8c/transpile-js/numeric-target/transform-1234",
+   "route": "transpile-js",
+   "text": "export class C { #value = 1; value: number = this.#value; }\nexport const read = async (value?: C) => value?.value ?? 0;\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": 1234,
+    "module": "esnext",
+    "sourceMap": true
+   },
+   "text_sha256": "76ffd170b3e73cc19fe05cfef4044a32837dd2320586d88dc95ea6f07af6c2e0",
+   "text_utf16_units": 120
+  },
+  {
+   "id": "h2-8c/transpile-dts/numeric-target/declaration-1234",
+   "route": "transpile-dts",
+   "text": "export const value: number = 1;\nexport class C { value: number = 1; }\n",
+   "reportDiagnostics": true,
+   "compilerOptions": {
+    "target": 1234,
+    "declarationMap": true
+   },
+   "text_sha256": "c106f4b9159ab145ac45176b42606982b1095c08b065b76c9f16ce1398ad141a",
+   "text_utf16_units": 70
   }
  ]
 }

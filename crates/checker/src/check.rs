@@ -8415,6 +8415,42 @@ impl<'a> CheckerState<'a> {
     /// getWithAlternativeContainers' firstVariableMatch owns that
     /// bridge. The class-expression-assignment candidates arm
     /// (50003-50009) cannot match the admitted declarations here.
+    /// The container of a class expression on the right of
+    /// `<access expression> = class …` (getContainersOfSymbol's
+    /// class-expression candidate).
+    fn class_expression_assignment_container(
+        &mut self,
+        parent: NodeId,
+    ) -> CheckResult<Option<SymbolId>> {
+        let NodeData::BinaryExpression(binary) = self.data_of(parent) else {
+            return Ok(None);
+        };
+        let (Some(operator), Some(left)) = (binary.operator_token, binary.left) else {
+            return Ok(None);
+        };
+        if self.kind_of(operator) != SyntaxKind::EqualsToken {
+            return Ok(None);
+        }
+        let receiver = match self.data_of(left) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        let Some(receiver) = receiver else {
+            return Ok(None);
+        };
+        let source = self.binder.source_of_node(parent);
+        if !node_util::is_entity_name_expression(source, receiver) {
+            return Ok(None);
+        }
+        if tsc_binder::assignment::is_module_exports_access_expression(source, left)
+            || tsc_binder::assignment::is_exports_identifier(source, receiver)
+        {
+            return Ok(self.node_symbol(source.root));
+        }
+        self.get_resolved_symbol(receiver)
+    }
+
     fn containers_of_symbol_slice(
         &mut self,
         symbol: SymbolId,
@@ -8456,6 +8492,17 @@ impl<'a> CheckerState<'a> {
                             candidates.push(module_symbol);
                         }
                     }
+                }
+                continue;
+            }
+            // `isClassExpression(d) && isBinaryExpression(d.parent) && … =`
+            // with an access-expression left over an entity name: a class
+            // assigned to `module.exports`/`exports.x` is contained by the
+            // source file; any other receiver contributes its resolved
+            // symbol (getContainersOfSymbol, _tsc.js:49999-50007).
+            if self.kind_of(declaration) == SyntaxKind::ClassExpression {
+                if let Some(candidate) = self.class_expression_assignment_container(parent)? {
+                    candidates.push(candidate);
                 }
             }
         }

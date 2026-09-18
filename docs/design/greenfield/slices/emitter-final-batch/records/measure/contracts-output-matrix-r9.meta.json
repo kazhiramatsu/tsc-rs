@@ -1,0 +1,23 @@
+{
+  "name": "contracts-output-matrix-r9",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "contracts",
+    "h2_8a_output_matrix"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T04:02:56Z",
+  "seconds": 37,
+  "exit": 0,
+  "log_sha256": "abce8691c7dcd1b50755218c161396b443a2f9fe62ae00a6f04b6b24012f1076",
+  "log_bytes": 540
+}

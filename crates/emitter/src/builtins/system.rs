@@ -6,7 +6,7 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, JsStr, JsString, NodeFlags};
 
 use crate::{
-    factory::EmitHelperName, EmitExportContainerMode, EmitHint, EmitHost, EmitResolver,
+    factory::EmitHelperName, EmitExportContainerMode, EmitFlags, EmitHint, EmitHost, EmitResolver,
     EmitResolverNode, TransformArena, TransformError, TransformFlags, TransformNode,
     TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
     UnsupportedEmitFeature,
@@ -33,6 +33,9 @@ pub(super) fn transform_system_module<'resolver>(
         resolver,
         host,
         always_strict: options.always_strict_effective(),
+        import_helpers: options.import_helpers == Some(true),
+        es_module_interop: options.es_module_interop == Some(true),
+        current_source: None,
     })
 }
 
@@ -40,6 +43,9 @@ struct SystemModuleTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
     host: Option<&'resolver dyn EmitHost>,
     always_strict: bool,
+    import_helpers: bool,
+    es_module_interop: bool,
+    current_source: Option<TransformSourceId>,
 }
 
 impl Transformer for SystemModuleTransformer<'_> {
@@ -86,13 +92,27 @@ impl Transformer for SystemModuleTransformer<'_> {
             return Ok(TransformRoot::SourceFile(source));
         }
 
-        let common = CommonJsModuleInfo::collect(
+        self.current_source = Some(source);
+        let mut common = CommonJsModuleInfo::collect(
             context.arena(),
             source,
             root,
             self.resolver,
             super::MODULE_SYSTEM,
         )?;
+        // createExternalHelpersImportDeclarationIfNeeded through
+        // collectExternalModuleInfo (92875): the tslib import leads the
+        // dependency groups (EF7-SYSTEM-IMPORT-HELPERS).
+        if self.import_helpers && is_external {
+            super::collect_external_helpers_import_declaration(
+                context,
+                source,
+                &mut common,
+                super::MODULE_SYSTEM,
+                self.es_module_interop,
+                self.host,
+            )?;
+        }
         let info = SystemModuleInfo::collect(
             context.arena(),
             source,
@@ -116,14 +136,45 @@ impl Transformer for SystemModuleTransformer<'_> {
 
     fn substitute_node(
         &mut self,
-        _context: &mut TransformationContext,
-        _hint: EmitHint,
+        context: &mut TransformationContext,
+        hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         // The Rust transform performs the upstream substitutions while its
-        // arena is mutable. The hook is still installed so hook composition
-        // and activity remain observable.
-        Ok(node)
+        // arena is mutable. Helper-name qualification (`tslib_1.__extends`)
+        // belongs to the print-time hook, exactly as in the CommonJS
+        // transform (substituteExpressionIdentifier, EmitFlags.HelperName;
+        // EF7-SYSTEM-IMPORT-HELPERS).
+        if hint != EmitHint::Expression
+            || context.arena().node(node)?.kind != SyntaxKind::Identifier
+            || !context
+                .arena()
+                .metadata(node)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::HELPER_NAME))
+        {
+            return Ok(node);
+        }
+        let Some(source) = self.current_source else {
+            return Ok(node);
+        };
+        let Some(namespace) = super::get_external_helpers_module_name(context.arena(), source)?
+        else {
+            return Ok(node);
+        };
+        let final_name = context
+            .arena()
+            .metadata(namespace)
+            .and_then(crate::EmitMetadata::generated_binding_id)
+            .and_then(|binding| context.generated_binding_name(binding))
+            .map(str::to_owned);
+        if let Some(final_name) = final_name {
+            context
+                .arena_mut()?
+                .set_generated_identifier_text(namespace, &final_name)?;
+        }
+        context
+            .substitution_factory()?
+            .create_property_access_expression(source, namespace, node)
     }
 }
 
@@ -148,6 +199,49 @@ fn source_contains_import_meta(
             {
                 return Ok(true);
             }
+        }
+        tsc_syntax::for_each_child(
+            &arena.source(root.source())?.syntax().arena,
+            record,
+            |child| {
+                stack.push(child);
+                false
+            },
+        );
+    }
+    Ok(false)
+}
+
+/// `node.transformFlags & ContainsAwait` of the transformed source file:
+/// only `createAwaitExpression` sets `ContainsAwait` (_tsc.js:22753 — neither
+/// the `await using` declaration list nor the `for await` modifier token
+/// does), and the flag stops at function boundaries
+/// (`FunctionExcludes`/`ArrowFunctionExcludes`), so it is exactly "an await
+/// expression outside every function body" — walked here instead of
+/// trusting a root flag word that an earlier pass's `updateSourceFile` may
+/// have copied (EF7-SYSTEM-EXECUTE-ASYNC). A lowered `await using` /
+/// `for await` contributes through the await expressions it creates.
+fn source_contains_top_level_await(
+    arena: &TransformArena,
+    root: TransformNode,
+) -> Result<bool, TransformError> {
+    let mut stack = vec![root.node()];
+    while let Some(id) = stack.pop() {
+        let node = arena
+            .node_ref(root.source(), id)
+            .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(root.source(), id)))?;
+        let record = arena.node(node)?;
+        match &record.data {
+            NodeData::AwaitExpression(_) => return Ok(true),
+            NodeData::FunctionDeclaration(_)
+            | NodeData::FunctionExpression(_)
+            | NodeData::ArrowFunction(_)
+            | NodeData::MethodDeclaration(_)
+            | NodeData::Constructor(_)
+            | NodeData::GetAccessor(_)
+            | NodeData::SetAccessor(_)
+            | NodeData::ClassStaticBlockDeclaration(_) => continue,
+            _ => {}
         }
         tsc_syntax::for_each_child(
             &arena.source(root.source())?.syntax().arena,
@@ -208,7 +302,6 @@ impl SystemModuleInfo {
                 let text = crate::external_module_names::resolved_external_module_name_literal(
                     host, resolver, arena, *statement,
                 )?
-                .map(JsString::from)
                 // tryRenameExternalModule (27716): API renamedDependencies.
                 .or_else(|| {
                     crate::external_module_names::try_rename_external_module(
@@ -291,6 +384,17 @@ impl SystemModuleInfo {
             }
         }
 
+        if let Some(declaration) = common.external_helpers_import_declaration {
+            // `externalImports.unshift(externalHelpersImportDeclaration)`:
+            // the helpers module is the first System dependency.
+            dependency_groups.insert(
+                0,
+                SystemDependencyGroup {
+                    module_specifier: JsString::from("tslib"),
+                    entries: vec![declaration.node()],
+                },
+            );
+        }
         Ok(Self {
             common,
             dependency_groups,
@@ -671,7 +775,26 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 .metadata_mut(execute_body)
                 .set_relocated_statement_list_comments(relocated_execute_comments);
         }
-        let execute_function = self.create_function_expression(Vec::new(), execute_body, None)?;
+        // EF7-SYSTEM-EXECUTE-ASYNC: `node.transformFlags & ContainsAwait ?
+        // createModifiersFromModifierFlags(Async) : undefined`
+        // (createSystemModuleBody, _tsc.js:112209).
+        let execute_modifiers = if source_contains_top_level_await(self.context.arena(), root)? {
+            let token = self.context.factory()?.create_token(
+                self.source,
+                SyntaxKind::AsyncKeyword,
+                TransformFlags::NONE,
+            )?;
+            Some(
+                self.context
+                    .factory()?
+                    .create_node_array(self.source, vec![token])?
+                    .array(),
+            )
+        } else {
+            None
+        };
+        let execute_function =
+            self.create_function_expression(Vec::new(), execute_body, execute_modifiers)?;
         let setters_property = self.create_property_assignment_identifier("setters", setters)?;
         let execute_property =
             self.create_property_assignment_identifier("execute", execute_function)?;
@@ -752,6 +875,28 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         // statement once so an import's generated namespace identity retains
         // its position relative to ordinary declarations and namespace/import-
         // equals lowering, even though setter entries are grouped separately.
+        if let Some(declaration) = self.info.common.external_helpers_import_declaration {
+            // The synthesized `import tslib_1 = require("tslib")` is not a
+            // source statement; its local is hoisted first (the helpers
+            // import leads `externalImports`).
+            if let NodeData::ImportEqualsDeclaration(data) =
+                &self.context.arena().node(declaration)?.data.clone()
+            {
+                if let Some(name_node) = data
+                    .name
+                    .and_then(|id| self.context.arena().node_ref(self.source, id))
+                {
+                    let text = identifier_text_owned(self.context.arena(), name_node)?;
+                    // The hoisted `var` and the setter assignment print the
+                    // same generated identity as the helper qualifier, so the
+                    // finalize walk spells all three alike (`tslib_1`).
+                    if let Some(binding) = self.generated_binding_of_identifier(name_node) {
+                        self.generated_bindings.insert(text.clone(), binding);
+                    }
+                    self.push_hoisted_name(&text);
+                }
+            }
+        }
         for statement in statements {
             let statement = *statement;
             match &self.context.arena().node(statement)?.data {
@@ -766,15 +911,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     {
                         self.push_hoisted_name(&name);
                     }
-                    if let Some(alias) = self
-                        .info
-                        .common
-                        .imports
-                        .get(&key)
-                        .and_then(|plan| plan.namespace_alias.as_deref().map(str::to_owned))
-                    {
-                        self.push_hoisted_name(&alias);
-                    }
+                    // getLocalNameForExternalImport: a default import beside
+                    // a namespace import hoists only the module's generated
+                    // name; tsc leaves the namespace binding unbound
+                    // (EF7-SYSTEM-NAMESPACE-ALIAS).
                 }
                 NodeData::ImportEqualsDeclaration(data) => {
                     if let Some(name) = data
@@ -970,6 +1110,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             metadata.generated_binding_role_suffix().map(str::to_owned),
             metadata.generated_binding_is_file_level_optimistic(),
             metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_is_loop_variable(),
             metadata.generated_binding_reserved_in_nested_scopes(),
             metadata.generated_binding_is_private_temp(),
         ))
@@ -1065,7 +1206,35 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let owner = owner.entering(statement, record.kind);
         match record.data {
             NodeData::ImportDeclaration(data) => self.transform_import_declaration(data),
-            NodeData::ImportEqualsDeclaration(_) | NodeData::ExportDeclaration(_) => Ok(Vec::new()),
+            NodeData::ImportEqualsDeclaration(data) => {
+                // appendExportsOfImportEqualsDeclaration (111684-111689):
+                // `export { n2 }` / `export { n2 as n3 }` of an external
+                // import-equals publish at its statement position
+                // (EF7-SYSTEM-IMPORT-EQUALS-EXPORTS).
+                let mut statements = Vec::new();
+                if self.info.common.export_equals.is_none() {
+                    if let Some(name) = data
+                        .name
+                        .and_then(|id| self.context.arena().node_ref(self.source, id))
+                        .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
+                    {
+                        let exports = self
+                            .info
+                            .common
+                            .export_specifiers_by_local
+                            .get(name.as_bytes())
+                            .cloned()
+                            .unwrap_or_default();
+                        for export in exports {
+                            let value = self.create_identifier(&name)?;
+                            let call = self.create_export_call_with_name(&export, value)?;
+                            statements.push(self.create_expression_statement(call)?);
+                        }
+                    }
+                }
+                Ok(statements)
+            }
+            NodeData::ExportDeclaration(_) => Ok(Vec::new()),
             NodeData::ExportAssignment(data) => {
                 if data.is_export_equals == Some(true) {
                     return Ok(Vec::new());
@@ -1722,6 +1891,16 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         )?;
         let declarations =
             variable_declarations(self.context.arena(), self.source, data.declaration_list)?;
+        let list_flags = data
+            .declaration_list
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .map(|list| self.context.arena().node(list).map(|record| record.flags))
+            .transpose()?
+            .map(NodeFlags::from_bits)
+            .unwrap_or(NodeFlags::NONE);
+        if list_flags.intersects(NodeFlags::USING) {
+            return self.transform_hoisted_using_statement(original, declarations, list_flags);
+        }
         let mut initialization_expressions = Vec::new();
         let mut trailing_exports = Vec::new();
         for declaration in declarations {
@@ -1759,6 +1938,66 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             self.set_original_and_range(statement, original)?;
             output.push(statement);
         }
+        output.extend(trailing_exports);
+        Ok(output)
+    }
+
+    /// A hoisted `using` / `await using` statement keeps its declaration
+    /// list (the disposal protocol needs the binding), renames every
+    /// declaration to the generated name of its original binding and
+    /// initializes it with the non-exported variable assignment, so the
+    /// hoisted `var` receives the value and the exports follow as usual:
+    /// `export using before = null` → `using before_1 = before = null;`.
+    ///
+    /// tsc-port: transformSystemModule.visitVariableStatement @6.0.3 (the
+    /// isVarUsing / isVarAwaitUsing arm)
+    /// tsc-span: _tsc.js:112639-112657
+    /// tsc-hash: 6571fc0551b24284b57ab11c666dce1514bf542ed6e8b30fd0ee09e6c8471a0c
+    fn transform_hoisted_using_statement(
+        &mut self,
+        original: TransformNode,
+        declarations: Vec<TransformNode>,
+        list_flags: NodeFlags,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let mut renamed = Vec::new();
+        let mut trailing_exports = Vec::new();
+        for declaration in declarations {
+            let NodeData::VariableDeclaration(variable) =
+                self.context.arena().node(declaration)?.data.clone()
+            else {
+                continue;
+            };
+            let Some(name) = variable
+                .name
+                .and_then(|id| self.context.arena().node_ref(self.source, id))
+            else {
+                continue;
+            };
+            // transformInitializedVariable(variable, /*isExportedDeclaration*/ false)
+            let value = match variable.initializer {
+                Some(initializer) => {
+                    let initializer = self.visit(initializer)?;
+                    let plan = self.flatten_binding_initialization(
+                        declaration,
+                        variable.name,
+                        initializer,
+                    )?;
+                    let expressions = plan.into_expressions(self.context)?;
+                    self.inline_expressions(expressions)?
+                }
+                None => Some(name),
+            };
+            let base = identifier_text_owned(self.context.arena(), name)?;
+            let generated = self.allocate_numbered_name(&base)?;
+            let declaration_node = self.create_variable_declaration(&generated, value)?;
+            self.set_original_and_range(declaration_node, declaration)?;
+            renamed.push(declaration_node);
+            trailing_exports
+                .extend(self.append_variable_declaration_exports(declaration, variable.name)?);
+        }
+        let statement = self.create_variable_statement(renamed, list_flags)?;
+        self.set_original_and_range(statement, original)?;
+        let mut output = vec![statement];
         output.extend(trailing_exports);
         Ok(output)
     }
@@ -2579,7 +2818,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let resolver_node = self.resolver_node(node)?;
         let declaration = self
             .resolver
-            .get_referenced_import_declaration(resolver_node)?;
+            .get_referenced_import_declaration(resolver_node)?
+            .filter(|declaration| declaration.source() == resolver_node.source());
         Ok(declaration.and_then(|declaration| {
             self.info
                 .common
@@ -2609,6 +2849,26 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .is_some_and(|metadata| metadata.flags().contains(crate::EmitFlags::LOCAL_NAME))
         {
             return Ok(Vec::new());
+        }
+        // EF7-SYSTEM-HOISTED-DEFAULT-EXPORT: `getExports` (_tsc.js:113318)
+        // resolves a FileLevel|Optimistic|ReservedInNestedScopes generated
+        // identifier (transformESNext's hoisted `_default` binding) through
+        // `moduleInfo.exportSpecifiers` instead of the resolver.
+        if let Some(metadata) = self.context.arena().metadata(node) {
+            if metadata.generated_binding_id().is_some() {
+                if !metadata.generated_binding_is_file_level_optimistic()
+                    || !metadata.generated_binding_reserved_in_nested_scopes()
+                {
+                    return Ok(Vec::new());
+                }
+                return Ok(self
+                    .info
+                    .common
+                    .file_level_generated_binding_exports
+                    .get_for_identifier(self.context.arena(), node)
+                    .map(<[super::ModuleExportName]>::to_vec)
+                    .unwrap_or_default());
+            }
         }
         let original = self.context.arena().get_original_node(node);
         if self.context.arena().node(original)?.pos == u32::MAX
@@ -2822,6 +3082,12 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             .and_then(|name| {
                                 identifier_text_owned(self.context.arena(), name).ok()
                             });
+                        // createSettersArray: `getGeneratedNameForNode(localName)`
+                        // derives the parameter from the generated name's FINAL
+                        // text (`tslib_1` → `tslib_1_1`).
+                        if self.info.common.external_helpers_import_declaration == Some(entry) {
+                            local_name = local_name.map(|name| format!("{name}_1"));
+                        }
                         break;
                     }
                     NodeData::ExportDeclaration(data) => {
@@ -2866,12 +3132,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                                 let value = self.create_identifier(&parameter_name)?;
                                 let assignment = self.create_assignment(target, value)?;
                                 statements.push(self.create_expression_statement(assignment)?);
-                                if let Some(namespace_alias) = plan.namespace_alias.as_deref() {
-                                    let target = self.create_identifier(namespace_alias)?;
-                                    let value = self.create_identifier(runtime_name)?;
-                                    let assignment = self.create_assignment(target, value)?;
-                                    statements.push(self.create_expression_statement(assignment)?);
-                                }
                             }
                         }
                     }

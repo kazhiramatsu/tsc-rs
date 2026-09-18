@@ -111,7 +111,7 @@ impl<'a> CheckerState<'a> {
     /// Property (§6, 5.8c) route here when their bands land — the
     /// kind-guarded arms below are already transcribed for them.
     /// Elisions, each with its owner note: checkDecorators (5.8c),
-    /// the two checkExternalEmitHelpers probes (module note), and the
+    /// and the
     /// remaining JS object-literal initializer exemption outside the
     /// bounded getJSContainerObjectType face.
     pub(crate) fn check_variable_like_declaration(&mut self, node: NodeId) -> CheckResult<()> {
@@ -154,13 +154,18 @@ impl<'a> CheckerState<'a> {
                     .push(node);
                 return Ok(());
             }
-            // (Object-rest emit-helper probe elided — module note.)
+            let pattern = self.parent_of(node).expect("binding element has a pattern");
+            if self.kind_of(pattern) == SyntaxKind::ObjectBindingPattern
+                && dot_dot_dot.is_some()
+                && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2018
+            {
+                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_REST)?;
+            }
             if let Some(property_name) = property_name {
                 if self.kind_of(property_name) == SyntaxKind::ComputedPropertyName {
                     self.check_computed_property_name(property_name)?;
                 }
             }
-            let pattern = self.parent_of(node).expect("binding element has a pattern");
             let parent = self
                 .parent_of(pattern)
                 .expect("binding pattern has a declaration");
@@ -204,11 +209,15 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // Step 6: recurse into pattern elements. (The array-pattern
-        // downlevelIteration emit-helper probe is elided — module
-        // note.)
+        // Step 6: request a downlevel iterator helper, then check pattern elements.
         let name_is_pattern = node_util::is_binding_pattern(self.binder.source_of_node(name), name);
         if name_is_pattern {
+            if self.kind_of(name) == SyntaxKind::ArrayBindingPattern
+                && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
+                && self.options.downlevel_iteration == Some(true)
+            {
+                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_READ)?;
+            }
             for element in self.binding_pattern_elements(name) {
                 self.check_source_element(Some(element));
             }

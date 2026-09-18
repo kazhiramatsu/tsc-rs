@@ -1,0 +1,22 @@
+{
+  "name": "emitter-contracts-r9b",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-emitter",
+    "--test",
+    "contracts"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T01:46:27Z",
+  "seconds": 215,
+  "exit": 0,
+  "log_sha256": "f7470c1f44371d408ea562c9d408bc1fa3e198140770c465ae192d0d6489c057",
+  "log_bytes": 47742
+}

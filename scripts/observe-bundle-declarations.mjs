@@ -295,7 +295,9 @@ const retained = structuredClone(artifact);
 delete retained.observer; delete retained.ordinary_tree_execution_contract;
 delete retained.summary.fresh_ordinary_tree_reference_programs;
 for (const row of [...retained.cases, ...retained.adjacent_owner_references]) delete row.ordinary_declaration_tree_reference;
-assert.equal(sha256(JSON.stringify(retained)), "b51176a375710c3db4d9068e7832baea6a40174262186b9d897029a4047cd0e5",
+// Emitter-final refreshed only the h2-7de observation dependency identity.
+// The before/after payload proof is archived in integration/records.
+assert.equal(sha256(JSON.stringify(retained)), "bd63c9cc11dad4fe66758568e5f0d4fb552b84846fcb02e03068b8c2260c9c10",
   "existing bundle declaration inputs/main/forced payload changed");
 const rendered = JSON.stringify(artifact, null, 2) + "\n"; assert.ok(!rendered.includes(root));
 if (process.argv[2] === "--write") fs.writeFileSync(path.join(root,fixturePath),rendered);

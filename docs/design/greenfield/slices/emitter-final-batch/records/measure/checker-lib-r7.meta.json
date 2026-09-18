@@ -1,0 +1,15 @@
+{
+  "name": "checker-lib-r7",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 24,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "cargo test -p tsc-rs-checker --lib",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T10:43:55Z",
+  "seconds": 527,
+  "exit": 0,
+  "log_sha256": "1f16cd00d000e1802fa9ba78cf86ec9a8d646ffd328b8c64576b81ed873c06ab",
+  "log_bytes": 145418
+}

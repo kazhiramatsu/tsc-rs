@@ -789,25 +789,16 @@ impl<'a> CheckerState<'a> {
             /*report_errors*/ false,
             IntersectionState::NONE,
         )?;
-        if checker.overflow {
-            let overflow_bits = if checker.relation_count <= 0 {
-                RelationComparisonResult::COMPLEXITY_OVERFLOW
-            } else {
-                RelationComparisonResult::STACK_DEPTH_OVERFLOW
-            };
-            let id = self.get_relation_key(
-                source,
-                target,
-                IntersectionState::NONE,
-                relation,
-                /*ignore_constraints*/ false,
-            )?;
-            self.relations.cache_mut(relation).insert(
-                id,
-                RelationComparisonResult::from_bits(
-                    RelationComparisonResult::FAILED.bits() | overflow_bits.bits(),
-                ),
+        if let Some(output) = checker.overflow_error_output(source, target)? {
+            // Even a verdict-only probe publishes a fresh overflow at
+            // currentNode (64883-64888). Cached probes remain silent.
+            let mut diagnostic = self.create_error(
+                output.error_node,
+                &diagnostics::Excessive_complexity_comparing_types_0_and_1,
+                &[],
             );
+            diagnostic.message = output.message;
+            self.push_error_diagnostic(diagnostic);
         }
         Ok(is_true(result))
     }
@@ -991,6 +982,12 @@ impl<'a> CheckerState<'a> {
         if !checker.error_state.incompatible_stack.is_empty() {
             checker.report_incompatible_stack()?;
         }
+        if let Some(output) = checker.overflow_error_output(source, target)? {
+            // The overflow row bypasses errorInfo and the containing chain.
+            // Its consumer owns publication so later related-info additions
+            // do not create a second, distinct diagnostic in the program.
+            return Ok((!is_false(result), Some(output)));
+        }
         // checkTypeRelatedTo publishes `errorInfo` independently of its
         // ternary verdict, then returns `result !== False`. A recursive
         // relation may therefore finish as `Maybe` while still owning a
@@ -998,6 +995,7 @@ impl<'a> CheckerState<'a> {
         // drops diagnostics produced during JSX child elaboration.
         let related = !is_false(result);
         let mut message = checker.error_state.error_info.take();
+        let mut used_containing_message_chain = false;
         if let Some(containing) = containing_message_chain {
             if let Some(inner) = message.take() {
                 fn append_to_leaf(chain: &mut MessageChain, inner: MessageChain) {
@@ -1016,6 +1014,7 @@ impl<'a> CheckerState<'a> {
                 }
                 append_to_leaf(containing, inner);
                 message = Some(containing.clone());
+                used_containing_message_chain = true;
             }
         }
         Ok((
@@ -1024,6 +1023,7 @@ impl<'a> CheckerState<'a> {
                 message,
                 related: std::mem::take(&mut checker.error_state.related_info),
                 error_node: checker.error_state.error_node,
+                used_containing_message_chain,
             }),
         ))
     }
@@ -1069,6 +1069,7 @@ pub(crate) struct RelationErrorOutput {
     pub(crate) message: MessageChain,
     pub(crate) related: Vec<RelatedInfo>,
     pub(crate) error_node: Option<tsc_syntax::NodeId>,
+    pub(crate) used_containing_message_chain: bool,
 }
 
 #[derive(Clone, Default)]
@@ -1265,6 +1266,50 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
 }
 
 impl<'r, 'a> RelationChecker<'r, 'a> {
+    /// tsrs-native: owned result of checkTypeRelatedTo's fresh-overflow
+    /// branch (64872-64890), shared by verdict and diagnostic entry points.
+    fn overflow_error_output(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult<Option<RelationErrorOutput>> {
+        if !self.overflow {
+            return Ok(None);
+        }
+        let (overflow_bits, message) = if self.relation_count <= 0 {
+            (
+                RelationComparisonResult::COMPLEXITY_OVERFLOW,
+                &diagnostics::Excessive_complexity_comparing_types_0_and_1,
+            )
+        } else {
+            (
+                RelationComparisonResult::STACK_DEPTH_OVERFLOW,
+                &diagnostics::Excessive_stack_depth_comparing_types_0_and_1,
+            )
+        };
+        let id = self.st.get_relation_key(
+            source,
+            target,
+            IntersectionState::NONE,
+            self.relation,
+            /*ignore_constraints*/ false,
+        )?;
+        self.st.relations.cache_mut(self.relation).insert(
+            id,
+            RelationComparisonResult::from_bits(
+                RelationComparisonResult::FAILED.bits() | overflow_bits.bits(),
+            ),
+        );
+        let source_text = self.st.type_to_string_slice(source)?;
+        let target_text = self.st.type_to_string_slice(target)?;
+        Ok(Some(RelationErrorOutput {
+            message: MessageChain::new_js(message, &[source_text, target_text]),
+            related: Vec::new(),
+            error_node: self.error_state.error_node.or(self.st.current_node),
+            used_containing_message_chain: false,
+        }))
+    }
+
     /// tsrs-native: relation-frame projection for tsc's direct
     /// `type.flags` property access.
     pub(crate) fn flags(&self, ty: TypeId) -> TypeFlags {
@@ -2809,8 +2854,30 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     ) -> CheckResult<Ternary> {
         if self.flags(source).intersects(TypeFlags::UNION) {
             if self.flags(target).intersects(TypeFlags::UNION) {
-                // Named-union origin fast paths (65416-65426) key on
-                // alias symbols — M4; both are None in M3.
+                if let TypeData::Union {
+                    origin: Some(origin),
+                    ..
+                } = self.st.tables.type_of(source).data
+                {
+                    if self.st.tables.type_of(target).alias_symbol.is_some()
+                        && matches!(&self.st.tables.type_of(origin).data,
+                            TypeData::Intersection { types } if types.contains(&target))
+                    {
+                        return Ok(Ternary::TRUE);
+                    }
+                }
+                if let TypeData::Union {
+                    origin: Some(origin),
+                    ..
+                } = self.st.tables.type_of(target).data
+                {
+                    if self.st.tables.type_of(source).alias_symbol.is_some()
+                        && matches!(&self.st.tables.type_of(origin).data,
+                            TypeData::Union { types, .. } if types.contains(&source))
+                    {
+                        return Ok(Ternary::TRUE);
+                    }
+                }
             }
             return if self.relation == RelationKind::Comparable {
                 self.some_type_related_to_type(
@@ -3332,6 +3399,23 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 // the active handler via the reporter mappers.
                 self.st
                     .replay_cached_relation_variance_markers(source, entry)?;
+                if report_errors
+                    && entry.intersects(RelationComparisonResult::from_bits(
+                        RelationComparisonResult::COMPLEXITY_OVERFLOW.bits()
+                            | RelationComparisonResult::STACK_DEPTH_OVERFLOW.bits(),
+                    ))
+                {
+                    let message = if entry.intersects(RelationComparisonResult::COMPLEXITY_OVERFLOW)
+                    {
+                        &diagnostics::Excessive_complexity_comparing_types_0_and_1
+                    } else {
+                        &diagnostics::Excessive_stack_depth_comparing_types_0_and_1
+                    };
+                    let source_text = self.st.type_to_string_slice(source)?;
+                    let target_text = self.st.type_to_string_slice(target)?;
+                    self.report_error_js(message, vec![source_text, target_text])?;
+                    self.error_state.override_next_error_info += 1;
+                }
                 return Ok(if entry.intersects(RelationComparisonResult::SUCCEEDED) {
                     Ternary::TRUE
                 } else {
@@ -3373,45 +3457,54 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.maybe_keys_set.insert(id.clone());
         self.maybe_count += 1;
         let save_expanding_flags = self.expanding_flags;
-        if recursion_flags.intersects(RecursionFlags::SOURCE) {
-            if self.source_stack.len() == self.source_depth {
-                self.source_stack.push(source);
-            } else {
-                self.source_stack[self.source_depth] = source;
+        let save_source_depth = self.source_depth;
+        let save_target_depth = self.target_depth;
+        let mut pushed_handler = false;
+        let outcome = (|| {
+            if recursion_flags.intersects(RecursionFlags::SOURCE) {
+                if self.source_stack.len() == self.source_depth {
+                    self.source_stack.push(source);
+                } else {
+                    self.source_stack[self.source_depth] = source;
+                }
+                self.source_depth += 1;
+                if !self.expanding_flags.intersects(ExpandingFlags::SOURCE)
+                    && self.st.is_deeply_nested_type(
+                        source,
+                        &self.source_stack,
+                        self.source_depth,
+                        3,
+                    )?
+                {
+                    self.expanding_flags = ExpandingFlags::from_bits(
+                        self.expanding_flags.bits() | ExpandingFlags::SOURCE.bits(),
+                    );
+                }
             }
-            self.source_depth += 1;
-            if !self.expanding_flags.intersects(ExpandingFlags::SOURCE)
-                && self
-                    .st
-                    .is_deeply_nested_type(source, &self.source_stack, self.source_depth, 3)
-            {
-                self.expanding_flags = ExpandingFlags::from_bits(
-                    self.expanding_flags.bits() | ExpandingFlags::SOURCE.bits(),
-                );
+            if recursion_flags.intersects(RecursionFlags::TARGET) {
+                if self.target_stack.len() == self.target_depth {
+                    self.target_stack.push(target);
+                } else {
+                    self.target_stack[self.target_depth] = target;
+                }
+                self.target_depth += 1;
+                if !self.expanding_flags.intersects(ExpandingFlags::TARGET)
+                    && self.st.is_deeply_nested_type(
+                        target,
+                        &self.target_stack,
+                        self.target_depth,
+                        3,
+                    )?
+                {
+                    self.expanding_flags = ExpandingFlags::from_bits(
+                        self.expanding_flags.bits() | ExpandingFlags::TARGET.bits(),
+                    );
+                }
             }
-        }
-        if recursion_flags.intersects(RecursionFlags::TARGET) {
-            if self.target_stack.len() == self.target_depth {
-                self.target_stack.push(target);
-            } else {
-                self.target_stack[self.target_depth] = target;
-            }
-            self.target_depth += 1;
-            if !self.expanding_flags.intersects(ExpandingFlags::TARGET)
-                && self
-                    .st
-                    .is_deeply_nested_type(target, &self.target_stack, self.target_depth, 3)
-            {
-                self.expanding_flags = ExpandingFlags::from_bits(
-                    self.expanding_flags.bits() | ExpandingFlags::TARGET.bits(),
-                );
-            }
-        }
-        // 65803-65810: wrap the active handler with a propagating
-        // accumulator — only when a handler exists, like tsc's
-        // `if (outofbandVarianceMarkerHandler)` gate.
-        let pushed_handler =
-            if !self.st.variance_handler_stack.is_empty() {
+            // 65803-65810: wrap the active handler with a propagating
+            // accumulator — only when a handler exists, like tsc's
+            // `if (outofbandVarianceMarkerHandler)` gate.
+            pushed_handler = if !self.st.variance_handler_stack.is_empty() {
                 self.st.variance_handler_stack.push(
                     crate::state::VarianceHandlerFrame::Propagating(RelationComparisonResult::NONE),
                 );
@@ -3419,11 +3512,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             } else {
                 false
             };
-        let outcome = if self.expanding_flags == ExpandingFlags::BOTH {
-            Ok(Ternary::MAYBE)
-        } else {
-            self.structured_type_related_to(source, target, report_errors, intersection_state)
-        };
+            if self.expanding_flags == ExpandingFlags::BOTH {
+                Ok(Ternary::MAYBE)
+            } else {
+                self.structured_type_related_to(source, target, report_errors, intersection_state)
+            }
+        })();
         // 65828-65830: restore the handler — on the Err unwind too.
         let propagating_variance_flags = if pushed_handler {
             match self.st.variance_handler_stack.pop() {
@@ -3433,12 +3527,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else {
             RelationComparisonResult::NONE
         };
-        if recursion_flags.intersects(RecursionFlags::SOURCE) {
-            self.source_depth -= 1;
-        }
-        if recursion_flags.intersects(RecursionFlags::TARGET) {
-            self.target_depth -= 1;
-        }
+        self.source_depth = save_source_depth;
+        self.target_depth = save_target_depth;
         self.expanding_flags = save_expanding_flags;
         let result = match outcome {
             Ok(result) => result,
@@ -4387,56 +4477,96 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: f3ba77d18312de37ff50b6ea012109ca7f22c5431a117fe8a2f634af12290010
     /// tsc-span: _tsc.js:67465-67490
     ///
-    /// tsc-port: hasMatchingRecursionIdentity @6.0.3
-    /// tsc-hash: b609ca6b38a7271c1f10d10ddfca694e157816b8e465e9d9a3847bc35e0bec9e
-    /// tsc-span: _tsc.js:67498-67506
-    ///
     /// maxDepth defaults to 3 (greenfield §4.7's "5" was the audited
-    /// erratum). InstantiatedMapped target unwrapping lands with the
-    /// first instantiated mapped producer in 9.5b.
+    /// erratum). Instantiated mapped types use their modifier target's
+    /// identity when that target carries a declaration symbol.
     pub fn is_deeply_nested_type(
-        &self,
+        &mut self,
         ty: TypeId,
         stack: &[TypeId],
         depth: usize,
         max_depth: usize,
-    ) -> bool {
+    ) -> CheckResult<bool> {
         if depth < max_depth {
-            return false;
+            return Ok(false);
         }
-        if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
-            let TypeData::Intersection { types } = &self.tables.type_of(ty).data else {
-                unreachable!("intersection flag implies intersection data");
-            };
-            return types
-                .iter()
-                .any(|&t| self.is_deeply_nested_type(t, stack, depth, max_depth));
+        let ty = self.get_mapped_target_with_symbol(ty)?;
+        let members = match &self.tables.type_of(ty).data {
+            TypeData::Intersection { types } => Some(types.clone()),
+            _ => None,
+        };
+        if let Some(members) = members {
+            for member in members {
+                if self.is_deeply_nested_type(member, stack, depth, max_depth)? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
         }
         let identity = self.get_recursion_identity(ty);
         let mut count = 0usize;
         let mut last_type_id = 0u32;
         for &t in stack.iter().take(depth) {
-            let matches = if self.tables.flags_of(t).intersects(TypeFlags::INTERSECTION) {
-                match &self.tables.type_of(t).data {
-                    TypeData::Intersection { types } => types
-                        .iter()
-                        .any(|&member| self.get_recursion_identity(member) == identity),
-                    _ => false,
-                }
-            } else {
-                self.get_recursion_identity(t) == identity
-            };
-            if matches {
+            if self.has_matching_recursion_identity(t, identity)? {
                 if t.0 >= last_type_id {
                     count += 1;
                     if count >= max_depth {
-                        return true;
+                        return Ok(true);
                     }
                 }
                 last_type_id = t.0;
             }
         }
-        false
+        Ok(false)
+    }
+
+    /// tsc-port: getMappedTargetWithSymbol @6.0.3
+    /// tsc-hash: fa660134f5f28dfbaf5c5623b0f0e72b181a1b173030ded784ffc82aa54479b5
+    /// tsc-span: _tsc.js:67491-67497
+    fn get_mapped_target_with_symbol(&mut self, mut ty: TypeId) -> CheckResult<TypeId> {
+        while self
+            .tables
+            .object_flags_of(ty)
+            .contains(ObjectFlags::INSTANTIATED_MAPPED)
+        {
+            let target = self.get_modifiers_type_from_mapped_type(ty)?;
+            let has_symbol = self.tables.type_of(target).symbol.is_some()
+                || match &self.tables.type_of(target).data {
+                    TypeData::Intersection { types } => types
+                        .iter()
+                        .any(|&member| self.tables.type_of(member).symbol.is_some()),
+                    _ => false,
+                };
+            if !has_symbol {
+                break;
+            }
+            ty = target;
+        }
+        Ok(ty)
+    }
+
+    /// tsc-port: hasMatchingRecursionIdentity @6.0.3
+    /// tsc-hash: b609ca6b38a7271c1f10d10ddfca694e157816b8e465e9d9a3847bc35e0bec9e
+    /// tsc-span: _tsc.js:67498-67506
+    fn has_matching_recursion_identity(
+        &mut self,
+        ty: TypeId,
+        identity: RecursionIdentity,
+    ) -> CheckResult<bool> {
+        let ty = self.get_mapped_target_with_symbol(ty)?;
+        let members = match &self.tables.type_of(ty).data {
+            TypeData::Intersection { types } => Some(types.clone()),
+            _ => None,
+        };
+        if let Some(members) = members {
+            for member in members {
+                if self.has_matching_recursion_identity(member, identity)? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
+        Ok(self.get_recursion_identity(ty) == identity)
     }
 
     /// tsc-port: getRecursionIdentity @6.0.3

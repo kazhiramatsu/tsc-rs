@@ -1,0 +1,21 @@
+{
+  "name": "emitter-lib-r9",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-emitter",
+    "--lib"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T02:52:50Z",
+  "seconds": 35,
+  "exit": 0,
+  "log_sha256": "da2c1ee5ff9de104e807b906686bb792d4a2ee9e2be7318a606e83988b9d4e76",
+  "log_bytes": 42432
+}

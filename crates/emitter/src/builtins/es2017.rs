@@ -15,9 +15,10 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName, EmitFlags, EmitResolver, EmitResolverNode, LexicalEnvironment,
-    TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformRoot,
-    TransformSourceId, TransformationContext, Transformer,
+    factory::EmitHelperName, EmitFlags, EmitResolver, EmitResolverNode,
+    EmitTypeReferenceSerializationKind, LexicalEnvironment, TransformError, TransformFlags,
+    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
+    Transformer,
 };
 
 use super::{
@@ -160,6 +161,7 @@ impl Transformer for Es2017Transformer<'_> {
             context,
             source,
             self.resolver,
+            self.target,
             current_root,
             source_has_lexical_this,
         )?;
@@ -227,6 +229,7 @@ struct Es2017Visitor<'context, 'resolver> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
+    target: ScriptTarget,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     generated_bindings: GeneratedBindingScopes,
@@ -242,6 +245,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
+        target: ScriptTarget,
         root: TransformNode,
         has_lexical_this: bool,
     ) -> Result<Self, TransformError> {
@@ -253,6 +257,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             context,
             source,
             resolver,
+            target,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             frames: Vec::new(),
@@ -464,12 +469,33 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         }
     }
 
+    fn is_async_generator(&self, function: TransformNode) -> Result<bool, TransformError> {
+        let original = self.context.arena().get_original_node(function);
+        Ok(match &self.context.arena().node(original)?.data {
+            NodeData::MethodDeclaration(data) => data.asterisk_token.is_some(),
+            NodeData::FunctionDeclaration(data) => data.asterisk_token.is_some(),
+            NodeData::FunctionExpression(data) => data.asterisk_token.is_some(),
+            _ => false,
+        })
+    }
+
     fn plan_async_super_capture(
         &mut self,
         function: TransformNode,
         body: Option<NodeId>,
     ) -> Result<AsyncSuperCapture, TransformError> {
-        let resolver_node = self.resolver_node(function)?;
+        // `emitSuperHelpers` (_tsc.js:101243, 101378): below ES2015 the
+        // ES2015 pass lowers `super` itself, and an async generator method's
+        // helpers belong to the ES2018 pass (which applies the same floor).
+        if self.target < ScriptTarget::ES2015 || self.is_async_generator(function)? {
+            return Ok(AsyncSuperCapture::default());
+        }
+        // A constructor synthesized by class-fields lowering has no checked
+        // syntax node. getNodeCheckFlags contributes no async-super facts for
+        // that node; do not send its arena-local id to the resolver.
+        let Some(resolver_node) = self.context.arena().parse_tree_resolver_node(function)? else {
+            return Ok(AsyncSuperCapture::default());
+        };
         let has_assignment = self.resolver.has_node_check_flag(
             resolver_node,
             NodeCheckFlags::METHOD_WITH_SUPER_PROPERTY_ASSIGNMENT_IN_ASYNC.bits() as u32,
@@ -726,18 +752,37 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let parent = self.node(parent);
         Ok(match &self.context.arena().node(parent)?.data {
             NodeData::BinaryExpression(data) => {
-                let operator = data
+                // binaryOperandNeedsParentheses (`updateBinaryExpression` →
+                // parenthesizeLeft/RightSideOfBinary): a yield operand
+                // (precedence 2) is parenthesized when the operator binds
+                // tighter, except as the right operand of a right-associative
+                // operator (`x = yield y`, `x ** yield y`); the comma operator
+                // binds looser and never parenthesizes (EF7-YIELD-PARENS).
+                let Some(operator) = data
                     .operator_token
                     .map(|operator| self.context.arena().node(self.node(operator)))
                     .transpose()?
-                    .map(|operator| operator.kind);
-                let assignment = operator.is_some_and(|operator| {
-                    operator.value() >= SyntaxKind::FirstAssignment.value()
-                        && operator.value() <= SyntaxKind::LastAssignment.value()
-                });
-                !(assignment && data.right == Some(original.node()))
+                    .map(|operator| operator.kind)
+                else {
+                    return Ok(false);
+                };
+                let is_right = data.right == Some(original.node());
+                let operator_precedence = crate::factory::binary_operator_precedence(operator);
+                crate::factory::PRECEDENCE_YIELD < operator_precedence
+                    && !(is_right
+                        && crate::factory::binary_operator_associativity(operator)
+                            == crate::factory::Associativity::Right)
             }
-            NodeData::PrefixUnaryExpression(_) | NodeData::PostfixUnaryExpression(_) => true,
+            // parenthesizeOperandOfPrefixUnary / OfPostfixUnary: a yield is
+            // not a unary expression.
+            NodeData::PrefixUnaryExpression(_)
+            | NodeData::PostfixUnaryExpression(_)
+            | NodeData::TypeOfExpression(_)
+            | NodeData::VoidExpression(_)
+            | NodeData::DeleteExpression(_) => true,
+            // createYieldExpression only guards a comma operand
+            // (parenthesizeExpressionForDisallowedComma): `yield yield 0`.
+            NodeData::AwaitExpression(_) => false,
             NodeData::PropertyAccessExpression(data) => data.expression == Some(original.node()),
             NodeData::ElementAccessExpression(data) => data.expression == Some(original.node()),
             NodeData::CallExpression(data) => data.expression == Some(original.node()),
@@ -821,6 +866,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             metadata.generated_binding_role_suffix().map(str::to_owned),
             metadata.generated_binding_is_file_level_optimistic(),
             metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_is_loop_variable(),
             metadata.generated_binding_reserved_in_nested_scopes(),
             metadata.generated_binding_is_private_temp(),
         ))
@@ -1073,21 +1119,32 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                         },
                     )?;
                     let target = self.binding_name_to_assignment_target(target)?;
-                    let property_name = element_data
-                        .property_name
-                        .map(|name| self.node(name))
-                        .unwrap_or(target);
-                    let initializer = if let Some(initializer) = element_data.initializer {
-                        let initializer = self.visit_required(
+                    let initializer = match element_data.initializer {
+                        Some(initializer) => Some(self.visit_required(
                             Some(initializer),
                             SyntaxKind::BindingElement,
                             "initializer",
-                        )?;
-                        self.create_binary(target, SyntaxKind::EqualsToken, initializer)?
-                    } else {
-                        target
+                        )?),
+                        None => None,
                     };
-                    properties.push(self.create_property_assignment(property_name, initializer)?);
+                    let property = match element_data.property_name.map(|name| self.node(name)) {
+                        Some(property_name) => {
+                            let value = match initializer {
+                                Some(initializer) => self.create_binary(
+                                    target,
+                                    SyntaxKind::EqualsToken,
+                                    initializer,
+                                )?,
+                                None => target,
+                            };
+                            self.create_property_assignment(property_name, value)?
+                        }
+                        // convertToObjectAssignmentElement 20743-20744: no
+                        // property name → shorthand `{ x }` / `{ x = init }`
+                        // (EF7-ASYNC-SHORTHAND-ASSIGNMENT).
+                        None => self.create_shorthand_property_assignment(target, initializer)?,
+                    };
+                    properties.push(property);
                 }
                 self.create_object_literal(properties)
             }
@@ -1396,7 +1453,14 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         parameters: Option<NodeArrayId>,
         body: Option<NodeId>,
     ) -> Result<TransformedFunction, TransformError> {
-        let is_async = self.modifiers_contain_async(modifiers)?;
+        // visitor: Constructor / GetAccessor / SetAccessor take `visitDefault`
+        // (visitEachChild drops the async modifier; the body is not an async
+        // function body) — EF7-ASYNC-ACCESSOR-BODY.
+        let is_async = self.modifiers_contain_async(modifiers)?
+            && !matches!(
+                kind,
+                SyntaxKind::Constructor | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+            );
         let (previous_scope, scope) = self
             .generated_bindings
             .enter(GeneratedBindingOwner::FunctionBody);
@@ -1406,7 +1470,18 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             .flatten();
         if shape == FunctionShape::Ordinary {
             self.has_lexical_this = true;
-            let capture = if is_async {
+            // EF7-ASYNC-ARROW-SUPER-CAPTURE: `transformMethodBody` plans the
+            // `_super` capture for every method/accessor/constructor body,
+            // async or not (the checker marks the METHOD when an async arrow
+            // inside it references `super`; _tsc.js:101236-101262).
+            let capture = if is_async
+                || matches!(
+                    kind,
+                    SyntaxKind::MethodDeclaration
+                        | SyntaxKind::GetAccessor
+                        | SyntaxKind::SetAccessor
+                        | SyntaxKind::Constructor
+                ) {
                 Some(self.plan_async_super_capture(original, body)?)
             } else {
                 None
@@ -1426,6 +1501,12 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             let body = self.visit_optional_node(body);
             let frame = self.frames.pop();
             debug_assert!(frame.is_some());
+            let body = match body {
+                Ok(Some(body)) if shape == FunctionShape::Ordinary => {
+                    self.insert_sync_super_capture_statements(body).map(Some)
+                }
+                body => body,
+            };
             Ok(TransformedFunction {
                 modifiers: modifiers?,
                 asterisk_token: asterisk_token?,
@@ -1442,6 +1523,71 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         self.has_lexical_this = saved_lexical_this;
         let _ = self.generated_bindings.exit(previous_scope, scope);
         result
+    }
+
+    /// `transformMethodBody` (_tsc.js:101236-101262) for a NON-async
+    /// method/accessor/constructor: the `_super`/`_superIndex` capture
+    /// statements land after the standard prologue when the checker marked
+    /// the container (an async arrow inside it references `super`).
+    fn insert_sync_super_capture_statements(
+        &mut self,
+        body: NodeId,
+    ) -> Result<NodeId, TransformError> {
+        let Some(capture) = self
+            .super_captures
+            .last()
+            .and_then(Option::as_ref)
+            .filter(|capture| capture.owns_access)
+            .cloned()
+        else {
+            return Ok(body);
+        };
+        let has_element_access = capture.has_element_access;
+        let statements = self.create_async_super_statements(capture)?;
+        if statements.is_empty() {
+            return Ok(body);
+        }
+        let body_node = self.node(body);
+        let NodeData::Block(mut data) = self.context.arena().node(body_node)?.data.clone() else {
+            return Ok(body);
+        };
+        let mut existing = self.array_nodes(data.statements)?;
+        let mut prologue_end = 0;
+        while existing
+            .get(prologue_end)
+            .is_some_and(|statement| self.is_prologue_statement(*statement))
+        {
+            prologue_end += 1;
+        }
+        existing.splice(prologue_end..prologue_end, statements);
+        let statements = if let Some(original) = data.statements.map(|array| self.array(array)) {
+            self.context
+                .factory()?
+                .update_node_array(original, existing)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, existing)?
+        };
+        data.statements = Some(statements.array());
+        let flags = flags_after_update(
+            self.context.arena(),
+            body_node,
+            &NodeData::Block(data.clone()),
+        )?;
+        let updated =
+            self.context
+                .factory()?
+                .update_node(body_node, NodeData::Block(data), flags)?;
+        // emitBlockFunctionBodyWorker: a body whose emit helpers wrote text
+        // (the scoped `_superIndex` helper) prints multi-line even when the
+        // source body was single-line.
+        let updated = if has_element_access {
+            self.context.factory()?.set_multi_line(updated, true)?
+        } else {
+            updated
+        };
+        Ok(updated.node())
     }
 
     fn transform_async_function(
@@ -1481,11 +1627,20 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             } else {
                 self.create_forwarded_arguments(shape, &parameter_plan.forwarded_arguments)?
             };
+        // transformAsyncFunctionBody (_tsc.js:101315-101320): below ES2015 the
+        // `__awaiter` call names the promise constructor from the original
+        // function's return type annotation.
+        let promise_constructor = if self.target < ScriptTarget::ES2015 {
+            self.get_promise_constructor(original)?
+        } else {
+            None
+        };
         let awaiter = self.create_awaiter_call(
             self.has_lexical_this,
             arguments_expression,
             parameter_plan.inner,
             inner_body,
+            promise_constructor,
         )?;
         let outer_body =
             if shape == FunctionShape::Arrow && lexical_arguments.capture_binding().is_none() {
@@ -1503,7 +1658,9 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                     Vec::new()
                 };
                 if let Some(binding) = lexical_arguments.capture_binding() {
-                    statements.push(self.create_capture_arguments_statement(binding)?);
+                    // TypeScript inserts both declarations after the standard
+                    // prologue, with the arguments capture inserted last.
+                    statements.insert(0, self.create_capture_arguments_statement(binding)?);
                 }
                 statements.push(self.create_return_statement(Some(awaiter))?);
                 self.create_block(statements, true)?
@@ -1649,7 +1806,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         if self.lexical_arguments_binding.is_some() {
             return Ok(AsyncLexicalArgumentsPlan::Inherited);
         }
-        let binding = self.allocate_numbered_binding("arguments")?;
+        let binding = self.allocate_file_wide_numbered_binding("arguments")?;
         self.lexical_arguments_binding = Some(binding.clone());
         Ok(AsyncLexicalArgumentsPlan::Capture(binding))
     }
@@ -1736,12 +1893,126 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         self.context.factory()?.set_text_range(block, body)
     }
 
+    /// tsc-port: getPromiseConstructor @6.0.3
+    /// tsc-span: _tsc.js:101432-101441
+    ///
+    /// The entity name of the original return type annotation, when the
+    /// resolver classifies it as a value with a construct signature or cannot
+    /// classify it at all; every other classification leaves `void 0`.
+    fn get_promise_constructor(
+        &mut self,
+        function: TransformNode,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let original = self.context.arena().get_original_node(function);
+        let type_node = match &self.context.arena().node(original)?.data {
+            NodeData::FunctionDeclaration(data) => data.r#type,
+            NodeData::FunctionExpression(data) => data.r#type,
+            NodeData::ArrowFunction(data) => data.r#type,
+            NodeData::MethodDeclaration(data) => data.r#type,
+            _ => None,
+        };
+        let Some(type_node) = type_node.map(|id| TransformNode::new(original.source(), id)) else {
+            return Ok(None);
+        };
+        // getEntityNameFromTypeNode (_tsc.js:14623-14635).
+        let entity = match &self.context.arena().node(type_node)?.data {
+            NodeData::TypeReference(data) => data.type_name,
+            NodeData::ExpressionWithTypeArguments(data) => data.expression.filter(|id| {
+                self.is_entity_name_expression(TransformNode::new(original.source(), *id))
+            }),
+            NodeData::Identifier(_) | NodeData::QualifiedName(_) => Some(type_node.node()),
+            _ => None,
+        };
+        let Some(entity) = entity.map(|id| TransformNode::new(original.source(), id)) else {
+            return Ok(None);
+        };
+        if !matches!(
+            self.context.arena().node(entity)?.data,
+            NodeData::Identifier(_) | NodeData::QualifiedName(_)
+        ) {
+            return Ok(None);
+        }
+        let kind = match self.context.arena().parse_tree_resolver_node(entity)? {
+            Some(resolver_node) => self
+                .resolver
+                .get_type_reference_serialization_kind(resolver_node, resolver_node)?,
+            None => EmitTypeReferenceSerializationKind::Unknown,
+        };
+        Ok(matches!(
+            kind,
+            EmitTypeReferenceSerializationKind::TypeWithConstructSignatureAndValue
+                | EmitTypeReferenceSerializationKind::Unknown
+        )
+        .then_some(entity))
+    }
+
+    fn is_entity_name_expression(&self, node: TransformNode) -> bool {
+        match self
+            .context
+            .arena()
+            .node(node)
+            .map(|record| record.data.clone())
+        {
+            Ok(NodeData::Identifier(_)) => true,
+            Ok(NodeData::PropertyAccessExpression(data)) => {
+                data.expression.is_some_and(|expression| {
+                    self.is_entity_name_expression(TransformNode::new(node.source(), expression))
+                }) && data.name.is_some_and(|name| {
+                    matches!(
+                        self.context
+                            .arena()
+                            .node(TransformNode::new(node.source(), name))
+                            .map(|record| &record.data),
+                        Ok(NodeData::Identifier(_))
+                    )
+                })
+            }
+            _ => false,
+        }
+    }
+
+    /// tsc-port: createExpressionFromEntityName @6.0.3
+    /// tsc-span: _tsc.js:27330-27338
+    fn create_expression_from_entity_name(
+        &mut self,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        match self.context.arena().node(name)?.data.clone() {
+            NodeData::QualifiedName(data) => {
+                let left = data
+                    .left
+                    .map(|id| TransformNode::new(name.source(), id))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::QualifiedName,
+                        field: "left",
+                    })?;
+                let right = data
+                    .right
+                    .map(|id| TransformNode::new(name.source(), id))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::QualifiedName,
+                        field: "right",
+                    })?;
+                let left = self.create_expression_from_entity_name(left)?;
+                let right_clone = self.context.factory()?.clone_node(right)?;
+                self.context.factory()?.set_text_range(right_clone, right)?;
+                let access = self.create_property_access(left, right_clone)?;
+                self.context.factory()?.set_text_range(access, name)
+            }
+            _ => {
+                let clone = self.context.factory()?.clone_node(name)?;
+                self.context.factory()?.set_text_range(clone, name)
+            }
+        }
+    }
+
     fn create_awaiter_call(
         &mut self,
         has_lexical_this: bool,
         arguments_expression: Option<TransformNode>,
         inner_parameters: Option<NodeArrayId>,
         body: TransformNode,
+        promise_constructor: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         self.context
             .request_emit_helper(super::helpers::awaiter())?;
@@ -1790,7 +2061,10 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             self.create_void_zero()?
         };
         let arguments = arguments_expression.unwrap_or(self.create_void_zero()?);
-        let promise = self.create_void_zero()?;
+        let promise = match promise_constructor {
+            Some(name) => self.create_expression_from_entity_name(name)?,
+            None => self.create_void_zero()?,
+        };
         self.create_call(helper, vec![this_arg, arguments, promise, generator])
     }
 
@@ -1926,6 +2200,20 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         source_name: &str,
     ) -> Result<TargetBinding, TransformError> {
         TargetBinding::allocate_numbered_reserved_in_nested_scopes(
+            self.context,
+            source_name.to_owned(),
+            self.generated_bindings.allocate_local_numbered(source_name),
+        )
+    }
+
+    /// `factory.createUniqueName("arguments")` (_tsc.js:101326) carries no
+    /// ReservedInNestedScopes flag: `makeUniqueName(scoped = false)` numbers
+    /// the lexical `arguments` capture file-wide.
+    fn allocate_file_wide_numbered_binding(
+        &mut self,
+        source_name: &str,
+    ) -> Result<TargetBinding, TransformError> {
+        TargetBinding::allocate_numbered(
             self.context,
             source_name.to_owned(),
             self.generated_bindings.allocate_local_numbered(source_name),
@@ -2370,6 +2658,31 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             NodeData::ObjectLiteralExpression(tsc_syntax::nodes::ObjectLiteralExpressionData {
                 properties: Some(properties.array()),
             }),
+            flags,
+        )
+    }
+
+    fn create_shorthand_property_assignment(
+        &mut self,
+        name: TransformNode,
+        object_assignment_initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let mut children = vec![name];
+        children.extend(object_assignment_initializer);
+        let flags = self.child_flags(&children)? | TransformFlags::CONTAINS_ES_2015;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ShorthandPropertyAssignment(
+                tsc_syntax::nodes::ShorthandPropertyAssignmentData {
+                    name: Some(name.node()),
+                    equals_token: None,
+                    object_assignment_initializer: object_assignment_initializer
+                        .map(TransformNode::node),
+                    modifiers: None,
+                    question_token: None,
+                    exclamation_token: None,
+                },
+            ),
             flags,
         )
     }

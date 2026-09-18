@@ -15,7 +15,7 @@
     },
     {
       "path": "ratchets/h2-6c-qualification.v1.json",
-      "sha256": "af689ec23311d9cc733f2606e2acfd1d346edbc51bc512bb185c0c3111f1d8ec"
+      "sha256": "bb0f1937e5ad91a3f245cea26b90c14a3c1ea34bd923b50b827b842cdd051826"
     },
     {
       "path": "ratchets/h2-7b-qualification.v1.json",
@@ -55,7 +55,7 @@
     },
     {
       "path": "ratchets/h2-7de-candidates.v1.json",
-      "sha256": "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d"
+      "sha256": "956514a27a7c9d4504f2bd364f07492b758660c4c6d525201ba62d1389a04db2"
     }
   ],
   "selection_contract": "Original 804 global H2.8a IDs plus one H2.7c and four D/E successors form 809 distinct inputs. All historical owner lists and parent memberships remain recorded. Current owners retain H2.8a and later intersections; completed D/E owners no longer defer candidates. Ordinary importHelpers and case-insensitive hosts have no remaining bundle guard; composite stays B, isolatedModules/verbatim/noCheck/transpile stay C, noEmit and reached syntax/depth boundaries stay H2.9. No Rust admission or H2 closure.",

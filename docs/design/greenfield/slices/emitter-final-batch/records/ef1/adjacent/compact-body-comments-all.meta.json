@@ -1,0 +1,13 @@
+{
+  "name": "compact-body-comments-all",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 6,
+  "env": [],
+  "argv": "python3 scripts/witness.py compact-body-comments --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T07:03:03Z",
+  "seconds": 5,
+  "exit": 0,
+  "log_sha256": "8f4d645c5236d91bbdb8e33cefd35a7817c7e39c0374f08f5ba5b5c316875208",
+  "log_bytes": 947
+}

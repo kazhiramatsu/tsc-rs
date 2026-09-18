@@ -91,6 +91,11 @@ struct DestructuringPlan {
     /// element must be deferred as well so its initializer observes the
     /// bindings materialized by the earlier element.
     has_transformed_prior_array_element: bool,
+    /// `flattenDestructuringBinding(…, hoistTempVariables)`: temps are
+    /// hoisted and their assignments become pending expressions inlined
+    /// ahead of the next binding's value (`{ x } = (_a = value, _a)`).
+    hoist_temp_variables: bool,
+    pending_expressions: Vec<TransformNode>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -106,6 +111,8 @@ impl DestructuringPlan {
             helper_request_mode: HelperRequestMode::Immediate,
             steps: Vec::new(),
             has_transformed_prior_array_element: false,
+            hoist_temp_variables: false,
+            pending_expressions: Vec::new(),
         }
     }
 
@@ -115,6 +122,8 @@ impl DestructuringPlan {
             helper_request_mode: HelperRequestMode::AfterFunctionBody,
             steps: Vec::new(),
             has_transformed_prior_array_element: false,
+            hoist_temp_variables: false,
+            pending_expressions: Vec::new(),
         }
     }
 
@@ -313,6 +322,12 @@ struct Es2018Visitor<'context> {
     function_stack: Vec<FunctionMode>,
     async_generator_super_captures: Vec<Option<AsyncGeneratorSuperCapture>>,
     iteration_depth: usize,
+    /// tsc's `exportedVariableStatement`: set while visiting an exported
+    /// variable statement so its object-rest declarations hoist their temps
+    /// (`hoistTempVariables`) instead of declaring them
+    /// (EF7-EXPORTED-REST-HOIST).
+    exported_variable_statement: bool,
+    hoist_destructuring_temps: bool,
 }
 
 impl<'context> Es2018Visitor<'context> {
@@ -338,6 +353,8 @@ impl<'context> Es2018Visitor<'context> {
             function_stack: Vec::new(),
             async_generator_super_captures: Vec::new(),
             iteration_depth: 0,
+            exported_variable_statement: false,
+            hoist_destructuring_temps: false,
         })
     }
 
@@ -408,6 +425,21 @@ impl<'context> Es2018Visitor<'context> {
                 Some(self.visit_parenthesized_expression(original, data, value_use)?)
             }
             NodeData::VoidExpression(data) => Some(self.visit_void_expression(original, data)?),
+            NodeData::VariableStatement(data)
+                if super::has_modifier(
+                    self.context.arena(),
+                    self.source,
+                    data.modifiers,
+                    SyntaxKind::ExportKeyword,
+                )? =>
+            {
+                // visitVariableStatement: `exportedVariableStatement = true`
+                // while the statement's own declarations are visited.
+                let saved = std::mem::replace(&mut self.exported_variable_statement, true);
+                let visited = self.update_generic(original, NodeData::VariableStatement(data));
+                self.exported_variable_statement = saved;
+                Some(visited?)
+            }
             NodeData::VariableDeclarationList(data) => {
                 Some(self.visit_variable_declaration_list(original, data)?)
             }
@@ -416,9 +448,10 @@ impl<'context> Es2018Visitor<'context> {
             {
                 Some(self.visit_labeled_for_await_statement(original, data)?)
             }
-            NodeData::ForOfStatement(data)
-                if data.await_modifier.is_some() && self.current_function_is_async() =>
-            {
+            // `visitForOfStatement` (_tsc.js: transformES2018) lowers every
+            // `for await` it reaches, including a module-level statement
+            // outside any async function (the `await` stays as written).
+            NodeData::ForOfStatement(data) if data.await_modifier.is_some() => {
                 Some(self.visit_for_await_statement(original, data, Vec::new())?)
             }
             NodeData::ForOfStatement(data) if self.for_of_head_contains_object_rest(&data)? => {
@@ -663,6 +696,9 @@ impl<'context> Es2018Visitor<'context> {
         original: TransformNode,
         mut data: tsc_syntax::nodes::VariableDeclarationListData,
     ) -> Result<NodeId, TransformError> {
+        // visitVariableDeclaration: the statement's `exportedVariableStatement`
+        // applies to its own declarations and is cleared for nested visits.
+        let exported = std::mem::replace(&mut self.exported_variable_statement, false);
         let declarations = self.array_nodes(data.declarations)?;
         let mut lowered = Vec::with_capacity(declarations.len());
         for declaration in declarations {
@@ -681,17 +717,21 @@ impl<'context> Es2018Visitor<'context> {
                 },
             )?;
             if self.pattern_contains_object_rest(name)? {
-                lowered.extend(self.flatten_destructuring_binding(
+                let saved = std::mem::replace(&mut self.hoist_destructuring_temps, exported);
+                let flattened = self.flatten_destructuring_binding(
                     declaration,
                     declaration_data,
                     None,
                     false,
                     HelperRequestMode::Immediate,
-                )?);
+                );
+                self.hoist_destructuring_temps = saved;
+                lowered.extend(flattened?);
             } else if let Some(visited) = self.visit(declaration.node())? {
                 lowered.push(self.node(visited));
             }
         }
+        self.exported_variable_statement = exported;
         let original_array = data.declarations.map(|array| self.array(array));
         let declarations = if let Some(original_array) = original_array {
             self.context
@@ -710,15 +750,11 @@ impl<'context> Es2018Visitor<'context> {
         self.function_stack.last().copied()
     }
 
-    fn current_function_is_async(&self) -> bool {
-        self.current_function_mode()
-            .is_some_and(FunctionMode::is_async)
-    }
-
     fn super_capture_is_active(&self) -> bool {
         self.async_generator_super_captures
             .last()
-            .is_some_and(Option::is_some)
+            .and_then(Option::as_ref)
+            .is_some_and(|capture| capture.owns_access)
     }
 
     fn node_is_direct_super_use(&self, node: TransformNode) -> Result<bool, TransformError> {
@@ -1135,9 +1171,6 @@ impl<'context> Es2018Visitor<'context> {
         &self,
         data: &tsc_syntax::nodes::LabeledStatementData,
     ) -> Result<bool, TransformError> {
-        if !self.current_function_is_async() {
-            return Ok(false);
-        }
         let Some(mut statement) = data.statement.map(|statement| self.node(statement)) else {
             return Ok(false);
         };
@@ -1283,13 +1316,13 @@ impl<'context> Es2018Visitor<'context> {
         &mut self,
         expression: TransformNode,
     ) -> Result<ForAwaitLoweringPlan, TransformError> {
+        // `createDownlevelAwait` (_tsc.js: transformES2018) yields
+        // `__await` only inside an async generator; a module-level
+        // `for await` (no enclosing function) keeps a plain `await`.
         let mode = self
             .current_function_mode()
             .filter(|mode| mode.is_async())
-            .ok_or(TransformError::RequiredChildRemoved {
-                parent: SyntaxKind::ForOfStatement,
-                field: "enclosing async function",
-            })?;
+            .unwrap_or(FunctionMode::Async);
         let done = self.allocate_hoisted_temp_binding()?;
         let error_record = self.allocate_hoisted_numbered_binding("e")?;
         let return_method = self.allocate_hoisted_temp_binding()?;
@@ -2185,7 +2218,16 @@ impl<'context> Es2018Visitor<'context> {
         let introduces_super_boundary = owns_super_capture || kind != SyntaxKind::ArrowFunction;
         if introduces_super_boundary {
             let capture = if owns_super_capture {
-                let facts = self.collect_async_generator_super_facts(body)?;
+                let mut facts = self.collect_async_generator_super_facts(body)?;
+                // `emitSuperHelpers` (_tsc.js:102657): below ES2015 the ES2015
+                // pass lowers `super` itself, so the async generator keeps its
+                // direct uses and emits no `_super` access object.
+                if self.target < ScriptTarget::ES2015 {
+                    facts.owns_access = false;
+                    facts.has_element_access = false;
+                    facts.has_assignment = false;
+                    facts.captured_properties.clear();
+                }
                 let binding = facts
                     .owns_access
                     .then(|| self.allocate_scoped_preferred_binding("_super"))
@@ -2687,6 +2729,15 @@ impl<'context> Es2018Visitor<'context> {
             }),
             inner_flags,
         )?;
+        // `createAsyncGeneratorHelper` marks the generator function
+        // `AsyncFunctionBody | ReuseTempVariableScope`: the ES2015 pass then
+        // enters it through `AsyncFunctionBodyExcludes`, keeping the
+        // enclosing method's `NonStaticClassElement` fact for `super`
+        // property lowering (`_super.prototype.x`).
+        self.context
+            .arena_mut()?
+            .metadata_mut(inner)
+            .add_flags(EmitFlags::ASYNC_FUNCTION_BODY | EmitFlags::REUSE_TEMP_VARIABLE_SCOPE);
         let helper = self
             .context
             .factory()?
@@ -3311,6 +3362,7 @@ impl<'context> Es2018Visitor<'context> {
             HelperRequestMode::Immediate => DestructuringPlan::new(DestructuringMode::Binding),
             HelperRequestMode::AfterFunctionBody => DestructuringPlan::parameter_binding(),
         };
+        plan.hoist_temp_variables = self.hoist_destructuring_temps;
         let value = if force_fresh_initializer {
             self.ensure_destructuring_identifier(&mut plan, value, false, initializer_original)?
         } else {
@@ -3335,10 +3387,10 @@ impl<'context> Es2018Visitor<'context> {
                 self.flatten_object_pattern(plan, target, data.properties, value, original)
             }
             NodeData::ArrayBindingPattern(data) => {
-                self.flatten_array_pattern(plan, target, data.elements, value, original)
+                self.flatten_array_pattern(plan, data.elements, value, original)
             }
             NodeData::ArrayLiteralExpression(data) => {
-                self.flatten_array_pattern(plan, target, data.elements, value, original)
+                self.flatten_array_pattern(plan, data.elements, value, original)
             }
             _ => {
                 let target = match plan.mode {
@@ -3353,8 +3405,7 @@ impl<'context> Es2018Visitor<'context> {
                         })?
                     }
                 };
-                plan.push(target, value, original);
-                Ok(())
+                self.plan_push(plan, target, value, original)
             }
         }
     }
@@ -3406,7 +3457,7 @@ impl<'context> Es2018Visitor<'context> {
             let element = self.pattern_element(node)?;
             if element.rest {
                 if index + 1 == elements.len() {
-                    self.flush_object_pattern_chunk(plan, pattern, &mut retained, value, original)?;
+                    self.flush_object_pattern_chunk(plan, &mut retained, value, original)?;
                     let rest = self.create_object_rest_call(
                         plan.helper_request_mode,
                         value,
@@ -3447,7 +3498,7 @@ impl<'context> Es2018Visitor<'context> {
                 continue;
             }
 
-            self.flush_object_pattern_chunk(plan, pattern, &mut retained, value, original)?;
+            self.flush_object_pattern_chunk(plan, &mut retained, value, original)?;
             let property_key = property_key.ok_or(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(element.original)?.kind,
                 field: "property name",
@@ -3459,13 +3510,12 @@ impl<'context> Es2018Visitor<'context> {
             }
             self.flatten_pattern_element(plan, element, property_value)?;
         }
-        self.flush_object_pattern_chunk(plan, pattern, &mut retained, value, original)
+        self.flush_object_pattern_chunk(plan, &mut retained, value, original)
     }
 
     fn flush_object_pattern_chunk(
         &mut self,
         plan: &mut DestructuringPlan,
-        original_pattern: TransformNode,
         retained: &mut Vec<TransformNode>,
         value: TransformNode,
         original: Option<TransformNode>,
@@ -3474,19 +3524,16 @@ impl<'context> Es2018Visitor<'context> {
             return Ok(());
         }
         let pattern = self.create_object_pattern(plan.mode, std::mem::take(retained))?;
-        if plan.mode == DestructuringMode::Binding {
-            self.set_original_and_range(pattern, original_pattern)?;
-        }
-        // makeObjectAssignmentPattern creates a fresh object literal. Its
-        // chunk no longer spans the original rest element or closing brace.
-        plan.push(pattern, value, original);
-        Ok(())
+        // Both binding and assignment chunks are fresh patterns upstream.
+        // The resulting declaration/assignment and retained elements carry
+        // their own locations; the chunk no longer spans the rest element
+        // or the original closing brace.
+        self.plan_push(plan, pattern, value, original)
     }
 
     fn flatten_array_pattern(
         &mut self,
         plan: &mut DestructuringPlan,
-        pattern: TransformNode,
         elements: Option<NodeArrayId>,
         value: TransformNode,
         original: Option<TransformNode>,
@@ -3534,8 +3581,7 @@ impl<'context> Es2018Visitor<'context> {
             }
         }
         let retained_pattern = self.create_array_pattern(plan.mode, retained)?;
-        self.set_original_and_range(retained_pattern, pattern)?;
-        plan.push(retained_pattern, value, original);
+        self.plan_push(plan, retained_pattern, value, original)?;
         for (element, read) in deferred {
             self.flatten_pattern_element(plan, element, read)?;
         }
@@ -3597,6 +3643,26 @@ impl<'context> Es2018Visitor<'context> {
         self.create_conditional(condition, initializer, value)
     }
 
+    /// `emitBindingOrAssignment` for bindings: pending hoisted-temp
+    /// assignments are inlined ahead of the value (`(_a = v, _a)`).
+    fn plan_push(
+        &mut self,
+        plan: &mut DestructuringPlan,
+        target: TransformNode,
+        value: TransformNode,
+        original: Option<TransformNode>,
+    ) -> Result<(), TransformError> {
+        let value = if plan.pending_expressions.is_empty() {
+            value
+        } else {
+            let mut expressions = std::mem::take(&mut plan.pending_expressions);
+            expressions.push(value);
+            self.inline_expressions(expressions)?
+        };
+        plan.push(target, value, original);
+        Ok(())
+    }
+
     fn ensure_destructuring_identifier(
         &mut self,
         plan: &mut DestructuringPlan,
@@ -3607,10 +3673,25 @@ impl<'context> Es2018Visitor<'context> {
         if reuse_identifier && self.context.arena().node(value)?.kind == SyntaxKind::Identifier {
             return Ok(value);
         }
+        if plan.hoist_temp_variables {
+            // ensureIdentifier with `hoistTempVariables`: the temp is hoisted
+            // and `temp = value` is emitted as a pending expression.
+            let binding = self.allocate_destructuring_temp(DestructuringMode::Assignment)?;
+            let target = self.create_generated_identifier(&binding)?;
+            let read = self.create_generated_identifier(&binding)?;
+            let assignment = self.create_assignment(target, value)?;
+            if let Some(original) = original {
+                self.context
+                    .factory()?
+                    .set_text_range(assignment, original)?;
+            }
+            plan.pending_expressions.push(assignment);
+            return Ok(read);
+        }
         let binding = self.allocate_destructuring_temp(plan.mode)?;
         let target = self.create_generated_identifier(&binding)?;
         let read = self.create_generated_identifier(&binding)?;
-        plan.push(target, value, original);
+        self.plan_push(plan, target, value, original)?;
         Ok(read)
     }
 
@@ -3634,9 +3715,18 @@ impl<'context> Es2018Visitor<'context> {
 
     fn materialize_binding_plan(
         &mut self,
-        plan: DestructuringPlan,
+        mut plan: DestructuringPlan,
     ) -> Result<Vec<TransformNode>, TransformError> {
         debug_assert_eq!(plan.mode, DestructuringMode::Binding);
+        if !plan.pending_expressions.is_empty() {
+            // flattenDestructuringBinding tail (`hoistTempVariables`): leftover
+            // pending expressions bind a fresh non-hoisted temp.
+            let binding = self.allocate_destructuring_temp(DestructuringMode::Binding)?;
+            let target = self.create_generated_identifier(&binding)?;
+            let expressions = std::mem::take(&mut plan.pending_expressions);
+            let value = self.inline_expressions(expressions)?;
+            plan.push(target, value, None);
+        }
         plan.steps
             .into_iter()
             .map(|step| {

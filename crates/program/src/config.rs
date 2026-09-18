@@ -1873,7 +1873,12 @@ fn unsupported_config_scope(
         if emitting && compiler_option_declaration(&option.name).is_none() {
             continue;
         }
+        // sourceMap is already projected and validated. An ordinary no-emit
+        // command retains it without constructing an emitter. Keep this later
+        // extension separate from the frozen H0 qualification inventory.
+        let no_emit_projection = !emitting && option.name == "sourceMap";
         if !(config_option_is_supported_by_h0(&option.name)
+            || no_emit_projection
             || emitting && config_option_is_projected_for_h1_emit(&option.name))
             && config_value_requests_feature(&option.value)
         {

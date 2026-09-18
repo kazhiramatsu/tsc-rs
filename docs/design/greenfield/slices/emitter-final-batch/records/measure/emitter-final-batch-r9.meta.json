@@ -1,0 +1,22 @@
+{
+  "name": "emitter-final-batch-r9",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "emitter_final_batch"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T04:03:50Z",
+  "seconds": 49,
+  "exit": 0,
+  "log_sha256": "5895bc883c389c7e51275d6a75cc69fa19996904533d4592f927080e024ec617",
+  "log_bytes": 1269
+}

@@ -164,8 +164,6 @@ impl<'a> CheckerState<'a> {
     ///
     /// Elisions, each FN-only and owned by a later stage:
     /// - the JS `require` fallback (requireSymbol — M2 3.4c residual).
-    /// - the EnumDeclaration isolatedModules qualification error
-    ///   (isolatedModules option unmodeled).
     pub fn resolve_name<'n>(
         &mut self,
         location: Option<NodeId>,
@@ -436,8 +434,36 @@ impl<'a> CheckerState<'a> {
                     let masked = meaning & SymbolFlags::ENUM_MEMBER;
                     let probe = self.lookup_probe(&exports, name, masked, suggestion, false)?;
                     if let Some(found) = self.finish_lookup(probe, name, masked) {
-                        // (isolatedModules cross-file qualification
-                        // error elided — option unmodeled.)
+                        if name_not_found_message.is_some()
+                            && (self.options.isolated_modules == Some(true)
+                                || self.options.verbatim_module_syntax == Some(true))
+                            && !self.binder.flags_of(loc).intersects(NodeFlags::AMBIENT)
+                            && self.binder.symbol(found).value_declaration.is_some_and(
+                                |declaration| {
+                                    self.binder.file_index_of_node(loc)
+                                        != self.binder.file_index_of_node(declaration)
+                                },
+                            )
+                        {
+                            let enum_symbol = self.get_symbol_of_declaration(loc)?;
+                            let enum_name = self.binder.symbol(enum_symbol).escaped_name.clone();
+                            let display = tsc_binder::unescape_leading_underscores(name);
+                            let qualified = crate::concat_js(&[
+                                &tsc_binder::unescape_leading_underscores(&enum_name),
+                                &".",
+                                &display,
+                            ]);
+                            let option_name = if self.options.verbatim_module_syntax == Some(true) {
+                                "verbatimModuleSyntax"
+                            } else {
+                                "isolatedModules"
+                            };
+                            self.error_at_js(
+                                original_location,
+                                &diagnostics::Cannot_access_0_from_another_file_without_qualification_when_1_is_enabled_Use_2_instead,
+                                &[display, option_name.into(), qualified.as_js()],
+                            );
+                        }
                         result = Some(found);
                         break 'walk;
                     }
@@ -797,6 +823,7 @@ impl<'a> CheckerState<'a> {
                         original_location,
                         found,
                         meaning,
+                        last_location,
                         associated_declaration_for_containing_initializer,
                         within_deferred_context,
                     )?;
@@ -1968,13 +1995,14 @@ impl<'a> CheckerState<'a> {
     /// parameter-initializer ordering checks (2372/2373), UMD-global
     /// access (2686), and type-only alias value uses (1361/1362).
     /// addLazyDiagnostic is eager by the checker-wide identity
-    /// decision. The isolatedModules tail remains owned by its option
-    /// prerequisite.
+    /// decision. The isolatedModules tail consumes the actual final scope
+    /// of the walk, so an inner value binding never looks like a global hit.
     fn on_successfully_resolved_symbol(
         &mut self,
         error_location: Option<NodeId>,
         result: SymbolId,
         meaning: SymbolFlags,
+        last_location: Option<NodeId>,
         associated_declaration: Option<NodeId>,
         within_deferred_context: bool,
     ) -> CheckResult<()> {
@@ -2130,6 +2158,49 @@ impl<'a> CheckerState<'a> {
                 );
             }
         }
+        if self.options.isolated_modules == Some(true) && meaning.contains(SymbolFlags::VALUE) {
+            if let Some(source_file) = last_location.filter(|&last| {
+                self.kind_of(last) == SyntaxKind::SourceFile
+                    && self.binder.is_external_or_common_js_module_of_node(last)
+            }) {
+                let name = self.binder.symbol(result).escaped_name.clone();
+                let globals = self.globals.clone();
+                if self.get_symbol_in_table(&globals, &name, meaning)? == Some(result) {
+                    if let Some(locals) = self.binder.locals_of(source_file).cloned() {
+                        if let Some(non_value) = self.get_symbol_in_table(
+                            &locals,
+                            &name,
+                            SymbolFlags::from_bits(!SymbolFlags::VALUE.bits()),
+                        )? {
+                            let import = self
+                                .binder
+                                .symbol(non_value)
+                                .declarations
+                                .iter()
+                                .copied()
+                                .find(|&declaration| {
+                                    matches!(
+                                        self.kind_of(declaration),
+                                        SyntaxKind::ImportSpecifier
+                                            | SyntaxKind::ImportClause
+                                            | SyntaxKind::NamespaceImport
+                                            | SyntaxKind::ImportEqualsDeclaration
+                                    )
+                                });
+                            if let Some(import) = import.filter(|&declaration| {
+                                !self.is_type_only_import_or_export_declaration(declaration)
+                            }) {
+                                self.error_at_js(
+                                    Some(import),
+                                    &diagnostics::Import_0_conflicts_with_global_value_used_in_this_file_so_must_be_declared_with_a_type_only_import_when_isolatedModules_is_enabled,
+                                    &[tsc_binder::unescape_leading_underscores(&name)],
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -2188,9 +2259,11 @@ impl<'a> CheckerState<'a> {
             Some(&diagnostics::Enum_0_used_before_its_declaration)
         } else {
             debug_assert!(flags.intersects(SymbolFlags::CONST_ENUM));
-            // getIsolatedModules(compilerOptions): option unmodeled ⇒
-            // false ⇒ no message.
-            None
+            // getIsolatedModules(compilerOptions) = isolatedModules ||
+            // verbatimModuleSyntax (48468-48470; EF7-ENUM-ISOLATED).
+            (self.options.isolated_modules == Some(true)
+                || self.options.verbatim_module_syntax == Some(true))
+            .then_some(&diagnostics::Enum_0_used_before_its_declaration)
         };
         if let Some(message) = message {
             let related = self.create_error(

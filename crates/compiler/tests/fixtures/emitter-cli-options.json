@@ -1,0 +1,2660 @@
+{
+  "schema": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "observer_sha256": "1a01e21566d25af60cd2986344768d8cd90b9396cf16a5bf8b55490889907c6b",
+  "compiler_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+  "cases": [
+    {
+      "case_id": "emitter-cli-options/0/none/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "none",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "none",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 2,
+        "stdout": "main.ts(1,1): error TS1148: Cannot use imports, exports, or module augmentations when '--module' is 'none'.\n",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKdmFyIHJlYWQgPSBmdW5jdGlvbiAoKSB7IHJldHVybiBleHBvcnRzLnZhbHVlOyB9OwpleHBvcnRzLnJlYWQgPSByZWFkOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLElBQU0sSUFBSSxHQUFHLGNBQU0sT0FBQSxhQUFLLEVBQUwsQ0FBSyxDQUFDO0FBQW5CLFFBQUEsSUFBSSxRQUFlIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/1/none/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "none",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "none",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/2/none/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "none",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "none",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/3/commonjs/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "commonjs",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKdmFyIHJlYWQgPSBmdW5jdGlvbiAoKSB7IHJldHVybiBleHBvcnRzLnZhbHVlOyB9OwpleHBvcnRzLnJlYWQgPSByZWFkOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLElBQU0sSUFBSSxHQUFHLGNBQU0sT0FBQSxhQUFLLEVBQUwsQ0FBSyxDQUFDO0FBQW5CLFFBQUEsSUFBSSxRQUFlIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/4/commonjs/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "commonjs",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/5/commonjs/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "commonjs",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/6/amd/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "amd",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "amd",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5yZWFkID0gZXhwb3J0cy52YWx1ZSA9IHZvaWQgMDsKICAgIGV4cG9ydHMudmFsdWUgPSAxOwogICAgdmFyIHJlYWQgPSBmdW5jdGlvbiAoKSB7IHJldHVybiBleHBvcnRzLnZhbHVlOyB9OwogICAgZXhwb3J0cy5yZWFkID0gcmVhZDsKfSk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztJQUFhLFFBQUEsS0FBSyxHQUFXLENBQUMsQ0FBQztJQUN4QixJQUFNLElBQUksR0FBRyxjQUFNLE9BQUEsYUFBSyxFQUFMLENBQUssQ0FBQztJQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/7/amd/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "amd",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "amd",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5yZWFkID0gZXhwb3J0cy52YWx1ZSA9IHZvaWQgMDsKICAgIGV4cG9ydHMudmFsdWUgPSAxOwogICAgY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CiAgICBleHBvcnRzLnJlYWQgPSByZWFkOwp9KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztJQUFhLFFBQUEsS0FBSyxHQUFXLENBQUMsQ0FBQztJQUN4QixNQUFNLElBQUksR0FBRyxHQUFHLEVBQUUsQ0FBQyxhQUFLLENBQUM7SUFBbkIsUUFBQSxJQUFJLFFBQWUifQ=="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/8/amd/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "amd",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "amd",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5yZWFkID0gZXhwb3J0cy52YWx1ZSA9IHZvaWQgMDsKICAgIGV4cG9ydHMudmFsdWUgPSAxOwogICAgY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CiAgICBleHBvcnRzLnJlYWQgPSByZWFkOwp9KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztJQUFhLFFBQUEsS0FBSyxHQUFXLENBQUMsQ0FBQztJQUN4QixNQUFNLElBQUksR0FBRyxHQUFHLEVBQUUsQ0FBQyxhQUFLLENBQUM7SUFBbkIsUUFBQSxJQUFJLFFBQWUifQ=="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/9/umd/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "umd",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "umd",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7CiAgICBpZiAodHlwZW9mIG1vZHVsZSA9PT0gIm9iamVjdCIgJiYgdHlwZW9mIG1vZHVsZS5leHBvcnRzID09PSAib2JqZWN0IikgewogICAgICAgIHZhciB2ID0gZmFjdG9yeShyZXF1aXJlLCBleHBvcnRzKTsKICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7CiAgICB9CiAgICBlbHNlIGlmICh0eXBlb2YgZGVmaW5lID09PSAiZnVuY3Rpb24iICYmIGRlZmluZS5hbWQpIHsKICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7CiAgICB9Cn0pKGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5yZWFkID0gZXhwb3J0cy52YWx1ZSA9IHZvaWQgMDsKICAgIGV4cG9ydHMudmFsdWUgPSAxOwogICAgdmFyIHJlYWQgPSBmdW5jdGlvbiAoKSB7IHJldHVybiBleHBvcnRzLnZhbHVlOyB9OwogICAgZXhwb3J0cy5yZWFkID0gcmVhZDsKfSk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7O0lBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0lBQ3hCLElBQU0sSUFBSSxHQUFHLGNBQU0sT0FBQSxhQUFLLEVBQUwsQ0FBSyxDQUFDO0lBQW5CLFFBQUEsSUFBSSxRQUFlIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/10/umd/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "umd",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "umd",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7CiAgICBpZiAodHlwZW9mIG1vZHVsZSA9PT0gIm9iamVjdCIgJiYgdHlwZW9mIG1vZHVsZS5leHBvcnRzID09PSAib2JqZWN0IikgewogICAgICAgIHZhciB2ID0gZmFjdG9yeShyZXF1aXJlLCBleHBvcnRzKTsKICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7CiAgICB9CiAgICBlbHNlIGlmICh0eXBlb2YgZGVmaW5lID09PSAiZnVuY3Rpb24iICYmIGRlZmluZS5hbWQpIHsKICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7CiAgICB9Cn0pKGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5yZWFkID0gZXhwb3J0cy52YWx1ZSA9IHZvaWQgMDsKICAgIGV4cG9ydHMudmFsdWUgPSAxOwogICAgY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CiAgICBleHBvcnRzLnJlYWQgPSByZWFkOwp9KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7O0lBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0lBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztJQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/11/umd/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "umd",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "umd",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7CiAgICBpZiAodHlwZW9mIG1vZHVsZSA9PT0gIm9iamVjdCIgJiYgdHlwZW9mIG1vZHVsZS5leHBvcnRzID09PSAib2JqZWN0IikgewogICAgICAgIHZhciB2ID0gZmFjdG9yeShyZXF1aXJlLCBleHBvcnRzKTsKICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7CiAgICB9CiAgICBlbHNlIGlmICh0eXBlb2YgZGVmaW5lID09PSAiZnVuY3Rpb24iICYmIGRlZmluZS5hbWQpIHsKICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7CiAgICB9Cn0pKGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5yZWFkID0gZXhwb3J0cy52YWx1ZSA9IHZvaWQgMDsKICAgIGV4cG9ydHMudmFsdWUgPSAxOwogICAgY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CiAgICBleHBvcnRzLnJlYWQgPSByZWFkOwp9KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7O0lBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0lBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztJQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/12/system/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "system",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "system",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciB2YWx1ZSwgcmVhZDsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOwogICAgICAgICAgICBleHBvcnRzXzEoInJlYWQiLCByZWFkID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gdmFsdWU7IH0pOwogICAgICAgIH0KICAgIH07Cn0pOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFBLG1CQUFhLEtBQUssR0FBVyxDQUFDLEVBQUM7WUFDL0Isa0JBQWEsSUFBSSxHQUFHLGNBQU0sT0FBQSxLQUFLLEVBQUwsQ0FBSyxFQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/13/system/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "system",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "system",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciB2YWx1ZSwgcmVhZDsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOwogICAgICAgICAgICBleHBvcnRzXzEoInJlYWQiLCByZWFkID0gKCkgPT4gdmFsdWUpOwogICAgICAgIH0KICAgIH07Cn0pOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFBLG1CQUFhLEtBQUssR0FBVyxDQUFDLEVBQUM7WUFDL0Isa0JBQWEsSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLEtBQUssRUFBQyJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/14/system/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "system",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "system",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciB2YWx1ZSwgcmVhZDsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOwogICAgICAgICAgICBleHBvcnRzXzEoInJlYWQiLCByZWFkID0gKCkgPT4gdmFsdWUpOwogICAgICAgIH0KICAgIH07Cn0pOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFBLG1CQUFhLEtBQUssR0FBVyxDQUFDLEVBQUM7WUFDL0Isa0JBQWEsSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLEtBQUssRUFBQyJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/15/es6/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es6",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es6",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IHZhciB2YWx1ZSA9IDE7CmV4cG9ydCB2YXIgcmVhZCA9IGZ1bmN0aW9uICgpIHsgcmV0dXJuIHZhbHVlOyB9OwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLElBQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsSUFBTSxJQUFJLEdBQUcsY0FBTSxPQUFBLEtBQUssRUFBTCxDQUFLLENBQUMifQ=="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/16/es6/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es6",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es6",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/17/es6/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es6",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es6",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/18/es2015/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es2015",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es2015",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IHZhciB2YWx1ZSA9IDE7CmV4cG9ydCB2YXIgcmVhZCA9IGZ1bmN0aW9uICgpIHsgcmV0dXJuIHZhbHVlOyB9OwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLElBQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsSUFBTSxJQUFJLEdBQUcsY0FBTSxPQUFBLEtBQUssRUFBTCxDQUFLLENBQUMifQ=="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/19/es2015/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es2015",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es2015",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/20/es2015/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es2015",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es2015",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/21/es2020/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es2020",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es2020",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IHZhciB2YWx1ZSA9IDE7CmV4cG9ydCB2YXIgcmVhZCA9IGZ1bmN0aW9uICgpIHsgcmV0dXJuIHZhbHVlOyB9OwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLElBQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsSUFBTSxJQUFJLEdBQUcsY0FBTSxPQUFBLEtBQUssRUFBTCxDQUFLLENBQUMifQ=="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/22/es2020/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es2020",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es2020",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/23/es2020/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es2020",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es2020",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/24/es2022/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es2022",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es2022",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IHZhciB2YWx1ZSA9IDE7CmV4cG9ydCB2YXIgcmVhZCA9IGZ1bmN0aW9uICgpIHsgcmV0dXJuIHZhbHVlOyB9OwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLElBQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsSUFBTSxJQUFJLEdBQUcsY0FBTSxPQUFBLEtBQUssRUFBTCxDQUFLLENBQUMifQ=="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/25/es2022/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es2022",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es2022",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/26/es2022/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "es2022",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "es2022",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/27/esnext/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "esnext",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "esnext",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IHZhciB2YWx1ZSA9IDE7CmV4cG9ydCB2YXIgcmVhZCA9IGZ1bmN0aW9uICgpIHsgcmV0dXJuIHZhbHVlOyB9OwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLElBQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsSUFBTSxJQUFJLEdBQUcsY0FBTSxPQUFBLEtBQUssRUFBTCxDQUFLLENBQUMifQ=="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/28/esnext/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "esnext",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "esnext",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/29/esnext/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "esnext",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "esnext",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/30/node16/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "node16",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "node16",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKdmFyIHJlYWQgPSBmdW5jdGlvbiAoKSB7IHJldHVybiBleHBvcnRzLnZhbHVlOyB9OwpleHBvcnRzLnJlYWQgPSByZWFkOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLElBQU0sSUFBSSxHQUFHLGNBQU0sT0FBQSxhQUFLLEVBQUwsQ0FBSyxDQUFDO0FBQW5CLFFBQUEsSUFBSSxRQUFlIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/31/node16/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "node16",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "node16",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/32/node16/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "node16",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "node16",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/33/node18/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "node18",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "node18",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKdmFyIHJlYWQgPSBmdW5jdGlvbiAoKSB7IHJldHVybiBleHBvcnRzLnZhbHVlOyB9OwpleHBvcnRzLnJlYWQgPSByZWFkOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLElBQU0sSUFBSSxHQUFHLGNBQU0sT0FBQSxhQUFLLEVBQUwsQ0FBSyxDQUFDO0FBQW5CLFFBQUEsSUFBSSxRQUFlIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/34/node18/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "node18",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "node18",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/35/node18/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "node18",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "node18",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/36/node20/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "node20",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "node20",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKdmFyIHJlYWQgPSBmdW5jdGlvbiAoKSB7IHJldHVybiBleHBvcnRzLnZhbHVlOyB9OwpleHBvcnRzLnJlYWQgPSByZWFkOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLElBQU0sSUFBSSxHQUFHLGNBQU0sT0FBQSxhQUFLLEVBQUwsQ0FBSyxDQUFDO0FBQW5CLFFBQUEsSUFBSSxRQUFlIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/37/node20/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "node20",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "node20",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/38/node20/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "node20",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "node20",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/39/nodenext/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "nodenext",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "nodenext",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKdmFyIHJlYWQgPSBmdW5jdGlvbiAoKSB7IHJldHVybiBleHBvcnRzLnZhbHVlOyB9OwpleHBvcnRzLnJlYWQgPSByZWFkOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLElBQU0sSUFBSSxHQUFHLGNBQU0sT0FBQSxhQUFLLEVBQUwsQ0FBSyxDQUFDO0FBQW5CLFFBQUEsSUFBSSxRQUFlIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/40/nodenext/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "nodenext",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "nodenext",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/41/nodenext/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "nodenext",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "nodenext",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/42/preserve/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "preserve",
+        "target": "es5",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "preserve",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IHZhciB2YWx1ZSA9IDE7CmV4cG9ydCB2YXIgcmVhZCA9IGZ1bmN0aW9uICgpIHsgcmV0dXJuIHZhbHVlOyB9OwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLElBQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsSUFBTSxJQUFJLEdBQUcsY0FBTSxPQUFBLEtBQUssRUFBTCxDQUFLLENBQUMifQ=="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/43/preserve/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "preserve",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "preserve",
+        "--target",
+        "es2015"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/44/preserve/esnext",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "preserve",
+        "target": "esnext",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "preserve",
+        "--target",
+        "esnext"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKZXhwb3J0IGNvbnN0IHJlYWQgPSAoKSA9PiB2YWx1ZTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFXLENBQUMsQ0FBQztBQUMvQixNQUFNLENBQUMsTUFBTSxJQUFJLEdBQUcsR0FBRyxFQUFFLENBQUMsS0FBSyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/45/commonjs/es5",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es5"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "commonjs",
+        "--target",
+        "es5"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 2,
+        "stdout": "tsconfig.json(1,30): error TS5107: Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKdmFyIHJlYWQgPSBmdW5jdGlvbiAoKSB7IHJldHVybiBleHBvcnRzLnZhbHVlOyB9OwpleHBvcnRzLnJlYWQgPSByZWFkOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLElBQU0sSUFBSSxHQUFHLGNBQU0sT0FBQSxhQUFLLEVBQUwsQ0FBSyxDQUFDO0FBQW5CLFFBQUEsSUFBSSxRQUFlIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/46/commonjs/es3",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es3"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "commonjs",
+        "--target",
+        "es3"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 2,
+        "stdout": "tsconfig.json(1,30): error TS5108: Option 'target=ES3' has been removed. Please remove it from your configuration.\n",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/47/CoMmOnJs/EsNeXt",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "CoMmOnJs",
+        "target": "EsNeXt",
+        "ignoreDeprecations": "6.0"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json",
+        "--module",
+        "CoMmOnJs",
+        "--target",
+        "EsNeXt"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "esnext",
+          "module": "preserve",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0"
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"preserve\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\"},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/48/commonjs/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0",
+        "configOnly": true,
+        "noEmit": true
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "es2015",
+          "module": "commonjs",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0",
+          "noEmit": true
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"lib\":[\"es5\"],\"types\":[],\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\",\"noEmit\":true},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {}
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/49/commonjs/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0",
+        "configOnly": true,
+        "noEmit": true,
+        "sourceMap": false
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "es2015",
+          "module": "commonjs",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": false,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0",
+          "noEmit": true
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":false,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\",\"noEmit\":true},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {}
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/50/commonjs/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0",
+        "configOnly": true,
+        "noEmit": true,
+        "sourceMap": true
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "es2015",
+          "module": "commonjs",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0",
+          "noEmit": true
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\",\"noEmit\":true},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {}
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/51/commonjs/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0",
+        "configOnly": true,
+        "noEmit": false
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "es2015",
+          "module": "commonjs",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0",
+          "noEmit": false
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"lib\":[\"es5\"],\"types\":[],\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\",\"noEmit\":false},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Cg=="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/52/commonjs/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0",
+        "configOnly": true,
+        "noEmit": false,
+        "sourceMap": false
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "es2015",
+          "module": "commonjs",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": false,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0",
+          "noEmit": false
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":false,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\",\"noEmit\":false},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Cg=="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/53/commonjs/es2015",
+      "source": "export const value: number = 1;\nexport const read = () => value;\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0",
+        "configOnly": true,
+        "noEmit": false,
+        "sourceMap": true
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "es2015",
+          "module": "commonjs",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0",
+          "noEmit": false
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\",\"noEmit\":false},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnJlYWQgPSBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKY29uc3QgcmVhZCA9ICgpID0+IGV4cG9ydHMudmFsdWU7CmV4cG9ydHMucmVhZCA9IHJlYWQ7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ3hCLE1BQU0sSUFBSSxHQUFHLEdBQUcsRUFBRSxDQUFDLGFBQUssQ0FBQztBQUFuQixRQUFBLElBQUksUUFBZSJ9"
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/54/commonjs/es2015",
+      "source": "export const value: number = \"wrong\";\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "configOnly": true,
+        "noEmit": true,
+        "sourceMap": true,
+        "esModuleInterop": false,
+        "source": "export const value: number = \"wrong\";\n"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "es2015",
+          "module": "commonjs",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "noEmit": true,
+          "esModuleInterop": false
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"noEmit\":true,\"esModuleInterop\":false},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 2,
+        "stdout": "tsconfig.json(1,175): error TS5107: Option 'esModuleInterop=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n",
+        "stderr": "",
+        "outputs": {}
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/55/commonjs/es2015",
+      "source": "export const value: number = \"wrong\";\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0",
+        "configOnly": true,
+        "noEmit": true,
+        "sourceMap": true,
+        "esModuleInterop": false,
+        "source": "export const value: number = \"wrong\";\n"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "es2015",
+          "module": "commonjs",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0",
+          "noEmit": true,
+          "esModuleInterop": false
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\",\"noEmit\":true,\"esModuleInterop\":false},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 2,
+        "stdout": "main.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+        "stderr": "",
+        "outputs": {}
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/56/commonjs/es2015",
+      "source": "export const value: number = \"wrong\";\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "configOnly": true,
+        "noEmit": false,
+        "sourceMap": true,
+        "esModuleInterop": false,
+        "source": "export const value: number = \"wrong\";\n"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "es2015",
+          "module": "commonjs",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "noEmit": false,
+          "esModuleInterop": false
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"noEmit\":false,\"esModuleInterop\":false},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 2,
+        "stdout": "tsconfig.json(1,176): error TS5107: Option 'esModuleInterop=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gIndyb25nIjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsT0FBTyxDQUFDIn0="
+        }
+      }
+    },
+    {
+      "case_id": "emitter-cli-options/57/commonjs/es2015",
+      "source": "export const value: number = \"wrong\";\n",
+      "input": {
+        "module": "commonjs",
+        "target": "es2015",
+        "ignoreDeprecations": "6.0",
+        "configOnly": true,
+        "noEmit": false,
+        "sourceMap": true,
+        "esModuleInterop": false,
+        "source": "export const value: number = \"wrong\";\n"
+      },
+      "args": [
+        "--pretty",
+        "false",
+        "-p",
+        "tsconfig.json"
+      ],
+      "config": {
+        "compilerOptions": {
+          "target": "es2015",
+          "module": "commonjs",
+          "lib": [
+            "es5"
+          ],
+          "types": [],
+          "sourceMap": true,
+          "outDir": "out",
+          "skipDefaultLibCheck": true,
+          "ignoreDeprecations": "6.0",
+          "noEmit": false,
+          "esModuleInterop": false
+        },
+        "files": [
+          "main.ts"
+        ]
+      },
+      "config_text": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"lib\":[\"es5\"],\"types\":[],\"sourceMap\":true,\"outDir\":\"out\",\"skipDefaultLibCheck\":true,\"ignoreDeprecations\":\"6.0\",\"noEmit\":false,\"esModuleInterop\":false},\"files\":[\"main.ts\"]}",
+      "observation": {
+        "exit": 2,
+        "stdout": "main.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+        "stderr": "",
+        "outputs": {
+          "out/main.js": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gIndyb25nIjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "out/main.js.map": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxLQUFLLEdBQVcsT0FBTyxDQUFDIn0="
+        }
+      }
+    }
+  ]
+}

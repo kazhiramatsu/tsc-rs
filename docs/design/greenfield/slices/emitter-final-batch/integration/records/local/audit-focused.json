@@ -1,0 +1,38 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "contracts",
+    "emitter_residual_audit::javascript_regressions_match_complete_original_commands",
+    "--",
+    "--exact",
+    "emitter_residual_audit::anonymous_class_names_match_complete_original_commands",
+    "h2_8a_import_helpers::import_helpers_matches_complete_typescript_observations",
+    "h2_8a_output_filesystem::output_filesystem_matches_complete_typescript_observations",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T12:26:13.399590+00:00",
+  "head": "ed71c45343b2063414d5563c9b5455631d7c5c68",
+  "tracked_clean": false,
+  "diff_sha256": "dac577533c1af5a5c1472d6ed87c6f5aab05fef279c363e0f2a493ce1232bc54",
+  "env": {
+    "TSC_RS_H2_8A_FAILURE_DIR": "/tmp/emitter-audit-global",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/tmp/emitter-audit-helper",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 414.987,
+  "log_sha256": "8f3e22dc04fad251d72158a407193837c3634536f43b728e5898b1b4547bd002",
+  "log_bytes": 12155
+}

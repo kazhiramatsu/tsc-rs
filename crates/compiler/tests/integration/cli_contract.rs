@@ -213,6 +213,104 @@ fn config_without_no_emit_emits_and_command_line_no_emit_keeps_the_h0_route() {
 }
 
 #[test]
+fn implemented_emit_option_names_match_typescript_cli_and_config() {
+    use base64::Engine as _;
+    use serde_json::Value;
+    let fixture: Value =
+        serde_json::from_str(include_str!("../fixtures/emitter-cli-options.json")).unwrap();
+    assert_eq!(fixture["typescript"], "6.0.3");
+    assert_eq!(fixture["repetitions"], 2);
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 58);
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let expected = &case["observation"];
+        let expected_files: Vec<_> = expected["outputs"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(name, bytes)| {
+                (
+                    name.strip_prefix("out/").unwrap().to_owned(),
+                    base64::engine::general_purpose::STANDARD
+                        .decode(bytes.as_str().unwrap())
+                        .unwrap(),
+                )
+            })
+            .collect();
+        for _ in 0..2 {
+            let tree = TempTree::new();
+            fs::write(tree.path("main.ts"), case["source"].as_str().unwrap()).unwrap();
+            fs::write(
+                tree.path("tsconfig.json"),
+                case["config_text"].as_str().unwrap(),
+            )
+            .unwrap();
+            let args: Vec<_> = case["args"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|arg| arg.as_str().unwrap())
+                .collect();
+            let output = run(&tree, &args);
+            assert_eq!(
+                output.status.code(),
+                Some(expected["exit"].as_i64().unwrap() as i32),
+                "{id}: exit"
+            );
+            assert_eq!(
+                output.stdout,
+                expected["stdout"].as_str().unwrap().as_bytes(),
+                "{id}: stdout"
+            );
+            assert_eq!(
+                output.stderr,
+                expected["stderr"].as_str().unwrap().as_bytes(),
+                "{id}: stderr"
+            );
+            let outputs = if tree.path("out").exists() {
+                snapshot_files(&tree.path("out"))
+            } else {
+                vec![]
+            };
+            assert_eq!(outputs, expected_files, "{id}: complete output files");
+            // On successful commands, moving the same option values into the
+            // config must retain the complete output. Error locations can
+            // legitimately differ between CLI and config option diagnostics.
+            if output.status.success() {
+                if tree.path("out").exists() {
+                    fs::remove_dir_all(tree.path("out")).unwrap();
+                }
+                let mut config = case["config"].clone();
+                config["compilerOptions"]["module"] = case["input"]["module"].clone();
+                config["compilerOptions"]["target"] = case["input"]["target"].clone();
+                fs::write(
+                    tree.path("tsconfig.json"),
+                    serde_json::to_vec(&config).unwrap(),
+                )
+                .unwrap();
+                let configured = run(&tree, &["--pretty", "false", "-p", "tsconfig.json"]);
+                assert_eq!(configured.status.code(), Some(0), "{id}: config exit");
+                assert!(
+                    configured.stdout.is_empty() && configured.stderr.is_empty(),
+                    "{id}: config diagnostics"
+                );
+                assert_eq!(
+                    if tree.path("out").exists() {
+                        snapshot_files(&tree.path("out"))
+                    } else {
+                        vec![]
+                    },
+                    expected_files,
+                    "{id}: config output"
+                );
+            }
+        }
+        eprintln!("emitter CLI options EXACT x2 {id}");
+    }
+}
+
+#[test]
 fn command_line_emit_options_override_config_values_before_loading() {
     let tree = TempTree::new();
     fs::write(tree.path("main.ts"), "export const value: number = 1;\n").expect("write source");
@@ -767,7 +865,7 @@ fn no_emit_cli_root_dirs_and_node_next_matrix_matches_vendored_typescript() {
 }
 
 #[test]
-fn config_option_diagnostics_are_rendered_alongside_semantic_diagnostics() {
+fn config_option_diagnostics_suppress_semantic_reporting_like_typescript() {
     let tree = TempTree::new();
     fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
     fs::write(
@@ -779,19 +877,13 @@ fn config_option_diagnostics_are_rendered_alongside_semantic_diagnostics() {
     let output = run(&tree, &["--pretty", "false"]);
     assert_eq!(output.status.code(), Some(2));
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let option = stdout
-        .find("tsconfig.json(1,68): error TS5107:")
-        .unwrap_or_else(|| panic!("missing TS5107 in output: {stdout}"));
-    let semantic = stdout
-        .find("main.ts(1,7): error TS2322:")
-        .unwrap_or_else(|| panic!("missing TS2322 in output: {stdout}"));
-    // The formatter applies TypeScript's global diagnostic sort by file name
-    // after the bucket driver has assembled its options-before-semantic view.
     assert!(
-        semantic < option,
-        "diagnostic rendering order drifted: {stdout}"
+        stdout.contains("tsconfig.json(1,68): error TS5107:"),
+        "{stdout}"
     );
+    assert!(!stdout.contains("TS2322"), "{stdout}");
     assert!(output.stderr.is_empty());
+    assert_typescript_parity(&tree, &["--pretty", "false"], &["--pretty", "false"]);
 }
 
 #[test]
@@ -1275,33 +1367,21 @@ fn filesystem_cfg_root_conversion_and_cache_match_typescript() {
 
 #[test]
 fn filesystem_config_and_source_diagnostic_order_matches_typescript() {
-    use tsc_host::CompilerHost as _;
-    let case_sensitive = tsc_host::FsCompilerHost::from_process()
-        .expect("native filesystem profile")
-        .use_case_sensitive_file_names();
-    for (source, module_options, outfile, text) in [
-        (
-            "main.ts",
-            r#""module":"none""#,
-            false,
-            "export const value = 1;\n",
-        ),
+    for (source, module_options, text) in [
+        ("main.ts", r#""module":"none""#, "export const value = 1;\n"),
         (
             "z/main.ts",
             r#""module":"none""#,
-            false,
             "export const value = 1;\n",
         ),
         (
             "z/main.ts",
             r#""module":"commonjs""#,
-            false,
             "export const value: string = 1;\n",
         ),
         (
             "main.ts",
             r#""outFile":"dist/bundle.js""#,
-            true,
             "export const value = 1;\n",
         ),
     ] {
@@ -1317,28 +1397,21 @@ fn filesystem_config_and_source_diagnostic_order_matches_typescript() {
             let upstream = run_typescript(&tree, &args);
             let native = run(&tree, &args);
             assert_eq!(upstream.status.code(), Some(1));
-            if outfile && !case_sensitive {
-                // H2.7d's existing bundle host gate runs before noEmitOnError.
-                // Preserve this refusal without granting command equality.
-                assert_eq!(native.status.code(), Some(2));
-                assert!(native.stdout.is_empty());
-                assert_eq!(String::from_utf8_lossy(&native.stderr),
-                    "tsc-rs: compiler failure: unsupported emit compiler option: useCaseSensitiveFileNames\n");
-                eprintln!("CFG diagnostic CLI boundary x{repetition}: outFile/case-insensitive");
-            } else {
-                assert_eq!(
-                    native.status.code(),
-                    upstream.status.code(),
-                    "{}",
-                    String::from_utf8_lossy(&native.stderr)
-                );
-                assert_eq!(
-                    String::from_utf8_lossy(&native.stdout),
-                    String::from_utf8_lossy(&upstream.stdout)
-                );
-                assert_eq!(native.stderr, upstream.stderr);
-                eprintln!("CFG diagnostic CLI exact x{repetition}: {source}/{module_options}");
-            }
+            assert_eq!(
+                native.status.code(),
+                upstream.status.code(),
+                "{}",
+                String::from_utf8_lossy(&native.stderr)
+            );
+            assert_eq!(
+                native.stdout, upstream.stdout,
+                "{source}/{module_options}: stdout"
+            );
+            assert_eq!(
+                native.stderr, upstream.stderr,
+                "{source}/{module_options}: stderr"
+            );
+            eprintln!("CFG diagnostic CLI exact x{repetition}: {source}/{module_options}");
             assert_eq!(
                 snapshot_files(&tree.root),
                 inputs,

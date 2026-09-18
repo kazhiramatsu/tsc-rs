@@ -1,5 +1,7 @@
 # Claude 一括依頼：通常compiler emitterの完了まで
 
+統合候補・追加修正・最終検証は[統合記録](integration/README.md)を参照。以下は依頼時の固定scope。
+
 2026-09-17。ユーザー指示「Claudeに渡す残りのタスクを一気に」に対応する依頼資料。
 親ID `H2.8a-A-RES-EMITTER-FINAL`。**通常compiler emitterの残りを、調査・実装・
 完了範囲の証明までまとめて担当してください。EF1〜EF8は開始時点の入口です。**

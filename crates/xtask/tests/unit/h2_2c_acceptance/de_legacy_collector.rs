@@ -236,7 +236,7 @@ fn collect_h2_6c_de_legacy177() -> Result<(), Box<dyn Error>> {
     let inventory = pinned(&inventory_path, INVENTORY_SHA)?;
     let census = pinned(
         &workspace.join("ratchets/h2-7de-candidates.v1.json"),
-        "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d",
+        "956514a27a7c9d4504f2bd364f07492b758660c4c6d525201ba62d1389a04db2",
     )?;
     // These joins verify provenance only. Neither new input nor new success is
     // used to prepare or judge the old Program.
@@ -246,7 +246,7 @@ fn collect_h2_6c_de_legacy177() -> Result<(), Box<dyn Error>> {
     )?);
     drop(pinned(
         &workspace.join("ratchets/h2-7de-observations.v1.json"),
-        "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+        "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9",
     )?);
     let qualification_bytes = fs::read(workspace.join(H2_6C_QUALIFICATION_RELATIVE_PATH))?;
     let qualification: Value = serde_json::from_slice(&qualification_bytes)?;

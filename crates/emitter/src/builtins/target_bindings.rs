@@ -145,6 +145,7 @@ impl TargetBinding {
         preferred_role_suffix: Option<String>,
         file_level_optimistic: bool,
         planned_name_authoritative: bool,
+        loop_variable: bool,
         reserve_in_nested_scopes: bool,
         private_temp: bool,
     ) -> Self {
@@ -172,7 +173,12 @@ impl TargetBinding {
             preferred_base,
             preferred_role_suffix,
             preferred_name_domain,
-            ordinary_temp_name_policy: if planned_name_authoritative {
+            // tsc `cloneNode` keeps `autoGenerate` whole: a re-created
+            // identifier of a `createLoopVariable` binding still names as
+            // the `_i` family at its first print-order event.
+            ordinary_temp_name_policy: if loop_variable {
+                OrdinaryTempNamePolicy::LoopVariable
+            } else if planned_name_authoritative {
                 OrdinaryTempNamePolicy::PlannedSpellingAuthoritative
             } else {
                 OrdinaryTempNamePolicy::FinalizerTraversal
@@ -536,6 +542,9 @@ enum BindingNameEvent {
         planned_name: String,
         reserve_in_nested_scopes: bool,
         derived_from: Option<GeneratedBindingId>,
+        /// Named at its traversal position only (tsc's print-time
+        /// colliding-name substitution is never pre-generated).
+        print_order: bool,
     },
     ExitScope,
 }
@@ -744,6 +753,7 @@ fn finalize_generated_binding_names_with_policy(
                 preferred_name_domain: None,
                 reserve_in_nested_scopes,
                 derived_from,
+                print_order: false,
                 ..
             } => {
                 if let Some(existing) = numbered_order
@@ -780,28 +790,85 @@ fn finalize_generated_binding_names_with_policy(
     });
     let printed_numbered_bindings: BTreeSet<_> =
         numbered_order.iter().map(|entry| entry.binding).collect();
-    for entry in &numbered_order {
-        // A derived binding appends its ordinal to the base binding's
-        // FINALIZED spelling (`getGeneratedNameForNode`); the recorded
-        // text base covers bases outside the numbered family.
-        // Only unprinted parents need an eager name. A printed parent has
-        // its own naming moment; allocating it here and again at that moment
-        // would consume two ordinals and overwrite its cached spelling.
-        if let Some(parent) = entry
-            .derived_from
-            .filter(|parent| !printed_numbered_bindings.contains(parent))
-        {
-            if let std::collections::btree_map::Entry::Vacant(entry) = assigned.entry(parent) {
+    // `generateNames` runs once per body at that body's naming moment, in
+    // emission order: the root moment's numbered names are assigned before
+    // the traversal, every nested moment's when the traversal enters it, so
+    // a print-time colliding-name substitution (`print_order`) emitted before
+    // a nested body is numbered before that body's hoisted aliases.
+    let carried_node_name = |node: TransformNode| -> Option<String> {
+        carried.and_then(|carried| {
+            let original = context.arena().get_original_node(node);
+            (original != node)
+                .then(|| {
+                    carried
+                        .node_names
+                        .get(&CarriedNodeKey {
+                            arena: arena_id,
+                            node: original,
+                        })
+                        .cloned()
+                })
+                .flatten()
+        })
+    };
+    #[allow(clippy::too_many_arguments)]
+    fn assign_numbered_entry(
+        index: usize,
+        numbered_order: &[NumberedAssignment],
+        printed_numbered_bindings: &BTreeSet<GeneratedBindingId>,
+        assigned: &mut BTreeMap<GeneratedBindingId, String>,
+        scopes: &mut GeneratedBindingScopes,
+        context: &TransformationContext,
+        global_name_oracle: Option<&dyn GlobalNameOracle>,
+        cached_binding: &dyn Fn(GeneratedBindingId) -> Option<String>,
+        carried_node_name: &dyn Fn(TransformNode) -> Option<String>,
+    ) -> Result<(), TransformError> {
+        let entry = &numbered_order[index];
+        if assigned.contains_key(&entry.binding) {
+            return Ok(());
+        }
+        if let Some(parent) = entry.derived_from {
+            if printed_numbered_bindings.contains(&parent) {
+                // `getGeneratedNameForNode` over a numbered binding names
+                // the parent at this derived identifier's first emission
+                // (`getTextOfNode` → `generateName`) when it is still
+                // unnamed.
+                if !assigned.contains_key(&parent) {
+                    if let Some(parent_index) = numbered_order
+                        .iter()
+                        .position(|candidate| candidate.binding == parent)
+                    {
+                        assign_numbered_entry(
+                            parent_index,
+                            numbered_order,
+                            printed_numbered_bindings,
+                            assigned,
+                            scopes,
+                            context,
+                            global_name_oracle,
+                            cached_binding,
+                            carried_node_name,
+                        )?;
+                    }
+                }
+            } else if let std::collections::btree_map::Entry::Vacant(vacant) =
+                assigned.entry(parent)
+            {
                 if let Some(name) = cached_binding(parent) {
-                    entry.insert(name);
+                    vacant.insert(name);
                 } else if let Some(base) = context.generated_binding_numbered_base(parent) {
                     let name = allocate_numbered_name_with_global_oracle(
-                        &mut scopes,
+                        scopes,
                         base,
                         false,
                         global_name_oracle,
                     )?;
-                    entry.insert(name);
+                    vacant.insert(name);
+                } else {
+                    // An ordinary temp parent the traversal has not named
+                    // yet: the derived identifier is named at its
+                    // traversal position, naming the temp first.
+                    return Ok(());
                 }
             }
         }
@@ -809,43 +876,65 @@ fn finalize_generated_binding_names_with_policy(
             .derived_from
             .and_then(|parent| assigned.get(&parent).cloned())
             .unwrap_or_else(|| entry.base.clone());
-        // The binding's own cached spelling first; then
-        // `generateNameCached`: a node-derived name generated by a failed
-        // print resolves to its cached spelling (`nodeIdToGeneratedName`,
-        // keyed by the node of this arena), while a fresh
-        // `createUniqueName` of the same text advances.
-        let cached = cached_binding(entry.binding).or_else(|| {
-            carried.and_then(|carried| {
-                let original = context.arena().get_original_node(entry.node);
-                (original != entry.node)
-                    .then(|| {
-                        carried
-                            .node_names
-                            .get(&CarriedNodeKey {
-                                arena: arena_id,
-                                node: original,
-                            })
-                            .cloned()
-                    })
-                    .flatten()
-            })
-        });
+        let cached = cached_binding(entry.binding).or_else(|| carried_node_name(entry.node));
         let name = match cached {
             Some(name) => name,
             None => allocate_numbered_name_with_global_oracle(
-                &mut scopes,
+                scopes,
                 &base,
                 entry.reserve_in_nested_scopes,
                 global_name_oracle,
             )?,
         };
         assigned.insert(entry.binding, name);
+        Ok(())
     }
+    let mut numbered_groups: BTreeMap<Vec<u32>, Vec<usize>> = BTreeMap::new();
+    for (index, entry) in numbered_order.iter().enumerate() {
+        numbered_groups
+            .entry(entry.moment_path.clone())
+            .or_default()
+            .push(index);
+    }
+    if let Some(group) = numbered_groups.remove(&Vec::new()) {
+        for index in group {
+            assign_numbered_entry(
+                index,
+                &numbered_order,
+                &printed_numbered_bindings,
+                &mut assigned,
+                &mut scopes,
+                context,
+                global_name_oracle,
+                &cached_binding,
+                &carried_node_name,
+            )?;
+        }
+    }
+    let mut walk_path: Vec<u32> = Vec::new();
+    let mut walk_ordinal: u32 = 0;
     let mut naming_moment_stack = Vec::new();
     for event in events {
         match event {
             BindingNameEvent::EnterNamingMoment => {
                 naming_moment_stack.push(scopes.enter_naming_moment());
+                walk_ordinal += 1;
+                walk_path.push(walk_ordinal);
+                if let Some(group) = numbered_groups.remove(&walk_path) {
+                    for index in group {
+                        assign_numbered_entry(
+                            index,
+                            &numbered_order,
+                            &printed_numbered_bindings,
+                            &mut assigned,
+                            &mut scopes,
+                            context,
+                            global_name_oracle,
+                            &cached_binding,
+                            &carried_node_name,
+                        )?;
+                    }
+                }
             }
             BindingNameEvent::ExitNamingMoment => {
                 let (previous, completed) =
@@ -856,9 +945,27 @@ fn finalize_generated_binding_names_with_policy(
                             field: "generated-binding naming moment",
                         })?;
                 scopes.exit_naming_moment(previous, completed);
+                walk_path.pop();
             }
             BindingNameEvent::EnterScope(owner) => {
                 scope_stack.push(scopes.enter(owner));
+                walk_ordinal += 1;
+                walk_path.push(walk_ordinal);
+                if let Some(group) = numbered_groups.remove(&walk_path) {
+                    for index in group {
+                        assign_numbered_entry(
+                            index,
+                            &numbered_order,
+                            &printed_numbered_bindings,
+                            &mut assigned,
+                            &mut scopes,
+                            context,
+                            global_name_oracle,
+                            &cached_binding,
+                            &carried_node_name,
+                        )?;
+                    }
+                }
             }
             BindingNameEvent::Identifier {
                 node,
@@ -870,7 +977,8 @@ fn finalize_generated_binding_names_with_policy(
                 ordinary_temp_name_policy,
                 planned_name,
                 reserve_in_nested_scopes,
-                derived_from: _,
+                derived_from,
+                print_order,
             } => {
                 // Print-time naming starts every print from the base
                 // spelling, as tsc's makeUniqueName does: neither the
@@ -978,14 +1086,50 @@ fn finalize_generated_binding_names_with_policy(
                                         .allocate_planned_file_wide_optimistic(&base, planned_name)
                                 }
                             }
+                            (Some(base), None, None, None) if print_order => {
+                                // tsc's print-time colliding-name
+                                // substitution: numbered at this emission
+                                // position, never pre-generated.
+                                let _ = &planned_name;
+                                allocate_numbered_name_with_global_oracle(
+                                    &mut scopes,
+                                    &base,
+                                    reserve_in_nested_scopes,
+                                    global_name_oracle,
+                                )?
+                            }
                             (Some(base), None, None, None) => {
-                                // Pre-assigned in phase 2 (scope-pass
-                                // order); reaching this arm means the
-                                // binding escaped phase 1.
-                                let _ = (&base, &planned_name);
-                                unreachable!(
-                                    "source-numbered binding missed the scope-pass assignment"
-                                )
+                                // Deferred from the scope pass: a binding
+                                // derived from an ordinary temp names that
+                                // temp first, here, then numbers off its
+                                // spelling (`_e` → `_e_1`). Any other
+                                // numbered binding is pre-assigned in phase 2.
+                                let Some(parent) = derived_from else {
+                                    let _ = (&base, &planned_name);
+                                    unreachable!(
+                                        "source-numbered binding missed the scope-pass assignment"
+                                    )
+                                };
+                                let parent_name = match assigned.get(&parent) {
+                                    Some(name) => name.clone(),
+                                    None => {
+                                        let name = allocate_ordinary_temp_name(
+                                            &mut scopes,
+                                            String::new(),
+                                            false,
+                                            OrdinaryTempNamePolicy::FinalizerTraversal,
+                                        );
+                                        temp_ordinals.insert(parent, scopes.current_temp_ordinal());
+                                        assigned.insert(parent, name.clone());
+                                        name
+                                    }
+                                };
+                                allocate_numbered_name_with_global_oracle(
+                                    &mut scopes,
+                                    &parent_name,
+                                    reserve_in_nested_scopes,
+                                    global_name_oracle,
+                                )?
                             }
                             (None, None, None, None) => allocate_ordinary_temp_name(
                                 &mut scopes,
@@ -1026,6 +1170,7 @@ fn finalize_generated_binding_names_with_policy(
                             field: "generated-binding function scope",
                         })?;
                 let _ = scopes.exit(previous, completed);
+                walk_path.pop();
             }
         }
     }
@@ -1485,6 +1630,9 @@ fn collect_binding_name_events(
         let derived_from = arena
             .metadata(node)
             .and_then(|metadata| metadata.generated_binding_derived_from());
+        let print_order = arena
+            .metadata(node)
+            .is_some_and(|metadata| metadata.generated_binding_print_order());
         events.push(BindingNameEvent::Identifier {
             node,
             binding,
@@ -1496,6 +1644,7 @@ fn collect_binding_name_events(
             planned_name,
             reserve_in_nested_scopes,
             derived_from,
+            print_order,
         });
     }
     let syntax = arena.source(source)?.syntax();
@@ -1534,10 +1683,10 @@ fn collect_function_body_declaration_name_events(
     let mut arrays = Vec::new();
     match &record.data {
         NodeData::Identifier(_) => {
-            if arena
-                .metadata(node)
-                .is_some_and(|metadata| metadata.generated_binding_id().is_some())
-            {
+            if arena.metadata(node).is_some_and(|metadata| {
+                metadata.generated_binding_id().is_some()
+                    && !metadata.generated_binding_print_order()
+            }) {
                 collect_binding_name_events(arena, source, node, false, events)?;
             }
         }

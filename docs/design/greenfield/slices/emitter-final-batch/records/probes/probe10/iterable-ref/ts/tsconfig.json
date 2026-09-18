@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es2015", "lib": ["es5"], "sourceMap": true, "outDir": "out", "newLine": "lf" }, "files": ["main.ts"] }

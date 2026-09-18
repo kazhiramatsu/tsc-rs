@@ -1,0 +1,52 @@
+{
+ "old": {
+  "host_use_case_sensitive_file_names": true,
+  "writes": [
+   {
+    "path": "/.src/Folder/monorepo/core/index.js",
+    "sha256": "7123d25a79f78b4e78f8efa24d265e8d6ad920720fce64801944254133e58307",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\nexports.getStyles = getStyles;\r\nconst package_a_1 = require(\"package-a\");\r\nfunction getStyles() {\r\n    return package_a_1.styles;\r\n}\r\n"
+   },
+   {
+    "path": "/.src/Folder/monorepo/core/index.d.ts",
+    "sha256": "9e3bed4390a9e83cc83d35cf768f8d7c3027d607818d3ddc1ed7b9bea7faed52",
+    "bom": false,
+    "text": "export declare function getStyles(): any;\r\n"
+   }
+  ],
+  "diagnostics": [
+   {
+    "code": 2307,
+    "file": "/.src/Folder/monorepo/core/index.ts",
+    "message": "Cannot find module 'package-a' or its corresponding type declarations."
+   }
+  ],
+  "exit": 2
+ },
+ "new": {
+  "host_use_case_sensitive_file_names": false,
+  "writes": [
+   {
+    "path": "/.src/Folder/monorepo/core/index.js",
+    "sha256": "7123d25a79f78b4e78f8efa24d265e8d6ad920720fce64801944254133e58307",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\nexports.getStyles = getStyles;\r\nconst package_a_1 = require(\"package-a\");\r\nfunction getStyles() {\r\n    return package_a_1.styles;\r\n}\r\n"
+   },
+   {
+    "path": "/.src/Folder/monorepo/core/index.d.ts",
+    "sha256": "9e3bed4390a9e83cc83d35cf768f8d7c3027d607818d3ddc1ed7b9bea7faed52",
+    "bom": false,
+    "text": "export declare function getStyles(): any;\r\n"
+   }
+  ],
+  "diagnostics": [
+   {
+    "code": 2307,
+    "file": "/.src/Folder/monorepo/core/index.ts",
+    "message": "Cannot find module 'package-a' or its corresponding type declarations."
+   }
+  ],
+  "exit": 2
+ }
+}

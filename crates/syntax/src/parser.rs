@@ -9683,15 +9683,11 @@ impl<'text> Parser<'text> {
                 continue;
             }
             if kind == SyntaxKind::ExpressionStatement
-                && matches!(
-                    &self.arena.node(host).data,
-                    NodeData::ExpressionStatement(data)
-                        if data.expression.is_some_and(|expression| {
-                            let expression = self.arena.node(expression);
-                            expression.kind == SyntaxKind::ParenthesizedExpression
-                                && expression.pos as usize == pos
-                        })
-                )
+                && self
+                    .source_text
+                    .as_bytes()
+                    .get(crate::skip_trivia(self.source_text, pos))
+                    == Some(&b'(')
             {
                 // parseExpressionOrLabeledStatement explicitly clears its
                 // hasJSDoc bit when the expression began with `(`.
