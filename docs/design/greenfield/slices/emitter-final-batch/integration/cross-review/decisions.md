@@ -113,3 +113,93 @@ comment-parse-boundaries-r17.jsonに根拠を保存した。
 
 追加のcapture経路にもconfig planのoption診断を渡し、主比較と同じ完全commandを
 保存する。relation overflowは上流と同じくincompatible stackを報告してから処理する。
+
+
+## Round 18–19: hosted regressions and entry-family semantics
+
+91e3b214b2ebの全23 hosted checksを保存した。18成功・5失敗で、実失敗は
+acceptance early / late / controlsの3群、残り2は集約gateである。
+earlyの38退行identityはT3 related-info 25行とT4 13ケースであり、全25行の
+他の診断fieldは不変。legacy checker oracleはnoLibでlibrary文書を通常rootとして
+渡すため、prefix格納をDEFAULT_LIBRARY所属と見なすのが誤りだった。
+Claude round18の第二のboolean案は採らず、round19で既存ProgramFileFactsを
+内部共有入口へ渡す案で一致した。legacy cached/uncached/preparedはORDINARY、
+owned/authoritativeはDEFAULT_LIBRARYを保持する。cache共有と
+LibraryPrefixCompletionはProgram所属を変更しない。各入口を同じTS2322/6501で
+対比するunitを追加し、全conformanceで元のaccepted集合を再検証する。
+
+lateのES5For-of20は、内側for-ofのbinding宣言が通常変数宣言の生成名materializationを
+通らず、finalizerの出力順情報が欠けていた。Codexがv2/v3の入替を完全commandで再現し、
+既存colliding_declaration_name_substituteを同じ宣言生成箇所へ接続した。
+Claude round19の「reference cache lookup自体が無い」は不正確で、既存lookupはある。
+不足はbinding宣言側の生成名metadataであり、referenceの全体的な書き換えは行わない。
+原形・3重nest・pattern head・captured loop × ES5/ES2015 × downlevelIteration on/offの
+16完全command対照を追加する。最終corpusは496選択、期待484 exact＋12 typed boundary。
+
+controlsのbundle manifestは現行D/E観測artifactの参照hashだけが古かった。
+immutable v1を保存し、公式writerでv2を新規作成した。4入力の完全TypeScript観測は
+各2回不変で、manifest差分は参照先hashだけである。失敗を期待値緩和で隠さない。
+macOS CLIの旧outFile拒否assertionも現在のTypeScript完全比較へ更新した。
+round18/19は実際のClaude Fable 5.1の回答を保存し、rate limitは発生していない。
+修復完了は以後のnative再生と新しいimmutable headのhosted結果で判定する。
+
+
+r19追加16対照は実測12 exact×2 / 4 failure。原形と3重nestは両target/iterationで一致。
+ES5のpattern head 2行には同じ生成名materialization欠落、captured loop 2行には
+call引数のmap境界欠落が残った。完全captureをforof-adjacent-r19.json.gzへ保存した。
+前者はshared binding flattenの返却宣言、後者はupstreamが元nameを渡す箇所での
+不要cloneとprint substitutionによるrange喪失としてCodexが追跡し、round21で照合する。
+追加行を削除せず、KNOWNへ追加もしない。
+
+
+## Round 20–22: adjacent repairs and recovery continuation
+
+round21で、binding flattenの返却宣言をES2015 ownerの薄いwrapperでmaterializeする案と、
+converted-loop callにparsed parameter.nameを直接渡す案に合意した。共有flattener traitや
+全substitutionのmap規則は変えない。5 callerを同じwrapperへ接続し、28隣接対照を追加する。
+通常array/object、catch、parameter、捕捉するplain/pattern、initializer内の同名bindingを
+ES5/ES2015 × downlevelIteration on/offで確認する。最後の形はreviewが述べた既存限界を
+実測する対照であり、未検証の仮説を既知差分免除に用いない。
+前496入力を保持し、新しい期待は524選択 / 512 exact / 12 typed boundaries。
+
+checker1739・syntax175 unitはr19修正で全成功。library所属の7入口対照も通過した。
+最終の広いacceptanceとhostedは、for-of追加対照の解消後に進める。
+
+round20の再検討で、parse36はいずれも通常emit内であり、別製品へ分類して閉じるべきではないと
+確認した。missing-Identifierのみ24、skipを含むasync8、MissingDeclaration2、top-level reparse2。
+追加malformed-comment12もskipを含む。純report-onlyは0。Codexも凍結入力のTypeScript ASTを
+独立採取した。既存printerには空rangeの扱いがあり、「missing専用grepが0なので未実装」とは
+判断しない。まずadmission不変でparser factsとcensusを用意し、実node形状と完全emit観測を
+確認してから段階的に許可する。大きいことだけを理由に作業終了とはしない。
+metadataの後付けがspeculation rollbackやreparse所有を壊さない設計をround22で照合中。
+
+
+r21の44対照は42 exact×2 / 2 failure。元4 failureはすべて解消した。
+追加ES2015 object restの2行だけ、JS不変でequals tokenの余分なmap segmentを検出。
+18形状/targetの実CLI追加probeでもES5/ES2018は12 exact、ES2015の6形状だけmap差を再現した。
+object/arrayのretained patternへ元全体のraw rangeを付けるproducerが原因候補で、
+upstream fresh patternと比較してround23で照合する。CLI probeは各1回の探索であり、
+最終2回の完全command証拠とは区別する。r21のinitializer同名binding仮説対照は全exactで、
+reviewが述べた既存限界をこの入力で確認できたとは扱わない。
+
+
+round23はobject/array retained patternをfresh factory nodeのままにする修復で一致した。
+余分なsegmentはpattern末尾のrange由来であり、当初の「equals token自身のmap」という
+Codex仮説を訂正する。返却declaration/assignmentのrangeとretained leafの位置は不変。
+ES2018側の2つのrange/original付与を削除し、実CLIで再現した6形状とcomment境界・通常patternの
+3形状を各ES5/ES2015/ES2018へ展開した27完全command対照を追加する。
+前524観測を保持し、551選択（期待539 exact＋12 typed boundary）で再検証する。
+ES2015 for-ofの説明コメントも訂正した。上流は生成binding statementを再visitするのではなく、
+parsed nameをprint時にsubstituteする。修復はそのbindingを名前確定walkにmaterializeするもの。
+現DestructuringPlanのoriginalとlocationの区別不足はsource上の注意点として残すが、
+今回実証した余分mapの修復へ広いplan再構成を混ぜない。追加の反例が出れば実測に基づいて扱う。
+
+
+r23の追加71対照は全71 exact×2 / known 0 / failure 0（514.821秒、うちtest112.05秒）。
+旧524ケースのTypeScript完全観測が不変であることをretained-pattern-controls.v1.jsonへ固定した。
+551ケースのoracleは各2回一致し、planner82・policy・fmtも成功した。
+
+round24も実Claude Fableで照合した（limitなし）。missingのFULL-start独立保持、fresh event index、
+append-only skip/reparseを確認。incrementalではskip spanのみ再利用を拒否し、Reparsed action
+自身は無条件で再作成されるため再利用拒否に含めない。後のadmissionではreachable missing
+とeventの1対1対応も要求する。実装・native census・完全emit確認はこの候補の次段で行う。

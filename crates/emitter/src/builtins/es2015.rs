@@ -4226,8 +4226,7 @@ impl Es2015Visitor<'_, '_, '_> {
     ) -> Result<bool, TransformError> {
         if self.binding_pattern_has_elements(name)? {
             let rval = self.get_generated_name_for_node(parameter)?;
-            let declarations = flatten_destructuring_binding(
-                self,
+            let declarations = self.flatten_destructuring_binding_materialized(
                 parameter,
                 FlattenLevel::All,
                 Some(rval),
@@ -4426,8 +4425,7 @@ impl Es2015Visitor<'_, '_, '_> {
         self.start_on_new_line(for_statement)?;
         prologue_statements.push(for_statement);
         if !name_is_identifier {
-            let declarations = flatten_destructuring_binding(
-                self,
+            let declarations = self.flatten_destructuring_binding_materialized(
                 parameter,
                 FlattenLevel::All,
                 Some(expression_name),
@@ -5798,6 +5796,35 @@ impl Es2015Visitor<'_, '_, '_> {
         })
     }
 
+    /// Materialize the declaration names produced by the shared flattener
+    /// just as ordinary ES2015 declarations do. The parsed leaf is renamed
+    /// during printing upstream; this owner records the same generated
+    /// identity before the composed-tree naming walk.
+    fn flatten_destructuring_binding_materialized(
+        &mut self,
+        node: TransformNode,
+        level: FlattenLevel,
+        value: Option<TransformNode>,
+        hoist_temp_variables: bool,
+        skip_initializer: bool,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let mut declarations = flatten_destructuring_binding(
+            self,
+            node,
+            level,
+            value,
+            hoist_temp_variables,
+            skip_initializer,
+        )?;
+        for declaration in &mut declarations {
+            let name = get_name_of_declaration(self.context, *declaration)?;
+            if let Some(generated) = self.colliding_declaration_name_substitute(name)? {
+                *declaration = self.update_variable_declaration_name(*declaration, generated)?;
+            }
+        }
+        Ok(declarations)
+    }
+
     /// tsc-port: visitVariableDeclaration @6.0.3
     /// tsc-hash: e60df465c1dafe75387852d60a455f4b45ac1e8dbf10429cfd0a0b461dce0de2
     /// tsc-span: _tsc.js:106473-106491
@@ -5823,8 +5850,7 @@ impl Es2015Visitor<'_, '_, '_> {
         let updated = if self.is_binding_pattern(name)? {
             // `hoistTempVariables = (ancestorFacts & ExportedVariableStatement) !== 0`
             let exported = ancestor.intersects(HierarchyFacts::EXPORTED_VARIABLE_STATEMENT);
-            let declarations = flatten_destructuring_binding(
-                self,
+            let declarations = self.flatten_destructuring_binding_materialized(
                 node,
                 FlattenLevel::All,
                 /*rval*/ None,
@@ -6116,8 +6142,7 @@ impl Es2015Visitor<'_, '_, '_> {
             let new_variable_declaration = self.create_variable_declaration_plain(temp, None)?;
             self.set_text_range(new_variable_declaration, variable_declaration)?;
             let temp_reference = self.create_generated_identifier(&temp_binding)?;
-            let vars = flatten_destructuring_binding(
-                self,
+            let vars = self.flatten_destructuring_binding_materialized(
                 variable_declaration,
                 FlattenLevel::All,
                 Some(temp_reference),
@@ -12037,13 +12062,10 @@ impl Es2015Visitor<'_, '_, '_> {
                         "loop parameter name",
                     ))?
             };
-            // `map(state.loopParameters, p => p.name)` passes the parsed
-            // name NODE itself, whose range records in the map; the arena
-            // clone stays, so the donor's range rides as an explicit
-            // source-map range (h2-6a-m-2 §8-A).
-            let argument = self.clone_node(name)?;
-            self.set_source_map_range_from(argument, name)?;
-            call_arguments.push(argument);
+            // Upstream passes the parsed parameter name itself. Preserve
+            // its range for print-time colliding-name substitution as well
+            // as for the ordinary identifier map path.
+            call_arguments.push(name);
         }
         let call = self.create_call(function_reference, call_arguments)?;
         let call_result = if contains_yield {
@@ -12385,8 +12407,7 @@ impl Es2015Visitor<'_, '_, '_> {
             };
             if first_is_pattern {
                 let declaration = first_original_declaration.expect("pattern declaration");
-                let flattened = flatten_destructuring_binding(
-                    self,
+                let flattened = self.flatten_destructuring_binding_materialized(
                     declaration,
                     FlattenLevel::All,
                     Some(bound_value),
@@ -12431,6 +12452,12 @@ impl Es2015Visitor<'_, '_, '_> {
                         self.create_generated_identifier(&binding)?
                     }
                 };
+                // Upstream substitutes the parsed declaration name while
+                // printing. Materialize that binding here so the composed-
+                // tree finalizer observes its emission order.
+                let declaration_name = self
+                    .colliding_declaration_name_substitute(declaration_name)?
+                    .unwrap_or(declaration_name);
                 let declaration =
                     self.create_variable_declaration_plain(declaration_name, Some(bound_value))?;
                 let list = self.create_variable_declaration_list(vec![declaration])?;

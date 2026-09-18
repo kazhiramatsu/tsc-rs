@@ -1,0 +1,14 @@
+補助CLI再現(forof20-cli-r18.json): TypeScriptは内側header参照/loop変数v_2、内側const v_3。
+Rustはheader/loop変数v_3、内側const v_2へ逆転する。診断は別途原コマンドで検査する。
+
+source候補: es2015.rs convert_for_of_statement_headの非pattern宣言（現在12415付近）が
+original declarationのnameをそのままcreate_variable_declaration_plainへ渡す。
+通常variable declarationはr11でcolliding_declaration_name_substituteを呼ぶようになり、
+内側constだけがfinalizerのprint-order naming eventに現れる。loop declarationは現れず
+print-time substitution時にprovisional v_3へfall backしてしまう。
+
+最小案: この非pattern for-of declaration nameにも既存
+colliding_declaration_name_substituteを適用する。新しい生成名状態は作らず、同じbinding
+identityとprint-order metadataを用いる。参照は既存print-timeのキャッシュを利用する。
+元H2.5h932行を再生し、loop/pattern・alias・map側の全回帰も既存acceptanceで検査する。
+（conformanceビルド中につきまだRustは編集していない。）

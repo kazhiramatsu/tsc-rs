@@ -435,6 +435,77 @@ for (const target of ['es2015', 'es2022', 'esnext'])
       `declare const object: { x: number } | undefined;\nexport const value = ${expression};\n`,
       { module: 'esnext', target, importHelpers: false, removeComments });
 assert.equal(inputs.length, 480);
+// For-of binding statements must participate in the same naming order as
+// ordinary declarations, including nested patterns and converted loop bodies.
+for (const target of ['es5', 'es2015'])
+  for (const downlevelIteration of [false, true])
+    for (const [shape, text] of [
+      ['original-shape', 'for (let v of []) { let v; for (let v of [v]) { const v; } }'],
+      ['three-level', 'for (let v of []) { let v; for (let v of [v]) { let v; for (let v of [v]) { let v; } } }'],
+      ['pattern-head', 'for (let v of []) { let v; for (let [v] of [[v]]) { let v; } }'],
+      ['captured-loop', 'declare function use(f: () => unknown): void; for (let v of []) { let v; for (let v of [v]) { use(() => v); } }'],
+    ]) add(`emitter-audit/forof-naming/${target}/iteration-${downlevelIteration}`, shape, text + '\n',
+      { module: 'commonjs', target, strict: false, alwaysStrict: true, downlevelIteration,
+        importHelpers: false, ignoreDeprecations: '6.0' });
+assert.equal(inputs.length, 496);
+// Shared binding-flatten callers and converted-loop argument provenance.
+for (const target of ['es5', 'es2015'])
+  for (const downlevelIteration of [false, true])
+    for (const [shape, text] of [
+      ['block-array', 'for (let v of []) { let v; { let [v, w] = [v, 1]; } }'],
+      ['block-object-rest', 'declare const o: {a?: number, b: number}; let v; { let { a: v = 1, ...r } = o; }'],
+      ['catch-pattern', 'let v; try {} catch ({ v }) {} let w;'],
+      ['captured-plain', 'declare const xs: number[]; declare function use(f: () => unknown): void; for (let i of xs) { use(() => i); }'],
+      ['captured-pattern', 'declare function use(f: () => unknown): void; for (let v of []) { let v; for (let [v] of [[v]]) { use(() => v); } }'],
+      ['parameter-patterns', 'function f({ v } = {v: 1}) { { let v; } } function g(...[v]: number[]) { { let v; } }'],
+      ['initializer-nested-binding', 'let v; { let [v] = [v, (() => { let v; })()]; }'],
+    ]) add(`emitter-audit/forof-adjacent/${target}/iteration-${downlevelIteration}`, shape, text + '\n',
+      { module: 'commonjs', target, strict: false, alwaysStrict: true, downlevelIteration,
+        importHelpers: false, ignoreDeprecations: '6.0' });
+assert.equal(inputs.length, 524);
+// Retained rest chunks have synthetic container ranges; leaf ranges survive.
+for (const target of ['es5', 'es2015', 'es2018'])
+  for (const [shape, text] of [
+  [
+    "object-default",
+    "declare const o: {a?: number, b: number}; let v; { let { a: v = 1, ...r } = o; }"
+  ],
+  [
+    "array-binding",
+    "declare const xs: {a: number, b: number}[]; const [{a, ...r}] = xs;"
+  ],
+  [
+    "array-assignment",
+    "declare const xs: {a: number, b: number}[]; let a: number, r: object; ([{a, ...r}] = xs);"
+  ],
+  [
+    "object-comments",
+    "declare const o: {a: number, b: number}; const { /* before */ a /* after */, ...r } = o;"
+  ],
+  [
+    "array-comments",
+    "declare const xs: {a: number, b: number}[]; const [ /* before */ {a, ...r} /* after */ ] = xs;"
+  ],
+  [
+    "object-computed-chunks",
+    "declare const o: {a: number, b: number, c: number}; const key = \"b\"; const {a, [key]: b, ...r} = o;"
+  ],
+  [
+    "object-boundary-comments",
+    "declare const o: {a?: number, b: number}; { let { a: v = 1 /*c1*/, /*c2*/ ...r } /*c3*/ = o; }"
+  ],
+  [
+    "array-boundary-comments",
+    "declare const xs: [number, {b: number, c: number}]; let [a /*c1*/, /*c2*/ {b, ...r}] /*c3*/ = xs;"
+  ],
+  [
+    "ordinary-patterns",
+    "declare const o: {a?: number}; declare const xs: number[]; let {a: v = 1} = o; let [a, b] = xs;"
+  ]
+]) add(`emitter-audit/retained-pattern-maps/${target}`, shape, text + '\n',
+    { module: 'commonjs', target, strict: false, alwaysStrict: true,
+      importHelpers: false, ignoreDeprecations: '6.0' });
+assert.equal(inputs.length, 551);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),

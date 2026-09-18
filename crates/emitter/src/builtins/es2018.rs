@@ -3387,10 +3387,10 @@ impl<'context> Es2018Visitor<'context> {
                 self.flatten_object_pattern(plan, target, data.properties, value, original)
             }
             NodeData::ArrayBindingPattern(data) => {
-                self.flatten_array_pattern(plan, target, data.elements, value, original)
+                self.flatten_array_pattern(plan, data.elements, value, original)
             }
             NodeData::ArrayLiteralExpression(data) => {
-                self.flatten_array_pattern(plan, target, data.elements, value, original)
+                self.flatten_array_pattern(plan, data.elements, value, original)
             }
             _ => {
                 let target = match plan.mode {
@@ -3457,7 +3457,7 @@ impl<'context> Es2018Visitor<'context> {
             let element = self.pattern_element(node)?;
             if element.rest {
                 if index + 1 == elements.len() {
-                    self.flush_object_pattern_chunk(plan, pattern, &mut retained, value, original)?;
+                    self.flush_object_pattern_chunk(plan, &mut retained, value, original)?;
                     let rest = self.create_object_rest_call(
                         plan.helper_request_mode,
                         value,
@@ -3498,7 +3498,7 @@ impl<'context> Es2018Visitor<'context> {
                 continue;
             }
 
-            self.flush_object_pattern_chunk(plan, pattern, &mut retained, value, original)?;
+            self.flush_object_pattern_chunk(plan, &mut retained, value, original)?;
             let property_key = property_key.ok_or(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(element.original)?.kind,
                 field: "property name",
@@ -3510,13 +3510,12 @@ impl<'context> Es2018Visitor<'context> {
             }
             self.flatten_pattern_element(plan, element, property_value)?;
         }
-        self.flush_object_pattern_chunk(plan, pattern, &mut retained, value, original)
+        self.flush_object_pattern_chunk(plan, &mut retained, value, original)
     }
 
     fn flush_object_pattern_chunk(
         &mut self,
         plan: &mut DestructuringPlan,
-        original_pattern: TransformNode,
         retained: &mut Vec<TransformNode>,
         value: TransformNode,
         original: Option<TransformNode>,
@@ -3525,18 +3524,16 @@ impl<'context> Es2018Visitor<'context> {
             return Ok(());
         }
         let pattern = self.create_object_pattern(plan.mode, std::mem::take(retained))?;
-        if plan.mode == DestructuringMode::Binding {
-            self.set_original_and_range(pattern, original_pattern)?;
-        }
-        // makeObjectAssignmentPattern creates a fresh object literal. Its
-        // chunk no longer spans the original rest element or closing brace.
+        // Both binding and assignment chunks are fresh patterns upstream.
+        // The resulting declaration/assignment and retained elements carry
+        // their own locations; the chunk no longer spans the rest element
+        // or the original closing brace.
         self.plan_push(plan, pattern, value, original)
     }
 
     fn flatten_array_pattern(
         &mut self,
         plan: &mut DestructuringPlan,
-        pattern: TransformNode,
         elements: Option<NodeArrayId>,
         value: TransformNode,
         original: Option<TransformNode>,
@@ -3584,7 +3581,6 @@ impl<'context> Es2018Visitor<'context> {
             }
         }
         let retained_pattern = self.create_array_pattern(plan.mode, retained)?;
-        self.set_original_and_range(retained_pattern, pattern)?;
         self.plan_push(plan, retained_pattern, value, original)?;
         for (element, read) in deferred {
             self.flatten_pattern_element(plan, element, read)?;

@@ -204,3 +204,36 @@ recovery_events=4、owner=H2.9、partial writes=[]まで厳密に2回固定す�
 `as`を改行前へ置いた有効構文12行を別に追加する。最終480選択の期待は
 468 exactと12 typed boundariesであり、互換成功を480とは報告しない。
 EF7残36とは別の観測集合なので足して製品欠陥数にはしない。
+
+
+## Hosted round 18–19の追加修復
+
+91e3b214b2ebは全23 checks中18成功・5失敗。失敗logを保存し、原因を
+[cross-review/decisions.md](cross-review/decisions.md)でClaudeと照合した。
+legacy checker入口のlibrary所属をORDINARYへ戻し、owned/authoritativeの
+DEFAULT_LIBRARY所属を保持した。診断のrelated-infoだけが失われた25行と13ケースを
+全conformanceで再確認する。for-of生成名は既存宣言materializationへ接続し、
+16隣接対照を追加した。最終496選択の期待は484 exactと12 typed boundariesであり、
+以前の480入力と観測は不変とする。bundle manifestは歴史的v1を残してv2へ移行した。
+再検証結果は追記する。新しい未解決境界をKNOWNへ足す修正ではない。
+
+
+r21追加検証は前496入力を保ち28対照を追加し、524選択（期待512 exact＋12 typed boundary）とする。
+for-ofの原形だけでは見えなかったpattern生成名とconverted-loop mapの4差分を検出したため、
+ES2015 ownerのbinding materializationとparsed引数node再利用で修復し再測定する。
+checker1739・syntax175 unitは成功した。
+
+parse36はr20の再検討で通常emit内の作業と確認した。上記「後続」の分類を作業終了条件には
+使わず、admission不変のfacts/censusから継続する。純report-onlyは0で、まずmissing-Identifier
+のみの24行を既存printer/transformの実測で評価し、skip/reparse等を段階的に扱う。
+
+
+r23でES2018 retained object/array patternの余分な全体rangeを除去した。
+返却declaration/assignmentとleafのsource範囲は保持する。27対照追加後は
+551選択（期待539 exact＋12 typed boundary）。前524の入力・TypeScript観測は保持して再測定する。
+
+
+2026-09-19 r23: for-of周辺44とretained-pattern/map27の合計71追加対照は全exact×2。
+TypeScript oracle全551×2、planner82、policy、fmtも成功。checker1739＋syntax175はr19で成功。
+このsourceを固定して既存acceptance・emitter/CLI/transpile・EF7を再検証する。
+parse36は通常emitの残作業として継続し、r22/r24の共同設計に従ってparser factsから実装する。

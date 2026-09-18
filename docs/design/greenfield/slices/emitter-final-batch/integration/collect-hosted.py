@@ -93,7 +93,7 @@ def main():
             "bundle metadata t1 SUMMARY exact=18 known=0 failed=0 selected=18",
             "bundle metadata t1 PACKET SUMMARY exact=15 known=0 failed=0 probed=15"],
         "witnesses (emitter-final)": [
-            "external helper imports SUMMARY exact=468 known=12 failed=0 selected=480",
+            "external helper imports SUMMARY exact=539 known=12 failed=0 selected=551",
             "emitter final rows SUMMARY exact=21 known=0 failed=0 selected=21",
             "EF4/EF5 SUMMARY exact=40 failed=0 selected=40", "EF6 SUMMARY exact=14 selected=14",
             "selected 217/217 / exact 216 / known 1 / failed 0"],
@@ -137,7 +137,7 @@ def main():
                   replay_longest_seconds=max(j["seconds"] for j in replay), workers=2,
                   required_observations=required, plan_base={"exact": 1763, "known": 35, "failed": 0},
                   timing_excludes=["plans", "gates", "main push"],
-                  additional_command_controls={"selected": 480, "exact": 468, "typed_parse_boundaries": 12},
+                  additional_command_controls={"selected": 551, "exact": 539, "typed_parse_boundaries": 12},
                   remaining_known={"parse_recovery": 36, "resolution": 0, "helper_collision": 0, "checker": 0})
     (OUT / "receipt.v1.json").write_text(json.dumps(record, indent=2) + "\n")
     print("FINAL_RECEIPT_VERIFIED")

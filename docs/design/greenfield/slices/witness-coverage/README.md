@@ -2,7 +2,7 @@
 
 2026-09-17。統合担当：Codex。**最終emitter向けCI予算整備をPR #557で統合。全10 replay job・両gateを含む14 checks成功。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v27.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v28.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -207,3 +207,9 @@ compiler contracts内のCLI58・helper/追加対照480（468 exact＋12 typed bo
 7 exact-name testsを明記する。新規fixtureは専用suiteを選択し、shared source変更は
 既存全群を保つ。v26は最初のCI候補の履歴として保持する。v27のsource commitとhashを
 最終source commit後に固定する。
+
+
+v28はfor-of生成名とretained-pattern mapの追加71完全commandとbundle原形のmanifest v2参照を反映する。
+以前の480 helper/ordinary inputsと観測、bundleの4入力と観測は保持する。
+helper/ordinaryの551選択は539 exactと12 typed boundaryに分け、境界を成功数へ含めない。
+v27は前候補の履歴として保持する。

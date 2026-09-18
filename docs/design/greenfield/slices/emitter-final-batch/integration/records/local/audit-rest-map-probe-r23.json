@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/tmp/emitter-rest-map-probe-r23.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T17:09:00.962855+00:00",
+  "head": "52f0247d38e91facb8e70a0285a7397520f45da1",
+  "tracked_clean": false,
+  "diff_sha256": "3e8d9584836afbb5dffd2e7be1463fc330a0c22b37e1441b612a42902efe9828",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 1,
+  "seconds": 29.119,
+  "log_sha256": "61da5d894c8f053a6e8844dfc928d2504141fcecfd18f12dca22db34ddd216f4",
+  "log_bytes": 660
+}

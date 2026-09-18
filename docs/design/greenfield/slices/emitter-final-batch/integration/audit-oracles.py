@@ -8,7 +8,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[6]
 records = []
 for script, name, old_count, new_count in (
-    ("scripts/observe-import-helpers.mjs", "crates/compiler/tests/fixtures/import-helpers.json", 111, 480),
+    ("scripts/observe-import-helpers.mjs", "crates/compiler/tests/fixtures/import-helpers.json", 111, 551),
     ("scripts/observe-output-directory-corpus.mjs", "ratchets/h2-8a-output-directory-corpus.v1.json", 23, 23),
 ):
     path = ROOT / name

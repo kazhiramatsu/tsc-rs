@@ -137,7 +137,7 @@ COMPILER_DIRECT = {
         "test": "original_javascript_declaration_bundles_match_typescript_twice",
         "tests": 1,
         "filtered_tests": 3,
-        "fixtures": (("docs/design/greenfield/slices/witness-coverage/compiler-module-facets/original-javascript-inputs.v1.json",
+        "fixtures": (("docs/design/greenfield/slices/witness-coverage/compiler-module-facets/original-javascript-inputs.v2.json",
                       4, "case_id"),),
         # Shared ratchet/oracle dependencies retain the planner's full fallback.
         "observers": ("scripts/observe-bundle-original-javascript.mjs",),

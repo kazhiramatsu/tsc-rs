@@ -75,7 +75,7 @@ def case_ids(suite):
     historical.append("EF3-shared-H2.6a/typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern.ts#target%3Des2015")
     return (historical + universe + ids(FIXTURES + "output-matrix.json", 22)
             + ids(FIXTURES + "output-matrix-filesystem.json", 4)
-            + ids(FIXTURES + "output-filesystem.json", 24) + ids(FIXTURES + "import-helpers.json", 480)
+            + ids(FIXTURES + "output-filesystem.json", 24) + ids(FIXTURES + "import-helpers.json", 551)
             + ids(FIXTURES + "emitter-audit-class-regressions.json", 24)
             + ids(FIXTURES + "emitter-cli-options.json", 58)
             + ["typescript-6.0.3/compiler/jsFileCompilationAwaitModifier.ts#default",

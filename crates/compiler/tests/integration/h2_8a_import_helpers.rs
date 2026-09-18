@@ -11,7 +11,7 @@ fn import_helpers_matches_complete_typescript_observations() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 480);
+    assert_eq!(cases.len(), 551);
     let filter = std::env::var("TSC_RS_IMPORT_HELPERS_CASE_FILTER").ok();
     let cases: Vec<_> = cases
         .iter()

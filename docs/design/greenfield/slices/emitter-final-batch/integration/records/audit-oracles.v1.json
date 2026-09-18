@@ -4,9 +4,9 @@
     {
       "path": "crates/compiler/tests/fixtures/import-helpers.json",
       "before_sha256": "89808a8f00614fa040dc0632f0f79588e203d24a58aca2eac5a84a7297942711",
-      "after_sha256": "2220c6428a9317105477ec99c38f35a7d8027b483a42c0bfff2e929ead1a9058",
+      "after_sha256": "26d20976c3e60546b7143ee6b9fff4d7928720e3a89e8092f3ad41864a0d5a42",
       "unchanged_cases": 111,
-      "added_cases": 369,
+      "added_cases": 440,
       "repetitions": 2
     },
     {

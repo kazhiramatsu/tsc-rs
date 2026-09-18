@@ -991,7 +991,7 @@ class WitnessTests(unittest.TestCase):
             "mapped-type-members": 328, "token-comment-phase-metadata": 96,
             "utf16-identity-recovery": 79, "utf16-review-fix": 25, "utf16-tagged-template": 16,
             "utf16-literal-witnesses": 64, "utf16-original-commands": 4,
-            "emitter-final": 906, "emitter-universe-oracle": 2015,
+            "emitter-final": 977, "emitter-universe-oracle": 2015,
             "emitter-plan-base-0": 450, "emitter-plan-base-1": 450,
             "emitter-plan-base-2": 449, "emitter-plan-base-3": 449,
             "emitter-global": 769, "emitter-class-0": 700, "emitter-class-1": 528,

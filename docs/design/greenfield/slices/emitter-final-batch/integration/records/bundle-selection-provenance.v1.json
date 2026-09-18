@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "previous_path": "docs/design/greenfield/slices/witness-coverage/compiler-module-facets/original-javascript-inputs.v1.json",
+  "current_path": "docs/design/greenfield/slices/witness-coverage/compiler-module-facets/original-javascript-inputs.v2.json",
+  "before_sha256": "84f9598ff48d5e41b4b2abaf58331cc9ef9f55fec4bee49eb736f0c112c422a1",
+  "after_sha256": "bfb86f8aba9a182866ada2d13e3469609065a682eb2160bbe5ee03f0fcaba8c9",
+  "changed_dependencies": [
+    {
+      "before": {
+        "path": "ratchets/h2-7de-observations.v1.json",
+        "sha256": "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2"
+      },
+      "after": {
+        "path": "ratchets/h2-7de-observations.v1.json",
+        "sha256": "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9"
+      }
+    }
+  ],
+  "all_other_fields_unchanged": true,
+  "repetitions": 2
+}

@@ -1367,33 +1367,21 @@ fn filesystem_cfg_root_conversion_and_cache_match_typescript() {
 
 #[test]
 fn filesystem_config_and_source_diagnostic_order_matches_typescript() {
-    use tsc_host::CompilerHost as _;
-    let case_sensitive = tsc_host::FsCompilerHost::from_process()
-        .expect("native filesystem profile")
-        .use_case_sensitive_file_names();
-    for (source, module_options, outfile, text) in [
-        (
-            "main.ts",
-            r#""module":"none""#,
-            false,
-            "export const value = 1;\n",
-        ),
+    for (source, module_options, text) in [
+        ("main.ts", r#""module":"none""#, "export const value = 1;\n"),
         (
             "z/main.ts",
             r#""module":"none""#,
-            false,
             "export const value = 1;\n",
         ),
         (
             "z/main.ts",
             r#""module":"commonjs""#,
-            false,
             "export const value: string = 1;\n",
         ),
         (
             "main.ts",
             r#""outFile":"dist/bundle.js""#,
-            true,
             "export const value = 1;\n",
         ),
     ] {
@@ -1409,28 +1397,21 @@ fn filesystem_config_and_source_diagnostic_order_matches_typescript() {
             let upstream = run_typescript(&tree, &args);
             let native = run(&tree, &args);
             assert_eq!(upstream.status.code(), Some(1));
-            if outfile && !case_sensitive {
-                // H2.7d's existing bundle host gate runs before noEmitOnError.
-                // Preserve this refusal without granting command equality.
-                assert_eq!(native.status.code(), Some(2));
-                assert!(native.stdout.is_empty());
-                assert_eq!(String::from_utf8_lossy(&native.stderr),
-                    "tsc-rs: compiler failure: unsupported emit compiler option: useCaseSensitiveFileNames\n");
-                eprintln!("CFG diagnostic CLI boundary x{repetition}: outFile/case-insensitive");
-            } else {
-                assert_eq!(
-                    native.status.code(),
-                    upstream.status.code(),
-                    "{}",
-                    String::from_utf8_lossy(&native.stderr)
-                );
-                assert_eq!(
-                    String::from_utf8_lossy(&native.stdout),
-                    String::from_utf8_lossy(&upstream.stdout)
-                );
-                assert_eq!(native.stderr, upstream.stderr);
-                eprintln!("CFG diagnostic CLI exact x{repetition}: {source}/{module_options}");
-            }
+            assert_eq!(
+                native.status.code(),
+                upstream.status.code(),
+                "{}",
+                String::from_utf8_lossy(&native.stderr)
+            );
+            assert_eq!(
+                native.stdout, upstream.stdout,
+                "{source}/{module_options}: stdout"
+            );
+            assert_eq!(
+                native.stderr, upstream.stderr,
+                "{source}/{module_options}: stderr"
+            );
+            eprintln!("CFG diagnostic CLI exact x{repetition}: {source}/{module_options}");
             assert_eq!(
                 snapshot_files(&tree.root),
                 inputs,
