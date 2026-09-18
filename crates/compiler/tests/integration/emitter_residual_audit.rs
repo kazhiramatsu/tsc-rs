@@ -191,3 +191,41 @@ fn exported_destructuring_comments_match_complete_typescript_commands() {
         "complete export destructuring command failures: {failures:?}"
     );
 }
+
+#[test]
+fn system_binding_publication_matches_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/system-binding-publication.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 102);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &serde_json::json!({"cases": [case]}),
+                true,
+                super::h2_8a_import_helpers::capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("System binding publication EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "System binding publication SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "System binding publication failures: {failures:?}"
+    );
+}

@@ -2566,9 +2566,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         if exports.is_empty() {
             return Ok(update);
         }
-        let operand_text = original_operand
-            .and_then(|operand| identifier_text_owned(self.context.arena(), operand).ok())
-            .unwrap_or_default();
         if value_is_discarded {
             // tsc-port: transformSystemModule.visitPrefixOrPostfixUnaryExpression @6.0.3
             // tsc-span: _tsc.js:113142-113171
@@ -2592,15 +2589,21 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         self.push_hoisted_name(&temp);
         let temp_target = self.create_identifier(&temp)?;
         let save = self.create_assignment(temp_target, update)?;
-        let current = self.create_identifier(&operand_text)?;
-        let mut publish = current;
+        self.context.factory()?.set_text_range(save, original)?;
+        let current = self.context.factory()?.clone_node(
+            original_operand.expect("an exported postfix update has an identifier operand"),
+        )?;
+        let mut expression = self.create_binary(save, SyntaxKind::CommaToken, current)?;
+        self.context
+            .factory()?
+            .set_text_range(expression, original)?;
         for export in exports {
-            publish = self.create_export_call_with_name(&export, publish)?;
+            expression = self.create_export_call_with_name(&export, expression)?;
         }
-        let first = self.create_binary(save, SyntaxKind::CommaToken, publish)?;
         let temp_value = self.create_identifier(&temp)?;
-        let result = self.create_binary(first, SyntaxKind::CommaToken, temp_value)?;
-        self.create_parenthesized(result)
+        let result = self.create_binary(expression, SyntaxKind::CommaToken, temp_value)?;
+        self.context.factory()?.set_text_range(result, original)?;
+        Ok(result)
     }
 
     fn visit_shorthand_property(
