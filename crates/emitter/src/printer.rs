@@ -17635,24 +17635,14 @@ impl Printer {
                 ) {
                     return Ok(false);
                 }
-                if multi_line {
-                    emit_empty_multiline_block_boundary_comments(
-                        source.text(),
-                        trailing_position,
-                        leading_position,
-                        function_body,
-                        writer,
-                    );
-                } else {
-                    writer.write_space(" ");
-                    emit_empty_node_array_boundary_comments(
-                        source.text(),
-                        trailing_position,
-                        leading_position,
-                        function_body,
-                        writer,
-                    );
-                }
+                emit_empty_block_boundary_comments(
+                    source.text(),
+                    trailing_position,
+                    leading_position,
+                    function_body,
+                    multi_line,
+                    writer,
+                );
                 return Ok(true);
             }
         }
@@ -18314,9 +18304,9 @@ fn emit_empty_node_array_boundary_comments(
     wrote_comment
 }
 
-/// `emitBlockStatements` gives an empty multiline block two distinct comment
+/// `emitBlockStatements` gives an empty block two distinct comment
 /// owners: `emitTokenWithComment(OpenBraceToken)` writes same-line comments
-/// before the list's line break, while `emitTokenWithComment(CloseBraceToken)`
+/// before the list's space or line break, while `emitTokenWithComment(CloseBraceToken)`
 /// writes the remaining leading comments at the block indentation. Keep the
 /// emitted ranges explicit because this printer deliberately has no global
 /// emitted-comment map.
@@ -18327,11 +18317,12 @@ fn emit_empty_node_array_boundary_comments(
 /// tsc-port: emitNodeList @6.0.3 (empty branch)
 /// tsc-hash: 75b9b75e2d5a4b53a93745abf7bc2026a6ae04f9b7c566f3d1e839c2a2a01516
 /// tsc-span: _tsc.js:120029-120066
-fn emit_empty_multiline_block_boundary_comments(
+fn emit_empty_block_boundary_comments(
     source: &str,
     trailing_position: usize,
     leading_position: usize,
     suppress_same_line_trailing: bool,
+    multi_line: bool,
     writer: &mut TextWriter,
 ) {
     let trailing = collect_source_comment_ranges(source, trailing_position, true);
@@ -18355,10 +18346,16 @@ fn emit_empty_multiline_block_boundary_comments(
         emitted.insert((comment.start, comment.end));
     }
 
-    writer.write_line(false);
-    writer.increase_indent();
+    if multi_line {
+        writer.write_line(false);
+        writer.increase_indent();
+    } else {
+        writer.write_space(" ");
+    }
     emit_source_leading_comments_of_position(source, leading_position, &emitted, false, writer);
-    writer.decrease_indent();
+    if multi_line {
+        writer.decrease_indent();
+    }
 }
 
 fn empty_node_array_boundary_has_comments(

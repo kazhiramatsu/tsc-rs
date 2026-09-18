@@ -46,6 +46,18 @@ def ids(name, count):
     return result
 
 
+def source_map_ids():
+    result = []
+    for slice_name, count in (("h2-6a", 36), ("h2-6b", 34)):
+        cases = [case for family in read(f"ratchets/{slice_name}-witnesses.v1.json")["families"]
+                 for case in family["cases"]]
+        rows = [f"source-map-emit/{slice_name}/{case['case_id']}" for case in cases]
+        if len(rows) != count or len(set(rows)) != count:
+            raise ValueError(f"{slice_name}: source map witness membership changed")
+        result.extend(sorted(rows))
+    return result
+
+
 def class_bands(suite):
     return CLASS_BANDS[:4] if suite == "emitter-class-0" else CLASS_BANDS[4:]
 
@@ -77,6 +89,8 @@ def case_ids(suite):
             + ids(FIXTURES + "output-matrix-filesystem.json", 4)
             + ids(FIXTURES + "output-filesystem.json", 24) + ids(FIXTURES + "import-helpers.json", 551)
             + ids(FIXTURES + "emitter-audit-class-regressions.json", 24)
+            + ids(FIXTURES + "empty-block-comments.json", 72)
+            + ids(FIXTURES + "emitter-session-retirements.json", 4) + source_map_ids()
             + ids(FIXTURES + "emitter-cli-options.json", 58)
             + ["typescript-6.0.3/compiler/jsFileCompilationAwaitModifier.ts#default",
                "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeAliases.ts#default"])
@@ -103,13 +117,18 @@ def inputs(suite):
         return common | {"crates/compiler/tests/h2_8a_original_corpus.rs"}
     return common | universe | {FIXTURES + name for name in (
         "emitter-final-universe.json", "output-matrix.json", "output-matrix-filesystem.json", "emitter-cli-options.json",
-        "output-filesystem.json", "import-helpers.json", "emitter-audit-class-regressions.json")} | {
+        "output-filesystem.json", "import-helpers.json", "emitter-audit-class-regressions.json", "empty-block-comments.json", "emitter-session-retirements.json")} | {
+        "ratchets/h2-6a-witnesses.v1.json", "ratchets/h2-6b-witnesses.v1.json",
+        "crates/compiler/tests/integration/source_map_emit_witness_contract.rs",
+        "crates/compiler/tests/integration/source_map_recording_witness_contract.rs",
+        "crates/compiler/tests/integration/emit_session_contract.rs",
+        "scripts/observe-emitter-session-retirements.mjs",
         PACKET + "inventory.v1.json", PACKET + "ef7/universe-217.v1.json",
         "crates/compiler/tests/emitter_final_rows.rs", "crates/compiler/tests/emitter_final_batch.rs",
         "crates/compiler/tests/integration/h2_8a_output_matrix.rs", "scripts/observe-output-matrix.mjs",
         "crates/compiler/tests/integration/h2_8a_output_filesystem.rs",
         "crates/compiler/tests/integration/h2_8a_import_helpers.rs", "scripts/observe-import-helpers.mjs",
-        "crates/compiler/tests/integration/emitter_residual_audit.rs",
+        "crates/compiler/tests/integration/emitter_residual_audit.rs", "scripts/observe-empty-block-comments.mjs",
         "crates/compiler/tests/integration/cli_contract.rs", "scripts/observe-emitter-cli-options.mjs",
         "crates/program/tests/integration/module_request_contract.rs"}
 
@@ -152,6 +171,8 @@ def commands(suite):
                   "sourceMapWithCaseSensitiveFileNames", "sourceMapWithCaseSensitiveFileNamesAndOutDir"))], None),
             (["node", "scripts/observe-output-matrix.mjs", "--check"], None),
             (["node", "scripts/observe-import-helpers.mjs", "--check"], None),
+            (["node", "scripts/observe-empty-block-comments.mjs", "--check"], None),
+            (["node", "scripts/observe-emitter-session-retirements.mjs", "--check"], None),
             (["node", "scripts/observe-emitter-cli-options.mjs", "--check"], None),
             (["cargo", "test", "--manifest-path", "crates/program/Cargo.toml", "--test", "contracts",
               "module_request_contract::", "--", "--nocapture", "--test-threads=1"], 40),
@@ -162,7 +183,13 @@ def commands(suite):
                                  "h2_8a_output_filesystem::output_filesystem_matches_complete_typescript_observations",
                                  "emitter_residual_audit::javascript_regressions_match_complete_original_commands",
                                  "emitter_residual_audit::anonymous_class_names_match_complete_original_commands",
-                                 "cli_contract::implemented_emit_option_names_match_typescript_cli_and_config")), 7),
+                                 "emitter_residual_audit::empty_block_comments_match_complete_typescript_commands",
+                                 "emitter_residual_audit::historical_session_refusals_match_complete_typescript_commands",
+                                 "source_map_emit_witness_contract::every_witness_case_reproduces_through_the_production_emit_path",
+                                 "source_map_emit_witness_contract::h2_6b_witness_cases_reproduce_through_the_production_emit_path",
+                                 "emit_session_contract::unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call",
+                                 "emit_session_contract::h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed",
+                                 "cli_contract::implemented_emit_option_names_match_typescript_cli_and_config")), 13),
             (cargo("emitter_final_universe", ("universe_rows_match_complete_production_commands",
                  "known_checker_divergence_rejects_changed_output_and_diagnostics",
                  "known_refusal_rejects_changed_error_or_partial_writes", "universe_shards_are_disjoint_and_complete")), 4)]

@@ -59,7 +59,7 @@ fn import_helpers_matches_complete_typescript_observations() {
 
 // Supplemental executions retain the whole command, including fields after
 // the comparator's first failure. They are counted separately in evidence.
-fn capture_complete_command(
+pub(super) fn capture_complete_command(
     case_id: &str,
     prepared: &tsc_program::PreparedProgram,
     expected: &Value,

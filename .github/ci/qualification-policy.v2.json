@@ -36,9 +36,9 @@
       "crates/xtask/src/h2_3d_acceptance.rs": "325ebd13b45303c9882e0a4e06585ce4f1d2efc863323c452002179571cf8f14",
       "crates/xtask/src/h2_7c_acceptance.rs": "44afa0ac864a435e73780855a3bb48965c958c972c0da9a27e58705cb0308337",
       "crates/xtask/src/h2_7de_acceptance.rs": "2d9eec2efda0850514e5ca07352d52341fe9076f67458cb28485683ed54a8afe",
-      "crates/xtask/src/h2_6c_de_promotions.rs": "1b1158d50dd03a7eab3aba6309903a26d521b8e74aa921c3241cba1a5a899982",
-      "crates/xtask/src/h2_6c_output_promotions.rs": "378fd26d046e748e3a3bb462662bba03cee2c9a9065b02331ec3a549ac642556",
-      "crates/xtask/src/h2_6c_refusal_migrations.rs": "67e8ba7d207d9fb400f148d59c9d73476e017137c64b6fe484f781a6d643c7fd",
+      "crates/xtask/src/h2_6c_de_promotions.rs": "330e5a6bab00e79878d9d45b55ad58eaa541dc5d43b689a88946ef00b5ea206d",
+      "crates/xtask/src/h2_6c_output_promotions.rs": "56c9dd96b69e865fcbe388d7999e672a7f0b749010ba0eb7f46103a41228f94d",
+      "crates/xtask/src/h2_6c_refusal_migrations.rs": "f150d7348616a38df14946ce27e7611a69699ca637fc4cbb5757031193e6e5ea",
       "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": "ee8064ca9ed67923ed859b21a1fd825e46175f401e2a59384601e5a2627e06a0",
       "crates/compiler/tests/integration/h2_7c_corpus.rs": "83a2ccc769ec27e6eaf99b73d9a8e5dc755c71d0fedccbb6c0931347df6ee882",
       "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "aeed252632deb74a99f716ef7d9e5d54ae0613887e9c3e1a3765efd3184a570e",
@@ -56,9 +56,9 @@
       "scripts/witness.py": "afc4e71a31b608c4f7ed23a0f00bb4c5d81b1a9510342dab7ed17bf1d45b93ef",
       "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
       "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa",
-      ".github/ci/test_replay.py": "08747e872c281ec94a5ef8f62cd94f9516eda50ced17bea3c42ba37ac3c07b2b",
+      ".github/ci/test_replay.py": "930df780c895a3830a7f7e86a70bea1e7ea4231cb01ae459ca258c9188b3bbfe",
       "scripts/foundation_witnesses.py": "a183fe0a97e74b7698401d1b1df20ee3cb925e763e40e219933f52bc39cf6b59",
-      "scripts/emitter_final_witnesses.py": "731ddfbe6a241511de407afdbf753dbcf6f4b8ead8a2d0528641bc27c86d25c9"
+      "scripts/emitter_final_witnesses.py": "e4f86a61f43d956ec4f28c164a96d58ea2579e8dc30bf895d42f189b25c74a5a"
     }
   },
   "local_full_gate": {

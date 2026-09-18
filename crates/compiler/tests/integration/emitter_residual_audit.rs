@@ -51,3 +51,56 @@ fn javascript_regressions_match_complete_original_commands() {
         ids.len()
     );
 }
+
+#[test]
+fn empty_block_comments_match_complete_typescript_commands() {
+    use serde_json::{json, Value};
+    let artifact: Value =
+        serde_json::from_slice(include_bytes!("../fixtures/empty-block-comments.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 72);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                super::h2_8a_import_helpers::capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("empty-block comments EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "empty-block comments SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete empty-block comment failures: {failures:?}"
+    );
+}
+
+#[test]
+fn historical_session_refusals_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-session-retirements.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    assert_eq!(artifact["cases"].as_array().unwrap().len(), 4);
+    super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+        &artifact,
+        true,
+        super::h2_8a_import_helpers::capture_complete_command,
+    );
+}
