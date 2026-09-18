@@ -1820,7 +1820,6 @@ fn is_simple_inlineable_expression<H: FlattenHost>(
         host.context_ref().arena().node(expression)?.kind,
         SyntaxKind::StringLiteral
             | SyntaxKind::NumericLiteral
-            | SyntaxKind::BigIntLiteral
             | SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::TrueKeyword
             | SyntaxKind::FalseKeyword

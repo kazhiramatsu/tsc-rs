@@ -283,8 +283,10 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 .lexical_arguments_binding
                 .clone()
                 .expect("lexical arguments binding was tested above");
+            // argumentsVisitor returns the bare generated capture binding.
+            // A parsed donor adds a leaf map and lets later passes mistake
+            // this reference for the original local arguments object.
             let identifier = self.create_generated_identifier(&binding)?;
-            let identifier = self.set_original_and_range(identifier, original)?;
             self.nodes.insert(id, Some(identifier.node()));
             return Ok(Some(identifier.node()));
         }
@@ -621,7 +623,6 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                     parent: SyntaxKind::PropertyAccessExpression,
                     field: "name",
                 })?;
-        let property = self.identifier_text(name)?.to_owned();
         let binding = self
             .super_captures
             .last()
@@ -632,7 +633,8 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 field: "captured super binding",
             })?;
         let proxy = self.create_generated_identifier(&binding)?;
-        let name = self.create_identifier(&property)?;
+        // substitutePropertyAccessExpression retains the parsed member name;
+        // its source spelling and own map/comment phase remain observable.
         let access = self.create_property_access(proxy, name)?;
         self.set_original_and_range(access, original)
     }
@@ -675,7 +677,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
 
     fn visit_captured_super_call(
         &mut self,
-        original: TransformNode,
+        _original: TransformNode,
         data: tsc_syntax::nodes::CallExpressionData,
     ) -> Result<TransformNode, TransformError> {
         let callee = data.expression.map(|callee| self.node(callee)).ok_or(
@@ -713,8 +715,9 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 "argument",
             )?);
         }
-        let call = self.create_call(call, arguments)?;
-        self.set_original_and_range(call, original)
+        // The print-time substituteCallExpression returns a fresh call;
+        // only its inner super access retains a source range.
+        self.create_call(call, arguments)
     }
 
     fn visit_await_expression(

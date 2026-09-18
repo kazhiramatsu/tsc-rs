@@ -1,0 +1,17 @@
+**Verdict: removing `set_original_and_range` on the lexical-arguments leaf is correct, and it also removes a non-map hazard. Nothing requires keeping either the range or the original.**
+
+**Upstream shape confirmed.** `argumentsVisitor` (_tsc.js:100891-100892) returns `lexicalArgumentsBinding` itself, the `createUniqueName("arguments")` node from 101326, with no `setTextRange`/`setOriginalNode`. The capture statement (101265-101279) also uses the bare binding. So every reference and the declaration share one synthetic identifier with no parse-tree link.
+
+**Map defect pinned.** Decoding the expected TS map for `es2015/esnext/arguments` on `return arguments_1[0]`: segments at gen 65 ← src 45 (the ElementAccessExpression start, same column as the leaf) and gen 77 ← src 55 (`0`), a delta of +12/+10 = `YAAU`. Native's `WAAS,CAAC` = gen 76 ← src 54 then gen 77 ← src 55: the extra segment is the leaf's trailing map at the end of `arguments_1`/`arguments`. That is exactly what a ranged leaf produces and a synthetic leaf does not. Same mechanism at ES5.
+
+**Hidden non-map requirement (argues for removing both halves).** Rust's `parse_tree_resolver_node` (factory.rs:406) follows the original chain, so a generated leaf with `set_original_node(original = parsed arguments)` still resolves to a parse-tree node. The ES2015 pass's `visit_identifier` (es2015.rs:2791-2805) calls `is_arguments_local_binding` on that resolver node inside a converted loop and would substitute the already-captured `arguments_1` a second time with the loop's own `arguments_N`. Upstream `visitIdentifier` (105072-105076) never reaches that branch because `getParseTreeNode` of the unique name is undefined. Removing the original closes this; keeping only the range would not. No later pass needs the original: `create_generated_identifier` writes the binding metadata on the node itself, the capture statement already uses the same helper with no original, and print-order/name allocation are keyed by the binding, not by an original.
+
+**Scopes checked.** Nested arrows: upstream keeps `lexicalArgumentsBinding` across arrow boundaries and resets it only at function-like boundaries (101058-101141); Rust mirrors this at es2017.rs:1267/1274 and 1469/1521, independent of the donor. Shadowed `arguments` (a local declaration named `arguments` in sloppy JS) makes `isArgumentsLocalBinding` false on both sides, so the leaf is never produced. Comment provenance: a ranged leaf owns `/*a*/ arguments /*b*/` comments; upstream drops them (pos −1 short-circuits both `emitLeadingComments` and `forEachTrailingCommentToEmit`). Trailing token anchors after the leaf (`[` in `arguments_1[0]`) fall to the synthetic-cursor path already used for every generated leaf.
+
+**Controls worth adding (only if not already in the 168).**
+1. `for (let i = 0; i < 2; i++) { fs.push(async () => arguments[i]); }` inside a function, ES5: converted loop plus capture; expects `arguments_1` once, not a second loop-level substitution.
+2. `async () => f(/*a*/ arguments /*b*/[0])` at ES5 and ES2015 with removeComments=false: no comment printed at the leaf, map without a leaf segment.
+3. `async () => { const g = () => arguments[0]; return g(); }` at ES5: inner non-async arrow keeps `arguments_1`, no `_arguments` capture.
+4. `async () => { function g() { return arguments[0]; } }` at ES5: inner function's own `arguments` untouched, no capture statement for it.
+
+The change is one deletion of the donor at es2017.rs:286 with the identity, allocation, and capture statement unchanged.

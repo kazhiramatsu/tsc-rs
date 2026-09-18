@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-system-destructuring-order.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-ci-repair",
+  "started_at": "2026-09-18T21:20:33.524267+00:00",
+  "head": "dbbca3009bbe2ef2741f4d20ef78ea3967424b1e",
+  "tracked_clean": false,
+  "diff_sha256": "1bf0dc4e37b136611bcb451fb889aca70ea75a17320a8e1097fdb7364436e334",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 137.441,
+  "log_sha256": "1aaafd7e2a6cae3a87a7301462d3615466301100fc095fa17ee72ecba0d623b7",
+  "log_bytes": 80
+}

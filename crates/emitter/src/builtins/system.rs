@@ -32,6 +32,7 @@ pub(super) fn transform_system_module<'resolver>(
         resolver,
         host,
         always_strict: options.always_strict_effective(),
+        downlevel_iteration: options.downlevel_iteration == Some(true),
         import_helpers: options.import_helpers == Some(true),
         es_module_interop: options.es_module_interop == Some(true),
         current_source: None,
@@ -42,6 +43,7 @@ struct SystemModuleTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
     host: Option<&'resolver dyn EmitHost>,
     always_strict: bool,
+    downlevel_iteration: bool,
     import_helpers: bool,
     es_module_interop: bool,
     current_source: Option<TransformSourceId>,
@@ -127,6 +129,7 @@ impl Transformer for SystemModuleTransformer<'_> {
             self.host,
             info,
             self.always_strict,
+            self.downlevel_iteration,
         )?;
         let updated = visitor.transform_source_file(root)?;
         visitor.context.arena_mut()?.replace_root(source, updated)?;
@@ -485,6 +488,7 @@ struct SystemVisitor<'context, 'resolver> {
     host: Option<&'resolver dyn EmitHost>,
     info: SystemModuleInfo,
     always_strict: bool,
+    downlevel_iteration: bool,
     exports_name: String,
     context_name: String,
     used_names: BTreeSet<String>,
@@ -492,7 +496,6 @@ struct SystemVisitor<'context, 'resolver> {
     export_star_name: Option<String>,
     hoisted_names: Vec<String>,
     hoisted_declarations: Vec<TransformNode>,
-    destructuring_temps: BTreeMap<NodeId, String>,
     temp_ordinal: usize,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
 }
@@ -647,6 +650,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         host: Option<&'resolver dyn EmitHost>,
         info: SystemModuleInfo,
         always_strict: bool,
+        downlevel_iteration: bool,
     ) -> Result<Self, TransformError> {
         let mut used_names = collect_identifier_texts(context.arena(), source);
         used_names.extend(
@@ -678,6 +682,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             host,
             info,
             always_strict,
+            downlevel_iteration,
             exports_name,
             context_name,
             used_names,
@@ -685,7 +690,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             export_star_name: None,
             hoisted_names: Vec::new(),
             hoisted_declarations: Vec::new(),
-            destructuring_temps: BTreeMap::new(),
             temp_ordinal: 0,
             arrays: BTreeMap::new(),
         })
@@ -711,7 +715,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let parsed_statement_array =
             parsed_source_file_statement_array(self.context.arena(), root)?;
         let source_owner = SystemBlockScopeOwner::source_file(root);
-        self.collect_hoisted_names(&input, source_owner)?;
+        self.hoist_external_helpers_import()?;
 
         let mut outer = Vec::new();
         let mut offset = 0usize;
@@ -867,148 +871,39 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         Ok(updated)
     }
 
-    fn collect_hoisted_names(
-        &mut self,
-        statements: &[TransformNode],
-        owner: SystemBlockScopeOwner,
-    ) -> Result<(), TransformError> {
-        // Dependency groups define the setter topology, but lexical hoists are
-        // requested while tsc visits source statements. Walk each source
-        // statement once so an import's generated namespace identity retains
-        // its position relative to ordinary declarations and namespace/import-
-        // equals lowering, even though setter entries are grouped separately.
+    fn hoist_external_helpers_import(&mut self) -> Result<(), TransformError> {
+        // The synthetic helpers import is visited before source statements.
         if let Some(declaration) = self.info.common.external_helpers_import_declaration {
-            // The synthesized `import tslib_1 = require("tslib")` is not a
-            // source statement; its local is hoisted first (the helpers
-            // import leads `externalImports`).
             if let NodeData::ImportEqualsDeclaration(data) =
-                &self.context.arena().node(declaration)?.data.clone()
+                self.context.arena().node(declaration)?.data.clone()
             {
-                if let Some(name_node) = data
-                    .name
-                    .and_then(|id| self.context.arena().node_ref(self.source, id))
-                {
-                    let text = identifier_text_owned(self.context.arena(), name_node)?;
-                    // The hoisted `var` and the setter assignment print the
-                    // same generated identity as the helper qualifier, so the
-                    // finalize walk spells all three alike (`tslib_1`).
-                    if let Some(binding) = self.generated_binding_of_identifier(name_node) {
-                        self.generated_bindings.insert(text.clone(), binding);
-                    }
-                    self.push_hoisted_name(&text);
+                if let Some(name) = data.name {
+                    self.hoist_name_node(self.node(name))?;
                 }
             }
-        }
-        for statement in statements {
-            let statement = *statement;
-            match &self.context.arena().node(statement)?.data {
-                NodeData::ImportDeclaration(data) if data.import_clause.is_some() => {
-                    let key = self.context.arena().get_original_node(statement).node();
-                    if let Some(name) = self
-                        .info
-                        .common
-                        .imports
-                        .get(&key)
-                        .and_then(|plan| plan.runtime_name.as_deref().map(str::to_owned))
-                    {
-                        self.push_hoisted_name(&name);
-                    }
-                    // getLocalNameForExternalImport: a default import beside
-                    // a namespace import hoists only the module's generated
-                    // name; tsc leaves the namespace binding unbound
-                    // (EF7-SYSTEM-NAMESPACE-ALIAS).
-                }
-                NodeData::ImportEqualsDeclaration(data) => {
-                    if let Some(name) = data
-                        .name
-                        .and_then(|id| self.context.arena().node_ref(self.source, id))
-                        .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
-                    {
-                        self.push_hoisted_name(&name);
-                    }
-                }
-                _ => {}
-            }
-            self.collect_statement_hoists(statement, owner)?;
         }
         Ok(())
     }
 
-    fn collect_statement_hoists(
-        &mut self,
-        statement: TransformNode,
-        owner: SystemBlockScopeOwner,
-    ) -> Result<(), TransformError> {
-        let record = self.context.arena().node(statement)?.clone();
-        let owner = owner.entering(statement, record.kind);
-        match record.data {
-            NodeData::VariableStatement(data) => {
-                let Some(list) = data
-                    .declaration_list
-                    .and_then(|id| self.context.arena().node_ref(self.source, id))
-                else {
-                    return Ok(());
-                };
-                if self.should_hoist_declaration_list(list, owner)? {
-                    self.collect_declaration_list_hoists(list)?;
-                }
-            }
-            NodeData::VariableDeclarationList(_) => {
-                if self.should_hoist_declaration_list(statement, owner)? {
-                    self.collect_declaration_list_hoists(statement)?;
-                }
-            }
-            NodeData::ClassDeclaration(data) => {
-                let key = self.context.arena().get_original_node(statement).node();
-                let name_node = data
-                    .name
-                    .and_then(|id| self.context.arena().node_ref(self.source, id));
-                let name = name_node
-                    .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
-                    .or_else(|| {
-                        self.info
-                            .common
-                            .generated_declaration_names
-                            .get(&key)
-                            .map(ToString::to_string)
-                    });
-                if let Some(name) = name {
-                    // A class whose name transformTypeScript generated
-                    // (`default_1` of an anonymous default class) carries a
-                    // target binding; the hoisted `var`, the assignment
-                    // target and the export publication re-create the
-                    // spelling through `create_identifier`, so register the
-                    // binding under its text (tsc: `getLocalName(node)` is the
-                    // same generated identifier, _tsc.js:112606-112607).
-                    if let Some(binding) =
-                        name_node.and_then(|name| self.generated_binding_of_identifier(name))
-                    {
-                        self.generated_bindings
-                            .entry(name.clone())
-                            .or_insert(binding);
-                    }
-                    self.push_hoisted_name(&name);
-                }
-            }
-            NodeData::FunctionDeclaration(_)
-            | NodeData::FunctionExpression(_)
-            | NodeData::ArrowFunction(_)
-            | NodeData::ClassExpression(_) => {}
-            _ => {
-                let mut children = Vec::new();
-                {
-                    let syntax = &self.context.arena().source(self.source)?.syntax().arena;
-                    tsc_syntax::for_each_child(syntax, &record, |child| {
-                        children.push(child);
-                        false
-                    });
-                }
-                for child in children {
-                    if let Some(child) = self.context.arena().node_ref(self.source, child) {
-                        self.collect_statement_hoists(child, owner)?;
-                    }
-                }
-            }
+    /// Match the creation order of tsc's lexical environment, including
+    /// repeated declarations. Generated names retain the same target binding
+    /// in the hoisted var, initializer and export publication.
+    fn hoist_name_node(&mut self, name: TransformNode) -> Result<(), TransformError> {
+        let text = identifier_text_owned(self.context.arena(), name)?;
+        if let Some(binding) = self.generated_binding_of_identifier(name) {
+            self.generated_bindings
+                .entry(text.clone())
+                .or_insert(binding);
+        }
+        self.push_hoisted_name(&text);
+        Ok(())
+    }
+
+    fn hoist_binding_name(&mut self, name: Option<NodeId>) -> Result<(), TransformError> {
+        let mut names = Vec::new();
+        collect_binding_name_nodes(self.context.arena(), self.source, name, &mut names)?;
+        for name in names {
+            self.hoist_name_node(name)?;
         }
         Ok(())
     }
@@ -1023,75 +918,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .arena()
             .metadata(list)
             .is_some_and(|metadata| metadata.flags().contains(crate::EmitFlags::NO_HOISTING));
-        let flags = NodeFlags::from_bits(self.context.arena().node(list)?.flags);
+        // System observes the declaration's pre-downlevel scope. In
+        // particular, ES2015's var list still points to the original const.
+        let original = self.context.arena().get_original_node(list);
+        let flags = NodeFlags::from_bits(self.context.arena().node(original)?.flags);
         Ok(!no_hoisting && (owner.is_source_file() || !flags.intersects(NodeFlags::BLOCK_SCOPED)))
-    }
-
-    fn collect_declaration_list_hoists(
-        &mut self,
-        list: TransformNode,
-    ) -> Result<(), TransformError> {
-        if !matches!(
-            self.context.arena().node(list)?.data,
-            NodeData::VariableDeclarationList(_)
-        ) {
-            return Ok(());
-        }
-        for declaration in
-            variable_declarations(self.context.arena(), self.source, Some(list.node()))?
-        {
-            if let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(declaration)?.data.clone()
-            {
-                if data
-                    .name
-                    .and_then(|id| self.context.arena().node_ref(self.source, id))
-                    .zip(
-                        data.initializer
-                            .and_then(|id| self.context.arena().node_ref(self.source, id)),
-                    )
-                    .map(|(name, initializer)| {
-                        self.binding_pattern_requires_root_temp(name, initializer)
-                    })
-                    .transpose()?
-                    .unwrap_or(false)
-                {
-                    let temp = self.next_temp_name();
-                    self.destructuring_temps.insert(
-                        self.context.arena().get_original_node(declaration).node(),
-                        temp.clone(),
-                    );
-                    self.push_hoisted_name(&temp);
-                }
-                let mut names = Vec::new();
-                collect_binding_name_nodes(
-                    self.context.arena(),
-                    self.source,
-                    data.name,
-                    &mut names,
-                )?;
-                for name in names {
-                    let text = identifier_text_owned(self.context.arena(), name)?;
-                    if text == "default" {
-                        continue;
-                    }
-                    // A hoisted declaration whose name is a generated binding
-                    // (a decorated default class's `default_1` reference, a
-                    // lowered class alias) keeps that identity: the `var`
-                    // list re-creates the identifier through
-                    // `create_identifier`, which writes the binding metadata
-                    // so the print-time finalizer names every occurrence
-                    // alike (tsc hoists the same generated identifier node).
-                    if let Some(binding) = self.generated_binding_of_identifier(name) {
-                        self.generated_bindings
-                            .entry(text.clone())
-                            .or_insert(binding);
-                    }
-                    self.push_hoisted_name(&text);
-                }
-            }
-        }
-        Ok(())
     }
 
     /// The generated binding an identifier already carries, projected the
@@ -1119,10 +950,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     }
 
     fn push_hoisted_name(&mut self, name: &str) {
-        if !self.hoisted_names.iter().any(|current| current == name) {
-            self.hoisted_names.push(name.to_owned());
-            self.used_names.insert(name.to_owned());
-        }
+        self.hoisted_names.push(name.to_owned());
+        self.used_names.insert(name.to_owned());
     }
 
     fn next_temp_name(&mut self) -> String {
@@ -1207,8 +1036,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let record = self.context.arena().node(statement)?.clone();
         let owner = owner.entering(statement, record.kind);
         match record.data {
-            NodeData::ImportDeclaration(data) => self.transform_import_declaration(data),
+            NodeData::ImportDeclaration(data) => self.transform_import_declaration(statement, data),
             NodeData::ImportEqualsDeclaration(data) => {
+                if let Some(name) = data.name {
+                    self.hoist_name_node(self.node(name))?;
+                }
                 // appendExportsOfImportEqualsDeclaration (111684-111689):
                 // `export { n2 }` / `export { n2 as n3 }` of an external
                 // import-equals publish at its statement position
@@ -1561,6 +1393,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     /// itself remains erased.
     fn transform_import_declaration(
         &mut self,
+        original: TransformNode,
         data: tsc_syntax::nodes::ImportDeclarationData,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let Some(clause) = data
@@ -1573,6 +1406,16 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         else {
             return Ok(Vec::new());
         };
+        let key = self.context.arena().get_original_node(original).node();
+        if let Some(name) = self
+            .info
+            .common
+            .imports
+            .get(&key)
+            .and_then(|plan| plan.runtime_name.as_deref().map(str::to_owned))
+        {
+            self.push_hoisted_name(&name);
+        }
         let mut statements = Vec::new();
         if let Some(name) = clause_data
             .name
@@ -1648,6 +1491,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             let target = self.create_identifier(&binding.generated_name)?;
             let value =
                 super::create_import_binding_access(self.context, self.source, target, &binding)?;
+            self.context.factory()?.set_text_range(value, local_name)?;
             let call = self.create_export_call_with_name(&export, value)?;
             let statement = self.create_expression_statement(call)?;
             statements.push(statement);
@@ -1867,14 +1711,23 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     self.flatten_binding_initialization(declaration, variable.name, initializer)?;
                 expressions.extend(flattened.into_expressions(self.context)?);
             } else if let Some(name) = variable.name {
-                expressions.push(self.visit(name)?);
+                if matches!(
+                    self.context.arena().node(self.node(name))?.kind,
+                    SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                ) {
+                    let value = self.create_void_zero()?;
+                    let flattened =
+                        self.flatten_binding_initialization(declaration, Some(name), value)?;
+                    expressions.extend(flattened.into_expressions(self.context)?);
+                } else {
+                    expressions.push(self.node(name));
+                }
+                // Uninitialized for bindings also request their ordinary hoist
+                // after flattening; repeated names are intentional upstream.
+                self.hoist_binding_name(Some(name))?;
             }
         }
-        let Some(expression) = self.inline_expressions(expressions)? else {
-            return Ok(None);
-        };
-        self.set_original_and_range(expression, original)?;
-        Ok(Some(expression))
+        self.inline_expressions(expressions)
     }
 
     /// tsc-port: transformSystemModule.visitVariableStatement @6.0.3
@@ -1912,6 +1765,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 continue;
             };
             let Some(initializer) = variable.initializer else {
+                self.hoist_binding_name(variable.name)?;
                 continue;
             };
             let initializer = self.visit(initializer)?;
@@ -2065,15 +1919,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             return Ok(SystemBindingPlan::default());
         };
         let mut plan = SystemBindingPlan::default();
-        let key = self.context.arena().get_original_node(declaration).node();
-        let value = if let Some(temp) = self.destructuring_temps.get(&key).cloned() {
-            let target = self.create_identifier(&temp)?;
-            plan.push_evaluation(self.create_assignment(target, initializer)?);
-            self.create_identifier(&temp)?
-        } else {
-            initializer
-        };
-        self.flatten_system_binding_target(&mut plan, name, value, None)?;
+        self.flatten_system_binding_target(&mut plan, name, initializer, None, declaration)?;
         Ok(plan)
     }
 
@@ -2083,9 +1929,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         target: TransformNode,
         value: TransformNode,
         original: Option<TransformNode>,
+        location: TransformNode,
     ) -> Result<(), TransformError> {
         match self.context.arena().node(target)?.data.clone() {
             NodeData::Identifier(_) => {
+                self.hoist_name_node(target)?;
                 let assignment = self.create_assignment(target, value)?;
                 // tsc-port: transformSystemModule.createVariableAssignment @6.0.3
                 // tsc-span: _tsc.js:112728-112731
@@ -2102,10 +1950,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 Ok(())
             }
             NodeData::ObjectBindingPattern(data) => {
-                self.flatten_system_object_binding(plan, data.elements, value)
+                self.flatten_system_object_binding(plan, target, data.elements, value, location)
             }
             NodeData::ArrayBindingPattern(data) => {
-                self.flatten_system_array_binding(plan, data.elements, value)
+                self.flatten_system_array_binding(plan, data.elements, value, location)
             }
             _ => Ok(()),
         }
@@ -2114,32 +1962,28 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn flatten_system_object_binding(
         &mut self,
         plan: &mut SystemBindingPlan,
+        pattern: TransformNode,
         elements: Option<NodeArrayId>,
         mut value: TransformNode,
+        location: TransformNode,
     ) -> Result<(), TransformError> {
         let elements = node_array_nodes(self.context.arena(), self.source, elements)?;
         if elements.len() != 1 {
-            value = self.ensure_system_binding_identifier(plan, value, true)?;
+            value =
+                self.ensure_system_binding_identifier(plan, value, !elements.is_empty(), location)?;
         }
-        let has_rest = elements.iter().any(|element| {
-            matches!(
-                self.context.arena().node(*element).map(|node| &node.data),
-                Ok(NodeData::BindingElement(data)) if data.dot_dot_dot_token.is_some()
-            )
-        });
         let mut excluded = Vec::new();
         for (index, element) in elements.iter().copied().enumerate() {
             let element = self.system_binding_element(element)?;
             if element.rest {
                 if index + 1 == elements.len() {
-                    let rest =
-                        self.create_system_object_rest(value, &excluded, element.original)?;
+                    let rest = self.create_system_object_rest(value, &excluded, pattern)?;
                     self.flatten_system_binding_element(plan, element, rest)?;
                 }
                 continue;
             }
             let (property_value, excluded_property) =
-                self.create_system_binding_property_access(plan, value, element, has_rest)?;
+                self.create_system_binding_property_access(plan, value, element)?;
             excluded.push(excluded_property);
             self.flatten_system_binding_element(plan, element, property_value)?;
         }
@@ -2151,6 +1995,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         plan: &mut SystemBindingPlan,
         elements: Option<NodeArrayId>,
         mut value: TransformNode,
+        location: TransformNode,
     ) -> Result<(), TransformError> {
         let elements = node_array_nodes(self.context.arena(), self.source, elements)?;
         let all_omitted = !elements.is_empty()
@@ -2160,22 +2005,42 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     .node(*element)
                     .is_ok_and(|node| node.kind == SyntaxKind::OmittedExpression)
             });
-        if elements.len() != 1 || all_omitted {
-            value = self.ensure_system_binding_identifier(plan, value, !all_omitted)?;
+        if self.downlevel_iteration {
+            let has_rest = if let Some(element) = elements.last() {
+                matches!(&self.context.arena().node(*element)?.data,
+                    NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some())
+            } else {
+                false
+            };
+            // System moves the helpers attached by earlier passes. It does
+            // not attach new helper requests made while flattening bindings.
+            let helper = self
+                .context
+                .factory()?
+                .create_unscoped_helper_identifier(self.source, EmitHelperName::Read)?;
+            let mut arguments = vec![value];
+            if !has_rest {
+                arguments.push(self.create_numeric_literal(&elements.len().to_string())?);
+            }
+            let read = self.create_call(helper, arguments)?;
+            self.context.factory()?.set_text_range(read, location)?;
+            value = self.ensure_system_binding_identifier(plan, read, false, location)?;
+        } else if elements.len() != 1 || all_omitted {
+            value =
+                self.ensure_system_binding_identifier(plan, value, !elements.is_empty(), location)?;
         }
         for (index, element) in elements.into_iter().enumerate() {
             if self.context.arena().node(element)?.kind == SyntaxKind::OmittedExpression {
                 continue;
             }
             let element = self.system_binding_element(element)?;
-            let base = self.context.factory()?.clone_node(value)?;
             let element_value = if element.rest {
-                let slice = self.create_property_access(base, "slice")?;
+                let slice = self.create_property_access(value, "slice")?;
                 let index = self.create_numeric_literal(&index.to_string())?;
                 self.create_call(slice, vec![index])?
             } else {
                 let index = self.create_numeric_literal(&index.to_string())?;
-                self.create_element_access(base, index)?
+                self.create_element_access(value, index)?
             };
             self.flatten_system_binding_element(plan, element, element_value)?;
         }
@@ -2190,7 +2055,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     ) -> Result<(), TransformError> {
         if let Some(initializer) = element.initializer {
             let initializer = self.visit(initializer.node())?;
-            value = self.ensure_system_binding_identifier(plan, value, true)?;
+            value = self.ensure_system_binding_identifier(plan, value, true, element.original)?;
             let condition_value = self.context.factory()?.clone_node(value)?;
             let undefined = self.create_void_zero()?;
             let condition = self.create_binary(
@@ -2200,8 +2065,30 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             )?;
             let fallback = self.context.factory()?.clone_node(value)?;
             value = self.create_conditional(condition, initializer, fallback)?;
+            if matches!(
+                self.context.arena().node(element.target)?.kind,
+                SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+            ) && !matches!(
+                self.context.arena().node(initializer)?.kind,
+                SyntaxKind::StringLiteral
+                    | SyntaxKind::NumericLiteral
+                    | SyntaxKind::NoSubstitutionTemplateLiteral
+                    | SyntaxKind::TrueKeyword
+                    | SyntaxKind::FalseKeyword
+                    | SyntaxKind::NullKeyword
+                    | SyntaxKind::ThisKeyword
+            ) {
+                value =
+                    self.ensure_system_binding_identifier(plan, value, true, element.original)?;
+            }
         }
-        self.flatten_system_binding_target(plan, element.target, value, Some(element.original))
+        self.flatten_system_binding_target(
+            plan,
+            element.target,
+            value,
+            Some(element.original),
+            element.original,
+        )
     }
 
     fn ensure_system_binding_identifier(
@@ -2209,6 +2096,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         plan: &mut SystemBindingPlan,
         value: TransformNode,
         reuse_identifier: bool,
+        location: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         if reuse_identifier && self.context.arena().node(value)?.kind == SyntaxKind::Identifier {
             return Ok(value);
@@ -2216,7 +2104,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let temp = self.next_temp_name();
         self.push_hoisted_name(&temp);
         let target = self.create_identifier(&temp)?;
-        plan.push_evaluation(self.create_assignment(target, value)?);
+        let assignment = self.create_assignment(target, value)?;
+        self.context
+            .factory()?
+            .set_text_range(assignment, location)?;
+        plan.push_evaluation(assignment);
         self.create_identifier(&temp)
     }
 
@@ -2256,7 +2148,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         plan: &mut SystemBindingPlan,
         value: TransformNode,
         element: SystemBindingElement,
-        property_is_reused: bool,
     ) -> Result<(TransformNode, SystemExcludedProperty), TransformError> {
         let property_name = element
             .property_name
@@ -2279,11 +2170,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     parent: SyntaxKind::ComputedPropertyName,
                     field: "expression",
                 })?;
-            let argument = if property_is_reused {
-                self.ensure_system_binding_identifier(plan, argument, true)?
-            } else {
-                argument
-            };
+            let argument =
+                self.ensure_system_binding_identifier(plan, argument, false, property_name)?;
             let access_argument = self.context.factory()?.clone_node(argument)?;
             return Ok((
                 self.create_element_access(base, access_argument)?,
@@ -2315,8 +2203,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         excluded: &[SystemExcludedProperty],
         original: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        self.context
-            .request_emit_helper(super::helpers::object_rest())?;
+        // As for __read above, only helpers attached before System are
+        // emitted or used to create an external helpers import.
         let mut properties = Vec::with_capacity(excluded.len());
         for property in excluded {
             let property = match property {
@@ -2343,39 +2231,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .context
             .factory()?
             .create_unscoped_helper_identifier(self.source, EmitHelperName::Rest)?;
-        let value = self.context.factory()?.clone_node(value)?;
         self.create_call(helper, vec![value, excluded])
-    }
-
-    /// Mirrors flattenObject/ArrayBindingOrAssignmentPattern's root-value
-    /// ownership rule. Identifiers can be safely reused across leaves; other
-    /// expressions need a stable temporary whenever the root is read more
-    /// than once.
-    fn binding_pattern_requires_root_temp(
-        &self,
-        pattern: TransformNode,
-        initializer: TransformNode,
-    ) -> Result<bool, TransformError> {
-        if self.context.arena().node(initializer)?.kind == SyntaxKind::Identifier {
-            return Ok(false);
-        }
-        match &self.context.arena().node(pattern)?.data {
-            NodeData::ObjectBindingPattern(data) => {
-                Ok(node_array_nodes(self.context.arena(), self.source, data.elements)?.len() != 1)
-            }
-            NodeData::ArrayBindingPattern(data) => {
-                let elements = node_array_nodes(self.context.arena(), self.source, data.elements)?;
-                let all_omitted = !elements.is_empty()
-                    && elements.iter().all(|element| {
-                        self.context
-                            .arena()
-                            .node(*element)
-                            .is_ok_and(|node| node.kind == SyntaxKind::OmittedExpression)
-                    });
-                Ok(elements.len() != 1 || all_omitted)
-            }
-            _ => Ok(false),
-        }
     }
 
     fn transform_hoisted_class(
@@ -2396,6 +2252,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     .get(&key)
                     .map(ToString::to_string)
             });
+        if let Some(name) = data.name {
+            self.hoist_name_node(self.node(name))?;
+        } else if let Some(local) = &local {
+            self.push_hoisted_name(local);
+        }
         let exports = if publish_exports {
             local
                 .as_deref()
@@ -2883,37 +2744,66 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let exported_from_source = self
             .resolver
             .get_referenced_export_container(resolver_node, EmitExportContainerMode::Reference)?
-            .is_some();
-        let value_declaration = self
+            .map(|container| -> Result<bool, TransformError> {
+                if container.source() != resolver_node.source() {
+                    return Ok(false);
+                }
+                Ok(self.context.arena().node(self.node(container.node()))?.kind
+                    == SyntaxKind::SourceFile)
+            })
+            .transpose()?
+            .unwrap_or(false);
+        let mut value_declaration = self
             .resolver
             .get_referenced_value_declaration(resolver_node)?;
-        if let Some(exports) = value_declaration
+        let mut exports = value_declaration
             .and_then(|declaration| self.info.common.exported_bindings.get(&declaration.node()))
-        {
-            return Ok(exports.clone());
-        }
-        for declaration in self
-            .resolver
-            .get_referenced_value_declarations(resolver_node)?
-        {
-            if Some(declaration) == value_declaration {
-                continue;
+            .cloned();
+        if exports.is_none() {
+            for declaration in self
+                .resolver
+                .get_referenced_value_declarations(resolver_node)?
+            {
+                if Some(declaration) == value_declaration {
+                    continue;
+                }
+                if let Some(bindings) = self.info.common.exported_bindings.get(&declaration.node())
+                {
+                    value_declaration = Some(declaration);
+                    exports = Some(bindings.clone());
+                    break;
+                }
             }
-            if let Some(exports) = self.info.common.exported_bindings.get(&declaration.node()) {
-                return Ok(exports.clone());
+        }
+        let mut exports = exports.unwrap_or_default();
+        // getExports prepends getDeclarationName(valueDeclaration) for a
+        // SourceFile export, independently of collectExternalModuleInfo.
+        // ESNext removes an exported using statement's modifier, but the
+        // checker-owned declaration still establishes its public name.
+        if let Some(declaration) = value_declaration.filter(|declaration| {
+            exported_from_source && declaration.source() == resolver_node.source()
+        }) {
+            let declaration = self.node(declaration.node());
+            let name = match &self.context.arena().node(declaration)?.data {
+                NodeData::VariableDeclaration(data) => data.name,
+                NodeData::BindingElement(data) => data.name,
+                NodeData::ClassDeclaration(data) => data.name,
+                NodeData::ClassExpression(data) => data.name,
+                NodeData::EnumDeclaration(data) => data.name,
+                NodeData::FunctionDeclaration(data) => data.name,
+                NodeData::FunctionExpression(data) => data.name,
+                _ => None,
+            };
+            if let Some(name) = name {
+                let name =
+                    super::ModuleExportName::from_node(self.context.arena(), self.node(name))?;
+                // The shared module info also stores a direct declaration's
+                // own name. Keep exactly one, ahead of its export aliases.
+                exports.retain(|export| export.as_js() != name.as_js());
+                exports.insert(0, name);
             }
         }
-        if !exported_from_source {
-            return Ok(Vec::new());
-        }
-        let name = identifier_text_owned(self.context.arena(), node)?;
-        Ok(self
-            .info
-            .common
-            .exports_by_local
-            .get(name.as_bytes())
-            .cloned()
-            .unwrap_or_default())
+        Ok(exports)
     }
 
     fn has_export_star(&self) -> bool {

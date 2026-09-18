@@ -16,6 +16,8 @@ REPO = "kazhiramatsu/tsc-rs"
 BASE = "3b1f5fe87fd31e3b303bb44bd257342735452ed9"
 sys.path.insert(0, str(ROOT / "scripts"))
 import emitter_final_witnesses as final
+sys.path.insert(0, str(ROOT / ".github/ci"))
+import replay
 
 
 def gh(*args):
@@ -103,18 +105,26 @@ def main():
             assert snippet in log(name), (name, snippet)
     plan_counts = []
     for suite in final.SUITES:
-        raw = log(f"witnesses ({suite})")
+        owners = [group for group, members in replay.WITNESS_GROUPS.items() if suite in members]
+        assert len(owners) == 1, (suite, owners)
+        raw = log(f"witnesses ({owners[0]})")
         # Pair each dispatched command with its actual result and completion marker.
         events = []
+        suite_output = []
+        active = False
         for line in raw.splitlines():
+            if active:
+                suite_output.append(line)
             if "{" not in line:
                 continue
             try:
                 item = json.loads(line[line.index("{"):])
             except json.JSONDecodeError:
                 continue
-            if isinstance(item, dict) and item.get("suite") == suite and "event" in item:
-                events.append(item)
+            if isinstance(item, dict) and "suite" in item and "event" in item:
+                active = item["suite"] == suite and item["event"] == "start"
+                if item["suite"] == suite:
+                    events.append(item)
         commands = final.commands(suite)
         assert len(events) == 2 * len(commands), (suite, events)
         for index, (command, _) in enumerate(commands):
@@ -128,13 +138,13 @@ def main():
             assert selected == len(final.case_ids(suite)) and exact + known == selected and failed == 0
             plan_counts.append((exact, known))
         if suite == "emitter-global" or suite.startswith("emitter-class-"):
-            observed = re.findall(r"EXACT x2 (\S+)", raw)
+            observed = re.findall(r"EXACT x2 (\S+)", "\n".join(suite_output))
             assert sorted(observed) == sorted(final.case_ids(suite)), suite
     assert tuple(map(sum, zip(*plan_counts))) == (1763, 35), plan_counts
-    replay = [j for j in jobs if j["name"].startswith(("acceptance (", "witnesses ("))]
-    assert len(replay) == 19
-    record.update(replay_jobs=19, replay_total_seconds=sum(j["seconds"] for j in replay),
-                  replay_longest_seconds=max(j["seconds"] for j in replay), workers=2,
+    replay_jobs = [j for j in jobs if j["name"].startswith(("acceptance (", "witnesses ("))]
+    assert len(replay_jobs) == 19
+    record.update(replay_jobs=19, replay_total_seconds=sum(j["seconds"] for j in replay_jobs),
+                  replay_longest_seconds=max(j["seconds"] for j in replay_jobs), workers=2,
                   required_observations=required, plan_base={"exact": 1763, "known": 35, "failed": 0},
                   timing_excludes=["plans", "gates", "main push"],
                   additional_command_controls={"selected": 551, "exact": 539, "typed_parse_boundaries": 12},

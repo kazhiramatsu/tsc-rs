@@ -104,3 +104,90 @@ fn historical_session_refusals_match_complete_typescript_commands() {
         super::h2_8a_import_helpers::capture_complete_command,
     );
 }
+
+#[path = "../support/complete_command_corpus.rs"]
+mod complete_command_corpus;
+
+#[test]
+fn jsdoc_original_command_matches_complete_typescript_observations() {
+    complete_command_corpus::assert_complete_commands_twice(include_bytes!(
+        "../fixtures/emitter-jsdoc-original-command.json"
+    ));
+}
+
+#[test]
+fn exported_destructuring_comments_match_complete_typescript_commands() {
+    use serde_json::{json, Value};
+    let artifacts = [
+        (
+            include_bytes!("../fixtures/export-destructuring-comments.json").as_slice(),
+            216,
+        ),
+        (
+            include_bytes!("../fixtures/export-destructuring-boundaries.json").as_slice(),
+            72,
+        ),
+        (
+            include_bytes!("../fixtures/export-destructuring-trailing.json").as_slice(),
+            48,
+        ),
+        (
+            include_bytes!("../fixtures/property-initializer-comment-ownership.json").as_slice(),
+            54,
+        ),
+        (
+            include_bytes!("../fixtures/system-destructuring-order.json").as_slice(),
+            198,
+        ),
+        (
+            include_bytes!("../fixtures/system-binding-boundaries.json").as_slice(),
+            168,
+        ),
+        (
+            include_bytes!("../fixtures/access-token-ranges.json").as_slice(),
+            168,
+        ),
+        (
+            include_bytes!("../fixtures/system-using-publication.json").as_slice(),
+            206,
+        ),
+    ]
+    .map(|(bytes, count)| {
+        let artifact: Value = serde_json::from_slice(bytes).unwrap();
+        assert_eq!(artifact["typescript"], "6.0.3");
+        assert_eq!(artifact["repetitions"], 2);
+        assert_eq!(artifact["cases"].as_array().unwrap().len(), count);
+        artifact
+    });
+    let cases: Vec<_> = artifacts
+        .iter()
+        .flat_map(|artifact| artifact["cases"].as_array().unwrap())
+        .collect();
+    assert_eq!(cases.len(), 1130);
+    let mut failures = Vec::new();
+    for case in &cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                super::h2_8a_import_helpers::capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("export destructuring comments EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "export destructuring comments SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete export destructuring command failures: {failures:?}"
+    );
+}

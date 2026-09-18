@@ -6669,7 +6669,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         // the variable statement; alias publications follow it
         // (EF7-CJS-EXPORT-INLINE).
         let mut exported_expressions: Vec<TransformNode> = Vec::new();
-        let mut exported_range_name: Option<Option<TransformNode>> = None;
         let mut remove_comments_on_expressions = false;
         for declaration in declarations {
             let NodeData::VariableDeclaration(mut variable) =
@@ -6727,7 +6726,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         declaration,
                     )?;
                     exported_expressions.push(expression);
-                    exported_range_name.get_or_insert(None);
                     if self.info.appends_declaration_exports() {
                         trailing
                             .extend(self.create_declaration_export_statements(declaration, true)?);
@@ -6785,7 +6783,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let value = self.create_identifier(&plan.local_name)?;
                 let assignment = self.create_assignment(target, value)?;
                 exported_expressions.push(assignment);
-                exported_range_name.get_or_insert(Some(name));
                 remove_comments_on_expressions = true;
                 for export in plan.alias_targets() {
                     let target = self.create_export_access_from_module_name(export)?;
@@ -6807,7 +6804,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     let target = self.create_export_access_from_name(name)?;
                     let assignment = self.create_assignment(target, initializer)?;
                     exported_expressions.push(assignment);
-                    exported_range_name.get_or_insert(Some(name));
                     for export in plan.alias_targets() {
                         let target = self.create_export_access_from_module_name(export)?;
                         let value = self.create_substituted_declaration_export_value(name)?;
@@ -6850,9 +6846,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
             let statement = self.create_expression_statement(expression)?;
             self.set_original_and_range(statement, original)?;
-            if let Some(Some(name)) = exported_range_name {
-                self.set_direct_export_statement_range(statement, name, original)?;
-            }
             if remove_comments_on_expressions {
                 self.context
                     .arena_mut()?
@@ -10864,8 +10857,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
 
     /// Node-aware assignment half of `createExportExpression`. Directly
     /// exported declarations retain the source name as the property child,
-    /// while the synthesized outer access carries that name's source-map
-    /// range.
+    /// while the synthesized outer access carries that name's text range
+    /// for both comment ownership and source maps.
     ///
     /// tsc-port: createExportExpression @6.0.3
     /// tsc-hash: 75fd880a658644ec017e38813933a1710d9f1ec7929387c8755990e3d6c9fbf8
@@ -10913,6 +10906,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 TransformFlags::NONE,
             )?
         };
+        // visitVariableStatement/transformInitializedVariable attach the
+        // name's text range to the access itself. It owns the leading and
+        // trailing comments, containing the retained property's same start.
+        self.context.factory()?.set_text_range(access, name)?;
         self.set_source_map_range_from(access, name)?;
         Ok(access)
     }
@@ -11180,39 +11177,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         self.context
             .arena_mut()?
             .metadata_mut(node)
-            .set_source_map_range(source_map_range);
-        Ok(())
-    }
-
-    fn set_direct_export_statement_range(
-        &mut self,
-        statement: TransformNode,
-        name: TransformNode,
-        variable_statement: TransformNode,
-    ) -> Result<(), TransformError> {
-        let source_map_range = {
-            let arena = self.context.arena();
-            let name = arena.node(name)?;
-            let variable_statement_record = arena.node(variable_statement)?;
-            let source = arena.source(variable_statement.source())?.syntax();
-            // A generated name (a flattened binding pattern's temp) has no
-            // position; the statement then keeps the variable statement's
-            // own start.
-            let start = if name.pos == u32::MAX {
-                variable_statement_record.pos
-            } else {
-                name.pos
-            };
-            SourceRange::from_raw(start, variable_statement_record.end, source.positions())
-                .map(|range| SourceMapRange::new(variable_statement.source(), range))
-                .map_err(|error| TransformError::InvalidSourceRange {
-                    node: variable_statement,
-                    error,
-                })?
-        };
-        self.context
-            .arena_mut()?
-            .metadata_mut(statement)
             .set_source_map_range(source_map_range);
         Ok(())
     }

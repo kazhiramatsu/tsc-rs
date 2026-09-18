@@ -5194,11 +5194,21 @@ impl Printer {
                     initializer_node,
                     writer,
                 )?;
+                // The positional trailing pass above is independent of
+                // containerPos. Only the initializer's leading phase resumes
+                // after a prefix already owned by its surrounding property.
+                let owner =
+                    self.expression_comment_phase_owner_for_node(transformation, initializer_node)?;
+                let container_owned = self.parent_comment_container_owned_prefix_for_owner(
+                    transformation,
+                    expression_context.comments().container_pos(),
+                    owner,
+                )?;
                 self.emit_leading_comments_for_node_worker(
                     transformation,
                     initializer_node,
                     LeadingCommentContext::Normal,
-                    skipped_prefix_bytes,
+                    container_owned.or(skipped_prefix_bytes),
                     writer,
                 )?;
                 self.emit_node_id_with_context(
@@ -7463,7 +7473,7 @@ impl Printer {
                 } else {
                     SyntaxKind::DotToken
                 };
-                let token_cursor = self.original_node_end_cursor(transformation, expression)?;
+                let token_cursor = self.node_end_cursor(transformation, expression)?;
                 // getLinesBetweenNodes only consults source lines when the
                 // parent and both children carry source positions. A class
                 // field access receives the member-name range for mapping and
@@ -7593,7 +7603,7 @@ impl Printer {
                     self.original_node_end_cursor(transformation, question_dot)?
                 } else {
                     expression
-                        .map(|expression| self.original_node_end_cursor(transformation, expression))
+                        .map(|expression| self.node_end_cursor(transformation, expression))
                         .transpose()?
                         .unwrap_or(TokenCursor::Synthetic)
                 };
@@ -7696,12 +7706,17 @@ impl Printer {
                         parent: SyntaxKind::BinaryExpression,
                         field: "operator_token",
                     })?;
-                self.emit_required_node_with_forwarded_source_comments(
+                // Each binary operand enters the ordinary comments phase.
+                // A synthesized assignment has no range of its own, but its
+                // left operand can still own parsed binding-name comments.
+                let left = data.left.ok_or(PrinterError::MissingTransformedChild {
+                    parent: SyntaxKind::BinaryExpression,
+                    field: "left",
+                })?;
+                let left_comments = self.emit_expression_child_with_source_comments(
                     transformation,
                     node.source(),
-                    data.left,
-                    SyntaxKind::BinaryExpression,
-                    "left",
+                    left,
                     expression_context,
                     deferred_source_comments,
                     writer,
@@ -7709,7 +7724,8 @@ impl Printer {
                 let operator_anchor = if let Some(left) = left_node {
                     let cursor = self.original_node_end_cursor(transformation, left)?;
                     if let Some(anchor) =
-                        deferred_source_comments.visited_trailing_anchor_at(cursor)
+                        Self::access_target_trailing_anchor_at(left_comments, cursor)
+                            .or_else(|| deferred_source_comments.visited_trailing_anchor_at(cursor))
                     {
                         anchor
                     } else {
@@ -16760,10 +16776,10 @@ impl Printer {
         )
     }
 
-    /// Cursor for the transformed node's current text-range end. Fixed-token
-    /// emitters normally follow semantic originals, but tsc's generated
-    /// ParenthesizedExpression deliberately anchors `)` at
-    /// `node.expression.end` after transformation.
+    /// Cursor for the transformed node's current text-range end. Parenthesis
+    /// and access-token emitters anchor at `node.expression.end`, so an
+    /// original link or a comment/map donor does not give a synthetic
+    /// receiver a source position for its following token.
     fn node_end_cursor(
         &self,
         transformation: &TransformationResult<'_>,
@@ -17200,8 +17216,8 @@ impl Printer {
         Ok(original_record.kind == record.kind)
     }
 
-    /// Typed `!nodeIsSynthesized(node)` for layout decisions. Unlike token
-    /// ownership, tsc's line-preservation check is based only on the node's
+    /// Typed `!nodeIsSynthesized(node)` for layout decisions. The
+    /// line-preservation check is based only on the node's
     /// current text range, so a generated node positioned by a transform can
     /// participate when every node at that boundary has a source range.
     fn node_has_source_text_range(
@@ -18442,7 +18458,7 @@ fn emit_source_trailing_comments_of_position_with_filter(
         if only_print_js_doc_style && !should_write_js_doc_style_comment(source, comment.start) {
             continue;
         }
-        if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
+        if !writer.is_at_start_of_line() {
             writer.write_space(" ");
         }
         write_source_comment(source, comment.start, comment.end, writer);
