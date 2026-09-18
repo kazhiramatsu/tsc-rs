@@ -65,7 +65,7 @@ H2.5h 12、H2.6a 1、H2.6c 8の既知差分台帳を空にした。
 
 | suite | 固定した観測範囲 |
 | --- | --- |
-| emitter-final | oracle対照4、EF2/EF3 21所属、EF2–EF6 batch11 tests、EF8 22＋4、filesystem24、helpers/controls551（539 exact＋12 typed boundary）、CLI58、class24、global2、EF7 217＋guard3 tests、request-plan40 tests |
+| emitter-final | oracle対照4、EF2/EF3 21所属、EF2–EF6 batch11 tests、EF8 22＋4、filesystem24、helpers/controls551（539 exact＋12 typed boundary）、CLI58、class24、empty-block72、session4、source-map70、global2、EF7 217＋guard3 tests、request-plan40 tests |
 | emitter-universe-oracle | TypeScript 6.0.3で217＋1798を各2回再観測 |
 | emitter-plan-base-0..3 | sorted IDのmodulo 4、450/450/449/449行を各2回 |
 | emitter-global | 既存global output-only 769行を各2回 |
@@ -74,7 +74,7 @@ H2.5h 12、H2.6a 1、H2.6c 8の既知差分台帳を空にした。
 重複する観測所属なので件数を足して互換ケース総数にしない。PLAN-BASEの約70分のローカル直列測定は
 hosted一jobへ持ち込まない。専用fixtureは担当suiteを選び、shared sourceは全既存群を含める。
 editing selectorsを除去し、zero/ignored testsと欠けたshard summaryを拒否する。
-入口台帳v29はcomposite runnerを実Cargo commandsへ展開する。
+入口台帳v32はcomposite runnerを実Cargo commandsへ展開する。
 
 ## Validationとarchitecture
 
@@ -119,3 +119,20 @@ bundle declaration/mapのcurrent参照は公式writerで再採取し、全input�
 へ固定した。差は依存artifactのhashとobserver identityのみ。
 旧退役台帳v1の空before payloadは、元SHA-256を照合した[v2](records/retired-known.v2.json)
 で訂正した。旧版も訂正理由とともに保存する。
+
+## r34 時点の実測と CI 再実行
+
+D772候補の全23 checksとlogsを[保存](hosted/progress-d772eb554098.json)した。
+19成功、2つの実行job失敗とそれに伴う2 gate失敗。conformance49,024全層、
+wide、全PLAN-BASE shards、global/class、emitter-finalは成功した。
+新しいempty-block72とsession4は完全commandを各2回一致。過去source-map70も
+既存全比較を通過した（全70行を各2回測定したという意味ではない）。
+config-libraryの24テストもすべて成功したが、shared contractsに7テストが増えたため
+filtered countの旧423 pinが実測430を拒否していた。選択・ignored・filteredの厳密検証を
+維持して固定値を修正した。H2.6cは追加した1行の元tuple hashがJSONのkey順序を
+誤っていたため停止した。135行のpinを元artifactの順序で全照合し、当該1行だけ修正した。
+元inputとTypeScript観測は変更しない。次のCIで再検証し、全成功まではqualificationを行わない。
+
+構文回復は別候補で段階的に検証中。通常候補の36 KNOWNは維持しており、
+新しいparser predicateや追加426 controlsのTypeScript観測だけを根拠に退役させない。
+Claude Fableとの実際の比較を継続している。現時点でrate limitによるOpus切替はない。
