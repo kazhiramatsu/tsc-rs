@@ -44,7 +44,10 @@ pub use parser::{
     is_entity_name_js_text, is_entity_name_text, is_identifier_text, is_identifier_text_for_target,
     parse_entity_name_components, JSDocParsingMode, ParseOptions,
 };
-pub use recovery::{ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryEvent, ParseRecoveryKind};
+pub use recovery::{
+    MissingNodeRecovery, ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryAction,
+    ParseRecoveryEvent, ParseRecoveryKind, ParseTokenSkipSite,
+};
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,
     scan_byte_tokens, scan_token_kinds, scan_tokens, skip_trivia, string_literal_text_utf16,

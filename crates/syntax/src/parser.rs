@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
-use crate::{ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryEvent, ParseRecoveryKind};
+use crate::{
+    MissingNodeRecovery, ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryAction,
+    ParseRecoveryEvent, ParseRecoveryKind, ParseTokenSkipSite,
+};
 
 mod jsdoc;
 
@@ -1233,20 +1236,37 @@ impl<'text> Parser<'text> {
         message: Option<&'static DiagnosticMessage>,
         args: &[&dyn DiagnosticArgument],
     ) -> NodeId {
-        if report_at_current_position {
-            if let Some(message) = message {
-                self.parse_error_at_position(self.scanner.full_start_pos(), 0, message, args);
-            }
-        } else if let Some(message) = message {
-            self.parse_error_at_current_token(message, args);
-        }
-
-        if message.is_none() {
+        let position = self.to_utf16(self.scanner.full_start_pos());
+        if let Some(message) = message {
+            let (start, length) = if report_at_current_position {
+                (self.scanner.full_start_pos(), 0)
+            } else {
+                (
+                    self.scanner.token_start(),
+                    self.scanner.pos() - self.scanner.token_start(),
+                )
+            };
+            let args = args
+                .iter()
+                .map(|arg| arg.diagnostic_value().to_owned())
+                .collect();
+            let (_, event_index) = self.push_parse_diagnostic_with_event(
+                start,
+                length,
+                message,
+                args,
+                ParseDiagnosticOrigin::Parser,
+            );
+            self.parse_error_before_next_finished_node = true;
+            self.parse_recovery.events[event_index].missing_node =
+                Some(MissingNodeRecovery { kind, position });
+        } else {
             self.parse_recovery.events.push(ParseRecoveryEvent {
                 kind: ParseRecoveryKind::SilentMissingNode(kind),
                 start: self.to_utf16(self.scanner.full_start_pos()),
                 length: 0,
                 diagnostic_index: None,
+                missing_node: None,
                 reparse_start: self.to_utf16(
                     self.recovery_statement_start
                         .unwrap_or(self.scanner.full_start_pos()),
@@ -1366,6 +1386,14 @@ impl<'text> Parser<'text> {
         let candidate = cursor.current_node(self.scanner.full_start_pos() as u32)?;
         let source = cursor.source();
         let node = source.arena.node(candidate.old_node);
+        let start = source
+            .positions()
+            .byte_to_utf16(node.pos)
+            .expect("syntax node positions are scalar boundaries");
+        let end = source
+            .positions()
+            .byte_to_utf16(node.end)
+            .expect("syntax node positions are scalar boundaries");
         let flags = NodeFlags::from_bits(node.flags);
         if node.pos == node.end && node.kind != SyntaxKind::EndOfFileToken
             || candidate.intersects_change
@@ -1373,19 +1401,16 @@ impl<'text> Parser<'text> {
                 NodeFlags::THIS_NODE_HAS_ERROR | NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR,
             )
             || flags & NodeFlags::CONTEXT_FLAGS != self.context_flags & NodeFlags::CONTEXT_FLAGS
-            || source.parse_recovery.events().iter().any(|event| {
-                let start = source
-                    .snapshot()
-                    .positions()
-                    .byte_to_utf16(node.pos)
-                    .expect("syntax node positions are scalar boundaries");
-                let end = source
-                    .snapshot()
-                    .positions()
-                    .byte_to_utf16(node.end)
-                    .expect("syntax node positions are scalar boundaries");
-                (start..=end).contains(&event.start)
-            })
+            || source
+                .parse_recovery
+                .events()
+                .iter()
+                .any(|event| (start..=end).contains(&event.start))
+            || source
+                .parse_recovery
+                .actions()
+                .iter()
+                .any(|action| action.intersects(start, end))
             || !Self::can_reuse_node(source, candidate.old_node, context)
         {
             return None;
@@ -1563,6 +1588,7 @@ impl<'text> Parser<'text> {
                 if let Some(element) = element {
                     list.push(element);
                     if start_pos == self.scanner.full_start_pos() {
+                        self.record_token_skip(ParseTokenSkipSite::ListNoProgress);
                         self.next_token();
                     }
                     continue;
@@ -1633,9 +1659,11 @@ impl<'text> Parser<'text> {
                     && self.token() == SyntaxKind::SemicolonToken
                     && !self.scanner.has_preceding_line_break()
                 {
+                    self.record_token_skip(ParseTokenSkipSite::DelimitedSemicolon);
                     self.next_token();
                 }
                 if start_pos == self.scanner.full_start_pos() {
+                    self.record_token_skip(ParseTokenSkipSite::DelimitedNoProgress);
                     self.next_token();
                 }
                 continue;
@@ -1839,8 +1867,28 @@ impl<'text> Parser<'text> {
         if self.is_in_some_parsing_context() {
             return true;
         }
+        self.record_token_skip(ParseTokenSkipSite::ListAbort);
         self.next_token();
         false
+    }
+
+    fn record_token_skip(&mut self, site: ParseTokenSkipSite) {
+        let start = self.to_utf16(self.scanner.token_start());
+        let end = self.to_utf16(self.scanner.pos());
+        // A progress skip between source elements has no enclosing statement;
+        // the skipped token then owns its retention across a top-level reparse.
+        self.parse_recovery
+            .actions
+            .push(ParseRecoveryAction::TokenSkipped {
+                token: self.token(),
+                start,
+                length: end.saturating_sub(start),
+                statement_start: self.to_utf16(
+                    self.recovery_statement_start
+                        .unwrap_or(self.scanner.token_start()),
+                ),
+                site,
+            });
     }
 
     fn is_in_some_parsing_context(&mut self) -> bool {
@@ -3641,6 +3689,7 @@ impl<'text> Parser<'text> {
                 &gen::Declaration_or_statement_expected_This_follows_a_block_of_statements_so_if_you_intended_to_write_a_destructuring_assignment_you_might_need_to_wrap_the_whole_assignment_in_parentheses,
                 &[],
             );
+            self.record_token_skip(ParseTokenSkipSite::BlockTrailingEquals);
             self.next_token();
         }
 
@@ -6974,6 +7023,7 @@ impl<'text> Parser<'text> {
         if name_node.pos == name_node.end && !has_modifiers && self.is_modifier_kind(self.token()) {
             // A modifier alone ("void foo(private)") would loop forever;
             // consume it so the list makes progress (tsc parseNameOfParameter).
+            self.record_token_skip(ParseTokenSkipSite::ParameterModifier);
             self.next_token();
         }
         name
@@ -7036,6 +7086,7 @@ impl<'text> Parser<'text> {
                 &gen::_0_expected,
                 &[&token_to_string(SyntaxKind::ColonToken)],
             );
+            self.record_token_skip(ParseTokenSkipSite::TypePredicateArrow);
             self.next_token();
             true
         } else {
@@ -8981,6 +9032,7 @@ impl<'text> Parser<'text> {
                 &gen::Cannot_start_a_function_call_in_a_type_annotation,
                 &[],
             );
+            self.record_token_skip(ParseTokenSkipSite::TypeAnnotationCall);
             self.next_token();
             return;
         }
@@ -9530,6 +9582,13 @@ impl<'text> Parser<'text> {
             }
             self.parse_recovery.events.push(retained);
         }
+        self.parse_recovery.actions.extend(
+            recovery
+                .actions
+                .iter()
+                .copied()
+                .filter(|action| positions.contains(&action.owner_start())),
+        );
     }
 
     /// tsc reparseTopLevelAwait: maximal runs of possible-await statements
@@ -9570,6 +9629,7 @@ impl<'text> Parser<'text> {
                 let statement = self.parse_source_element();
                 statements.push(statement);
                 if start_pos == self.scanner.full_start_pos() {
+                    self.record_token_skip(ParseTokenSkipSite::TopLevelAwaitReparse);
                     self.next_token();
                 }
                 if let Some(cursor) = pos {
@@ -9583,6 +9643,12 @@ impl<'text> Parser<'text> {
                     }
                 }
             }
+            self.parse_recovery
+                .actions
+                .push(ParseRecoveryAction::Reparsed {
+                    start: next_pos,
+                    end: self.to_utf16(self.scanner.full_start_pos()),
+                });
             self.context_flags = saved_context_flags;
             self.scanner.restore(scanner_state);
 
@@ -9894,6 +9960,18 @@ impl<'text> Parser<'text> {
         args: Vec<JsString>,
         origin: ParseDiagnosticOrigin,
     ) -> Option<usize> {
+        self.push_parse_diagnostic_with_event(start, length, message, args, origin)
+            .0
+    }
+
+    fn push_parse_diagnostic_with_event(
+        &mut self,
+        start: usize,
+        length: usize,
+        message: &'static DiagnosticMessage,
+        args: Vec<JsString>,
+        origin: ParseDiagnosticOrigin,
+    ) -> (Option<usize>, usize) {
         let start_utf16 = self.to_utf16(start);
         let end_utf16 = self.to_utf16(start.saturating_add(length));
         let diagnostic_index = if self
@@ -9912,11 +9990,13 @@ impl<'text> Parser<'text> {
         } else {
             None
         };
+        let event_index = self.parse_recovery.events.len();
         self.parse_recovery.events.push(ParseRecoveryEvent {
             kind: ParseRecoveryKind::Diagnostic(origin),
             start: start_utf16,
             length: end_utf16.saturating_sub(start_utf16),
             diagnostic_index,
+            missing_node: None,
             reparse_start: self.to_utf16(match origin {
                 ParseDiagnosticOrigin::ScannerToken(_) => self.scanner.token_start(),
                 ParseDiagnosticOrigin::Parser => self.recovery_statement_start.unwrap_or(start),
@@ -9924,7 +10004,7 @@ impl<'text> Parser<'text> {
                 | ParseDiagnosticOrigin::ReferenceDirective => start,
             }),
         });
-        diagnostic_index
+        (diagnostic_index, event_index)
     }
 
     fn to_utf16(&self, byte_offset: usize) -> u32 {

@@ -17,6 +17,8 @@ SUITES = {
     "syntax-literal-values": {"crate": "syntax", "target": "owned_literal_values", "oracle": "utf16-owned-literal-values",
                               "inputs": ("crates/compiler/tests/fixtures/utf16-literals-adjacent-probes-inputs.json",)},
     "syntax-recovery": {"crate": "syntax", "target": "recovery_provenance", "oracle": "utf16-recovery-boundary"},
+    "syntax-emitter-recovery": {"crate": "syntax", "target": "emitter_recovery", "oracle": "emitter-recovery",
+                                "inputs": ("docs/design/greenfield/slices/emitter-final-batch/integration/cross-review/recovery-inputs-r20.json",)},
     "syntax-scanner-escapes": {"crate": "syntax", "target": "scanner_escape_diagnostics", "oracle": "utf16-scanner-escape-diagnostics"},
     "syntax-template-escapes": {"crate": "syntax", "target": "template_escape_flags"},
     "syntax-template-flags": {"crate": "syntax", "target": "template_flags", "oracle": "utf16-template-flags"},

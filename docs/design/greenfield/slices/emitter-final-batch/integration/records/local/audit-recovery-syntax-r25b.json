@@ -1,0 +1,35 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-syntax",
+    "--lib",
+    "--test",
+    "emitter_recovery",
+    "--test",
+    "recovery_provenance",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T18:03:37.379219+00:00",
+  "head": "3c1dfa51ca02a82c7031caa91cf97fd256946b06",
+  "tracked_clean": false,
+  "diff_sha256": "1ae759446a2e496f595f960ea63e214dcc014ddb18487da39a6e6656d68edbb6",
+  "env": {
+    "TSC_RS_RECOVERY_FACTS_OUTPUT": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit/docs/design/greenfield/slices/emitter-final-batch/integration/cross-review/recovery-native-facts-r25b.json",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 105.577,
+  "log_sha256": "0cef502c8d4685c2db6373b08ac00d1f20220e7d65c74ea7ee26f74ecf44a095",
+  "log_bytes": 14946
+}

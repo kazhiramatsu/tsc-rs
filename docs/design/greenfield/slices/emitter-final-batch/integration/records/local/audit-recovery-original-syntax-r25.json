@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/emitter_recovery-020d0dddd14bb5a5",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T17:58:31.787756+00:00",
+  "head": "3c1dfa51ca02a82c7031caa91cf97fd256946b06",
+  "tracked_clean": false,
+  "diff_sha256": "a94fb25b23f9ae0493b6efb0851aa30f1a7e0a862e10f87353e64ac299f36769",
+  "env": {
+    "TSC_RS_RECOVERY_FACTS_OUTPUT": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit/docs/design/greenfield/slices/emitter-final-batch/integration/cross-review/recovery-native-facts-r25.json",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 0.852,
+  "log_sha256": "bc3a7f540f9fd61ef18086db998618aed5af395c19a5faea49131ef4b109defe",
+  "log_bytes": 261
+}

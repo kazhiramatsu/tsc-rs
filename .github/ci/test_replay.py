@@ -166,8 +166,8 @@ class FoundationTests(unittest.TestCase):
 
     def test_foundation_sources_have_one_bounded_job_and_all_targets(self):
         foundation = witness.foundation_witnesses
-        self.assertEqual(len(foundation.SUITES), 16)
-        self.assertEqual(len({(s["crate"], s["target"]) for s in foundation.SUITES.values()}), 16)
+        self.assertEqual(len(foundation.SUITES), 17)
+        self.assertEqual(len({(s["crate"], s["target"]) for s in foundation.SUITES.values()}), 17)
         for suite in foundation.SUITES:
             plan = replay.selection([foundation.source(suite)])
             self.assertEqual(plan["acceptance"], [])
@@ -965,7 +965,7 @@ class WitnessTests(unittest.TestCase):
     def test_frozen_input_catalog_counts(self):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "syntax-entity-names": 2, "syntax-meta-property": 1, "syntax-literal-values": 1,
-            "syntax-recovery": 1, "syntax-scanner-escapes": 1, "syntax-template-escapes": 5,
+            "syntax-recovery": 1, "syntax-emitter-recovery": 1, "syntax-scanner-escapes": 1, "syntax-template-escapes": 5,
             "syntax-template-flags": 1, "binder-symbol-names": 2, "types-option-numbers": 3,
             "host-memory": 13 if sys.platform == "win32" else 14,
             "host-filesystem": {"linux": 9, "darwin": 8, "win32": 7}[sys.platform],

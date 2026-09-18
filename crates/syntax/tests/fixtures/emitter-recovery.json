@@ -1,0 +1,2854 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "purpose": "syntax-provenance-only-not-emit-compatibility",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "47cc667c42f6e2747413dc843eeef8824d3218846c067798cc7beadcaa21020a",
+  "inputs": {
+    "path": "docs/design/greenfield/slices/emitter-final-batch/integration/cross-review/recovery-inputs-r20.json",
+    "sha256": "87cecc8626941a72d3a3a1f9bd65036c98dd2bac1a0447e67f08a42d037747be"
+  },
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction6_es2017.ts#default",
+      "target": 4,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction6_es2017.ts",
+          "text": "var foo = async (a = await): Promise<void> => {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 26,
+                "end": 26,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 26,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction7_es2017.ts#default",
+      "target": 4,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction7_es2017.ts",
+          "text": "var bar = async (): Promise<void> => {\n  // 'await' here is an identifier, and not an await expression.\n  var foo = async (a = await): Promise<void> => {\n  }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 132,
+                "end": 132,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 132,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction8_es2017.ts#default",
+      "target": 4,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction8_es2017.ts",
+          "text": "var foo = async (): Promise<void> => {\n  var v = { [await]: foo }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 57,
+                "end": 57,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 57,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction9_es2017.ts#default",
+      "target": 4,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction9_es2017.ts",
+          "text": "var foo = async (a = await => await): Promise<void> => {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 51,
+                "end": 51,
+                "parent": 217
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1005,
+                "start": 36,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  44,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1005,
+                "start": 45,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  44,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 52,
+                "length": 2,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration10_es2017.ts#default",
+      "target": 4,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration10_es2017.ts",
+          "text": "async function foo(a = await => await): Promise<void> {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 28,
+                "end": 28,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 29,
+                "length": 2,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration6_es2017.ts#default",
+      "target": 4,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration6_es2017.ts",
+          "text": "async function foo(a = await): Promise<void> {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 28,
+                "end": 28,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 28,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration7_es2017.ts#default",
+      "target": 4,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration7_es2017.ts",
+          "text": "async function bar(): Promise<void> {\n  // 'await' here is an identifier, and not a yield expression.\n  async function foo(a = await): Promise<void> {\n  }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 132,
+                "end": 132,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 132,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration9_es2017.ts#default",
+      "target": 4,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration9_es2017.ts",
+          "text": "async function foo(): Promise<void> {\n  var v = { [await]: foo }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 56,
+                "end": 56,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 56,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction6_es5.ts#target%3Des2015",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction6_es5.ts",
+          "text": "var foo = async (a = await): Promise<void> => {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 26,
+                "end": 26,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 26,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction6_es5.ts#target%3Des5",
+      "target": 1,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction6_es5.ts",
+          "text": "var foo = async (a = await): Promise<void> => {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 26,
+                "end": 26,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 26,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction7_es5.ts#target%3Des2015",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction7_es5.ts",
+          "text": "var bar = async (): Promise<void> => {\n  // 'await' here is an identifier, and not an await expression.\n  var foo = async (a = await): Promise<void> => {\n  }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 132,
+                "end": 132,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 132,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction7_es5.ts#target%3Des5",
+      "target": 1,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction7_es5.ts",
+          "text": "var bar = async (): Promise<void> => {\n  // 'await' here is an identifier, and not an await expression.\n  var foo = async (a = await): Promise<void> => {\n  }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 132,
+                "end": 132,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 132,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction8_es5.ts#target%3Des2015",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction8_es5.ts",
+          "text": "var foo = async (): Promise<void> => {\n  var v = { [await]: foo }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 57,
+                "end": 57,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 57,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction8_es5.ts#target%3Des5",
+      "target": 1,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction8_es5.ts",
+          "text": "var foo = async (): Promise<void> => {\n  var v = { [await]: foo }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 57,
+                "end": 57,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 57,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction9_es5.ts#target%3Des2015",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction9_es5.ts",
+          "text": "var foo = async (a = await => await): Promise<void> => {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 51,
+                "end": 51,
+                "parent": 217
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1005,
+                "start": 36,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  44,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1005,
+                "start": 45,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  44,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 52,
+                "length": 2,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction9_es5.ts#target%3Des5",
+      "target": 1,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction9_es5.ts",
+          "text": "var foo = async (a = await => await): Promise<void> => {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 51,
+                "end": 51,
+                "parent": 217
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1005,
+                "start": 36,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  44,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1005,
+                "start": 45,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  44,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 52,
+                "length": 2,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration10_es5.ts#target%3Des2015",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration10_es5.ts",
+          "text": "async function foo(a = await => await): Promise<void> {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 28,
+                "end": 28,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 29,
+                "length": 2,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration10_es5.ts#target%3Des5",
+      "target": 1,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration10_es5.ts",
+          "text": "async function foo(a = await => await): Promise<void> {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 28,
+                "end": 28,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 29,
+                "length": 2,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration6_es5.ts#target%3Des2015",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration6_es5.ts",
+          "text": "async function foo(a = await): Promise<void> {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 28,
+                "end": 28,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 28,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration6_es5.ts#target%3Des5",
+      "target": 1,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration6_es5.ts",
+          "text": "async function foo(a = await): Promise<void> {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 28,
+                "end": 28,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 28,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts#target%3Des2015",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration7_es5.ts",
+          "text": "async function bar(): Promise<void> {\n  // 'await' here is an identifier, and not a yield expression.\n  async function foo(a = await): Promise<void> {\n  }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 132,
+                "end": 132,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 132,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts#target%3Des5",
+      "target": 1,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration7_es5.ts",
+          "text": "async function bar(): Promise<void> {\n  // 'await' here is an identifier, and not a yield expression.\n  async function foo(a = await): Promise<void> {\n  }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 132,
+                "end": 132,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 132,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration9_es5.ts#target%3Des2015",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration9_es5.ts",
+          "text": "async function foo(): Promise<void> {\n  var v = { [await]: foo }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 56,
+                "end": 56,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 56,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration9_es5.ts#target%3Des5",
+      "target": 1,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration9_es5.ts",
+          "text": "async function foo(): Promise<void> {\n  var v = { [await]: foo }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 56,
+                "end": 56,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 56,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction6_es6.ts#default",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction6_es6.ts",
+          "text": "var foo = async (a = await): Promise<void> => {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 26,
+                "end": 26,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 26,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction7_es6.ts#default",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction7_es6.ts",
+          "text": "var bar = async (): Promise<void> => {\n  // 'await' here is an identifier, and not an await expression.\n  var foo = async (a = await): Promise<void> => {\n  }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 132,
+                "end": 132,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 132,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction8_es6.ts#default",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction8_es6.ts",
+          "text": "var foo = async (): Promise<void> => {\n  var v = { [await]: foo }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 57,
+                "end": 57,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 57,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction9_es6.ts#default",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncArrowFunction9_es6.ts",
+          "text": "var foo = async (a = await => await): Promise<void> => {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 51,
+                "end": 51,
+                "parent": 217
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1005,
+                "start": 36,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  44,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1005,
+                "start": 45,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  44,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 52,
+                "length": 2,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration10_es6.ts#default",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration10_es6.ts",
+          "text": "async function foo(a = await => await): Promise<void> {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 28,
+                "end": 28,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 29,
+                "length": 2,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration6_es6.ts#default",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration6_es6.ts",
+          "text": "async function foo(a = await): Promise<void> {\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 28,
+                "end": 28,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 28,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration7_es6.ts#default",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration7_es6.ts",
+          "text": "async function bar(): Promise<void> {\n  // 'await' here is an identifier, and not a yield expression.\n  async function foo(a = await): Promise<void> {\n  }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 132,
+                "end": 132,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 132,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration9_es6.ts#default",
+      "target": 2,
+      "files": [
+        {
+          "path": "/.src/asyncFunctionDeclaration9_es6.ts",
+          "text": "async function foo(): Promise<void> {\n  var v = { [await]: foo }\n}",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 56,
+                "end": 56,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 56,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.3.ts#experimentaldecorators%3Dtrue",
+      "target": 99,
+      "files": [
+        {
+          "path": "/.src/esDecorators-decoratorExpression.3.ts",
+          "text": "declare let g: <T>(...args: any) => any;\n\n// existing errors\n\n{ @g<number> class C {} }\n\n{ @g()<number> class C {} }\n",
+          "expected": {
+            "missing": [
+              {
+                "kind": 283,
+                "pos": 63,
+                "end": 66,
+                "parent": 242
+              },
+              {
+                "kind": 283,
+                "pos": 90,
+                "end": 95,
+                "parent": 242
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1146,
+                "start": 66,
+                "length": 0,
+                "message_utf16": [
+                  68,
+                  101,
+                  99,
+                  108,
+                  97,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1146,
+                "start": 95,
+                "length": 0,
+                "message_utf16": [
+                  68,
+                  101,
+                  99,
+                  108,
+                  97,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.1.ts#module%3Des2022",
+      "target": 99,
+      "files": [
+        {
+          "path": "/.src/topLevelAwaitErrors.1.ts",
+          "text": "export {};\n\n// reparse call as invalid await should error\nawait (1,);\nawait <number, string>(1);\n\n// reparse tagged template as invalid await should error\nawait <number, string> ``;\n\n// reparse class extends clause should fail\nclass C extends await<string> {\n}\n\n// await in class decorators should fail\n@(await)\nclass C1 {}\n\n@await(x)\nclass C2 {}\n\n@await\nclass C3 {}\n\n// await in member decorators should fail\nclass C4 {\n    @await\n    [\"foo\"]() {}\n}\nclass C5 {\n    @await(1)\n    [\"foo\"]() {}\n}\nclass C6 {\n    @(await)\n    [\"foo\"]() {}\n}\n\n// await in parameter decorators should fail\nclass C7 {\n    method1(@await [x]) {}\n    method2(@await(1) [x]) {}\n    method3(@(await) [x]) {}\n}\n",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 67,
+                "end": 67,
+                "parent": 227
+              },
+              {
+                "kind": 80,
+                "pos": 83,
+                "end": 83,
+                "parent": 217
+              },
+              {
+                "kind": 80,
+                "pos": 168,
+                "end": 168,
+                "parent": 217
+              },
+              {
+                "kind": 80,
+                "pos": 310,
+                "end": 310,
+                "parent": 224
+              },
+              {
+                "kind": 80,
+                "pos": 326,
+                "end": 326,
+                "parent": 214
+              },
+              {
+                "kind": 80,
+                "pos": 349,
+                "end": 349,
+                "parent": 171
+              },
+              {
+                "kind": 80,
+                "pos": 426,
+                "end": 426,
+                "parent": 171
+              },
+              {
+                "kind": 80,
+                "pos": 467,
+                "end": 467,
+                "parent": 214
+              },
+              {
+                "kind": 80,
+                "pos": 517,
+                "end": 517,
+                "parent": 224
+              },
+              {
+                "kind": 80,
+                "pos": 608,
+                "end": 608,
+                "parent": 171
+              },
+              {
+                "kind": 80,
+                "pos": 635,
+                "end": 635,
+                "parent": 214
+              },
+              {
+                "kind": 80,
+                "pos": 671,
+                "end": 671,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 67,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1005,
+                "start": 83,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  62,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1005,
+                "start": 168,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  62,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 243,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 248,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1005,
+                "start": 255,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  44,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 310,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 326,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 349,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 426,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 467,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 517,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 608,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 635,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 671,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.1.ts#module%3Desnext",
+      "target": 99,
+      "files": [
+        {
+          "path": "/.src/topLevelAwaitErrors.1.ts",
+          "text": "export {};\n\n// reparse call as invalid await should error\nawait (1,);\nawait <number, string>(1);\n\n// reparse tagged template as invalid await should error\nawait <number, string> ``;\n\n// reparse class extends clause should fail\nclass C extends await<string> {\n}\n\n// await in class decorators should fail\n@(await)\nclass C1 {}\n\n@await(x)\nclass C2 {}\n\n@await\nclass C3 {}\n\n// await in member decorators should fail\nclass C4 {\n    @await\n    [\"foo\"]() {}\n}\nclass C5 {\n    @await(1)\n    [\"foo\"]() {}\n}\nclass C6 {\n    @(await)\n    [\"foo\"]() {}\n}\n\n// await in parameter decorators should fail\nclass C7 {\n    method1(@await [x]) {}\n    method2(@await(1) [x]) {}\n    method3(@(await) [x]) {}\n}\n",
+          "expected": {
+            "missing": [
+              {
+                "kind": 80,
+                "pos": 67,
+                "end": 67,
+                "parent": 227
+              },
+              {
+                "kind": 80,
+                "pos": 83,
+                "end": 83,
+                "parent": 217
+              },
+              {
+                "kind": 80,
+                "pos": 168,
+                "end": 168,
+                "parent": 217
+              },
+              {
+                "kind": 80,
+                "pos": 310,
+                "end": 310,
+                "parent": 224
+              },
+              {
+                "kind": 80,
+                "pos": 326,
+                "end": 326,
+                "parent": 214
+              },
+              {
+                "kind": 80,
+                "pos": 349,
+                "end": 349,
+                "parent": 171
+              },
+              {
+                "kind": 80,
+                "pos": 426,
+                "end": 426,
+                "parent": 171
+              },
+              {
+                "kind": 80,
+                "pos": 467,
+                "end": 467,
+                "parent": 214
+              },
+              {
+                "kind": 80,
+                "pos": 517,
+                "end": 517,
+                "parent": 224
+              },
+              {
+                "kind": 80,
+                "pos": 608,
+                "end": 608,
+                "parent": 171
+              },
+              {
+                "kind": 80,
+                "pos": 635,
+                "end": 635,
+                "parent": 214
+              },
+              {
+                "kind": 80,
+                "pos": 671,
+                "end": 671,
+                "parent": 224
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1109,
+                "start": 67,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1005,
+                "start": 83,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  62,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1005,
+                "start": 168,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  62,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 243,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 248,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1005,
+                "start": 255,
+                "length": 1,
+                "message_utf16": [
+                  39,
+                  44,
+                  39,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 310,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 326,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 349,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 426,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 467,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 517,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 608,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 635,
+                "length": 5,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1109,
+                "start": 671,
+                "length": 1,
+                "message_utf16": [
+                  69,
+                  120,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.3.ts#experimentaldecorators%3Dfalse",
+      "target": 99,
+      "files": [
+        {
+          "path": "/.src/esDecorators-decoratorExpression.3.ts",
+          "text": "declare let g: <T>(...args: any) => any;\n\n// existing errors\n\n{ @g<number> class C {} }\n\n{ @g()<number> class C {} }\n",
+          "expected": {
+            "missing": [
+              {
+                "kind": 283,
+                "pos": 63,
+                "end": 66,
+                "parent": 242
+              },
+              {
+                "kind": 283,
+                "pos": 90,
+                "end": 95,
+                "parent": 242
+              }
+            ],
+            "diagnostics": [
+              {
+                "code": 1146,
+                "start": 66,
+                "length": 0,
+                "message_utf16": [
+                  68,
+                  101,
+                  99,
+                  108,
+                  97,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              },
+              {
+                "code": 1146,
+                "start": 95,
+                "length": 0,
+                "message_utf16": [
+                  68,
+                  101,
+                  99,
+                  108,
+                  97,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  32,
+                  101,
+                  120,
+                  112,
+                  101,
+                  99,
+                  116,
+                  101,
+                  100,
+                  46
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

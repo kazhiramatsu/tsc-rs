@@ -204,6 +204,7 @@ fn reference_directives_are_structural_and_jsdoc_has_a_separate_destination() {
     assert!(!jsdoc.js_doc_diagnostics.is_empty());
     assert!(jsdoc.parse_diagnostics.is_empty());
     assert!(jsdoc.parse_recovery().events().is_empty());
+    assert!(jsdoc.parse_recovery().actions().is_empty());
     assert!(jsdoc.has_only_literal_recovery());
 }
 
@@ -228,4 +229,120 @@ fn original_adjacent_inputs_have_complete_recovery_coverage() {
             parsed.parse_recovery()
         );
     }
+}
+
+#[test]
+fn missing_node_provenance_keeps_full_start_before_utf16_trivia() {
+    let text = "async function f(a = await /*😀*/ ) {}";
+    let parsed = source(text);
+    assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+    let events = parsed.parse_recovery().events();
+    assert_eq!(events.len(), 1);
+    let event = events[0];
+    let position = text[..text.find(" /*😀*/").unwrap()].encode_utf16().count() as u32;
+    let token_start = text[..text.find(')').unwrap()].encode_utf16().count() as u32;
+    assert_eq!(
+        event.missing_node,
+        Some(MissingNodeRecovery {
+            kind: SyntaxKind::Identifier,
+            position,
+        })
+    );
+    assert_eq!(event.start, token_start);
+    assert_ne!(position, event.start);
+    assert!(parsed.parse_recovery().actions().is_empty());
+    assert!(!parsed.has_only_literal_recovery());
+}
+
+#[test]
+fn skip_provenance_survives_same_start_diagnostic_deduplication() {
+    let text = "async function foo(a = await => await): Promise<void> {}";
+    let parsed = source(text);
+    assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+    let events = parsed.parse_recovery().events();
+    assert_eq!(events.len(), 3);
+    assert!(events[0].missing_node.is_some());
+    for event in &events[1..] {
+        assert_eq!(event.diagnostic_index, None);
+        assert_eq!(event.missing_node, None);
+        assert_eq!(event.start, events[0].start);
+    }
+    assert_eq!(
+        parsed.parse_recovery().actions(),
+        &[ParseRecoveryAction::TokenSkipped {
+            token: SyntaxKind::EqualsGreaterThanToken,
+            start: text.find("=>").unwrap() as u32,
+            length: 2,
+            statement_start: 0,
+            site: ParseTokenSkipSite::ListAbort,
+        },]
+    );
+}
+
+#[test]
+fn speculative_skips_and_missing_provenance_roll_back_together() {
+    let mut parser = Parser::new(
+        "main.ts".into(),
+        "a /*😀*/ )",
+        LanguageVariant::Standard,
+        false,
+    );
+    parser.next_token();
+    let before = parser.parse_recovery.clone();
+    assert!(!parser.try_parse(|parser| {
+        parser.next_token();
+        parser.create_missing_node(
+            SyntaxKind::Identifier,
+            false,
+            Some(&gen::Identifier_expected),
+            &[],
+        );
+        parser.record_token_skip(ParseTokenSkipSite::ListAbort);
+        parser.next_token();
+        assert_eq!(parser.parse_recovery.actions().len(), 1);
+        assert!(parser.parse_recovery.events()[0].missing_node.is_some());
+        false
+    }));
+    assert_eq!(parser.parse_recovery, before);
+    assert!(parser.parse_diagnostics.is_empty());
+    assert_eq!(parser.token(), SyntaxKind::Identifier);
+}
+
+#[test]
+fn top_level_reparse_ranges_belong_to_reparsed_statements() {
+    // A call-shaped await is ambiguous until the external module is known.
+    // In contrast, `await f()` parses as an await expression on the first pass.
+    let text = "export {}; const before = ; await(f()); const after = ;";
+    let parsed = source(text);
+    assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+    assert_eq!(parsed.parse_diagnostics.len(), 2);
+    assert_eq!(parsed.parse_recovery().events().len(), 2);
+    assert_eq!(
+        parsed
+            .parse_recovery()
+            .events()
+            .iter()
+            .map(|event| event.start)
+            .collect::<Vec<_>>(),
+        vec![
+            text.find("= ;").unwrap() as u32 + 2,
+            text.rfind("= ;").unwrap() as u32 + 2
+        ],
+    );
+    assert_eq!(
+        parsed.parse_recovery().actions(),
+        &[ParseRecoveryAction::Reparsed {
+            start: text.find(" await").unwrap() as u32,
+            end: text.find(" const after").unwrap() as u32,
+        },]
+    );
+    let direct = source("export {}; await f();");
+    assert!(direct.has_only_literal_recovery());
+    assert!(direct.parse_recovery().actions().is_empty());
+    let clean = source("export {}; await(f());");
+    assert!(clean.has_only_literal_recovery());
+    assert!(matches!(
+        clean.parse_recovery().actions(),
+        [ParseRecoveryAction::Reparsed { .. }]
+    ));
 }

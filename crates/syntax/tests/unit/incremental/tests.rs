@@ -1142,6 +1142,11 @@ fn recovery_provenance_matches_fresh_parses_after_incremental_edits() {
         r#"export {}; await f(); const stable = 1; const b = "\8";"#,
         "/// <reference path=oops />\nconst stable = 1;",
         "const stable = 1; /* unterminated",
+        "async function f(a = await => await) {} const stable = 1;",
+        "var f = async (a = await => await): Promise<void> => {}; const stable = 1;",
+        "export {}; const bad = ; await(f()); const stable = 1;",
+        "const stable = 1; export {}; await(f()); const bad = ;",
+        "const stable = 1; async function f(a = await /*😀*/ ) {}",
     ] {
         compare_incremental(before, before.find("stable").unwrap(), 6, "renamed");
     }
