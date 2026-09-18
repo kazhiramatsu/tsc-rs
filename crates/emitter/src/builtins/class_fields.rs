@@ -520,7 +520,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 NodeData::PrivateIdentifier(data)
                     if node.pos != u32::MAX
                         && node.end != u32::MAX
-                        && (node.flags & NodeFlags::SYNTHESIZED.bits() as i32) == 0 =>
+                        && (node.flags & NodeFlags::SYNTHESIZED.bits()) == 0 =>
                 {
                     Some(data.text.clone())
                 }
@@ -1569,6 +1569,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             metadata.generated_binding_role_suffix().map(str::to_owned),
             metadata.generated_binding_is_file_level_optimistic(),
             metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_is_loop_variable(),
             metadata.generated_binding_reserved_in_nested_scopes(),
             metadata.generated_binding_is_private_temp(),
         ))
@@ -2311,7 +2312,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         // module/printer ID consumers run after this pass. An arena NodeId
         // must not be mistaken for that separate source identity predicate.
         let unanchored = (record.pos == u32::MAX || record.end == u32::MAX)
-            && (record.flags & NodeFlags::SYNTHESIZED.bits() as i32) != 0
+            && (record.flags & NodeFlags::SYNTHESIZED.bits()) != 0
             && self.context.arena().metadata(expression).is_none();
         if unanchored {
             match &record.data {
@@ -3745,6 +3746,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         )
     }
 
+    #[allow(clippy::type_complexity)]
     fn visit_function_parts(
         &mut self,
         parameters: Option<NodeArrayId>,

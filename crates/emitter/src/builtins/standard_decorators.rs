@@ -931,7 +931,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 } else {
                     "default"
                 };
-                self.record_named_evaluation_text(data.expression, assigned)?;
+                // `visitExportAssignment`: `transformNamedEvaluation(…,
+                // canIgnoreEmptyStringLiteralInAssignedName(node.expression))`
+                // — the `""` assigned name of `export =` is dropped for an
+                // anonymous class expression without class/constructor-
+                // parameter decorators (_tsc.js:100229-100236).
+                let ignore_empty = assigned.is_empty()
+                    && self.export_assignment_ignores_empty_assigned_name(data.expression)?;
+                if !ignore_empty {
+                    self.record_named_evaluation_text(data.expression, assigned)?;
+                }
                 Some(self.update_generic(original, NodeData::ExportAssignment(data))?)
             }
             NodeData::ClassExpression(data)
@@ -1066,6 +1075,43 @@ impl<'context> StandardDecoratorVisitor<'context> {
     /// @6.0.3 — the initializer, past its outer expressions, is an anonymous
     /// class expression that this transform will decorate and that carries
     /// no explicitly assigned name yet.
+    /// `canIgnoreEmptyStringLiteralInAssignedName` (_tsc.js:100229-100236):
+    /// an anonymous class expression whose class and constructor parameters
+    /// carry no decorators.
+    fn export_assignment_ignores_empty_assigned_name(
+        &self,
+        expression: Option<NodeId>,
+    ) -> Result<bool, TransformError> {
+        let Some(expression) = expression else {
+            return Ok(false);
+        };
+        let inner = self.skip_outer_expressions(self.node(expression))?;
+        let NodeData::ClassExpression(data) = &self.context.arena().node(inner)?.data else {
+            return Ok(false);
+        };
+        if data.name.is_some() || !self.decorator_expressions(data.modifiers)?.is_empty() {
+            return Ok(false);
+        }
+        for member in self.array_nodes(data.members)? {
+            let NodeData::Constructor(constructor) = &self.context.arena().node(member)?.data
+            else {
+                continue;
+            };
+            if constructor.body.is_none() {
+                continue;
+            }
+            for parameter in self.array_nodes(constructor.parameters)? {
+                if let NodeData::Parameter(parameter) = &self.context.arena().node(parameter)?.data
+                {
+                    if !self.decorator_expressions(parameter.modifiers)?.is_empty() {
+                        return Ok(false);
+                    }
+                }
+            }
+        }
+        Ok(true)
+    }
+
     fn anonymous_class_needing_assigned_name(
         &self,
         initializer: Option<NodeId>,
@@ -4130,7 +4176,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         // tsc-port: decorated @6.0.3 (auto-accessor expansion)
         // tsc-hash: a36d5d1d9f385cf80a5379c53a98ff9936ace13b998d268a79af1aaa7b791850
         // tsc-span: _tsc.js:100115-100150
-        if plan.is_static && self.target < ScriptTarget::ES2022 {
+        if plan.is_static && self.target < ScriptTarget::ES2022 && plan.descriptor_name.is_none() {
             self.context
                 .arena_mut()?
                 .metadata_mut(field)
@@ -5351,6 +5397,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             metadata.generated_binding_role_suffix().map(str::to_owned),
             metadata.generated_binding_is_file_level_optimistic(),
             metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_is_loop_variable(),
             metadata.generated_binding_reserved_in_nested_scopes(),
             metadata.generated_binding_is_private_temp(),
         ))
@@ -5405,6 +5452,18 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let owner = self.generated_class_reference_owner(class_like)?;
         match self.context.arena().node(owner)?.kind {
             SyntaxKind::ClassDeclaration => {
+                // EF7-USING-HOISTED-CLASS-NAME: transformESNext's
+                // `hoistClassDeclaration` converts a NAMED class declaration
+                // into `C = class C {}` (convertToClassExpression keeps the
+                // name), so transformESDecorators installs the declared name;
+                // only an anonymous (generated `default_N`) declaration is
+                // the named-evaluation `"default"` case.
+                if let Some(explicit_name_node) = explicit_name_node {
+                    if !self.is_generated_binding_name(explicit_name_node)? {
+                        return Ok(explicit_name
+                            .map(|name| DecoratedClassRuntimeName::Declared(name.to_owned())));
+                    }
+                }
                 Ok(Some(DecoratedClassRuntimeName::AnonymousDefaultDeclaration))
             }
             SyntaxKind::ClassExpression => {

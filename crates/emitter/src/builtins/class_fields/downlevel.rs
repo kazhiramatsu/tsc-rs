@@ -293,6 +293,9 @@ struct PrivateEnvironment {
     /// enclosing classes, but have no helper-backed slot of their own.
     untransformed_names: BTreeSet<String>,
     class_alias: Option<ClassBinding>,
+    /// `currentClassContainer.name`: the declared class name, the last
+    /// `tryGetClassThis()` fallback for static auto-accessor redirectors.
+    class_name: Option<String>,
     /// `node.emitNode.classThis`: the decorator-supplied class identity.
     class_this: Option<ClassBinding>,
     instance_brand: Option<ClassBinding>,
@@ -417,27 +420,6 @@ impl StaticBindingFrames {
             frames: Rc::clone(&self.frames),
             depth,
         }
-    }
-
-    /// Computed property names are evaluated in the class's enclosing lexical
-    /// environment. This is the typed frame equivalent of tsc's
-    /// `lexicalEnvironment.previous` switch in `onEmitNode`.
-    fn enclosing_class_evaluation(&self) -> Option<StaticBindings> {
-        let frames = self.frames.borrow();
-        let mut crossed_class_boundary = false;
-        for frame in frames.iter().rev() {
-            match frame {
-                StaticBindingFrame::ClassBoundary if !crossed_class_boundary => {
-                    crossed_class_boundary = true;
-                }
-                StaticBindingFrame::StaticEvaluation(bindings) if crossed_class_boundary => {
-                    return bindings.clone();
-                }
-                StaticBindingFrame::FunctionBoundary if crossed_class_boundary => return None,
-                _ => {}
-            }
-        }
-        None
     }
 }
 
@@ -923,6 +905,7 @@ struct DecoratedClassDeclarationExpansion {
     initializer_receiver: Option<ClassBinding>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn transform_source(
     context: &mut TransformationContext,
     source: TransformSourceId,
@@ -1230,12 +1213,30 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             let identifier = self.create_binding_identifier(&binding)?;
                             if bindings.this_substitution == StaticThisSubstitution::Emit {
                                 self.set_original_and_range(identifier, original)?;
+                                // tsc keeps the `this` token in the tree until
+                                // print-time substitution (substituteThisExpression),
+                                // so its ContainsLexicalThis flag still reaches an
+                                // enclosing arrow function (visitArrowFunction →
+                                // CapturedLexicalThis → `var _this = this`).
+                                self.add_lexical_this_flag(identifier)?;
                             }
                             identifier.node()
                         }
                         StaticReceiver::InvalidLegacyDecorated => {
                             let value = self.create_void_zero()?;
-                            self.create_parenthesized(value)?.node()
+                            let parenthesized = self.create_parenthesized(value)?;
+                            // The substitute's original is the `this` token so the
+                            // flag re-classification (`static_this_substitute_flags`)
+                            // recognizes it.
+                            self.context
+                                .arena_mut()?
+                                .set_original_node(parenthesized, Some(original))?;
+                            // `visitThisExpression` returns the `this` token itself
+                            // when the decorated class has no classThis/classConstructor;
+                            // `(void 0)` arrives at print time, so the token's
+                            // ContainsLexicalThis flag still propagates.
+                            self.add_lexical_this_flag(parenthesized)?;
+                            parenthesized.node()
                         }
                     })
                 } else {
@@ -1247,6 +1248,19 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         };
         self.nodes.insert(id, transformed);
         Ok(transformed)
+    }
+
+    /// The transform flags a retained `this` token carries
+    /// (`ContainsES2015 | ContainsLexicalThis`, createToken): the ES2015 pass
+    /// visits the substitute and applies `visitThisKeyword`'s hierarchy facts
+    /// to it because its original is the `this` token.
+    fn add_lexical_this_flag(&mut self, node: TransformNode) -> Result<(), TransformError> {
+        let flags = self.context.arena().transform_flags(node);
+        self.context.arena_mut()?.set_transform_flags(
+            node,
+            flags | TransformFlags::CONTAINS_ES_2015 | TransformFlags::CONTAINS_LEXICAL_THIS,
+        );
+        Ok(())
     }
 
     fn visit_function_scope(
@@ -1836,6 +1850,40 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         result.map(|value| (value, bindings))
     }
 
+    /// The parenthesized concise body an update introduced (the parsed arrow
+    /// body was not parenthesized) unwraps to the expression
+    /// `convertToFunctionBlock` would have received upstream.
+    fn strip_update_introduced_concise_parentheses(
+        &self,
+        function: TransformNode,
+        body: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let arena = self.context.arena();
+        let NodeData::ParenthesizedExpression(data) = &arena.node(body)?.data else {
+            return Ok(body);
+        };
+        let original = arena.get_original_node(function);
+        let original_body = match &arena.node(original)?.data {
+            NodeData::ArrowFunction(data) => data.body,
+            _ => None,
+        };
+        let original_is_parenthesized = match original_body
+            .and_then(|original_body| arena.node_ref(original.source(), original_body))
+        {
+            Some(original_body) => {
+                arena.node(original_body)?.kind == SyntaxKind::ParenthesizedExpression
+            }
+            None => false,
+        };
+        if original_is_parenthesized {
+            return Ok(body);
+        }
+        Ok(data
+            .expression
+            .and_then(|expression| arena.node_ref(body.source(), expression))
+            .unwrap_or(body))
+    }
+
     fn install_function_bindings(
         &mut self,
         function: TransformNode,
@@ -1864,6 +1912,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let body = if self.context.arena().node(body)?.kind == SyntaxKind::Block {
             self.prepend_function_prelude_to_block(body, bindings, initialization_statements)?
         } else if record.kind == SyntaxKind::ArrowFunction {
+            // `visitFunctionBody` runs `convertToFunctionBlock` on the visited
+            // concise body BEFORE `updateArrowFunction` applies
+            // `parenthesizeConciseBodyOfArrowFunction`, so a hoisted comma
+            // sequence returns unparenthesized; this port updates first, so
+            // drop the parentheses that update introduced.
+            let body = self.strip_update_introduced_concise_parentheses(function, body)?;
             let return_statement = self.context.factory()?.create_node(
                 self.source,
                 NodeData::ReturnStatement(tsc_syntax::nodes::ReturnStatementData {
@@ -1963,7 +2017,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let _static_binding_scope = self
             .static_binding_frames
             .enter(StaticBindingFrame::ClassBoundary);
-        let class_facts = self.scan_class_facts(data.members)?;
+        let mut class_facts = self.scan_class_facts(data.members)?;
+        // getClassFacts (_tsc.js:96960-96962): `isAutoAccessorPropertyDeclaration(member)
+        // && shouldTransformAutoAccessors === True && !node.name && !node.emitNode?.classThis`
+        // requests a class constructor reference for an anonymous class.
+        if data.name.is_none()
+            && self.target < ScriptTarget::ES_NEXT
+            && self.class_this_binding(original).is_none()
+            && self.members_have_static_auto_accessor(data.members)?
+        {
+            class_facts.has_static_private_or_auto_accessor = true;
+        }
         if self.should_transform_auto_accessors_in_class(&class_facts) {
             data.members = self.expand_auto_accessors(data.members)?;
         }
@@ -2131,7 +2195,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .static_binding_frames
             .enter(StaticBindingFrame::ClassBoundary);
         let class_temp_plan = self.class_temp_plan(original)?;
-        let class_facts = self.scan_class_facts(data.members)?;
+        let mut class_facts = self.scan_class_facts(data.members)?;
+        // getClassFacts (_tsc.js:96960-96962): `isAutoAccessorPropertyDeclaration(member)
+        // && shouldTransformAutoAccessors === True && !node.name && !node.emitNode?.classThis`
+        // requests a class constructor reference for an anonymous class.
+        if data.name.is_none()
+            && self.target < ScriptTarget::ES_NEXT
+            && self.class_this_binding(original).is_none()
+            && self.members_have_static_auto_accessor(data.members)?
+        {
+            class_facts.has_static_private_or_auto_accessor = true;
+        }
         let declared_class_name = data
             .name
             .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned));
@@ -2538,6 +2612,22 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }))
     }
 
+    fn members_have_static_auto_accessor(
+        &self,
+        members: Option<NodeArrayId>,
+    ) -> Result<bool, TransformError> {
+        for member in self.array_nodes(members)? {
+            if let NodeData::PropertyDeclaration(data) = &self.context.arena().node(member)?.data {
+                if self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
+                    && self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?
+                {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
     fn class_has_named_evaluation_member(
         &self,
         members: Option<NodeArrayId>,
@@ -2775,11 +2865,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             NodeData::PrivateIdentifier(data) => {
                 Some(AssignedClassName::Literal(data.text.clone().into()))
             }
-            NodeData::StringLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone().into()))
-            }
+            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone().into()))
+                Some(AssignedClassName::Literal(data.text.clone()))
             }
             NodeData::NumericLiteral(data) => {
                 Some(AssignedClassName::Literal(data.text.clone().into()))
@@ -2812,9 +2900,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .metadata(class)
             .and_then(|metadata| metadata.assigned_name)?;
         match &self.context.arena().node(assigned_name).ok()?.data {
-            NodeData::StringLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone().into()))
-            }
+            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
             NodeData::Identifier(_) => Some(AssignedClassName::Evaluated(assigned_name)),
             _ => None,
         }
@@ -2839,6 +2925,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 metadata.generated_binding_role_suffix().map(str::to_owned),
                 metadata.generated_binding_is_file_level_optimistic(),
                 metadata.generated_binding_planned_name_is_authoritative(),
+                metadata.generated_binding_is_loop_variable(),
                 metadata.generated_binding_reserved_in_nested_scopes(),
                 metadata.generated_binding_is_private_temp(),
             )),
@@ -3922,6 +4009,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             declarations: Vec::with_capacity(declarations.len()),
             untransformed_names,
             class_alias: class_alias.clone(),
+            class_name: class_name.map(str::to_owned),
             class_this: None,
             instance_brand: instance_brand.clone(),
             static_receiver,
@@ -4176,10 +4264,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .private_environments
             .last()
             .expect("static auto-accessor owns a private environment");
-        let class_alias = environment
-            .class_alias
-            .clone()
-            .expect("downlevel static auto-accessor owns a class constructor binding");
+        // `tryGetClassThis()`: `lex.classThis ?? lex.classConstructor ??
+        // currentClassContainer?.name` (_tsc.js:96252-96255) — a named class
+        // without a constructor reference addresses its static storage
+        // through its own name.
+        let class_alias =
+            match environment.class_alias.clone() {
+                Some(class_alias) => class_alias,
+                None => ClassBinding::Existing(environment.class_name.clone().expect(
+                    "downlevel static auto-accessor owns a class name or constructor binding",
+                )),
+            };
         StaticBindings {
             receiver: StaticReceiver::Bound(class_alias),
             this_substitution: StaticThisSubstitution::Early,
@@ -6842,11 +6937,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
 
     fn computed_literal_assigned_name(&self, expression: NodeId) -> Option<AssignedClassName> {
         match &self.context.arena().node(self.node(expression)).ok()?.data {
-            NodeData::StringLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone().into()))
-            }
+            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone().into()))
+                Some(AssignedClassName::Literal(data.text.clone()))
             }
             NodeData::NumericLiteral(data) => {
                 Some(AssignedClassName::Literal(data.text.clone().into()))
@@ -7001,15 +7094,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     fn visit_computed_property_expression(
         &mut self,
         expression: Option<NodeId>,
-        crosses_class_boundary: bool,
+        _crosses_class_boundary: bool,
     ) -> Result<TransformNode, TransformError> {
-        let enclosing = crosses_class_boundary
-            .then(|| self.static_binding_frames.enclosing_class_evaluation())
-            .flatten();
-        let _enclosing_scope = enclosing.map(|bindings| {
-            self.static_binding_frames
-                .enter(StaticBindingFrame::StaticEvaluation(Some(bindings)))
-        });
+        // visitThisExpression (_tsc.js:97136-97150) substitutes with the
+        // CURRENT class lexical environment, which
+        // visitInNewClassLexicalEnvironment resets when a nested class is
+        // entered: a `this` inside a nested class's element name is left as
+        // written even though the name is evaluated in the enclosing scope
+        // (`class_2.prototype[this.key]`, TS2465 recovery). The print-time
+        // `lexicalEnvironment.previous` switch stays in `before_emit_node`.
         self.visit_required(expression, SyntaxKind::ComputedPropertyName, "expression")
     }
 
@@ -7441,6 +7534,24 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         }
         let statement = self.create_expression_statement(assignment)?;
         self.set_original_and_range(statement, operation.original)?;
+        // transformPropertyOrClassStaticBlock (_tsc.js:97444-97466) and
+        // generateInitializedPropertyExpressionsOrClassStaticBlock
+        // (_tsc.js:97467-97488): `addEmitFlags(…, getEmitFlags(property) &
+        // NoComments)`, and an auto-accessor backing field is NoComments.
+        if self
+            .generated_auto_accessor_backings
+            .contains(&operation.original.node())
+            || self
+                .context
+                .arena()
+                .metadata(operation.original)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_COMMENTS))
+        {
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .add_flags(EmitFlags::NO_COMMENTS);
+        }
         if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
             let leading_synthesized = self.property_name_is_synthesized(operation.original)?;
             let metadata = self.context.arena_mut()?.metadata_mut(statement);
@@ -7501,13 +7612,26 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         operation: &PrivateFieldOperation,
     ) -> Result<TransformNode, TransformError> {
         let statement = self.materialize_private_static_field(operation, true)?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(statement)
-            .set_comment_range(crate::CommentRange::new(
-                self.source,
-                SourceRange::Synthesized,
-            ));
+        // EF7-DECORATED-STATIC-FIELD-COMMENT: transformPrivateFieldInitializer
+        // (_tsc.js:96299-96308) wraps the transformPropertyOrClassStaticBlock
+        // statement — which carries the property's comment range, or
+        // NoComments for an auto-accessor backing field / a NoComments
+        // property (_tsc.js:97444-97466) — in a static block that carries no
+        // comment range of its own.
+        let statement_has_no_comments = self
+            .generated_auto_accessor_backings
+            .contains(&operation.original.node())
+            || self
+                .context
+                .arena()
+                .metadata(operation.original)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_COMMENTS));
+        if statement_has_no_comments {
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .add_flags(EmitFlags::NO_COMMENTS);
+        }
         let body = self.create_block(vec![statement], true)?;
         let block = self.context.factory()?.create_node(
             self.source,
@@ -7522,23 +7646,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         self.context
             .arena_mut()?
             .set_semantic_original_node(block, operation.original)?;
-        let record = self.context.arena().node(operation.original)?;
-        let positions = self
-            .context
-            .arena()
-            .source(operation.original.source())?
-            .syntax()
-            .positions();
-        let range = SourceRange::from_raw(record.pos, record.end, positions).map_err(|error| {
-            TransformError::InvalidSourceRange {
-                node: operation.original,
-                error,
-            }
-        })?;
         self.context
             .arena_mut()?
             .metadata_mut(block)
-            .set_comment_range(crate::CommentRange::new(operation.original.source(), range));
+            .set_comment_range(crate::CommentRange::new(
+                self.source,
+                SourceRange::Synthesized,
+            ));
         Ok(block)
     }
 
