@@ -43,26 +43,6 @@
    "kind": "rust-unsupported"
   },
   {
-   "id": "h2-8c/transpile-js/lang/es5-flags",
-   "reason": "inherited emitter difference reproduced under the ordinary checked Program route (control-checked/es5-flags, identical native bytes with checked_source_files=19): ES2017 async lowering creates a `_super_1` accessor object for `super.m()` in an async method at target ES5 where TypeScript uses the ES2015 class `_super`. Owner: emitter (builtins es2017/es2015). Not H2.8c-specific.",
-   "kind": "inherited-emitter"
-  },
-  {
-   "id": "h2-8c/program-no-check/flags/es5-loop-capture",
-   "reason": "inherited emitter difference reproduced under the ordinary checked Program route (control-checked/es5-flags, identical native bytes with checked_source_files=19): ES2017 async lowering creates a `_super_1` accessor object for `super.m()` in an async method at target ES5 where TypeScript uses the ES2015 class `_super`. Owner: emitter (builtins es2017/es2015). Not H2.8c-specific.",
-   "kind": "inherited-emitter"
-  },
-  {
-   "id": "h2-8c/program-no-check/flags/es5-loop-capture-commonjs",
-   "reason": "inherited emitter difference reproduced under the ordinary checked Program route (control-checked/es5-flags, identical native bytes with checked_source_files=19): ES2017 async lowering creates a `_super_1` accessor object for `super.m()` in an async method at target ES5 where TypeScript uses the ES2015 class `_super`. Owner: emitter (builtins es2017/es2015). Not H2.8c-specific.",
-   "kind": "inherited-emitter"
-  },
-  {
-   "id": "h2-8c/program-no-check/control-checked/es5-flags",
-   "reason": "inherited emitter difference reproduced under the ordinary checked Program route (control-checked/es5-flags, identical native bytes with checked_source_files=19): ES2017 async lowering creates a `_super_1` accessor object for `super.m()` in an async method at target ES5 where TypeScript uses the ES2015 class `_super`. Owner: emitter (builtins es2017/es2015). Not H2.8c-specific.",
-   "kind": "inherited-emitter"
-  },
-  {
    "id": "h2-8c/transpile-js/lang/es2015-flags",
    "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/es2015-flags): `var arguments_1 = arguments;` is emitted after the `const _super = Object.create(...)` statement instead of before it. Owner: emitter (builtins es2017). Not H2.8c-specific.",
    "kind": "inherited-emitter"
@@ -75,21 +55,6 @@
   {
    "id": "h2-8c/program-no-check/control-checked/es2015-flags",
    "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/es2015-flags): `var arguments_1 = arguments;` is emitted after the `const _super = Object.create(...)` statement instead of before it. Owner: emitter (builtins es2017). Not H2.8c-specific.",
-   "kind": "inherited-emitter"
-  },
-  {
-   "id": "h2-8c/transpile-js/lang/import-helpers",
-   "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/import-helpers): `export const {a, ...r} = {a: 1}` at ES5+commonjs+importHelpers prints `exports.{ a, ...r } = ...` instead of the comma-sequenced `(_a = ..., _a).a` / `tslib_1.__rest` form. Owner: emitter (commonjs export of destructuring with rest). Not H2.8c-specific.",
-   "kind": "inherited-emitter"
-  },
-  {
-   "id": "h2-8c/program-no-check/no-check/import-helpers",
-   "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/import-helpers): `export const {a, ...r} = {a: 1}` at ES5+commonjs+importHelpers prints `exports.{ a, ...r } = ...` instead of the comma-sequenced `(_a = ..., _a).a` / `tslib_1.__rest` form. Owner: emitter (commonjs export of destructuring with rest). Not H2.8c-specific.",
-   "kind": "inherited-emitter"
-  },
-  {
-   "id": "h2-8c/program-no-check/control-checked/import-helpers",
-   "reason": "inherited emitter difference reproduced under the checked Program route (control-checked/import-helpers): `export const {a, ...r} = {a: 1}` at ES5+commonjs+importHelpers prints `exports.{ a, ...r } = ...` instead of the comma-sequenced `(_a = ..., _a).a` / `tslib_1.__rest` form. Owner: emitter (commonjs export of destructuring with rest). Not H2.8c-specific.",
    "kind": "inherited-emitter"
   },
   {

@@ -54,7 +54,7 @@ fn fixtures() -> (Value, Value, BTreeMap<String, String>) {
     );
     let known: Value = serde_json::from_str(KNOWN_OPEN).unwrap();
     assert_eq!(known["schema"], "h2-8c-transpile-known-open.v1");
-    assert_eq!(known["rows"].as_array().unwrap().len(), 22);
+    assert_eq!(known["rows"].as_array().unwrap().len(), 15);
     let known: BTreeMap<String, String> = known["rows"]
         .as_array()
         .unwrap()
@@ -66,7 +66,7 @@ fn fixtures() -> (Value, Value, BTreeMap<String, String>) {
             )
         })
         .collect();
-    assert_eq!(known.len(), 22, "duplicate known-open ID");
+    assert_eq!(known.len(), 15, "duplicate known-open ID");
     let native: Value = serde_json::from_str(KNOWN_NATIVE).unwrap();
     assert_eq!(native["schema"], "h2-8c-transpile-known-native.v1");
     let native_ids: BTreeSet<_> = native["observations"].as_object().unwrap().keys().collect();
