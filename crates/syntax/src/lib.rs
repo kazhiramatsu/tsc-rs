@@ -200,9 +200,16 @@ impl SourceFile {
         self.parse_recovery.is_parameter_gap_emit_recovery(self)
     }
 
+    /// Structural missing nodes and parameter/statement gaps, before
+    /// await-context runs, decorator heads and heritage gaps are considered.
+    pub fn has_only_statement_gap_emit_recovery(&self) -> bool {
+        self.parse_recovery.is_statement_gap_emit_recovery(self)
+    }
+
     /// Literal and uniquely owned structural recovery supported by ordinary
     /// emit. Every missing operand, report and skipped list gap must be tied
-    /// to reachable syntax; reparse and unowned recovery stay refused.
+    /// to reachable syntax. Reparse runs require a matching module-context
+    /// statement sequence, and unowned recovery remains refused.
     pub fn has_supported_emit_recovery(&self) -> bool {
         self.parse_recovery.is_supported_for_emit(self)
     }

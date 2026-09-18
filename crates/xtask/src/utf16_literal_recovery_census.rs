@@ -96,6 +96,7 @@ struct UnitFacts {
     emit_supported: Option<bool>,
     parameter_gaps_supported: Option<bool>,
     statement_gaps_supported: Option<bool>,
+    context_supported: Option<bool>,
     recovery_facts: Option<Value>,
 }
 
@@ -125,6 +126,9 @@ impl UnitFacts {
         if let Some(supported) = self.statement_gaps_supported {
             value["statement_gap_emit_recovery"] = json!(supported);
         }
+        if let Some(supported) = self.context_supported {
+            value["context_emit_recovery"] = json!(supported);
+        }
         value
     }
 }
@@ -152,6 +156,7 @@ fn program_facts(
     emit_recovery: bool,
     parameter_gaps: bool,
     statement_gaps: bool,
+    context_recovery: bool,
 ) -> Vec<UnitFacts> {
     let options = program.compiler_options();
     let mut facts = Vec::new();
@@ -187,11 +192,12 @@ fn program_facts(
             structural_diagnostic_events: 0,
             silent_missing_events: 0,
             diagnostic_origins: recovery.diagnostic_origins().len(),
-            missing_await_supported: (missing_await || emit_recovery || parameter_gaps || statement_gaps).then(|| syntax.has_only_literal_or_missing_await_recovery()),
-            emit_supported: (emit_recovery || parameter_gaps || statement_gaps).then(|| syntax.has_only_missing_node_emit_recovery()),
-            parameter_gaps_supported: (parameter_gaps || statement_gaps).then(|| syntax.has_only_parameter_gap_emit_recovery()),
-            statement_gaps_supported: statement_gaps.then(|| syntax.has_supported_emit_recovery()),
-            recovery_facts: (missing_await || emit_recovery || parameter_gaps || statement_gaps).then(|| {
+            missing_await_supported: (missing_await || emit_recovery || parameter_gaps || statement_gaps || context_recovery).then(|| syntax.has_only_literal_or_missing_await_recovery()),
+            emit_supported: (emit_recovery || parameter_gaps || statement_gaps || context_recovery).then(|| syntax.has_only_missing_node_emit_recovery()),
+            parameter_gaps_supported: (parameter_gaps || statement_gaps || context_recovery).then(|| syntax.has_only_parameter_gap_emit_recovery()),
+            statement_gaps_supported: (statement_gaps || context_recovery).then(|| syntax.has_only_statement_gap_emit_recovery()),
+            context_supported: context_recovery.then(|| syntax.has_supported_emit_recovery()),
+            recovery_facts: (missing_await || emit_recovery || parameter_gaps || statement_gaps || context_recovery).then(|| {
                 let events: Vec<_> = recovery.events().iter().map(|event| json!({
                     "kind": format!("{:?}", event.kind), "start": event.start, "length": event.length,
                     "diagnostic_index": event.diagnostic_index, "full_start": event.full_start,
@@ -250,7 +256,11 @@ impl Verdict {
             return Self::NoRecovery;
         }
         let refused_before = units.iter().any(|unit| {
-            if unit.statement_gaps_supported.is_some() {
+            if unit.context_supported.is_some() {
+                !unit
+                    .statement_gaps_supported
+                    .expect("context comparison has the statement-gap baseline")
+            } else if unit.statement_gaps_supported.is_some() {
                 !unit
                     .parameter_gaps_supported
                     .expect("statement-gap comparison has the parameter-gap baseline")
@@ -270,7 +280,8 @@ impl Verdict {
         });
         let refused_after = units.iter().any(|unit| {
             !unit
-                .statement_gaps_supported
+                .context_supported
+                .or(unit.statement_gaps_supported)
                 .or(unit.parameter_gaps_supported)
                 .or(unit.emit_supported)
                 .or(unit.missing_await_supported)
@@ -327,6 +338,7 @@ struct Census {
     emit_recovery: bool,
     parameter_gaps: bool,
     statement_gaps: bool,
+    context_recovery: bool,
     rows: Vec<Row>,
     seen: BTreeSet<String>,
     load_failures: Vec<Value>,
@@ -400,6 +412,7 @@ impl Census {
                         self.emit_recovery,
                         self.parameter_gaps,
                         self.statement_gaps,
+                        self.context_recovery,
                     );
                     let verdict = Verdict::of(&units);
                     self.record(Row {
@@ -457,6 +470,7 @@ impl Census {
                             self.emit_recovery,
                             self.parameter_gaps,
                             self.statement_gaps,
+                            self.context_recovery,
                         );
                         let verdict = Verdict::of(&units);
                         self.record(Row {
@@ -526,6 +540,7 @@ impl Census {
                             self.emit_recovery,
                             self.parameter_gaps,
                             self.statement_gaps,
+                            self.context_recovery,
                         );
                         let verdict = Verdict::of(&units);
                         self.record(Row {
@@ -769,6 +784,7 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let mut emit_recovery = false;
     let mut parameter_gaps = false;
     let mut statement_gaps = false;
+    let mut context_recovery = false;
     let mut all_profiles = false;
     while let Some(argument) = args.next() {
         match argument.as_str() {
@@ -776,6 +792,7 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             "--emit-recovery" => emit_recovery = true,
             "--parameter-gaps" => parameter_gaps = true,
             "--statement-gaps" => statement_gaps = true,
+            "--context-recovery" => context_recovery = true,
             "--all-profiles" => all_profiles = true,
             "--out" => {
                 out = Some(PathBuf::from(
@@ -790,6 +807,7 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         emit_recovery,
         parameter_gaps,
         statement_gaps,
+        context_recovery,
         all_profiles,
     ]
     .into_iter()
@@ -803,6 +821,8 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let out = out.unwrap_or_else(|| {
         workspace.join(if all_profiles {
             "target/emitter-recovery-census"
+        } else if context_recovery {
+            "target/emitter-context-recovery-census.json"
         } else if statement_gaps {
             "target/emitter-statement-gap-recovery-census.json"
         } else if parameter_gaps {
@@ -822,6 +842,7 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         emit_recovery: emit_recovery || all_profiles,
         parameter_gaps: parameter_gaps || all_profiles,
         statement_gaps: statement_gaps || all_profiles,
+        context_recovery: context_recovery || all_profiles,
         rows: Vec::new(),
         seen: BTreeSet::new(),
         load_failures: Vec::new(),
@@ -835,10 +856,14 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let elapsed_seconds = started.elapsed().as_secs_f64();
     if all_profiles {
         for (filename, flags) in [
-            ("missing-await.json", (true, false, false, false)),
-            ("missing-declaration.json", (false, true, false, false)),
-            ("parameter-gaps.json", (false, false, true, false)),
-            ("statement-gaps.json", (false, false, false, true)),
+            ("missing-await.json", (true, false, false, false, false)),
+            (
+                "missing-declaration.json",
+                (false, true, false, false, false),
+            ),
+            ("parameter-gaps.json", (false, false, true, false, false)),
+            ("statement-gaps.json", (false, false, false, true, false)),
+            ("context-recovery.json", (false, false, false, false, true)),
         ] {
             write_report(
                 &census,
@@ -854,7 +879,13 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             &mismatches,
             elapsed_seconds,
             &out,
-            (missing_await, emit_recovery, parameter_gaps, statement_gaps),
+            (
+                missing_await,
+                emit_recovery,
+                parameter_gaps,
+                statement_gaps,
+                context_recovery,
+            ),
         )?;
     }
     Ok(())
@@ -865,7 +896,13 @@ fn write_report(
     mismatches: &[Value],
     elapsed_seconds: f64,
     out: &Path,
-    (missing_await, emit_recovery, parameter_gaps, statement_gaps): (bool, bool, bool, bool),
+    (missing_await, emit_recovery, parameter_gaps, statement_gaps, context_recovery): (
+        bool,
+        bool,
+        bool,
+        bool,
+        bool,
+    ),
 ) -> Result<(), Box<dyn Error>> {
     // A shared loader pass evaluates every historical boundary. Projection
     // removes later predicates before classifying each report, so a later
@@ -876,16 +913,24 @@ fn write_report(
         .cloned()
         .map(|mut row| {
             for unit in &mut row.units {
-                if !statement_gaps {
+                if !context_recovery {
+                    unit.context_supported = None;
+                }
+                if !(statement_gaps || context_recovery) {
                     unit.statement_gaps_supported = None;
                 }
-                if !(parameter_gaps || statement_gaps) {
+                if !(parameter_gaps || statement_gaps || context_recovery) {
                     unit.parameter_gaps_supported = None;
                 }
-                if !(emit_recovery || parameter_gaps || statement_gaps) {
+                if !(emit_recovery || parameter_gaps || statement_gaps || context_recovery) {
                     unit.emit_supported = None;
                 }
-                if !(missing_await || emit_recovery || parameter_gaps || statement_gaps) {
+                if !(missing_await
+                    || emit_recovery
+                    || parameter_gaps
+                    || statement_gaps
+                    || context_recovery)
+                {
                     unit.missing_await_supported = None;
                     unit.recovery_facts = None;
                 }
@@ -912,9 +957,9 @@ fn write_report(
     };
     let report = json!({
         "schema": 1,
-        "kind": if statement_gaps { "emitter-statement-gap-recovery-admission-census" } else if parameter_gaps { "emitter-parameter-gap-recovery-admission-census" } else if emit_recovery { "emitter-structural-recovery-admission-census" } else if missing_await { "emitter-missing-await-recovery-admission-census" } else { CENSUS_KIND },
-        "scope": if statement_gaps { "Statement/declaration gaps and report-only boundaries evaluated with all acceptance loaders; no emit and no CI" } else if parameter_gaps { "Parameter-gap recovery evaluated with the acceptance loaders over every recorded input; no emit and no CI" } else if emit_recovery { "Current structural emit-recovery predicate evaluated with the acceptance loaders over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" } else if missing_await { "Missing-await recovery predicate evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" } else { "Rust parser literal-only recovery admission evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" },
-        "predicate": if statement_gaps { "Emit-eligible sources; before = SourceFile::has_only_parameter_gap_emit_recovery; after = SourceFile::has_supported_emit_recovery" } else if parameter_gaps { "Emit-eligible sources; before = SourceFile::has_only_missing_node_emit_recovery; after = SourceFile::has_only_parameter_gap_emit_recovery" } else if emit_recovery { "Emit-eligible non-declaration non-JSON sources; before = SourceFile::has_only_literal_or_missing_await_recovery; after = SourceFile::has_only_missing_node_emit_recovery" } else if missing_await { "Emit-eligible non-declaration non-JSON sources; before = SourceFile::has_only_literal_recovery; after = SourceFile::has_only_literal_or_missing_await_recovery" } else { "SourceFile::has_only_literal_recovery over emit-eligible non-declaration non-JSON sources; before = refuse when any unit retains a parse diagnostic; after = refuse when any unit is not literal-only" },
+        "kind": if context_recovery { "emitter-context-recovery-admission-census" } else if statement_gaps { "emitter-statement-gap-recovery-admission-census" } else if parameter_gaps { "emitter-parameter-gap-recovery-admission-census" } else if emit_recovery { "emitter-structural-recovery-admission-census" } else if missing_await { "emitter-missing-await-recovery-admission-census" } else { CENSUS_KIND },
+        "scope": if context_recovery { "Await-context runs and structurally owned recovery evaluated with all acceptance loaders; no emit and no CI" } else if statement_gaps { "Statement/declaration gaps and report-only boundaries evaluated with all acceptance loaders; no emit and no CI" } else if parameter_gaps { "Parameter-gap recovery evaluated with the acceptance loaders over every recorded input; no emit and no CI" } else if emit_recovery { "Current structural emit-recovery predicate evaluated with the acceptance loaders over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" } else if missing_await { "Missing-await recovery predicate evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" } else { "Rust parser literal-only recovery admission evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" },
+        "predicate": if context_recovery { "Emit-eligible sources; before = SourceFile::has_only_statement_gap_emit_recovery; after = SourceFile::has_supported_emit_recovery" } else if statement_gaps { "Emit-eligible sources; before = SourceFile::has_only_parameter_gap_emit_recovery; after = SourceFile::has_only_statement_gap_emit_recovery" } else if parameter_gaps { "Emit-eligible sources; before = SourceFile::has_only_missing_node_emit_recovery; after = SourceFile::has_only_parameter_gap_emit_recovery" } else if emit_recovery { "Emit-eligible non-declaration non-JSON sources; before = SourceFile::has_only_literal_or_missing_await_recovery; after = SourceFile::has_only_missing_node_emit_recovery" } else if missing_await { "Emit-eligible non-declaration non-JSON sources; before = SourceFile::has_only_literal_recovery; after = SourceFile::has_only_literal_or_missing_await_recovery" } else { "SourceFile::has_only_literal_recovery over emit-eligible non-declaration non-JSON sources; before = refuse when any unit retains a parse diagnostic; after = refuse when any unit is not literal-only" },
         "head": std::process::Command::new("git")
             .args(["rev-parse", "HEAD"])
             .current_dir(&census.workspace)

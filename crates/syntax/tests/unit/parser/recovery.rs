@@ -705,7 +705,7 @@ fn statement_gap_recovery_accounts_for_reports_and_their_reachable_owners() {
         assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
         assert!(!parsed.has_only_parameter_gap_emit_recovery(), "{text}");
         assert!(
-            parsed.has_supported_emit_recovery(),
+            parsed.has_only_statement_gap_emit_recovery(),
             "{text}: {:?}",
             parsed.parse_recovery()
         );
@@ -725,7 +725,7 @@ fn statement_gap_recovery_accounts_for_reports_and_their_reachable_owners() {
         let parsed = source(text);
         assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
         assert!(
-            !parsed.has_supported_emit_recovery(),
+            !parsed.has_only_statement_gap_emit_recovery(),
             "{text}: {:?}",
             parsed.parse_recovery()
         );
@@ -737,19 +737,19 @@ fn statement_gap_recovery_accounts_for_reports_and_their_reachable_owners() {
     ] {
         let parsed = source(text);
         assert!(parsed.parse_diagnostics.is_empty(), "{text}");
-        assert!(parsed.has_supported_emit_recovery(), "{text}");
+        assert!(parsed.has_only_statement_gap_emit_recovery(), "{text}");
     }
 }
 
 #[test]
 fn statement_gap_recovery_rejects_unowned_or_forged_events() {
     let parsed = source("export const value = (object?.x //😀\n as number);");
-    assert!(parsed.has_supported_emit_recovery());
+    assert!(parsed.has_only_statement_gap_emit_recovery());
     let check = |mutate: &dyn Fn(&mut ParseRecovery)| {
         let mut changed = parsed.clone();
         mutate(&mut changed.parse_recovery);
         assert!(
-            !changed.has_supported_emit_recovery(),
+            !changed.has_only_statement_gap_emit_recovery(),
             "{:?}",
             changed.parse_recovery()
         );
@@ -870,4 +870,169 @@ fn clean_decorator_await_identifiers_do_not_acquire_skip_provenance() {
                 }
             )));
     }
+}
+
+#[test]
+fn context_recovery_requires_owned_runs_expression_slots_and_heritage_tiles() {
+    let original = r#"export {};
+
+// reparse call as invalid await should error
+await (1,);
+await <number, string>(1);
+
+// reparse tagged template as invalid await should error
+await <number, string> ``;
+
+// reparse class extends clause should fail
+class C extends await<string> {
+}
+
+// await in class decorators should fail
+@(await)
+class C1 {}
+
+@await(x)
+class C2 {}
+
+@await
+class C3 {}
+
+// await in member decorators should fail
+class C4 {
+    @await
+    ["foo"]() {}
+}
+class C5 {
+    @await(1)
+    ["foo"]() {}
+}
+class C6 {
+    @(await)
+    ["foo"]() {}
+}
+
+// await in parameter decorators should fail
+class C7 {
+    method1(@await [x]) {}
+    method2(@await(1) [x]) {}
+    method3(@(await) [x]) {}
+}
+"#;
+    for text in [
+        original,
+        "export {}; await (1,);",
+        "(1,);",
+        "export {}; await <number, string>(1);",
+        "export {}; await <number, string> ``;",
+        "export {}; class C extends await<string> {}",
+        "export {}; @await class C {}",
+        "export {}; @ /*😀*/await(1) class C {}",
+        "export {}; @(await) class C {}",
+        "export {}; class C { @await ['a']() {} @await(1) ['b']() {} }",
+        "export {}; class C { m(@await x: any) {} n(@await(1) x: any) {} }",
+        "export {}; await (1,); const stable = 1; @await class C {} const after = 2;",
+        "async function f() { @ /*😀*/await.foo(1) class C {} }",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(!parsed.has_only_statement_gap_emit_recovery(), "{text}");
+        assert!(
+            parsed.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+    for text in [
+        "export {}; class C extends await {}",
+        "export {}; await (1 +);",
+        "export {}; @) class D {}",
+        "export {}; await <number, string>(1",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(
+            !parsed.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+}
+
+#[test]
+fn context_recovery_refuses_forged_decorator_and_reparse_witnesses() {
+    let parsed = source("export {}; @ /*😀*/await(1) class C {}");
+    assert!(parsed.has_supported_emit_recovery());
+    let check = |mutate: &dyn Fn(&mut ParseRecovery)| {
+        let mut changed = parsed.clone();
+        mutate(&mut changed.parse_recovery);
+        assert!(
+            !changed.has_supported_emit_recovery(),
+            "{:?}",
+            changed.parse_recovery()
+        );
+    };
+    check(&|r| {
+        r.actions.retain(|a| {
+            !matches!(
+                a,
+                ParseRecoveryAction::TokenSkipped {
+                    site: ParseTokenSkipSite::DecoratorAwait,
+                    ..
+                }
+            )
+        })
+    });
+    check(&|r| {
+        let skip = *r
+            .actions
+            .iter()
+            .find(|a| {
+                matches!(
+                    a,
+                    ParseRecoveryAction::TokenSkipped {
+                        site: ParseTokenSkipSite::DecoratorAwait,
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        r.actions.push(skip);
+    });
+    check(&|r| {
+        for a in &mut r.actions {
+            if let ParseRecoveryAction::TokenSkipped { token, .. } = a {
+                *token = SyntaxKind::YieldKeyword;
+            }
+        }
+    });
+    check(&|r| {
+        for a in &mut r.actions {
+            if let ParseRecoveryAction::Reparsed { end, .. } = a {
+                *end -= 1;
+            }
+        }
+    });
+    check(&|r| {
+        r.actions
+            .retain(|action| !matches!(action, ParseRecoveryAction::Reparsed { .. }));
+    });
+    check(&|r| {
+        r.events[0].missing_node.as_mut().unwrap().position = r.events[0].start;
+    });
+    check(&|r| {
+        r.events[0].full_start += 1;
+    });
+    check(&|r| {
+        r.events[0].diagnostic_index = None;
+    });
+    let mut assertion = source("export {}; await <number, string>(1);");
+    assert!(assertion.has_supported_emit_recovery());
+    assertion
+        .parse_recovery
+        .events
+        .iter_mut()
+        .find(|e| e.missing_node.is_some())
+        .unwrap()
+        .full_start += 1;
+    assert!(!assertion.has_supported_emit_recovery());
 }

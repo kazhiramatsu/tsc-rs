@@ -1,3 +1,5 @@
+mod context;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{for_each_child, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
@@ -160,19 +162,23 @@ impl ParseRecovery {
     }
 
     pub(crate) fn is_literal_or_missing_await(&self, source: &SourceFile) -> bool {
-        self.supports_missing_nodes(source, false, false, false)
+        self.supports_missing_nodes(source, false, false, false, false)
     }
 
     pub(crate) fn is_missing_node_emit_recovery(&self, source: &SourceFile) -> bool {
-        self.supports_missing_nodes(source, true, false, false)
+        self.supports_missing_nodes(source, true, false, false, false)
     }
 
     pub(crate) fn is_parameter_gap_emit_recovery(&self, source: &SourceFile) -> bool {
-        self.supports_missing_nodes(source, true, true, false)
+        self.supports_missing_nodes(source, true, true, false, false)
+    }
+
+    pub(crate) fn is_statement_gap_emit_recovery(&self, source: &SourceFile) -> bool {
+        self.supports_missing_nodes(source, true, true, true, false)
     }
 
     pub(crate) fn is_supported_for_emit(&self, source: &SourceFile) -> bool {
-        self.supports_missing_nodes(source, true, true, true)
+        self.supports_missing_nodes(source, true, true, true, true)
     }
 
     fn supports_missing_nodes(
@@ -181,14 +187,24 @@ impl ParseRecovery {
         allow_missing_declarations: bool,
         allow_parameter_gaps: bool,
         allow_statement_gaps: bool,
+        allow_context_recovery: bool,
     ) -> bool {
         if self.is_literal_only(source.parse_diagnostics.len()) {
             return true;
         }
+        let context_support = if allow_context_recovery {
+            let Some(support) = self.context_recovery_support(source) else {
+                return false;
+            };
+            Some(support)
+        } else {
+            None
+        };
         if self.diagnostic_origins.len() != source.parse_diagnostics.len()
-            || (!self.actions.is_empty()
+            || (!allow_context_recovery
+                && !self.actions.is_empty()
                 && !(allow_parameter_gaps
-                    && self.supports_array_gaps(source, allow_statement_gaps)))
+                    && self.supports_array_gaps(source, allow_statement_gaps, &self.actions)))
         {
             return false;
         }
@@ -223,7 +239,7 @@ impl ParseRecovery {
         };
         let mut missing_positions = BTreeMap::new();
         let mut report_only_count = 0;
-        for event in &self.events {
+        for (event_index, event) in self.events.iter().enumerate() {
             if matches!(event.kind, ParseRecoveryKind::Diagnostic(origin) if origin.is_literal())
                 && event.missing_node.is_none()
             {
@@ -238,6 +254,7 @@ impl ParseRecovery {
                             self.actions.iter().any(|action| matches!(action,
                                 ParseRecoveryAction::TokenSkipped { start, .. } if *start == event.start))
                             || Self::report_has_retained_syntax_owner(source, parents.as_ref().unwrap(), event)
+                            || context_support.as_ref().is_some_and(|support| support.assertion_reports.contains(&event_index))
                         }
                         None => self.events.iter().any(|retained| {
                             retained.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
@@ -271,9 +288,12 @@ impl ParseRecovery {
             if event.kind != ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
                 || !(missing.kind == SyntaxKind::Identifier
                     || allow_missing_declarations && missing.kind == SyntaxKind::MissingDeclaration)
-                || !event
+                || !(event
                     .diagnostic_index
                     .is_some_and(|index| index < source.parse_diagnostics.len())
+                    || context_support
+                        .as_ref()
+                        .is_some_and(|support| support.assertion_missing.contains(&event_index)))
                 || missing_positions
                     .insert(missing.position, missing.kind)
                     .is_some()
@@ -298,7 +318,10 @@ impl ParseRecovery {
                     .byte_to_utf16(node.pos)
                     .expect("syntax node positions are scalar boundaries");
                 if !(parent == Some(SyntaxKind::AwaitExpression)
-                    || allow_statement_gaps && parent == Some(SyntaxKind::TypeAssertionExpression))
+                    || allow_statement_gaps && parent == Some(SyntaxKind::TypeAssertionExpression)
+                    || context_support
+                        .as_ref()
+                        .is_some_and(|support| support.missing_slots.contains(&id)))
                     || missing_positions.remove(&position) != Some(SyntaxKind::Identifier)
                 {
                     return false;
@@ -367,12 +390,17 @@ impl ParseRecovery {
     // parameter gap additionally requires the retained missing await operand
     // in its preceding parameter. Statement/declaration gaps use the same
     // creation full-start boundary; all reports are checked independently.
-    fn supports_array_gaps(&self, source: &SourceFile, allow_statement_gaps: bool) -> bool {
+    fn supports_array_gaps(
+        &self,
+        source: &SourceFile,
+        allow_statement_gaps: bool,
+        actions: &[ParseRecoveryAction],
+    ) -> bool {
         let Some(parents) = Self::reachable_parents(source) else {
             return false;
         };
         let mut skip_spans = BTreeSet::new();
-        for action in &self.actions {
+        for action in actions {
             let ParseRecoveryAction::TokenSkipped {
                 start,
                 length,
