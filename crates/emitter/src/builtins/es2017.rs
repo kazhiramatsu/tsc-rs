@@ -285,8 +285,10 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 .lexical_arguments_binding
                 .clone()
                 .expect("lexical arguments binding was tested above");
+            // argumentsVisitor returns the bare generated capture binding.
+            // A parsed donor adds a leaf map and lets later passes mistake
+            // this reference for the original local arguments object.
             let identifier = self.create_generated_identifier(&binding)?;
-            let identifier = self.set_original_and_range(identifier, original)?;
             self.nodes.insert(id, Some(identifier.node()));
             return Ok(Some(identifier.node()));
         }
@@ -623,7 +625,6 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                     parent: SyntaxKind::PropertyAccessExpression,
                     field: "name",
                 })?;
-        let property = self.identifier_text(name)?.to_owned();
         let binding = self
             .super_captures
             .last()
@@ -634,7 +635,8 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 field: "captured super binding",
             })?;
         let proxy = self.create_generated_identifier(&binding)?;
-        let name = self.create_identifier(&property)?;
+        // substitutePropertyAccessExpression retains the parsed member name;
+        // its source spelling and own map/comment phase remain observable.
         let access = self.create_property_access(proxy, name)?;
         self.set_original_and_range(access, original)
     }

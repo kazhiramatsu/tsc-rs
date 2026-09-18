@@ -12,6 +12,10 @@ fn async_arrow_body_ranges_matches_complete_typescript_observations() {
             include_bytes!("../fixtures/async-arrow-comment-boundaries.json").as_slice(),
             96,
         ),
+        (
+            include_bytes!("../fixtures/async-capture-source-ranges.json").as_slice(),
+            144,
+        ),
     ]
     .map(|(bytes, count)| {
         let artifact: Value = serde_json::from_slice(bytes).unwrap();
@@ -24,7 +28,7 @@ fn async_arrow_body_ranges_matches_complete_typescript_observations() {
         .iter()
         .flat_map(|artifact| artifact["cases"].as_array().unwrap())
         .collect();
-    assert_eq!(cases.len(), 168);
+    assert_eq!(cases.len(), 312);
     let mut failures = Vec::new();
     for case in &cases {
         let id = case["case_id"].as_str().unwrap();

@@ -69,13 +69,13 @@ H2.5h 12、H2.6a 1、H2.6c 8の既知差分台帳を空にした。
 | emitter-universe-oracle | TypeScript 6.0.3で217＋1798を各2回再観測 |
 | emitter-plan-base-0..3 | sorted IDのmodulo 4、450/450/449/449行を各2回 |
 | emitter-global | 既存global output-only 769行を各2回 |
-| emitter-comment-controls | export/destructuring390＋元JSDoc1＋async arrow168の完全commandを各2回。emitter-globalと同じjobで実行 |
+| emitter-comment-controls | export/destructuring588＋元JSDoc1＋async arrow312の完全commandを各2回。emitter-globalと同じjobで実行 |
 | emitter-class-0 / -1 | 既存8 class bandsを700/528行に分割、各2回 |
 
 重複する観測所属なので件数を足して互換ケース総数にしない。PLAN-BASEの約70分のローカル直列測定は
 hosted一jobへ持ち込まない。専用fixtureは担当suiteを選び、shared sourceは全既存群を含める。
 editing selectorsを除去し、zero/ignored testsと欠けたshard summaryを拒否する。
-入口台帳v33はcomposite runnerを実Cargo commandsへ展開する。
+入口台帳v34はcomposite runnerを実Cargo commandsへ展開する。
 
 ## Validationとarchitecture
 

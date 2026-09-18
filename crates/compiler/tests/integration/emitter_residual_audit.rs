@@ -135,6 +135,10 @@ fn exported_destructuring_comments_match_complete_typescript_commands() {
             include_bytes!("../fixtures/property-initializer-comment-ownership.json").as_slice(),
             54,
         ),
+        (
+            include_bytes!("../fixtures/system-destructuring-order.json").as_slice(),
+            198,
+        ),
     ]
     .map(|(bytes, count)| {
         let artifact: Value = serde_json::from_slice(bytes).unwrap();
@@ -147,7 +151,7 @@ fn exported_destructuring_comments_match_complete_typescript_commands() {
         .iter()
         .flat_map(|artifact| artifact["cases"].as_array().unwrap())
         .collect();
-    assert_eq!(cases.len(), 390);
+    assert_eq!(cases.len(), 588);
     let mut failures = Vec::new();
     for case in &cases {
         let id = case["case_id"].as_str().unwrap();
