@@ -434,3 +434,164 @@ fn missing_await_admission_rejects_lost_duplicate_and_unowned_facts() {
         });
     assert!(!skipped.has_only_literal_or_missing_await_recovery());
 }
+
+#[test]
+fn statement_missing_declarations_require_unique_retained_creation_events() {
+    for text in [
+        "@g<number> class C {}",
+        "@g<number>",
+        "{ @g<number> class C {} }",
+        "namespace N { @g()<number> class C {} }",
+        "switch (1) { case 1: @g<number> class C {} }",
+        "switch (1) { default: @g<number> class C {} }",
+        "/*😀*/ { @g<number> class C {} }",
+    ] {
+        let source = source(text);
+        assert_coverage(&source.parse_diagnostics, source.parse_recovery());
+        assert!(
+            !source.has_only_literal_or_missing_await_recovery(),
+            "{text}"
+        );
+        assert!(
+            source.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            source.parse_recovery()
+        );
+    }
+    for text in [
+        "x = @g<number> foo;",
+        "{ @g<number> class C {}",
+        "{ @g<number> class C {} } const x = ;",
+    ] {
+        let source = source(text);
+        assert!(!source.has_supported_emit_recovery(), "{text}");
+    }
+    let mut missing = source("{ @g<number> class C {} }");
+    let saved = missing.parse_recovery.clone();
+    missing.parse_recovery.events[0]
+        .missing_node
+        .as_mut()
+        .unwrap()
+        .position += 1;
+    assert!(!missing.has_supported_emit_recovery());
+    missing.parse_recovery = saved.clone();
+    missing.parse_recovery.events.push(saved.events[0]);
+    assert!(!missing.has_supported_emit_recovery());
+    missing.parse_recovery = saved;
+    missing.parse_recovery.events[0].diagnostic_index = None;
+    assert!(!missing.has_supported_emit_recovery());
+}
+
+#[test]
+fn skipped_parameter_gaps_require_a_retained_missing_await_operand() {
+    for text in [
+        "async function f(a = await => await): Promise<void> {}",
+        "async function f(a = await => b) {}",
+        "async function f(a = await =>) {}",
+        "class C { async m(a = await => await) {} }",
+        "async function* g(a = await => await) {}",
+        "export async function f(a = await => await) {}",
+        "async function f(a = await => await) { await x; }",
+        "async function f(a = await /*c*/ => /*d*/ await) {}",
+        "/*😀*/ async function f(a = await /*😀*/ => await) {}",
+        "async function f(a = await\n=> await) {}",
+    ] {
+        let source = source(text);
+        assert_coverage(&source.parse_diagnostics, source.parse_recovery());
+        assert!(!source.has_only_missing_node_emit_recovery(), "{text}");
+        assert!(
+            source.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            source.parse_recovery()
+        );
+    }
+    for text in [
+        "async function f(a = await => await => await) {}",
+        "async function f(a = await, => b) {}",
+        "async function f() { const g = async (a = await => await) => {}; }",
+        "async function f(a = await => await",
+        "function f(a, => b) {}",
+    ] {
+        let source = source(text);
+        assert!(
+            !source.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            source.parse_recovery()
+        );
+    }
+    let clean = source("function f(a = await => await) {}");
+    assert!(clean.parse_diagnostics.is_empty());
+    assert!(clean.has_supported_emit_recovery());
+}
+
+#[test]
+fn parameter_gap_admission_rejects_forged_or_unowned_recovery() {
+    let source = source("async function f(a = await => await): Promise<void> {}");
+    assert!(source.has_supported_emit_recovery());
+    let check = |mutate: &dyn Fn(&mut ParseRecovery)| {
+        let mut changed = source.clone();
+        mutate(&mut changed.parse_recovery);
+        assert!(
+            !changed.has_supported_emit_recovery(),
+            "{:?}",
+            changed.parse_recovery()
+        );
+    };
+    check(&|r| r.actions.push(r.actions[0]));
+    check(&|r| {
+        let ParseRecoveryAction::TokenSkipped { start, .. } = &mut r.actions[0] else {
+            unreachable!()
+        };
+        *start += 1;
+    });
+    check(&|r| {
+        let ParseRecoveryAction::TokenSkipped { length, .. } = &mut r.actions[0] else {
+            unreachable!()
+        };
+        *length = 0;
+    });
+    check(&|r| {
+        let ParseRecoveryAction::TokenSkipped { site, .. } = &mut r.actions[0] else {
+            unreachable!()
+        };
+        *site = ParseTokenSkipSite::DelimitedNoProgress;
+    });
+    check(&|r| {
+        r.actions
+            .push(ParseRecoveryAction::Reparsed { start: 0, end: 10 })
+    });
+    check(&|r| {
+        let missing = r
+            .events
+            .iter()
+            .find_map(|event| event.missing_node)
+            .unwrap();
+        r.events
+            .iter_mut()
+            .find(|event| event.diagnostic_index.is_none())
+            .unwrap()
+            .missing_node = Some(missing);
+    });
+    check(&|r| {
+        r.events
+            .iter_mut()
+            .find(|event| event.diagnostic_index.is_none())
+            .unwrap()
+            .start += 1
+    });
+    check(&|r| {
+        r.events
+            .iter_mut()
+            .find(|event| event.missing_node.is_some())
+            .unwrap()
+            .diagnostic_index = None
+    });
+    check(&|r| r.events.retain(|event| event.missing_node.is_none()));
+    check(&|r| {
+        r.events
+            .iter_mut()
+            .find_map(|event| event.missing_node.as_mut())
+            .unwrap()
+            .position += 1
+    });
+}

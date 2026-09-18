@@ -6,12 +6,10 @@
 //! lexical capture, and function-context state explicit instead of mirroring
 //! the reference transform's mutable closure graph.
 
+use crate::transform::try_visit_transform_children;
 use std::collections::{BTreeMap, BTreeSet};
 
-use tsc_syntax::{
-    for_each_child, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
-    SyntaxKind,
-};
+use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
@@ -2516,7 +2514,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         self.update_without_visit(original, data)
     }
 

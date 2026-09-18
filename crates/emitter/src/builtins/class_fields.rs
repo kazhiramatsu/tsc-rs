@@ -1,11 +1,10 @@
+use crate::transform::try_visit_transform_children;
 use std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
-use tsc_syntax::{
-    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
-};
+use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, JsString, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
@@ -974,7 +973,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         let flags = super::flags_after_update(self.context.arena(), original, &data)?;
         Ok(self
             .context

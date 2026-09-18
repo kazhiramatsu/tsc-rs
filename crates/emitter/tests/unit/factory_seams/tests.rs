@@ -911,3 +911,41 @@ fn utf16_factory_literals_print_like_equivalent_parsed_literals_for_both_quotes(
         );
     }
 }
+
+#[test]
+fn cross_source_missing_declaration_clone_preserves_reachable_decorators() {
+    let first = parsed("first.ts", "const unrelated = 0;\n");
+    let second = parsed("second.ts", "@g<number> class C {}\n");
+    let mut arena = TransformArena::new();
+    let destination = arena.add_source(&first, None);
+    let source = arena.add_source(&second, None);
+    let missing = second
+        .arena
+        .node_ids()
+        .find(|id| second.arena.node(*id).kind == SyntaxKind::MissingDeclaration)
+        .expect("parsed missing declaration");
+    let original = arena.node_ref(source, missing).unwrap();
+    let cloned = arena
+        .factory()
+        .clone_node_to_source(original, destination)
+        .unwrap();
+    let NodeData::MissingDeclaration(data) = &arena.node(cloned).unwrap().data else {
+        panic!("missing declaration clone");
+    };
+    let modifiers = arena
+        .node_array_ref(destination, data.modifiers.unwrap())
+        .unwrap();
+    let modifiers = &arena.node_array(modifiers).unwrap().nodes;
+    assert_eq!(modifiers.len(), 1);
+    let decorator = arena.node_ref(destination, modifiers[0]).unwrap();
+    let NodeData::Decorator(data) = &arena.node(decorator).unwrap().data else {
+        panic!("cross-source cloning must remap the retained decorator");
+    };
+    let expression = arena
+        .node_ref(destination, data.expression.unwrap())
+        .unwrap();
+    let NodeData::Identifier(data) = &arena.node(expression).unwrap().data else {
+        panic!("cross-source cloning must remap the decorator expression");
+    };
+    assert_eq!(data.text, "g");
+}

@@ -6826,3 +6826,33 @@ fn meta_property_token_maps_module_name_context_is_not_a_value_reference() {
         "MetaProperty name/reference query observations: {observed:?}"
     );
 }
+
+#[test]
+fn missing_declaration_transform_flags_do_not_propagate_decorator_effects() {
+    for text in [
+        "{ @g<number> class C {} }",
+        "{ @g(...[1])<number> class C {} }",
+        "{ @(async () => { await 1; })<number> class C {} }",
+        "{ @(g?.a?.())<number> class C {} }",
+    ] {
+        let parsed = parse_source_file("main.ts", text, ParseOptions::default(), None);
+        assert!(parsed.has_supported_emit_recovery(), "{text}");
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        initialize_transform_flags(&mut arena, source).unwrap();
+        let missing = parsed
+            .arena
+            .node_ids()
+            .find(|id| parsed.arena.node(*id).kind == SyntaxKind::MissingDeclaration)
+            .unwrap();
+        let node = arena.node_ref(source, missing).unwrap();
+        assert_eq!(arena.transform_flags(node), TransformFlags::NONE, "{text}");
+        let NodeData::MissingDeclaration(data) = &arena.node(node).unwrap().data else {
+            unreachable!()
+        };
+        assert!(
+            data.modifiers.is_some(),
+            "parser-attached decorators remain reachable"
+        );
+    }
+}

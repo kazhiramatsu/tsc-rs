@@ -1,6 +1,5 @@
-use tsc_syntax::{
-    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
-};
+use crate::transform::try_visit_transform_children;
+use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::ModifierFlags;
 
 use crate::{
@@ -884,7 +883,7 @@ impl DeclarationTransformer<'_> {
                 cx,
                 source: input.source(),
             };
-            try_visit_each_child(&mut data, &mut visitor)?;
+            try_visit_transform_children(&mut data, &mut visitor)?;
         }
         if cx.arena().node(input)?.data == data {
             return Ok(input);

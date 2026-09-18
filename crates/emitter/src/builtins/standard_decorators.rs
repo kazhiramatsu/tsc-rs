@@ -1,11 +1,10 @@
 //! H2.4b standard-decorator lowering.
 
+use crate::transform::try_visit_transform_children;
 use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_diagnostics::{JsStr, JsString};
-use tsc_syntax::{
-    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
-};
+use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
@@ -5682,7 +5681,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         // Otherwise a comma body is wrapped before it becomes a return body.
         let visited = self
             .visit_parameter_list(parameters)
-            .and_then(|()| try_visit_each_child(&mut data, self));
+            .and_then(|()| try_visit_transform_children(&mut data, self));
         let (temporaries, initialization_statements) =
             self.end_lexical_environment_with_initialization_statements();
         visited?;
@@ -6039,7 +6038,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &data)?;
         Ok(self
             .context
@@ -7125,7 +7124,7 @@ impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
             original.node()
         } else {
             let mut data = record.data;
-            try_visit_each_child(&mut data, self)?;
+            try_visit_transform_children(&mut data, self)?;
             let flags = flags_after_update(self.visitor.context.arena(), original, &data)?;
             self.visitor
                 .context
@@ -7249,7 +7248,7 @@ impl<'visitor, 'context> DecoratorClassThisRewriter<'visitor, 'context> {
             original.node()
         } else {
             let mut data = record.data;
-            try_visit_each_child(&mut data, self)?;
+            try_visit_transform_children(&mut data, self)?;
             let flags = flags_after_update(self.visitor.context.arena(), original, &data)?;
             self.visitor
                 .context

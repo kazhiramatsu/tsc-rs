@@ -2849,6 +2849,10 @@ impl Printer {
         }
 
         match record.data {
+            // Both statement and expression hints use this worker after the
+            // ordinary comment/map phases. Upstream emits no token for this
+            // recovery node, while preserving those surrounding observations.
+            NodeData::MissingDeclaration(_) => Ok(()),
             NodeData::Token if record.kind == SyntaxKind::JsxOpeningFragment => {
                 writer.write_punctuation("<>");
                 Ok(())

@@ -15,13 +15,12 @@
 //! `EmitFlags::ITERATOR` skip for B-4's synthesized iterators) before the
 //! ES2015 producer lands.
 
+use crate::transform::try_visit_transform_children;
 use std::collections::BTreeMap;
 
 use tsc_diagnostics::JsStr;
 use tsc_program::SourceFileId;
-use tsc_syntax::{
-    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
-};
+use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{EscapedName, ScriptTarget};
 
 use crate::{
@@ -4106,7 +4105,7 @@ impl GeneratorsVisitor<'_, '_> {
     fn visit_each_child(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
         let original = self.node(id);
         let mut data = self.context.arena().node(original)?.data.clone();
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         if self.context.arena().node(original)?.data == data {
             return Ok(Some(id));
         }

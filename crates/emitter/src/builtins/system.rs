@@ -1,8 +1,7 @@
+use crate::transform::try_visit_transform_children;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use tsc_syntax::{
-    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
-};
+use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, JsStr, JsString, NodeFlags};
 
 use crate::{
@@ -188,6 +187,9 @@ fn source_contains_import_meta(
             .node_ref(root.source(), id)
             .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(root.source(), id)))?;
         let record = arena.node(node)?;
+        if record.kind == SyntaxKind::MissingDeclaration {
+            continue;
+        }
         if let NodeData::MetaProperty(data) = &record.data {
             if data.keyword_token == SyntaxKind::ImportKeyword
                 && data
@@ -2423,7 +2425,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 members: data.members,
                 modifiers: data.modifiers,
             });
-        try_visit_each_child(&mut expression_data, self)?;
+        try_visit_transform_children(&mut expression_data, self)?;
         let flags = self.context.arena().transform_flags(original);
         let class_expression =
             self.context
@@ -2512,7 +2514,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         }
 
         let mut node_data = NodeData::CallExpression(data);
-        try_visit_each_child(&mut node_data, self)?;
+        try_visit_transform_children(&mut node_data, self)?;
         let NodeData::CallExpression(data) = node_data else {
             unreachable!("call expression visitor preserves kind")
         };
@@ -3409,7 +3411,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<TransformNode, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         self.update_generic_without_visit(original, data)
     }
 

@@ -1,0 +1,36 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "contracts",
+    "--",
+    "emitter_residual_audit::",
+    "h2_8b_config_source_commands::",
+    "source_map_emit_witness_contract::",
+    "emit_session_contract::",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-integration",
+  "started_at": "2026-09-18T18:45:31.389791+00:00",
+  "head": "3f03c9e8c141acdd17339287cf9fec7b7c289787",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/tmp/emitter-r30-native-captures",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 889.729,
+  "log_sha256": "31523966efea1d59871719f104dd204d6a779aa6548406a5baa211d8cfd71286",
+  "log_bytes": 23716
+}

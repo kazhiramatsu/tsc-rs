@@ -4,16 +4,14 @@
 //! static operations.  The representation keeps target policy out of the AST
 //! walk and gives private storage and static-super aliases one ownership point.
 
+use crate::transform::try_visit_transform_children;
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
-use tsc_syntax::{
-    for_each_child, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
-    SyntaxKind,
-};
+use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{JsStr, JsString, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
@@ -9436,7 +9434,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &data)?;
         Ok(self
             .context

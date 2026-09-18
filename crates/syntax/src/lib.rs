@@ -188,6 +188,20 @@ impl SourceFile {
         self.parse_recovery.is_literal_or_missing_await(self)
     }
 
+    /// Literal and uniquely matched statement missing-node recovery, before
+    /// parameter-list token gaps are considered.
+    pub fn has_only_missing_node_emit_recovery(&self) -> bool {
+        self.parse_recovery.is_missing_node_emit_recovery(self)
+    }
+
+    /// Recovery currently supported by ordinary emit: literal-token errors,
+    /// missing await operands, statement missing declarations, and skipped
+    /// parameter gaps tied to retained missing await operands. Other token
+    /// skips, reparses, and expression-position missing declarations stay refused.
+    pub fn has_supported_emit_recovery(&self) -> bool {
+        self.parse_recovery.is_supported_for_emit(self)
+    }
+
     /// Harness only: drop every retained parse diagnostic together with the
     /// committed recovery record, so a contract test can drive the transform
     /// pipeline over a deliberately erroneous tree that upstream still emits.

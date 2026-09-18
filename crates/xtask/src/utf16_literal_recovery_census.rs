@@ -93,6 +93,8 @@ struct UnitFacts {
     silent_missing_events: usize,
     diagnostic_origins: usize,
     missing_await_supported: Option<bool>,
+    emit_supported: Option<bool>,
+    parameter_gaps_supported: Option<bool>,
     recovery_facts: Option<Value>,
 }
 
@@ -112,6 +114,12 @@ impl UnitFacts {
         if let Some(supported) = self.missing_await_supported {
             value["literal_or_missing_await"] = json!(supported);
             value["recovery"] = self.recovery_facts.clone().unwrap();
+        }
+        if let Some(supported) = self.emit_supported {
+            value["supported_emit_recovery"] = json!(supported);
+        }
+        if let Some(supported) = self.parameter_gaps_supported {
+            value["parameter_gap_emit_recovery"] = json!(supported);
         }
         value
     }
@@ -134,7 +142,12 @@ fn is_literal_origin(origin: ParseDiagnosticOrigin) -> bool {
 
 /// The acceptance's source iteration (`h2_2c_acceptance`): emit-eligible,
 /// non-declaration, non-JSON sources parsed with the loader's options.
-fn program_facts(program: &PreparedProgram, missing_await: bool) -> Vec<UnitFacts> {
+fn program_facts(
+    program: &PreparedProgram,
+    missing_await: bool,
+    emit_recovery: bool,
+    parameter_gaps: bool,
+) -> Vec<UnitFacts> {
     let options = program.compiler_options();
     let mut facts = Vec::new();
     for source in program
@@ -169,8 +182,10 @@ fn program_facts(program: &PreparedProgram, missing_await: bool) -> Vec<UnitFact
             structural_diagnostic_events: 0,
             silent_missing_events: 0,
             diagnostic_origins: recovery.diagnostic_origins().len(),
-            missing_await_supported: missing_await.then(|| syntax.has_only_literal_or_missing_await_recovery()),
-            recovery_facts: missing_await.then(|| {
+            missing_await_supported: (missing_await || emit_recovery || parameter_gaps).then(|| syntax.has_only_literal_or_missing_await_recovery()),
+            emit_supported: (emit_recovery || parameter_gaps).then(|| syntax.has_only_missing_node_emit_recovery()),
+            parameter_gaps_supported: parameter_gaps.then(|| syntax.has_supported_emit_recovery()),
+            recovery_facts: (missing_await || emit_recovery || parameter_gaps).then(|| {
                 let events: Vec<_> = recovery.events().iter().map(|event| json!({
                     "kind": format!("{:?}", event.kind), "start": event.start, "length": event.length,
                     "diagnostic_index": event.diagnostic_index,
@@ -229,15 +244,27 @@ impl Verdict {
             return Self::NoRecovery;
         }
         let refused_before = units.iter().any(|unit| {
-            if unit.missing_await_supported.is_some() {
+            if unit.parameter_gaps_supported.is_some() {
+                !unit
+                    .emit_supported
+                    .expect("parameter-gap comparison has the missing-node baseline")
+            } else if unit.emit_supported.is_some() {
+                !unit
+                    .missing_await_supported
+                    .expect("emit comparison has the missing-await baseline")
+            } else if unit.missing_await_supported.is_some() {
                 !unit.literal_only
             } else {
                 unit.diagnostics > 0
             }
         });
-        let refused_after = units
-            .iter()
-            .any(|unit| !unit.missing_await_supported.unwrap_or(unit.literal_only));
+        let refused_after = units.iter().any(|unit| {
+            !unit
+                .parameter_gaps_supported
+                .or(unit.emit_supported)
+                .or(unit.missing_await_supported)
+                .unwrap_or(unit.literal_only)
+        });
         match (refused_before, refused_after) {
             (true, false) => Self::NewlyAdmitted,
             (false, true) => Self::NewlyRefused,
@@ -247,6 +274,7 @@ impl Verdict {
     }
 }
 
+#[derive(Clone)]
 struct Row {
     case_id: String,
     suite: String,
@@ -285,6 +313,8 @@ fn read_json(workspace: &Path, relative: &str) -> Result<(Value, String), Box<dy
 struct Census {
     workspace: PathBuf,
     missing_await: bool,
+    emit_recovery: bool,
+    parameter_gaps: bool,
     rows: Vec<Row>,
     seen: BTreeSet<String>,
     load_failures: Vec<Value>,
@@ -352,7 +382,12 @@ impl Census {
             };
             match loaded {
                 Ok(program) => {
-                    let units = program_facts(&program, self.missing_await);
+                    let units = program_facts(
+                        &program,
+                        self.missing_await,
+                        self.emit_recovery,
+                        self.parameter_gaps,
+                    );
                     let verdict = Verdict::of(&units);
                     self.record(Row {
                         case_id: case_id.to_owned(),
@@ -403,7 +438,12 @@ impl Census {
                 let suite = case["suite"].as_str().unwrap_or("unknown").to_owned();
                 match qualified_input(&self.workspace, &case["input"]) {
                     Ok(program) => {
-                        let units = program_facts(&program, self.missing_await);
+                        let units = program_facts(
+                            &program,
+                            self.missing_await,
+                            self.emit_recovery,
+                            self.parameter_gaps,
+                        );
                         let verdict = Verdict::of(&units);
                         self.record(Row {
                             case_id: case_id.to_owned(),
@@ -466,7 +506,12 @@ impl Census {
                 let suite = case["suite"].as_str().unwrap_or("unknown").to_owned();
                 match candidate_input(&self.workspace, case) {
                     Ok(program) => {
-                        let units = program_facts(&program, self.missing_await);
+                        let units = program_facts(
+                            &program,
+                            self.missing_await,
+                            self.emit_recovery,
+                            self.parameter_gaps,
+                        );
                         let verdict = Verdict::of(&units);
                         self.record(Row {
                             case_id: case_id.to_owned(),
@@ -706,9 +751,15 @@ fn candidate_input(workspace: &Path, case: &Value) -> Result<PreparedProgram, Bo
 pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut out = None;
     let mut missing_await = false;
+    let mut emit_recovery = false;
+    let mut parameter_gaps = false;
+    let mut all_profiles = false;
     while let Some(argument) = args.next() {
         match argument.as_str() {
             "--missing-await" => missing_await = true,
+            "--emit-recovery" => emit_recovery = true,
+            "--parameter-gaps" => parameter_gaps = true,
+            "--all-profiles" => all_profiles = true,
             "--out" => {
                 out = Some(PathBuf::from(
                     args.next().ok_or("missing value after --out")?,
@@ -717,9 +768,23 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             other => return Err(format!("unexpected census argument: {other}").into()),
         }
     }
+    if [missing_await, emit_recovery, parameter_gaps, all_profiles]
+        .into_iter()
+        .filter(|selected| *selected)
+        .count()
+        > 1
+    {
+        return Err("choose one recovery comparison profile".into());
+    }
     let workspace = find_workspace_root()?;
     let out = out.unwrap_or_else(|| {
-        workspace.join(if missing_await {
+        workspace.join(if all_profiles {
+            "target/emitter-recovery-census"
+        } else if parameter_gaps {
+            "target/emitter-parameter-gap-recovery-census.json"
+        } else if emit_recovery {
+            "target/emitter-structural-recovery-census.json"
+        } else if missing_await {
             "target/emitter-missing-await-recovery-census.json"
         } else {
             "target/utf16-literal-recovery-census.json"
@@ -728,7 +793,9 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let started = Instant::now();
     let mut census = Census {
         workspace: workspace.clone(),
-        missing_await,
+        missing_await: missing_await || all_profiles,
+        emit_recovery: emit_recovery || all_profiles,
+        parameter_gaps: parameter_gaps || all_profiles,
         rows: Vec::new(),
         seen: BTreeSet::new(),
         load_failures: Vec::new(),
@@ -739,9 +806,67 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     census.candidate_artifacts()?;
     let mismatches = census.typescript_parity()?;
 
+    let elapsed_seconds = started.elapsed().as_secs_f64();
+    if all_profiles {
+        for (filename, flags) in [
+            ("missing-await.json", (true, false, false)),
+            ("missing-declaration.json", (false, true, false)),
+            ("parameter-gaps.json", (false, false, true)),
+        ] {
+            write_report(
+                &census,
+                &mismatches,
+                elapsed_seconds,
+                &out.join(filename),
+                flags,
+            )?;
+        }
+    } else {
+        write_report(
+            &census,
+            &mismatches,
+            elapsed_seconds,
+            &out,
+            (missing_await, emit_recovery, parameter_gaps),
+        )?;
+    }
+    Ok(())
+}
+
+fn write_report(
+    census: &Census,
+    mismatches: &[Value],
+    elapsed_seconds: f64,
+    out: &Path,
+    (missing_await, emit_recovery, parameter_gaps): (bool, bool, bool),
+) -> Result<(), Box<dyn Error>> {
+    // A shared loader pass evaluates every historical boundary. Projection
+    // removes later predicates before classifying each report, so a later
+    // admission cannot silently change an earlier stage's before/after set.
+    let rows = census
+        .rows
+        .iter()
+        .cloned()
+        .map(|mut row| {
+            for unit in &mut row.units {
+                if !parameter_gaps {
+                    unit.parameter_gaps_supported = None;
+                }
+                if !(emit_recovery || parameter_gaps) {
+                    unit.emit_supported = None;
+                }
+                if !(missing_await || emit_recovery || parameter_gaps) {
+                    unit.missing_await_supported = None;
+                    unit.recovery_facts = None;
+                }
+            }
+            row.verdict = Verdict::of(&row.units);
+            row
+        })
+        .collect::<Vec<_>>();
     let mut by_verdict: BTreeMap<&str, usize> = BTreeMap::new();
     let mut by_universe: BTreeMap<String, BTreeMap<&str, usize>> = BTreeMap::new();
-    for row in &census.rows {
+    for row in &rows {
         *by_verdict.entry(row.verdict.label()).or_default() += 1;
         *by_universe
             .entry(row.universe.clone())
@@ -750,21 +875,19 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             .or_default() += 1;
     }
     let select = |verdict: Verdict| {
-        census
-            .rows
-            .iter()
+        rows.iter()
             .filter(|row| row.verdict == verdict)
             .map(Row::json)
             .collect::<Vec<_>>()
     };
     let report = json!({
         "schema": 1,
-        "kind": if missing_await { "emitter-missing-await-recovery-admission-census" } else { CENSUS_KIND },
-        "scope": if missing_await { "Missing-await recovery predicate evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" } else { "Rust parser literal-only recovery admission evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" },
-        "predicate": if missing_await { "Emit-eligible non-declaration non-JSON sources; before = SourceFile::has_only_literal_recovery; after = SourceFile::has_only_literal_or_missing_await_recovery" } else { "SourceFile::has_only_literal_recovery over emit-eligible non-declaration non-JSON sources; before = refuse when any unit retains a parse diagnostic; after = refuse when any unit is not literal-only" },
+        "kind": if parameter_gaps { "emitter-parameter-gap-recovery-admission-census" } else if emit_recovery { "emitter-structural-recovery-admission-census" } else if missing_await { "emitter-missing-await-recovery-admission-census" } else { CENSUS_KIND },
+        "scope": if parameter_gaps { "Parameter-gap recovery evaluated with the acceptance loaders over every recorded input; no emit and no CI" } else if emit_recovery { "Current structural emit-recovery predicate evaluated with the acceptance loaders over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" } else if missing_await { "Missing-await recovery predicate evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" } else { "Rust parser literal-only recovery admission evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" },
+        "predicate": if parameter_gaps { "Emit-eligible sources; before = SourceFile::has_only_missing_node_emit_recovery; after = SourceFile::has_supported_emit_recovery" } else if emit_recovery { "Emit-eligible non-declaration non-JSON sources; before = SourceFile::has_only_literal_or_missing_await_recovery; after = SourceFile::has_only_missing_node_emit_recovery" } else if missing_await { "Emit-eligible non-declaration non-JSON sources; before = SourceFile::has_only_literal_recovery; after = SourceFile::has_only_literal_or_missing_await_recovery" } else { "SourceFile::has_only_literal_recovery over emit-eligible non-declaration non-JSON sources; before = refuse when any unit retains a parse diagnostic; after = refuse when any unit is not literal-only" },
         "head": std::process::Command::new("git")
             .args(["rev-parse", "HEAD"])
-            .current_dir(&workspace)
+            .current_dir(&census.workspace)
             .output()
             .ok()
             .and_then(|output| String::from_utf8(output.stdout).ok())
@@ -777,7 +900,7 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             "by_verdict": by_verdict,
             "by_universe": by_universe,
             "typescript_parity_mismatches": mismatches.len(),
-            "elapsed_seconds": started.elapsed().as_secs_f64(),
+            "elapsed_seconds": elapsed_seconds,
         },
         "newly_admitted": select(Verdict::NewlyAdmitted),
         "newly_refused": select(Verdict::NewlyRefused),
