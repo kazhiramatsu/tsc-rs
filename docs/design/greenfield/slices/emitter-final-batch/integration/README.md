@@ -53,7 +53,7 @@ H2.6cのcompiler-runner hostに `@useCaseSensitiveFileNames` を反映し、look
 
 RustでEF2/EF3の21 profile memberships（20 unique IDs）がすべてexact×2となったため、
 H2.5h 12、H2.6a 1、H2.6c 8の既知差分台帳を空にした。
-[退役前の全レコード](records/retired-known.v1.json)を保存し、固定した21行のreplayは残す。
+[退役前の全レコード](records/retired-known.v2.json)を保存し、固定した21行のreplayは残す。
 最初のrunがstale-KNOWNを検出したexit 101も保存する。
 後続のD/E・globalのcurrent oracle artifactsは公式writerで再生成し、全case/input/observationの不変を
 [機械検証](refresh-provenance.py)する。歴史的before/after測定packetのhashを書き換えない。
@@ -74,7 +74,7 @@ H2.5h 12、H2.6a 1、H2.6c 8の既知差分台帳を空にした。
 重複する観測所属なので件数を足して互換ケース総数にしない。PLAN-BASEの約70分のローカル直列測定は
 hosted一jobへ持ち込まない。専用fixtureは担当suiteを選び、shared sourceは全既存群を含める。
 editing selectorsを除去し、zero/ignored testsと欠けたshard summaryを拒否する。
-入口台帳v28はcomposite runnerを実Cargo commandsへ展開する。
+入口台帳v29はcomposite runnerを実Cargo commandsへ展開する。
 
 ## Validationとarchitecture
 
@@ -104,3 +104,18 @@ CLI named valuesを修復対象とした。既存範囲を縮めず、current ar
 実測を優先し、review回答だけで成功判定しない。source-kind JSON / parse recovery /
 stableTypeOrderingは共有基盤の未解決境界として残す。数値targetの1234と内部JSON値100は
 区別し、後者を別名で互換成功に数えない。
+
+
+## 次段のconsumer更新（r26）
+
+候補3c1dfa51cでconformance49,024はT0/T1/T2/T3すべて一致し、H2.5hも
+888 exact / 44 deferred / known0となった。H2.1aの旧comment拒否2行は元の
+fingerprintと2回のTS観測を使う完全比較へ接続し、元qualificationは変更しない。
+H2.6cは空KNOWNの正規状態を「manifest不在」とする既存readerにwriterを合わせる。
+元21所属の再比較は保持する。これらのnative再検証は継続中。
+
+bundle declaration/mapのcurrent参照は公式writerで再採取し、全inputと全観測が
+不変であることを[bundle-provenance-refresh-r26](records/bundle-provenance-refresh-r26.json)
+へ固定した。差は依存artifactのhashとobserver identityのみ。
+旧退役台帳v1の空before payloadは、元SHA-256を照合した[v2](records/retired-known.v2.json)
+で訂正した。旧版も訂正理由とともに保存する。

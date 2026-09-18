@@ -561,7 +561,13 @@ fn ef2_ef3_known_rows_replay_against_frozen_qualification_observations() {
             &[EF3_SHARED_H2_6A_ROW][..],
         ),
     ] {
-        let manifest = artifact(path);
+        // An absent live manifest denotes no remaining divergences. The
+        // original fixed row sets still replay in full below.
+        let manifest = if workspace().join(path).exists() {
+            artifact(path)
+        } else {
+            json!({"schema": 1, "cases": []})
+        };
         let ids = manifest["cases"]
             .as_array()
             .unwrap()

@@ -2,7 +2,7 @@
 
 2026-09-17。統合担当：Codex。**最終emitter向けCI予算整備をPR #557で統合。全10 replay job・両gateを含む14 checks成功。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v28.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v29.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。

@@ -73,6 +73,18 @@ static CURRENT_EXACT_DIAGNOSTIC_PROMOTIONS: &[CurrentExactDiagnosticPromotion] =
 // H2.8a source repairs measured against the unchanged historical input and
 // both complete TypeScript observations. Keep the old qualification immutable.
 static CURRENT_EXACT_SOURCE_PROMOTIONS: &[(&str, &str, &str)] = &[
+    // The text-based comment preflight was removed. These rows must now
+    // match their frozen complete observations, including all diagnostics.
+    (
+        "typescript-6.0.3/conformance/classes/members/privateNames/privateNameInInExpression.ts#target%3Desnext",
+        "ed4b13ea9f6d38a3c9e4bd51cb798eeb002b222e29f52e7eff2b79421930d0fe",
+        "H2.8a",
+    ),
+    (
+        "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInTypeAssertions.ts#target%3Desnext",
+        "f3f15ca6f7ba664e4cfdd9e21fc4097069883d87690916cace093d7fd9ec950e",
+        "H2.8a",
+    ),
     (
         "typescript-6.0.3/compiler/commentsAfterSpread.ts#default",
         "3f5e9e8bd16bab126774402dea7896f6391aaa67bb4f1952b48811ac3ca1f879",
