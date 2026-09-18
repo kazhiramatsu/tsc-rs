@@ -194,10 +194,15 @@ impl SourceFile {
         self.parse_recovery.is_missing_node_emit_recovery(self)
     }
 
-    /// Recovery currently supported by ordinary emit: literal-token errors,
-    /// missing await operands, statement missing declarations, and skipped
-    /// parameter gaps tied to retained missing await operands. Other token
-    /// skips, reparses, and expression-position missing declarations stay refused.
+    /// Missing-node recovery plus skipped parameter gaps, before statement
+    /// gaps and report-only list/closer boundaries are considered.
+    pub fn has_only_parameter_gap_emit_recovery(&self) -> bool {
+        self.parse_recovery.is_parameter_gap_emit_recovery(self)
+    }
+
+    /// Literal and uniquely owned structural recovery supported by ordinary
+    /// emit. Every missing operand, report and skipped list gap must be tied
+    /// to reachable syntax; reparse and unowned recovery stay refused.
     pub fn has_supported_emit_recovery(&self) -> bool {
         self.parse_recovery.is_supported_for_emit(self)
     }

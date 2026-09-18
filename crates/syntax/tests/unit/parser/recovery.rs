@@ -500,7 +500,7 @@ fn skipped_parameter_gaps_require_a_retained_missing_await_operand() {
         assert_coverage(&source.parse_diagnostics, source.parse_recovery());
         assert!(!source.has_only_missing_node_emit_recovery(), "{text}");
         assert!(
-            source.has_supported_emit_recovery(),
+            source.has_only_parameter_gap_emit_recovery(),
             "{text}: {:?}",
             source.parse_recovery()
         );
@@ -514,25 +514,25 @@ fn skipped_parameter_gaps_require_a_retained_missing_await_operand() {
     ] {
         let source = source(text);
         assert!(
-            !source.has_supported_emit_recovery(),
+            !source.has_only_parameter_gap_emit_recovery(),
             "{text}: {:?}",
             source.parse_recovery()
         );
     }
     let clean = source("function f(a = await => await) {}");
     assert!(clean.parse_diagnostics.is_empty());
-    assert!(clean.has_supported_emit_recovery());
+    assert!(clean.has_only_parameter_gap_emit_recovery());
 }
 
 #[test]
 fn parameter_gap_admission_rejects_forged_or_unowned_recovery() {
     let source = source("async function f(a = await => await): Promise<void> {}");
-    assert!(source.has_supported_emit_recovery());
+    assert!(source.has_only_parameter_gap_emit_recovery());
     let check = |mutate: &dyn Fn(&mut ParseRecovery)| {
         let mut changed = source.clone();
         mutate(&mut changed.parse_recovery);
         assert!(
-            !changed.has_supported_emit_recovery(),
+            !changed.has_only_parameter_gap_emit_recovery(),
             "{:?}",
             changed.parse_recovery()
         );
@@ -593,5 +593,199 @@ fn parameter_gap_admission_rejects_forged_or_unowned_recovery() {
             .find_map(|event| event.missing_node.as_mut())
             .unwrap()
             .position += 1
+    });
+}
+
+#[test]
+fn report_only_recovery_keeps_creation_full_start_through_deduplication() {
+    let text = "/*😀*/ x /*gap*/ )";
+    let mut parser = Parser::new("main.ts".into(), text, LanguageVariant::Standard, false);
+    parser.next_token();
+    parser.next_token();
+    assert_eq!(parser.token(), SyntaxKind::CloseParenToken);
+    assert!(!parser.parse_expected(SyntaxKind::CloseBracketToken, None));
+    assert!(!parser.parse_expected(SyntaxKind::CloseBraceToken, None));
+    let full_start = text[..text.find(" /*gap*/").unwrap()]
+        .encode_utf16()
+        .count() as u32;
+    let token_start = text[..text.find(')').unwrap()].encode_utf16().count() as u32;
+    assert_ne!(full_start, token_start);
+    assert_eq!(parser.parse_diagnostics.len(), 1);
+    assert_eq!(parser.parse_recovery.events.len(), 2);
+    for (index, event) in parser.parse_recovery.events.iter().enumerate() {
+        assert_eq!(event.full_start, full_start);
+        assert_eq!(event.start, token_start);
+        assert_eq!(event.missing_node, None);
+        assert_eq!(event.diagnostic_index, (index == 0).then_some(0));
+    }
+    assert_coverage(&parser.parse_diagnostics, &parser.parse_recovery);
+}
+
+#[test]
+fn missing_closer_report_full_start_identifies_the_retained_parenthesis_end() {
+    let text = "export const value = (object?.x //😀\n as number);";
+    let parsed = source(text);
+    let full_start = text[..text.find(" //😀").unwrap()].encode_utf16().count() as u32;
+    let token_start = text[..text.find("as number").unwrap()]
+        .encode_utf16()
+        .count() as u32;
+    let events: Vec<_> = parsed
+        .parse_recovery
+        .events()
+        .iter()
+        .filter(|event| event.start == token_start && event.diagnostic_index.is_some())
+        .collect();
+    assert_eq!(events.len(), 1);
+    assert_eq!(
+        events[0].kind,
+        ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+    );
+    assert_eq!(events[0].missing_node, None);
+    assert_eq!(events[0].full_start, full_start);
+    assert!(parsed.arena.nodes().iter().any(|node| {
+        node.kind == SyntaxKind::ParenthesizedExpression
+            && parsed.positions().byte_to_utf16(node.end) == Some(full_start)
+    }));
+    // The later missing-semicolon report targets the whole `number` node
+    // after that node has been consumed. Its full start is the following `)`.
+    let number_start = text[..text.find("number").unwrap()].encode_utf16().count() as u32;
+    let number_end = number_start + 6;
+    let range_event = parsed
+        .parse_recovery
+        .events()
+        .iter()
+        .find(|event| event.start == number_start && event.diagnostic_index.is_some())
+        .unwrap();
+    assert_eq!(range_event.length, 6);
+    assert_eq!(range_event.full_start, number_end);
+    assert!(range_event.start < range_event.full_start);
+    assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+    assert!(!parsed.has_only_parameter_gap_emit_recovery());
+    assert!(parsed.has_supported_emit_recovery());
+}
+
+#[test]
+fn explicit_range_recovery_full_start_is_not_the_reported_node_start() {
+    let text = "const v = a?.#b;";
+    let parsed = source(text);
+    let event = parsed
+        .parse_recovery
+        .events()
+        .iter()
+        .find(|event| event.diagnostic_index.is_some())
+        .unwrap();
+    assert_eq!((event.start, event.length, event.full_start), (13, 2, 15));
+    assert_eq!(event.missing_node, None);
+    assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+    assert!(!parsed.has_supported_emit_recovery());
+}
+
+#[test]
+fn statement_gap_recovery_accounts_for_reports_and_their_reachable_owners() {
+    for text in [
+        "var foo = async (a = await => await): Promise<void> => {}",
+        "let x = <void> =>;",
+        "export const value = (object?.x //😀\n as number);",
+        "export const value = (object?.x\n /* value */ as number);",
+        "const value = (object.x\n as number);",
+        "x = (a\n as T);",
+        "{ const value = (a\n as number); }",
+        "namespace N { export const value = (1\n as number); }",
+        "switch (x) { case 1: const value = (a\n as number); break; default: x = (b\n as T); }",
+        "/*😀*/ var foo = async (a = await => await): Promise<void> => {}",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+        assert!(!parsed.has_only_parameter_gap_emit_recovery(), "{text}");
+        assert!(
+            parsed.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+    for text in [
+        "const value = (a /*c*/",
+        "foo(a, b",
+        "const x = [a, b",
+        "const x = {a: 1",
+        "let x = 1 let y = 2;",
+        "let x = 1, (y);",
+        "let x = 1 \"s\";",
+        "const value = a?.#b;",
+        "export {}; await (1,);",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(
+            !parsed.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+    for text in [
+        "const value = (a as T);",
+        "const value = (a /*c*/ as T);",
+        "let x = 1 <T>y;",
+    ] {
+        let parsed = source(text);
+        assert!(parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(parsed.has_supported_emit_recovery(), "{text}");
+    }
+}
+
+#[test]
+fn statement_gap_recovery_rejects_unowned_or_forged_events() {
+    let parsed = source("export const value = (object?.x //😀\n as number);");
+    assert!(parsed.has_supported_emit_recovery());
+    let check = |mutate: &dyn Fn(&mut ParseRecovery)| {
+        let mut changed = parsed.clone();
+        mutate(&mut changed.parse_recovery);
+        assert!(
+            !changed.has_supported_emit_recovery(),
+            "{:?}",
+            changed.parse_recovery()
+        );
+    };
+    check(&|r| {
+        r.events.remove(0);
+    });
+    check(&|r| r.events.push(r.events[0]));
+    check(&|r| r.actions.push(r.actions[0]));
+    check(&|r| {
+        r.actions
+            .push(ParseRecoveryAction::Reparsed { start: 0, end: 1 })
+    });
+    check(&|r| {
+        r.events
+            .iter_mut()
+            .find(|e| e.diagnostic_index.is_none())
+            .unwrap()
+            .start += 1
+    });
+    check(&|r| {
+        let start = match r.actions[0] {
+            ParseRecoveryAction::TokenSkipped { start, .. } => start,
+            _ => unreachable!(),
+        };
+        r.events
+            .iter_mut()
+            .find(|e| e.start == start && e.diagnostic_index.is_some())
+            .unwrap()
+            .full_start -= 1;
+    });
+    check(&|r| {
+        r.events[0].length = 0;
+    });
+    check(&|r| {
+        let event = r
+            .events
+            .iter_mut()
+            .find(|e| e.diagnostic_index.is_none())
+            .unwrap();
+        event.missing_node = Some(MissingNodeRecovery {
+            kind: SyntaxKind::Identifier,
+            position: event.full_start,
+        });
     });
 }

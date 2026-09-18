@@ -1147,9 +1147,13 @@ fn recovery_provenance_matches_fresh_parses_after_incremental_edits() {
         "export {}; const bad = ; await(f()); const stable = 1;",
         "const stable = 1; export {}; await(f()); const bad = ;",
         "const stable = 1; async function f(a = await /*😀*/ ) {}",
+        "const stable = 1; export const value = (object?.x //😀\n as number);",
+        "export const value = (object?.x //😀\n as number); const stable = 1;",
     ] {
         compare_incremental(before, before.find("stable").unwrap(), 6, "renamed");
     }
+    let before = "export const value = (object?.x //😀\n as number);";
+    compare_incremental(before, before.find("object").unwrap(), 6, "receiver");
     let before = r#"const bad = "\8"; const stable = 1;"#;
     compare_incremental(before, before.find("\\8").unwrap(), 2, "ok");
     let before = "const bad = ; const stable = 1;";

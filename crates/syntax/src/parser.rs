@@ -1265,6 +1265,7 @@ impl<'text> Parser<'text> {
                 kind: ParseRecoveryKind::SilentMissingNode(kind),
                 start: self.to_utf16(self.scanner.full_start_pos()),
                 length: 0,
+                full_start: position,
                 diagnostic_index: None,
                 missing_node: None,
                 reparse_start: self.to_utf16(
@@ -9995,6 +9996,7 @@ impl<'text> Parser<'text> {
             kind: ParseRecoveryKind::Diagnostic(origin),
             start: start_utf16,
             length: end_utf16.saturating_sub(start_utf16),
+            full_start: self.to_utf16(self.scanner.full_start_pos()),
             diagnostic_index,
             missing_node: None,
             reparse_start: self.to_utf16(match origin {

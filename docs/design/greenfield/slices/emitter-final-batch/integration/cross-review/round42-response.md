@@ -1,0 +1,26 @@
+**full_start review: capture is correct for current-token reports; the field is not tied to the diagnostic for range reports, and G2 must encode that distinction structurally.**
+
+**Capture.** Both constructors read `scanner.full_start_pos()` at push time (parser.rs:1268, :9999), which `scan()` sets to `pos` before trivia (scanner.rs:267). `parse_expected` fails without advancing and reports through `parse_error_at_current_token` at `token_start`, so for that path `full_start` = end of the previous token = the value tsc's `finishNode` assigns as the retained node's end. The closer tie in the second test is therefore sound. The message-bearing missing-node branch computes `position` and the event's `full_start` from the same scanner state, so `missing_node.position == full_start` always holds there; worth asserting as an invariant later.
+
+**Survival.** Speculation: `try_parse`/`look_ahead` truncate events via `ParseRecovery::restore` and `ScannerState` carries `full_start_pos` (scanner.rs:499/512), so nothing leaks and post-restore events read the right value. Reparse: `retain_reparse_recovery` copies events whole; reparsed ranges are recreated on the same text. Incremental: incremental.rs never touches events, the parse is fresh with node reuse, and the reuse guard refuses candidates with `THIS_NODE_HAS_ERROR` (set by `parse_error_before_next_finished_node`), so the missing-closer paren is never reused. Public semantics: the struct is `pub`, `Copy`, `PartialEq`; no external constructor exists, and the only behavioral effect is that `parse_recovery` equality (incremental.rs:313 and the test helper) is now stricter, which can only refuse more, never admit more.
+
+**Concrete gap.** 23 report sites use explicit ranges (`parse_error_at_position` ×13, `parse_error_at` ×6, `parse_error_at_range` ×4: JSX tag mismatches, `super` type arguments, optional-chain private names, modifiers, tagged templates, `is` predicates). For those, `full_start` is the current token's full start and has no relation to the span. The event carries no discriminator. A node-end tie on such an event can hold by coincidence: the scanner usually sits at the token right after the node the range report targets, so `node.end == full_start` is true for the wrong node. Invariant: consume `full_start` only when `event.start == skip_trivia(text, full_start)` and `event.length > 0`, the signature of a current-token report; both facts are derivable from existing fields.
+
+**Tests.** Expected positions are right (UTF-16 counts include the 2-unit emoji; two non-advancing `parse_expected` calls yield one diagnostic and two events with equal `full_start`). Gap: neither test pins a range report. Add one assertion on the `number` event of the second fixture (span `[94,100)`, `full_start` at the end of `as`) so the discriminator above is exercised.
+
+**G2 least-impact design, on the existing predicate.**
+- Generalize the owner search in `supports_parameter_gaps` from parameter arrays to `SourceFile`/`Block`/`ModuleBlock`/`CaseClause`/`DefaultClause` statements and `VariableDeclarationList` declarations, keeping the span containment, no-element-intersection, preceding-element and innermost-ancestor proofs verbatim. The preceding element must end at the skip's tie: a retained missing node position (G1) or a report-only event's `full_start` whose `start == skip.start`.
+- Report-only retained events admit through exactly one tie each: (a) node-end: current-token signature and exactly one reachable `ParenthesizedExpression` with `end == full_start` and `end == expression.end` (no closer consumed, no text matching); (b) node-span: `[start, start+length)` equals the trivia-skipped span of exactly one reachable `ExpressionStatement` whose `end == expression.end`; (c) skip tie: `start == TokenSkipped.start` at `ListAbort`. Every report-only event must be consumed once; every `TokenSkipped` must be consumed by a gap proof; `Reparsed` and every other skip site refuse; zero-length report-only events refuse.
+- Suppressed events (no `diagnostic_index`): admit only when a retained event at the same `start` was itself admitted; never on their own.
+- Missing operand parent set becomes `{AwaitExpression, TypeAssertionExpression}` behind the G2 flag; `EmptyStatement` needs no admission (no event, no action).
+- Span vs fact: `start`/`length` are the diagnostic span and may skip a comment; `full_start` is the previous token end. Use `full_start` only in (a), `start` in (b) and (c). Mixing them is exactly what the `//😀` fixture would catch.
+
+**Controls (malformed / clean adjacent).**
+1. `export const value = (object?.x //😀\n as number);` at ES2015 CJS and ES5 (optional-chain lowering with the missing closer).
+2. `const v = (a\n as T);` same tie without comment or export.
+3. `const v = (a /*c*/` at EOF: refuse (zero-length report).
+4. `foo(a, b`, `[a, b`, `{a: 1`: refuse (kind set).
+5. `let x = <void> =>;` and the asyncArrowFunction9 shape: TypeAssertion operand alone and with statement gaps.
+6. `let x = 1 let y = 2;`: refuse, no `ExpressionStatement` span and no skip.
+7. Clean neighbours `(a as T)` and `(a /*c*/ as T)`: zero events, admitted as clean.
+8. Incremental edit inside the malformed statement (rename `object`), beyond the two before/after controls already added.

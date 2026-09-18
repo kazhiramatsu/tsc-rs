@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{for_each_child, NodeData, SourceFile, SyntaxKind};
+use crate::{for_each_child, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::NodeFlags;
 
 /// The producer of a retained syntactic diagnostic. Scanner trivia is kept
@@ -109,6 +109,11 @@ pub struct ParseRecoveryEvent {
     /// Source positions in UTF-16 units, as in syntactic diagnostics.
     pub start: u32,
     pub length: u32,
+    /// Scanner full start at event creation, in UTF-16 units. This remains
+    /// independent of the diagnostic span, which can skip comment trivia.
+    /// Only current-token parser reports can use it as a retained-node end;
+    /// explicit-range reports may refer to an earlier node instead.
+    pub full_start: u32,
     pub diagnostic_index: Option<usize>,
     /// Message-bearing missing-node provenance on this fresh reporting event.
     /// Silent missing nodes are already represented by kind/start above.
@@ -154,15 +159,19 @@ impl ParseRecovery {
     }
 
     pub(crate) fn is_literal_or_missing_await(&self, source: &SourceFile) -> bool {
-        self.supports_missing_nodes(source, false, false)
+        self.supports_missing_nodes(source, false, false, false)
     }
 
     pub(crate) fn is_missing_node_emit_recovery(&self, source: &SourceFile) -> bool {
-        self.supports_missing_nodes(source, true, false)
+        self.supports_missing_nodes(source, true, false, false)
+    }
+
+    pub(crate) fn is_parameter_gap_emit_recovery(&self, source: &SourceFile) -> bool {
+        self.supports_missing_nodes(source, true, true, false)
     }
 
     pub(crate) fn is_supported_for_emit(&self, source: &SourceFile) -> bool {
-        self.supports_missing_nodes(source, true, true)
+        self.supports_missing_nodes(source, true, true, true)
     }
 
     fn supports_missing_nodes(
@@ -170,17 +179,49 @@ impl ParseRecovery {
         source: &SourceFile,
         allow_missing_declarations: bool,
         allow_parameter_gaps: bool,
+        allow_statement_gaps: bool,
     ) -> bool {
         if self.is_literal_only(source.parse_diagnostics.len()) {
             return true;
         }
         if self.diagnostic_origins.len() != source.parse_diagnostics.len()
             || (!self.actions.is_empty()
-                && !(allow_parameter_gaps && self.supports_parameter_gaps(source)))
+                && !(allow_parameter_gaps
+                    && self.supports_array_gaps(source, allow_statement_gaps)))
         {
             return false;
         }
+        if allow_statement_gaps {
+            let mut retained = BTreeSet::new();
+            for event in &self.events {
+                if let Some(index) = event.diagnostic_index {
+                    let Some(diagnostic) = source.parse_diagnostics.get(index) else {
+                        return false;
+                    };
+                    if !retained.insert(index)
+                        || event.kind
+                            != ParseRecoveryKind::Diagnostic(self.diagnostic_origins[index])
+                        || diagnostic.start != Some(event.start)
+                        || diagnostic.length != Some(event.length)
+                    {
+                        return false;
+                    }
+                }
+            }
+            if retained.len() != source.parse_diagnostics.len() {
+                return false;
+            }
+        }
+        let parents = if allow_statement_gaps {
+            let Some(parents) = Self::reachable_parents(source) else {
+                return false;
+            };
+            Some(parents)
+        } else {
+            None
+        };
         let mut missing_positions = BTreeMap::new();
+        let mut report_only_count = 0;
         for event in &self.events {
             if matches!(event.kind, ParseRecoveryKind::Diagnostic(origin) if origin.is_literal())
                 && event.missing_node.is_none()
@@ -188,6 +229,28 @@ impl ParseRecovery {
                 continue;
             }
             let Some(missing) = event.missing_node else {
+                if allow_statement_gaps
+                    && event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                {
+                    let admitted = match event.diagnostic_index {
+                        Some(index) if index < source.parse_diagnostics.len() => {
+                            self.actions.iter().any(|action| matches!(action,
+                                ParseRecoveryAction::TokenSkipped { start, .. } if *start == event.start))
+                            || Self::report_has_retained_syntax_owner(source, parents.as_ref().unwrap(), event)
+                        }
+                        None => self.events.iter().any(|retained| {
+                            retained.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                                && retained.start == event.start
+                                && retained.diagnostic_index.is_some_and(|index| index < source.parse_diagnostics.len())
+                        }),
+                        _ => false,
+                    };
+                    if admitted && event.length > 0 {
+                        report_only_count += 1;
+                        continue;
+                    }
+                    return false;
+                }
                 if allow_parameter_gaps
                     && event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
                     && event.diagnostic_index.is_none()
@@ -217,7 +280,7 @@ impl ParseRecovery {
                 return false;
             }
         }
-        if missing_positions.is_empty() {
+        if missing_positions.is_empty() && report_only_count == 0 {
             return false;
         }
         // Inspect reachable syntax only: speculative parsing can leave orphaned
@@ -233,7 +296,8 @@ impl ParseRecovery {
                     .positions()
                     .byte_to_utf16(node.pos)
                     .expect("syntax node positions are scalar boundaries");
-                if parent != Some(SyntaxKind::AwaitExpression)
+                if !(parent == Some(SyntaxKind::AwaitExpression)
+                    || allow_statement_gaps && parent == Some(SyntaxKind::TypeAssertionExpression))
                     || missing_positions.remove(&position) != Some(SyntaxKind::Identifier)
                 {
                     return false;
@@ -266,11 +330,7 @@ impl ParseRecovery {
         missing_positions.is_empty()
     }
 
-    // A parameter gap is emittable only when its preceding parameter ends in
-    // a retained missing await operand, whose reporting token was skipped.
-    // The reachable tree and array ownership are checked independently of the
-    // diagnostic code, token spelling, and fixture identity.
-    fn supports_parameter_gaps(&self, source: &SourceFile) -> bool {
+    fn reachable_parents(source: &SourceFile) -> Option<BTreeMap<NodeId, Option<NodeId>>> {
         let mut parents = BTreeMap::new();
         let mut pending = vec![(source.root, None)];
         while let Some((id, parent)) = pending.pop() {
@@ -281,13 +341,35 @@ impl ParseRecovery {
             // Defensive tree invariant: ownership must not depend on which
             // edge reaches a shared node first.
             if parents.insert(id, parent).is_some() {
-                return false;
+                return None;
             }
             for_each_child(&source.arena, node, |child| {
                 pending.push((child, Some(id)));
                 false
             });
         }
+        Some(parents)
+    }
+
+    fn statement_array(data: &NodeData) -> Option<NodeArrayId> {
+        match data {
+            NodeData::SourceFile(data) => data.statements,
+            NodeData::Block(data) => data.statements,
+            NodeData::ModuleBlock(data) => data.statements,
+            NodeData::CaseClause(data) => data.statements,
+            NodeData::DefaultClause(data) => data.statements,
+            _ => None,
+        }
+    }
+
+    // Every skipped span belongs to one innermost reachable array gap. A
+    // parameter gap additionally requires the retained missing await operand
+    // in its preceding parameter. Statement/declaration gaps use the same
+    // creation full-start boundary; all reports are checked independently.
+    fn supports_array_gaps(&self, source: &SourceFile, allow_statement_gaps: bool) -> bool {
+        let Some(parents) = Self::reachable_parents(source) else {
+            return false;
+        };
         let mut skip_spans = BTreeSet::new();
         for action in &self.actions {
             let ParseRecoveryAction::TokenSkipped {
@@ -322,39 +404,62 @@ impl ParseRecovery {
                     event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
                         && event.start == start
                         && event.diagnostic_index.is_some()
-                        && event
+                        && (event
                             .missing_node
                             .is_some_and(|missing| missing.kind == SyntaxKind::Identifier)
+                            || allow_statement_gaps && event.missing_node.is_none())
                 })
                 .collect::<Vec<_>>();
             if retained.len() != 1 {
                 return false;
             }
-            let missing = retained[0].missing_node.unwrap();
-            let Some(missing_byte) = source.positions().utf16_to_byte(missing.position) else {
+            let event = retained[0];
+            let position = if allow_statement_gaps {
+                if !Self::is_current_token_report(source, event)
+                    || event
+                        .missing_node
+                        .is_some_and(|missing| missing.position != event.full_start)
+                {
+                    return false;
+                }
+                event.full_start
+            } else {
+                event.missing_node.unwrap().position
+            };
+            let Some(missing_byte) = source.positions().utf16_to_byte(position) else {
                 return false;
             };
-            let operands = parents
-                .iter()
-                .filter_map(|(&id, &parent)| {
-                    let node = source.arena.node(id);
-                    (node.kind == SyntaxKind::Identifier
-                        && node.pos == missing_byte
-                        && node.end == missing_byte
-                        && parent.is_some_and(|parent| {
-                            source.arena.node(parent).kind == SyntaxKind::AwaitExpression
-                        }))
-                    .then_some(id)
-                })
-                .collect::<Vec<_>>();
-            if operands.len() != 1 {
-                return false;
-            }
             let mut operand_ancestors = BTreeSet::new();
-            let mut current = Some(operands[0]);
-            while let Some(ancestor) = current {
-                operand_ancestors.insert(ancestor);
-                current = parents[&ancestor];
+            let mut await_operand = false;
+            if event.missing_node.is_some() {
+                let operands = parents
+                    .iter()
+                    .filter_map(|(&id, &parent)| {
+                        let node = source.arena.node(id);
+                        let allowed_parent = parent.is_some_and(|parent| {
+                            let kind = source.arena.node(parent).kind;
+                            kind == SyntaxKind::AwaitExpression
+                                || allow_statement_gaps
+                                    && kind == SyntaxKind::TypeAssertionExpression
+                        });
+                        (node.kind == SyntaxKind::Identifier
+                            && node.pos == missing_byte
+                            && node.end == missing_byte
+                            && allowed_parent)
+                            .then_some(id)
+                    })
+                    .collect::<Vec<_>>();
+                if operands.len() != 1 {
+                    return false;
+                }
+                await_operand = parents[&operands[0]].is_some_and(|parent| {
+                    source.arena.node(parent).kind == SyntaxKind::AwaitExpression
+                });
+                let mut current = Some(operands[0]);
+                while let Some(ancestor) = current {
+                    operand_ancestors.insert(ancestor);
+                    current = parents[&ancestor];
+                }
             }
             let mut owners = Vec::new();
             for &id in parents.keys() {
@@ -369,10 +474,24 @@ impl ParseRecovery {
                     NodeData::SetAccessor(data) => data.parameters,
                     _ => None,
                 };
-                let Some(parameters) = parameters else {
+                let is_parameters = parameters.is_some();
+                let array = parameters.or_else(|| {
+                    if !allow_statement_gaps {
+                        return None;
+                    }
+                    if let NodeData::VariableDeclarationList(data) = &node.data {
+                        data.declarations
+                    } else {
+                        Self::statement_array(&node.data)
+                    }
+                });
+                let Some(array) = array else {
                     continue;
                 };
-                let array = source.arena.node_array(parameters);
+                if is_parameters && !await_operand {
+                    continue;
+                }
+                let array = source.arena.node_array(array);
                 if array.pos > start_byte
                     || end_byte > array.end
                     || array.nodes.iter().any(|child| {
@@ -389,7 +508,7 @@ impl ParseRecovery {
                     .find(|child| source.arena.node(**child).end <= start_byte);
                 if !preceding.is_some_and(|child| {
                     source.arena.node(*child).end == missing_byte
-                        && operand_ancestors.contains(child)
+                        && (event.missing_node.is_none() || operand_ancestors.contains(child))
                 }) {
                     continue;
                 }
@@ -412,6 +531,162 @@ impl ParseRecovery {
             }
         }
         !skip_spans.is_empty()
+    }
+
+    fn is_current_token_report(source: &SourceFile, event: &ParseRecoveryEvent) -> bool {
+        let (Some(full_start), Some(start), Some(_end)) = (
+            source.positions().utf16_to_byte(event.full_start),
+            source.positions().utf16_to_byte(event.start),
+            event
+                .start
+                .checked_add(event.length)
+                .and_then(|end| source.positions().utf16_to_byte(end)),
+        ) else {
+            return false;
+        };
+        event.length > 0
+            && crate::scanner::skip_trivia(source.text(), full_start as usize) == start as usize
+    }
+
+    fn report_has_retained_syntax_owner(
+        source: &SourceFile,
+        parents: &BTreeMap<NodeId, Option<NodeId>>,
+        event: &ParseRecoveryEvent,
+    ) -> bool {
+        let (Some(start), Some(end), Some(full_start)) = (
+            source.positions().utf16_to_byte(event.start),
+            event
+                .start
+                .checked_add(event.length)
+                .and_then(|end| source.positions().utf16_to_byte(end)),
+            source.positions().utf16_to_byte(event.full_start),
+        ) else {
+            return false;
+        };
+        if event.length == 0 {
+            return false;
+        }
+        if Self::is_current_token_report(source, event) {
+            let closers = parents
+                .keys()
+                .filter(|id| {
+                    let node = source.arena.node(**id);
+                    let NodeData::ParenthesizedExpression(data) = &node.data else {
+                        return false;
+                    };
+                    node.end == full_start
+                        && data
+                            .expression
+                            .is_some_and(|expression| source.arena.node(expression).end == node.end)
+                })
+                .count();
+            if closers > 0 {
+                return closers == 1;
+            }
+        }
+        let statements = parents
+            .keys()
+            .filter(|id| {
+                let node = source.arena.node(**id);
+                let NodeData::ExpressionStatement(data) = &node.data else {
+                    return false;
+                };
+                node.end == end
+                    && crate::scanner::skip_trivia(source.text(), node.pos as usize)
+                        == start as usize
+                    && data
+                        .expression
+                        .is_some_and(|expression| source.arena.node(expression).end == node.end)
+            })
+            .count();
+        if statements > 0 {
+            return statements == 1;
+        }
+        Self::report_has_declaration_list_boundary(source, parents, event)
+    }
+
+    // A declaration list can stop without consuming the token that begins
+    // the next statement. Both list and statement must end flush with their
+    // last child, and the next independently checked missing operand belongs
+    // to a TypeAssertionExpression. A consumed comma/semicolon fails this tie.
+    fn report_has_declaration_list_boundary(
+        source: &SourceFile,
+        parents: &BTreeMap<NodeId, Option<NodeId>>,
+        event: &ParseRecoveryEvent,
+    ) -> bool {
+        if !Self::is_current_token_report(source, event) {
+            return false;
+        }
+        let Some(boundary) = source.positions().utf16_to_byte(event.full_start) else {
+            return false;
+        };
+        let mut candidates = 0;
+        for (&id, &parent) in parents {
+            let list = source.arena.node(id);
+            let NodeData::VariableDeclarationList(data) = &list.data else {
+                continue;
+            };
+            if list.end != boundary {
+                continue;
+            }
+            let Some(declarations) = data.declarations else {
+                continue;
+            };
+            if !source
+                .arena
+                .node_array(declarations)
+                .nodes
+                .last()
+                .is_some_and(|last| source.arena.node(*last).end == boundary)
+            {
+                continue;
+            }
+            let Some(statement) = parent else {
+                continue;
+            };
+            let node = source.arena.node(statement);
+            if node.kind != SyntaxKind::VariableStatement || node.end != boundary {
+                continue;
+            }
+            let Some(owner) = parents[&statement] else {
+                continue;
+            };
+            let Some(statements) = Self::statement_array(&source.arena.node(owner).data) else {
+                continue;
+            };
+            let statements = &source.arena.node_array(statements).nodes;
+            let Some(index) = statements.iter().position(|child| *child == statement) else {
+                continue;
+            };
+            let Some(next) = statements.get(index + 1) else {
+                continue;
+            };
+            let next = source.arena.node(*next);
+            let NodeData::ExpressionStatement(data) = &next.data else {
+                continue;
+            };
+            if next.pos != boundary {
+                continue;
+            }
+            let Some(expression) = data.expression else {
+                continue;
+            };
+            let expression = source.arena.node(expression);
+            let NodeData::TypeAssertionExpression(data) = &expression.data else {
+                continue;
+            };
+            if expression.pos != boundary || expression.end != next.end {
+                continue;
+            }
+            let Some(operand) = data.expression else {
+                continue;
+            };
+            let operand = source.arena.node(operand);
+            if operand.kind == SyntaxKind::Identifier && operand.pos == operand.end {
+                candidates += 1;
+            }
+        }
+        candidates == 1
     }
 
     pub(crate) fn checkpoint(&self) -> RecoveryCheckpoint {
