@@ -115,10 +115,29 @@ fn shard(value: &str) -> (usize, usize) {
     (index, count)
 }
 
-fn native_matches(actual: &Value, frozen: &Value) -> bool {
-    // The entire native command (or precise refusal), not just the case ID or
-    // the first diagnostic. A known checker mismatch must not mask emit drift.
-    actual == frozen
+fn known_failures(
+    native: &BTreeMap<&str, &Value>,
+    report: &h2_7d_original_corpus_shared::UniverseReplay,
+) -> (Vec<String>, Vec<String>) {
+    let stale = report
+        .exact
+        .iter()
+        .filter(|id| native.contains_key(id.as_str()))
+        .cloned()
+        .collect();
+    let failures = report
+        .diverging
+        .iter()
+        .filter_map(|(id, actual)| match native.get(id.as_str()) {
+            None => Some(format!("{id}: unattributed divergence: {actual}")),
+            Some(row) if actual != &row["native"] => Some(format!(
+                "{id}: recorded native divergence changed; owner/cause: {}",
+                row["cause"]
+            )),
+            Some(_) => None,
+        })
+        .collect();
+    (stale, failures)
 }
 
 fn replay(fixture: &str, expected_rows: usize, known_rows: &[(&str, &str)]) {
@@ -195,22 +214,7 @@ fn replay(fixture: &str, expected_rows: usize, known_rows: &[(&str, &str)]) {
         .map(String::as_str)
         .collect::<BTreeSet<_>>();
     assert_eq!(executed, selected, "every selected row must replay");
-    let stale = known
-        .iter()
-        .filter(|id| report.exact.contains(**id))
-        .collect::<Vec<_>>();
-    let failures = report
-        .diverging
-        .iter()
-        .filter_map(|(id, actual)| match native.get(id.as_str()) {
-            None => Some(format!("{id}: unattributed divergence: {actual}")),
-            Some(row) if !native_matches(actual, &row["native"]) => Some(format!(
-                "{id}: recorded native divergence changed; owner/cause: {}",
-                row["cause"]
-            )),
-            Some(_) => None,
-        })
-        .collect::<Vec<_>>();
+    let (stale, failures) = known_failures(&native, &report);
     eprintln!(
         "emitter-final universe {fixture}: selected {}/{} / exact {} / known {} / failed {}",
         selected.len(),
@@ -235,46 +239,71 @@ fn replay(fixture: &str, expected_rows: usize, known_rows: &[(&str, &str)]) {
 fn known_checker_divergence_rejects_changed_output_and_diagnostics() {
     let fixture: Value =
         serde_json::from_str(include_str!("fixtures/emitter-final-known-native.json")).unwrap();
-    let frozen = fixture["cases"]
+    let row = fixture["cases"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|row| &row["native"])
-        .find(|native| {
-            native["kind"] == "complete"
-                && !native["observation"]["writes"]
+        .find(|row| {
+            row["native"]["kind"] == "complete"
+                && !row["native"]["observation"]["writes"]
                     .as_array()
                     .unwrap()
                     .is_empty()
         })
         .unwrap();
-    assert!(native_matches(frozen, frozen));
-    let mut changed = frozen.clone();
-    changed["observation"]["writes"][0]["callback_utf8_base64"] =
+    let id = row["case_id"].as_str().unwrap();
+    let native = BTreeMap::from([(id, row)]);
+    let mut report = h2_7d_original_corpus_shared::UniverseReplay::default();
+    report.diverging.insert(id.into(), row["native"].clone());
+    assert_eq!(known_failures(&native, &report), (vec![], vec![]));
+    report.diverging.get_mut(id).unwrap()["observation"]["writes"][0]["callback_utf8_base64"] =
         Value::String("bmV3IGJ1Zw==".into());
-    assert!(!native_matches(&changed, frozen));
-    let mut changed = frozen.clone();
-    changed["observation"]["reported_diagnostics"] = serde_json::json!([]);
-    assert_ne!(changed, *frozen);
-    assert!(!native_matches(&changed, frozen));
+    assert_eq!(known_failures(&native, &report).1.len(), 1);
+    report.diverging.insert(id.into(), row["native"].clone());
+    report.diverging.get_mut(id).unwrap()["observation"]["reported_diagnostics"] =
+        serde_json::json!([]);
+    assert_eq!(known_failures(&native, &report).1.len(), 1);
+    // An exact row must retire; relabelling a new case as known also fails.
+    report.diverging.clear();
+    report.exact.insert(id.into());
+    assert_eq!(known_failures(&native, &report).0, vec![id.to_owned()]);
+    report.exact.clear();
+    report
+        .diverging
+        .insert("unlisted case".into(), row["native"].clone());
+    assert_eq!(known_failures(&native, &report).1.len(), 1);
 }
 
 #[test]
 fn known_refusal_rejects_changed_error_or_partial_writes() {
     let fixture: Value =
         serde_json::from_str(include_str!("fixtures/emitter-final-known-native.json")).unwrap();
-    let frozen = fixture["cases"]
+    let row = fixture["cases"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|row| &row["native"])
-        .find(|native| native["kind"] == "failure")
+        .find(|row| {
+            row["native"]["kind"] == "failure"
+                && row["native"]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("partial callback paths/SHA256: []")
+        })
         .unwrap();
-    let mut changed = frozen.clone();
-    changed["message"] = Value::String("unexpected emitter panic".into());
-    assert!(!native_matches(&changed, frozen));
-    changed["message"] = Value::String(format!("{}; additional partial write", frozen["message"]));
-    assert!(!native_matches(&changed, frozen));
+    let id = row["case_id"].as_str().unwrap();
+    let native = BTreeMap::from([(id, row)]);
+    let mut report = h2_7d_original_corpus_shared::UniverseReplay::default();
+    report.diverging.insert(id.into(), row["native"].clone());
+    assert_eq!(known_failures(&native, &report), (vec![], vec![]));
+    report.diverging.get_mut(id).unwrap()["message"] =
+        Value::String("unexpected emitter panic".into());
+    assert_eq!(known_failures(&native, &report).1.len(), 1);
+    report.diverging.get_mut(id).unwrap()["message"] =
+        Value::String(row["native"]["message"].as_str().unwrap().replace(
+            "partial callback paths/SHA256: []",
+            "partial callback paths/SHA256: [(unexpected.js, changed-hash)]",
+        ));
+    assert_eq!(known_failures(&native, &report).1.len(), 1);
 }
 
 #[test]
