@@ -434,7 +434,7 @@ fn statement_gap_recovery_matches_complete_typescript_observations() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 144);
+    assert_eq!(cases.len(), 228);
     let mut failures = Vec::new();
     for case in cases {
         let id = case["case_id"].as_str().unwrap();

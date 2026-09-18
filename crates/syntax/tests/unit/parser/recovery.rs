@@ -685,6 +685,12 @@ fn statement_gap_recovery_accounts_for_reports_and_their_reachable_owners() {
     for text in [
         "var foo = async (a = await => await): Promise<void> => {}",
         "let x = <void> =>;",
+        "let x = <void>;",
+        "foo bar;",
+        "a b c;",
+        "foo /*😀*/ bar;",
+        "functon f();",
+        "(a\nb);",
         "export const value = (object?.x //😀\n as number);",
         "export const value = (object?.x\n /* value */ as number);",
         "const value = (object.x\n as number);",
@@ -705,6 +711,7 @@ fn statement_gap_recovery_accounts_for_reports_and_their_reachable_owners() {
         );
     }
     for text in [
+        "functon f() {}",
         "const value = (a /*c*/",
         "foo(a, b",
         "const x = [a, b",

@@ -1,0 +1,5 @@
+# G2 implementation review decision
+
+Fable independently reviewed d6fb9fee6. The structural proofs, frozen G1 predicate, full-start use, retained diagnostic bijection and census projection were accepted. We add complete-command controls for identifier statement reports (including typo, chain and comment), missing paren without `as`, switch case/default and bare type assertion. The refused `functon f() {}` neighbour is pinned in the predicate unit test. Original 144 observations must remain byte-equivalent by case ID in the expanded 228 matrix.
+
+The suggestion to turn off G2 admission before native testing is not adopted: recovery-next is an isolated, unpublished implementation branch. Main and PR561 have none of B/C/G1/G2. Native comparisons must exercise the proposed actual admission predicate, without an experimental bypass. No merge, production qualification or KNOWN retirement occurs until native controls, full all-profile census, and every newly admitted corpus command have passed. This workflow distinction was sent back in round49.

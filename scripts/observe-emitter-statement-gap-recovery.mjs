@@ -23,6 +23,13 @@ const shapes = [
   ["clean-optional", "declare const object: { x: number }; export const value = (object?.x as // value\n number);"],
   ["clean-arrow", "const foo = async (a = 1): Promise<void> => {};"],
   ["clean-assertion", "let x = <void> undefined;"],
+  ["semicolon-identifier", "declare const foo: any, bar: any; foo bar;"],
+  ["semicolon-chain", "declare const a: any, b: any, c: any; a b c;"],
+  ["semicolon-comment", "declare const foo: any, bar: any; foo /*😀*/ bar;"],
+  ["keyword-typo", "declare const functon: any; declare function f(): void; functon f();"],
+  ["closer-newline", "declare const a: any, b: any; (a\nb);"],
+  ["switch-clauses", "declare const x: any, a: any, b: any; type T = number; switch (x) { case 1: const value = (a\n as number); break; default: x = (b\n as T); }"],
+  ["bare-type-assertion", "let x = <void>;"],
 ];
 const inputs = [];
 for (const target of ["es5", "es2015", "esnext"])
@@ -36,7 +43,7 @@ for (const target of ["es5", "es2015", "esnext"])
             strict: false, skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
             ignoreDeprecations: "6.0", outDir: "/project/out"}, files: [main.slice(9)]})});
       }
-assert.equal(inputs.length, 144);
+assert.equal(inputs.length, 228);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),
