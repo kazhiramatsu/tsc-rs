@@ -1,0 +1,97 @@
+{
+  "duration_api_ms": 194497,
+  "stop_reason": "end_turn",
+  "session_id": "64a42a03-15aa-403f-b362-edc0ef3869a0",
+  "total_cost_usd": 2.79187125,
+  "usage": {
+    "input_tokens": 201,
+    "cache_creation_input_tokens": 47997,
+    "cache_read_input_tokens": 5291485,
+    "output_tokens": 13921,
+    "output_tokens_details": {
+      "thinking_tokens": 8208
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 22797,
+      "ephemeral_5m_input_tokens": 25200
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 33,
+        "output_tokens": 3441,
+        "cache_read_input_tokens": 770327,
+        "cache_creation_input_tokens": 3418,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 3418,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "type": "message",
+        "model": null
+      }
+    ],
+    "speed": "standard"
+  },
+  "modelUsage": {
+    "claude-fable-5-1": {
+      "inputTokens": 201,
+      "outputTokens": 13921,
+      "cacheReadInputTokens": 5291485,
+      "cacheCreationInputTokens": 47997,
+      "webSearchRequests": 0,
+      "costUSD": 2.79187125,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "thinkingTokens": 8208,
+      "canonicalModel": "claude-fable-5-1",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "is_error": false,
+  "num_turns": 18,
+  "subtype": "success",
+  "api_error_status": null,
+  "ttft_ms": 14027,
+  "type": "result",
+  "duration_ms": 194992,
+  "uuid": "571fa7fc-d48a-4adf-bca2-b5b29abe4362",
+  "ttft_stream_ms": 12483,
+  "time_to_request_ms": 34,
+  "first_content_frame_ms": 12483,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

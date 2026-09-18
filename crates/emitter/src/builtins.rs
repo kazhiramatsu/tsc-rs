@@ -1,9 +1,10 @@
+use crate::transform::try_visit_transform_children;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use tsc_program::SourceFileId;
 use tsc_syntax::{
-    for_each_child, for_each_child_array, identifier_to_keyword_kind, skip_trivia,
-    try_visit_each_child, Node, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
+    for_each_child, for_each_child_array, identifier_to_keyword_kind, skip_trivia, Node,
+    NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
 };
 use tsc_types::{CompilerOptions, JsStr, JsString, NodeFlags, ScriptTarget};
 
@@ -2084,7 +2085,7 @@ impl<'context> RelativeModuleSpecifierVisitor<'context> {
             self.nodes.insert(id, updated.node());
             return Ok(updated);
         }
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         match &mut data {
             NodeData::ImportDeclaration(declaration) => {
                 declaration.module_specifier = declaration
@@ -4333,6 +4334,10 @@ fn source_contains_dynamic_import(
             .node_ref(root.source(), id)
             .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(root.source(), id)))?;
         let record = arena.node(node)?;
+        // Missing declarations retain syntax for binding, but emit no subtree.
+        if record.kind == SyntaxKind::MissingDeclaration {
+            continue;
+        }
         if let NodeData::CallExpression(data) = &record.data {
             if data
                 .expression
@@ -4381,6 +4386,10 @@ fn source_contains_import_reference_substitution(
             return Ok(true);
         }
         let record = arena.node(node)?;
+        // Missing declarations retain syntax for binding, but emit no subtree.
+        if record.kind == SyntaxKind::MissingDeclaration {
+            continue;
+        }
         for_each_child(
             &arena.source(root.source())?.syntax().arena,
             record,
@@ -4397,6 +4406,10 @@ fn source_contains_import_attributes(source: &tsc_syntax::SourceFile) -> bool {
     let mut stack = vec![source.root];
     while let Some(id) = stack.pop() {
         let record = source.arena.node(id);
+        // Missing declarations retain syntax for binding, but emit no subtree.
+        if record.kind == SyntaxKind::MissingDeclaration {
+            continue;
+        }
         let static_attributes = matches!(
             &record.data,
             NodeData::ImportDeclaration(data) if data.attributes.is_some()
@@ -4432,6 +4445,10 @@ fn source_contains_runtime_enum(source: &tsc_syntax::SourceFile) -> bool {
     let mut stack = vec![source.root];
     while let Some(id) = stack.pop() {
         let record = source.arena.node(id);
+        // Missing declarations retain syntax for binding, but emit no subtree.
+        if record.kind == SyntaxKind::MissingDeclaration {
+            continue;
+        }
         if record.kind == SyntaxKind::EnumDeclaration {
             return true;
         }
@@ -4447,6 +4464,10 @@ fn source_contains_runtime_namespace(source: &tsc_syntax::SourceFile) -> bool {
     let mut stack = vec![source.root];
     while let Some(id) = stack.pop() {
         let record = source.arena.node(id);
+        // Missing declarations retain syntax for binding, but emit no subtree.
+        if record.kind == SyntaxKind::MissingDeclaration {
+            continue;
+        }
         if let NodeData::ModuleDeclaration(data) = &record.data {
             let flags = NodeFlags::from_bits(record.flags);
             let declared = data.modifiers.is_some_and(|modifiers| {
@@ -4480,6 +4501,10 @@ fn source_contains_parameter_property(source: &tsc_syntax::SourceFile) -> bool {
     let mut stack = vec![source.root];
     while let Some(id) = stack.pop() {
         let record = source.arena.node(id);
+        // Missing declarations retain syntax for binding, but emit no subtree.
+        if record.kind == SyntaxKind::MissingDeclaration {
+            continue;
+        }
         if parameter_has_property_modifier(source, record) {
             return true;
         }
@@ -4495,6 +4520,10 @@ fn source_contains_import_or_export_equals(source: &tsc_syntax::SourceFile) -> b
     let mut stack = vec![source.root];
     while let Some(id) = stack.pop() {
         let record = source.arena.node(id);
+        // Missing declarations retain syntax for binding, but emit no subtree.
+        if record.kind == SyntaxKind::MissingDeclaration {
+            continue;
+        }
         if record.kind == SyntaxKind::ImportEqualsDeclaration
             || matches!(
                 &record.data,
@@ -4515,6 +4544,10 @@ fn source_contains_decorator(source: &tsc_syntax::SourceFile) -> bool {
     let mut stack = vec![source.root];
     while let Some(id) = stack.pop() {
         let record = source.arena.node(id);
+        // Missing declarations retain syntax for binding, but emit no subtree.
+        if record.kind == SyntaxKind::MissingDeclaration {
+            continue;
+        }
         if record.kind == SyntaxKind::Decorator {
             return true;
         }
@@ -9536,7 +9569,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             data.type_arguments = None;
         } else {
             let mut node_data = NodeData::CallExpression(data);
-            try_visit_each_child(&mut node_data, self)?;
+            try_visit_transform_children(&mut node_data, self)?;
             let NodeData::CallExpression(visited) = node_data else {
                 unreachable!("call expression visitor preserves kind")
             };
@@ -9591,7 +9624,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         })
                 });
         let mut node_data = NodeData::TaggedTemplateExpression(data);
-        try_visit_each_child(&mut node_data, self)?;
+        try_visit_transform_children(&mut node_data, self)?;
         let NodeData::TaggedTemplateExpression(mut data) = node_data else {
             unreachable!("tagged-template visitor preserves kind")
         };
@@ -10219,7 +10252,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<TransformNode, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         self.update_generic_without_visit(original, data)
     }
 
@@ -14613,7 +14646,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &data)?;
         let updated = self.context.factory()?.update_node(original, data, flags)?;
         Ok(updated.node())
@@ -14699,7 +14732,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         data: tsc_syntax::nodes::SetAccessorData,
     ) -> Result<NodeId, TransformError> {
         let mut runtime_data = NodeData::SetAccessor(data);
-        try_visit_each_child(&mut runtime_data, self)?;
+        try_visit_transform_children(&mut runtime_data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &runtime_data)?;
         let NodeData::SetAccessor(runtime_data) = runtime_data else {
             unreachable!("setter update retains its syntax kind")
@@ -14730,7 +14763,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         data: tsc_syntax::nodes::ConstructorData,
     ) -> Result<NodeId, TransformError> {
         let mut runtime_data = NodeData::Constructor(data);
-        try_visit_each_child(&mut runtime_data, self)?;
+        try_visit_transform_children(&mut runtime_data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &runtime_data)?;
         let NodeData::Constructor(runtime_data) = runtime_data else {
             unreachable!("constructor update retains its syntax kind")
@@ -14759,7 +14792,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         data: tsc_syntax::nodes::GetAccessorData,
     ) -> Result<NodeId, TransformError> {
         let mut runtime_data = NodeData::GetAccessor(data);
-        try_visit_each_child(&mut runtime_data, self)?;
+        try_visit_transform_children(&mut runtime_data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &runtime_data)?;
         let NodeData::GetAccessor(runtime_data) = runtime_data else {
             unreachable!("getter update retains its syntax kind")
@@ -15322,14 +15355,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 continue;
             }
             let record = self.context.arena().node(self.node(id))?;
+            // Named expressions bind their self-name outside container locals.
+            // Their descendant parameters/locals still reserve generated names.
             let binding_name = match &record.data {
                 NodeData::VariableDeclaration(data) => data.name,
                 NodeData::Parameter(data) => data.name,
                 NodeData::BindingElement(data) => data.name,
                 NodeData::FunctionDeclaration(data) => data.name,
-                NodeData::FunctionExpression(data) => data.name,
                 NodeData::ClassDeclaration(data) => data.name,
-                NodeData::ClassExpression(data) => data.name,
                 NodeData::EnumDeclaration(data) => data.name,
                 NodeData::ModuleDeclaration(data) => data.name,
                 NodeData::ImportClause(data) => data.name,
@@ -16266,7 +16299,7 @@ fn preflight_source(
     // codes and the presence/absence of retained messages are insufficient.
     // JSDoc diagnostics have a separate parser-owned list and are outside
     // this syntactic recovery boundary.
-    if !syntax.has_only_literal_or_missing_await_recovery() {
+    if !syntax.has_supported_emit_recovery() {
         return Err(TransformError::ParseDiagnosticsDeferred {
             count: syntax.parse_diagnostics.len(),
             recovery_events: syntax.parse_recovery().events().len(),
@@ -16283,6 +16316,9 @@ fn preflight_source(
             });
         }
         let node = syntax.arena.node(id);
+        if node.kind == SyntaxKind::MissingDeclaration {
+            continue;
+        }
         let feature = match node.kind {
             SyntaxKind::Decorator if !allow_legacy_decorators => {
                 Some(UnsupportedTransformFeature::Decorators)
@@ -17037,11 +17073,13 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
 /// JSDoc unary types are parser-recovery syntax as well as comment syntax.
 /// Their NodeFactory constructors do not propagate child transform flags, so
 /// a nested `string` keyword must not make `foo<string?>` look like ordinary
-/// TypeScript syntax to `transformTypeScript`.
+/// TypeScript syntax to `transformTypeScript`. MissingDeclaration likewise
+/// retains its parser-attached modifiers without propagating their flags.
 const fn propagates_transform_child_flags(kind: SyntaxKind) -> bool {
     !matches!(
         kind,
-        SyntaxKind::JSDocNullableType
+        SyntaxKind::MissingDeclaration
+            | SyntaxKind::JSDocNullableType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocOptionalType
             | SyntaxKind::JSDocVariadicType

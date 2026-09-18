@@ -19,11 +19,10 @@
 //! Tagged-template lowering shares the algorithm and value owners with ES2018;
 //! this visitor uses ProcessLevel::All.
 
+use crate::transform::try_visit_transform_children;
 use std::collections::BTreeMap;
 
-use tsc_syntax::{
-    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
-};
+use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeCheckFlags};
 
 use crate::{
@@ -2134,7 +2133,7 @@ impl Es2015Visitor<'_, '_, '_> {
     fn visit_each_child_id(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
         let original = self.node(id);
         let mut data = self.context.arena().node(original)?.data.clone();
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         if self.context.arena().node(original)?.data == data {
             return Ok(Some(id));
         }
@@ -10275,7 +10274,7 @@ impl Es2015Visitor<'_, '_, '_> {
             worker,
             error: None,
         };
-        try_visit_each_child(&mut data, &mut rewriter)?;
+        try_visit_transform_children(&mut data, &mut rewriter)?;
         if let Some(error) = rewriter.error {
             return Err(error);
         }

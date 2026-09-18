@@ -10,6 +10,26 @@ use crate::{
     TransformArena, TransformNode, TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
 };
 
+/// TypeScript's semantic child visitor has no operator for a missing
+/// declaration. Its decorators remain reachable syntax, but no transform may
+/// lower their expressions or request their helpers. Structural cross-source
+/// cloning still uses the syntax mapper so child arena identities are remapped.
+///
+/// tsc-port: visitEachChild @6.0.3
+/// tsc-span: _tsc.js:91318-91323
+pub(crate) fn try_visit_transform_children<V>(
+    data: &mut tsc_syntax::NodeData,
+    visitor: &mut V,
+) -> Result<(), V::Error>
+where
+    V: tsc_syntax::NodeDataChildVisitor,
+{
+    if matches!(data, tsc_syntax::NodeData::MissingDeclaration(_)) {
+        return Ok(());
+    }
+    tsc_syntax::try_visit_each_child(data, visitor)
+}
+
 /// Fallible declaration-printer projection of the checker's global-name
 /// table. A declaration name may never be accepted after a failed lookup.
 pub trait GlobalNameOracle {

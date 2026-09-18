@@ -1,10 +1,9 @@
 //! H2.4a legacy-decorator lowering.
 
+use crate::transform::try_visit_transform_children;
 use std::collections::{BTreeMap, BTreeSet};
 
-use tsc_syntax::{
-    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
-};
+use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
@@ -4007,7 +4006,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 field: "body",
             })?;
         let mut surface = NodeData::ClassStaticBlockDeclaration(data);
-        try_visit_each_child(&mut surface, self)?;
+        try_visit_transform_children(&mut surface, self)?;
         let NodeData::ClassStaticBlockDeclaration(mut data) = surface else {
             unreachable!("class-static-block surface retains its node kind");
         };
@@ -4060,7 +4059,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
 
         // Names, computed names, modifiers, type parameters, and return types
         // belong to the parent name-generation environment.
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
 
         let preentered = self.preentered_function_scopes.remove(&original.node());
         if !preentered {
@@ -4236,7 +4235,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &data)?;
         Ok(self
             .context

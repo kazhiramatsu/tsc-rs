@@ -188,6 +188,14 @@ impl SourceFile {
         self.parse_recovery.is_literal_or_missing_await(self)
     }
 
+    /// Recovery currently supported by ordinary emit: literal-token errors,
+    /// missing await operands, and missing declarations in statement lists.
+    /// Structural cases require uniquely matched parser events and no token
+    /// skips or reparses. Expression-position missing declarations stay refused.
+    pub fn has_supported_emit_recovery(&self) -> bool {
+        self.parse_recovery.is_supported_for_emit(self)
+    }
+
     /// Harness only: drop every retained parse diagnostic together with the
     /// committed recovery record, so a contract test can drive the transform
     /// pipeline over a deliberately erroneous tree that upstream still emits.

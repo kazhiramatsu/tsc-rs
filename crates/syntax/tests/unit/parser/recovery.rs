@@ -434,3 +434,50 @@ fn missing_await_admission_rejects_lost_duplicate_and_unowned_facts() {
         });
     assert!(!skipped.has_only_literal_or_missing_await_recovery());
 }
+
+#[test]
+fn statement_missing_declarations_require_unique_retained_creation_events() {
+    for text in [
+        "@g<number> class C {}",
+        "@g<number>",
+        "{ @g<number> class C {} }",
+        "namespace N { @g()<number> class C {} }",
+        "switch (1) { case 1: @g<number> class C {} }",
+        "switch (1) { default: @g<number> class C {} }",
+        "/*😀*/ { @g<number> class C {} }",
+    ] {
+        let source = source(text);
+        assert_coverage(&source.parse_diagnostics, source.parse_recovery());
+        assert!(
+            !source.has_only_literal_or_missing_await_recovery(),
+            "{text}"
+        );
+        assert!(
+            source.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            source.parse_recovery()
+        );
+    }
+    for text in [
+        "x = @g<number> foo;",
+        "{ @g<number> class C {}",
+        "{ @g<number> class C {} } const x = ;",
+    ] {
+        let source = source(text);
+        assert!(!source.has_supported_emit_recovery(), "{text}");
+    }
+    let mut missing = source("{ @g<number> class C {} }");
+    let saved = missing.parse_recovery.clone();
+    missing.parse_recovery.events[0]
+        .missing_node
+        .as_mut()
+        .unwrap()
+        .position += 1;
+    assert!(!missing.has_supported_emit_recovery());
+    missing.parse_recovery = saved.clone();
+    missing.parse_recovery.events.push(saved.events[0]);
+    assert!(!missing.has_supported_emit_recovery());
+    missing.parse_recovery = saved;
+    missing.parse_recovery.events[0].diagnostic_index = None;
+    assert!(!missing.has_supported_emit_recovery());
+}

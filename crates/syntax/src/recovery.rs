@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 use crate::{for_each_child, SourceFile, SyntaxKind};
 use tsc_types::NodeFlags;
@@ -154,6 +154,18 @@ impl ParseRecovery {
     }
 
     pub(crate) fn is_literal_or_missing_await(&self, source: &SourceFile) -> bool {
+        self.supports_missing_nodes(source, false)
+    }
+
+    pub(crate) fn is_supported_for_emit(&self, source: &SourceFile) -> bool {
+        self.supports_missing_nodes(source, true)
+    }
+
+    fn supports_missing_nodes(
+        &self,
+        source: &SourceFile,
+        allow_missing_declarations: bool,
+    ) -> bool {
         if self.is_literal_only(source.parse_diagnostics.len()) {
             return true;
         }
@@ -162,7 +174,7 @@ impl ParseRecovery {
         {
             return false;
         }
-        let mut missing_positions = BTreeSet::new();
+        let mut missing_positions = BTreeMap::new();
         for event in &self.events {
             if matches!(event.kind, ParseRecoveryKind::Diagnostic(origin) if origin.is_literal())
                 && event.missing_node.is_none()
@@ -173,11 +185,14 @@ impl ParseRecovery {
                 return false;
             };
             if event.kind != ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
-                || missing.kind != SyntaxKind::Identifier
+                || !(missing.kind == SyntaxKind::Identifier
+                    || allow_missing_declarations && missing.kind == SyntaxKind::MissingDeclaration)
                 || !event
                     .diagnostic_index
                     .is_some_and(|index| index < source.parse_diagnostics.len())
-                || !missing_positions.insert(missing.position)
+                || missing_positions
+                    .insert(missing.position, missing.kind)
+                    .is_some()
             {
                 return false;
             }
@@ -199,7 +214,26 @@ impl ParseRecovery {
                     .byte_to_utf16(node.pos)
                     .expect("syntax node positions are scalar boundaries");
                 if parent != Some(SyntaxKind::AwaitExpression)
-                    || !missing_positions.remove(&position)
+                    || missing_positions.remove(&position) != Some(SyntaxKind::Identifier)
+                {
+                    return false;
+                }
+            }
+            if node.kind == SyntaxKind::MissingDeclaration {
+                let end = source
+                    .positions()
+                    .byte_to_utf16(node.end)
+                    .expect("syntax node positions are scalar boundaries");
+                if !matches!(
+                    parent,
+                    Some(
+                        SyntaxKind::SourceFile
+                            | SyntaxKind::Block
+                            | SyntaxKind::ModuleBlock
+                            | SyntaxKind::CaseClause
+                            | SyntaxKind::DefaultClause
+                    )
+                ) || missing_positions.remove(&end) != Some(SyntaxKind::MissingDeclaration)
                 {
                     return false;
                 }
