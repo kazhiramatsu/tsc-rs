@@ -41,7 +41,7 @@
       "crates/xtask/src/h2_6c_refusal_migrations.rs": "f150d7348616a38df14946ce27e7611a69699ca637fc4cbb5757031193e6e5ea",
       "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": "ee8064ca9ed67923ed859b21a1fd825e46175f401e2a59384601e5a2627e06a0",
       "crates/compiler/tests/integration/h2_7c_corpus.rs": "83a2ccc769ec27e6eaf99b73d9a8e5dc755c71d0fedccbb6c0931347df6ee882",
-      "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "aeed252632deb74a99f716ef7d9e5d54ae0613887e9c3e1a3765efd3184a570e",
+      "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "49f7c01f4cd57a7e370bf60aec4bb75bedce3f75611d93f128e357a6fc87b3e7",
       "crates/compiler/tests/support/witness_libraries.rs": "946901c1cd6af4e1e46ad4ba82d2aece80952ffe3d721e39f76a1ac0f8ea131d",
       "crates/compiler/tests/integration/h2_7c_declaration_getters.rs": "8b0cc4edf30dfafae21904d332a8f714a8a28437eb10be5a4a017c251ffe8060",
       "crates/compiler/tests/integration/h2_7c_forced_declarations.rs": "e53407fd07652b383a4b9e91e4753210c8f841d7747a5a274a69c7f1630c1969",
