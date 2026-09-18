@@ -33,6 +33,7 @@ pub(super) fn transform_system_module<'resolver>(
         resolver,
         host,
         always_strict: options.always_strict_effective(),
+        downlevel_iteration: options.downlevel_iteration == Some(true),
         import_helpers: options.import_helpers == Some(true),
         es_module_interop: options.es_module_interop == Some(true),
         current_source: None,
@@ -43,6 +44,7 @@ struct SystemModuleTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
     host: Option<&'resolver dyn EmitHost>,
     always_strict: bool,
+    downlevel_iteration: bool,
     import_helpers: bool,
     es_module_interop: bool,
     current_source: Option<TransformSourceId>,
@@ -128,6 +130,7 @@ impl Transformer for SystemModuleTransformer<'_> {
             self.host,
             info,
             self.always_strict,
+            self.downlevel_iteration,
         )?;
         let updated = visitor.transform_source_file(root)?;
         visitor.context.arena_mut()?.replace_root(source, updated)?;
@@ -483,6 +486,7 @@ struct SystemVisitor<'context, 'resolver> {
     host: Option<&'resolver dyn EmitHost>,
     info: SystemModuleInfo,
     always_strict: bool,
+    downlevel_iteration: bool,
     exports_name: String,
     context_name: String,
     used_names: BTreeSet<String>,
@@ -644,6 +648,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         host: Option<&'resolver dyn EmitHost>,
         info: SystemModuleInfo,
         always_strict: bool,
+        downlevel_iteration: bool,
     ) -> Result<Self, TransformError> {
         let mut used_names = collect_identifier_texts(context.arena(), source);
         used_names.extend(
@@ -675,6 +680,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             host,
             info,
             always_strict,
+            downlevel_iteration,
             exports_name,
             context_name,
             used_names,
@@ -910,7 +916,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .arena()
             .metadata(list)
             .is_some_and(|metadata| metadata.flags().contains(crate::EmitFlags::NO_HOISTING));
-        let flags = NodeFlags::from_bits(self.context.arena().node(list)?.flags);
+        // System observes the declaration's pre-downlevel scope. In
+        // particular, ES2015's var list still points to the original const.
+        let original = self.context.arena().get_original_node(list);
+        let flags = NodeFlags::from_bits(self.context.arena().node(original)?.flags);
         Ok(!no_hoisting && (owner.is_source_file() || !flags.intersects(NodeFlags::BLOCK_SCOPED)))
     }
 
@@ -1480,6 +1489,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             let target = self.create_identifier(&binding.generated_name)?;
             let value =
                 super::create_import_binding_access(self.context, self.source, target, &binding)?;
+            self.context.factory()?.set_text_range(value, local_name)?;
             let call = self.create_export_call_with_name(&export, value)?;
             let statement = self.create_expression_statement(call)?;
             statements.push(statement);
@@ -1715,11 +1725,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 self.hoist_binding_name(Some(name))?;
             }
         }
-        let Some(expression) = self.inline_expressions(expressions)? else {
-            return Ok(None);
-        };
-        self.set_original_and_range(expression, original)?;
-        Ok(Some(expression))
+        self.inline_expressions(expressions)
     }
 
     /// tsc-port: transformSystemModule.visitVariableStatement @6.0.3
@@ -1758,8 +1764,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             };
             let Some(initializer) = variable.initializer else {
                 self.hoist_binding_name(variable.name)?;
-                trailing_exports
-                    .extend(self.append_variable_declaration_exports(declaration, variable.name)?);
                 continue;
             };
             let initializer = self.visit(initializer)?;
@@ -1944,7 +1948,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 Ok(())
             }
             NodeData::ObjectBindingPattern(data) => {
-                self.flatten_system_object_binding(plan, data.elements, value, location)
+                self.flatten_system_object_binding(plan, target, data.elements, value, location)
             }
             NodeData::ArrayBindingPattern(data) => {
                 self.flatten_system_array_binding(plan, data.elements, value, location)
@@ -1956,6 +1960,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn flatten_system_object_binding(
         &mut self,
         plan: &mut SystemBindingPlan,
+        pattern: TransformNode,
         elements: Option<NodeArrayId>,
         mut value: TransformNode,
         location: TransformNode,
@@ -1970,8 +1975,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             let element = self.system_binding_element(element)?;
             if element.rest {
                 if index + 1 == elements.len() {
-                    let rest =
-                        self.create_system_object_rest(value, &excluded, element.original)?;
+                    let rest = self.create_system_object_rest(value, &excluded, pattern)?;
                     self.flatten_system_binding_element(plan, element, rest)?;
                 }
                 continue;
@@ -1999,7 +2003,27 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     .node(*element)
                     .is_ok_and(|node| node.kind == SyntaxKind::OmittedExpression)
             });
-        if elements.len() != 1 || all_omitted {
+        if self.downlevel_iteration {
+            let has_rest = if let Some(element) = elements.last() {
+                matches!(&self.context.arena().node(*element)?.data,
+                    NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some())
+            } else {
+                false
+            };
+            // System moves the helpers attached by earlier passes. It does
+            // not attach new helper requests made while flattening bindings.
+            let helper = self
+                .context
+                .factory()?
+                .create_unscoped_helper_identifier(self.source, EmitHelperName::Read)?;
+            let mut arguments = vec![value];
+            if !has_rest {
+                arguments.push(self.create_numeric_literal(&elements.len().to_string())?);
+            }
+            let read = self.create_call(helper, arguments)?;
+            self.context.factory()?.set_text_range(read, location)?;
+            value = self.ensure_system_binding_identifier(plan, read, false, location)?;
+        } else if elements.len() != 1 || all_omitted {
             value =
                 self.ensure_system_binding_identifier(plan, value, !elements.is_empty(), location)?;
         }
@@ -2008,14 +2032,13 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 continue;
             }
             let element = self.system_binding_element(element)?;
-            let base = self.context.factory()?.clone_node(value)?;
             let element_value = if element.rest {
-                let slice = self.create_property_access(base, "slice")?;
+                let slice = self.create_property_access(value, "slice")?;
                 let index = self.create_numeric_literal(&index.to_string())?;
                 self.create_call(slice, vec![index])?
             } else {
                 let index = self.create_numeric_literal(&index.to_string())?;
-                self.create_element_access(base, index)?
+                self.create_element_access(value, index)?
             };
             self.flatten_system_binding_element(plan, element, element_value)?;
         }
@@ -2047,7 +2070,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 self.context.arena().node(initializer)?.kind,
                 SyntaxKind::StringLiteral
                     | SyntaxKind::NumericLiteral
-                    | SyntaxKind::BigIntLiteral
                     | SyntaxKind::NoSubstitutionTemplateLiteral
                     | SyntaxKind::TrueKeyword
                     | SyntaxKind::FalseKeyword
@@ -2179,8 +2201,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         excluded: &[SystemExcludedProperty],
         original: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        self.context
-            .request_emit_helper(super::helpers::object_rest())?;
+        // As for __read above, only helpers attached before System are
+        // emitted or used to create an external helpers import.
         let mut properties = Vec::with_capacity(excluded.len());
         for property in excluded {
             let property = match property {
@@ -2207,7 +2229,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .context
             .factory()?
             .create_unscoped_helper_identifier(self.source, EmitHelperName::Rest)?;
-        let value = self.context.factory()?.clone_node(value)?;
         self.create_call(helper, vec![value, excluded])
     }
 
@@ -2721,37 +2742,66 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let exported_from_source = self
             .resolver
             .get_referenced_export_container(resolver_node, EmitExportContainerMode::Reference)?
-            .is_some();
-        let value_declaration = self
+            .map(|container| -> Result<bool, TransformError> {
+                if container.source() != resolver_node.source() {
+                    return Ok(false);
+                }
+                Ok(self.context.arena().node(self.node(container.node()))?.kind
+                    == SyntaxKind::SourceFile)
+            })
+            .transpose()?
+            .unwrap_or(false);
+        let mut value_declaration = self
             .resolver
             .get_referenced_value_declaration(resolver_node)?;
-        if let Some(exports) = value_declaration
+        let mut exports = value_declaration
             .and_then(|declaration| self.info.common.exported_bindings.get(&declaration.node()))
-        {
-            return Ok(exports.clone());
-        }
-        for declaration in self
-            .resolver
-            .get_referenced_value_declarations(resolver_node)?
-        {
-            if Some(declaration) == value_declaration {
-                continue;
+            .cloned();
+        if exports.is_none() {
+            for declaration in self
+                .resolver
+                .get_referenced_value_declarations(resolver_node)?
+            {
+                if Some(declaration) == value_declaration {
+                    continue;
+                }
+                if let Some(bindings) = self.info.common.exported_bindings.get(&declaration.node())
+                {
+                    value_declaration = Some(declaration);
+                    exports = Some(bindings.clone());
+                    break;
+                }
             }
-            if let Some(exports) = self.info.common.exported_bindings.get(&declaration.node()) {
-                return Ok(exports.clone());
+        }
+        let mut exports = exports.unwrap_or_default();
+        // getExports prepends getDeclarationName(valueDeclaration) for a
+        // SourceFile export, independently of collectExternalModuleInfo.
+        // ESNext removes an exported using statement's modifier, but the
+        // checker-owned declaration still establishes its public name.
+        if let Some(declaration) = value_declaration.filter(|declaration| {
+            exported_from_source && declaration.source() == resolver_node.source()
+        }) {
+            let declaration = self.node(declaration.node());
+            let name = match &self.context.arena().node(declaration)?.data {
+                NodeData::VariableDeclaration(data) => data.name,
+                NodeData::BindingElement(data) => data.name,
+                NodeData::ClassDeclaration(data) => data.name,
+                NodeData::ClassExpression(data) => data.name,
+                NodeData::EnumDeclaration(data) => data.name,
+                NodeData::FunctionDeclaration(data) => data.name,
+                NodeData::FunctionExpression(data) => data.name,
+                _ => None,
+            };
+            if let Some(name) = name {
+                let name =
+                    super::ModuleExportName::from_node(self.context.arena(), self.node(name))?;
+                // The shared module info also stores a direct declaration's
+                // own name. Keep exactly one, ahead of its export aliases.
+                exports.retain(|export| export.as_js() != name.as_js());
+                exports.insert(0, name);
             }
         }
-        if !exported_from_source {
-            return Ok(Vec::new());
-        }
-        let name = identifier_text_owned(self.context.arena(), node)?;
-        Ok(self
-            .info
-            .common
-            .exports_by_local
-            .get(name.as_bytes())
-            .cloned()
-            .unwrap_or_default())
+        Ok(exports)
     }
 
     fn has_export_star(&self) -> bool {

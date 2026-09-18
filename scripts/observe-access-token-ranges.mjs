@@ -1,4 +1,4 @@
-// Complete clean commands for async function body source and comment ranges.
+// Complete commands for access tokens following parsed, transformed and synthetic receivers.
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -9,40 +9,38 @@ const root = path.resolve(import.meta.dirname, "..");
 const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
 assert.ok(["--write", "--check"].includes(process.argv[2]));
+const base = "class B { get x() { return 1; } }\n";
 const shapes = [
-  ["arguments-loop", "export function outer() { const fs = []; for (let i = 0; i < 2; i++) { fs.push(async () => arguments[i]); } return fs; }"],
-  ["arguments-leaf-comments", "declare function f(x: unknown): unknown; export function outer() { return async () => f(/*a*/ arguments /*b*/[0]); }"],
-  ["arguments-nested-arrow", "export function outer() { return async () => { const g = () => arguments[0]; return g(); }; }"],
-  ["arguments-own-function", "export function outer() { return async () => { function g() { return arguments[0]; } return g(); }; }"],
-  ["arguments-shadowed-js", "function outer() { var arguments = [3]; return async () => arguments[0]; }"],
-  ["super-read", "class B { x = 1; } export class C extends B { async m() { return super.x; } }"],
-  ["super-write", "class B { x = 1; } export class C extends B { async m() { super.x = 2; return super.x; } }"],
-  ["super-update", "class B { x = 1; } export class C extends B { async m() { return super.x++; } }"],
-  ["super-call", "class B { m() { return 1; } } export class C extends B { async n() { return super.m(); } }"],
-  ["super-call-comment", "class B { m() { return 1; } } export class C extends B { async n() { return super.m() /*c*/; } }"],
-  ["super-call-access", "class B { m() { return {x: 1}; } } export class C extends B { async n() { return super.m().x; } }"],
-  ["super-callee-comment", "class B { m() { return 1; } } export class C extends B { async n() { return super.m /*c*/ (); } }"],
-  ["super-element-call", "const k = 'm'; class B { m() { return 1; } } export class C extends B { async n() { return super[k](); } }"],
-  ["super-property-trailing", "class B { get x() { return 1; } } export class C extends B { async n() { return super.x /*t*/; } }"],
-  ["super-escaped", "class B { x = 1; } export class C extends B { async m() { return super.\\u0078; } }"],
-  ["super-dot-comments", "class B { x = 1; } export class C extends B { async m() { return super /*a*/\n . /*b*/ x; } }"],
-  ["super-element", "class B { x = 1; } export class C extends B { async m() { return super[/*a*/ 'x' /*b*/]; } }"],
+  ["super-dot-inline", base + "export class C extends B { m() { return super /*a*/ . /*b*/x; } }"],
+  ["super-dot-newline", base + "export class C extends B { m() { return super /*a*/\n . /*b*/x; } }"],
+  ["super-element-inline", base + "export class C extends B { m() { return super[ /*a*/ 'x' /*b*/ ]; } }"],
+  ["super-element-newline", base + "export class C extends B { m() { return super /*a*/\n [ /*b*/ 'x' /*c*/ ]; } }"],
+  ["plain-dot-inline", "declare const object: any; export const value = object /*a*/ . /*b*/x;"],
+  ["plain-dot-newline", "declare const object: any; export const value = object /*a*/\n . /*b*/x;"],
+  ["plain-element-inline", "declare const object: any; export const value = object[ /*a*/ 'x' /*b*/ ];"],
+  ["plain-element-newline", "declare const object: any; export const value = object /*a*/\n [ /*b*/ 'x' /*c*/ ];"],
+  ["optional-dot", "declare function get(): any; export const value = get() /*a*/ ?. /*b*/x;"],
+  ["optional-element", "declare function get(): any; export const value = get() /*a*/ ?. [ /*b*/ 'x' /*c*/ ];"],
+  ["erased-dot", "declare const object: any; export const value = (object as any) /*a*/ . /*b*/x;"],
+  ["erased-element", "declare const object: any; export const value = (object as any)[ /*a*/ 'x' /*b*/ ];"],
+  ["static-field-receiver", "export class C { static m() {} static value = this.m /*c*/.bind(this); }"],
+  ["ranged-assignment-receiver", "declare const obj: any; let _a: any; export const value = (_a = obj).method /*c*/.bind(_a);"],
 ];
 const inputs = [];
-for (const target of ["es5", "es2015", "es2017"])
+for (const target of ["es5", "es2015", "esnext"])
   for (const module of ["commonjs", "esnext"])
     for (const removeComments of [false, true])
       for (const [shape, text] of shapes) {
-        const main = shape.endsWith("-js") ? "/project/main.js" : "/project/main.ts";
+        const main = "/project/main.ts";
         assert.equal(ts.createSourceFile(main, text, ts.ScriptTarget.Latest, true).parseDiagnostics.length, 0);
-        inputs.push({case_id: `async-capture-source-ranges/${target}/${module}/remove-${removeComments}/${shape}`,
+        inputs.push({case_id: `access-token-ranges/${target}/${module}/remove-${removeComments}/${shape}`,
           roots: [main], files: [{path: main, text: text + "\n"}], options: {},
-          config: JSON.stringify({compilerOptions: {target, module, removeComments, allowJs: true,
-            strict: false, skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
-            declaration: true, declarationMap: true,
+          config: JSON.stringify({compilerOptions: {target, module, removeComments,
+            strict: false, skipDefaultLibCheck: true, noErrorTruncation: true,
+            sourceMap: true, declaration: true, declarationMap: true,
             ignoreDeprecations: "6.0", outDir: "/project/out"}, files: [main.slice(9)]})});
       }
-assert.equal(inputs.length, 204);
+assert.equal(inputs.length, 168);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),
@@ -106,8 +104,8 @@ const cases = inputs.map(input => {
 const artifact = {version: 1, typescript: ts.version, repetitions: 2,
   compiler_sha256: sha256(fs.readFileSync(path.join(root, "vendor/typescript-6.0.3/lib/typescript.js"))),
   observer_sha256: sha256(fs.readFileSync(import.meta.filename)), cases};
-const destination = path.join(root, "crates/compiler/tests/fixtures/async-capture-source-ranges.json");
+const destination = path.join(root, "crates/compiler/tests/fixtures/access-token-ranges.json");
 const rendered = JSON.stringify(artifact, null, 2) + "\n";
 if (process.argv[2] === "--write") fs.writeFileSync(destination, rendered, {flag: "wx"});
 else assert.equal(fs.readFileSync(destination, "utf8"), rendered);
-console.log(`Async capture source ranges: ${cases.length} cases, two identical complete observations each`);
+console.log(`Access token ranges: ${cases.length} cases, two identical complete observations each`);

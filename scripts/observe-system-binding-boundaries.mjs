@@ -1,4 +1,4 @@
-// Complete clean commands for async function body source and comment ranges.
+// Complete System commands for uninitialized aliases, nested defaults and late helpers.
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -9,40 +9,40 @@ const root = path.resolve(import.meta.dirname, "..");
 const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
 assert.ok(["--write", "--check"].includes(process.argv[2]));
+const prefix = "declare const source: any; declare function get(): any; declare const key: string;\n";
 const shapes = [
-  ["arguments-loop", "export function outer() { const fs = []; for (let i = 0; i < 2; i++) { fs.push(async () => arguments[i]); } return fs; }"],
-  ["arguments-leaf-comments", "declare function f(x: unknown): unknown; export function outer() { return async () => f(/*a*/ arguments /*b*/[0]); }"],
-  ["arguments-nested-arrow", "export function outer() { return async () => { const g = () => arguments[0]; return g(); }; }"],
-  ["arguments-own-function", "export function outer() { return async () => { function g() { return arguments[0]; } return g(); }; }"],
-  ["arguments-shadowed-js", "function outer() { var arguments = [3]; return async () => arguments[0]; }"],
-  ["super-read", "class B { x = 1; } export class C extends B { async m() { return super.x; } }"],
-  ["super-write", "class B { x = 1; } export class C extends B { async m() { super.x = 2; return super.x; } }"],
-  ["super-update", "class B { x = 1; } export class C extends B { async m() { return super.x++; } }"],
-  ["super-call", "class B { m() { return 1; } } export class C extends B { async n() { return super.m(); } }"],
-  ["super-call-comment", "class B { m() { return 1; } } export class C extends B { async n() { return super.m() /*c*/; } }"],
-  ["super-call-access", "class B { m() { return {x: 1}; } } export class C extends B { async n() { return super.m().x; } }"],
-  ["super-callee-comment", "class B { m() { return 1; } } export class C extends B { async n() { return super.m /*c*/ (); } }"],
-  ["super-element-call", "const k = 'm'; class B { m() { return 1; } } export class C extends B { async n() { return super[k](); } }"],
-  ["super-property-trailing", "class B { get x() { return 1; } } export class C extends B { async n() { return super.x /*t*/; } }"],
-  ["super-escaped", "class B { x = 1; } export class C extends B { async m() { return super.\\u0078; } }"],
-  ["super-dot-comments", "class B { x = 1; } export class C extends B { async m() { return super /*a*/\n . /*b*/ x; } }"],
-  ["super-element", "class B { x = 1; } export class C extends B { async m() { return super[/*a*/ 'x' /*b*/]; } }"],
+  ["uninitialized-alias", "export let x; export {x as y};", false],
+  ["uninitialized-pattern-alias", "export var {x}: any; export {x as y};", false],
+  ["bigint-number-default", "export let {a: {b} = 1n as any, c: {d} = 1 as any} = get();", false],
+  ["bare-bigint-default", "export let {a: {b} = 1n, c: {d} = 1} = get();", false],
+  ["bare-bigint-rest-default", "export let {a: {b} = 1n, c: {d} = 1, ...rest} = get();", false],
+  ["iteration-pair", "export let [a, b] = source;", true],
+  ["iteration-one", "export let [a = 1] = source;", true],
+  ["iteration-rest", "export let [a, ...rest] = source;", true],
+  ["iteration-empty", "export let [] = source;", true],
+  ["iteration-omitted", "export let [,] = source;", true],
+  ["iteration-nested", "export let [/*a*/ [a] = get()] = source;", true],
+  ["iteration-async-helper", "export let [a, b] = source; export const asyncF = async () => {};", true],
+  ["rest-late-only", "export let {a, ...rest} = source;", false],
+  ["rest-async-helper", "export let {a, ...rest} = source; export const asyncF = async () => {};", false],
 ];
 const inputs = [];
-for (const target of ["es5", "es2015", "es2017"])
-  for (const module of ["commonjs", "esnext"])
-    for (const removeComments of [false, true])
-      for (const [shape, text] of shapes) {
-        const main = shape.endsWith("-js") ? "/project/main.js" : "/project/main.ts";
+const tslib = ["__read", "__rest", "__awaiter", "__generator", "__values", "__spreadArray"]
+  .map(name => `export declare function ${name}(...args: any[]): any;`).join("\n") + "\n";
+for (const target of ["es5", "es2015", "esnext"])
+  for (const removeComments of [false, true])
+    for (const importHelpers of [false, true])
+      for (const [shape, fragment, downlevelIteration] of shapes) {
+        const main = "/project/main.ts", text = prefix + fragment + "\n";
         assert.equal(ts.createSourceFile(main, text, ts.ScriptTarget.Latest, true).parseDiagnostics.length, 0);
-        inputs.push({case_id: `async-capture-source-ranges/${target}/${module}/remove-${removeComments}/${shape}`,
-          roots: [main], files: [{path: main, text: text + "\n"}], options: {},
-          config: JSON.stringify({compilerOptions: {target, module, removeComments, allowJs: true,
-            strict: false, skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
-            declaration: true, declarationMap: true,
+        inputs.push({case_id: `system-binding-boundaries/${target}/remove-${removeComments}/helpers-${importHelpers}/${shape}`,
+          roots: [main], files: [{path: main, text}, {path: "/project/node_modules/tslib/index.d.ts", text: tslib}], options: {},
+          config: JSON.stringify({compilerOptions: {target, module: "system", moduleResolution: "node", removeComments,
+            importHelpers, downlevelIteration, strict: false, skipDefaultLibCheck: true, noErrorTruncation: true,
+            sourceMap: true, declaration: true, declarationMap: true,
             ignoreDeprecations: "6.0", outDir: "/project/out"}, files: [main.slice(9)]})});
       }
-assert.equal(inputs.length, 204);
+assert.equal(inputs.length, 168);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),
@@ -106,8 +106,8 @@ const cases = inputs.map(input => {
 const artifact = {version: 1, typescript: ts.version, repetitions: 2,
   compiler_sha256: sha256(fs.readFileSync(path.join(root, "vendor/typescript-6.0.3/lib/typescript.js"))),
   observer_sha256: sha256(fs.readFileSync(import.meta.filename)), cases};
-const destination = path.join(root, "crates/compiler/tests/fixtures/async-capture-source-ranges.json");
+const destination = path.join(root, "crates/compiler/tests/fixtures/system-binding-boundaries.json");
 const rendered = JSON.stringify(artifact, null, 2) + "\n";
 if (process.argv[2] === "--write") fs.writeFileSync(destination, rendered, {flag: "wx"});
 else assert.equal(fs.readFileSync(destination, "utf8"), rendered);
-console.log(`Async capture source ranges: ${cases.length} cases, two identical complete observations each`);
+console.log(`System binding boundaries: ${cases.length} cases, two identical complete observations each`);

@@ -4779,7 +4779,6 @@ impl<'context> Es2018Visitor<'context> {
             kind,
             SyntaxKind::StringLiteral
                 | SyntaxKind::NumericLiteral
-                | SyntaxKind::BigIntLiteral
                 | SyntaxKind::NoSubstitutionTemplateLiteral
                 | SyntaxKind::TrueKeyword
                 | SyntaxKind::FalseKeyword

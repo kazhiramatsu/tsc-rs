@@ -7469,7 +7469,7 @@ impl Printer {
                 } else {
                     SyntaxKind::DotToken
                 };
-                let token_cursor = self.original_node_end_cursor(transformation, expression)?;
+                let token_cursor = self.node_end_cursor(transformation, expression)?;
                 // getLinesBetweenNodes only consults source lines when the
                 // parent and both children carry source positions. A class
                 // field access receives the member-name range for mapping and
@@ -7599,7 +7599,7 @@ impl Printer {
                     self.original_node_end_cursor(transformation, question_dot)?
                 } else {
                     expression
-                        .map(|expression| self.original_node_end_cursor(transformation, expression))
+                        .map(|expression| self.node_end_cursor(transformation, expression))
                         .transpose()?
                         .unwrap_or(TokenCursor::Synthetic)
                 };
@@ -16772,10 +16772,10 @@ impl Printer {
         )
     }
 
-    /// Cursor for the transformed node's current text-range end. Fixed-token
-    /// emitters normally follow semantic originals, but tsc's generated
-    /// ParenthesizedExpression deliberately anchors `)` at
-    /// `node.expression.end` after transformation.
+    /// Cursor for the transformed node's current text-range end. Parenthesis
+    /// and access-token emitters anchor at `node.expression.end`, so an
+    /// original link or a comment/map donor does not give a synthetic
+    /// receiver a source position for its following token.
     fn node_end_cursor(
         &self,
         transformation: &TransformationResult<'_>,
@@ -17212,8 +17212,8 @@ impl Printer {
         Ok(original_record.kind == record.kind)
     }
 
-    /// Typed `!nodeIsSynthesized(node)` for layout decisions. Unlike token
-    /// ownership, tsc's line-preservation check is based only on the node's
+    /// Typed `!nodeIsSynthesized(node)` for layout decisions. The
+    /// line-preservation check is based only on the node's
     /// current text range, so a generated node positioned by a transform can
     /// participate when every node at that boundary has a source range.
     fn node_has_source_text_range(

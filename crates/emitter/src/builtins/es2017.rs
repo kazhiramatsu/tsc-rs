@@ -679,7 +679,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
 
     fn visit_captured_super_call(
         &mut self,
-        original: TransformNode,
+        _original: TransformNode,
         data: tsc_syntax::nodes::CallExpressionData,
     ) -> Result<TransformNode, TransformError> {
         let callee = data.expression.map(|callee| self.node(callee)).ok_or(
@@ -717,8 +717,9 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 "argument",
             )?);
         }
-        let call = self.create_call(call, arguments)?;
-        self.set_original_and_range(call, original)
+        // The print-time substituteCallExpression returns a fresh call;
+        // only its inner super access retains a source range.
+        self.create_call(call, arguments)
     }
 
     fn visit_await_expression(

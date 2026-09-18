@@ -30,8 +30,11 @@ COMMENT_FIXTURES = (
     ("emitter-jsdoc-original-command", 1),
     ("async-arrow-body-ranges", 72),
     ("async-arrow-comment-boundaries", 96),
-    ("async-capture-source-ranges", 144),
+    ("async-capture-source-ranges", 204),
     ("system-destructuring-order", 198),
+    ("system-binding-boundaries", 168),
+    ("access-token-ranges", 168),
+    ("system-using-publication", 206),
 )
 COMMENT_TESTS = (
     "emitter_residual_audit::jsdoc_original_command_matches_complete_typescript_observations",
