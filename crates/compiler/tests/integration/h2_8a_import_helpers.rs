@@ -245,6 +245,53 @@ fn missing_declaration_binding_matches_complete_typescript_observations() {
     );
 }
 
+#[test]
+fn parameter_gap_recovery_matches_complete_typescript_observations() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-parameter-gap-recovery.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 72);
+    let modules: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-parameter-gap-module.json"
+    ))
+    .unwrap();
+    assert_eq!(modules["typescript"], "6.0.3");
+    assert_eq!(modules["repetitions"], 2);
+    let module_cases = modules["cases"].as_array().unwrap();
+    assert_eq!(module_cases.len(), 6);
+    let cases = cases.iter().chain(module_cases).collect::<Vec<_>>();
+    let mut failures = Vec::new();
+    for case in &cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("parameter-gap recovery EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "parameter-gap recovery SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete parameter-gap recovery failures: {failures:?}"
+    );
+}
+
 // Supplemental executions retain the whole command, including fields after
 // the comparator's first failure. They are counted separately in evidence.
 pub(super) fn capture_complete_command(

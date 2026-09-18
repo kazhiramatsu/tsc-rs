@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{for_each_child, SourceFile, SyntaxKind};
+use crate::{for_each_child, NodeData, SourceFile, SyntaxKind};
 use tsc_types::NodeFlags;
 
 /// The producer of a retained syntactic diagnostic. Scanner trivia is kept
@@ -154,23 +154,29 @@ impl ParseRecovery {
     }
 
     pub(crate) fn is_literal_or_missing_await(&self, source: &SourceFile) -> bool {
-        self.supports_missing_nodes(source, false)
+        self.supports_missing_nodes(source, false, false)
+    }
+
+    pub(crate) fn is_missing_node_emit_recovery(&self, source: &SourceFile) -> bool {
+        self.supports_missing_nodes(source, true, false)
     }
 
     pub(crate) fn is_supported_for_emit(&self, source: &SourceFile) -> bool {
-        self.supports_missing_nodes(source, true)
+        self.supports_missing_nodes(source, true, true)
     }
 
     fn supports_missing_nodes(
         &self,
         source: &SourceFile,
         allow_missing_declarations: bool,
+        allow_parameter_gaps: bool,
     ) -> bool {
         if self.is_literal_only(source.parse_diagnostics.len()) {
             return true;
         }
         if self.diagnostic_origins.len() != source.parse_diagnostics.len()
-            || !self.actions.is_empty()
+            || (!self.actions.is_empty()
+                && !(allow_parameter_gaps && self.supports_parameter_gaps(source)))
         {
             return false;
         }
@@ -182,6 +188,20 @@ impl ParseRecovery {
                 continue;
             }
             let Some(missing) = event.missing_node else {
+                if allow_parameter_gaps
+                    && event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                    && event.diagnostic_index.is_none()
+                    && self.actions.iter().any(|action| {
+                        matches!(action, ParseRecoveryAction::TokenSkipped { start, .. } if *start == event.start)
+                    })
+                    && self.events.iter().any(|retained| {
+                        retained.start == event.start
+                            && retained.diagnostic_index.is_some()
+                            && retained.missing_node.is_some_and(|missing| missing.kind == SyntaxKind::Identifier)
+                    })
+                {
+                    continue;
+                }
                 return false;
             };
             if event.kind != ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
@@ -244,6 +264,154 @@ impl ParseRecovery {
             });
         }
         missing_positions.is_empty()
+    }
+
+    // A parameter gap is emittable only when its preceding parameter ends in
+    // a retained missing await operand, whose reporting token was skipped.
+    // The reachable tree and array ownership are checked independently of the
+    // diagnostic code, token spelling, and fixture identity.
+    fn supports_parameter_gaps(&self, source: &SourceFile) -> bool {
+        let mut parents = BTreeMap::new();
+        let mut pending = vec![(source.root, None)];
+        while let Some((id, parent)) = pending.pop() {
+            let node = source.arena.node(id);
+            if NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC) {
+                continue;
+            }
+            // Defensive tree invariant: ownership must not depend on which
+            // edge reaches a shared node first.
+            if parents.insert(id, parent).is_some() {
+                return false;
+            }
+            for_each_child(&source.arena, node, |child| {
+                pending.push((child, Some(id)));
+                false
+            });
+        }
+        let mut skip_spans = BTreeSet::new();
+        for action in &self.actions {
+            let ParseRecoveryAction::TokenSkipped {
+                start,
+                length,
+                site: ParseTokenSkipSite::ListAbort,
+                ..
+            } = *action
+            else {
+                return false;
+            };
+            let Some(end) = start.checked_add(length).filter(|end| *end > start) else {
+                return false;
+            };
+            if skip_spans
+                .iter()
+                .any(|(old_start, old_end)| start < *old_end && *old_start < end)
+            {
+                return false;
+            }
+            skip_spans.insert((start, end));
+            let (Some(start_byte), Some(end_byte)) = (
+                source.positions().utf16_to_byte(start),
+                source.positions().utf16_to_byte(end),
+            ) else {
+                return false;
+            };
+            let retained = self
+                .events
+                .iter()
+                .filter(|event| {
+                    event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                        && event.start == start
+                        && event.diagnostic_index.is_some()
+                        && event
+                            .missing_node
+                            .is_some_and(|missing| missing.kind == SyntaxKind::Identifier)
+                })
+                .collect::<Vec<_>>();
+            if retained.len() != 1 {
+                return false;
+            }
+            let missing = retained[0].missing_node.unwrap();
+            let Some(missing_byte) = source.positions().utf16_to_byte(missing.position) else {
+                return false;
+            };
+            let operands = parents
+                .iter()
+                .filter_map(|(&id, &parent)| {
+                    let node = source.arena.node(id);
+                    (node.kind == SyntaxKind::Identifier
+                        && node.pos == missing_byte
+                        && node.end == missing_byte
+                        && parent.is_some_and(|parent| {
+                            source.arena.node(parent).kind == SyntaxKind::AwaitExpression
+                        }))
+                    .then_some(id)
+                })
+                .collect::<Vec<_>>();
+            if operands.len() != 1 {
+                return false;
+            }
+            let mut operand_ancestors = BTreeSet::new();
+            let mut current = Some(operands[0]);
+            while let Some(ancestor) = current {
+                operand_ancestors.insert(ancestor);
+                current = parents[&ancestor];
+            }
+            let mut owners = Vec::new();
+            for &id in parents.keys() {
+                let node = source.arena.node(id);
+                let parameters = match &node.data {
+                    NodeData::FunctionDeclaration(data) => data.parameters,
+                    NodeData::FunctionExpression(data) => data.parameters,
+                    NodeData::ArrowFunction(data) => data.parameters,
+                    NodeData::MethodDeclaration(data) => data.parameters,
+                    NodeData::Constructor(data) => data.parameters,
+                    NodeData::GetAccessor(data) => data.parameters,
+                    NodeData::SetAccessor(data) => data.parameters,
+                    _ => None,
+                };
+                let Some(parameters) = parameters else {
+                    continue;
+                };
+                let array = source.arena.node_array(parameters);
+                if array.pos > start_byte
+                    || end_byte > array.end
+                    || array.nodes.iter().any(|child| {
+                        let child = source.arena.node(*child);
+                        child.pos < end_byte && start_byte < child.end
+                    })
+                {
+                    continue;
+                }
+                let preceding = array
+                    .nodes
+                    .iter()
+                    .rev()
+                    .find(|child| source.arena.node(**child).end <= start_byte);
+                if !preceding.is_some_and(|child| {
+                    source.arena.node(*child).end == missing_byte
+                        && operand_ancestors.contains(child)
+                }) {
+                    continue;
+                }
+                let mut ancestors = BTreeSet::new();
+                let mut current = Some(id);
+                while let Some(ancestor) = current {
+                    ancestors.insert(ancestor);
+                    current = parents[&ancestor];
+                }
+                if parents.keys().all(|other| {
+                    let other_node = source.arena.node(*other);
+                    !(other_node.pos <= start_byte && end_byte <= other_node.end)
+                        || ancestors.contains(other)
+                }) {
+                    owners.push(id);
+                }
+            }
+            if owners.len() != 1 {
+                return false;
+            }
+        }
+        !skip_spans.is_empty()
     }
 
     pub(crate) fn checkpoint(&self) -> RecoveryCheckpoint {

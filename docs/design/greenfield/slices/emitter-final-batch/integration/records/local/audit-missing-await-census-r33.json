@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "xtask",
+    "utf16-literal-recovery-census",
+    "--missing-await",
+    "--out",
+    "docs/design/greenfield/slices/emitter-final-batch/integration/cross-review/missing-await-census-r33.json"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T19:09:28.489976+00:00",
+  "head": "7b580ea0b4fe5951becc30dc6a1e8acebb737a44",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": -15,
+  "seconds": 1437.523,
+  "log_sha256": "216c98c51f7154e160959f3d25861019e394fea07a1cebf94d36c769e45cf276",
+  "log_bytes": 1342
+}
