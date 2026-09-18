@@ -18444,7 +18444,7 @@ fn emit_source_trailing_comments_of_position_with_filter(
         if only_print_js_doc_style && !should_write_js_doc_style_comment(source, comment.start) {
             continue;
         }
-        if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
+        if !writer.is_at_start_of_line() {
             writer.write_space(" ");
         }
         write_source_comment(source, comment.start, comment.end, writer);

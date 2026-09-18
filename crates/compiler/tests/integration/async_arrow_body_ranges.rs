@@ -3,14 +3,30 @@ use serde_json::{json, Value};
 
 #[test]
 fn async_arrow_body_ranges_matches_complete_typescript_observations() {
-    let artifact: Value =
-        serde_json::from_slice(include_bytes!("../fixtures/async-arrow-body-ranges.json")).unwrap();
-    assert_eq!(artifact["typescript"], "6.0.3");
-    assert_eq!(artifact["repetitions"], 2);
-    let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 72);
+    let artifacts = [
+        (
+            include_bytes!("../fixtures/async-arrow-body-ranges.json").as_slice(),
+            72,
+        ),
+        (
+            include_bytes!("../fixtures/async-arrow-comment-boundaries.json").as_slice(),
+            96,
+        ),
+    ]
+    .map(|(bytes, count)| {
+        let artifact: Value = serde_json::from_slice(bytes).unwrap();
+        assert_eq!(artifact["typescript"], "6.0.3");
+        assert_eq!(artifact["repetitions"], 2);
+        assert_eq!(artifact["cases"].as_array().unwrap().len(), count);
+        artifact
+    });
+    let cases: Vec<_> = artifacts
+        .iter()
+        .flat_map(|artifact| artifact["cases"].as_array().unwrap())
+        .collect();
+    assert_eq!(cases.len(), 168);
     let mut failures = Vec::new();
-    for case in cases {
+    for case in &cases {
         let id = case["case_id"].as_str().unwrap();
         let result = std::panic::catch_unwind(|| {
             super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
