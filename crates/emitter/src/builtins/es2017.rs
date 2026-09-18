@@ -1665,10 +1665,15 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 statements.push(self.create_return_statement(Some(awaiter))?);
                 self.create_block(statements, true)?
             };
-        if let Some(original_body) = body.map(|body| self.node(body)) {
-            self.context
-                .factory()?
-                .set_text_range(outer_body, original_body)?;
+        // transformAsyncFunctionBody ranges only an ordinary function's
+        // rebuilt block. An arrow's awaiter expression (or arguments-capture
+        // block) stays synthetic, including when its original body was a block.
+        if shape == FunctionShape::Ordinary {
+            if let Some(original_body) = body.map(|body| self.node(body)) {
+                self.context
+                    .factory()?
+                    .set_text_range(outer_body, original_body)?;
+            }
         }
         Ok(TransformedFunction {
             modifiers: self.visit_modifier_array_without_async(modifiers)?,

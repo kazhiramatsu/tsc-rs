@@ -18673,7 +18673,9 @@ fn emit_same_line_trailing_comments(
             }
             continue;
         }
-        if !writer.has_trailing_whitespace() {
+        // emitTrailingComment prefixes a space whenever the line has content,
+        // even when an empty recovery operand follows an already written space.
+        if !writer.is_at_start_of_line() {
             writer.write_space(" ");
         }
         write_source_comment(rest.source, comment.start, comment.end, writer);
