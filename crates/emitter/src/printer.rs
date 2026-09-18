@@ -7692,12 +7692,17 @@ impl Printer {
                         parent: SyntaxKind::BinaryExpression,
                         field: "operator_token",
                     })?;
-                self.emit_required_node_with_forwarded_source_comments(
+                // Each binary operand enters the ordinary comments phase.
+                // A synthesized assignment has no range of its own, but its
+                // left operand can still own parsed binding-name comments.
+                let left = data.left.ok_or(PrinterError::MissingTransformedChild {
+                    parent: SyntaxKind::BinaryExpression,
+                    field: "left",
+                })?;
+                let left_comments = self.emit_expression_child_with_source_comments(
                     transformation,
                     node.source(),
-                    data.left,
-                    SyntaxKind::BinaryExpression,
-                    "left",
+                    left,
                     expression_context,
                     deferred_source_comments,
                     writer,
@@ -7705,7 +7710,8 @@ impl Printer {
                 let operator_anchor = if let Some(left) = left_node {
                     let cursor = self.original_node_end_cursor(transformation, left)?;
                     if let Some(anchor) =
-                        deferred_source_comments.visited_trailing_anchor_at(cursor)
+                        Self::access_target_trailing_anchor_at(left_comments, cursor)
+                            .or_else(|| deferred_source_comments.visited_trailing_anchor_at(cursor))
                     {
                         anchor
                     } else {

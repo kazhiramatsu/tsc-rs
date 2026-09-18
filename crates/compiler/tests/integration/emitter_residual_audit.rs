@@ -104,3 +104,52 @@ fn historical_session_refusals_match_complete_typescript_commands() {
         super::h2_8a_import_helpers::capture_complete_command,
     );
 }
+
+#[path = "../support/complete_command_corpus.rs"]
+mod complete_command_corpus;
+
+#[test]
+fn jsdoc_original_command_matches_complete_typescript_observations() {
+    complete_command_corpus::assert_complete_commands_twice(include_bytes!(
+        "../fixtures/emitter-jsdoc-original-command.json"
+    ));
+}
+
+#[test]
+fn exported_destructuring_comments_match_complete_typescript_commands() {
+    use serde_json::{json, Value};
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/export-destructuring-comments.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 216);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                super::h2_8a_import_helpers::capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("export destructuring comments EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "export destructuring comments SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete export destructuring command failures: {failures:?}"
+    );
+}

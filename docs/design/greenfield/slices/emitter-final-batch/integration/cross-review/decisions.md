@@ -203,3 +203,12 @@ round24も実Claude Fableで照合した（limitなし）。missingのFULL-start
 append-only skip/reparseを確認。incrementalではskip spanのみ再利用を拒否し、Reparsed action
 自身は無条件で再作成されるため再利用拒否に含めない。後のadmissionではreachable missing
 とeventの1対1対応も要求する。実装・native census・完全emit確認はこの候補の次段で行う。
+
+
+## Rounds 37–40: binary operand comments and ordinary async arrow ranges
+
+r37のtyped comment range追加案は採用しない。既存getCommentRangeはraw pos/endへfallbackし、同じrangeの追記では欠落を直せない。またcloneNodeがpositionsをコピーするという説明も誤りで、r38で訂正した。r38は作業中に変更後のprinterを読んだため、r40でimmutable 71b1ae19bとのdiffを再照合した。
+
+BinaryExpressionの左operandがPendingなしのとき通常comment phaseを通さないことが原因。access等で使う既存のchild phaseへ接続し、trailing anchorの所有も引き継ぐ。r40でupstream trampolineとの一致を確認。元JSDoc commandは完全観測×2で成功した。最初の216対照は189 exact / 27 failuresで、ES5 export accessのrange不足21、retained shorthand代入のparent-owned comment再出力6へ分離した。追加修復と再検証は継続する。wrapper assignment rangeを外す案は、実TS再export出力でコメントが2回出るため撤回した。
+
+r39は287b7a62fのasync arrow outer bodyをsyntheticに保つ変更と、emitTrailingCommentのprefixをline-start条件に合わせる変更に同意した。通常コード72の事前探索で44 source-map差分と2 JS comment重複を実証した。追加96対照はlexical this/arguments/superとtoken/list境界を含む。これらのnative成功はまだ主張しない。各reviewは実Claude Fable 5.1でありlimit/Opus切替はない。
