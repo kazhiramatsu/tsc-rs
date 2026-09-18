@@ -9487,25 +9487,70 @@ impl<'text> Parser<'text> {
             && self.subtree_contains_possible_top_level_await(id)
     }
 
-    /// Simulates TransformFlags.ContainsPossibleTopLevelAwait: the only
-    /// source is an identifier spelled `await` (factory createIdentifier);
-    /// function-like factories strip the flag from their BODY propagation;
-    /// enum/module/import= factories clear it on the whole node.
+    /// Project the factory's ContainsPossibleTopLevelAwait bit without
+    /// importing emitter transform flags into syntax. A statement's own bit
+    /// selects a reparse run; function/arrow/constructor children strip that
+    /// bit on outward propagation. Names and bodies have field-specific
+    /// propagation, while type and erased declarations contribute nothing.
+    ///
+    /// tsc-port: propagateChildFlags / propagateNameFlags @6.0.3
+    /// tsc-span: _tsc.js:25101-25192
     fn subtree_contains_possible_top_level_await(&self, root: NodeId) -> bool {
         // Explicit stack: deep trees overflow a recursive walk.
         let mut stack = vec![root];
         while let Some(id) = stack.pop() {
             let node = self.arena.node(id);
-            let body = match &node.data {
+            if node.kind >= SyntaxKind::FirstTypeNode && node.kind <= SyntaxKind::LastTypeNode {
+                continue;
+            }
+            if id != root
+                && matches!(
+                    node.kind,
+                    SyntaxKind::FunctionDeclaration
+                        | SyntaxKind::FunctionExpression
+                        | SyntaxKind::ArrowFunction
+                        | SyntaxKind::Constructor
+                )
+            {
+                continue;
+            }
+            let mut children = Vec::new();
+            macro_rules! nodes {
+                ($($child:expr),* $(,)?) => { children.extend([$($child),*].into_iter().flatten()); };
+            }
+            macro_rules! arrays {
+                ($($array:expr),* $(,)?) => { $(if let Some(array) = $array {
+                    children.extend(self.arena.node_array(array).nodes.iter().copied());
+                })* };
+            }
+            macro_rules! name {
+                ($name:expr) => {
+                    if let Some(name) = $name {
+                        if self.arena.node(name).kind != SyntaxKind::Identifier {
+                            children.push(name);
+                        }
+                    }
+                };
+            }
+            match &node.data {
                 NodeData::Identifier(data) => {
                     if data.escaped_text == "await" {
                         return true;
                     }
                     continue;
                 }
-                // createInterfaceDeclaration assigns ContainsTypeScript
-                // alone; heritage identifiers do not propagate await here.
-                NodeData::InterfaceDeclaration(_)
+                // Assigned ContainsTypeScript, or explicitly cleared by the
+                // factory. MissingDeclaration's modifiers are assigned only
+                // after construction and never aggregate into its flags.
+                NodeData::TypeParameter(_)
+                | NodeData::PropertySignature(_)
+                | NodeData::MethodSignature(_)
+                | NodeData::CallSignature(_)
+                | NodeData::ConstructSignature(_)
+                | NodeData::IndexSignature(_)
+                | NodeData::InterfaceDeclaration(_)
+                | NodeData::TypeAliasDeclaration(_)
+                | NodeData::MissingDeclaration(_)
                 | NodeData::EnumDeclaration(_)
                 | NodeData::ModuleDeclaration(_)
                 | NodeData::ImportEqualsDeclaration(_)
@@ -9519,26 +9564,143 @@ impl<'text> Parser<'text> {
                 | NodeData::ExportDeclaration(_)
                 | NodeData::NamedExports(_)
                 | NodeData::ExportSpecifier(_)
-                | NodeData::ExternalModuleReference(_) => continue,
-                NodeData::MethodDeclaration(data) => data.body,
-                NodeData::Constructor(data) => data.body,
-                NodeData::GetAccessor(data) => data.body,
-                NodeData::SetAccessor(data) => data.body,
-                NodeData::FunctionExpression(data) => data.body,
-                NodeData::ArrowFunction(data) => data.body,
-                NodeData::FunctionDeclaration(data) => data.body,
-                _ => None,
-            };
-            let mut children = Vec::new();
-            for_each_child(&self.arena, node, |child| {
-                children.push(child);
-                false
-            });
-            for child in children.into_iter().rev() {
-                if Some(child) != body {
-                    stack.push(child);
+                | NodeData::ExternalModuleReference(_)
+                | NodeData::NamespaceExportDeclaration(_) => continue,
+                NodeData::FunctionDeclaration(data) => {
+                    if data.body.is_none()
+                        || self.modifiers_contain(data.modifiers, SyntaxKind::DeclareKeyword)
+                    {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(data.modifiers, data.type_parameters, data.parameters);
+                    nodes!(data.asterisk_token, data.r#type);
+                }
+                NodeData::FunctionExpression(data) => {
+                    name!(data.name);
+                    arrays!(data.modifiers, data.type_parameters, data.parameters);
+                    nodes!(data.asterisk_token, data.r#type);
+                }
+                NodeData::ArrowFunction(data) => {
+                    arrays!(data.modifiers, data.type_parameters, data.parameters);
+                    nodes!(data.equals_greater_than_token, data.r#type);
+                }
+                NodeData::MethodDeclaration(data) => {
+                    if data.body.is_none() {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(data.modifiers, data.type_parameters, data.parameters);
+                    nodes!(data.asterisk_token, data.question_token, data.r#type);
+                }
+                NodeData::Constructor(data) => {
+                    if data.body.is_none() {
+                        continue;
+                    }
+                    // typeParameters/type are parser post-assignments.
+                    arrays!(data.modifiers, data.parameters);
+                }
+                NodeData::GetAccessor(data) => {
+                    if data.body.is_none() {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(data.modifiers, data.parameters);
+                    nodes!(data.r#type);
+                }
+                NodeData::SetAccessor(data) => {
+                    if data.body.is_none() {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(data.modifiers, data.parameters);
+                }
+                NodeData::ClassDeclaration(data) => {
+                    if self.modifiers_contain(data.modifiers, SyntaxKind::DeclareKeyword) {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(
+                        data.modifiers,
+                        data.type_parameters,
+                        data.heritage_clauses,
+                        data.members
+                    );
+                }
+                NodeData::ClassExpression(data) => {
+                    name!(data.name);
+                    arrays!(
+                        data.modifiers,
+                        data.type_parameters,
+                        data.heritage_clauses,
+                        data.members
+                    );
+                }
+                NodeData::VariableStatement(data) => {
+                    if self.modifiers_contain(data.modifiers, SyntaxKind::DeclareKeyword) {
+                        continue;
+                    }
+                    arrays!(data.modifiers);
+                    nodes!(data.declaration_list);
+                }
+                NodeData::Parameter(data) => {
+                    if data.name.is_some_and(|name| {
+                        matches!(&self.arena.node(name).data,
+                        NodeData::Identifier(identifier) if identifier.escaped_text == "this")
+                    }) {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(data.modifiers);
+                    nodes!(
+                        data.dot_dot_dot_token,
+                        data.question_token,
+                        data.initializer
+                    );
+                }
+                NodeData::VariableDeclaration(data) => {
+                    name!(data.name);
+                    nodes!(data.exclamation_token, data.initializer);
+                }
+                NodeData::PropertyDeclaration(data) => {
+                    name!(data.name);
+                    arrays!(data.modifiers);
+                    nodes!(
+                        data.question_token,
+                        data.exclamation_token,
+                        data.initializer
+                    );
+                }
+                NodeData::BindingElement(data) => {
+                    name!(data.property_name);
+                    name!(data.name);
+                    nodes!(data.dot_dot_dot_token, data.initializer);
+                }
+                NodeData::PropertyAssignment(data) => {
+                    name!(data.name);
+                    nodes!(data.initializer);
+                }
+                NodeData::ShorthandPropertyAssignment(data) => {
+                    nodes!(data.object_assignment_initializer);
+                }
+                NodeData::PropertyAccessExpression(data) => {
+                    nodes!(data.expression, data.question_dot_token);
+                }
+                NodeData::QualifiedName(data) => {
+                    nodes!(data.left);
+                }
+                NodeData::ClassStaticBlockDeclaration(data) => {
+                    // Its body propagates, but parser-assigned modifiers do not.
+                    nodes!(data.body);
+                }
+                _ => {
+                    for_each_child(&self.arena, node, |child| {
+                        children.push(child);
+                        false
+                    });
                 }
             }
+            stack.extend(children.into_iter().rev());
         }
         false
     }

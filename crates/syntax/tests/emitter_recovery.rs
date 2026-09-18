@@ -147,3 +147,69 @@ fn assert_context_control_admission() {
         eprintln!("context recovery syntax {key}: {count} expected admission={admitted}");
     }
 }
+
+#[test]
+fn await_reparse_respects_factory_child_and_name_boundaries() {
+    let fixture: Value =
+        serde_json::from_slice(include_bytes!("fixtures/await-flag-boundary.json")).unwrap();
+    assert_eq!(fixture["typescript"], "6.0.3");
+    assert_eq!(fixture["repetitions"], 2);
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 249);
+    let mut failures = Vec::new();
+    for case in cases {
+        let path = case["file"].as_str().unwrap();
+        let text = case["text"].as_str().unwrap();
+        let source = tsc_syntax::parse_source_file(
+            path,
+            text,
+            ParseOptions {
+                script_target: ScriptTarget::ES_NEXT,
+                language_variant: if path.ends_with(".tsx") {
+                    LanguageVariant::Jsx
+                } else {
+                    LanguageVariant::Standard
+                },
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        let diagnostics: Vec<_> = source
+            .parse_diagnostics
+            .iter()
+            .map(|d| {
+                assert!(d.message.next.is_empty());
+                json!({"code": d.code(), "start": d.start, "length": d.length,
+                "message": d.message.text.to_string_lossy()})
+            })
+            .collect();
+        let tsc_syntax::NodeData::SourceFile(data) = &source.arena.node(source.root).data else {
+            unreachable!()
+        };
+        let statements: Vec<_> = source.arena.node_array(data.statements.unwrap()).nodes.iter().map(|id| {
+            let node = source.arena.node(*id);
+            json!({"kind": node.kind as u16,
+                "pos": source.positions().byte_to_utf16(node.pos).unwrap(),
+                "end": source.positions().byte_to_utf16(node.end).unwrap(),
+                "await_context": NodeFlags::from_bits(node.flags).contains(NodeFlags::AWAIT_CONTEXT)})
+        }).collect();
+        let actual = json!({"diagnostics":diagnostics,"statements":statements});
+        if actual != case["expected"] {
+            failures.push(json!({"case_id":case["case_id"],"text":text,"actual":actual,"expected":case["expected"]}));
+        }
+    }
+    for failure in &failures {
+        eprintln!("{}", serde_json::to_string(failure).unwrap());
+    }
+    eprintln!(
+        "await flag boundary SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "{} await boundary differences",
+        failures.len()
+    );
+}
