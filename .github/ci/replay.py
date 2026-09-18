@@ -42,7 +42,11 @@ WITNESS_GROUPS = {
     # Syntax/binder/types and host/program contracts share a small build per
     # crate without consuming the controls job's remaining timeout margin.
     "foundations": tuple(witness.foundation_witnesses.SUITES),
-    **{suite: (suite,) for suite in witness.emitter_final_witnesses.SUITES},
+    **{suite: (suite,) for suite in witness.emitter_final_witnesses.SUITES
+       if suite != "emitter-comment-controls"},
+    # New comment/range controls share the shorter global replay's compiler
+    # build, preserving the final job's existing runtime margin.
+    "emitter-global": ("emitter-global", "emitter-comment-controls"),
 }
 PRINTER_TARGETS = (
     "printer_failure_contract", "emit_pipeline_phases_contract",

@@ -200,6 +200,7 @@ COMPILER_DIRECT = {
     "utf16-recovery-corpus": {
         "target": "h2_8a_utf16_literal_recovery_corpus",
         "tests": 1,
+        "inputs": ("crates/compiler/tests/support/complete_command_corpus.rs",),
         "fixtures": (("crates/compiler/tests/fixtures/utf16-literal-recovery-corpus.json", 50, "case_id"),),
         "observers": (("scripts/observe-utf16-literal-recovery-corpus.mjs", "--census",
                        "target/declaration-comment-ranges-runs/utf16-literal-recovery-census.json"),),
@@ -250,7 +251,7 @@ COMPILER_DIRECT = {
             "h2_8b_library_replacement::library_order_controls_match_program_membership",
         ),
         "tests": 24,
-        "filtered_tests": 430,
+        "filtered_tests": 433,
         "sources": tuple(f"crates/compiler/tests/integration/{module}.rs" for module in (
             "h2_8b_config_commands",
             "h2_8b_config_conversion_commands",

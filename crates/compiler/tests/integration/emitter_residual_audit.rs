@@ -118,16 +118,38 @@ fn jsdoc_original_command_matches_complete_typescript_observations() {
 #[test]
 fn exported_destructuring_comments_match_complete_typescript_commands() {
     use serde_json::{json, Value};
-    let artifact: Value = serde_json::from_slice(include_bytes!(
-        "../fixtures/export-destructuring-comments.json"
-    ))
-    .unwrap();
-    assert_eq!(artifact["typescript"], "6.0.3");
-    assert_eq!(artifact["repetitions"], 2);
-    let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 216);
+    let artifacts = [
+        (
+            include_bytes!("../fixtures/export-destructuring-comments.json").as_slice(),
+            216,
+        ),
+        (
+            include_bytes!("../fixtures/export-destructuring-boundaries.json").as_slice(),
+            72,
+        ),
+        (
+            include_bytes!("../fixtures/export-destructuring-trailing.json").as_slice(),
+            48,
+        ),
+        (
+            include_bytes!("../fixtures/property-initializer-comment-ownership.json").as_slice(),
+            54,
+        ),
+    ]
+    .map(|(bytes, count)| {
+        let artifact: Value = serde_json::from_slice(bytes).unwrap();
+        assert_eq!(artifact["typescript"], "6.0.3");
+        assert_eq!(artifact["repetitions"], 2);
+        assert_eq!(artifact["cases"].as_array().unwrap().len(), count);
+        artifact
+    });
+    let cases: Vec<_> = artifacts
+        .iter()
+        .flat_map(|artifact| artifact["cases"].as_array().unwrap())
+        .collect();
+    assert_eq!(cases.len(), 390);
     let mut failures = Vec::new();
-    for case in cases {
+    for case in &cases {
         let id = case["case_id"].as_str().unwrap();
         let result = std::panic::catch_unwind(|| {
             super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(

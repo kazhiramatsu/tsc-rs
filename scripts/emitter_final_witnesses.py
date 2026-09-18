@@ -22,9 +22,23 @@ CLASS_BANDS = (
     ("hoisted-declaration-export-ranges", 168),
     ("class-header-token", 88),
 )
+COMMENT_FIXTURES = (
+    ("export-destructuring-comments", 216),
+    ("export-destructuring-boundaries", 72),
+    ("export-destructuring-trailing", 48),
+    ("property-initializer-comment-ownership", 54),
+    ("emitter-jsdoc-original-command", 1),
+    ("async-arrow-body-ranges", 72),
+    ("async-arrow-comment-boundaries", 96),
+)
+COMMENT_TESTS = (
+    "emitter_residual_audit::jsdoc_original_command_matches_complete_typescript_observations",
+    "emitter_residual_audit::exported_destructuring_comments_match_complete_typescript_commands",
+    "async_arrow_body_ranges::async_arrow_body_ranges_matches_complete_typescript_observations",
+)
 SUITES = ("emitter-final", "emitter-universe-oracle",
           *(f"emitter-plan-base-{i}" for i in range(SHARDS)),
-          "emitter-global", "emitter-class-0", "emitter-class-1")
+          "emitter-global", "emitter-class-0", "emitter-class-1", "emitter-comment-controls")
 SELECTORS = ("TSC_RS_EMITTER_FINAL_CASE_FILTER", "TSC_RS_EMITTER_FINAL_CASE_SET",
              "TSC_RS_EMITTER_FINAL_SHARD", "TSC_RS_EMITTER_FINAL_CAPTURE_DIR",
              "TSC_RS_EMITTER_FINAL_FAILURE_DIR", "TSC_RS_H2_8A_CAPTURE_WRITES_DIR",
@@ -65,6 +79,9 @@ def class_bands(suite):
 def case_ids(suite):
     if suite not in SUITES:
         raise ValueError("unknown emitter final suite")
+    if suite == "emitter-comment-controls":
+        return [case for name, count in COMMENT_FIXTURES
+                for case in ids(FIXTURES + name + ".json", count)]
     if suite.startswith("emitter-plan-base-"):
         part = int(suite.rsplit("-", 1)[1])
         return ids(FIXTURES + "emitter-final-universe-plan-base.json.zst", 1798)[part::SHARDS]
@@ -98,6 +115,12 @@ def case_ids(suite):
 
 def inputs(suite):
     common = {"scripts/emitter_final_witnesses.py"}
+    if suite == "emitter-comment-controls":
+        return common | {FIXTURES + name + ".json" for name, _ in COMMENT_FIXTURES} | {
+            "scripts/observe-" + name + ".mjs" for name, _ in COMMENT_FIXTURES} | {
+            "crates/compiler/tests/support/complete_command_corpus.rs",
+            "crates/compiler/tests/integration/emitter_residual_audit.rs",
+            "crates/compiler/tests/integration/async_arrow_body_ranges.rs"}
     universe = {"crates/compiler/tests/emitter_final_universe.rs",
                 FIXTURES + "emitter-final-known-native.json",
                 PACKET + "integration/records/retired-checker-known.v1.json",
@@ -153,6 +176,9 @@ def cargo(target, names=()):
 
 
 def commands(suite):
+    if suite == "emitter-comment-controls":
+        return [(["node", "scripts/observe-" + name + ".mjs", "--check"], None)
+                for name, _ in COMMENT_FIXTURES] + [(cargo("contracts", COMMENT_TESTS), len(COMMENT_TESTS))]
     if suite == "emitter-universe-oracle":
         return [(["node", "scripts/observe-emitter-final-universe.mjs", "--check", "--set", name], None)
                 for name in ("217", "plan-base")]

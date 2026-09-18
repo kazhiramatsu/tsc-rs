@@ -10831,8 +10831,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
 
     /// Node-aware assignment half of `createExportExpression`. Directly
     /// exported declarations retain the source name as the property child,
-    /// while the synthesized outer access carries that name's source-map
-    /// range.
+    /// while the synthesized outer access carries that name's text range
+    /// for both comment ownership and source maps.
     ///
     /// tsc-port: createExportExpression @6.0.3
     /// tsc-hash: 75fd880a658644ec017e38813933a1710d9f1ec7929387c8755990e3d6c9fbf8
@@ -10880,6 +10880,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 TransformFlags::NONE,
             )?
         };
+        // visitVariableStatement/transformInitializedVariable attach the
+        // name's text range to the access itself. It owns the leading and
+        // trailing comments, containing the retained property's same start.
+        self.context.factory()?.set_text_range(access, name)?;
         self.set_source_map_range_from(access, name)?;
         Ok(access)
     }

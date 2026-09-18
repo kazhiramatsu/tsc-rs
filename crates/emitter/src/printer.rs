@@ -5190,11 +5190,21 @@ impl Printer {
                     initializer_node,
                     writer,
                 )?;
+                // The positional trailing pass above is independent of
+                // containerPos. Only the initializer's leading phase resumes
+                // after a prefix already owned by its surrounding property.
+                let owner =
+                    self.expression_comment_phase_owner_for_node(transformation, initializer_node)?;
+                let container_owned = self.parent_comment_container_owned_prefix_for_owner(
+                    transformation,
+                    expression_context.comments().container_pos(),
+                    owner,
+                )?;
                 self.emit_leading_comments_for_node_worker(
                     transformation,
                     initializer_node,
                     LeadingCommentContext::Normal,
-                    skipped_prefix_bytes,
+                    container_owned.or(skipped_prefix_bytes),
                     writer,
                 )?;
                 self.emit_node_id_with_context(

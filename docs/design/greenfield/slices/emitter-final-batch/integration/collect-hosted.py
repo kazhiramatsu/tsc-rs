@@ -16,6 +16,8 @@ REPO = "kazhiramatsu/tsc-rs"
 BASE = "3b1f5fe87fd31e3b303bb44bd257342735452ed9"
 sys.path.insert(0, str(ROOT / "scripts"))
 import emitter_final_witnesses as final
+sys.path.insert(0, str(ROOT / ".github/ci"))
+import replay
 
 
 def gh(*args):
@@ -103,7 +105,9 @@ def main():
             assert snippet in log(name), (name, snippet)
     plan_counts = []
     for suite in final.SUITES:
-        raw = log(f"witnesses ({suite})")
+        owners = [group for group, members in replay.WITNESS_GROUPS.items() if suite in members]
+        assert len(owners) == 1, (suite, owners)
+        raw = log(f"witnesses ({owners[0]})")
         # Pair each dispatched command with its actual result and completion marker.
         events = []
         for line in raw.splitlines():
