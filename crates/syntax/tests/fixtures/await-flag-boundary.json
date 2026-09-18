@@ -3,7 +3,7 @@
   "typescript": "6.0.3",
   "repetitions": 2,
   "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "c9e3cc2acf0cf5e7add9f10c7de29d6f22e11a68dee4da31de3e479d5a4bd863",
+  "observer_sha256": "62d0d14186e99f1ae1314e5f06630b65ae31a0c01721a82872215ef34f0010a2",
   "cases": [
     {
       "case_id": "original-1/script",
@@ -6312,6 +6312,973 @@
             "pos": 17,
             "end": 47,
             "await_context": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-variable-initializer/script",
+      "file": "main.ts",
+      "text": "declare let x = await;",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 244,
+            "pos": 0,
+            "end": 22,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-variable-initializer/module",
+      "file": "main.ts",
+      "text": "export {}; declare let x = await;",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 244,
+            "pos": 10,
+            "end": 33,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-variable-initializer/run",
+      "file": "main.ts",
+      "text": "export {}; await; declare let x = await;",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 244,
+            "pos": 17,
+            "end": 40,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-class-initializer/script",
+      "file": "main.ts",
+      "text": "declare class C { p = await; }",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 264,
+            "pos": 0,
+            "end": 30,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-class-initializer/module",
+      "file": "main.ts",
+      "text": "export {}; declare class C { p = await; }",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 264,
+            "pos": 10,
+            "end": 41,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-class-initializer/run",
+      "file": "main.ts",
+      "text": "export {}; await; declare class C { p = await; }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 264,
+            "pos": 17,
+            "end": 48,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-function-body/script",
+      "file": "main.ts",
+      "text": "declare function f(a = await) {}",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 263,
+            "pos": 0,
+            "end": 32,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-function-body/module",
+      "file": "main.ts",
+      "text": "export {}; declare function f(a = await) {}",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 263,
+            "pos": 10,
+            "end": 43,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-function-body/run",
+      "file": "main.ts",
+      "text": "export {}; await; declare function f(a = await) {}",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 263,
+            "pos": 17,
+            "end": 50,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "this-parameter-decorator/script",
+      "file": "main.ts",
+      "text": "class C { m(@await this) {} }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1433,
+            "start": 12,
+            "length": 6,
+            "message": "Neither decorators nor modifiers may be applied to 'this' parameters."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 264,
+            "pos": 0,
+            "end": 29,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "this-parameter-decorator/module",
+      "file": "main.ts",
+      "text": "export {}; class C { m(@await this) {} }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1433,
+            "start": 23,
+            "length": 6,
+            "message": "Neither decorators nor modifiers may be applied to 'this' parameters."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 264,
+            "pos": 10,
+            "end": 40,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "this-parameter-decorator/run",
+      "file": "main.ts",
+      "text": "export {}; await; class C { m(@await this) {} }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1433,
+            "start": 30,
+            "length": 6,
+            "message": "Neither decorators nor modifiers may be applied to 'this' parameters."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 264,
+            "pos": 17,
+            "end": 47,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "this-parameter-initializer/script",
+      "file": "main.ts",
+      "text": "class C { m(this = await) {} }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1005,
+            "start": 17,
+            "length": 1,
+            "message": "',' expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 264,
+            "pos": 0,
+            "end": 30,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "this-parameter-initializer/module",
+      "file": "main.ts",
+      "text": "export {}; class C { m(this = await) {} }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1005,
+            "start": 28,
+            "length": 1,
+            "message": "',' expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 264,
+            "pos": 10,
+            "end": 41,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "this-parameter-initializer/run",
+      "file": "main.ts",
+      "text": "export {}; await; class C { m(this = await) {} }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1005,
+            "start": 35,
+            "length": 1,
+            "message": "',' expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 264,
+            "pos": 17,
+            "end": 48,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bodyless-accessors/script",
+      "file": "main.ts",
+      "text": "abstract class A { abstract get [await](): number; abstract set [await](v); }",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 264,
+            "pos": 0,
+            "end": 77,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bodyless-accessors/module",
+      "file": "main.ts",
+      "text": "export {}; abstract class A { abstract get [await](): number; abstract set [await](v); }",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 264,
+            "pos": 10,
+            "end": 88,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bodyless-accessors/run",
+      "file": "main.ts",
+      "text": "export {}; await; abstract class A { abstract get [await](): number; abstract set [await](v); }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 264,
+            "pos": 17,
+            "end": 95,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "parameter-name/script",
+      "file": "main.ts",
+      "text": "class C { m(await) {} }",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 264,
+            "pos": 0,
+            "end": 23,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "parameter-name/module",
+      "file": "main.ts",
+      "text": "export {}; class C { m(await) {} }",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 264,
+            "pos": 10,
+            "end": 34,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "parameter-name/run",
+      "file": "main.ts",
+      "text": "export {}; await; class C { m(await) {} }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 264,
+            "pos": 17,
+            "end": 41,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "parameter-binding-name/script",
+      "file": "main.ts",
+      "text": "class C { m({ [await]: a }) {} }",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 264,
+            "pos": 0,
+            "end": 32,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "parameter-binding-name/module",
+      "file": "main.ts",
+      "text": "export {}; class C { m({ [await]: a }) {} }",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 264,
+            "pos": 10,
+            "end": 43,
+            "await_context": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "parameter-binding-name/run",
+      "file": "main.ts",
+      "text": "export {}; await; class C { m({ [await]: a }) {} }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 264,
+            "pos": 17,
+            "end": 50,
+            "await_context": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "escaped-reference/script",
+      "file": "main.ts",
+      "text": "const x = aw\\u0061it;",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 244,
+            "pos": 0,
+            "end": 21,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "escaped-reference/module",
+      "file": "main.ts",
+      "text": "export {}; const x = aw\\u0061it;",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1260,
+            "start": 21,
+            "length": 10,
+            "message": "Keywords cannot contain escape characters."
+          },
+          {
+            "code": 1109,
+            "start": 31,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 244,
+            "pos": 10,
+            "end": 32,
+            "await_context": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "escaped-reference/run",
+      "file": "main.ts",
+      "text": "export {}; await; const x = aw\\u0061it;",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1260,
+            "start": 28,
+            "length": 10,
+            "message": "Keywords cannot contain escape characters."
+          },
+          {
+            "code": 1109,
+            "start": 38,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 244,
+            "pos": 17,
+            "end": 39,
+            "await_context": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-property/script",
+      "file": "main.ts",
+      "text": "class C { declare [await]: number; }",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 264,
+            "pos": 0,
+            "end": 36,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-property/module",
+      "file": "main.ts",
+      "text": "export {}; class C { declare [await]: number; }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 35,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 264,
+            "pos": 10,
+            "end": 47,
+            "await_context": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "declare-property/run",
+      "file": "main.ts",
+      "text": "export {}; await; class C { declare [await]: number; }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 42,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 264,
+            "pos": 17,
+            "end": 54,
+            "await_context": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "auto-accessor-name/script",
+      "file": "main.ts",
+      "text": "class C { accessor [await] = 1; }",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 264,
+            "pos": 0,
+            "end": 33,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "auto-accessor-name/module",
+      "file": "main.ts",
+      "text": "export {}; class C { accessor [await] = 1; }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 36,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 264,
+            "pos": 10,
+            "end": 44,
+            "await_context": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "auto-accessor-name/run",
+      "file": "main.ts",
+      "text": "export {}; await; class C { accessor [await] = 1; }",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 43,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 264,
+            "pos": 17,
+            "end": 51,
+            "await_context": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "optional-access-name/script",
+      "file": "main.ts",
+      "text": "const x = source?.await;",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 244,
+            "pos": 0,
+            "end": 24,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "optional-access-name/module",
+      "file": "main.ts",
+      "text": "export {}; const x = source?.await;",
+      "expected": {
+        "diagnostics": [],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 244,
+            "pos": 10,
+            "end": 35,
+            "await_context": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "optional-access-name/run",
+      "file": "main.ts",
+      "text": "export {}; await; const x = source?.await;",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
+        "statements": [
+          {
+            "kind": 279,
+            "pos": 0,
+            "end": 10,
+            "await_context": false
+          },
+          {
+            "kind": 245,
+            "pos": 10,
+            "end": 17,
+            "await_context": true
+          },
+          {
+            "kind": 244,
+            "pos": 17,
+            "end": 42,
+            "await_context": false
           }
         ]
       }

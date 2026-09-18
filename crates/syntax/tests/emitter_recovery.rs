@@ -155,7 +155,7 @@ fn await_reparse_respects_factory_child_and_name_boundaries() {
     assert_eq!(fixture["typescript"], "6.0.3");
     assert_eq!(fixture["repetitions"], 2);
     let cases = fixture["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 249);
+    assert_eq!(cases.len(), 285);
     let mut failures = Vec::new();
     for case in cases {
         let path = case["file"].as_str().unwrap();

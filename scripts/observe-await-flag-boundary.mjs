@@ -317,6 +317,57 @@ const shapes = [
     "continue-label",
     "while (o) { continue await; }"
   ]
+,
+
+  [
+    "declare-variable-initializer",
+    "declare let x = await;"
+  ],
+  [
+    "declare-class-initializer",
+    "declare class C { p = await; }"
+  ],
+  [
+    "declare-function-body",
+    "declare function f(a = await) {}"
+  ],
+  [
+    "this-parameter-decorator",
+    "class C { m(@await this) {} }"
+  ],
+  [
+    "this-parameter-initializer",
+    "class C { m(this = await) {} }"
+  ],
+  [
+    "bodyless-accessors",
+    "abstract class A { abstract get [await](): number; abstract set [await](v); }"
+  ],
+  [
+    "parameter-name",
+    "class C { m(await) {} }"
+  ],
+  [
+    "parameter-binding-name",
+    "class C { m({ [await]: a }) {} }"
+  ],
+  [
+    "escaped-reference",
+    "const x = aw\\u0061it;"
+  ],
+  [
+    "declare-property",
+    "class C { declare [await]: number; }"
+  ],
+  [
+    "auto-accessor-name",
+    "class C { accessor [await] = 1; }"
+  ],
+  [
+    "optional-access-name",
+    "const x = source?.await;"
+  ]
+
 ];
 const cases = [];
 function observe(file, text) {
