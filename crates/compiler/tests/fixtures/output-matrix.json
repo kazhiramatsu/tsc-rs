@@ -1,0 +1,2899 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "31735256edb2d20b9dedb2147c2dd2a752b1b8e07d5ac28923a00aab2945ce22",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "target-module/es2018/commonjs",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export class C {\n    #p = 1;\n    static s = 2;\n    static { C.s = 3; }\n    accessor v = 4;\n    get q(): number { return this.#p ?? 0; }\n    has(o: object): boolean { return #p in o; }\n}\nexport async function* g(a?: { b?: number[] }): AsyncGenerator<number> {\n    for await (const x of [1, 2]) { yield a?.b?.[x] ?? x ** 2; }\n}\nexport const o = { ...{ a: 1 }, b: 2 };\nexport let n: number | null = null;\nn ??= 5;\nexport function f(x: number = 1, ...rest: number[]): number { return x + rest.length; }\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { C, o, f } from \"./a\";\nexport const c = new C();\nexport const d = o.b + f(2, 3);\nexport default c;\n"
+        }
+      ],
+      "options": {
+        "target": 5,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declaration": true,
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX19jbGFzc1ByaXZhdGVGaWVsZFNldCA9ICh0aGlzICYmIHRoaXMuX19jbGFzc1ByaXZhdGVGaWVsZFNldCkgfHwgZnVuY3Rpb24gKHJlY2VpdmVyLCBzdGF0ZSwgdmFsdWUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gIm0iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIG1ldGhvZCBpcyBub3Qgd3JpdGFibGUiKTsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBzZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB3cml0ZSBwcml2YXRlIG1lbWJlciB0byBhbiBvYmplY3Qgd2hvc2UgY2xhc3MgZGlkIG5vdCBkZWNsYXJlIGl0Iik7DQogICAgcmV0dXJuIChraW5kID09PSAiYSIgPyBmLmNhbGwocmVjZWl2ZXIsIHZhbHVlKSA6IGYgPyBmLnZhbHVlID0gdmFsdWUgOiBzdGF0ZS5zZXQocmVjZWl2ZXIsIHZhbHVlKSksIHZhbHVlOw0KfTsNCnZhciBfX2NsYXNzUHJpdmF0ZUZpZWxkSW4gPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRJbikgfHwgZnVuY3Rpb24oc3RhdGUsIHJlY2VpdmVyKSB7DQogICAgaWYgKHJlY2VpdmVyID09PSBudWxsIHx8ICh0eXBlb2YgcmVjZWl2ZXIgIT09ICJvYmplY3QiICYmIHR5cGVvZiByZWNlaXZlciAhPT0gImZ1bmN0aW9uIikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB1c2UgJ2luJyBvcGVyYXRvciBvbiBub24tb2JqZWN0Iik7DQogICAgcmV0dXJuIHR5cGVvZiBzdGF0ZSA9PT0gImZ1bmN0aW9uIiA/IHJlY2VpdmVyID09PSBzdGF0ZSA6IHN0YXRlLmhhcyhyZWNlaXZlcik7DQp9Ow0KdmFyIF9DX3AsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLm4gPSBleHBvcnRzLm8gPSBleHBvcnRzLkMgPSB2b2lkIDA7DQpleHBvcnRzLmcgPSBnOw0KZXhwb3J0cy5mID0gZjsNCmNsYXNzIEMgew0KICAgIGNvbnN0cnVjdG9yKCkgew0KICAgICAgICBfQ19wLnNldCh0aGlzLCAxKTsNCiAgICAgICAgX0Nfdl9hY2Nlc3Nvcl9zdG9yYWdlLnNldCh0aGlzLCA0KTsNCiAgICB9DQogICAgZ2V0IHYoKSB7IHJldHVybiBfX2NsYXNzUHJpdmF0ZUZpZWxkR2V0KHRoaXMsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSwgImYiKTsgfQ0KICAgIHNldCB2KHZhbHVlKSB7IF9fY2xhc3NQcml2YXRlRmllbGRTZXQodGhpcywgX0Nfdl9hY2Nlc3Nvcl9zdG9yYWdlLCB2YWx1ZSwgImYiKTsgfQ0KICAgIGdldCBxKCkgeyB2YXIgX2E7IHJldHVybiAoX2EgPSBfX2NsYXNzUHJpdmF0ZUZpZWxkR2V0KHRoaXMsIF9DX3AsICJmIikpICE9PSBudWxsICYmIF9hICE9PSB2b2lkIDAgPyBfYSA6IDA7IH0NCiAgICBoYXMobykgeyByZXR1cm4gX19jbGFzc1ByaXZhdGVGaWVsZEluKF9DX3AsIG8pOyB9DQp9DQpleHBvcnRzLkMgPSBDOw0KX0NfcCA9IG5ldyBXZWFrTWFwKCksIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSA9IG5ldyBXZWFrTWFwKCk7DQpDLnMgPSAyOw0KKCgpID0+IHsNCiAgICBDLnMgPSAzOw0KfSkoKTsNCmFzeW5jIGZ1bmN0aW9uKiBnKGEpIHsNCiAgICB2YXIgX2EsIF9iOw0KICAgIGZvciBhd2FpdCAoY29uc3QgeCBvZiBbMSwgMl0pIHsNCiAgICAgICAgeWllbGQgKF9iID0gKF9hID0gYSA9PT0gbnVsbCB8fCBhID09PSB2b2lkIDAgPyB2b2lkIDAgOiBhLmIpID09PSBudWxsIHx8IF9hID09PSB2b2lkIDAgPyB2b2lkIDAgOiBfYVt4XSkgIT09IG51bGwgJiYgX2IgIT09IHZvaWQgMCA/IF9iIDogeCAqKiAyOw0KICAgIH0NCn0NCmV4cG9ydHMubyA9IHsgLi4ueyBhOiAxIH0sIGI6IDIgfTsNCmV4cG9ydHMubiA9IG51bGw7DQpleHBvcnRzLm4gIT09IG51bGwgJiYgZXhwb3J0cy5uICE9PSB2b2lkIDAgPyBleHBvcnRzLm4gOiAoZXhwb3J0cy5uID0gNSk7DQpmdW5jdGlvbiBmKHggPSAxLCAuLi5yZXN0KSB7IHJldHVybiB4ICsgcmVzdC5sZW5ndGg7IH0NCg==",
+            "callback_utf8_bytes": 2626,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX19jbGFzc1ByaXZhdGVGaWVsZFNldCA9ICh0aGlzICYmIHRoaXMuX19jbGFzc1ByaXZhdGVGaWVsZFNldCkgfHwgZnVuY3Rpb24gKHJlY2VpdmVyLCBzdGF0ZSwgdmFsdWUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gIm0iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIG1ldGhvZCBpcyBub3Qgd3JpdGFibGUiKTsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBzZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB3cml0ZSBwcml2YXRlIG1lbWJlciB0byBhbiBvYmplY3Qgd2hvc2UgY2xhc3MgZGlkIG5vdCBkZWNsYXJlIGl0Iik7DQogICAgcmV0dXJuIChraW5kID09PSAiYSIgPyBmLmNhbGwocmVjZWl2ZXIsIHZhbHVlKSA6IGYgPyBmLnZhbHVlID0gdmFsdWUgOiBzdGF0ZS5zZXQocmVjZWl2ZXIsIHZhbHVlKSksIHZhbHVlOw0KfTsNCnZhciBfX2NsYXNzUHJpdmF0ZUZpZWxkSW4gPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRJbikgfHwgZnVuY3Rpb24oc3RhdGUsIHJlY2VpdmVyKSB7DQogICAgaWYgKHJlY2VpdmVyID09PSBudWxsIHx8ICh0eXBlb2YgcmVjZWl2ZXIgIT09ICJvYmplY3QiICYmIHR5cGVvZiByZWNlaXZlciAhPT0gImZ1bmN0aW9uIikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB1c2UgJ2luJyBvcGVyYXRvciBvbiBub24tb2JqZWN0Iik7DQogICAgcmV0dXJuIHR5cGVvZiBzdGF0ZSA9PT0gImZ1bmN0aW9uIiA/IHJlY2VpdmVyID09PSBzdGF0ZSA6IHN0YXRlLmhhcyhyZWNlaXZlcik7DQp9Ow0KdmFyIF9DX3AsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLm4gPSBleHBvcnRzLm8gPSBleHBvcnRzLkMgPSB2b2lkIDA7DQpleHBvcnRzLmcgPSBnOw0KZXhwb3J0cy5mID0gZjsNCmNsYXNzIEMgew0KICAgIGNvbnN0cnVjdG9yKCkgew0KICAgICAgICBfQ19wLnNldCh0aGlzLCAxKTsNCiAgICAgICAgX0Nfdl9hY2Nlc3Nvcl9zdG9yYWdlLnNldCh0aGlzLCA0KTsNCiAgICB9DQogICAgZ2V0IHYoKSB7IHJldHVybiBfX2NsYXNzUHJpdmF0ZUZpZWxkR2V0KHRoaXMsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSwgImYiKTsgfQ0KICAgIHNldCB2KHZhbHVlKSB7IF9fY2xhc3NQcml2YXRlRmllbGRTZXQodGhpcywgX0Nfdl9hY2Nlc3Nvcl9zdG9yYWdlLCB2YWx1ZSwgImYiKTsgfQ0KICAgIGdldCBxKCkgeyB2YXIgX2E7IHJldHVybiAoX2EgPSBfX2NsYXNzUHJpdmF0ZUZpZWxkR2V0KHRoaXMsIF9DX3AsICJmIikpICE9PSBudWxsICYmIF9hICE9PSB2b2lkIDAgPyBfYSA6IDA7IH0NCiAgICBoYXMobykgeyByZXR1cm4gX19jbGFzc1ByaXZhdGVGaWVsZEluKF9DX3AsIG8pOyB9DQp9DQpleHBvcnRzLkMgPSBDOw0KX0NfcCA9IG5ldyBXZWFrTWFwKCksIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSA9IG5ldyBXZWFrTWFwKCk7DQpDLnMgPSAyOw0KKCgpID0+IHsNCiAgICBDLnMgPSAzOw0KfSkoKTsNCmFzeW5jIGZ1bmN0aW9uKiBnKGEpIHsNCiAgICB2YXIgX2EsIF9iOw0KICAgIGZvciBhd2FpdCAoY29uc3QgeCBvZiBbMSwgMl0pIHsNCiAgICAgICAgeWllbGQgKF9iID0gKF9hID0gYSA9PT0gbnVsbCB8fCBhID09PSB2b2lkIDAgPyB2b2lkIDAgOiBhLmIpID09PSBudWxsIHx8IF9hID09PSB2b2lkIDAgPyB2b2lkIDAgOiBfYVt4XSkgIT09IG51bGwgJiYgX2IgIT09IHZvaWQgMCA/IF9iIDogeCAqKiAyOw0KICAgIH0NCn0NCmV4cG9ydHMubyA9IHsgLi4ueyBhOiAxIH0sIGI6IDIgfTsNCmV4cG9ydHMubiA9IG51bGw7DQpleHBvcnRzLm4gIT09IG51bGwgJiYgZXhwb3J0cy5uICE9PSB2b2lkIDAgPyBleHBvcnRzLm4gOiAoZXhwb3J0cy5uID0gNSk7DQpmdW5jdGlvbiBmKHggPSAxLCAuLi5yZXN0KSB7IHJldHVybiB4ICsgcmVzdC5sZW5ndGg7IH0NCg==",
+            "materialized_utf8_bytes": 2626,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 393,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 393,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZCA9IGV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOw0KZXhwb3J0cy5jID0gbmV3IGFfMS5DKCk7DQpleHBvcnRzLmQgPSBhXzEuby5iICsgKDAsIGFfMS5mKSgyLCAzKTsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMuYzsNCg==",
+            "callback_utf8_bytes": 238,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZCA9IGV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOw0KZXhwb3J0cy5jID0gbmV3IGFfMS5DKCk7DQpleHBvcnRzLmQgPSBhXzEuby5iICsgKDAsIGFfMS5mKSgyLCAzKTsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMuYzsNCg==",
+            "materialized_utf8_bytes": 238,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "callback_utf8_bytes": 106,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "materialized_utf8_bytes": 106,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "target-module/es2018/esnext",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export class C {\n    #p = 1;\n    static s = 2;\n    static { C.s = 3; }\n    accessor v = 4;\n    get q(): number { return this.#p ?? 0; }\n    has(o: object): boolean { return #p in o; }\n}\nexport async function* g(a?: { b?: number[] }): AsyncGenerator<number> {\n    for await (const x of [1, 2]) { yield a?.b?.[x] ?? x ** 2; }\n}\nexport const o = { ...{ a: 1 }, b: 2 };\nexport let n: number | null = null;\nn ??= 5;\nexport function f(x: number = 1, ...rest: number[]): number { return x + rest.length; }\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { C, o, f } from \"./a\";\nexport const c = new C();\nexport const d = o.b + f(2, 3);\nexport default c;\n"
+        }
+      ],
+      "options": {
+        "target": 5,
+        "module": 99,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declaration": true,
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX19jbGFzc1ByaXZhdGVGaWVsZFNldCA9ICh0aGlzICYmIHRoaXMuX19jbGFzc1ByaXZhdGVGaWVsZFNldCkgfHwgZnVuY3Rpb24gKHJlY2VpdmVyLCBzdGF0ZSwgdmFsdWUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gIm0iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIG1ldGhvZCBpcyBub3Qgd3JpdGFibGUiKTsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBzZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB3cml0ZSBwcml2YXRlIG1lbWJlciB0byBhbiBvYmplY3Qgd2hvc2UgY2xhc3MgZGlkIG5vdCBkZWNsYXJlIGl0Iik7DQogICAgcmV0dXJuIChraW5kID09PSAiYSIgPyBmLmNhbGwocmVjZWl2ZXIsIHZhbHVlKSA6IGYgPyBmLnZhbHVlID0gdmFsdWUgOiBzdGF0ZS5zZXQocmVjZWl2ZXIsIHZhbHVlKSksIHZhbHVlOw0KfTsNCnZhciBfX2NsYXNzUHJpdmF0ZUZpZWxkSW4gPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRJbikgfHwgZnVuY3Rpb24oc3RhdGUsIHJlY2VpdmVyKSB7DQogICAgaWYgKHJlY2VpdmVyID09PSBudWxsIHx8ICh0eXBlb2YgcmVjZWl2ZXIgIT09ICJvYmplY3QiICYmIHR5cGVvZiByZWNlaXZlciAhPT0gImZ1bmN0aW9uIikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB1c2UgJ2luJyBvcGVyYXRvciBvbiBub24tb2JqZWN0Iik7DQogICAgcmV0dXJuIHR5cGVvZiBzdGF0ZSA9PT0gImZ1bmN0aW9uIiA/IHJlY2VpdmVyID09PSBzdGF0ZSA6IHN0YXRlLmhhcyhyZWNlaXZlcik7DQp9Ow0KdmFyIF9DX3AsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZTsNCmV4cG9ydCBjbGFzcyBDIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgX0NfcC5zZXQodGhpcywgMSk7DQogICAgICAgIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZS5zZXQodGhpcywgNCk7DQogICAgfQ0KICAgIGdldCB2KCkgeyByZXR1cm4gX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ192X2FjY2Vzc29yX3N0b3JhZ2UsICJmIik7IH0NCiAgICBzZXQgdih2YWx1ZSkgeyBfX2NsYXNzUHJpdmF0ZUZpZWxkU2V0KHRoaXMsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSwgdmFsdWUsICJmIik7IH0NCiAgICBnZXQgcSgpIHsgdmFyIF9hOyByZXR1cm4gKF9hID0gX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ19wLCAiZiIpKSAhPT0gbnVsbCAmJiBfYSAhPT0gdm9pZCAwID8gX2EgOiAwOyB9DQogICAgaGFzKG8pIHsgcmV0dXJuIF9fY2xhc3NQcml2YXRlRmllbGRJbihfQ19wLCBvKTsgfQ0KfQ0KX0NfcCA9IG5ldyBXZWFrTWFwKCksIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSA9IG5ldyBXZWFrTWFwKCk7DQpDLnMgPSAyOw0KKCgpID0+IHsNCiAgICBDLnMgPSAzOw0KfSkoKTsNCmV4cG9ydCBhc3luYyBmdW5jdGlvbiogZyhhKSB7DQogICAgdmFyIF9hLCBfYjsNCiAgICBmb3IgYXdhaXQgKGNvbnN0IHggb2YgWzEsIDJdKSB7DQogICAgICAgIHlpZWxkIChfYiA9IChfYSA9IGEgPT09IG51bGwgfHwgYSA9PT0gdm9pZCAwID8gdm9pZCAwIDogYS5iKSA9PT0gbnVsbCB8fCBfYSA9PT0gdm9pZCAwID8gdm9pZCAwIDogX2FbeF0pICE9PSBudWxsICYmIF9iICE9PSB2b2lkIDAgPyBfYiA6IHggKiogMjsNCiAgICB9DQp9DQpleHBvcnQgY29uc3QgbyA9IHsgLi4ueyBhOiAxIH0sIGI6IDIgfTsNCmV4cG9ydCBsZXQgbiA9IG51bGw7DQpuICE9PSBudWxsICYmIG4gIT09IHZvaWQgMCA/IG4gOiAobiA9IDUpOw0KZXhwb3J0IGZ1bmN0aW9uIGYoeCA9IDEsIC4uLnJlc3QpIHsgcmV0dXJuIHggKyByZXN0Lmxlbmd0aDsgfQ0K",
+            "callback_utf8_bytes": 2451,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX19jbGFzc1ByaXZhdGVGaWVsZFNldCA9ICh0aGlzICYmIHRoaXMuX19jbGFzc1ByaXZhdGVGaWVsZFNldCkgfHwgZnVuY3Rpb24gKHJlY2VpdmVyLCBzdGF0ZSwgdmFsdWUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gIm0iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIG1ldGhvZCBpcyBub3Qgd3JpdGFibGUiKTsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBzZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB3cml0ZSBwcml2YXRlIG1lbWJlciB0byBhbiBvYmplY3Qgd2hvc2UgY2xhc3MgZGlkIG5vdCBkZWNsYXJlIGl0Iik7DQogICAgcmV0dXJuIChraW5kID09PSAiYSIgPyBmLmNhbGwocmVjZWl2ZXIsIHZhbHVlKSA6IGYgPyBmLnZhbHVlID0gdmFsdWUgOiBzdGF0ZS5zZXQocmVjZWl2ZXIsIHZhbHVlKSksIHZhbHVlOw0KfTsNCnZhciBfX2NsYXNzUHJpdmF0ZUZpZWxkSW4gPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRJbikgfHwgZnVuY3Rpb24oc3RhdGUsIHJlY2VpdmVyKSB7DQogICAgaWYgKHJlY2VpdmVyID09PSBudWxsIHx8ICh0eXBlb2YgcmVjZWl2ZXIgIT09ICJvYmplY3QiICYmIHR5cGVvZiByZWNlaXZlciAhPT0gImZ1bmN0aW9uIikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB1c2UgJ2luJyBvcGVyYXRvciBvbiBub24tb2JqZWN0Iik7DQogICAgcmV0dXJuIHR5cGVvZiBzdGF0ZSA9PT0gImZ1bmN0aW9uIiA/IHJlY2VpdmVyID09PSBzdGF0ZSA6IHN0YXRlLmhhcyhyZWNlaXZlcik7DQp9Ow0KdmFyIF9DX3AsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZTsNCmV4cG9ydCBjbGFzcyBDIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgX0NfcC5zZXQodGhpcywgMSk7DQogICAgICAgIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZS5zZXQodGhpcywgNCk7DQogICAgfQ0KICAgIGdldCB2KCkgeyByZXR1cm4gX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ192X2FjY2Vzc29yX3N0b3JhZ2UsICJmIik7IH0NCiAgICBzZXQgdih2YWx1ZSkgeyBfX2NsYXNzUHJpdmF0ZUZpZWxkU2V0KHRoaXMsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSwgdmFsdWUsICJmIik7IH0NCiAgICBnZXQgcSgpIHsgdmFyIF9hOyByZXR1cm4gKF9hID0gX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ19wLCAiZiIpKSAhPT0gbnVsbCAmJiBfYSAhPT0gdm9pZCAwID8gX2EgOiAwOyB9DQogICAgaGFzKG8pIHsgcmV0dXJuIF9fY2xhc3NQcml2YXRlRmllbGRJbihfQ19wLCBvKTsgfQ0KfQ0KX0NfcCA9IG5ldyBXZWFrTWFwKCksIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSA9IG5ldyBXZWFrTWFwKCk7DQpDLnMgPSAyOw0KKCgpID0+IHsNCiAgICBDLnMgPSAzOw0KfSkoKTsNCmV4cG9ydCBhc3luYyBmdW5jdGlvbiogZyhhKSB7DQogICAgdmFyIF9hLCBfYjsNCiAgICBmb3IgYXdhaXQgKGNvbnN0IHggb2YgWzEsIDJdKSB7DQogICAgICAgIHlpZWxkIChfYiA9IChfYSA9IGEgPT09IG51bGwgfHwgYSA9PT0gdm9pZCAwID8gdm9pZCAwIDogYS5iKSA9PT0gbnVsbCB8fCBfYSA9PT0gdm9pZCAwID8gdm9pZCAwIDogX2FbeF0pICE9PSBudWxsICYmIF9iICE9PSB2b2lkIDAgPyBfYiA6IHggKiogMjsNCiAgICB9DQp9DQpleHBvcnQgY29uc3QgbyA9IHsgLi4ueyBhOiAxIH0sIGI6IDIgfTsNCmV4cG9ydCBsZXQgbiA9IG51bGw7DQpuICE9PSBudWxsICYmIG4gIT09IHZvaWQgMCA/IG4gOiAobiA9IDUpOw0KZXhwb3J0IGZ1bmN0aW9uIGYoeCA9IDEsIC4uLnJlc3QpIHsgcmV0dXJuIHggKyByZXN0Lmxlbmd0aDsgfQ0K",
+            "materialized_utf8_bytes": 2451,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 393,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 393,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0IHsgQywgbywgZiB9IGZyb20gIi4vYSI7DQpleHBvcnQgY29uc3QgYyA9IG5ldyBDKCk7DQpleHBvcnQgY29uc3QgZCA9IG8uYiArIGYoMiwgMyk7DQpleHBvcnQgZGVmYXVsdCBjOw0K",
+            "callback_utf8_bytes": 111,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgQywgbywgZiB9IGZyb20gIi4vYSI7DQpleHBvcnQgY29uc3QgYyA9IG5ldyBDKCk7DQpleHBvcnQgY29uc3QgZCA9IG8uYiArIGYoMiwgMyk7DQpleHBvcnQgZGVmYXVsdCBjOw0K",
+            "materialized_utf8_bytes": 111,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "callback_utf8_bytes": 106,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "materialized_utf8_bytes": 106,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "target-module/es2021/commonjs",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export class C {\n    #p = 1;\n    static s = 2;\n    static { C.s = 3; }\n    accessor v = 4;\n    get q(): number { return this.#p ?? 0; }\n    has(o: object): boolean { return #p in o; }\n}\nexport async function* g(a?: { b?: number[] }): AsyncGenerator<number> {\n    for await (const x of [1, 2]) { yield a?.b?.[x] ?? x ** 2; }\n}\nexport const o = { ...{ a: 1 }, b: 2 };\nexport let n: number | null = null;\nn ??= 5;\nexport function f(x: number = 1, ...rest: number[]): number { return x + rest.length; }\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { C, o, f } from \"./a\";\nexport const c = new C();\nexport const d = o.b + f(2, 3);\nexport default c;\n"
+        }
+      ],
+      "options": {
+        "target": 8,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declaration": true,
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX19jbGFzc1ByaXZhdGVGaWVsZFNldCA9ICh0aGlzICYmIHRoaXMuX19jbGFzc1ByaXZhdGVGaWVsZFNldCkgfHwgZnVuY3Rpb24gKHJlY2VpdmVyLCBzdGF0ZSwgdmFsdWUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gIm0iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIG1ldGhvZCBpcyBub3Qgd3JpdGFibGUiKTsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBzZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB3cml0ZSBwcml2YXRlIG1lbWJlciB0byBhbiBvYmplY3Qgd2hvc2UgY2xhc3MgZGlkIG5vdCBkZWNsYXJlIGl0Iik7DQogICAgcmV0dXJuIChraW5kID09PSAiYSIgPyBmLmNhbGwocmVjZWl2ZXIsIHZhbHVlKSA6IGYgPyBmLnZhbHVlID0gdmFsdWUgOiBzdGF0ZS5zZXQocmVjZWl2ZXIsIHZhbHVlKSksIHZhbHVlOw0KfTsNCnZhciBfX2NsYXNzUHJpdmF0ZUZpZWxkSW4gPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRJbikgfHwgZnVuY3Rpb24oc3RhdGUsIHJlY2VpdmVyKSB7DQogICAgaWYgKHJlY2VpdmVyID09PSBudWxsIHx8ICh0eXBlb2YgcmVjZWl2ZXIgIT09ICJvYmplY3QiICYmIHR5cGVvZiByZWNlaXZlciAhPT0gImZ1bmN0aW9uIikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB1c2UgJ2luJyBvcGVyYXRvciBvbiBub24tb2JqZWN0Iik7DQogICAgcmV0dXJuIHR5cGVvZiBzdGF0ZSA9PT0gImZ1bmN0aW9uIiA/IHJlY2VpdmVyID09PSBzdGF0ZSA6IHN0YXRlLmhhcyhyZWNlaXZlcik7DQp9Ow0KdmFyIF9DX3AsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLm4gPSBleHBvcnRzLm8gPSBleHBvcnRzLkMgPSB2b2lkIDA7DQpleHBvcnRzLmcgPSBnOw0KZXhwb3J0cy5mID0gZjsNCmNsYXNzIEMgew0KICAgIGNvbnN0cnVjdG9yKCkgew0KICAgICAgICBfQ19wLnNldCh0aGlzLCAxKTsNCiAgICAgICAgX0Nfdl9hY2Nlc3Nvcl9zdG9yYWdlLnNldCh0aGlzLCA0KTsNCiAgICB9DQogICAgZ2V0IHYoKSB7IHJldHVybiBfX2NsYXNzUHJpdmF0ZUZpZWxkR2V0KHRoaXMsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSwgImYiKTsgfQ0KICAgIHNldCB2KHZhbHVlKSB7IF9fY2xhc3NQcml2YXRlRmllbGRTZXQodGhpcywgX0Nfdl9hY2Nlc3Nvcl9zdG9yYWdlLCB2YWx1ZSwgImYiKTsgfQ0KICAgIGdldCBxKCkgeyByZXR1cm4gX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ19wLCAiZiIpID8/IDA7IH0NCiAgICBoYXMobykgeyByZXR1cm4gX19jbGFzc1ByaXZhdGVGaWVsZEluKF9DX3AsIG8pOyB9DQp9DQpleHBvcnRzLkMgPSBDOw0KX0NfcCA9IG5ldyBXZWFrTWFwKCksIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSA9IG5ldyBXZWFrTWFwKCk7DQpDLnMgPSAyOw0KKCgpID0+IHsNCiAgICBDLnMgPSAzOw0KfSkoKTsNCmFzeW5jIGZ1bmN0aW9uKiBnKGEpIHsNCiAgICBmb3IgYXdhaXQgKGNvbnN0IHggb2YgWzEsIDJdKSB7DQogICAgICAgIHlpZWxkIGE/LmI/Llt4XSA/PyB4ICoqIDI7DQogICAgfQ0KfQ0KZXhwb3J0cy5vID0geyAuLi57IGE6IDEgfSwgYjogMiB9Ow0KZXhwb3J0cy5uID0gbnVsbDsNCmV4cG9ydHMubiA/Pz0gNTsNCmZ1bmN0aW9uIGYoeCA9IDEsIC4uLnJlc3QpIHsgcmV0dXJuIHggKyByZXN0Lmxlbmd0aDsgfQ0K",
+            "callback_utf8_bytes": 2388,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX19jbGFzc1ByaXZhdGVGaWVsZFNldCA9ICh0aGlzICYmIHRoaXMuX19jbGFzc1ByaXZhdGVGaWVsZFNldCkgfHwgZnVuY3Rpb24gKHJlY2VpdmVyLCBzdGF0ZSwgdmFsdWUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gIm0iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIG1ldGhvZCBpcyBub3Qgd3JpdGFibGUiKTsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBzZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB3cml0ZSBwcml2YXRlIG1lbWJlciB0byBhbiBvYmplY3Qgd2hvc2UgY2xhc3MgZGlkIG5vdCBkZWNsYXJlIGl0Iik7DQogICAgcmV0dXJuIChraW5kID09PSAiYSIgPyBmLmNhbGwocmVjZWl2ZXIsIHZhbHVlKSA6IGYgPyBmLnZhbHVlID0gdmFsdWUgOiBzdGF0ZS5zZXQocmVjZWl2ZXIsIHZhbHVlKSksIHZhbHVlOw0KfTsNCnZhciBfX2NsYXNzUHJpdmF0ZUZpZWxkSW4gPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRJbikgfHwgZnVuY3Rpb24oc3RhdGUsIHJlY2VpdmVyKSB7DQogICAgaWYgKHJlY2VpdmVyID09PSBudWxsIHx8ICh0eXBlb2YgcmVjZWl2ZXIgIT09ICJvYmplY3QiICYmIHR5cGVvZiByZWNlaXZlciAhPT0gImZ1bmN0aW9uIikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB1c2UgJ2luJyBvcGVyYXRvciBvbiBub24tb2JqZWN0Iik7DQogICAgcmV0dXJuIHR5cGVvZiBzdGF0ZSA9PT0gImZ1bmN0aW9uIiA/IHJlY2VpdmVyID09PSBzdGF0ZSA6IHN0YXRlLmhhcyhyZWNlaXZlcik7DQp9Ow0KdmFyIF9DX3AsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLm4gPSBleHBvcnRzLm8gPSBleHBvcnRzLkMgPSB2b2lkIDA7DQpleHBvcnRzLmcgPSBnOw0KZXhwb3J0cy5mID0gZjsNCmNsYXNzIEMgew0KICAgIGNvbnN0cnVjdG9yKCkgew0KICAgICAgICBfQ19wLnNldCh0aGlzLCAxKTsNCiAgICAgICAgX0Nfdl9hY2Nlc3Nvcl9zdG9yYWdlLnNldCh0aGlzLCA0KTsNCiAgICB9DQogICAgZ2V0IHYoKSB7IHJldHVybiBfX2NsYXNzUHJpdmF0ZUZpZWxkR2V0KHRoaXMsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSwgImYiKTsgfQ0KICAgIHNldCB2KHZhbHVlKSB7IF9fY2xhc3NQcml2YXRlRmllbGRTZXQodGhpcywgX0Nfdl9hY2Nlc3Nvcl9zdG9yYWdlLCB2YWx1ZSwgImYiKTsgfQ0KICAgIGdldCBxKCkgeyByZXR1cm4gX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ19wLCAiZiIpID8/IDA7IH0NCiAgICBoYXMobykgeyByZXR1cm4gX19jbGFzc1ByaXZhdGVGaWVsZEluKF9DX3AsIG8pOyB9DQp9DQpleHBvcnRzLkMgPSBDOw0KX0NfcCA9IG5ldyBXZWFrTWFwKCksIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSA9IG5ldyBXZWFrTWFwKCk7DQpDLnMgPSAyOw0KKCgpID0+IHsNCiAgICBDLnMgPSAzOw0KfSkoKTsNCmFzeW5jIGZ1bmN0aW9uKiBnKGEpIHsNCiAgICBmb3IgYXdhaXQgKGNvbnN0IHggb2YgWzEsIDJdKSB7DQogICAgICAgIHlpZWxkIGE/LmI/Llt4XSA/PyB4ICoqIDI7DQogICAgfQ0KfQ0KZXhwb3J0cy5vID0geyAuLi57IGE6IDEgfSwgYjogMiB9Ow0KZXhwb3J0cy5uID0gbnVsbDsNCmV4cG9ydHMubiA/Pz0gNTsNCmZ1bmN0aW9uIGYoeCA9IDEsIC4uLnJlc3QpIHsgcmV0dXJuIHggKyByZXN0Lmxlbmd0aDsgfQ0K",
+            "materialized_utf8_bytes": 2388,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 393,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 393,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZCA9IGV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOw0KZXhwb3J0cy5jID0gbmV3IGFfMS5DKCk7DQpleHBvcnRzLmQgPSBhXzEuby5iICsgKDAsIGFfMS5mKSgyLCAzKTsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMuYzsNCg==",
+            "callback_utf8_bytes": 238,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZCA9IGV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOw0KZXhwb3J0cy5jID0gbmV3IGFfMS5DKCk7DQpleHBvcnRzLmQgPSBhXzEuby5iICsgKDAsIGFfMS5mKSgyLCAzKTsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMuYzsNCg==",
+            "materialized_utf8_bytes": 238,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "callback_utf8_bytes": 106,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "materialized_utf8_bytes": 106,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "target-module/es2021/esnext",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export class C {\n    #p = 1;\n    static s = 2;\n    static { C.s = 3; }\n    accessor v = 4;\n    get q(): number { return this.#p ?? 0; }\n    has(o: object): boolean { return #p in o; }\n}\nexport async function* g(a?: { b?: number[] }): AsyncGenerator<number> {\n    for await (const x of [1, 2]) { yield a?.b?.[x] ?? x ** 2; }\n}\nexport const o = { ...{ a: 1 }, b: 2 };\nexport let n: number | null = null;\nn ??= 5;\nexport function f(x: number = 1, ...rest: number[]): number { return x + rest.length; }\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { C, o, f } from \"./a\";\nexport const c = new C();\nexport const d = o.b + f(2, 3);\nexport default c;\n"
+        }
+      ],
+      "options": {
+        "target": 8,
+        "module": 99,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declaration": true,
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX19jbGFzc1ByaXZhdGVGaWVsZFNldCA9ICh0aGlzICYmIHRoaXMuX19jbGFzc1ByaXZhdGVGaWVsZFNldCkgfHwgZnVuY3Rpb24gKHJlY2VpdmVyLCBzdGF0ZSwgdmFsdWUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gIm0iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIG1ldGhvZCBpcyBub3Qgd3JpdGFibGUiKTsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBzZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB3cml0ZSBwcml2YXRlIG1lbWJlciB0byBhbiBvYmplY3Qgd2hvc2UgY2xhc3MgZGlkIG5vdCBkZWNsYXJlIGl0Iik7DQogICAgcmV0dXJuIChraW5kID09PSAiYSIgPyBmLmNhbGwocmVjZWl2ZXIsIHZhbHVlKSA6IGYgPyBmLnZhbHVlID0gdmFsdWUgOiBzdGF0ZS5zZXQocmVjZWl2ZXIsIHZhbHVlKSksIHZhbHVlOw0KfTsNCnZhciBfX2NsYXNzUHJpdmF0ZUZpZWxkSW4gPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRJbikgfHwgZnVuY3Rpb24oc3RhdGUsIHJlY2VpdmVyKSB7DQogICAgaWYgKHJlY2VpdmVyID09PSBudWxsIHx8ICh0eXBlb2YgcmVjZWl2ZXIgIT09ICJvYmplY3QiICYmIHR5cGVvZiByZWNlaXZlciAhPT0gImZ1bmN0aW9uIikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB1c2UgJ2luJyBvcGVyYXRvciBvbiBub24tb2JqZWN0Iik7DQogICAgcmV0dXJuIHR5cGVvZiBzdGF0ZSA9PT0gImZ1bmN0aW9uIiA/IHJlY2VpdmVyID09PSBzdGF0ZSA6IHN0YXRlLmhhcyhyZWNlaXZlcik7DQp9Ow0KdmFyIF9DX3AsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZTsNCmV4cG9ydCBjbGFzcyBDIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgX0NfcC5zZXQodGhpcywgMSk7DQogICAgICAgIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZS5zZXQodGhpcywgNCk7DQogICAgfQ0KICAgIGdldCB2KCkgeyByZXR1cm4gX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ192X2FjY2Vzc29yX3N0b3JhZ2UsICJmIik7IH0NCiAgICBzZXQgdih2YWx1ZSkgeyBfX2NsYXNzUHJpdmF0ZUZpZWxkU2V0KHRoaXMsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSwgdmFsdWUsICJmIik7IH0NCiAgICBnZXQgcSgpIHsgcmV0dXJuIF9fY2xhc3NQcml2YXRlRmllbGRHZXQodGhpcywgX0NfcCwgImYiKSA/PyAwOyB9DQogICAgaGFzKG8pIHsgcmV0dXJuIF9fY2xhc3NQcml2YXRlRmllbGRJbihfQ19wLCBvKTsgfQ0KfQ0KX0NfcCA9IG5ldyBXZWFrTWFwKCksIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSA9IG5ldyBXZWFrTWFwKCk7DQpDLnMgPSAyOw0KKCgpID0+IHsNCiAgICBDLnMgPSAzOw0KfSkoKTsNCmV4cG9ydCBhc3luYyBmdW5jdGlvbiogZyhhKSB7DQogICAgZm9yIGF3YWl0IChjb25zdCB4IG9mIFsxLCAyXSkgew0KICAgICAgICB5aWVsZCBhPy5iPy5beF0gPz8geCAqKiAyOw0KICAgIH0NCn0NCmV4cG9ydCBjb25zdCBvID0geyAuLi57IGE6IDEgfSwgYjogMiB9Ow0KZXhwb3J0IGxldCBuID0gbnVsbDsNCm4gPz89IDU7DQpleHBvcnQgZnVuY3Rpb24gZih4ID0gMSwgLi4ucmVzdCkgeyByZXR1cm4geCArIHJlc3QubGVuZ3RoOyB9DQo=",
+            "callback_utf8_bytes": 2237,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX19jbGFzc1ByaXZhdGVGaWVsZFNldCA9ICh0aGlzICYmIHRoaXMuX19jbGFzc1ByaXZhdGVGaWVsZFNldCkgfHwgZnVuY3Rpb24gKHJlY2VpdmVyLCBzdGF0ZSwgdmFsdWUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gIm0iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIG1ldGhvZCBpcyBub3Qgd3JpdGFibGUiKTsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBzZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB3cml0ZSBwcml2YXRlIG1lbWJlciB0byBhbiBvYmplY3Qgd2hvc2UgY2xhc3MgZGlkIG5vdCBkZWNsYXJlIGl0Iik7DQogICAgcmV0dXJuIChraW5kID09PSAiYSIgPyBmLmNhbGwocmVjZWl2ZXIsIHZhbHVlKSA6IGYgPyBmLnZhbHVlID0gdmFsdWUgOiBzdGF0ZS5zZXQocmVjZWl2ZXIsIHZhbHVlKSksIHZhbHVlOw0KfTsNCnZhciBfX2NsYXNzUHJpdmF0ZUZpZWxkSW4gPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRJbikgfHwgZnVuY3Rpb24oc3RhdGUsIHJlY2VpdmVyKSB7DQogICAgaWYgKHJlY2VpdmVyID09PSBudWxsIHx8ICh0eXBlb2YgcmVjZWl2ZXIgIT09ICJvYmplY3QiICYmIHR5cGVvZiByZWNlaXZlciAhPT0gImZ1bmN0aW9uIikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB1c2UgJ2luJyBvcGVyYXRvciBvbiBub24tb2JqZWN0Iik7DQogICAgcmV0dXJuIHR5cGVvZiBzdGF0ZSA9PT0gImZ1bmN0aW9uIiA/IHJlY2VpdmVyID09PSBzdGF0ZSA6IHN0YXRlLmhhcyhyZWNlaXZlcik7DQp9Ow0KdmFyIF9DX3AsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZTsNCmV4cG9ydCBjbGFzcyBDIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgX0NfcC5zZXQodGhpcywgMSk7DQogICAgICAgIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZS5zZXQodGhpcywgNCk7DQogICAgfQ0KICAgIGdldCB2KCkgeyByZXR1cm4gX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ192X2FjY2Vzc29yX3N0b3JhZ2UsICJmIik7IH0NCiAgICBzZXQgdih2YWx1ZSkgeyBfX2NsYXNzUHJpdmF0ZUZpZWxkU2V0KHRoaXMsIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSwgdmFsdWUsICJmIik7IH0NCiAgICBnZXQgcSgpIHsgcmV0dXJuIF9fY2xhc3NQcml2YXRlRmllbGRHZXQodGhpcywgX0NfcCwgImYiKSA/PyAwOyB9DQogICAgaGFzKG8pIHsgcmV0dXJuIF9fY2xhc3NQcml2YXRlRmllbGRJbihfQ19wLCBvKTsgfQ0KfQ0KX0NfcCA9IG5ldyBXZWFrTWFwKCksIF9DX3ZfYWNjZXNzb3Jfc3RvcmFnZSA9IG5ldyBXZWFrTWFwKCk7DQpDLnMgPSAyOw0KKCgpID0+IHsNCiAgICBDLnMgPSAzOw0KfSkoKTsNCmV4cG9ydCBhc3luYyBmdW5jdGlvbiogZyhhKSB7DQogICAgZm9yIGF3YWl0IChjb25zdCB4IG9mIFsxLCAyXSkgew0KICAgICAgICB5aWVsZCBhPy5iPy5beF0gPz8geCAqKiAyOw0KICAgIH0NCn0NCmV4cG9ydCBjb25zdCBvID0geyAuLi57IGE6IDEgfSwgYjogMiB9Ow0KZXhwb3J0IGxldCBuID0gbnVsbDsNCm4gPz89IDU7DQpleHBvcnQgZnVuY3Rpb24gZih4ID0gMSwgLi4ucmVzdCkgeyByZXR1cm4geCArIHJlc3QubGVuZ3RoOyB9DQo=",
+            "materialized_utf8_bytes": 2237,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 393,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 393,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0IHsgQywgbywgZiB9IGZyb20gIi4vYSI7DQpleHBvcnQgY29uc3QgYyA9IG5ldyBDKCk7DQpleHBvcnQgY29uc3QgZCA9IG8uYiArIGYoMiwgMyk7DQpleHBvcnQgZGVmYXVsdCBjOw0K",
+            "callback_utf8_bytes": 111,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgQywgbywgZiB9IGZyb20gIi4vYSI7DQpleHBvcnQgY29uc3QgYyA9IG5ldyBDKCk7DQpleHBvcnQgY29uc3QgZCA9IG8uYiArIGYoMiwgMyk7DQpleHBvcnQgZGVmYXVsdCBjOw0K",
+            "materialized_utf8_bytes": 111,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "callback_utf8_bytes": 106,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "materialized_utf8_bytes": 106,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "target-module/es2023/commonjs",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export class C {\n    #p = 1;\n    static s = 2;\n    static { C.s = 3; }\n    accessor v = 4;\n    get q(): number { return this.#p ?? 0; }\n    has(o: object): boolean { return #p in o; }\n}\nexport async function* g(a?: { b?: number[] }): AsyncGenerator<number> {\n    for await (const x of [1, 2]) { yield a?.b?.[x] ?? x ** 2; }\n}\nexport const o = { ...{ a: 1 }, b: 2 };\nexport let n: number | null = null;\nn ??= 5;\nexport function f(x: number = 1, ...rest: number[]): number { return x + rest.length; }\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { C, o, f } from \"./a\";\nexport const c = new C();\nexport const d = o.b + f(2, 3);\nexport default c;\n"
+        }
+      ],
+      "options": {
+        "target": 10,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declaration": true,
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubiA9IGV4cG9ydHMubyA9IGV4cG9ydHMuQyA9IHZvaWQgMDsNCmV4cG9ydHMuZyA9IGc7DQpleHBvcnRzLmYgPSBmOw0KY2xhc3MgQyB7DQogICAgI3AgPSAxOw0KICAgIHN0YXRpYyBzID0gMjsNCiAgICBzdGF0aWMgeyBDLnMgPSAzOyB9DQogICAgI3ZfYWNjZXNzb3Jfc3RvcmFnZSA9IDQ7DQogICAgZ2V0IHYoKSB7IHJldHVybiB0aGlzLiN2X2FjY2Vzc29yX3N0b3JhZ2U7IH0NCiAgICBzZXQgdih2YWx1ZSkgeyB0aGlzLiN2X2FjY2Vzc29yX3N0b3JhZ2UgPSB2YWx1ZTsgfQ0KICAgIGdldCBxKCkgeyByZXR1cm4gdGhpcy4jcCA/PyAwOyB9DQogICAgaGFzKG8pIHsgcmV0dXJuICNwIGluIG87IH0NCn0NCmV4cG9ydHMuQyA9IEM7DQphc3luYyBmdW5jdGlvbiogZyhhKSB7DQogICAgZm9yIGF3YWl0IChjb25zdCB4IG9mIFsxLCAyXSkgew0KICAgICAgICB5aWVsZCBhPy5iPy5beF0gPz8geCAqKiAyOw0KICAgIH0NCn0NCmV4cG9ydHMubyA9IHsgLi4ueyBhOiAxIH0sIGI6IDIgfTsNCmV4cG9ydHMubiA9IG51bGw7DQpleHBvcnRzLm4gPz89IDU7DQpmdW5jdGlvbiBmKHggPSAxLCAuLi5yZXN0KSB7IHJldHVybiB4ICsgcmVzdC5sZW5ndGg7IH0NCg==",
+            "callback_utf8_bytes": 685,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubiA9IGV4cG9ydHMubyA9IGV4cG9ydHMuQyA9IHZvaWQgMDsNCmV4cG9ydHMuZyA9IGc7DQpleHBvcnRzLmYgPSBmOw0KY2xhc3MgQyB7DQogICAgI3AgPSAxOw0KICAgIHN0YXRpYyBzID0gMjsNCiAgICBzdGF0aWMgeyBDLnMgPSAzOyB9DQogICAgI3ZfYWNjZXNzb3Jfc3RvcmFnZSA9IDQ7DQogICAgZ2V0IHYoKSB7IHJldHVybiB0aGlzLiN2X2FjY2Vzc29yX3N0b3JhZ2U7IH0NCiAgICBzZXQgdih2YWx1ZSkgeyB0aGlzLiN2X2FjY2Vzc29yX3N0b3JhZ2UgPSB2YWx1ZTsgfQ0KICAgIGdldCBxKCkgeyByZXR1cm4gdGhpcy4jcCA/PyAwOyB9DQogICAgaGFzKG8pIHsgcmV0dXJuICNwIGluIG87IH0NCn0NCmV4cG9ydHMuQyA9IEM7DQphc3luYyBmdW5jdGlvbiogZyhhKSB7DQogICAgZm9yIGF3YWl0IChjb25zdCB4IG9mIFsxLCAyXSkgew0KICAgICAgICB5aWVsZCBhPy5iPy5beF0gPz8geCAqKiAyOw0KICAgIH0NCn0NCmV4cG9ydHMubyA9IHsgLi4ueyBhOiAxIH0sIGI6IDIgfTsNCmV4cG9ydHMubiA9IG51bGw7DQpleHBvcnRzLm4gPz89IDU7DQpmdW5jdGlvbiBmKHggPSAxLCAuLi5yZXN0KSB7IHJldHVybiB4ICsgcmVzdC5sZW5ndGg7IH0NCg==",
+            "materialized_utf8_bytes": 685,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 393,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 393,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZCA9IGV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOw0KZXhwb3J0cy5jID0gbmV3IGFfMS5DKCk7DQpleHBvcnRzLmQgPSBhXzEuby5iICsgKDAsIGFfMS5mKSgyLCAzKTsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMuYzsNCg==",
+            "callback_utf8_bytes": 238,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZCA9IGV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOw0KZXhwb3J0cy5jID0gbmV3IGFfMS5DKCk7DQpleHBvcnRzLmQgPSBhXzEuby5iICsgKDAsIGFfMS5mKSgyLCAzKTsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMuYzsNCg==",
+            "materialized_utf8_bytes": 238,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "callback_utf8_bytes": 106,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "materialized_utf8_bytes": 106,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "target-module/es2023/esnext",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export class C {\n    #p = 1;\n    static s = 2;\n    static { C.s = 3; }\n    accessor v = 4;\n    get q(): number { return this.#p ?? 0; }\n    has(o: object): boolean { return #p in o; }\n}\nexport async function* g(a?: { b?: number[] }): AsyncGenerator<number> {\n    for await (const x of [1, 2]) { yield a?.b?.[x] ?? x ** 2; }\n}\nexport const o = { ...{ a: 1 }, b: 2 };\nexport let n: number | null = null;\nn ??= 5;\nexport function f(x: number = 1, ...rest: number[]): number { return x + rest.length; }\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { C, o, f } from \"./a\";\nexport const c = new C();\nexport const d = o.b + f(2, 3);\nexport default c;\n"
+        }
+      ],
+      "options": {
+        "target": 10,
+        "module": 99,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declaration": true,
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEMgew0KICAgICNwID0gMTsNCiAgICBzdGF0aWMgcyA9IDI7DQogICAgc3RhdGljIHsgQy5zID0gMzsgfQ0KICAgICN2X2FjY2Vzc29yX3N0b3JhZ2UgPSA0Ow0KICAgIGdldCB2KCkgeyByZXR1cm4gdGhpcy4jdl9hY2Nlc3Nvcl9zdG9yYWdlOyB9DQogICAgc2V0IHYodmFsdWUpIHsgdGhpcy4jdl9hY2Nlc3Nvcl9zdG9yYWdlID0gdmFsdWU7IH0NCiAgICBnZXQgcSgpIHsgcmV0dXJuIHRoaXMuI3AgPz8gMDsgfQ0KICAgIGhhcyhvKSB7IHJldHVybiAjcCBpbiBvOyB9DQp9DQpleHBvcnQgYXN5bmMgZnVuY3Rpb24qIGcoYSkgew0KICAgIGZvciBhd2FpdCAoY29uc3QgeCBvZiBbMSwgMl0pIHsNCiAgICAgICAgeWllbGQgYT8uYj8uW3hdID8/IHggKiogMjsNCiAgICB9DQp9DQpleHBvcnQgY29uc3QgbyA9IHsgLi4ueyBhOiAxIH0sIGI6IDIgfTsNCmV4cG9ydCBsZXQgbiA9IG51bGw7DQpuID8/PSA1Ow0KZXhwb3J0IGZ1bmN0aW9uIGYoeCA9IDEsIC4uLnJlc3QpIHsgcmV0dXJuIHggKyByZXN0Lmxlbmd0aDsgfQ0K",
+            "callback_utf8_bytes": 534,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEMgew0KICAgICNwID0gMTsNCiAgICBzdGF0aWMgcyA9IDI7DQogICAgc3RhdGljIHsgQy5zID0gMzsgfQ0KICAgICN2X2FjY2Vzc29yX3N0b3JhZ2UgPSA0Ow0KICAgIGdldCB2KCkgeyByZXR1cm4gdGhpcy4jdl9hY2Nlc3Nvcl9zdG9yYWdlOyB9DQogICAgc2V0IHYodmFsdWUpIHsgdGhpcy4jdl9hY2Nlc3Nvcl9zdG9yYWdlID0gdmFsdWU7IH0NCiAgICBnZXQgcSgpIHsgcmV0dXJuIHRoaXMuI3AgPz8gMDsgfQ0KICAgIGhhcyhvKSB7IHJldHVybiAjcCBpbiBvOyB9DQp9DQpleHBvcnQgYXN5bmMgZnVuY3Rpb24qIGcoYSkgew0KICAgIGZvciBhd2FpdCAoY29uc3QgeCBvZiBbMSwgMl0pIHsNCiAgICAgICAgeWllbGQgYT8uYj8uW3hdID8/IHggKiogMjsNCiAgICB9DQp9DQpleHBvcnQgY29uc3QgbyA9IHsgLi4ueyBhOiAxIH0sIGI6IDIgfTsNCmV4cG9ydCBsZXQgbiA9IG51bGw7DQpuID8/PSA1Ow0KZXhwb3J0IGZ1bmN0aW9uIGYoeCA9IDEsIC4uLnJlc3QpIHsgcmV0dXJuIHggKyByZXN0Lmxlbmd0aDsgfQ0K",
+            "materialized_utf8_bytes": 534,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 393,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgI3ByaXZhdGU7DQogICAgc3RhdGljIHM6IG51bWJlcjsNCiAgICBhY2Nlc3NvciB2OiBudW1iZXI7DQogICAgZ2V0IHEoKTogbnVtYmVyOw0KICAgIGhhcyhvOiBvYmplY3QpOiBib29sZWFuOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhPzogew0KICAgIGI/OiBudW1iZXJbXTsNCn0pOiBBc3luY0dlbmVyYXRvcjxudW1iZXI+Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3Qgbzogew0KICAgIGI6IG51bWJlcjsNCiAgICBhOiBudW1iZXI7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgbGV0IG46IG51bWJlciB8IG51bGw7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBmKHg/OiBudW1iZXIsIC4uLnJlc3Q6IG51bWJlcltdKTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 393,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0IHsgQywgbywgZiB9IGZyb20gIi4vYSI7DQpleHBvcnQgY29uc3QgYyA9IG5ldyBDKCk7DQpleHBvcnQgY29uc3QgZCA9IG8uYiArIGYoMiwgMyk7DQpleHBvcnQgZGVmYXVsdCBjOw0K",
+            "callback_utf8_bytes": 111,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgQywgbywgZiB9IGZyb20gIi4vYSI7DQpleHBvcnQgY29uc3QgYyA9IG5ldyBDKCk7DQpleHBvcnQgY29uc3QgZCA9IG8uYiArIGYoMiwgMyk7DQpleHBvcnQgZGVmYXVsdCBjOw0K",
+            "materialized_utf8_bytes": 111,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "callback_utf8_bytes": 106,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgQyB9IGZyb20gIi4vYSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBjOiBDOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZDogbnVtYmVyOw0KZXhwb3J0IGRlZmF1bHQgYzsNCg==",
+            "materialized_utf8_bytes": 106,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "bom-maps/outDir/crlf",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "/** doc */\nexport const a: number = 1; // trailing\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "out",
+        "emitBOM": true,
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFVBQVU7QUFDRyxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMsQ0FBQyxXQUFXIn0=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFVBQVU7QUFDRyxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMsQ0FBQyxXQUFXIn0=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8qKiBkb2MgKi8NCmV4cG9ydHMuYSA9IDE7IC8vIHRyYWlsaW5nDQovLyMgc291cmNlTWFwcGluZ1VSTD1hLmpzLm1hcA==",
+            "callback_utf8_bytes": 169,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8qKiBkb2MgKi8NCmV4cG9ydHMuYSA9IDE7IC8vIHRyYWlsaW5nDQovLyMgc291cmNlTWFwcGluZ1VSTD1hLmpzLm1hcA==",
+            "materialized_utf8_bytes": 172,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 140,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsVUFBVTtBQUNWLGVBQU8sTUFBTSxDQUFDLEVBQUUsTUFBVSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsVUFBVTtBQUNWLGVBQU8sTUFBTSxDQUFDLEVBQUUsTUFBVSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIGRvYyAqLw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 76,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/LyoqIGRvYyAqLw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 79,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 45,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "out/nested/b.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9uZXN0ZWQvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFBYSxRQUFBLENBQUMsR0FBVyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 136,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9uZXN0ZWQvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFBYSxRQUFBLENBQUMsR0FBVyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 136,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "materialized_utf8_bytes": 150,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 118,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "out/nested/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL25lc3RlZC9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxDQUFDLEVBQUUsTUFBWSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL25lc3RlZC9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxDQUFDLEVBQUUsTUFBWSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 33,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"../src/a.ts\"],\"names\":[],\"mappings\":\";;;AAAA,UAAU;AACG,QAAA,CAAC,GAAW,CAAC,CAAC,CAAC,WAAW\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../src/a.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,eAAO,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/nested/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/nested/b.ts\"],\"names\":[],\"mappings\":\";;;AAAa,QAAA,CAAC,GAAW,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/nested/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../src/nested/b.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,CAAC,EAAE,MAAY,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "bom-maps/outDir/lf",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "/** doc */\nexport const a: number = 1; // trailing\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1,
+        "outDir": "out",
+        "emitBOM": true,
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFVBQVU7QUFDRyxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMsQ0FBQyxXQUFXIn0=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFVBQVU7QUFDRyxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMsQ0FBQyxXQUFXIn0=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmEgPSB2b2lkIDA7Ci8qKiBkb2MgKi8KZXhwb3J0cy5hID0gMTsgLy8gdHJhaWxpbmcKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5qcy5tYXA=",
+            "callback_utf8_bytes": 164,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmEgPSB2b2lkIDA7Ci8qKiBkb2MgKi8KZXhwb3J0cy5hID0gMTsgLy8gdHJhaWxpbmcKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5qcy5tYXA=",
+            "materialized_utf8_bytes": 167,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 135,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsVUFBVTtBQUNWLGVBQU8sTUFBTSxDQUFDLEVBQUUsTUFBVSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsVUFBVTtBQUNWLGVBQU8sTUFBTSxDQUFDLEVBQUUsTUFBVSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIGRvYyAqLwpleHBvcnQgZGVjbGFyZSBjb25zdCBhOiBudW1iZXI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuZC50cy5tYXA=",
+            "callback_utf8_bytes": 74,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/LyoqIGRvYyAqLwpleHBvcnQgZGVjbGFyZSBjb25zdCBhOiBudW1iZXI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 77,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 43,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "out/nested/b.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9uZXN0ZWQvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFBYSxRQUFBLENBQUMsR0FBVyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 136,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9uZXN0ZWQvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFBYSxRQUFBLENBQUMsR0FBVyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 136,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmIgPSB2b2lkIDA7CmV4cG9ydHMuYiA9ICdiJzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5qcy5tYXA=",
+            "callback_utf8_bytes": 143,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmIgPSB2b2lkIDA7CmV4cG9ydHMuYiA9ICdiJzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5qcy5tYXA=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 114,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "out/nested/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL25lc3RlZC9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxDQUFDLEVBQUUsTUFBWSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL25lc3RlZC9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxDQUFDLEVBQUUsTUFBWSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOwovLyMgc291cmNlTWFwcGluZ1VSTD1iLmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOwovLyMgc291cmNlTWFwcGluZ1VSTD1iLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"../src/a.ts\"],\"names\":[],\"mappings\":\";;;AAAA,UAAU;AACG,QAAA,CAAC,GAAW,CAAC,CAAC,CAAC,WAAW\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../src/a.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,eAAO,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/nested/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/nested/b.ts\"],\"names\":[],\"mappings\":\";;;AAAa,QAAA,CAAC,GAAW,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/nested/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../src/nested/b.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,CAAC,EAAE,MAAY,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "bom-maps/neither/crlf",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "/** doc */\nexport const a: number = 1; // trailing\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "emitBOM": true,
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImEudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsVUFBVTtBQUNHLFFBQUEsQ0FBQyxHQUFXLENBQUMsQ0FBQyxDQUFDLFdBQVcifQ==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImEudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsVUFBVTtBQUNHLFFBQUEsQ0FBQyxHQUFXLENBQUMsQ0FBQyxDQUFDLFdBQVcifQ==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8qKiBkb2MgKi8NCmV4cG9ydHMuYSA9IDE7IC8vIHRyYWlsaW5nDQovLyMgc291cmNlTWFwcGluZ1VSTD1hLmpzLm1hcA==",
+            "callback_utf8_bytes": 169,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8qKiBkb2MgKi8NCmV4cG9ydHMuYSA9IDE7IC8vIHRyYWlsaW5nDQovLyMgc291cmNlTWFwcGluZ1VSTD1hLmpzLm1hcA==",
+            "materialized_utf8_bytes": 172,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 140,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/src/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIGRvYyAqLw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 76,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/LyoqIGRvYyAqLw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 79,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 45,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/src/nested/b.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxDQUFDLEdBQVcsR0FBRyxDQUFDIn0=",
+            "callback_utf8_bytes": 119,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxDQUFDLEdBQVcsR0FBRyxDQUFDIn0=",
+            "materialized_utf8_bytes": 119,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "materialized_utf8_bytes": 150,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 118,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/src/nested/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sQ0FBQyxFQUFFLE1BQVksQ0FBQyJ9",
+            "callback_utf8_bytes": 123,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sQ0FBQyxFQUFFLE1BQVksQ0FBQyJ9",
+            "materialized_utf8_bytes": 123,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 33,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\"],\"names\":[],\"mappings\":\";;;AAAA,UAAU;AACG,QAAA,CAAC,GAAW,CAAC,CAAC,CAAC,WAAW\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,eAAO,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/nested/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.js\",\"sourceRoot\":\"\",\"sources\":[\"b.ts\"],\"names\":[],\"mappings\":\";;;AAAa,QAAA,CAAC,GAAW,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/nested/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"b.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,CAAC,EAAE,MAAY,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "bom-maps/neither/lf",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "/** doc */\nexport const a: number = 1; // trailing\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1,
+        "emitBOM": true,
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImEudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsVUFBVTtBQUNHLFFBQUEsQ0FBQyxHQUFXLENBQUMsQ0FBQyxDQUFDLFdBQVcifQ==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImEudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsVUFBVTtBQUNHLFFBQUEsQ0FBQyxHQUFXLENBQUMsQ0FBQyxDQUFDLFdBQVcifQ==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmEgPSB2b2lkIDA7Ci8qKiBkb2MgKi8KZXhwb3J0cy5hID0gMTsgLy8gdHJhaWxpbmcKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5qcy5tYXA=",
+            "callback_utf8_bytes": 164,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmEgPSB2b2lkIDA7Ci8qKiBkb2MgKi8KZXhwb3J0cy5hID0gMTsgLy8gdHJhaWxpbmcKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5qcy5tYXA=",
+            "materialized_utf8_bytes": 167,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 135,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/src/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIGRvYyAqLwpleHBvcnQgZGVjbGFyZSBjb25zdCBhOiBudW1iZXI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuZC50cy5tYXA=",
+            "callback_utf8_bytes": 74,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/LyoqIGRvYyAqLwpleHBvcnQgZGVjbGFyZSBjb25zdCBhOiBudW1iZXI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 77,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 43,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/src/nested/b.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxDQUFDLEdBQVcsR0FBRyxDQUFDIn0=",
+            "callback_utf8_bytes": 119,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxDQUFDLEdBQVcsR0FBRyxDQUFDIn0=",
+            "materialized_utf8_bytes": 119,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmIgPSB2b2lkIDA7CmV4cG9ydHMuYiA9ICdiJzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5qcy5tYXA=",
+            "callback_utf8_bytes": 143,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmIgPSB2b2lkIDA7CmV4cG9ydHMuYiA9ICdiJzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5qcy5tYXA=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 114,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/src/nested/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sQ0FBQyxFQUFFLE1BQVksQ0FBQyJ9",
+            "callback_utf8_bytes": 123,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sQ0FBQyxFQUFFLE1BQVksQ0FBQyJ9",
+            "materialized_utf8_bytes": 123,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOwovLyMgc291cmNlTWFwcGluZ1VSTD1iLmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOwovLyMgc291cmNlTWFwcGluZ1VSTD1iLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\"],\"names\":[],\"mappings\":\";;;AAAA,UAAU;AACG,QAAA,CAAC,GAAW,CAAC,CAAC,CAAC,WAAW\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,eAAO,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/nested/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.js\",\"sourceRoot\":\"\",\"sources\":[\"b.ts\"],\"names\":[],\"mappings\":\";;;AAAa,QAAA,CAAC,GAAW,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/nested/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"b.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,CAAC,EAAE,MAAY,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "remove-comments-outfile-maps/es2015",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "/** A doc */\nexport class A {\n    /* inner */\n    m(): number { return 1; } // m trailing\n}\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "import { A } from \"./a\";\n/** b doc */\nexport const b: A = new A(); // b trailing\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outFile": "out/bundle.js",
+        "removeComments": true,
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/bundle.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyIsIi4uL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztJQUNBLE1BQWEsQ0FBQztRQUVWLENBQUMsS0FBYSxPQUFPLENBQUMsQ0FBQyxDQUFDLENBQUM7S0FDNUI7SUFIRCxjQUdDOzs7Ozs7SUNGWSxRQUFBLENBQUMsR0FBTSxJQUFJLEtBQUMsRUFBRSxDQUFDIn0=",
+            "callback_utf8_bytes": 224,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyIsIi4uL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztJQUNBLE1BQWEsQ0FBQztRQUVWLENBQUMsS0FBYSxPQUFPLENBQUMsQ0FBQyxDQUFDLENBQUM7S0FDNUI7SUFIRCxjQUdDOzs7Ozs7SUNGWSxRQUFBLENBQUMsR0FBTSxJQUFJLEtBQUMsRUFBRSxDQUFDIn0=",
+            "materialized_utf8_bytes": 224,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "out/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZGVmaW5lKCJhIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkEgPSB2b2lkIDA7DQogICAgY2xhc3MgQSB7DQogICAgICAgIG0oKSB7IHJldHVybiAxOyB9DQogICAgfQ0KICAgIGV4cG9ydHMuQSA9IEE7DQp9KTsNCmRlZmluZSgiYiIsIFsicmVxdWlyZSIsICJleHBvcnRzIiwgImEiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMsIGFfMSkgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOw0KICAgIGV4cG9ydHMuYiA9IHZvaWQgMDsNCiAgICBleHBvcnRzLmIgPSBuZXcgYV8xLkEoKTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmpzLm1hcA==",
+            "callback_utf8_bytes": 511,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVmaW5lKCJhIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkEgPSB2b2lkIDA7DQogICAgY2xhc3MgQSB7DQogICAgICAgIG0oKSB7IHJldHVybiAxOyB9DQogICAgfQ0KICAgIGV4cG9ydHMuQSA9IEE7DQp9KTsNCmRlZmluZSgiYiIsIFsicmVxdWlyZSIsICJleHBvcnRzIiwgImEiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMsIGFfMSkgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOw0KICAgIGV4cG9ydHMuYiA9IHZvaWQgMDsNCiAgICBleHBvcnRzLmIgPSBuZXcgYV8xLkEoKTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmpzLm1hcA==",
+            "materialized_utf8_bytes": 511,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 477,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/bundle.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9hLnRzIiwiLi4vYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0lBQ0EsTUFBTSxPQUFPLENBQUM7UUFFVixDQUFDLElBQUksTUFBTTtLQUNkOzs7SUNKRCxPQUFPLEVBQUUsQ0FBQyxFQUFFLFVBQVk7SUFFeEIsTUFBTSxDQUFDLE1BQU0sQ0FBQyxFQUFFLENBQVcsQ0FBQyJ9",
+            "callback_utf8_bytes": 225,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9hLnRzIiwiLi4vYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0lBQ0EsTUFBTSxPQUFPLENBQUM7UUFFVixDQUFDLElBQUksTUFBTTtLQUNkOzs7SUNKRCxPQUFPLEVBQUUsQ0FBQyxFQUFFLFVBQVk7SUFFeEIsTUFBTSxDQUFDLE1BQU0sQ0FBQyxFQUFFLENBQVcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 225,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "out/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsNCiAgICBleHBvcnQgY2xhc3MgQSB7DQogICAgICAgIG0oKTogbnVtYmVyOw0KICAgIH0NCn0NCmRlY2xhcmUgbW9kdWxlICJiIiB7DQogICAgaW1wb3J0IHsgQSB9IGZyb20gImEiOw0KICAgIGV4cG9ydCBjb25zdCBiOiBBOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "callback_utf8_bytes": 189,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsNCiAgICBleHBvcnQgY2xhc3MgQSB7DQogICAgICAgIG0oKTogbnVtYmVyOw0KICAgIH0NCn0NCmRlY2xhcmUgbW9kdWxlICJiIiB7DQogICAgaW1wb3J0IHsgQSB9IGZyb20gImEiOw0KICAgIGV4cG9ydCBjb25zdCBiOiBBOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "materialized_utf8_bytes": 189,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 153,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\",\"../b.ts\"],\"names\":[],\"mappings\":\";;;;IACA,MAAa,CAAC;QAEV,CAAC,KAAa,OAAO,CAAC,CAAC,CAAC,CAAC;KAC5B;IAHD,cAGC;;;;;;ICFY,QAAA,CAAC,GAAM,IAAI,KAAC,EAAE,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\",\"../b.ts\"],\"names\":[],\"mappings\":\";IACA,MAAM,OAAO,CAAC;QAEV,CAAC,IAAI,MAAM;KACd;;;ICJD,OAAO,EAAE,CAAC,EAAE,UAAY;IAExB,MAAM,CAAC,MAAM,CAAC,EAAE,CAAW,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "remove-comments-outfile-maps/es2022",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "/** A doc */\nexport class A {\n    /* inner */\n    m(): number { return 1; } // m trailing\n}\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "import { A } from \"./a\";\n/** b doc */\nexport const b: A = new A(); // b trailing\n"
+        }
+      ],
+      "options": {
+        "target": 9,
+        "module": 2,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outFile": "out/bundle.js",
+        "removeComments": true,
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/bundle.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyIsIi4uL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztJQUNBLE1BQWEsQ0FBQztRQUVWLENBQUMsS0FBYSxPQUFPLENBQUMsQ0FBQyxDQUFDLENBQUM7S0FDNUI7SUFIRCxjQUdDOzs7Ozs7SUNGWSxRQUFBLENBQUMsR0FBTSxJQUFJLEtBQUMsRUFBRSxDQUFDIn0=",
+            "callback_utf8_bytes": 224,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyIsIi4uL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztJQUNBLE1BQWEsQ0FBQztRQUVWLENBQUMsS0FBYSxPQUFPLENBQUMsQ0FBQyxDQUFDLENBQUM7S0FDNUI7SUFIRCxjQUdDOzs7Ozs7SUNGWSxRQUFBLENBQUMsR0FBTSxJQUFJLEtBQUMsRUFBRSxDQUFDIn0=",
+            "materialized_utf8_bytes": 224,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "out/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZGVmaW5lKCJhIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkEgPSB2b2lkIDA7DQogICAgY2xhc3MgQSB7DQogICAgICAgIG0oKSB7IHJldHVybiAxOyB9DQogICAgfQ0KICAgIGV4cG9ydHMuQSA9IEE7DQp9KTsNCmRlZmluZSgiYiIsIFsicmVxdWlyZSIsICJleHBvcnRzIiwgImEiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMsIGFfMSkgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOw0KICAgIGV4cG9ydHMuYiA9IHZvaWQgMDsNCiAgICBleHBvcnRzLmIgPSBuZXcgYV8xLkEoKTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmpzLm1hcA==",
+            "callback_utf8_bytes": 511,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVmaW5lKCJhIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkEgPSB2b2lkIDA7DQogICAgY2xhc3MgQSB7DQogICAgICAgIG0oKSB7IHJldHVybiAxOyB9DQogICAgfQ0KICAgIGV4cG9ydHMuQSA9IEE7DQp9KTsNCmRlZmluZSgiYiIsIFsicmVxdWlyZSIsICJleHBvcnRzIiwgImEiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMsIGFfMSkgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOw0KICAgIGV4cG9ydHMuYiA9IHZvaWQgMDsNCiAgICBleHBvcnRzLmIgPSBuZXcgYV8xLkEoKTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmpzLm1hcA==",
+            "materialized_utf8_bytes": 511,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 477,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/bundle.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9hLnRzIiwiLi4vYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0lBQ0EsTUFBTSxPQUFPLENBQUM7UUFFVixDQUFDLElBQUksTUFBTTtLQUNkOzs7SUNKRCxPQUFPLEVBQUUsQ0FBQyxFQUFFLFVBQVk7SUFFeEIsTUFBTSxDQUFDLE1BQU0sQ0FBQyxFQUFFLENBQVcsQ0FBQyJ9",
+            "callback_utf8_bytes": 225,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9hLnRzIiwiLi4vYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0lBQ0EsTUFBTSxPQUFPLENBQUM7UUFFVixDQUFDLElBQUksTUFBTTtLQUNkOzs7SUNKRCxPQUFPLEVBQUUsQ0FBQyxFQUFFLFVBQVk7SUFFeEIsTUFBTSxDQUFDLE1BQU0sQ0FBQyxFQUFFLENBQVcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 225,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "out/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsNCiAgICBleHBvcnQgY2xhc3MgQSB7DQogICAgICAgIG0oKTogbnVtYmVyOw0KICAgIH0NCn0NCmRlY2xhcmUgbW9kdWxlICJiIiB7DQogICAgaW1wb3J0IHsgQSB9IGZyb20gImEiOw0KICAgIGV4cG9ydCBjb25zdCBiOiBBOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "callback_utf8_bytes": 189,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsNCiAgICBleHBvcnQgY2xhc3MgQSB7DQogICAgICAgIG0oKTogbnVtYmVyOw0KICAgIH0NCn0NCmRlY2xhcmUgbW9kdWxlICJiIiB7DQogICAgaW1wb3J0IHsgQSB9IGZyb20gImEiOw0KICAgIGV4cG9ydCBjb25zdCBiOiBBOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "materialized_utf8_bytes": 189,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 153,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\",\"../b.ts\"],\"names\":[],\"mappings\":\";;;;IACA,MAAa,CAAC;QAEV,CAAC,KAAa,OAAO,CAAC,CAAC,CAAC,CAAC;KAC5B;IAHD,cAGC;;;;;;ICFY,QAAA,CAAC,GAAM,IAAI,KAAC,EAAE,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\",\"../b.ts\"],\"names\":[],\"mappings\":\";IACA,MAAM,OAAO,CAAC;QAEV,CAAC,IAAI,MAAM;KACd;;;ICJD,OAAO,EAAE,CAAC,EAAE,UAAY;IAExB,MAAM,CAAC,MAAM,CAAC,EAAE,CAAW,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "layout/outfile-and-outdir",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "/** A doc */\nexport class A {\n    /* inner */\n    m(): number { return 1; } // m trailing\n}\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "import { A } from \"./a\";\n/** b doc */\nexport const b: A = new A(); // b trailing\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 2,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outFile": "out/bundle.js",
+        "outDir": "out",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/bundle.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyIsIi4uL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztJQUFBLFlBQVk7SUFDWixNQUFhLENBQUM7UUFDVixXQUFXO1FBQ1gsQ0FBQyxLQUFhLE9BQU8sQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLGFBQWE7S0FDMUM7SUFIRCxjQUdDOzs7Ozs7SUNIRCxZQUFZO0lBQ0MsUUFBQSxDQUFDLEdBQU0sSUFBSSxLQUFDLEVBQUUsQ0FBQyxDQUFDLGFBQWEifQ==",
+            "callback_utf8_bytes": 274,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyIsIi4uL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztJQUFBLFlBQVk7SUFDWixNQUFhLENBQUM7UUFDVixXQUFXO1FBQ1gsQ0FBQyxLQUFhLE9BQU8sQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLGFBQWE7S0FDMUM7SUFIRCxjQUdDOzs7Ozs7SUNIRCxZQUFZO0lBQ0MsUUFBQSxDQUFDLEdBQU0sSUFBSSxLQUFDLEVBQUUsQ0FBQyxDQUFDLGFBQWEifQ==",
+            "materialized_utf8_bytes": 274,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "out/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZGVmaW5lKCJhIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkEgPSB2b2lkIDA7DQogICAgLyoqIEEgZG9jICovDQogICAgY2xhc3MgQSB7DQogICAgICAgIC8qIGlubmVyICovDQogICAgICAgIG0oKSB7IHJldHVybiAxOyB9IC8vIG0gdHJhaWxpbmcNCiAgICB9DQogICAgZXhwb3J0cy5BID0gQTsNCn0pOw0KZGVmaW5lKCJiIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiLCAiYSJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cywgYV8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5iID0gdm9pZCAwOw0KICAgIC8qKiBiIGRvYyAqLw0KICAgIGV4cG9ydHMuYiA9IG5ldyBhXzEuQSgpOyAvLyBiIHRyYWlsaW5nDQp9KTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+            "callback_utf8_bytes": 596,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVmaW5lKCJhIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkEgPSB2b2lkIDA7DQogICAgLyoqIEEgZG9jICovDQogICAgY2xhc3MgQSB7DQogICAgICAgIC8qIGlubmVyICovDQogICAgICAgIG0oKSB7IHJldHVybiAxOyB9IC8vIG0gdHJhaWxpbmcNCiAgICB9DQogICAgZXhwb3J0cy5BID0gQTsNCn0pOw0KZGVmaW5lKCJiIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiLCAiYSJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cywgYV8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5iID0gdm9pZCAwOw0KICAgIC8qKiBiIGRvYyAqLw0KICAgIGV4cG9ydHMuYiA9IG5ldyBhXzEuQSgpOyAvLyBiIHRyYWlsaW5nDQp9KTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+            "materialized_utf8_bytes": 596,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 562,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/bundle.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9hLnRzIiwiLi4vYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0lBQUEsWUFBWTtJQUNaLE1BQU0sT0FBTyxDQUFDO1FBRVYsQ0FBQyxJQUFJLE1BQU07S0FDZDs7O0lDSkQsT0FBTyxFQUFFLENBQUMsRUFBRSxVQUFZO0lBQ3hCLFlBQVk7SUFDWixNQUFNLENBQUMsTUFBTSxDQUFDLEVBQUUsQ0FBVyxDQUFDIn0=",
+            "callback_utf8_bytes": 245,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9hLnRzIiwiLi4vYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0lBQUEsWUFBWTtJQUNaLE1BQU0sT0FBTyxDQUFDO1FBRVYsQ0FBQyxJQUFJLE1BQU07S0FDZDs7O0lDSkQsT0FBTyxFQUFFLENBQUMsRUFBRSxVQUFZO0lBQ3hCLFlBQVk7SUFDWixNQUFNLENBQUMsTUFBTSxDQUFDLEVBQUUsQ0FBVyxDQUFDIn0=",
+            "materialized_utf8_bytes": 245,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "out/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsNCiAgICAvKiogQSBkb2MgKi8NCiAgICBleHBvcnQgY2xhc3MgQSB7DQogICAgICAgIG0oKTogbnVtYmVyOw0KICAgIH0NCn0NCmRlY2xhcmUgbW9kdWxlICJiIiB7DQogICAgaW1wb3J0IHsgQSB9IGZyb20gImEiOw0KICAgIC8qKiBiIGRvYyAqLw0KICAgIGV4cG9ydCBjb25zdCBiOiBBOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "callback_utf8_bytes": 225,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsNCiAgICAvKiogQSBkb2MgKi8NCiAgICBleHBvcnQgY2xhc3MgQSB7DQogICAgICAgIG0oKTogbnVtYmVyOw0KICAgIH0NCn0NCmRlY2xhcmUgbW9kdWxlICJiIiB7DQogICAgaW1wb3J0IHsgQSB9IGZyb20gImEiOw0KICAgIC8qKiBiIGRvYyAqLw0KICAgIGV4cG9ydCBjb25zdCBiOiBBOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "materialized_utf8_bytes": 225,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 189,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\",\"../b.ts\"],\"names\":[],\"mappings\":\";;;;IAAA,YAAY;IACZ,MAAa,CAAC;QACV,WAAW;QACX,CAAC,KAAa,OAAO,CAAC,CAAC,CAAC,CAAC,CAAC,aAAa;KAC1C;IAHD,cAGC;;;;;;ICHD,YAAY;IACC,QAAA,CAAC,GAAM,IAAI,KAAC,EAAE,CAAC,CAAC,aAAa\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\",\"../b.ts\"],\"names\":[],\"mappings\":\";IAAA,YAAY;IACZ,MAAM,OAAO,CAAC;QAEV,CAAC,IAAI,MAAM;KACd;;;ICJD,OAAO,EAAE,CAAC,EAAE,UAAY;IACxB,YAAY;IACZ,MAAM,CAAC,MAAM,CAAC,EAAE,CAAW,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "skip/noemitonerror-outfile-maps",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "/** A doc */\nexport class A {\n    /* inner */\n    m(): number { return 1; } // m trailing\n}\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "import { A } from \"./a\";\n/** b doc */\nexport const b: A = new A(); // b trailing\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "export const c: number = 'not a number';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 2,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outFile": "out/bundle.js",
+        "noEmitOnError": true,
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 2322,
+            "category": "Error",
+            "file": "/project/c.ts",
+            "start": 13,
+            "length": 1,
+            "message": "Type 'string' is not assignable to type 'number'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/project/c.ts",
+              "start": 13,
+              "length": 1,
+              "message": "Type 'string' is not assignable to type 'number'.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "reversed-roots/rootDir",
+      "files": [
+        {
+          "path": "/project/src/c.ts",
+          "text": "import { b } from \"./b\";\nexport const c: number = b + 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { a } from \"./a\";\nexport const b: number = a + 1;\n"
+        },
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "declaration": true
+      },
+      "roots": [
+        "/project/src/c.ts",
+        "/project/src/b.ts",
+        "/project/src/a.ts"
+      ],
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOw0KZXhwb3J0cy5iID0gYV8xLmEgKyAxOw0K",
+            "callback_utf8_bytes": 153,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOw0KZXhwb3J0cy5iID0gYV8xLmEgKyAxOw0K",
+            "materialized_utf8_bytes": 153,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "out/c.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4vYiIpOw0KZXhwb3J0cy5jID0gYl8xLmIgKyAxOw0K",
+            "callback_utf8_bytes": 153,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4vYiIpOw0KZXhwb3J0cy5jID0gYl8xLmIgKyAxOw0K",
+            "materialized_utf8_bytes": 153,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 5,
+            "path": "out/c.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYzogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYzogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "reversed-roots/none",
+      "files": [
+        {
+          "path": "/project/src/c.ts",
+          "text": "import { b } from \"./b\";\nexport const c: number = b + 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { a } from \"./a\";\nexport const b: number = a + 1;\n"
+        },
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "out",
+        "declaration": true
+      },
+      "roots": [
+        "/project/src/c.ts",
+        "/project/src/b.ts",
+        "/project/src/a.ts"
+      ],
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOw0KZXhwb3J0cy5iID0gYV8xLmEgKyAxOw0K",
+            "callback_utf8_bytes": 153,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmNvbnN0IGFfMSA9IHJlcXVpcmUoIi4vYSIpOw0KZXhwb3J0cy5iID0gYV8xLmEgKyAxOw0K",
+            "materialized_utf8_bytes": 153,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "out/c.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4vYiIpOw0KZXhwb3J0cy5jID0gYl8xLmIgKyAxOw0K",
+            "callback_utf8_bytes": 153,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4vYiIpOw0KZXhwb3J0cy5jID0gYl8xLmIgKyAxOw0K",
+            "materialized_utf8_bytes": 153,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 5,
+            "path": "out/c.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYzogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYzogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "escaped-declaration-maps/escaped/es5",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class \\u0046oo { method() { return 1; } }\nexport { Foo as Bar };\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQUF3QyxDQUFDO0lBQXhCLHlCQUFNLEdBQU4sY0FBVyxPQUFPLENBQUMsQ0FBQyxDQUFDLENBQUM7SUFBQyxlQUFDO0FBQUQsQ0FBQyxBQUF6QyxJQUF5QztBQUN6Qix1QkFBRyJ9",
+            "callback_utf8_bytes": 210,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQUF3QyxDQUFDO0lBQXhCLHlCQUFNLEdBQU4sY0FBVyxPQUFPLENBQUMsQ0FBQyxDQUFDLENBQUM7SUFBQyxlQUFDO0FBQUQsQ0FBQyxBQUF6QyxJQUF5QztBQUN6Qix1QkFBRyJ9",
+            "materialized_utf8_bytes": 210,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyID0gdm9pZCAwOw0KdmFyIFx1MDA0Nm9vID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIFx1MDA0Nm9vKCkgew0KICAgIH0NCiAgICBcdTAwNDZvby5wcm90b3R5cGUubWV0aG9kID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gMTsgfTsNCiAgICByZXR1cm4gXHUwMDQ2b287DQp9KCkpOw0KZXhwb3J0cy5CYXIgPSBcdTAwNDZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 327,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyID0gdm9pZCAwOw0KdmFyIFx1MDA0Nm9vID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIFx1MDA0Nm9vKCkgew0KICAgIH0NCiAgICBcdTAwNDZvby5wcm90b3R5cGUubWV0aG9kID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gMTsgfTsNCiAgICByZXR1cm4gXHUwMDQ2b287DQp9KCkpOw0KZXhwb3J0cy5CYXIgPSBcdTAwNDZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 327,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 295,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxjQUFNLFFBQVE7SUFBRyxNQUFNO0NBQWtCO0FBQ3pDLE9BQU8sRUFBRSxHQUFHLElBQUksR0FBRyxFQUFFLENBQUMifQ==",
+            "callback_utf8_bytes": 169,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxjQUFNLFFBQVE7SUFBRyxNQUFNO0NBQWtCO0FBQ3pDLE9BQU8sRUFBRSxHQUFHLElBQUksR0FBRyxFQUFFLENBQUMifQ==",
+            "materialized_utf8_bytes": 169,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBcdTAwNDZvbyB7DQogICAgbWV0aG9kKCk6IG51bWJlcjsNCn0NCmV4cG9ydCB7IEZvbyBhcyBCYXIgfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBcdTAwNDZvbyB7DQogICAgbWV0aG9kKCk6IG51bWJlcjsNCn0NCmV4cG9ydCB7IEZvbyBhcyBCYXIgfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 76,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAA;IAAA;IAAwC,CAAC;IAAxB,yBAAM,GAAN,cAAW,OAAO,CAAC,CAAC,CAAC,CAAC;IAAC,eAAC;AAAD,CAAC,AAAzC,IAAyC;AACzB,uBAAG\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,cAAM,QAAQ;IAAG,MAAM;CAAkB;AACzC,OAAO,EAAE,GAAG,IAAI,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "escaped-declaration-maps/direct-escaped/es5",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class \\u0046oo { method() { return 1; } }\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQUErQyxDQUFDO0lBQXhCLHlCQUFNLEdBQU4sY0FBVyxPQUFPLENBQUMsQ0FBQyxDQUFDLENBQUM7SUFBQyxlQUFDO0FBQUQsQ0FBQyxBQUFoRCxJQUFnRDtBQUFuQyx1QkFBUSJ9",
+            "callback_utf8_bytes": 210,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQUErQyxDQUFDO0lBQXhCLHlCQUFNLEdBQU4sY0FBVyxPQUFPLENBQUMsQ0FBQyxDQUFDLENBQUM7SUFBQyxlQUFDO0FBQUQsQ0FBQyxBQUFoRCxJQUFnRDtBQUFuQyx1QkFBUSJ9",
+            "materialized_utf8_bytes": 210,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIFx1MDA0Nm9vID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIFx1MDA0Nm9vKCkgew0KICAgIH0NCiAgICBcdTAwNDZvby5wcm90b3R5cGUubWV0aG9kID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gMTsgfTsNCiAgICByZXR1cm4gXHUwMDQ2b287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBcdTAwNDZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 327,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIFx1MDA0Nm9vID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIFx1MDA0Nm9vKCkgew0KICAgIH0NCiAgICBcdTAwNDZvby5wcm90b3R5cGUubWV0aG9kID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gMTsgfTsNCiAgICByZXR1cm4gXHUwMDQ2b287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBcdTAwNDZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 327,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 295,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxRQUFRO0lBQUcsTUFBTTtDQUFrQiJ9",
+            "callback_utf8_bytes": 129,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxRQUFRO0lBQUcsTUFBTTtDQUFrQiJ9",
+            "materialized_utf8_bytes": 129,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgXHUwMDQ2b28gew0KICAgIG1ldGhvZCgpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 93,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgXHUwMDQ2b28gew0KICAgIG1ldGhvZCgpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 93,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 59,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAA;IAAA;IAA+C,CAAC;IAAxB,yBAAM,GAAN,cAAW,OAAO,CAAC,CAAC,CAAC,CAAC;IAAC,eAAC;AAAD,CAAC,AAAhD,IAAgD;AAAnC,uBAAQ\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,qBAAa,QAAQ;IAAG,MAAM;CAAkB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "escaped-declaration-maps/nonbmp-class/es2015",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class 𝒜 { method() { return 1; } }\nexport const 𝒷 = new 𝒜();\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBYSxFQUFFO0lBQUcsTUFBTSxLQUFLLE9BQU8sQ0FBQyxDQUFDLENBQUMsQ0FBQztDQUFFO0FBQTFDLGdCQUEwQztBQUM3QixRQUFBLEVBQUUsR0FBRyxJQUFJLEVBQUUsRUFBRSxDQUFDIn0=",
+            "callback_utf8_bytes": 212,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBYSxFQUFFO0lBQUcsTUFBTSxLQUFLLE9BQU8sQ0FBQyxDQUFDLENBQUMsQ0FBQztDQUFFO0FBQTFDLGdCQUEwQztBQUM3QixRQUFBLEVBQUUsR0FBRyxJQUFJLEVBQUUsRUFBRSxDQUFDIn0=",
+            "materialized_utf8_bytes": 212,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu8J2StyA9IGV4cG9ydHMu8J2SnCA9IHZvaWQgMDsNCmNsYXNzIPCdkpwgew0KICAgIG1ldGhvZCgpIHsgcmV0dXJuIDE7IH0NCn0NCmV4cG9ydHMu8J2SnCA9IPCdkpw7DQpleHBvcnRzLvCdkrcgPSBuZXcg8J2SnCgpOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 245,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu8J2StyA9IGV4cG9ydHMu8J2SnCA9IHZvaWQgMDsNCmNsYXNzIPCdkpwgew0KICAgIG1ldGhvZCgpIHsgcmV0dXJuIDE7IH0NCn0NCmV4cG9ydHMu8J2SnCA9IPCdkpw7DQpleHBvcnRzLvCdkrcgPSBuZXcg8J2SnCgpOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 245,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 199,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxFQUFFO0lBQUcsTUFBTTtDQUFrQjtBQUMxQyxlQUFPLE1BQU0sRUFBRSxJQUFXLENBQUMifQ==",
+            "callback_utf8_bytes": 160,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxFQUFFO0lBQUcsTUFBTTtDQUFrQjtBQUMxQyxlQUFPLE1BQU0sRUFBRSxJQUFXLENBQUMifQ==",
+            "materialized_utf8_bytes": 160,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3Mg8J2SnCB7DQogICAgbWV0aG9kKCk6IG51bWJlcjsNCn0NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IPCdkrc6IPCdkpw7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 123,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3Mg8J2SnCB7DQogICAgbWV0aG9kKCk6IG51bWJlcjsNCn0NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IPCdkrc6IPCdkpw7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 123,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 83,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAA,MAAa,EAAE;IAAG,MAAM,KAAK,OAAO,CAAC,CAAC,CAAC,CAAC;CAAE;AAA1C,gBAA0C;AAC7B,QAAA,EAAE,GAAG,IAAI,EAAE,EAAE,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,qBAAa,EAAE;IAAG,MAAM;CAAkB;AAC1C,eAAO,MAAM,EAAE,IAAW,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "escaped-declaration-maps/nonbmp-export/es2015",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const 𝒞 = 1;\nexport { 𝒞 as 𝒟 };\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBTSxFQUFFLEdBQUcsQ0FBQyxDQUFDO0FBQ0UsZ0JBQUUifQ==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBTSxFQUFFLEdBQUcsQ0FBQyxDQUFDO0FBQ0UsZ0JBQUUifQ==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu8J2SnyA9IHZvaWQgMDsNCmNvbnN0IPCdkp4gPSAxOw0KZXhwb3J0cy7wnZKfID0g8J2SnjsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 174,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu8J2SnyA9IHZvaWQgMDsNCmNvbnN0IPCdkp4gPSAxOw0KZXhwb3J0cy7wnZKfID0g8J2SnjsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 174,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 134,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sRUFBRSxJQUFJLENBQUM7QUFDYixPQUFPLEVBQUUsRUFBRSxJQUFJLEVBQUUsRUFBRSxDQUFDIn0=",
+            "callback_utf8_bytes": 167,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sRUFBRSxJQUFJLENBQUM7QUFDYixPQUFPLEVBQUUsRUFBRSxJQUFJLEVBQUUsRUFBRSxDQUFDIn0=",
+            "materialized_utf8_bytes": 167,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCDwnZKeID0gMTsNCmV4cG9ydCB7IPCdkp4gYXMg8J2SnyB9Ow0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 85,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCDwnZKeID0gMTsNCmV4cG9ydCB7IPCdkp4gYXMg8J2SnyB9Ow0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 85,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 45,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAA,MAAM,EAAE,GAAG,CAAC,CAAC;AACE,gBAAE\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,QAAA,MAAM,EAAE,IAAI,CAAC;AACb,OAAO,EAAE,EAAE,IAAI,EAAE,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "case-insensitive-declaration-dir/collision",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/types/a.d.ts",
+          "text": "export declare const a: number;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declaration": true,
+        "declarationDir": "/project/Types",
+        "outDir": "/project/out"
+      },
+      "use_case_sensitive_file_names": false,
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/Types/a.d.ts' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "case-insensitive-declaration-dir/distinct",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/types/a.d.ts",
+          "text": "export declare const a: number;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declaration": true,
+        "declarationDir": "/project/Types",
+        "outDir": "/project/out"
+      },
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/Types/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}
