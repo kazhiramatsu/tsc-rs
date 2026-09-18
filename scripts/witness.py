@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 import foundation_witnesses
+import emitter_final_witnesses
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "crates/compiler/tests/fixtures"
@@ -439,7 +440,8 @@ BINDING = {
     },
 }
 SUITES = (*SUPER, "retained", "direct", "printer", "bundle-sinks", "declaration-map-cli",
-          *EMITTER_DIRECT, *COMPILER_DIRECT, *BINDING, "resolution-cache", *foundation_witnesses.SUITES)
+          *EMITTER_DIRECT, *COMPILER_DIRECT, *BINDING, "resolution-cache", *foundation_witnesses.SUITES,
+          *emitter_final_witnesses.SUITES)
 RESOLUTION_INPUTS = {
     "crates/program/tests/resolution_cache_contract.rs",
     "crates/program/tests/fixtures/resolution_cache/manifest.v1.json",
@@ -464,6 +466,8 @@ def read_cases(file):
 
 
 def case_ids(suite):
+    if suite in emitter_final_witnesses.SUITES:
+        return emitter_final_witnesses.case_ids(suite)
     if suite in foundation_witnesses.SUITES:
         return foundation_witnesses.test_names(suite)
     if suite == "resolution-cache":
@@ -556,6 +560,10 @@ def invocation(suite, needles, environ=None):
                 "TSC_RS_H2_8A_KNOWN_NATIVE_DUMP_DIR"):
         env.pop(key, None)
     env.setdefault("CARGO_BUILD_JOBS", "2")
+    if suite in emitter_final_witnesses.SUITES:
+        if needles:
+            raise ValueError(f"{suite}: registered shard runs together; use --all")
+        return [sys.executable, "scripts/emitter_final_witnesses.py", suite], emitter_final_witnesses.environment(suite, env)
     if suite in foundation_witnesses.SUITES:
         if needles:
             raise ValueError(f"{suite}: foundation target runs together; use --all")
@@ -890,6 +898,9 @@ def main(argv=None):
                    if key.startswith("TSC_RS_") and (key.endswith("CASE_SET") or key.endswith("CASE_FILTER"))}
     print(shlex.join(["env", *[f"{key}={value}" for key, value in sorted(assignments.items())], *command]), flush=True)
     if args.dry_run:
+        if args.suite in emitter_final_witnesses.SUITES:
+            for command, _ in emitter_final_witnesses.commands(args.suite):
+                print(shlex.join(command))
         if args.suite in foundation_witnesses.SUITES:
             spec = foundation_witnesses.SUITES[args.suite]
             if "oracle" in spec:

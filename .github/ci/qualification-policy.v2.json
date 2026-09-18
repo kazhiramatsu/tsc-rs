@@ -46,18 +46,19 @@
       "crates/compiler/tests/integration/h2_7c_declaration_getters.rs": "8b0cc4edf30dfafae21904d332a8f714a8a28437eb10be5a4a017c251ffe8060",
       "crates/compiler/tests/integration/h2_7c_forced_declarations.rs": "e53407fd07652b383a4b9e91e4753210c8f841d7747a5a274a69c7f1630c1969",
       "crates/compiler/tests/integration/h2_7c_strip_internal.rs": "1356a92b17cc5db3685ef5da88f28860f62495592f26cea2282b45d91c14ec4b",
-      "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": "a89cf18ebc3e86f16b39991c40bd54a53189bb64d43ab5fbaded7143bcdc58b4",
+      "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": "6be733fdbc4171e4a7a9272007a419275cb3fc069aaae3fb7c344cbc80e201bd",
       "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs": "fe190da333d2d4d0d0cb7df4098f067f5eda4f331841f5171166354ede56c9ef"
     },
     "execution_source_sha256": {
       ".github/workflows/ci.yml": "de915626e641960446a9d08a62203069d27e43819b6429ac1a5154c182f2759e",
-      ".github/workflows/witness.yml": "e622abc21ff96b844f615f312d8535c85c14913a24369c54436f24253004bc4e",
-      ".github/ci/replay.py": "0bdbbffdad86cda6e46fa3052bd5b98647be5c013b36296d30782c2dbad6cd0e",
-      "scripts/witness.py": "30975ff226642c2678a1e4ef370623036a2881c34974486f46cd2c879164d0e4",
+      ".github/workflows/witness.yml": "aa6103235da53ac62342b8b251dc504e14f32b924263f1caabc383d63f80e143",
+      ".github/ci/replay.py": "7b826057beea2957dcba0e07bfcb69532ab728373260d4bdd1669d44038cd683",
+      "scripts/witness.py": "44389f25e88f000b4a6f366f686cd56066b8799496f1c5169947da084dad5652",
       "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
       "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa",
-      ".github/ci/test_replay.py": "9e2a1c82acc6964ec8aa1d50d1033272d23da0d3f2358e3b156063e16a88392b",
-      "scripts/foundation_witnesses.py": "a183fe0a97e74b7698401d1b1df20ee3cb925e763e40e219933f52bc39cf6b59"
+      ".github/ci/test_replay.py": "2c503aa45a792c8ca7fdbe488bf35b418a1f6e300ffdaf521cdb406915caafa9",
+      "scripts/foundation_witnesses.py": "a183fe0a97e74b7698401d1b1df20ee3cb925e763e40e219933f52bc39cf6b59",
+      "scripts/emitter_final_witnesses.py": "45054e1e47c6a487168d21b452c8d6fb9297db37025e8a49d7abd2ea575c4c3a"
     }
   },
   "local_full_gate": {

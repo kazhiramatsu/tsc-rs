@@ -54,7 +54,7 @@ def load_replay():
     sys.path.insert(0, str(ROOT / '.github/ci'))
     import replay
     READ.update((ROOT / name).resolve() for name in (
-        '.github/ci/replay.py', '.github/ci/test_replay.py', 'scripts/witness.py', 'scripts/foundation_witnesses.py',
+        '.github/ci/replay.py', '.github/ci/test_replay.py', 'scripts/witness.py', 'scripts/foundation_witnesses.py', 'scripts/emitter_final_witnesses.py',
         '.github/workflows/ci.yml', '.github/workflows/witness.yml'))
     expected_runs = {
         'ci.yml': {'python3 .github/ci/replay.py plan', 'python3 .github/ci/replay.py acceptance "$ACCEPTANCE_GROUP"', 'python3 .github/ci/replay.py gate acceptance'},
@@ -77,30 +77,38 @@ def command_rows(replay):
                                  'target': target, 'filter': None,
                                  'evidence': '.github/ci/replay.py:printer_witnesses/PRINTER_TARGETS'})
                 continue
-            argv, _ = replay.witness.invocation(suite, [], {})
-            owner = argv[argv.index('--manifest-path') + 1].split('/')[1]
-            if '--lib' in argv:
-                rows.append({'group': group, 'suite': suite, 'package': f'tsc-rs-{owner}',
-                             'target': f'tsc_{owner}', 'kind': 'lib', 'filter': None,
-                             'evidence': 'scripts/witness.py:invocation'})
-                argv = [arg for arg in argv if arg != '--lib']
-            if '--exact' in argv:
-                at = argv.index('--test')
-                assert argv.count('--test') == 1 and argv[at + 2] != '--', argv
-                # Extra libtest exact-name filters follow `--`; retain each
-                # command membership instead of silently reporting only one.
-                names = [argv[at + 2], *(arg for arg in argv[argv.index('--') + 1:]
-                                       if not arg.startswith('--'))]
-                assert len(names) == len(set(names)), argv
-                targets = [(argv[at + 1], name) for name in names]
+            if suite in replay.witness.emitter_final_witnesses.SUITES:
+                commands = [argv for argv, _ in replay.witness.emitter_final_witnesses.commands(suite)
+                            if argv[:2] == ['cargo', 'test']]
+                evidence = 'scripts/emitter_final_witnesses.py:commands'
             else:
-                options = argv[argv.index('--manifest-path') + 2:argv.index('--')]
-                assert options and len(options) % 2 == 0 and options[::2] == ['--test'] * (len(options) // 2), argv
-                targets = [(target, None) for target in options[1::2]]
-            for target, test_filter in targets:
-                rows.append({'group': group, 'suite': suite, 'package': f'tsc-rs-{owner}',
-                             'target': target, 'filter': test_filter,
-                             'evidence': 'scripts/witness.py:invocation'})
+                argv, _ = replay.witness.invocation(suite, [], {})
+                commands = [argv]
+                evidence = 'scripts/witness.py:invocation'
+            for argv in commands:
+                owner = argv[argv.index('--manifest-path') + 1].split('/')[1]
+                if '--lib' in argv:
+                    rows.append({'group': group, 'suite': suite, 'package': f'tsc-rs-{owner}',
+                                 'target': f'tsc_{owner}', 'kind': 'lib', 'filter': None,
+                                 'evidence': evidence})
+                    argv = [arg for arg in argv if arg != '--lib']
+                if '--exact' in argv:
+                    at = argv.index('--test')
+                    assert argv.count('--test') == 1 and argv[at + 2] != '--', argv
+                    # Extra libtest exact-name filters follow `--`; retain each
+                    # command membership instead of silently reporting only one.
+                    names = [argv[at + 2], *(arg for arg in argv[argv.index('--') + 1:]
+                                           if not arg.startswith('--'))]
+                    assert len(names) == len(set(names)), argv
+                    targets = [(argv[at + 1], name) for name in names]
+                else:
+                    options = argv[argv.index('--manifest-path') + 2:argv.index('--')]
+                    assert options and len(options) % 2 == 0 and options[::2] == ['--test'] * (len(options) // 2), argv
+                    targets = [(target, None) for target in options[1::2]]
+                for target, test_filter in targets:
+                    rows.append({'group': group, 'suite': suite, 'package': f'tsc-rs-{owner}',
+                                 'target': target, 'filter': test_filter,
+                                 'evidence': evidence})
     module = ast.parse(read(ROOT / '.github/ci/replay.py'))
     printer = next(node for node in module.body if isinstance(node, ast.FunctionDef)
                    and node.name == 'printer_witnesses')
@@ -244,7 +252,7 @@ def main():
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--write', action='store_true', help='write a NEW snapshot only')
     action.add_argument('--check', action='store_true', help='compare current source with the frozen snapshot')
-    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v24.json')
+    parser.add_argument('--output', type=Path, default=HERE / 'inventory.v25.json')
     args = parser.parse_args()
     if args.check:
         source_commit = json.loads(args.output.read_text())['source_commit']

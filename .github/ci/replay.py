@@ -42,6 +42,7 @@ WITNESS_GROUPS = {
     # Syntax/binder/types and host/program contracts share a small build per
     # crate without consuming the controls job's remaining timeout margin.
     "foundations": tuple(witness.foundation_witnesses.SUITES),
+    **{suite: (suite,) for suite in witness.emitter_final_witnesses.SUITES},
 }
 PRINTER_TARGETS = (
     "printer_failure_contract", "emit_pipeline_phases_contract",
@@ -84,6 +85,12 @@ def selection(paths):
         return full_selection("missing or empty change range")
     acceptance, witnesses = set(), set()
     for file in paths:
+        final_owners = {suite for suite in witness.emitter_final_witnesses.SUITES
+                        if file in witness.emitter_final_witnesses.inputs(suite)}
+        witnesses.update(final_owners)
+        if final_owners and file.startswith("crates/compiler/tests/fixtures/"):
+            if file.rsplit("/", 1)[1].removesuffix(".json") in witness.RETAINED_FIXTURES:
+                witnesses.add("retained")
         # The forced-declaration acceptance helper also consumes this fixture.
         # Registering its API witness must preserve the existing shared replay.
         if file in ("crates/compiler/tests/fixtures/declaration-reference-paths.json",
@@ -159,6 +166,8 @@ def selection(paths):
         # Shared product code, manifests, vendor, CI, TS corpus, and unknown
         # inputs keep complete coverage. Never infer that tests/ is disconnected:
         # several compiler comparators are imported by xtask via #[path].
+        if final_owners:
+            continue
         return full_selection(f"shared or unknown input: {file}")
     return {
         "acceptance": [group for group in GROUPS if group in acceptance],
