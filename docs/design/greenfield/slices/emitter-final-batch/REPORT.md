@@ -253,4 +253,3 @@ r9 census 172 行のうち上記以外（emit bytes 76、promote refusal 13、`M
 - oracle 再採取：大小無視 host 2 行（方針 1、`records/oracle/`）— 不変。
 - clippy：checker crate の inherited 145 件（未変更ファイル、`useless_conversion` 等）は本 batch では触らない（hygiene commit の候補）。`h1-rust-omission-inventory --check` は開始 SHA から `artifact.rs` anchor で赤（inherited；`transform_ecmascript_module` の宣言行はそのまま残した）。
 - `ratchets/` / accepted profile / STAGE / hosted policy は無変更（retire 提案は §8.3 ＋ h2-8c known-open 3 行の retire は fixture 側で実施済み）。
-

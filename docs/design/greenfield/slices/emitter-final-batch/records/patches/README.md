@@ -51,4 +51,3 @@ tree diff `candidate-tracked.diff` (regenerated at the r8 final bytes).
   (32 inputs minted with the vendored `_tsc.js`; 30/32 identical at the r11 bytes — the two left are
   `tslibReExportHelpers2` (checker TS2343 through an ESM re-export, KNOWN) and the ES2015 accessor comment closed by the
   last part-1 hunk).
-
