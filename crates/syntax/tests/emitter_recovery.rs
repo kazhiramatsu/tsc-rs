@@ -102,4 +102,48 @@ fn original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts() 
         })).unwrap()).unwrap();
     }
     eprintln!("emitter recovery syntax SUMMARY exact=36 failed=0 selected=36");
+    assert_context_control_admission();
+}
+
+fn assert_context_control_admission() {
+    let fixture: Value = serde_json::from_slice(include_bytes!(
+        "../../compiler/tests/fixtures/emitter-context-recovery.json"
+    ))
+    .unwrap();
+    assert_eq!(fixture["repetitions"], 2);
+    assert_eq!(fixture["typescript"], "6.0.3");
+    for (key, admitted, count) in [("cases", true, 432), ("refused_cases", false, 72)] {
+        let cases = fixture[key].as_array().unwrap();
+        assert_eq!(cases.len(), count);
+        for case in cases {
+            let config: Value = serde_json::from_str(case["config"].as_str().unwrap()).unwrap();
+            let target = match config["compilerOptions"]["target"].as_str().unwrap() {
+                "es5" => ScriptTarget::ES5,
+                "es2015" => ScriptTarget::ES2015,
+                "esnext" => ScriptTarget::ESNext,
+                other => panic!("unexpected context-control target: {other}"),
+            };
+            assert_eq!(case["typescript_observation"]["emit_refused"], false);
+            for file in case["files"].as_array().unwrap() {
+                let source = tsc_syntax::parse_source_file(
+                    file["path"].as_str().unwrap(),
+                    file["text"].as_str().unwrap(),
+                    ParseOptions {
+                        script_target: target,
+                        js_doc_parsing_mode: JSDocParsingMode::ParseForTypeErrors,
+                        ..ParseOptions::default()
+                    },
+                    None,
+                );
+                assert_eq!(
+                    source.has_supported_emit_recovery(),
+                    admitted,
+                    "{}: recovery={:?}",
+                    case["case_id"],
+                    source.parse_recovery()
+                );
+            }
+        }
+        eprintln!("context recovery syntax {key}: {count} expected admission={admitted}");
+    }
 }

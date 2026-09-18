@@ -190,6 +190,10 @@ fn compare_incremental_with_options(
     assert_eq!(canonical_tree(&fresh), canonical_tree(&incremental.source));
     assert_eq!(fresh.parse_recovery(), incremental.source.parse_recovery());
     assert_eq!(
+        fresh.has_supported_emit_recovery(),
+        incremental.source.has_supported_emit_recovery()
+    );
+    assert_eq!(
         diagnostic_pins(&fresh),
         diagnostic_pins(&incremental.source)
     );
@@ -1186,4 +1190,34 @@ fn decorator_await_skip_provenance_survives_edits_inside_and_around_reparse() {
     }
     let before = "@ /*😀*/await(1) class C {}";
     compare_incremental(before, 0, 0, "export {}; ");
+}
+
+#[test]
+fn context_recovery_admission_matches_fresh_parses_across_reparse_and_heritage_edits() {
+    for (before, needle, inserted) in [
+        (
+            "export {}; const before = 1; await (1,); @await class C {}",
+            "before",
+            "renamed",
+        ),
+        (
+            "export {}; await (1,); @await class C {}",
+            "1,",
+            "1, /*😀*/",
+        ),
+        (
+            "export {}; class C extends await<string> {}",
+            "await",
+            "/*😀*/await",
+        ),
+        (
+            "export {}; class C extends await<string> {}",
+            ">",
+            " /*😀*/>",
+        ),
+        ("export {}; @await`x` class C {}", "`x`", "!"),
+        ("export {}; let a = await /1; b; c; x/;", "await", "value"),
+    ] {
+        compare_incremental(before, before.find(needle).unwrap(), needle.len(), inserted);
+    }
 }

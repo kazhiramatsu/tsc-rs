@@ -35,6 +35,32 @@ for (const experimentalDecorators of [false, true]) {
   ]) shapes.push([shape + (experimentalDecorators ? "-legacy" : "-standard"), text, experimentalDecorators]);
 }
 shapes.push(["script-comma-operand", "(1,);", false]);
+const wrappers = [
+  ["decorator-non-null", "@await! class C {}"],
+  ["decorator-tagged", "@await`x` class C {}"],
+  ["decorator-optional-property", "@await?.x class C {}"],
+  ["decorator-optional-element", "@await?.[x] class C {}"],
+  ["decorator-generic-call", "@await<T>() class C {}"],
+  ["decorator-generic-tagged", "@await<T>`x` class C {}"],
+];
+for (const experimentalDecorators of [false, true])
+  for (const [shape, text] of wrappers)
+    shapes.push([shape + (experimentalDecorators ? "-legacy" : "-standard"), "export {};\n" + text, experimentalDecorators]);
+for (const [shape, text] of [
+  ["heritage-trivia", "export {}; class C extends /*😀*/await<string /*😀*/> {}"],
+  ["comma-trivia", "(1, /*😀*/);"],
+  ["assertion-trivia", "export {}; await <number /*😀*/, string>(1);"],
+  ["interface-heritage-clean", "export {}; interface I extends await<string> {}"],
+]) shapes.push([shape, text, true]);
+for (const [shape, text] of [
+  ["heritage-following-comma", "export {}; class C extends await<A>, B {}"],
+  ["heritage-preceding-comma", "export {}; class C implements A, await<B> {}"],
+  ["unparenthesized-comma", "export {}; 1, ;"],
+  ["missing-closer", "export {}; await (1,"],
+  ["reparse-overshoot", "export {}; let a = await /1; b; c; x/;"],
+  ["reparse-overshoot-followed", "export {}; let a = await /1; b; c; x/; await (1,);"],
+]) shapes.push(["refused-" + shape, text, true]);
+const isRefusedControl = input => input.case_id.includes("/refused-");
 const inputs = [];
 for (const target of ["es5", "es2015", "esnext"])
   for (const module of ["commonjs", "esnext"])
@@ -47,7 +73,7 @@ for (const target of ["es5", "es2015", "esnext"])
             strict: false, skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
             ignoreDeprecations: "6.0", outDir: "/project/out"}, files: [main.slice(9)]})});
       }
-assert.equal(inputs.length, 240);
+assert.equal(inputs.length, 504);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),
@@ -103,16 +129,24 @@ function observe(input) {
     emit_result: { emit_skipped: result.emitSkipped, diagnostics: result.diagnostics.map(diagnostic), emitted_files: result.emittedFiles ?? null, source_maps: sourceMaps(result.sourceMaps) },
     status_writes: status, exit_code: exit };
 }
-const cases = inputs.map(input => {
+const observations = inputs.map(input => {
   const first = observe(input);
   assert.deepEqual(observe(input), first, input.case_id);
+  if (isRefusedControl(input)) {
+    assert.equal(first.emit_refused, false, input.case_id);
+    assert.ok(first.writes.some(write => write.kind === "javascript"), input.case_id);
+  }
   return {...input, typescript_observation: first};
 });
+const cases = observations.filter(input => !isRefusedControl(input));
+const refused_cases = observations.filter(isRefusedControl);
+assert.equal(cases.length, 432);
+assert.equal(refused_cases.length, 72);
 const artifact = {version: 1, typescript: ts.version, repetitions: 2,
   compiler_sha256: sha256(fs.readFileSync(path.join(root, "vendor/typescript-6.0.3/lib/typescript.js"))),
-  observer_sha256: sha256(fs.readFileSync(import.meta.filename)), cases};
+  observer_sha256: sha256(fs.readFileSync(import.meta.filename)), cases, refused_cases};
 const destination = path.join(root, "crates/compiler/tests/fixtures/emitter-context-recovery.json");
 const rendered = JSON.stringify(artifact, null, 2) + "\n";
 if (process.argv[2] === "--write") fs.writeFileSync(destination, rendered, {flag: "wx"});
 else assert.equal(fs.readFileSync(destination, "utf8"), rendered);
-console.log(`Context recovery: ${cases.length} cases, two identical complete observations each`);
+console.log(`Context recovery: ${cases.length} supported controls + ${refused_cases.length} refused neighbours, two identical complete observations each`);

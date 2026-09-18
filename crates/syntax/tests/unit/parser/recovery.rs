@@ -1036,3 +1036,95 @@ fn context_recovery_refuses_forged_decorator_and_reparse_witnesses() {
         .full_start += 1;
     assert!(!assertion.has_supported_emit_recovery());
 }
+
+#[test]
+fn context_recovery_covers_decorator_wrappers_and_trivia_but_not_overlapping_tails() {
+    for text in [
+        "export {}; @await! class C {}",
+        "export {}; @await`x` class C {}",
+        "export {}; @await<T>() class C {}",
+        "export {}; @await<T>`x` class C {}",
+        "export {}; @await?.x class C {}",
+        "export {}; @await?.[x] class C {}",
+        "export {}; class C implements await<string> {}",
+        "export {}; class C extends /*😀*/await<string /*😀*/> {}",
+        "(1, /*😀*/);",
+        "export {}; await <number /*😀*/, string>(1);",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(
+            parsed.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+    let clean = source("export {}; interface I extends await<string> {}");
+    assert!(clean.parse_diagnostics.is_empty());
+    assert!(clean.has_supported_emit_recovery());
+    for text in [
+        "export {}; class C extends await<A>, B {}",
+        "export {}; class C implements A, await<B> {}",
+        "export {}; 1, ;",
+        "export {}; await (1,",
+        "export {}; let a = await /1; b; c; x/;",
+        "export {}; let a = await /1; b; c; x/; await (1,);",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(
+            !parsed.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+}
+
+#[test]
+fn context_recovery_refuses_truncated_runs_and_unowned_heritage_reports() {
+    let mut parsed = source("export {}; await (1,); @await class C {}");
+    assert!(parsed.has_supported_emit_recovery());
+    let NodeData::SourceFile(data) = &parsed.arena.node(parsed.root).data else {
+        unreachable!()
+    };
+    let statements = &parsed.arena.node_array(data.statements.unwrap()).nodes;
+    let end = parsed
+        .positions()
+        .byte_to_utf16(parsed.arena.node(statements[1]).end)
+        .unwrap();
+    let action = parsed
+        .parse_recovery
+        .actions
+        .iter_mut()
+        .find(|action| matches!(action, ParseRecoveryAction::Reparsed { .. }))
+        .unwrap();
+    let ParseRecoveryAction::Reparsed { end: run_end, .. } = action else {
+        unreachable!()
+    };
+    *run_end = end;
+    assert!(!parsed.has_supported_emit_recovery());
+
+    let mut parsed = source("export {}; class C extends await<string> {}");
+    assert!(parsed.has_supported_emit_recovery());
+    let start = parsed
+        .parse_recovery
+        .actions
+        .iter()
+        .find_map(|action| match action {
+            ParseRecoveryAction::TokenSkipped {
+                start,
+                site: ParseTokenSkipSite::ListAbort,
+                ..
+            } => Some(*start),
+            _ => None,
+        })
+        .unwrap();
+    parsed
+        .parse_recovery
+        .events
+        .iter_mut()
+        .find(|event| event.start == start && event.diagnostic_index.is_some())
+        .unwrap()
+        .diagnostic_index = None;
+    assert!(!parsed.has_supported_emit_recovery());
+}

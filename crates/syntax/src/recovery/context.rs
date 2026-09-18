@@ -66,6 +66,8 @@ impl ParseRecovery {
                                 NodeData::CallExpression(data) => data.expression,
                                 NodeData::PropertyAccessExpression(data) => data.expression,
                                 NodeData::ElementAccessExpression(data) => data.expression,
+                                NodeData::NonNullExpression(data) => data.expression,
+                                NodeData::TaggedTemplateExpression(data) => data.tag,
                                 _ => None,
                             };
                             let Some(child) = child else {
@@ -232,6 +234,14 @@ impl ParseRecovery {
             return false;
         };
         let statements = &source.arena.node_array(statements).nodes;
+        // An await reparse can overshoot and retain overlapping old tail
+        // statements. Duplicated output needs its own emit proof.
+        if statements
+            .windows(2)
+            .any(|pair| source.arena.node(pair[0]).end > source.arena.node(pair[1]).pos)
+        {
+            return false;
+        }
         for action in &self.actions {
             let ParseRecoveryAction::Reparsed { start, end } = *action else {
                 continue;
