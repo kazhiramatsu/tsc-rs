@@ -1440,10 +1440,16 @@ impl<'a> CheckerState<'a> {
         expr_type: TypeId,
         in_conditional_expression: bool,
     ) -> CheckResult<()> {
+        // 84551: a JSDoc `@type` cast around the conditional is not peeked
+        // into (`skipParentheses(expr, excludeJSDocTypeAssertions)`).
+        let exclude_jsdoc_type_assertions = self.is_in_js_file(node);
         let function_flags = self.get_function_flags(container);
         if let Some(expr) = expr {
-            let unwrapped_expr =
-                node_util::skip_parentheses_pub(self.binder.source_of_node(expr), expr);
+            let unwrapped_expr = node_util::skip_parentheses_excluding_jsdoc_type_assertions(
+                self.binder.source_of_node(expr),
+                expr,
+                exclude_jsdoc_type_assertions,
+            );
             if self.kind_of(unwrapped_expr) == SyntaxKind::ConditionalExpression {
                 let (when_true, when_false) = match self.data_of(unwrapped_expr) {
                     NodeData::ConditionalExpression(data) => (data.when_true, data.when_false),
@@ -2043,6 +2049,31 @@ impl<'a> CheckerState<'a> {
         ) {
             self.check_grammar_function_like_declaration(node)?;
         }
+        // 81290-81304: importHelpers requests for the async / generator
+        // lowerings (EF7-ASYNC-HELPER-CHECKS).
+        let function_flags = self.get_function_flags(node);
+        if function_flags & FUNCTION_FLAGS_INVALID == 0 {
+            let async_generator = FUNCTION_FLAGS_ASYNC | FUNCTION_FLAGS_GENERATOR;
+            let language_version = self.options.emit_script_target();
+            if function_flags & async_generator == async_generator
+                && language_version < tsc_types::ScriptTarget::ES2018
+            {
+                self.check_external_emit_helpers(
+                    node,
+                    crate::modules::EMIT_HELPER_ASYNC_GENERATOR_INCLUDES,
+                )?;
+            }
+            if function_flags & async_generator == FUNCTION_FLAGS_ASYNC
+                && language_version < tsc_types::ScriptTarget::ES2017
+            {
+                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_AWAITER)?;
+            }
+            if function_flags & async_generator != 0
+                && language_version < tsc_types::ScriptTarget::ES2015
+            {
+                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_GENERATOR)?;
+            }
+        }
         let (parameters, type_node) = match self.data_of(node) {
             NodeData::FunctionDeclaration(data) => (data.parameters, data.r#type),
             NodeData::FunctionExpression(data) => (data.parameters, data.r#type),
@@ -2225,7 +2256,10 @@ impl<'a> CheckerState<'a> {
     ///
     /// `return_type_error_location` differs for a JSDoc `@type`
     /// reference whose resolved call signature supplies the actual
-    /// return annotation. `markLinkedReferences` is emit-only.
+    /// return annotation. The ES5 branch marks the promise-constructor
+    /// alias referenced here (`markLinkedReferences(node, AsyncFunction)`,
+    /// _tsc.js:82513) so import elision keeps the constructor's import; the
+    /// emit-time walk only covers unchecked files.
     ///
     /// tsc-port: errorInfo @6.0.3
     /// tsc-hash: e1a24fabcf6804fad35da3af2931050959472a63a0d8f5715af1d0db02aaa664
@@ -2258,6 +2292,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         } else {
+            self.mark_linked_references_async_function(node)?;
             if self.tables.is_error_type(return_type) {
                 return Ok(());
             }
@@ -5430,12 +5465,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:76190-76193
     ///
     /// skipOuterExpressions(Parentheses | Satisfies) — the two kinds
-    /// interleave in any order.
+    /// interleave in any order. In a JavaScript file the flags add
+    /// `ExcludeJSDocTypeAssertion`: a parenthesized expression carrying a
+    /// JSDoc `@type` cast is the check node itself (EF7-JSDOC-CHECK-NODE).
     pub(crate) fn get_effective_check_node(&self, argument: NodeId) -> NodeId {
+        let exclude_jsdoc_type_assertions = self.is_in_js_file(argument);
         let mut node = argument;
         loop {
             match self.data_of(node) {
                 NodeData::ParenthesizedExpression(data) => {
+                    if exclude_jsdoc_type_assertions
+                        && node_util::is_jsdoc_type_assertion(
+                            self.binder.source_of_node(node),
+                            node,
+                        )
+                    {
+                        return node;
+                    }
                     let Some(expression) = data.expression else {
                         return node;
                     };

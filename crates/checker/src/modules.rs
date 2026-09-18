@@ -127,6 +127,10 @@ pub(crate) enum ModuleResolutionMode {
 
 pub(crate) const EMIT_HELPER_EXTENDS: u32 = 1 << 0;
 pub(crate) const EMIT_HELPER_DECORATE: u32 = 1 << 3;
+pub(crate) const EMIT_HELPER_AWAITER: u32 = 1 << 6;
+pub(crate) const EMIT_HELPER_GENERATOR: u32 = 1 << 7;
+/// `AsyncGeneratorIncludes = Await | AsyncGenerator`.
+pub(crate) const EMIT_HELPER_ASYNC_GENERATOR_INCLUDES: u32 = (1 << 11) | (1 << 12);
 pub(crate) const EMIT_HELPER_READ: u32 = 1 << 9;
 pub(crate) const EMIT_HELPER_SPREAD_ARRAY: u32 = 1 << 10;
 pub(crate) const EMIT_HELPER_EXPORT_STAR: u32 = 1 << 15;
@@ -821,7 +825,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: eba18720abbdbd0651800589a37460fcdde212ca769970f24590355abfa629d3
     /// tsc-span: _tsc.js:87981-88007
     pub(crate) fn emit_is_value_alias_declaration(&mut self, node: NodeId) -> CheckResult<bool> {
-        debug_assert_ne!(self.options.verbatim_module_syntax, Some(true));
+        // `verbatimModuleSyntax` reaches the ordinary emit route since
+        // H2.8a-A-RES-EMITTER-FINAL EF7-VERBATIM-GATE; tsc answers these
+        // resolver queries independently of the option.
         match self.kind_of(node) {
             SyntaxKind::ImportEqualsDeclaration => {
                 let Some(symbol) = self.emit_alias_declaration_symbol(node) else {
@@ -954,7 +960,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<bool> {
-        debug_assert_ne!(self.options.verbatim_module_syntax, Some(true));
+        // `verbatimModuleSyntax` reaches the ordinary emit route since
+        // H2.8a-A-RES-EMITTER-FINAL EF7-VERBATIM-GATE; tsc answers these
+        // resolver queries independently of the option.
         if !self.is_alias_symbol_declaration(node) {
             return Ok(false);
         }
@@ -1020,7 +1028,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:71930-71944
     /// d2: d2:d2f9914c7e95d8ac4679e678fab00dd2c5872ed35fac7f99c5be9fb073a75c7e
     pub(crate) fn mark_alias_symbol_as_referenced(&mut self, symbol: SymbolId) -> CheckResult<()> {
-        debug_assert_ne!(self.options.verbatim_module_syntax, Some(true));
+        // `verbatimModuleSyntax` reaches the ordinary emit route since
+        // H2.8a-A-RES-EMITTER-FINAL EF7-VERBATIM-GATE; tsc answers these
+        // resolver queries independently of the option.
         if self.links.symbol(symbol).alias_referenced {
             return Ok(());
         }
@@ -1382,6 +1392,30 @@ impl<'a> CheckerState<'a> {
             self.get_property_of_type_ex(apparent, &name, false)?
         };
         self.mark_property_alias_referenced(location, left, prop, left_type)
+    }
+
+    /// `markLinkedReferences(location, ReferenceHint.AsyncFunction)`
+    /// (_tsc.js:71662-71679): the front-door guards (verbatimModuleSyntax,
+    /// ambient locations) followed by the async-function marker.
+    pub(crate) fn mark_linked_references_async_function(
+        &mut self,
+        location: NodeId,
+    ) -> CheckResult<()> {
+        if self.options.verbatim_module_syntax == Some(true) {
+            return Ok(());
+        }
+        if self
+            .binder
+            .flags_of(location)
+            .intersects(tsc_types::NodeFlags::AMBIENT)
+            && !matches!(
+                self.kind_of(location),
+                SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration
+            )
+        {
+            return Ok(());
+        }
+        self.mark_async_function_alias_referenced(location)
     }
 
     /// tsc-port: markAsyncFunctionAliasReferenced @6.0.3
