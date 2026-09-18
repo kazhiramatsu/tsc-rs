@@ -4,9 +4,9 @@
 //! test-local URL assembly. Parity-lane cases compare every write's
 //! path/bytes/BOM/source-files/callback-`data`, the write ORDER (map
 //! before js per mapped unit), `emitResult.sourceMaps`,
-//! `emitted_files` (js before map), and `emitSkipped`; refusal-lane
-//! cases (the H2.6b boundary controls) stay typed-refused with zero
-//! writes; the parse-error fault stays the typed H2.9 deferral.
+//! `emitted_files` (js before map), and `emitSkipped`. Historical
+//! H2.6b boundary controls and outDir cases now require exact output;
+//! the parse-error fault stays the typed H2.9 deferral.
 
 use serde_json::Value;
 use tsc_compiler::ProgramSession;
@@ -39,31 +39,6 @@ fn every_witness_case_reproduces_through_the_production_emit_path() {
                     refusal_cases += 1;
                 }
                 "parity" => {
-                    if case_id == "path-shapes--positive-outdir-nested" {
-                        // TS-source `outDir` stays H2.8a-owned (the
-                        // execute.rs relocation gate: H2.3a JavaScript-only
-                        // + H2.3d JSON relocation are the admitted arms).
-                        // This case's byte parity is proven at the PRINT
-                        // level by the m-2 replay suite; the production
-                        // EMIT stays a typed refusal until H2.8a lands.
-                        let prepared = prepare_case_program(case_id, case, &library_files);
-                        let mut sink = MemoryOutputSink::new();
-                        let error = ProgramSession::new(prepared)
-                            .emit(&mut sink)
-                            .expect_err("TS-source outDir is H2.8a-deferred");
-                        let rendered = format!("{error:?}");
-                        assert!(
-                            rendered.contains("UnsupportedCompilerOption")
-                                && rendered.contains("outDir"),
-                            "{case_id}: expected the typed outDir refusal, got {rendered}"
-                        );
-                        assert!(
-                            sink.writes().is_empty(),
-                            "{case_id}: refusal writes nothing"
-                        );
-                        deferred_cases += 1;
-                        continue;
-                    }
                     if case_id == "edge-shapes--fault-parse-error" {
                         let prepared = prepare_case_program(case_id, case, &library_files);
                         let mut sink = MemoryOutputSink::new();
@@ -92,7 +67,7 @@ fn every_witness_case_reproduces_through_the_production_emit_path() {
     }
     assert_eq!(
         (parity_cases, refusal_cases, deferred_cases),
-        (29, 5, 2),
+        (30, 5, 1),
         "witness emit census changed (the 5 boundary controls are parity since h2-6b-m-2)"
     );
 }
@@ -319,31 +294,11 @@ fn h2_6b_witness_cases_reproduce_through_the_production_emit_path() {
     let artifact: Value = serde_json::from_slice(WITNESSES_6B_EMIT).expect("W-H2.6B JSON");
     let library_files = vendored_library_files();
     let mut parity = 0usize;
-    let mut deferred_outdir = 0usize;
     let mut sink_faults = 0usize;
     for family in artifact["families"].as_array().expect("families") {
         for case in family["cases"].as_array().expect("cases") {
             let case_id = case["case_id"].as_str().expect("case id");
-            let options = &case["input"]["compiler_options"];
             let observation = &case["observation"];
-            if options["outDir"].as_str().is_some() {
-                let prepared = prepare_case_program(case_id, case, &library_files);
-                let mut sink = MemoryOutputSink::new();
-                let error = ProgramSession::new(prepared)
-                    .emit(&mut sink)
-                    .expect_err("TS-source outDir is H2.8a-deferred");
-                let rendered = format!("{error:?}");
-                assert!(
-                    rendered.contains("UnsupportedCompilerOption") && rendered.contains("outDir"),
-                    "{case_id}: expected the typed outDir refusal, got {rendered}"
-                );
-                assert!(
-                    sink.writes().is_empty(),
-                    "{case_id}: refusal writes nothing"
-                );
-                deferred_outdir += 1;
-                continue;
-            }
             let fault_paths: Vec<&str> = case["fault_sink_paths"]
                 .as_array()
                 .expect("fault paths")
@@ -402,8 +357,8 @@ fn h2_6b_witness_cases_reproduce_through_the_production_emit_path() {
         }
     }
     assert_eq!(
-        (parity, deferred_outdir, sink_faults),
-        (26, 6, 2),
+        (parity, sink_faults),
+        (32, 2),
         "6b emit gate census changed"
     );
 }
