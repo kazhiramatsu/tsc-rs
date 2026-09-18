@@ -1,0 +1,18 @@
+## r26 findings
+
+### 1. h2-1a: privateNameInInExpression now emits
+
+**Cause of the old refusal.** The frozen row was deferred to H2.8a with `rust_expectation: typed-failure-before-first-sink-write` and fingerprint `ed4b13ea…`. The refusal came from the removed source-text preflight guard: `has_advanced_comment_placement` → `has_comment_between_private_name_and_in` (builtins.rs `preflight_source`, deleted in 599798019, which is in the candidate). The fixture's `whitespace()` method is exactly that shape (`/*0*/#field/*1*/ /*2*/in/*3*/`). The guard was a text heuristic, so its removal admits the row without any KNOWN change; the emitted bytes must now be proven equal to the two frozen TS runs.
+
+**Migration.** `CURRENT_EXACT_SOURCE_PROMOTIONS` is the right vehicle (h2_1a_acceptance.rs:75-89): add `(case_id, "ed4b13ea…", "H2.8a")`. `current_exact_source_promotion` (92-115) already re-verifies fingerprint, `deferred-to-slices`, `required_slices == ["H2.8a"]`, `not-observed-source-deferred`, the old expectation string and two identical TS runs, so the historical artifact stays byte-identical. `execute_observed(CurrentExactSourcePromotion)` (449-455) then does the complete writes/diagnostics/result/exit comparison; the totals assert (831) counts promotions by table length, so `source_deferred` stays 49 and no other constant moves. The commentsAfterSpread precedent uses the identical path.
+
+**Other rows.** All 49 `deferred-to-slices` rows ran through `execute_deferred` in this CI and still refuse, so none needs promotion today. Two rows share the deleted guard's sibling text heuristic and should be watched, not promoted: `optionalChainingInTypeAssertions.ts#target=esnext` (H2.8a; `has_commented_optional_chain_type_assertion` was deleted too, yet it still refuses, so a different typed refusal now owns it, worth naming in the PR) and `privateNameInInExpressionTransform.ts` (H2.9, parse recovery). The remaining 46 are H2.1e/2a/2b/2c/2d/4a/9 owners unrelated to this change.
+
+### 2. h2-6c: empty manifest
+
+**Consumers.** (a) `load_h2_vector_divergence_manifest` (h2_2c_acceptance.rs, called from `load_h2_6c_divergence_manifest_state` at 5372): a missing file already returns `entries: {}`, `vectors_populated: true`; an empty `cases` is a hard error by design ("must be absent when it is empty"), same rule as H2.6b (4234). Deleting the file is the intended state. (b) The `--write-manifest` writer at 5415-5430 unconditionally writes `{cases: []}` when nothing diverges; it should skip writing, or remove the file, when `diverging` is empty, otherwise the next write recreates this failure. (c) `emitter_final_rows.rs:558` reads the path through `artifact()` (114-116, `unwrap` on read) and asserts `EF3_ROWS` ⊇ manifest ids; it must treat a missing manifest as an empty id set and keep `EF3_ROWS.len() == 8` and the 6a shared-row assert. (d) `de_legacy_collector.rs:535` and `h2-7a-witnesses.mjs:1403` only match a historical provenance string (`source_rows: 451`), not the live file; no change. (e) `git grep` finds no reference in scripts, workflows, pins or README.
+
+**Archive.** `retired-known.v1.json` records the 6c retirement with `before: {cases: []}` (sha `93853b5b…`), i.e. it archived the already-empty state. The last non-empty content is commit 0df9c9e95 (8 rows, identical to `EF3_ROWS`), and 158 rows at a6188c2c9 before that. If "preserve the archived retired rows" means content, point the record at 0df9c9e95's row list (or embed it) rather than the empty snapshot; `EF3_ROWS` already preserves the ids in code.
+
+### 3. Not investigated
+The bundle-declarations payload pin change does not touch either path above.

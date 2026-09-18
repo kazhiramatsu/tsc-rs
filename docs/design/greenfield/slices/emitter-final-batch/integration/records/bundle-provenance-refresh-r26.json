@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "artifacts": [
+    {
+      "path": "crates/emitter/tests/fixtures/bundle-declarations.json",
+      "changed_fields": [
+        "observer",
+        "inputs"
+      ],
+      "before_sha256": "f7563f8ab4b076cf41f2188fe433fec6a30a7508edb10a623206efc6827ee9fa",
+      "after_sha256": "b94439b8f519e60ef5ce0ee5f9f525ccf0287e5234965193fdca854569039421",
+      "all_case_inputs_and_observations_unchanged": true
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/bundle-maps.json",
+      "changed_fields": [
+        "inputs"
+      ],
+      "before_sha256": "a309db348c5291816f88f7e9298f423fa445a10fc164f03b7de8eba3214f7099",
+      "after_sha256": "8b9acbac6c6627a0628287cea2a56cc8067e420e2c84203ce466e721fc8cbdd9",
+      "all_case_inputs_and_observations_unchanged": true
+    }
+  ]
+}
