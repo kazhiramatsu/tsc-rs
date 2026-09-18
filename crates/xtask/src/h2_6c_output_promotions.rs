@@ -20,7 +20,7 @@ static CURRENT: &[Promotion] = &[
         case_id: "typescript-6.0.3/compiler/isolatedModulesSourceMap.ts#default",
         old_case_sha256: "4249c3923d545b2cccb9cde97f3beeff9aec45e46bb437aa33d32cb5c3ce9a50",
         old_input_sha256: "54abf8ed93154599c1e02f2075cc7ab0d8f1ba64e6f04debd44bdd0d065f8f64",
-        old_expected_tuple_sha256: "9bbac984f849570bda1af424c443041772130c6782e52291fb386e09293a554f",
+        old_expected_tuple_sha256: "f81a11b2f6047767ad3f7249f9e4253ab71094aa7f1ae9e6927c355864275b26",
         old_refused_option: "isolatedModules",
         declaration_members: 0,
     },

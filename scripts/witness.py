@@ -250,7 +250,7 @@ COMPILER_DIRECT = {
             "h2_8b_library_replacement::library_order_controls_match_program_membership",
         ),
         "tests": 24,
-        "filtered_tests": 423,
+        "filtered_tests": 430,
         "sources": tuple(f"crates/compiler/tests/integration/{module}.rs" for module in (
             "h2_8b_config_commands",
             "h2_8b_config_conversion_commands",
