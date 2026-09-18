@@ -57,6 +57,42 @@ fn import_helpers_matches_complete_typescript_observations() {
     );
 }
 
+#[test]
+fn missing_await_recovery_matches_complete_typescript_observations() {
+    let artifact: Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-missing-await.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 60);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("missing-await recovery EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "missing-await recovery SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete missing-await command failures: {failures:?}"
+    );
+}
+
 // Supplemental executions retain the whole command, including fields after
 // the comparator's first failure. They are counted separately in evidence.
 fn capture_complete_command(

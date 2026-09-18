@@ -346,3 +346,91 @@ fn top_level_reparse_ranges_belong_to_reparsed_statements() {
         [ParseRecoveryAction::Reparsed { .. }]
     ));
 }
+
+#[test]
+fn missing_await_admission_requires_only_committed_reachable_operands() {
+    for text in [
+        "async function f(a = await /*😀*/ ) {}",
+        "const f = async (a = await) => {};",
+        "async function f() { await; return await; }",
+        "async function f() { const x = await; return x; }",
+        "async function* f() { yield await; }",
+        "async function f() { return await await; }",
+        "async function f(a = await) {} const x = '\\8';",
+    ] {
+        let parsed = source(text);
+        assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+        assert!(!parsed.has_only_literal_recovery(), "{text}");
+        assert!(
+            parsed.has_only_literal_or_missing_await_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+    for text in [
+        "async function f(a = await => await) {}",
+        "const f = async (a = await => await) => {};",
+        "async function f() { await; const x = ; }",
+        "async function f() { await; x.; }",
+        "async function f(a = await) {} /* unterminated",
+        "export {}; await(f()); async function f(a = await) {}",
+        "export {}; async function f(a = await) {} await(f());",
+    ] {
+        let parsed = source(text);
+        assert!(
+            !parsed.has_only_literal_or_missing_await_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+    // Clean reparse and literal recovery preserve the previous admission.
+    for text in [
+        "export {}; await(f());",
+        "export {}; await(f()); const x = '\\8';",
+        "const a = [,]; function f(a?: number) {}",
+    ] {
+        let parsed = source(text);
+        assert!(parsed.has_only_literal_recovery(), "{text}");
+        assert!(
+            parsed.has_only_literal_or_missing_await_recovery(),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn missing_await_admission_rejects_lost_duplicate_and_unowned_facts() {
+    let parsed = source("async function f(a = await /*😀*/ ) {}");
+    assert!(parsed.has_only_literal_or_missing_await_recovery());
+    let mut missing = parsed.clone();
+    missing.parse_recovery.events.clear();
+    assert!(!missing.has_only_literal_or_missing_await_recovery());
+    let mut duplicate = parsed.clone();
+    duplicate
+        .parse_recovery
+        .events
+        .push(parsed.parse_recovery.events[0]);
+    assert!(!duplicate.has_only_literal_or_missing_await_recovery());
+    let mut suppressed = parsed.clone();
+    suppressed.parse_recovery.events[0].diagnostic_index = None;
+    assert!(!suppressed.has_only_literal_or_missing_await_recovery());
+    let mut misplaced = parsed.clone();
+    misplaced.parse_recovery.events[0]
+        .missing_node
+        .as_mut()
+        .unwrap()
+        .position += 1;
+    assert!(!misplaced.has_only_literal_or_missing_await_recovery());
+    let mut skipped = parsed.clone();
+    skipped
+        .parse_recovery
+        .actions
+        .push(ParseRecoveryAction::TokenSkipped {
+            token: SyntaxKind::EqualsGreaterThanToken,
+            start: 0,
+            length: 2,
+            statement_start: 0,
+            site: ParseTokenSkipSite::ListAbort,
+        });
+    assert!(!skipped.has_only_literal_or_missing_await_recovery());
+}

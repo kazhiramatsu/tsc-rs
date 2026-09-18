@@ -1,4 +1,7 @@
-use crate::SyntaxKind;
+use std::collections::BTreeSet;
+
+use crate::{for_each_child, SourceFile, SyntaxKind};
+use tsc_types::NodeFlags;
 
 /// The producer of a retained syntactic diagnostic. Scanner trivia is kept
 /// separate from the completed token even when both drain in the same scan.
@@ -148,6 +151,65 @@ impl ParseRecovery {
                 ParseRecoveryKind::Diagnostic(origin) => origin.is_literal(),
                 ParseRecoveryKind::SilentMissingNode(_) => false,
             })
+    }
+
+    pub(crate) fn is_literal_or_missing_await(&self, source: &SourceFile) -> bool {
+        if self.is_literal_only(source.parse_diagnostics.len()) {
+            return true;
+        }
+        if self.diagnostic_origins.len() != source.parse_diagnostics.len()
+            || !self.actions.is_empty()
+        {
+            return false;
+        }
+        let mut missing_positions = BTreeSet::new();
+        for event in &self.events {
+            if matches!(event.kind, ParseRecoveryKind::Diagnostic(origin) if origin.is_literal())
+                && event.missing_node.is_none()
+            {
+                continue;
+            }
+            let Some(missing) = event.missing_node else {
+                return false;
+            };
+            if event.kind != ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                || missing.kind != SyntaxKind::Identifier
+                || !event
+                    .diagnostic_index
+                    .is_some_and(|index| index < source.parse_diagnostics.len())
+                || !missing_positions.insert(missing.position)
+            {
+                return false;
+            }
+        }
+        if missing_positions.is_empty() {
+            return false;
+        }
+        // Inspect reachable syntax only: speculative parsing can leave orphaned
+        // nodes in the arena, and JSDoc has its own diagnostic destination.
+        let mut pending = vec![(source.root, None)];
+        while let Some((id, parent)) = pending.pop() {
+            let node = source.arena.node(id);
+            if NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC) {
+                continue;
+            }
+            if node.kind == SyntaxKind::Identifier && node.pos == node.end {
+                let position = source
+                    .positions()
+                    .byte_to_utf16(node.pos)
+                    .expect("syntax node positions are scalar boundaries");
+                if parent != Some(SyntaxKind::AwaitExpression)
+                    || !missing_positions.remove(&position)
+                {
+                    return false;
+                }
+            }
+            for_each_child(&source.arena, node, |child| {
+                pending.push((child, Some(node.kind)));
+                false
+            });
+        }
+        missing_positions.is_empty()
     }
 
     pub(crate) fn checkpoint(&self) -> RecoveryCheckpoint {

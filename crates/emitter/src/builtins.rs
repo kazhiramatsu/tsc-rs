@@ -16266,7 +16266,7 @@ fn preflight_source(
     // codes and the presence/absence of retained messages are insufficient.
     // JSDoc diagnostics have a separate parser-owned list and are outside
     // this syntactic recovery boundary.
-    if !syntax.has_only_literal_recovery() {
+    if !syntax.has_only_literal_or_missing_await_recovery() {
         return Err(TransformError::ParseDiagnosticsDeferred {
             count: syntax.parse_diagnostics.len(),
             recovery_events: syntax.parse_recovery().events().len(),

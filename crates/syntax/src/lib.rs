@@ -181,6 +181,13 @@ impl SourceFile {
             .is_literal_only(self.parse_diagnostics.len())
     }
 
+    /// Literal-token recovery or uniquely recorded missing Identifier operands
+    /// of AwaitExpression, with no token skips or reparse actions in the latter
+    /// case. This describes reachable syntax rather than diagnostic codes.
+    pub fn has_only_literal_or_missing_await_recovery(&self) -> bool {
+        self.parse_recovery.is_literal_or_missing_await(self)
+    }
+
     /// Harness only: drop every retained parse diagnostic together with the
     /// committed recovery record, so a contract test can drive the transform
     /// pipeline over a deliberately erroneous tree that upstream still emits.

@@ -24,7 +24,7 @@ use tsc_harness::upstream_suites::execution::{
     UpstreamExecutionInput,
 };
 use tsc_program::{PreparedProgram, ProgramLoadLimits};
-use tsc_syntax::{ParseDiagnosticOrigin, ParseRecoveryKind, SyntaxKind};
+use tsc_syntax::{ParseDiagnosticOrigin, ParseRecoveryAction, ParseRecoveryKind, SyntaxKind};
 
 use crate::codegen_common::find_workspace_root;
 use crate::h2_2c_acceptance::{is_declaration_file_path, parse_prepared_source};
@@ -92,11 +92,13 @@ struct UnitFacts {
     structural_diagnostic_events: usize,
     silent_missing_events: usize,
     diagnostic_origins: usize,
+    missing_await_supported: Option<bool>,
+    recovery_facts: Option<Value>,
 }
 
 impl UnitFacts {
     fn json(&self) -> Value {
-        json!({
+        let mut value = json!({
             "path": self.path,
             "diagnostics": self.diagnostics,
             "codes": self.codes,
@@ -106,7 +108,12 @@ impl UnitFacts {
             "structural_diagnostic_events": self.structural_diagnostic_events,
             "silent_missing_events": self.silent_missing_events,
             "diagnostic_origins": self.diagnostic_origins,
-        })
+        });
+        if let Some(supported) = self.missing_await_supported {
+            value["literal_or_missing_await"] = json!(supported);
+            value["recovery"] = self.recovery_facts.clone().unwrap();
+        }
+        value
     }
 }
 
@@ -127,7 +134,7 @@ fn is_literal_origin(origin: ParseDiagnosticOrigin) -> bool {
 
 /// The acceptance's source iteration (`h2_2c_acceptance`): emit-eligible,
 /// non-declaration, non-JSON sources parsed with the loader's options.
-fn program_facts(program: &PreparedProgram) -> Vec<UnitFacts> {
+fn program_facts(program: &PreparedProgram, missing_await: bool) -> Vec<UnitFacts> {
     let options = program.compiler_options();
     let mut facts = Vec::new();
     for source in program
@@ -162,6 +169,21 @@ fn program_facts(program: &PreparedProgram) -> Vec<UnitFacts> {
             structural_diagnostic_events: 0,
             silent_missing_events: 0,
             diagnostic_origins: recovery.diagnostic_origins().len(),
+            missing_await_supported: missing_await.then(|| syntax.has_only_literal_or_missing_await_recovery()),
+            recovery_facts: missing_await.then(|| {
+                let events: Vec<_> = recovery.events().iter().map(|event| json!({
+                    "kind": format!("{:?}", event.kind), "start": event.start, "length": event.length,
+                    "diagnostic_index": event.diagnostic_index,
+                    "missing_node": event.missing_node.map(|node| json!({"kind": node.kind as u16, "position": node.position})),
+                })).collect();
+                let actions: Vec<_> = recovery.actions().iter().map(|action| match *action {
+                    ParseRecoveryAction::TokenSkipped { token, start, length, statement_start, site } =>
+                        json!({"kind": "token-skipped", "token": token as u16, "start": start,
+                            "length": length, "statement_start": statement_start, "site": format!("{site:?}")}),
+                    ParseRecoveryAction::Reparsed { start, end } => json!({"kind": "reparsed", "start": start, "end": end}),
+                }).collect();
+                json!({"events": events, "actions": actions})
+            }),
         };
         for event in events {
             match event.kind {
@@ -206,8 +228,16 @@ impl Verdict {
         if units.is_empty() {
             return Self::NoRecovery;
         }
-        let refused_before = units.iter().any(|unit| unit.diagnostics > 0);
-        let refused_after = units.iter().any(|unit| !unit.literal_only);
+        let refused_before = units.iter().any(|unit| {
+            if unit.missing_await_supported.is_some() {
+                !unit.literal_only
+            } else {
+                unit.diagnostics > 0
+            }
+        });
+        let refused_after = units
+            .iter()
+            .any(|unit| !unit.missing_await_supported.unwrap_or(unit.literal_only));
         match (refused_before, refused_after) {
             (true, false) => Self::NewlyAdmitted,
             (false, true) => Self::NewlyRefused,
@@ -254,6 +284,7 @@ fn read_json(workspace: &Path, relative: &str) -> Result<(Value, String), Box<dy
 
 struct Census {
     workspace: PathBuf,
+    missing_await: bool,
     rows: Vec<Row>,
     seen: BTreeSet<String>,
     load_failures: Vec<Value>,
@@ -321,7 +352,7 @@ impl Census {
             };
             match loaded {
                 Ok(program) => {
-                    let units = program_facts(&program);
+                    let units = program_facts(&program, self.missing_await);
                     let verdict = Verdict::of(&units);
                     self.record(Row {
                         case_id: case_id.to_owned(),
@@ -372,7 +403,7 @@ impl Census {
                 let suite = case["suite"].as_str().unwrap_or("unknown").to_owned();
                 match qualified_input(&self.workspace, &case["input"]) {
                     Ok(program) => {
-                        let units = program_facts(&program);
+                        let units = program_facts(&program, self.missing_await);
                         let verdict = Verdict::of(&units);
                         self.record(Row {
                             case_id: case_id.to_owned(),
@@ -435,7 +466,7 @@ impl Census {
                 let suite = case["suite"].as_str().unwrap_or("unknown").to_owned();
                 match candidate_input(&self.workspace, case) {
                     Ok(program) => {
-                        let units = program_facts(&program);
+                        let units = program_facts(&program, self.missing_await);
                         let verdict = Verdict::of(&units);
                         self.record(Row {
                             case_id: case_id.to_owned(),
@@ -674,8 +705,10 @@ fn candidate_input(workspace: &Path, case: &Value) -> Result<PreparedProgram, Bo
 
 pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut out = None;
+    let mut missing_await = false;
     while let Some(argument) = args.next() {
         match argument.as_str() {
+            "--missing-await" => missing_await = true,
             "--out" => {
                 out = Some(PathBuf::from(
                     args.next().ok_or("missing value after --out")?,
@@ -685,10 +718,17 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         }
     }
     let workspace = find_workspace_root()?;
-    let out = out.unwrap_or_else(|| workspace.join("target/utf16-literal-recovery-census.json"));
+    let out = out.unwrap_or_else(|| {
+        workspace.join(if missing_await {
+            "target/emitter-missing-await-recovery-census.json"
+        } else {
+            "target/utf16-literal-recovery-census.json"
+        })
+    });
     let started = Instant::now();
     let mut census = Census {
         workspace: workspace.clone(),
+        missing_await,
         rows: Vec::new(),
         seen: BTreeSet::new(),
         load_failures: Vec::new(),
@@ -719,9 +759,9 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     };
     let report = json!({
         "schema": 1,
-        "kind": CENSUS_KIND,
-        "scope": "Rust parser literal-only recovery admission evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI",
-        "predicate": "SourceFile::has_only_literal_recovery over emit-eligible non-declaration non-JSON sources; before = refuse when any unit retains a parse diagnostic; after = refuse when any unit is not literal-only",
+        "kind": if missing_await { "emitter-missing-await-recovery-admission-census" } else { CENSUS_KIND },
+        "scope": if missing_await { "Missing-await recovery predicate evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" } else { "Rust parser literal-only recovery admission evaluated with the acceptance loaders and parse projection over every corpus row with recorded inputs; no emit, no TypeScript execution, no CI" },
+        "predicate": if missing_await { "Emit-eligible non-declaration non-JSON sources; before = SourceFile::has_only_literal_recovery; after = SourceFile::has_only_literal_or_missing_await_recovery" } else { "SourceFile::has_only_literal_recovery over emit-eligible non-declaration non-JSON sources; before = refuse when any unit retains a parse diagnostic; after = refuse when any unit is not literal-only" },
         "head": std::process::Command::new("git")
             .args(["rev-parse", "HEAD"])
             .current_dir(&workspace)
