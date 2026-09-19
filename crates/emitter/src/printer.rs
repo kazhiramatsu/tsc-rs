@@ -4748,11 +4748,13 @@ impl Printer {
                         .then_some(data.r#type)
                         .flatten()
                         .and_then(|r#type| transformation.arena().node_ref(node.source(), r#type));
-                    let equal_cursor = if let Some(r#type) = declared_type.or(erased_type) {
-                        self.original_node_end_cursor(transformation, r#type)?
-                    } else {
-                        self.original_node_end_cursor(transformation, name)?
-                    };
+                    // emitInitializer uses the selected node's own end. An
+                    // original link does not give a synthetic name or type
+                    // a source position for the following equals token.
+                    let equal_cursor = self.node_end_cursor(
+                        transformation,
+                        declared_type.or(erased_type).unwrap_or(name),
+                    )?;
                     if !initializer_context.nested_comments_suppressed() && declared_type.is_none()
                     {
                         let trailing = DeferredExpressionSourceComments::nested(
