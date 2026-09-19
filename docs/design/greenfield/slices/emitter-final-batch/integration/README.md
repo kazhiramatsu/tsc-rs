@@ -28,7 +28,7 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 r116の3差分は、System変数名の型コメントと、クラス／引数プロパティの宣言コメントだった。
 [全tupleと結果](cross-review/r116-native-results.md)を保存した。
 Opus116–119と照合した限定修復、および追加12＋24 controlsを統合し、
-`b451489e4a18abbff42651d8eb814537f4c5f800` に対するr120検証を継続している。
+`b451489e4a18abbff42651d8eb814537f4c5f800` に対するr120検証は完了した。
 110 complete commands、emitter全1,015 tests、境界1,930、元の4,088 commandsがすべて成功した。
 [r120の全結果と観測archive](cross-review/r120-native-results.md)を保存した。
 失敗時は後続を進めず、current bytesでの成功を要求する。
@@ -76,14 +76,14 @@ System/moduleのhelper/import/export、printerのcommentとsource spelling、opt
 
 提出のKNOWNはIDと原因を保持していたが、比較では「そのIDが何らかの差分を持つ」ことしか要求しなかった。
 `emitter-final-known-native.json` は受領時のr11の68行のnative outcomeを固定した。追加監査で解決した32行を退役archiveへ移し、現在のKNOWN36行にのみ残す。
-受領時の27 checker行はwrite/diagnostics/source order/emit result/exit等の全観測を、41拒否行は正確な拒否理由を比較した。checker全27行は完全一致を確認して退役した。残る36 parse-recovery拒否行は引き続き完全なnative拒否を比較する。
+受領時の27 checker行はwrite/diagnostics/source order/emit result/exit等の全観測を、41拒否行は正確な拒否理由を比較した。checker全27行は完全一致を確認して退役した。live KNOWNに残る36行は受領時のparse-recovery拒否観測を保持しているが、現在の候補では全36行がexactとなり退役ガードが発火した。全corpusへの影響確認が終わるまで台帳の退役を保留している。
 command構築時の拒否はpartial callbackのpath/hashも既存messageに含む。
 2回の独立観測が一致し、ID集合・owner/cause・native outcomeがすべて一致したときだけKNOWNとして認める。
 exactになったKNOWNと、新しく差分が出た行は引き続き失敗する。
 [由来](records/known-native-provenance.v1.json)と `local/known-native-68.log.gz` を参照。
 
 受領時68行はH2.9 parse recovery 36、module resolution request plan 4、H2.5h helper collision 1、checker 27。追加監査後はparse recovery36行のみ。helper1、resolution4、checker27は各2回の完全一致を確認して退役した。
-残るparse refusalは互換成功に数えない。受領時の「emitter owner 0」は残差全体の解決済みを意味しない。
+受領時のparse refusal自体は互換成功に数えない。r122の36行の一致は現在の限定観測として記録し、共有parser変更の全体qualificationとは区別する。受領時の「emitter owner 0」は残差全体の解決済みを意味しない。
 
 ### Case-insensitive oracleと修復済み台帳
 
