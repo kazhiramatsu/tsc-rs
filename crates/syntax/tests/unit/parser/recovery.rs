@@ -32,6 +32,74 @@ fn source(text: &str) -> SourceFile {
 }
 
 #[test]
+fn missing_variable_type_annotations_keep_other_type_and_expression_slots_closed() {
+    for text in [
+        "export let x: = 1;",
+        "export let x: ;",
+        "let x: = 1; export {};",
+        "export const x: = 1;",
+        "export var x: ;",
+        "export let a: , b: = 2;",
+        "export let x: /*c*/ = 1;",
+        "export let x: //c\n = 1;",
+        "namespace N { export let x: = 1; }",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+        assert!(!parsed.has_only_statement_gap_emit_recovery(), "{text}");
+        assert!(parsed.has_supported_emit_recovery(), "{text}");
+    }
+    for text in [
+        "function f(x: ) {}",
+        "class C { x: ; }",
+        "let x: A<,> = 1;",
+        "let x: A. = 1;",
+        "let x: () = 1;",
+        "let x: | = 1;",
+        "let x = ;",
+        "for (let x: ; ;) {}",
+        "let {x}: = source;",
+        "let x: = 1; const y = ;",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(!parsed.has_supported_emit_recovery(), "{text}");
+    }
+}
+
+#[test]
+fn missing_variable_type_events_keep_full_start_distinct_from_diagnostic_start() {
+    let parsed = source("export let x: /*c*/ = 1;");
+    assert!(parsed.has_supported_emit_recovery());
+    assert_eq!(parsed.parse_recovery.events.len(), 1);
+    assert_eq!(parsed.parse_recovery.events[0].start, 20);
+    assert_eq!(
+        parsed.parse_recovery.events[0].missing_node,
+        Some(MissingNodeRecovery {
+            kind: SyntaxKind::Identifier,
+            position: 13,
+        })
+    );
+    let mut shifted = parsed.clone();
+    shifted.parse_recovery.events[0]
+        .missing_node
+        .as_mut()
+        .unwrap()
+        .position = 20;
+    assert!(!shifted.has_supported_emit_recovery());
+    let mut duplicated = parsed.clone();
+    duplicated
+        .parse_recovery
+        .events
+        .push(parsed.parse_recovery.events[0]);
+    assert!(!duplicated.has_supported_emit_recovery());
+    let mut unpaired = parsed;
+    unpaired.parse_recovery.events[0].diagnostic_index = None;
+    assert!(!unpaired.has_supported_emit_recovery());
+}
+
+#[test]
 fn literal_recovery_uses_token_kinds_and_keeps_every_retained_origin() {
     // These are grammar/token controls, independent of diagnostic codes.
     let admitted = [

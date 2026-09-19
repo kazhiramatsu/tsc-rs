@@ -321,7 +321,13 @@ impl ParseRecovery {
                     || allow_statement_gaps && parent == Some(SyntaxKind::TypeAssertionExpression)
                     || context_support
                         .as_ref()
-                        .is_some_and(|support| support.missing_slots.contains(&id)))
+                        .is_some_and(|support| support.missing_slots.contains(&id))
+                    || allow_context_recovery
+                        && Self::is_missing_variable_type_slot(
+                            source,
+                            parents.as_ref().unwrap(),
+                            id,
+                        ))
                     || missing_positions.remove(&position) != Some(SyntaxKind::Identifier)
                 {
                     return false;
@@ -352,6 +358,55 @@ impl ParseRecovery {
             });
         }
         missing_positions.is_empty()
+    }
+
+    // The existing missing-event map still owns each empty name. This only
+    // admits a direct annotation on a named variable statement, preserving
+    // its full-start range rather than substituting the diagnostic start.
+    fn is_missing_variable_type_slot(
+        source: &SourceFile,
+        parents: &BTreeMap<NodeId, Option<NodeId>>,
+        id: NodeId,
+    ) -> bool {
+        let Some(type_id) = parents.get(&id).copied().flatten() else {
+            return false;
+        };
+        let name = source.arena.node(id);
+        let annotation = source.arena.node(type_id);
+        let NodeData::TypeReference(data) = &annotation.data else {
+            return false;
+        };
+        if annotation.pos != annotation.end
+            || annotation.pos != name.pos
+            || data.type_name != Some(id)
+            || data.type_arguments.is_some()
+        {
+            return false;
+        }
+        let Some(declaration_id) = parents.get(&type_id).copied().flatten() else {
+            return false;
+        };
+        let NodeData::VariableDeclaration(data) = &source.arena.node(declaration_id).data else {
+            return false;
+        };
+        if data.r#type != Some(type_id)
+            || data
+                .name
+                .is_none_or(|name| source.arena.node(name).kind != SyntaxKind::Identifier)
+        {
+            return false;
+        }
+        let Some(list_id) = parents.get(&declaration_id).copied().flatten() else {
+            return false;
+        };
+        if source.arena.node(list_id).kind != SyntaxKind::VariableDeclarationList {
+            return false;
+        }
+        let Some(statement_id) = parents.get(&list_id).copied().flatten() else {
+            return false;
+        };
+        matches!(&source.arena.node(statement_id).data,
+            NodeData::VariableStatement(data) if data.declaration_list == Some(list_id))
     }
 
     fn reachable_parents(source: &SourceFile) -> Option<BTreeMap<NodeId, Option<NodeId>>> {
