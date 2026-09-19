@@ -1,0 +1,32 @@
+{
+  "head": "aea09cbaf2015a5eef7869fc4888042f9784bf3c",
+  "binary": {
+    "head": "aea09cbaf2015a5eef7869fc4888042f9784bf3c",
+    "built_at": "2026-09-19T07:01:34.440858+00:00",
+    "original_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/contracts-05a4948cfadf681b",
+    "original_inode": 121165829,
+    "original_device": 16777234,
+    "immutable_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r116-immutable/contracts",
+    "sha256": "c2beac43675a53cd46080b1e6865bef6579474c6875bee7454c8d312776b18c1",
+    "source_tree": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+    "build_receipt": "records/local/compiler-bounded-build-r116.json",
+    "qualified_at_copy": false
+  },
+  "records": 145,
+  "cases": 74,
+  "exact": 71,
+  "failed": 3,
+  "failed_cases": [
+    "emitter-r113-type-comment-controls/type-comment/es5/commonjs/remove-false/class-property",
+    "emitter-r113-type-comment-controls/type-comment/es5/commonjs/remove-false/parameter-property",
+    "emitter-r113-type-comment-controls/type-comment/es5/system/remove-false/system-binding"
+  ],
+  "counts_by_repetitions": {
+    "2": 71,
+    "1": 3
+  },
+  "capture_archive_sha256": "5e08ef2572ba494e4297e59f0a16562fed15d27bd6a0c7c8ca7ec8beab91d9a5",
+  "capture_archive_bytes": 23908,
+  "receipt_exit": 101,
+  "log_sha256": "c6d5cdcfa8d1fe2957540a123be0df0ae9cdecc16ea20f5012c9f5a28d69154a"
+}

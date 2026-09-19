@@ -1,0 +1,56 @@
+emitter-r113-type-comment-controls/type-comment/es5/commonjs/remove-false/class-property fields=writes,emit_result error=None
+--- expected/project/out/main.d.ts
+
++++ actual/project/out/main.d.ts
+
+@@ -1,4 +1,4 @@
+
+ export declare class C {
+
+-    x /** n */: number /** t */;
+
++    x: number;
+
+ }
+
+ //# sourceMappingURL=main.d.ts.map
+emitter-r113-type-comment-controls/type-comment/es5/commonjs/remove-false/parameter-property fields=writes,emit_result error=None
+--- expected/project/out/main.d.ts
+
++++ actual/project/out/main.d.ts
+
+@@ -1,5 +1,5 @@
+
+ export declare class C {
+
+-    p /** n */: number; /** t */
+
++    p: number; /** t */
+
+     constructor(p /** n */: number /** t */);
+
+ }
+
+ //# sourceMappingURL=main.d.ts.map
+emitter-r113-type-comment-controls/type-comment/es5/system/remove-false/system-binding fields=writes,emit_result error=None
+--- expected/project/out/main.js
+
++++ actual/project/out/main.js
+
+@@ -5,7 +5,7 @@
+
+     return {
+
+         setters: [],
+
+         execute: function () {
+
+-            exports_1("y", y /** name */ /** type */ = 1);
+
++            exports_1("y", y /** name */ = 1);
+
+         }
+
+     };
+
+ });
