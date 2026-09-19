@@ -52,6 +52,8 @@ mod m8_plan;
 mod m8_trace;
 mod node_codegen;
 mod recovery_census;
+mod recovery_corpus_native;
+mod recovery_parse_snapshot;
 mod relpin;
 mod slice_evidence;
 mod symbol_audit;
@@ -76,6 +78,7 @@ fn main() {
         Some("ast-diff") => run_or_exit(ast_diff(args)),
         Some("jsdoc-ast-diff") => run_or_exit(jsdoc_ast_diff(args)),
         Some("recovery-census") => run_or_exit(recovery_census::run(args)),
+        Some("recovery-corpus-native") => run_or_exit(recovery_corpus_native::run(args)),
         Some("utf16-literal-recovery-census") => {
             run_or_exit(utf16_literal_recovery_census::run(args))
         }
