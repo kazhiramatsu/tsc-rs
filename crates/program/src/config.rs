@@ -4708,7 +4708,7 @@ fn report_no_input_files<'j0>(
                     .unwrap_or(&[])
                     .iter()
                     .cloned()
-                    .map(|value| Value::String(value))
+                    .map(Value::String)
                     .collect(),
             )
         });

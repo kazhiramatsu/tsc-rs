@@ -927,7 +927,7 @@ fn resolve_runtime_dependency_symlinks(
                     ProgramLoadError::resolution_js(
                         ProgramLoadOperation::ResolveModule,
                         Some(package.package_json().display().to_owned()),
-                        Some((name.clone())),
+                        Some(name.clone()),
                         error,
                     )
                 })?;
@@ -1671,7 +1671,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         ProgramLoadError::resolution_js(
                             ProgramLoadOperation::ResolveTypeReference,
                             Some(containing_file.display().to_owned()),
-                            Some((name.clone())),
+                            Some(name.clone()),
                             error,
                         )
                     })?;
@@ -2862,7 +2862,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 ProgramLoadError::resolution_js(
                     ProgramLoadOperation::NormalizeReference,
                     Some(source_path.display().to_owned()),
-                    Some((reference.file_name().to_owned())),
+                    Some(reference.file_name().to_owned()),
                     error,
                 )
             })?
@@ -2883,7 +2883,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 ProgramLoadError::resolution_js(
                     ProgramLoadOperation::NormalizeReference,
                     Some(source_path.display().to_owned()),
-                    Some((reference.file_name().to_owned())),
+                    Some(reference.file_name().to_owned()),
                     error,
                 )
             })?;
@@ -2961,7 +2961,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 ProgramLoadError::resolution_js(
                     ProgramLoadOperation::NormalizeReference,
                     Some(source_path.display().to_owned()),
-                    Some((reference.file_name().to_owned())),
+                    Some(reference.file_name().to_owned()),
                     error,
                 )
             })?;
@@ -3033,7 +3033,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         ProgramLoadError::resolution_js(
                             ProgramLoadOperation::ResolveTypeReference,
                             Some(containing_source.display().to_owned()),
-                            Some((key.specifier().to_owned())),
+                            Some(key.specifier().to_owned()),
                             error,
                         )
                     })?;
@@ -3162,7 +3162,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         ProgramLoadError::resolution_js(
                             ProgramLoadOperation::ResolveModule,
                             Some(containing_file.clone()),
-                            Some((key.specifier().to_owned())),
+                            Some(key.specifier().to_owned()),
                             error,
                         )
                     })?;
