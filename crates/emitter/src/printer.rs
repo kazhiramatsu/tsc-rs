@@ -5923,6 +5923,14 @@ impl Printer {
                     writer,
                 )?;
                 if self.options.declaration_syntax {
+                    if !expression_context.nested_comments_suppressed() {
+                        self.emit_trailing_comments_for_node_in_container(
+                            transformation,
+                            name,
+                            expression_context.comments(),
+                            writer,
+                        )?;
+                    }
                     self.emit_optional_declaration_token(
                         transformation,
                         node.source(),
@@ -5930,6 +5938,19 @@ impl Printer {
                         expression_context,
                         writer,
                     )?;
+                    if !expression_context.nested_comments_suppressed() {
+                        if let Some(question) = data
+                            .question_token
+                            .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                        {
+                            self.emit_trailing_comments_for_node_in_container(
+                                transformation,
+                                question,
+                                expression_context.comments(),
+                                writer,
+                            )?;
+                        }
+                    }
                     self.emit_optional_declaration_token(
                         transformation,
                         node.source(),
@@ -5944,6 +5965,19 @@ impl Printer {
                         expression_context,
                         writer,
                     )?;
+                    if !expression_context.nested_comments_suppressed() {
+                        if let Some(type_node) = data
+                            .r#type
+                            .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                        {
+                            self.emit_trailing_comments_for_node_in_container(
+                                transformation,
+                                type_node,
+                                expression_context.comments(),
+                                writer,
+                            )?;
+                        }
+                    }
                 }
                 if let Some(initializer) = data.initializer {
                     let declared_type = self
@@ -5962,14 +5996,29 @@ impl Printer {
                         .map(|r#type| self.original_node_end_cursor(transformation, r#type))
                         .transpose()?
                         .unwrap_or(self.original_node_end_cursor(transformation, name)?);
-                    let equals = self.emit_space_prefixed_token_with_comments(
-                        transformation,
-                        node,
-                        FixedToken::operator(SyntaxKind::EqualsToken),
-                        equal_cursor,
-                        false,
-                        writer,
-                    )?;
+                    let equals = if self.options.declaration_syntax {
+                        // Declaration children already completed their trailing
+                        // phases. The initializer token owns only its leading
+                        // boundary, including a retained literal initializer.
+                        self.emit_source_leading_token_with_context(
+                            transformation,
+                            node,
+                            FixedToken::operator(SyntaxKind::EqualsToken),
+                            equal_cursor,
+                            TokenLeadingSpace::Required,
+                            expression_context,
+                            writer,
+                        )?
+                    } else {
+                        self.emit_space_prefixed_token_with_comments(
+                            transformation,
+                            node,
+                            FixedToken::operator(SyntaxKind::EqualsToken),
+                            equal_cursor,
+                            false,
+                            writer,
+                        )?
+                    };
                     writer.write_space(" ");
                     let initializer = transformation
                         .arena()
