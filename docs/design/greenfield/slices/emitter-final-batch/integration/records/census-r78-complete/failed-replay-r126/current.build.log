@@ -1,0 +1,32 @@
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling generic-array v0.14.7
+   Compiling libc v0.2.186
+   Compiling zmij v1.0.21
+   Compiling serde_core v1.0.228
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling tsc-rs-diagnostics v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/diagnostics)
+   Compiling serde_json v1.0.150
+   Compiling cpufeatures v0.2.17
+   Compiling tsc-rs-types v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/types)
+   Compiling digest v0.10.7
+   Compiling cfg-if v1.0.4
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling sha2 v0.10.9
+   Compiling tsc-rs-syntax v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/syntax)
+   Compiling base64 v0.22.1
+   Compiling recovery-parse-replay v0.0.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r107/build-current)
+    Finished `dev` profile [optimized] target(s) in 36.92s
+   Compiling recovery-parse-replay v0.0.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r107/build-current)
+    Finished `test` profile [optimized] target(s) in 3.65s
+     Running unittests /Users/hiramatsu/dev/tsc-rs-emitter-final-corpus-replay/scripts/replay-recovery-parse.rs (/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r107/build-current/target/debug/deps/recovery_parse_replay-9cb63f5ce863d2da)
+
+running 3 tests
+test snapshot::tests::canonical_digest_ignores_allocator_ids_and_preserves_attachments ... ok
+test snapshot::tests::array_and_source_file_facts_are_observable_without_changing_text ... ok
+test snapshot::tests::scalar_payloads_and_kind_fields_are_observable_without_changing_text ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
