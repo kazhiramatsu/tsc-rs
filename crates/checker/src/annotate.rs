@@ -10771,13 +10771,11 @@ impl<'a> CheckerState<'a> {
                 if let Some(annotation) = annotation {
                     return state.get_type_from_type_node(annotation);
                 }
-                let body =
-                    node_util::body_of(state.binder.source_of_node(declaration), declaration);
-                match body {
-                    None => Ok(state.tables.intrinsics.any),
-                    Some(_) => {
-                        state.get_return_type_from_body(declaration, tsc_types::CheckMode::NORMAL)
-                    }
+                let source = state.binder.source_of_node(declaration);
+                if node_util::node_is_missing(source, node_util::body_of(source, declaration)) {
+                    Ok(state.tables.intrinsics.any)
+                } else {
+                    state.get_return_type_from_body(declaration, tsc_types::CheckMode::NORMAL)
                 }
             })(self),
         };

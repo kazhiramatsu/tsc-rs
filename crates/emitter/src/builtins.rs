@@ -11469,6 +11469,17 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         Ok(())
     }
 
+    /// tsrs-native: arena projection of nodeIsMissing for function bodies.
+    /// Parsed zero-width recovery nodes are missing; synthesized bodies are
+    /// present. Callers retain their existing TypeScript visitor flag gates.
+    fn function_body_is_missing(&self, body: Option<NodeId>) -> Result<bool, TransformError> {
+        let Some(body) = body else {
+            return Ok(true);
+        };
+        let body = self.context.arena().node(self.node(body))?;
+        Ok(body.pos != u32::MAX && body.pos == body.end && body.kind != SyntaxKind::EndOfFileToken)
+    }
+
     /// tsc's `visitorWorker` normally enters `visitTypeScript` only for a
     /// subtree carrying `ContainsTypeScript`. Source-level elidable statements
     /// and exported namespace declarations have separate visitor entry points
@@ -11584,19 +11595,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     Some(self.update_generic(original, NodeData::ElementAccessExpression(data))?)
                 }
                 NodeData::FunctionDeclaration(mut data) => {
-                    // shouldEmitFunctionLikeDeclaration rejects a parsed,
-                    // zero-width missing body as well as an absent body.
-                    // Keep this behind the TypeScript transform-flags gate.
-                    let missing_body = match data.body {
-                        None => true,
-                        Some(body) => {
-                            let body = self.context.arena().node(self.node(body))?;
-                            body.pos != u32::MAX
-                                && body.pos == body.end
-                                && body.kind != SyntaxKind::EndOfFileToken
-                        }
-                    };
-                    if missing_body
+                    if self.function_body_is_missing(data.body)?
                         || self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)?
                     {
                         Some(
@@ -11612,9 +11611,13 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     }
                 }
                 NodeData::FunctionExpression(mut data) => {
-                    data.type_parameters = None;
-                    data.r#type = None;
-                    Some(self.update_generic(original, NodeData::FunctionExpression(data))?)
+                    if self.function_body_is_missing(data.body)? {
+                        Some(self.create_omitted_expression()?.node())
+                    } else {
+                        data.type_parameters = None;
+                        data.r#type = None;
+                        Some(self.update_generic(original, NodeData::FunctionExpression(data))?)
+                    }
                 }
                 NodeData::ArrowFunction(mut data) => {
                     data.type_parameters = None;
@@ -11797,7 +11800,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     }
                 }
                 NodeData::Constructor(mut data) => {
-                    if data.body.is_none() {
+                    if self.function_body_is_missing(data.body)? {
                         None
                     } else {
                         let parameter_properties = self.parameter_properties(data.parameters)?;
@@ -11812,7 +11815,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     }
                 }
                 NodeData::MethodDeclaration(mut data) => {
-                    if data.body.is_none() {
+                    if self.function_body_is_missing(data.body)? {
                         None
                     } else {
                         data.question_token = None;
@@ -11823,7 +11826,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     }
                 }
                 NodeData::GetAccessor(mut data) => {
-                    if data.body.is_none()
+                    if self.function_body_is_missing(data.body)?
                         && self.has_modifier(data.modifiers, SyntaxKind::AbstractKeyword)?
                     {
                         None
@@ -11840,7 +11843,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     }
                 }
                 NodeData::SetAccessor(mut data) => {
-                    if data.body.is_none()
+                    if self.function_body_is_missing(data.body)?
                         && self.has_modifier(data.modifiers, SyntaxKind::AbstractKeyword)?
                     {
                         None

@@ -286,7 +286,7 @@ impl ParseRecovery {
                         Some(index) if index < source.parse_diagnostics.len() => {
                             self.actions.iter().any(|action| matches!(action,
                                 ParseRecoveryAction::TokenSkipped { start, .. } if *start == event.start))
-                            || self.report_has_retained_syntax_owner(source, parents.as_ref().unwrap(), event)
+                            || self.report_has_retained_syntax_owner(source, parents.as_ref().unwrap(), event, allow_context_recovery)
                             || allow_context_recovery && self.actions.iter().any(|action| matches!(action,
                                 ParseRecoveryAction::EscapedKeywordConsumed { start, length, .. }
                                     if *start == event.start && *length == event.length))
@@ -790,6 +790,7 @@ impl ParseRecovery {
         source: &SourceFile,
         parents: &BTreeMap<NodeId, Option<NodeId>>,
         event: &ParseRecoveryEvent,
+        allow_statement_terminator: bool,
     ) -> bool {
         let (Some(start), Some(end), Some(full_start)) = (
             source.positions().utf16_to_byte(event.start),
@@ -865,12 +866,21 @@ impl ParseRecovery {
                 let NodeData::ExpressionStatement(data) = &node.data else {
                     return false;
                 };
-                node.end == end
+                // The reported token must remain the whole expression. The
+                // context profile also admits its own consumed terminator;
+                // no intervening syntax may be discarded by this tie.
+                (node.end == end
+                    || allow_statement_terminator
+                        && node.end.checked_sub(1).is_some_and(|semicolon| {
+                            crate::scanner::skip_trivia(source.text(), end as usize)
+                                == semicolon as usize
+                                && source.text().as_bytes().get(semicolon as usize) == Some(&b';')
+                        }))
                     && crate::scanner::skip_trivia(source.text(), node.pos as usize)
                         == start as usize
                     && data
                         .expression
-                        .is_some_and(|expression| source.arena.node(expression).end == node.end)
+                        .is_some_and(|expression| source.arena.node(expression).end == end)
             })
             .count();
         if statements > 0 {

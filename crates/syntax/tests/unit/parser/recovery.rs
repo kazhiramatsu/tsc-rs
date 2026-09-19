@@ -1482,3 +1482,39 @@ fn escaped_keyword_facts_follow_speculation_commit_and_rollback() {
     assert_eq!(parser.parse_recovery.actions().len(), 1);
     assert_coverage(&parser.parse_diagnostics, &parser.parse_recovery);
 }
+
+#[test]
+fn retained_report_expression_may_own_only_its_semicolon_and_trivia() {
+    for text in [
+        "@dec using 1;",
+        "using 1;",
+        "var 1;",
+        "using x, 1;",
+        "@dec using 1 /*c*/ ;",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(
+            parsed.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+    let mut parsed = source("@dec using 1;");
+    let NodeData::SourceFile(data) = &parsed.arena.node(parsed.root).data else {
+        unreachable!()
+    };
+    let statements = parsed
+        .arena
+        .node_array(data.statements.unwrap())
+        .nodes
+        .clone();
+    let expression = statements
+        .into_iter()
+        .find(|id| parsed.arena.node(*id).kind == SyntaxKind::ExpressionStatement)
+        .unwrap();
+    // An end that includes the next token is no longer the retained expression
+    // plus its own semicolon, even though the diagnostic span is unchanged.
+    parsed.arena.node_mut(expression).end += 1;
+    assert!(!parsed.has_supported_emit_recovery());
+}
