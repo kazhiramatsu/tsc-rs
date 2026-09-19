@@ -1523,11 +1523,32 @@ fn retained_report_expression_may_own_only_its_semicolon_and_trivia() {
 fn suppressed_escaped_keyword_report_cannot_admit_another_error() {
     let parsed = source(r"var x = 1 \u0069f (x) {}");
     assert_eq!(parsed.parse_diagnostics.len(), 1);
-    assert_eq!(parsed.parse_diagnostics[0].code, 1005);
+    assert_eq!(parsed.parse_diagnostics[0].code(), 1005);
     assert!(!parsed
         .parse_recovery
         .actions()
         .iter()
         .any(|action| matches!(action, ParseRecoveryAction::EscapedKeywordConsumed { .. })));
+    assert!(!parsed.has_supported_emit_recovery());
+}
+
+#[test]
+fn escaped_keyword_fact_cannot_justify_two_retained_reports() {
+    let mut parsed = source(r"\u0069f (true) {}");
+    assert!(parsed.has_supported_emit_recovery());
+    let diagnostic = parsed.parse_diagnostics[0].clone();
+    parsed.parse_diagnostics.push(diagnostic);
+    parsed
+        .parse_recovery
+        .diagnostic_origins
+        .push(ParseDiagnosticOrigin::Parser);
+    let mut event = *parsed
+        .parse_recovery
+        .events()
+        .iter()
+        .find(|event| event.diagnostic_index == Some(0))
+        .unwrap();
+    event.diagnostic_index = Some(1);
+    parsed.parse_recovery.events.push(event);
     assert!(!parsed.has_supported_emit_recovery());
 }

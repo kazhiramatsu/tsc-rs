@@ -290,6 +290,11 @@ impl ParseRecovery {
                             || allow_context_recovery && self.actions.iter().any(|action| matches!(action,
                                 ParseRecoveryAction::EscapedKeywordConsumed { start, length, .. }
                                     if *start == event.start && *length == event.length))
+                                && self.events.iter().filter(|candidate| {
+                                    candidate.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                                        && candidate.diagnostic_index.is_some()
+                                        && candidate.start == event.start && candidate.length == event.length
+                                }).count() == 1
                             || allow_context_recovery && self.report_has_retained_variable_delimiter(source, parents.as_ref().unwrap(), event)
                             || context_support.as_ref().is_some_and(|support| support.assertion_reports.contains(&event_index))
                         }

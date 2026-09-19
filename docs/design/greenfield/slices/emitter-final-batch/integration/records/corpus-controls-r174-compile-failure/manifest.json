@@ -1,0 +1,31 @@
+{
+  "head": "f8cbbbf076116fe0ac0edc88dc5f954c8ad22eef",
+  "qualified": false,
+  "reason": "syntax test used Diagnostic::code as a field; no native compiler comparison ran",
+  "artifacts": [
+    {
+      "path": "corpus-controls-pipeline-r174.json",
+      "sha256": "ee3be5c3d5136c14810a9649d183bf056ab3d384a60653ec447c347871b6f712"
+    },
+    {
+      "path": "corpus-controls-pipeline-r174.log.gz",
+      "sha256": "d7b20c085ded7a9dbb51ab324296a3b54790455d76741b347c998b45bd6b54a8"
+    },
+    {
+      "path": "corpus-syntax-r174.json",
+      "sha256": "c71c8869184153d5d3ccd0b63b7c0597e0af8236c311fc07c46164be32504f97"
+    },
+    {
+      "path": "corpus-syntax-r174.log.gz",
+      "sha256": "c5b859f7596f78044849398cdea731852146867467bee4eebacc734aa291a758"
+    },
+    {
+      "path": "witness-registration-r174.json",
+      "sha256": "2484034fae0f54a43d097184b696bb4b6cec4f7c1f7ce9bf744f0fe7fe1c38b7"
+    },
+    {
+      "path": "witness-registration-r174.log.gz",
+      "sha256": "982567345e1030dc4c490f7780c0fe6b7adb6a5fb2accd050144ddfdfa4aed40"
+    }
+  ]
+}
