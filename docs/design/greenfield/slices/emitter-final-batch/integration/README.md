@@ -8,34 +8,34 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
 提出時の検証と統合候補の検証は以下で区別する。hosted完了前に全体完了を主張しない。
 
-## r157 統合候補の検証中（2026-09-19）
+## 現在の統合候補と未完了事項（2026-09-19）
 
-統合は未完了。`add70fc29e3c553f36c9b78e23733877379e6a28` は、確認済みのproject/noEmit観測経路と
-ES5変数修復を組み合わせた候補であり、r157/r158の実行中はsourceとHEADを固定する。
-下表の過去の成功を、この候補の全体成功へ読み替えない。
+統合は未完了。候補 `d2b29439dd3eed32fcfd50f65317f7cadcd86628` を固定したr194–r196は終了した。
+追加controlsで判明したコメント所有境界とconstructor選択を修復中であり、次候補のnative検証は未完了。
+以下の過去の成功を現在の候補の全体成功とは数えない。
 
-| 検証 | 確認済みの範囲 |
+| 検証 | 実測結果と範囲 |
 | --- | --- |
-| 元のcensus r78 | 14,329 ID = 14,219 loaded＋110明示的load failure。16,994 parse inputsを保存。元snapshotは変更しない |
-| parser replay r131/r151 | 元入力のAST・診断・順序付き回復記録は不変。許可判定の差から44 commandを選択し、従来43件をすべて含む。完全command比較はr158待ち |
-| project r144 | 108件のsource/order/options、診断、全callback bytes、map、status/exitを各2回完全一致。最終候補でも再確認する |
-| noEmit r153 | 元censusのemit loaderで拒否された2件を既存の通常checking commandで各2回完全一致。4観測を保存。元loader成功やemitter呼び出しとは数えない |
-| variable r150 | emitter全1,015 tests・printer147 cases成功。268 complete commands中263 exact×2、追加ES5 controlsの5件が失敗 |
-| comma/neighbours r152 | missing-comma 145 complete commandsが各2回一致、関連7 Rust tests成功 |
-| transpile r152 | 独立291件は289 exact×2・2 known、unexpected差分0。6件のKNOWN退役要求だけでraw exit101。live KNOWNは全8件を保持中 |
-| ES5 producer候補 r154/r156 | 全404 TypeScript complete commandsが各2回一致し、元268/中間380 recordsは構造同一。native比較はr157実行中 |
+| 元census r78 | 14,329 ID = 14,219 loaded＋110明示的load failure。元16,994 parse inputsは変更しない |
+| parser proof r185 | 16,994入力でAST・診断・raw recovery factsはr177と一致、先行5 profiles不変、最終context admissionは単調。syntax treeと依存hashが一致する範囲で再利用する |
+| corpus selection r185 | 48元commands。従来44件を保持し、新しいescaped-keyword分を含む。class-body gapが新たに許可する元入力は0件で、この新動作は専用controlsで検証する |
+| 元command r186 | 48件中45 complete commands＋2 noEmit commandsが各2回一致。escaped-default後のコメント欠落1件を確認。108 projectsは失敗後に未実行 |
+| controls r184 | 176＋280＋232件中682件が各2回一致。Unicode detached comments 4件とES5 missing constructor 2件が不一致。syntax 211 tests成功 |
+| controls r194 | 952件中892件が各2回一致。44コメント/map差分（BOM比較条件4件を含む）＋16 constructor差分。raw exit101、全観測を保存 |
+| 元commands / project r195 | 46 emit＋2 noEmitの元48 commands、および108 projectsが各2回完全一致。noEmitはemit成功へ数えない |
+| planner r200 | 84 tests成功。r199はfixtureの採取完了前に実行して2 FileNotFoundErrorとなったため、その失敗も保存 |
+| project r144 | 108件が各2回完全一致した過去の証拠。最終候補はr195で再検証する |
+| earlier regression r196 | r194不一致のため前提確認で停止。旧508＋145＋120＋JSDoc1、emitter 1,015 tests、checker lib、独立transpileの再検証は未実行 |
 
-r150の5件は、CommonJS変数名変更後のresolver参照2件、Systemの消えた型に続くコメント1件、
-for-of変換後のsemicolonをまたぐコメント2件だった。実際のOpus136/137と、semantic originalが
-コメントmetadataを複製しないこと、置換前の型末尾はinitializer cursorだけが参照すること、
-for-ofの片側コメント範囲を区別して検討した。候補修復は共有comment/map collectorを変更しない。
+実際のOpus154–160と、Unicode-aware detached discovery、ES2015のconstructor本体判定、
+escaped-defaultの末尾コメント所有境界を照合した。コメント修復はsource-mapのphaseまで
+[明示的に検証](cross-review/r194-comment-phase-validation.md)する。レビュー意見だけではqualifyしない。
+[r184–r190の全失敗とparser証拠](records/corpus-controls-r184-r190-complete/manifest.json)を保存している。
 
-証拠は[parser replay](records/parser-replays-r131-complete/manifest.json)、
-[project108](records/project-supplement-r144-complete/archive-manifest.json)、
-[noEmit2](records/noemit-r153-complete/manifest.json)、
-[選択44件のTS観測](records/selected-corpus-oracle-r155/manifest.json)に保存する。
-r150/r152とES5候補の記録は候補worktreeで固定し、検証後に統合する。
-KNOWN36と独立transpile KNOWNの退役、全体chain walk、unsplit local CI、hosted確認、mergeは未完了。
+live parse KNOWN36と独立transpile KNOWN8は変更していない。退役は元commandsと周辺修復の
+qualification後に行い、過去の拒否／出力を検証するguardを保存する。
+最終sourceでのchain walk、unsplit local CI、hosted確認、mergeは未完了。
+PR561の旧HEADの失敗は、現在候補の成否とは別に保存する。
 
 ## r120–r124 の固定候補に対する検証履歴（2026-09-19）
 
@@ -135,7 +135,7 @@ H2.5h 12、H2.6a 1、H2.6c 8の既知差分台帳を空にした。
 
 ## Hosted入口と予算
 
-既存65 witness suitesを保持し、次の10 suitesを追加する。全jobは既存の2 workers・60分制限、
+既存65 witness suitesを保持し、syntax-emitter-recoveryと次の12 suitesを追加する（合計78）。全jobは既存の2 workers・60分制限、
 45分で分割再検討の方針を維持する。
 
 | suite | 固定した観測範囲 |
@@ -146,6 +146,8 @@ H2.5h 12、H2.6a 1、H2.6c 8の既知差分台帳を空にした。
 | emitter-global | 既存global output-only 769行を各2回 |
 | emitter-comment-controls | export/destructuring1130＋元JSDoc1＋async arrow372の完全commandを各2回。emitter-globalと同じjobで実行 |
 | emitter-class-0 / -1 | 既存8 class bandsを700/528行に分割、各2回 |
+| emitter-system-controls | System・関数・コメント・構文回復の周辺5,549 fixture memberships、23 Rust tests。新1,192 controlsを含む |
+| emitter-recovery-controls | bounded parse-recovery 1,224 fixture memberships、8 Rust tests |
 
 重複する観測所属なので件数を足して互換ケース総数にしない。PLAN-BASEの約70分のローカル直列測定は
 hosted一jobへ持ち込まない。専用fixtureは担当suiteを選び、shared sourceは全既存群を含める。
@@ -160,7 +162,7 @@ macOS background priority・Cargo 2 workersで逐次実行し、canonicalのtarg
 ローカル途中のhash drift失敗は、oracle修正後に旧pinを検出したもので記録から除外しない。
 最終候補の成功とhosted receiptsは完了後に追記する。
 
-現在変更中の14 concernsは `active-unqualified` に戻した。
+現在変更中の18 concernsは `active-unqualified` に戻した。
 [以前のqualification](records/architecture-before.v1.json)を保存し、最終immutable headの実測後に
 変更した範囲だけ再qualifyする。E-PLAN-SCRIPTのoption admission、resolver/checker facts、
 metadata/class provenance、async capture、name allocation、helper import、printer/commentが対象。

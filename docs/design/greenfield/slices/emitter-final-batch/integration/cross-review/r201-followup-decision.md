@@ -1,0 +1,11 @@
+# r201 bounded follow-up decision
+
+r194 at d2b29439d finished 952 controls: 892 exact twice, 60 failures. Four are the virtual-host BOM mismatch; the other 56 are measured native divergences. r195 qualifies 48 original commands (46 emit and two noEmit) and 108 projects twice on that source. r196 stopped at the failed-control prerequisite before any regression build.
+
+Actual Opus158 retracts its r157 ordinary-clause parity assumption after maps disprove it. Clause trailing comments now follow the clause map-end; both colon and last-statement phases retain that boundary for the clause. Root confirms the generic node pipeline already claims CaseBlock/Case/Default ranges, so no duplicate scope claim is introduced. The now-unused list-boundary wrapper, internal enum and constant argument are removed together. No public API changes follow from this cleanup.
+
+The collector distinguishes CR/LF from Unicode whitespace exactly as TypeScript does. The trailing writer delegates to that collector within its existing trivia limit; the close-boundary prefix trimmer follows the same ownership. Keep the delimited leading helper unchanged until evidence warrants a separate correction. Three getFirstConstructorWithBody selectors use nodeIsPresent for parameter properties, declaration properties and legacy-decorator handoff. Eligibility predicates that upstream defines as body-present remain unchanged.
+
+The BOM observer correction matches actual TypeScript sys.readFile over six byte inputs, including embedded/double BOM. Only four historical TS observations change, only their JS map writes/map results; all 776 predecessor input tuples remain unchanged. New controls total 176+672+344=1192, adding final-statement/trimmer and constructor metadata neighbors. Native qualification is pending.
+
+Actual Opus161 identifies three additional current comment rows whose old qualification does not cover changed behavior. Track E-COMMENTS-G, E-COMMENT-PHASES-A36 and E-COMMENT-ELLIPSIS-A37 as delegated active-unqualified, making 18. Preserve all former row text; only the current map removes the obsolete internal owner. Historical packets and their row hashes are untouched. Final qualification still requires final V focused/full gates, successful hosted checks, merge M containing V and matching profile bytes, then record-only documentation D.
