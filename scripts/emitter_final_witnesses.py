@@ -43,7 +43,7 @@ COMMENT_TESTS = (
 )
 SYSTEM_FIXTURES = (("system-binding-publication", 1044), ("await-flag-commands", 690),
                    ("emitter-recovery-boundaries", 774), ("emitter-heritage-boundaries", 132),
-                   ("emitter-helper-probes", 122), ("emitter-nested-paren-recovery", 108), ("emitter-class-helper-gates", 320), ("emitter-r95-neighbours", 288), ("emitter-r95-wrapper-rest", 88), ("emitter-r95-call-boundaries", 18), ("emitter-r104-rest-controls", 10), ("emitter-r107-declaration-comments", 3), ("emitter-r109-token-neighbours", 58), ("emitter-r111-do-body-controls", 4), ("emitter-r113-type-comment-controls", 9))
+                   ("emitter-helper-probes", 122), ("emitter-nested-paren-recovery", 108), ("emitter-class-helper-gates", 320), ("emitter-r95-neighbours", 288), ("emitter-r95-wrapper-rest", 88), ("emitter-r95-call-boundaries", 18), ("emitter-r104-rest-controls", 10), ("emitter-r107-declaration-comments", 3), ("emitter-r109-token-neighbours", 58), ("emitter-r111-do-body-controls", 4), ("emitter-r113-type-comment-controls", 9), ("emitter-r117-type-comment-controls", 12))
 SYSTEM_TESTS = (
     "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
     "emitter_residual_audit::await_flag_boundaries_match_complete_typescript_commands",
@@ -61,6 +61,7 @@ SYSTEM_TESTS = (
     "emitter_residual_audit::r109_token_neighbours_match_complete_typescript_commands",
     "emitter_residual_audit::r111_do_body_controls_match_complete_typescript_commands",
     "emitter_residual_audit::r113_type_comment_controls_match_complete_typescript_commands",
+    "emitter_residual_audit::r117_type_comment_controls_match_complete_typescript_commands",
 )
 RECOVERY_FIXTURES = (
     ("emitter-missing-await", 60), ("emitter-missing-declaration", 72),
