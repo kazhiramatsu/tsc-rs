@@ -182,6 +182,4 @@ fn prepared_validation_accepts_a_suffix_that_forms_a_declaration_ending() {
         .expect("the physical .d.ts ending came from suffix insertion before logical .ts");
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;

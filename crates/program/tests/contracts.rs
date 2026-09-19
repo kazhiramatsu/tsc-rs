@@ -1,3 +1,8 @@
+#[path = "support/scalar_json.rs"]
+mod utf16_scalar_json;
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+
 #[path = "integration/automatic_type_directive_loader_contract.rs"]
 mod automatic_type_directive_loader_contract;
 #[path = "integration/config_diagnostics_oracle_contract.rs"]

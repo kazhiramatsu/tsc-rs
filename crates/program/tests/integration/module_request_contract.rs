@@ -1542,6 +1542,4 @@ fn utf16_text_at(text: &str, span: std::ops::Range<u32>) -> String {
         .expect("directive span contains valid UTF-16")
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;

@@ -1871,7 +1871,7 @@ fn package_identity_includes_peer_dependencies() {
     assert_ne!(react_18, react_19);
     assert_eq!(
         react_18.peer_dependencies(),
-        (Some("+react@18.3.1")).map(Into::into)
+        Some(Into::into("+react@18.3.1"))
     );
 }
 
@@ -2234,6 +2234,4 @@ fn config_diagnostic_alias_requires_the_owned_matching_snapshot() {
     }
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;

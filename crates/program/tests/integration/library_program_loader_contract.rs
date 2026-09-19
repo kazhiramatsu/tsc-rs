@@ -1159,6 +1159,4 @@ fn library_sources_and_references_count_toward_every_resource_limit() {
     );
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;

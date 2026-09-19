@@ -765,6 +765,4 @@ fn library_prefix_publication_remaps_root_and_automatic_type_target_ids() {
     assert!(!target.is_external_library_import());
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;
