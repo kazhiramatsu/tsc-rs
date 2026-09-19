@@ -1,0 +1,9 @@
+Round120: independent review of the error-size repair before final integration, read-only; no edits, builds, or tests.
+
+Recovery tree: /Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next, immutable HEAD b451489e4a18abbff42651d8eb814537f4c5f800. Current native regression process is still running there; do not touch it. Census and native commands are running, so no heavy work.
+
+Please inspect commit deb2f2ebf and subsequent error-related follow-ups for ProgramLoadError in crates/program/src/loader.rs, PreparationError, and checker UnknownProperty. The full workspace Clippy gate had inherited result_large_err failures; the repair boxes payloads without new lint allowances. ProgramLoadError is public, so Host.source and Resolution.source changing to Box is a real source-compatibility change for direct constructors/destructuring. It has already been disclosed in the integration record. Program tests 558 passed / 5 ignored and checker lib1739 passed at r106, but final full gate remains required.
+
+Answer narrowly: (1) any remaining error source chain/downcast, equality, display, or allocation-path behavior bug, with concrete paths; (2) whether a smaller code/API impact fix exists under the existing -D warnings/no-new-lint-allowances constraint, without a new broad error API refactor; (3) what exact compatibility limitation must appear in the final PR. If current boxing is the narrowest honest choice, say so; do not infer that source compatibility was preserved.
+
+For context only: r120 candidate has passed all110 new complete commands twice, all1015 emitter tests, and all1930 boundary commands twice (the3860 full observation payloads equal r106 byte-for-byte). Original4088 commands are in progress. Please do not expand this request into another emitter implementation change or infer whole-program qualification from these counts.
