@@ -1034,25 +1034,30 @@ impl<'text> Parser<'text> {
         if is_keyword(self.token())
             && (self.scanner.has_unicode_escape() || self.scanner.has_extended_unicode_escape())
         {
+            let retained_before = self.parse_diagnostics.len();
             self.parse_error_at(
                 self.scanner.token_start(),
                 self.scanner.pos(),
                 &gen::Keywords_cannot_contain_escape_characters,
                 &[],
             );
-            let start = self.to_utf16(self.scanner.token_start());
-            let end = self.to_utf16(self.scanner.pos());
-            self.parse_recovery
-                .actions
-                .push(ParseRecoveryAction::EscapedKeywordConsumed {
-                    token: self.token(),
-                    start,
-                    length: end.saturating_sub(start),
-                    statement_start: self.to_utf16(
-                        self.recovery_statement_start
-                            .unwrap_or(self.scanner.token_start()),
-                    ),
-                });
+            // A same-start report may have been deduplicated. Such a
+            // suppressed attempt must not justify a different retained error.
+            if self.parse_diagnostics.len() > retained_before {
+                let start = self.to_utf16(self.scanner.token_start());
+                let end = self.to_utf16(self.scanner.pos());
+                self.parse_recovery
+                    .actions
+                    .push(ParseRecoveryAction::EscapedKeywordConsumed {
+                        token: self.token(),
+                        start,
+                        length: end.saturating_sub(start),
+                        statement_start: self.to_utf16(
+                            self.recovery_statement_start
+                                .unwrap_or(self.scanner.token_start()),
+                        ),
+                    });
+            }
         }
         self.next_token_without_check()
     }

@@ -34,6 +34,7 @@ const shapes = [
   ["decorator-enum", "declare function dec(...args: any[]): any; @dec enum E {}"],
   ["valid-parameter-decorator", "declare function dec(...args: any[]): any; class C { m(@dec x: number) {} }", {experimentalDecorators: true}],
   ["escaped-top-level-await", "export {}; \\u0061wait x;"],
+  ["named-variable-numeric-follower", "let a 1;"],
 ];
 const inputs = [];
 for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015", "esnext", true], ["es5", "system", false], ["esnext", "commonjs", true]])
@@ -50,7 +51,7 @@ for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015
           sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
           outDir: "/project/out"}, files: ["main.ts"]})});
     }
-assert.equal(inputs.length, 192);
+assert.equal(inputs.length, 200);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

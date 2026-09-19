@@ -144,7 +144,6 @@ fn missing_variable_delimiters_require_retained_named_statement_declarations() {
         "let a = {x: 1 y: 2};",
         "let a = [1 2];",
         "function f(a b) {}",
-        "let a 1;",
         "enum E { a b }",
     ] {
         let parsed = source(text);
@@ -1488,6 +1487,7 @@ fn retained_report_expression_may_own_only_its_semicolon_and_trivia() {
     for text in [
         "@dec using 1;",
         "using 1;",
+        "let a 1;",
         "var 1;",
         "using x, 1;",
         "@dec using 1 /*c*/ ;",
@@ -1516,5 +1516,18 @@ fn retained_report_expression_may_own_only_its_semicolon_and_trivia() {
     // An end that includes the next token is no longer the retained expression
     // plus its own semicolon, even though the diagnostic span is unchanged.
     parsed.arena.node_mut(expression).end += 1;
+    assert!(!parsed.has_supported_emit_recovery());
+}
+
+#[test]
+fn suppressed_escaped_keyword_report_cannot_admit_another_error() {
+    let parsed = source(r"var x = 1 \u0069f (x) {}");
+    assert_eq!(parsed.parse_diagnostics.len(), 1);
+    assert_eq!(parsed.parse_diagnostics[0].code, 1005);
+    assert!(!parsed
+        .parse_recovery
+        .actions()
+        .iter()
+        .any(|action| matches!(action, ParseRecoveryAction::EscapedKeywordConsumed { .. })));
     assert!(!parsed.has_supported_emit_recovery());
 }
