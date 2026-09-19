@@ -146,7 +146,7 @@ fn populated_partition_rejects_missing_duplicate_and_unknown_originals() {
             .position(|case| case["case_id"] == id)
             .unwrap();
         let mut missing = records.results();
-        missing.remove(index);
+        let _ = missing.remove(index);
         assert!(h2_6c_refusal_migrations::partition(&records.cases, missing).is_err());
         let mut duplicate = records.results();
         duplicate.push(records.results().remove(index));

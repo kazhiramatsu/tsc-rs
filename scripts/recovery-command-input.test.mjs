@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "../vendor/typescript-6.0.3/lib/typescript.js";
 import {compilerLayout, compilerOptions, createHost, decode, documentPool, prepare, sha256} from "./recovery-command-input.mjs";
-import {complete, optionSnapshot, value} from "./observe-recovery-selected-corpus.mjs";
+import {canonicalInputText, complete, observeSelectedRow, optionSnapshot, value} from "./observe-recovery-selected-corpus.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const library = fs.realpathSync(path.join(root, "vendor/typescript-6.0.3/lib"));
@@ -123,7 +123,7 @@ test("case-insensitive compiler host preserves content lookup", () => {
 test("pool decoder keeps BOM and rejects invalid UTF-8", () => {
   const text = "\uFEFFabc";
   assert.equal(decode(Buffer.from(text)), text);
-  assert.equal(documentPool({[sha256(text)]: Buffer.from(text).toString("base64")}).get(sha256(text)), text);
+  assert.deepEqual(documentPool({[sha256(text)]: Buffer.from(text).toString("base64")}).get(sha256(text)), Buffer.from(text));
   assert.throws(() => decode(Buffer.from([0xff])));
 });
 
@@ -189,4 +189,90 @@ test("new complete observer reproduces frozen EF7 commands on eight existing inp
     const expected = Object.fromEntries(Object.keys(actual).map(key => [key, c.typescript_observation[key]]));
     assert.deepEqual(actual, expected, c.case_id);
   }
+});
+
+
+test("input hash uses scalar key order, including integer-like and supplementary keys", () => {
+  const input = {z: [{y: 2, a: 1}], a: 0, "2": 2, "10": 10, "😀": 1, "\uE000": 2};
+  assert.equal(canonicalInputText(input), '{"10":10,"2":2,"a":0,"z":[{"a":1,"y":2}],"\uE000":2,"😀":1}');
+});
+
+test("Established list directives trim and drop empty entries without dropping empty module suffix", () => {
+  const actual = compilerOptions([["types","a, b,,"],["customConditions","a, b, "],["lib"," ES5, DOM, "],["moduleSuffixes",".ios,"]],{},"/.src").options;
+  assert.deepEqual(actual.types,["a","b"]);
+  assert.deepEqual(actual.customConditions,["a","b"]);
+  assert.deepEqual(actual.lib,["lib.es5.d.ts","lib.dom.d.ts"]);
+  assert.deepEqual(actual.moduleSuffixes,[".ios",""]);
+});
+
+test("raw pool entries are retained without being decoded as document text", () => {
+  const raw = Buffer.from([0xff,0xfe,0x41,0]);
+  const encoded = documentPool({[sha256(raw)]:raw.toString("base64")});
+  assert.deepEqual(encoded.get(sha256(raw)),raw);
+});
+
+test("compiler VFS BOM is decoded once; project pool is already host-decoded", () => {
+  const input = compiler([unit(0,"main.ts","\uFEFFlet x = 1;")]);
+  const actual = prepare(row(input),pool,library);
+  assert.equal(actual.host.getSourceFile("/.src/main.ts",ts.ScriptTarget.ES5).text,"let x = 1;");
+  const layout = {files:new Map([["/project/main.ts","\uFEFFlet x = 1;"]]),aliases:new Map()};
+  const projectHost = createHost(layout,"/project",true,library,true);
+  assert.equal(projectHost.getSourceFile("/project/main.ts",ts.ScriptTarget.ES5).text,"\uFEFFlet x = 1;");
+});
+
+test("project config conversion retains located errors but no option SourceFile", () => {
+  const input = {route:"recorded-project",floor:"established",current_directory:"/project",
+    descriptor_utf8:{content_sha256:doc('{}')},module_variant:"Amd",
+    mount:{case_sensitive:true,read_only:true,files:[
+      {path:"/project/main.ts",content_sha256:doc("export const x = 1;")},
+      {path:"/project/tsconfig.json",content_sha256:doc('{"compilerOptions":{"unknownOption":true},"files":["main.ts"]}')} ]},
+    prepared:{roots:["/project/main.ts"]}};
+  const actual = prepare(row(input,"load_project_emit"),pool,library);
+  assert.equal(actual.options.configFile,undefined);
+  assert.equal(actual.options.configFilePath,"/project/tsconfig.json");
+  assert.equal(actual.externalConfigOptionDiagnostics,true);
+  const diagnostic = actual.errors.find(d => d.code === 5023);
+  assert.equal(diagnostic.file.fileName,"/project/tsconfig.json");
+  assert.equal(typeof diagnostic.start,"number");
+  const options = optionSnapshot(actual.options,actual);
+  assert.equal(options.configFile,null);
+  assert.equal(options.defaultLibraryFileName,"lib.es5.d.ts");
+  assert.equal(options.configParsingDiagnostics[0].code,5023);
+});
+
+test("input reconstruction errors are per-row non-qualifying observations", () => {
+  const input = compiler([unit(0,"main.ts","")]);
+  input.prepared.roots = ["/.src/other.ts"];
+  const first = observeSelectedRow(row(input),pool,library);
+  assert.equal(first.disposition,"input-reconstruction-mismatch; emit-not-qualified");
+  assert.deepEqual(first.complete_command_runs,[]);
+  assert.match(first.input_reconstruction_error,/root order/);
+  input.prepared.roots = ["/.src/main.ts"];
+  input.prepared.source_files = [{path:"/.src/main.ts",sha256:sha256("")}];
+  input.settings = [["noLib","true"]];
+  const second = observeSelectedRow(row(input),pool,library);
+  assert.equal(second.disposition,"observed-twice; pending-native-comparison");
+  assert.equal(second.complete_command_runs.length,2);
+});
+
+
+test("config syntax diagnostics precede conversion diagnostics on both loader routes", () => {
+  const text = '{"compilerOptions":{"unknownOption":true} "files":["main.ts"]}';
+  const compilerInput = compiler([unit(0,"tsconfig.json",text),unit(1,"main.ts","")],{config_unit:0});
+  const projectInput = {route:"recorded-project",floor:"established",current_directory:"/project",
+    descriptor_utf8:{content_sha256:doc('{}')},module_variant:"Amd",
+    mount:{case_sensitive:true,read_only:true,files:[
+      {path:"/project/main.ts",content_sha256:doc("")},
+      {path:"/project/tsconfig.json",content_sha256:doc(text)}]}, prepared:{roots:["/project/main.ts"]}};
+  for (const [input,loader] of [[compilerInput,"load_compiler_emit"],[projectInput,"load_project_emit"]]) {
+    const actual = prepare(row(input,loader),pool,library);
+    assert.equal(actual.errors[0].code,1005);
+    assert.equal(typeof actual.errors[0].start,"number");
+    assert.ok(actual.errors.slice(1).some(d => d.code === 5023));
+  }
+});
+
+test("canonical input hashing rejects fractional and unsafe numbers", () => {
+  for (const value of [1.5,9007199254740992,-9007199254740992])
+    assert.throws(() => canonicalInputText({value}),/safe integers/);
 });

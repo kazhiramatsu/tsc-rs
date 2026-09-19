@@ -1,6 +1,6 @@
 //! Explicit option parity for input verification before comparing emit results.
 //! All CompilerOptions fields are covered by the exhaustive pattern below.
-use super::string_value;
+use super::{diagnostics, sha256, string_value};
 use serde_json::{json, Map, Value};
 use tsc_program::{LibraryCatalog, PreparedProgram};
 
@@ -442,7 +442,41 @@ pub(super) fn snapshot(program: &PreparedProgram) -> Value {
         "ignoreDeprecations".to_owned(),
         json!(options.ignore_deprecations.as_ref().map(string_value)),
     );
+    result.insert(
+        "configParsingDiagnostics".to_owned(),
+        diagnostics(program.diagnostics().config()),
+    );
     let program = program.program_options();
+    result.insert(
+        "paths".to_owned(),
+        json!(program.paths().map(|entries| entries
+            .iter()
+            .map(|entry| json!({
+                "pattern":string_value(entry.pattern()),
+                "substitutions":entry.substitutions().iter().map(string_value).collect::<Vec<_>>()
+            }))
+            .collect::<Vec<_>>())),
+    );
+    result.insert(
+        "pathsBasePath".to_owned(),
+        json!(program.paths_base_path().map(string_value)),
+    );
+    result.insert(
+        "defaultLibraryFileName".to_owned(),
+        json!(program
+            .default_library_file_name()
+            .unwrap_or_else(|| catalog.default_file_name(options))),
+    );
+    result.insert(
+        "configFile".to_owned(),
+        json!(program.config_file().map(|file| json!({
+        "file":string_value(file.diagnostic_file_name()), "sha256":sha256(file.text().as_bytes())
+    }))),
+    );
+    result.insert(
+        "externalConfigOptionDiagnostics".to_owned(),
+        json!(program.external_config_option_diagnostics()),
+    );
     result.insert("noLib".to_owned(), json!(program.no_lib()));
     result.insert(
         "preserveSymlinks".to_owned(),

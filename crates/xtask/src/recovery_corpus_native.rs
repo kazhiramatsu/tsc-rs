@@ -43,6 +43,35 @@ fn require(condition: bool, message: impl Into<String>) -> Result<()> {
     }
 }
 
+fn canonical_input(value: &Value) -> Result<Value> {
+    Ok(match value {
+        Value::Array(values) => {
+            Value::Array(values.iter().map(canonical_input).collect::<Result<_>>()?)
+        }
+        Value::Object(values) => {
+            // preserve_order features unify; never rely on the map's order.
+            let sorted: BTreeMap<_, _> = values.iter().collect();
+            Value::Object(
+                sorted
+                    .into_iter()
+                    .map(|(key, value)| Ok((key.clone(), canonical_input(value)?)))
+                    .collect::<Result<_>>()?,
+            )
+        }
+        Value::Number(number) => {
+            require(
+                number
+                    .as_i64()
+                    .is_some_and(|n| (-9007199254740991..=9007199254740991).contains(&n))
+                    || number.as_u64().is_some_and(|n| n <= 9007199254740991),
+                "command input numbers must be safe integers",
+            )?;
+            value.clone()
+        }
+        value => value.clone(),
+    })
+}
+
 fn git(workspace: &Path, args: &[&str]) -> Result<String> {
     let output = Command::new("git")
         .args(args)
@@ -536,7 +565,9 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<()> {
         }
         let program = prepare(&input_workspace, row, &plans, &pool)
             .map_err(|error| format!("{id}: input reconstruction failed: {error}"))?;
-        let input_sha256 = sha256(serde_json::to_vec(&row["command_input"])?);
+        let input_sha256 = sha256(serde_json::to_vec(&canonical_input(
+            &row["command_input"],
+        )?)?);
         let no_emit = matches!(
             string(row, "loader")?,
             "load_compiler_no_emit" | "load_project_no_emit"
@@ -620,6 +651,25 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn canonical_input_hash_ignores_nested_object_insertion_order() {
+        let first: Value = serde_json::from_str(r#"{"z":[{"y":2,"a":1}],"a":0}"#).unwrap();
+        let second: Value = serde_json::from_str(r#"{"a":0,"z":[{"a":1,"y":2}]}"#).unwrap();
+        let actual = serde_json::to_vec(&canonical_input(&first).unwrap()).unwrap();
+        assert_eq!(actual, br#"{"a":0,"z":[{"a":1,"y":2}]}"#);
+        assert_eq!(
+            actual,
+            serde_json::to_vec(&canonical_input(&second).unwrap()).unwrap()
+        );
+    }
+
+    #[test]
+    fn canonical_input_rejects_float_and_unsafe_integer_encodings() {
+        for text in ["1.0", "0.25", "9007199254740992", "-9007199254740992"] {
+            assert!(canonical_input(&serde_json::from_str(text).unwrap()).is_err());
+        }
+    }
 
     #[test]
     fn matrix_identity_ignores_case_id_and_retains_configuration() {

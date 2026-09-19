@@ -13,6 +13,15 @@ def load(path):
     return json.loads(data), hashlib.sha256(data).hexdigest()
 
 
+def validate_input_numbers(value):
+    if isinstance(value, dict):
+        for child in value.values(): validate_input_numbers(child)
+    elif isinstance(value, list):
+        for child in value: validate_input_numbers(child)
+    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        assert isinstance(value, int) and abs(value) <= 9007199254740991, "command input numbers must be safe integers"
+
+
 def select(snapshot, snapshot_sha, current, baselines, reports):
     assert snapshot["schema"] == 1 and snapshot["kind"] == "emitter-recovery-parse-snapshot"
     ids = set(snapshot["inputs"])
@@ -84,6 +93,7 @@ def select(snapshot, snapshot_sha, current, baselines, reports):
         else:
             assert row["emit_load_error"] is None and row["emit_disposition"] == "pending-complete-command-comparison", f"emit row carried a fallback disposition: {id}"
         assert row["command_input"] is not None, f"selected row has no exact loader input: {id}"
+        validate_input_numbers(row["command_input"])
         collect_documents(row["command_input"])
         cases.append({**row, "reasons": reasons[id]})
     return {"schema": 1, "kind": "emitter-recovery-corpus-selection", "head": snapshot["head"],

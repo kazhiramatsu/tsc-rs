@@ -47,6 +47,20 @@ class ComparisonTests(unittest.TestCase):
     def test_no_emit_exact_is_never_emit_qualification(self):
         self.assertEqual(self.compare(self.inputs(True)), "no-emit-command-exact; emit-not-qualified")
 
+    def test_input_reconstruction_error_blocks_only_that_row(self):
+        values = self.inputs()
+        observation = values[2]["cases"][0]
+        observation.update(disposition="input-reconstruction-mismatch; emit-not-qualified",
+                           input_reconstruction_error="loaded sources differ", complete_command_runs=[], options=None)
+        self.assertEqual(self.compare(values), "input-reconstruction-mismatch; emit-not-qualified")
+
+    def test_typescript_nondeterminism_is_not_an_input_reconstruction_failure(self):
+        values = self.inputs()
+        observation = values[2]["cases"][0]
+        observation.update(disposition="typescript-repetition-mismatch; emit-not-qualified",
+                           typescript_repetition_error="different repetitions", observations=[{"writes": []}, {"writes": ["different"]}])
+        self.assertEqual(self.compare(values), "typescript-repetition-mismatch; emit-not-qualified")
+
     def test_missing_coverage_or_input_drift_is_fatal(self):
         values = self.inputs()
         values[1]["cases"] = []

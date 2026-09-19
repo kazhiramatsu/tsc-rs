@@ -36,6 +36,12 @@ class SelectionTests(unittest.TestCase):
     def select(self):
         return selector.select(self.snapshot, "snapshot", self.current, self.baselines, self.reports)
 
+    def test_command_input_numbers_must_have_a_safe_integer_encoding(self):
+        selector.validate_input_numbers({"good": [9007199254740991, -9007199254740991, True]})
+        for number in [1.0, 0.5, 9007199254740992, -9007199254740992]:
+            with self.assertRaises(AssertionError):
+                selector.validate_input_numbers({"bad": number})
+
     def test_module_only_change_selects_parse_clean_command_and_documents(self):
         self.baselines["projection"]["digests"]["module"]["core"] = "before"
         result = self.select()

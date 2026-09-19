@@ -5,6 +5,7 @@ import {execFileSync} from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {pathToFileURL} from "node:url";
+import {isDeepStrictEqual} from "node:util";
 import ts from "../vendor/typescript-6.0.3/lib/typescript.js";
 import {sha256, documentPool, prepare} from "./recovery-command-input.mjs";
 
@@ -15,7 +16,18 @@ export const diagnostic = d => ({code: d.code, category: d.category, file: d.fil
   start: d.start ?? null, length: d.length ?? null, message: value(ts.flattenDiagnosticMessageText(d.messageText, "\n")),
   related_information: d.relatedInformation?.map(diagnostic) ?? null});
 
-export function optionSnapshot(options) {
+// Serialize sorted keys directly: JS object enumeration would reorder
+// integer-looking keys, and default sort uses UTF-16 rather than scalar order.
+export function canonicalInputText(v) {
+  if (typeof v === "number") assert.ok(Number.isSafeInteger(v), "command input numbers must be safe integers");
+  if (Array.isArray(v)) return "[" + v.map(canonicalInputText).join(",") + "]";
+  if (v && typeof v === "object") return "{" + Object.keys(v)
+    .sort((a,b) => Buffer.compare(Buffer.from(a),Buffer.from(b)))
+    .map(k => JSON.stringify(k) + ":" + canonicalInputText(v[k])).join(",") + "}";
+  return JSON.stringify(v);
+}
+
+export function optionSnapshot(options, input) {
   const result = {};
   for (const {name, type} of optionFields) {
     const raw = options[name];
@@ -27,6 +39,15 @@ export function optionSnapshot(options) {
   for (const name of ["noLib", "preserveSymlinks"]) result[name] = options[name] ?? null;
   for (const name of ["types", "typeRoots", "rootDirs"]) result[name] = options[name]?.map(value) ?? null;
   result.configFilePath = options.configFilePath == null ? null : value(options.configFilePath);
+  if (input) {
+    result.paths = options.paths == null ? null : Object.entries(options.paths).map(([pattern, substitutions]) =>
+      ({pattern: value(pattern), substitutions: substitutions.map(value)}));
+    result.pathsBasePath = options.pathsBasePath == null ? null : value(options.pathsBasePath);
+    result.defaultLibraryFileName = path.posix.basename(input.host.getDefaultLibFileName(options));
+    result.configFile = options.configFile ? {file: value(options.configFile.fileName), sha256: sha256(options.configFile.text)} : null;
+    result.configParsingDiagnostics = input.errors.map(diagnostic);
+    result.externalConfigOptionDiagnostics = input.externalConfigOptionDiagnostics;
+  }
   return result;
 }
 
@@ -63,11 +84,30 @@ export function observe(row, pool, libraryRoot) {
   const expected = row.command_input.prepared.source_files.map(({path, sha256}) => ({path, sha256}));
   const sorted = entries => [...entries].sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   assert.deepEqual(sorted(actual), sorted(expected), `${row.case_id}: TypeScript loaded source paths/bytes differ; input reconstruction must be resolved before emitter comparison`);
-  const options = optionSnapshot(program.getCompilerOptions());
+  const options = optionSnapshot(program.getCompilerOptions(), input);
   let command;
   try { command = complete(program); }
   catch (error) { command = {observer_unsupported: String(error)}; }
-  return {options, decisions: input.decisions, loaded_sources: actual, command};
+  return {options, decisions: input.decisions, loaded_sources: actual, source_order_matches: JSON.stringify(actual) === JSON.stringify(expected), command};
+}
+
+export function observeSelectedRow(row, pool, libraryRoot) {
+  const base = {case_id: row.case_id, input_sha256: sha256(canonicalInputText(row.command_input))};
+  try {
+    const first = observe(row, pool, libraryRoot), second = observe(row, pool, libraryRoot);
+    if (!isDeepStrictEqual(first, second)) return {...base,
+      disposition: "typescript-repetition-mismatch; emit-not-qualified",
+      typescript_repetition_error: "TypeScript observations differed across two identical inputs",
+      observations: [first, second], options: first.options, complete_command_runs: [first.command, second.command]};
+    const fallback = ["load_compiler_no_emit", "load_project_no_emit"].includes(row.loader);
+    return {...base,
+      disposition: fallback ? "parse-admission-only; emit-not-qualified" : first.command.observer_unsupported ? "observer-unsupported; emit-not-qualified" : "observed-twice; pending-native-comparison",
+      options: first.options, directive_decisions: first.decisions, loaded_sources: first.loaded_sources,
+      source_order_matches: first.source_order_matches, complete_command_runs: [first.command, second.command]};
+  } catch (error) {
+    return {...base, disposition: "input-reconstruction-mismatch; emit-not-qualified",
+      input_reconstruction_error: String(error), options: null, complete_command_runs: []};
+  }
 }
 
 const git = (root, args) => execFileSync("git", args, {cwd: root, encoding: "utf8"}).trim();
@@ -113,14 +153,7 @@ function main() {
     const fallback = ["load_compiler_no_emit", "load_project_no_emit"].includes(row.loader);
     assert.equal(row.emit_disposition, fallback ? "parse-admission-only; emit-not-qualified" : "pending-complete-command-comparison");
     assert.ok(fallback ? typeof row.emit_load_error === "string" && row.emit_load_error.length : row.emit_load_error === null);
-    const first = observe(row, pool, libraryRoot), second = observe(row, pool, libraryRoot);
-    assert.deepEqual(first, second, `${row.case_id}: TypeScript command repetition differs`);
-    // Preserve canonical serde JSON order for the native input hash.
-    const canonical = v => Array.isArray(v) ? v.map(canonical) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canonical(v[k])])) : v;
-    cases.push({case_id: row.case_id, input_sha256: sha256(JSON.stringify(canonical(row.command_input))),
-      disposition: fallback ? "parse-admission-only; emit-not-qualified" : first.command.observer_unsupported ? "observer-unsupported; emit-not-qualified" : "observed-twice; pending-native-comparison",
-      options: first.options, directive_decisions: first.decisions, loaded_sources: first.loaded_sources,
-      complete_command_runs: [first.command, second.command]});
+    cases.push(observeSelectedRow(row, pool, libraryRoot));
     console.log(`${cases.length}/${selection.cases.length} ${row.case_id}: ${cases.at(-1).disposition}`);
   }
   validateData(selection, inputRoot);

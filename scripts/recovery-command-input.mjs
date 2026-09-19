@@ -40,7 +40,13 @@ export function compilerOptions(settings, base, cwd) {
     assert.ok(option, `unsupported compiler option ${name}`);
     const errors = [];
     let parsed;
-    if (option.type === "boolean") parsed = raw.toLowerCase() === "true";
+    if (["types", "customconditions"].includes(key)) parsed = raw.split(",").map(s => s.trim()).filter(Boolean);
+    else if (key === "lib") parsed = raw.split(",").map(s => s.trim().toLowerCase()).filter(Boolean).map(name => {
+      const file = option.element.type.get(name);
+      assert.ok(file, `unsupported library ${name}`);
+      return file;
+    });
+    else if (option.type === "boolean") parsed = raw.toLowerCase() === "true";
     else if (option.type === "string") parsed = raw;
     else if (option.type === "number") parsed = Number(raw);
     else if (["list", "listOrElement"].includes(option.type)) parsed = ts.parseListTypeOption(option, raw, errors);
@@ -61,13 +67,14 @@ export function documentPool(encoded) {
   return new Map(Object.entries(encoded).map(([hash, text]) => {
     const bytes = Buffer.from(text, "base64");
     assert.equal(sha256(bytes), hash, "document pool hash differs");
-    return [hash, decode(bytes)];
+    return [hash, bytes];
   }));
 }
 
 function document(pool, hash) {
   assert.ok(pool.has(hash), `missing document ${hash}`);
-  return pool.get(hash);
+  const stored = pool.get(hash);
+  return typeof stored === "string" ? stored : decode(stored);
 }
 
 // File insertion and alias resolution mirror load_compiler_program, including
@@ -149,7 +156,9 @@ function compilerConfig(input, pool) {
     readDirectory: readDirectory(input.units.map(u => u.name), "/.src", false),
   };
   const source = ts.parseJsonText(unit.name, document(pool, unit.content_sha256));
-  return ts.parseJsonSourceFileConfigFileContent(source, configHost, "/.src", undefined, unit.name);
+  const parsed = ts.parseJsonSourceFileConfigFileContent(source, configHost, "/.src", undefined, unit.name);
+  parsed.errors = [...source.parseDiagnostics, ...parsed.errors];
+  return parsed;
 }
 
 function artifactLayout(input, route) {
@@ -184,7 +193,15 @@ export function createHost(layout, cwd, sensitive, libraryRoot, project = false)
     if (!absoluteName.startsWith(libraryRoot + "/") || !/^lib(?:\.[a-z0-9.-]+)?\.d\.ts$/i.test(path.posix.basename(absoluteName))) return undefined;
     return fs.existsSync(absoluteName) ? absoluteName : undefined;
   };
-  const readFile = name => files.get(key(name)) ?? (library(name) ? decode(fs.readFileSync(library(name))) : undefined);
+  const readFile = name => {
+    const text = files.get(key(name)) ?? (library(name) ? decode(fs.readFileSync(library(name))) : undefined);
+    // The pool preserves fixture bytes; program::decode_host_text removes a
+    // leading UTF-8 BOM when a VFS document enters source-file construction.
+    // Project mount documents already passed harness::decode_source; decode
+    // their original raw BOM a second time would change a double-BOM source.
+    if (project && files.has(key(name))) return text;
+    return text?.startsWith("\uFEFF") ? text.slice(1) : text;
+  };
   const overlay = createHermeticDirectoryOverlay(layout.files.keys(), {
     currentDirectory: cwd, useCaseSensitiveFileNames: sensitive,
     fallbackHost: {directoryExists: name => name === libraryRoot, getDirectories: () => []},
@@ -211,22 +228,28 @@ function projectOptions(input, descriptor, host, layout, noEmit) {
     assert.ok(!descriptor.inputFiles?.length);
     const config = absolute(descriptor.project + "/tsconfig.json", input.current_directory);
     const text = host.readFile(config); assert.notEqual(text, undefined, config);
-    const read = ts.parseConfigFileTextToJson(config, text);
-    parsed = ts.parseJsonConfigFileContent(read.config, {...host, useCaseSensitiveFileNames: input.mount.case_sensitive}, input.current_directory, undefined, config);
-    if (read.error) parsed.errors.unshift(read.error);
+    const source = ts.parseJsonText(config, text);
+    parsed = ts.parseJsonSourceFileConfigFileContent(source,
+      {...host, useCaseSensitiveFileNames: input.mount.case_sensitive}, input.current_directory, undefined, config);
+    parsed.errors = [...source.parseDiagnostics, ...parsed.errors];
     roots = parsed.fileNames;
   } else if (descriptor.inputFiles?.length) {
     roots = descriptor.inputFiles.map(name => absolute(name, input.current_directory));
   } else {
     const config = absolute("tsconfig.json", input.current_directory);
     const text = host.readFile(config); assert.notEqual(text, undefined, config);
-    const read = ts.parseConfigFileTextToJson(config, text);
-    parsed = ts.parseJsonConfigFileContent(read.config, {...host, useCaseSensitiveFileNames: input.mount.case_sensitive}, input.current_directory, undefined, config);
-    if (read.error) parsed.errors.unshift(read.error);
+    const source = ts.parseJsonText(config, text);
+    parsed = ts.parseJsonSourceFileConfigFileContent(source,
+      {...host, useCaseSensitiveFileNames: input.mount.case_sensitive}, input.current_directory, undefined, config);
+    parsed.errors = [...source.parseDiagnostics, ...parsed.errors];
     roots = parsed.fileNames;
   }
+  const externalConfigOptionDiagnostics = parsed.options.configFile !== undefined;
   const options = {...parsed.options, noErrorTruncation: false, skipDefaultLibCheck: false,
     moduleResolution: ts.ModuleResolutionKind.Classic};
+  // Project config conversion uses source locations, but createProgram gets
+  // no config SourceFile: the embedding parser owns option diagnostics.
+  delete options.configFile;
   if (!noEmit) options.newLine = ts.NewLineKind.CarriageReturnLineFeed;
   else { options.noEmit = true; delete options.configFilePath; }
   assert.ok(["Commonjs", "Amd"].includes(input.module_variant));
@@ -250,7 +273,7 @@ function projectOptions(input, descriptor, host, layout, noEmit) {
     } else options[name] = value;
   }
   layout.roots = roots;
-  return {options, errors: parsed.errors, decisions: []};
+  return {options, errors: parsed.errors, decisions: [], externalConfigOptionDiagnostics};
 }
 
 export function prepare(row, pool, libraryRoot) {
@@ -284,5 +307,6 @@ export function prepare(row, pool, libraryRoot) {
   }
   if (row.loader === "load_compiler_no_emit") projected.options.noEmit = true;
   assert.deepEqual(layout.roots, input.prepared.roots, `${row.case_id}: reconstructed root order differs`);
-  return {layout, host, options: projected.options, errors: parsed.errors, decisions: projected.decisions};
+  return {layout, host, options: projected.options, errors: parsed.errors, decisions: projected.decisions,
+    externalConfigOptionDiagnostics: projected.externalConfigOptionDiagnostics ?? false};
 }

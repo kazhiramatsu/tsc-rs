@@ -34,6 +34,23 @@ def compare(selection, selection_sha, native, oracle):
         # escaping, sorted object keys, and integer-valued numeric fields.
         input_sha = hashlib.sha256(json.dumps(row["command_input"], ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         assert actual["input_sha256"] == expected["input_sha256"] == input_sha, id
+        if "typescript_repetition_error" in expected:
+            disposition = "typescript-repetition-mismatch; emit-not-qualified"
+            assert expected["disposition"] == disposition, id
+            assert len(expected["observations"]) == 2 and expected["observations"][0] != expected["observations"][1], id
+            counts[disposition] = counts.get(disposition, 0) + 1
+            cases.append({"case_id": id, "loader": row["loader"], "reasons": row["reasons"],
+                          "disposition": disposition, "typescript_observations": expected["observations"]})
+            continue
+        if "input_reconstruction_error" in expected:
+            assert expected["disposition"] == "input-reconstruction-mismatch; emit-not-qualified", id
+            assert expected["complete_command_runs"] == [], id
+            assert isinstance(expected["input_reconstruction_error"], str) and expected["input_reconstruction_error"], id
+            disposition = "input-reconstruction-mismatch; emit-not-qualified"
+            counts[disposition] = counts.get(disposition, 0) + 1
+            cases.append({"case_id": id, "loader": row["loader"], "reasons": row["reasons"],
+                          "disposition": disposition, "typescript_input_error": expected["input_reconstruction_error"]})
+            continue
         for observation in [actual, expected]:
             assert len(observation["complete_command_runs"]) == 2, id
             assert observation["complete_command_runs"][0] == observation["complete_command_runs"][1], id
