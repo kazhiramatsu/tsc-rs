@@ -366,3 +366,8 @@ fn ef6_historical_global_rows_match_complete_production_commands() {
     assert_eq!(exact.len(), rows.len());
     eprintln!("EF6 SUMMARY exact={} selected={}", exact.len(), rows.len());
 }
+
+#[test]
+fn no_emit_census_rows_match_complete_production_commands() {
+    h2_7d_original_corpus_shared::assert_no_emit_census_commands(&workspace());
+}
