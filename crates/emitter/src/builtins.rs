@@ -11584,7 +11584,19 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     Some(self.update_generic(original, NodeData::ElementAccessExpression(data))?)
                 }
                 NodeData::FunctionDeclaration(mut data) => {
-                    if data.body.is_none()
+                    // shouldEmitFunctionLikeDeclaration rejects a parsed,
+                    // zero-width missing body as well as an absent body.
+                    // Keep this behind the TypeScript transform-flags gate.
+                    let missing_body = match data.body {
+                        None => true,
+                        Some(body) => {
+                            let body = self.context.arena().node(self.node(body))?;
+                            body.pos != u32::MAX
+                                && body.pos == body.end
+                                && body.kind != SyntaxKind::EndOfFileToken
+                        }
+                    };
+                    if missing_body
                         || self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)?
                     {
                         Some(
@@ -11672,7 +11684,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         Some(updated)
                     }
                 }
-                NodeData::VariableStatement(data) => {
+                NodeData::VariableStatement(mut data) => {
                     if self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)? {
                         Some(
                             self.context
@@ -11681,6 +11693,35 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                                 .node(),
                         )
                     } else {
+                        // visitEachChild uses modifierVisitor for a variable
+                        // statement: invalid decorators have no runtime role.
+                        // Class and parameter decorators retain their own
+                        // visitors and are not affected by this filtering.
+                        if let Some(modifiers) = data
+                            .modifiers
+                            .and_then(|id| self.context.arena().node_array_ref(self.source, id))
+                        {
+                            let nodes = self.context.arena().node_array(modifiers)?.nodes.clone();
+                            let mut retained = Vec::with_capacity(nodes.len());
+                            for id in nodes {
+                                let modifier = self.node(id);
+                                if self.context.arena().node(modifier)?.kind
+                                    != SyntaxKind::Decorator
+                                {
+                                    retained.push(modifier);
+                                }
+                            }
+                            data.modifiers = if retained.is_empty() {
+                                None
+                            } else {
+                                Some(
+                                    self.context
+                                        .factory()?
+                                        .update_node_array(modifiers, retained)?
+                                        .array(),
+                                )
+                            };
+                        }
                         Some(self.update_generic(original, NodeData::VariableStatement(data))?)
                     }
                 }

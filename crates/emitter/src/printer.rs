@@ -5566,10 +5566,12 @@ impl Printer {
                 }
                 if let Some(name) = data.name {
                     writer.write_space(" ");
-                    self.emit_identifier_name_with_context(
+                    self.emit_optional_ordinary_child(
                         transformation,
-                        node.source(),
-                        name,
+                        node,
+                        Some(name),
+                        EmitHint::IdentifierName,
+                        None,
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
@@ -5631,10 +5633,12 @@ impl Printer {
                 }
                 if let Some(name) = data.name {
                     writer.write_space(" ");
-                    self.emit_identifier_name_with_context(
+                    self.emit_optional_ordinary_child(
                         transformation,
-                        node.source(),
-                        name,
+                        node,
+                        Some(name),
+                        EmitHint::IdentifierName,
+                        None,
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
@@ -12743,9 +12747,10 @@ impl Printer {
                     // otherwise identical to every Parameters list, including
                     // tsc's observable replay when the arrow and its simple
                     // parameter share a comment range start.
-                    self.emit_leading_comments_for_delimited_list_start(
+                    self.emit_leading_comments_for_delimited_list_start_in_container(
                         transformation,
                         parameter,
+                        expression_context.comments(),
                         writer,
                     )?;
                 } else if synthesized_array {
@@ -16246,41 +16251,35 @@ impl Printer {
             .leading_trivia_end(source.text(), source.positions())?
             .expect("comment range has a source start")
             .value() as usize;
-        // A NotEmittedStatement is a range/ownership anchor, not an emitted
-        // statement. tsc suppresses its ordinary comments, but its special
-        // `isEmittedNode=false` branch preserves recognized triple-slash
-        // pragmas when the erased statement starts at source position zero.
+        let trivia_start = if let Some(resume) = resume {
+            let owner_start = resume.owner_start();
+            if owner_start.source() != owner.range.source() {
+                return Err(PrinterError::CommentCursorSourceMismatch {
+                    cursor: owner_start.source(),
+                    owner: owner.range.source(),
+                });
+            }
+            if owner_start.position() != range_start {
+                return Err(PrinterError::CommentResumeOwnerMismatch {
+                    source: owner.range.source(),
+                    left_start: range_start.value(),
+                    right_start: owner_start.position().value(),
+                });
+            }
+            usize::try_from(resume.next().position().value()).expect("source position fits usize")
+        } else {
+            start
+        };
+        // The erased first statement still owns reference directives after
+        // a detached header. Resume at that header's end using the same owner
+        // checks as ordinary comments, and retain leading-comment line rules.
         if owner.kind == SyntaxKind::NotEmittedStatement {
-            if !self.options.declaration_syntax
-                && start == 0
-                && code_start > start
-                && resume.is_none()
-            {
-                emit_triple_slash_leading_comments(&source.text()[start..code_start], writer);
+            if !self.options.declaration_syntax && start == 0 && code_start > trivia_start {
+                emit_triple_slash_leading_comments(source.text(), trivia_start, code_start, writer);
             }
             return Ok(SourceLeadingCommentPhaseVisit::Suppressed);
         }
         if code_start > start {
-            let trivia_start = if let Some(resume) = resume {
-                let owner_start = resume.owner_start();
-                if owner_start.source() != owner.range.source() {
-                    return Err(PrinterError::CommentCursorSourceMismatch {
-                        cursor: owner_start.source(),
-                        owner: owner.range.source(),
-                    });
-                }
-                if owner_start.position() != range_start {
-                    return Err(PrinterError::CommentResumeOwnerMismatch {
-                        source: owner.range.source(),
-                        left_start: range_start.value(),
-                        right_start: owner_start.position().value(),
-                    });
-                }
-                usize::try_from(resume.next().position().value())
-                    .expect("source position fits usize")
-            } else {
-                start
-            };
             source
                 .text()
                 .get(trivia_start..code_start)
@@ -19439,36 +19438,20 @@ fn is_recognized_triple_slash_comment(comment: &str) -> bool {
 /// The NotEmittedStatement comment mode: scan the leading trivia but write
 /// only recognized triple-slash line comments. Ordinary comments remain
 /// owned by erased syntax and must not migrate to the next JavaScript node.
-fn emit_triple_slash_leading_comments(trivia: &str, writer: &mut TextWriter) {
-    let bytes = trivia.as_bytes();
-    let mut cursor = 0usize;
-    while cursor < bytes.len() {
-        while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
-            cursor += 1;
+fn emit_triple_slash_leading_comments(
+    source: &str,
+    start: usize,
+    end: usize,
+    writer: &mut TextWriter,
+) {
+    for comment in collect_source_comment_ranges(source, start, false) {
+        if comment.end > end {
+            break;
         }
-        if bytes.get(cursor..cursor + 2) == Some(b"//") {
-            let mut end = cursor + 2;
-            while end < bytes.len() && !matches!(bytes[end], b'\r' | b'\n') {
-                end += trivia[end..].chars().next().map_or(1, char::len_utf8);
-            }
-            let comment = &trivia[cursor..end];
-            if is_recognized_triple_slash_comment(comment) {
-                write_comment_with_normalized_newlines(comment, writer);
-                writer.write_line(false);
-            }
-            cursor = end;
-            continue;
-        }
-        if bytes.get(cursor..cursor + 2) == Some(b"/*") {
-            cursor += 2;
-            while cursor + 1 < bytes.len() && &bytes[cursor..cursor + 2] != b"*/" {
-                cursor += trivia[cursor..].chars().next().map_or(1, char::len_utf8);
-            }
-            cursor = (cursor + 2).min(bytes.len());
-            continue;
-        }
-        if cursor < bytes.len() {
-            cursor += trivia[cursor..].chars().next().map_or(1, char::len_utf8);
+        let text = &source[comment.start..comment.end];
+        if is_recognized_triple_slash_comment(text) {
+            write_comment_with_normalized_newlines(text, writer);
+            writer.write_line(false);
         }
     }
 }

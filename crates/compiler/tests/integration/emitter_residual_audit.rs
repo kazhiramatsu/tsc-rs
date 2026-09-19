@@ -541,3 +541,29 @@ fn variable_comma_recovery_matches_complete_typescript_commands() {
     assert_eq!(cases.len(), 145);
     assert_recovery_boundary_commands(cases);
 }
+
+#[test]
+fn r167_corpus_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r167-corpus-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 176);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r168_corpus_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r168-corpus-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 176);
+    assert_recovery_boundary_commands(cases);
+}
