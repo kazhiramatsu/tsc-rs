@@ -1,0 +1,27 @@
+{
+  "head_before_lint_repairs": "807bd4718c356631c6a175f06b29aa782b2507e1",
+  "files": [
+    {
+      "path": "crates/harness/src/upstream_suites/execution/project.rs",
+      "proposal_sha256": "c03c49fb14243ea4a49984df4f4ae68134276558dac32f9c17ffbfd0bca398cf",
+      "formatted_sha256": "c03c49fb14243ea4a49984df4f4ae68134276558dac32f9c17ffbfd0bca398cf"
+    },
+    {
+      "path": "crates/syntax/tests/template_escape_flags.rs",
+      "proposal_sha256": "3068ae1a711efe3a67067ba7969021c98c7324d68c10f9ea608d7901847c0413",
+      "formatted_sha256": "3068ae1a711efe3a67067ba7969021c98c7324d68c10f9ea608d7901847c0413"
+    },
+    {
+      "path": "crates/host/tests/compiler_host_contract.rs",
+      "proposal_sha256": "00f9579a62d5924d3be306550a2959b8b3dc4ec0e184ef9fed76fbce2fe9fc27",
+      "formatted_sha256": "158731dfc6ec85b405777ed28986569f48fb62d88e8c72bce7a0345b49481657"
+    }
+  ],
+  "production_source_changes_from_0336": [
+    "crates/harness/src/upstream_suites/execution/project.rs"
+  ],
+  "semantics": "file_names returns &[JsString]; both iter().cloned().collect::<Vec<_>>() and to_vec clone exactly the same elements in the same order. Four expressions only; root selection, options, paths and admission unchanged.",
+  "parser_production_and_dependencies_unchanged_from_r185": true,
+  "limits": "Do not claim the entire product-source tree remains byte-identical: the project harness implementation changes at these four equivalent copies. Compiler/emitter/parser product sources remain unchanged; their complete final gates still required.",
+  "next_validation": "Existing project-loader contracts, full template flags target, full compiler-host contract target, workspacealltargetsclippy."
+}

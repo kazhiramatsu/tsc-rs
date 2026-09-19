@@ -1,0 +1,18 @@
+{
+  "head": "807bd4718c356631c6a175f06b29aa782b2507e1",
+  "qualified": false,
+  "steps": [
+    {
+      "label": "final-format-r234",
+      "exit": 0
+    },
+    {
+      "label": "syntax-emitter-recovery-r234",
+      "exit": 0
+    },
+    {
+      "label": "final-workspace-clippy-r234",
+      "exit": 101
+    }
+  ]
+}
