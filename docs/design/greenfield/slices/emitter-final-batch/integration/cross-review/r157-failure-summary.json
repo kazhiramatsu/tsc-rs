@@ -1,0 +1,140 @@
+{
+  "source_head": "add70fc29e3c553f36c9b78e23733877379e6a28",
+  "commands": 404,
+  "captures": 796,
+  "exact_twice": 392,
+  "failures": [
+    {
+      "case_id": "emitter-r129-variable-type-controls/es5/commonjs/nocheck-false/remove-false/for-of-binding-comments",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r129-variable-type-controls/es5/system/nocheck-true/remove-false/for-of-binding-comments",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r154-variable-producers/es5/commonjs/nocheck-false/remove-false/for-of-newline",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r154-variable-producers/es5/commonjs/nocheck-false/remove-false/rename-export-alias",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r154-variable-producers/es5/commonjs/nocheck-false/remove-true/rename-export-alias",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r154-variable-producers/es5/commonjs/nocheck-true/remove-false/for-of-newline",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r154-variable-producers/es5/commonjs/nocheck-true/remove-false/rename-export-alias",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r154-variable-producers/es5/commonjs/nocheck-true/remove-true/rename-export-alias",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r154-variable-producers/es5/system/nocheck-false/remove-false/for-of-newline",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r154-variable-producers/es5/system/nocheck-true/remove-false/for-of-newline",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r154-variable-producers/es5/system/nocheck-true/remove-false/rename-export-alias",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    },
+    {
+      "case_id": "emitter-r154-variable-producers/es5/system/nocheck-true/remove-true/rename-export-alias",
+      "captures": 1,
+      "errors": [
+        null
+      ],
+      "differing_top_level_fields": [
+        "emit_result",
+        "writes"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "status": "historical full known set; live set not retired yet",
+  "files": [
+    {
+      "path": "known-open.v1.json",
+      "sha256": "709f6c95d424c75cfb123ab48611f54d7bac241aae76c8a9fb12da55cf7216fc",
+      "bytes": 2790
+    },
+    {
+      "path": "known-native.v1.json",
+      "sha256": "2db42d4b7a51adb6fe9e87f517bf02b9e799777186c705ab712b0ff803592d10",
+      "bytes": 3097
+    }
+  ]
+}

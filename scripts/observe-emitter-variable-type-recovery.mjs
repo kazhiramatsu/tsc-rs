@@ -101,6 +101,19 @@ const es5ProducerShapes = [
   ["for-of-pattern", "export function f(arr: number[][]) { for (const [x] /*a*/ of arr) { (() => x)(); } }"],
   ["for-of-unicode", "export function f(arr: number[]) { for (const é /*a*/ of arr) { (() => é)(); } }"],
   ["for-of-escaped-name", "export function f(arr: number[]) { for (const \\u{61} /*a*/ of arr) { (() => a)(); } }"],
+  ["semicolon-mixed", "let x = 1 /*a*/\n/*b*/; export {};"],
+  ["semicolon-newline", "let x = 1\n/*b*/; export {};"],
+  ["semicolon-line", "let x = 1 //a\n/*b*/; export {};"],
+  ["semicolon-asi", "let x = 1 /*a*/\n/*b*/\nf(); declare function f(): void; export {};"],
+  ["semicolon-same-line", "let x = 1 /*a*/ /*b*/; export {};"],
+  ["semicolon-nested", "export {}; { let x = 1 /*a*/\n/*b*/; }"],
+  ["rename-export-as", "let x = 1; export { x as y }; { let x /*a*/ = 2; (() => x)(); }"],
+  ["rename-export-uncaptured", "let x = 1; export { x }; { let x /*a*/ = 2; x; }"],
+  ["rename-export-destructure", "let x = 1; export { x }; { let {a: x /*a*/} = {a: 2}; (() => x)(); }"],
+  ["declaration-local-export", "let x = 1; export { x };"],
+  ["declaration-local-export-as", "let x = 1; export { x as y };"],
+  ["declaration-default-export", "const x = 1; export default x;"],
+  ["rename-for-of-export", "let x = 1; export { x }; for (let x /*a*/ of [1]) { (() => x)(); }"],
 ];
 for (const module of ["commonjs", "system"])
   for (const noCheck of [false, true])
@@ -114,7 +127,7 @@ for (const module of ["commonjs", "system"])
             sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
             outDir: "/project/out"}, files: ["main.ts"]})});
       }
-assert.equal(inputs.length, 404);
+assert.equal(inputs.length, 508);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

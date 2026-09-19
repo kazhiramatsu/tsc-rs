@@ -7316,7 +7316,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             binding_name_leaves(self.context.arena(), self.source, data.name, declaration)?;
         let mut plans = Vec::new();
         for leaf in leaves {
-            let local_name = identifier_text_owned(self.context.arena(), leaf.name)?;
+            // tsc builds this textual export plan before ES2015 substitutes
+            // the name at print time. Keep the actual binding for output.
+            let lookup_name = self
+                .context
+                .arena()
+                .pre_substitution_binding_name(leaf.name)
+                .unwrap_or(leaf.name);
+            let local_name = identifier_text_owned(self.context.arena(), lookup_name)?;
             let exports = self
                 .info
                 .export_specifiers_by_local
@@ -7414,10 +7421,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             } else {
                 let value = self.context.factory()?.clone_node(plan.local)?;
                 self.context.factory()?.set_text_range(value, plan.local)?;
-                self.context
-                    .arena_mut()?
-                    .metadata_mut(value)
-                    .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+                // tsc's later ES2015 substitution replaces this reference
+                // with a fresh generated identifier, discarding getName's
+                // comment/map suppression. Our stand-in is already replaced.
+                if !self
+                    .context
+                    .arena()
+                    .metadata(plan.local)
+                    .is_some_and(crate::EmitMetadata::generated_binding_print_order)
+                {
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(value)
+                        .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+                }
                 value
             };
             let target = self.create_export_access_from_module_name(&plan.exported_name)?;

@@ -156,11 +156,13 @@ pub(crate) fn emit_declaration_unit(
             crate::EmitRoot::Bundle(crate::EmitBundle::new(files_for_emit.clone()))
         }
     };
+    let options = host.compiler_options();
     for &source in &files_for_emit {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_7b);
-        // A forced request skips checking; ordinary requests also collect
-        // linked aliases when their source cannot include checker diagnostics.
+        // Seed declaration visibility when checking is skipped, including
+        // ordinary noCheck Programs whose .ts sources can carry diagnostics.
         if force_dts_emit
+            || options.no_check == Some(true)
             || !resolver
                 .can_include_bind_and_check_diagnostics(source)
                 .map_err(TransformError::from)?
@@ -174,7 +176,6 @@ pub(crate) fn emit_declaration_unit(
             collect_linked_aliases_for_declaration(resolver, source, syntax)?;
         }
     }
-    let options = host.compiler_options();
     let mut arena = TransformArena::new();
     let transform_root = crate::execute::mount_emit_root(&mut arena, host, &root)?;
     for &other in host.source_file_ids() {

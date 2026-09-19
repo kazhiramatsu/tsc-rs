@@ -769,6 +769,28 @@ impl TransformArena {
         node
     }
 
+    /// tsrs-native: recover the name replaced by the ES2015 print-order stand-in. Stop at
+    /// the first ordinary name: deeper originals must not donate text or
+    /// erased-type metadata absent from that pre-substitution node.
+    pub(crate) fn pre_substitution_binding_name(
+        &self,
+        node: TransformNode,
+    ) -> Option<TransformNode> {
+        let mut current = node;
+        let mut remaining = self.metadata.len().saturating_add(1);
+        loop {
+            let metadata = self.metadata(current);
+            if !metadata.is_some_and(EmitMetadata::generated_binding_print_order) {
+                return (current != node).then_some(current);
+            }
+            if remaining == 0 {
+                return None;
+            }
+            current = metadata?.original()?;
+            remaining -= 1;
+        }
+    }
+
     /// Follow tsc's original-node provenance without crossing a Rust-only
     /// resolver bridge. A hoisted private method/accessor function has a
     /// semantic link to its erased declaration, but tsc creates its emit

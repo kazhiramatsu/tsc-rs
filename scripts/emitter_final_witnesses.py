@@ -43,7 +43,9 @@ COMMENT_TESTS = (
 )
 SYSTEM_FIXTURES = (("system-binding-publication", 1044), ("await-flag-commands", 690),
                    ("emitter-recovery-boundaries", 774), ("emitter-heritage-boundaries", 132),
-                   ("emitter-helper-probes", 122), ("emitter-nested-paren-recovery", 108), ("emitter-class-helper-gates", 320), ("emitter-r95-neighbours", 288), ("emitter-r95-wrapper-rest", 88), ("emitter-r95-call-boundaries", 18), ("emitter-r104-rest-controls", 10), ("emitter-r107-declaration-comments", 3), ("emitter-r109-token-neighbours", 58), ("emitter-r111-do-body-controls", 4), ("emitter-r113-type-comment-controls", 9), ("emitter-r117-type-comment-controls", 12), ("emitter-r119-type-comment-controls", 24))
+                   ("emitter-helper-probes", 122), ("emitter-nested-paren-recovery", 108), ("emitter-class-helper-gates", 320), ("emitter-r95-neighbours", 288), ("emitter-r95-wrapper-rest", 88), ("emitter-r95-call-boundaries", 18), ("emitter-r104-rest-controls", 10), ("emitter-r107-declaration-comments", 3), ("emitter-r109-token-neighbours", 58), ("emitter-r111-do-body-controls", 4), ("emitter-r113-type-comment-controls", 9), ("emitter-r117-type-comment-controls", 12), ("emitter-r119-type-comment-controls", 24),
+                   ("emitter-r129-variable-type-controls", 508),
+                   ("emitter-r145-variable-comma-controls", 145))
 SYSTEM_TESTS = (
     "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
     "emitter_residual_audit::await_flag_boundaries_match_complete_typescript_commands",
@@ -63,6 +65,8 @@ SYSTEM_TESTS = (
     "emitter_residual_audit::r113_type_comment_controls_match_complete_typescript_commands",
     "emitter_residual_audit::r117_type_comment_controls_match_complete_typescript_commands",
     "emitter_residual_audit::r119_type_comment_controls_match_complete_typescript_commands",
+    "emitter_residual_audit::variable_type_recovery_matches_complete_typescript_commands",
+    "emitter_residual_audit::variable_comma_recovery_matches_complete_typescript_commands",
 )
 RECOVERY_FIXTURES = (
     ("emitter-missing-await", 60), ("emitter-missing-declaration", 72),
@@ -165,6 +169,14 @@ def case_ids(suite):
                "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeAliases.ts#default"])
 
 
+def observer_path(fixture):
+    aliases = {
+        "emitter-r129-variable-type-controls": "emitter-variable-type-recovery",
+        "emitter-r145-variable-comma-controls": "emitter-variable-comma-recovery",
+    }
+    return "scripts/observe-" + aliases.get(fixture, fixture) + ".mjs"
+
+
 def inputs(suite):
     common = {"scripts/emitter_final_witnesses.py"}
     if suite in CONTROL_SUITES:
@@ -185,7 +197,7 @@ def inputs(suite):
                 "crates/compiler/tests/integration/h2_8a_import_helpers.rs"},
         }[suite]
         return common | {FIXTURES + name + ".json" for name, _ in fixtures} | {
-            "scripts/observe-" + name + ".mjs" for name, _ in fixtures} | consumers
+            observer_path(name) for name, _ in fixtures} | consumers
     universe = {"crates/compiler/tests/emitter_final_universe.rs",
                 FIXTURES + "emitter-final-known-native.json",
                 PACKET + "integration/records/retired-checker-known.v1.json",
@@ -246,7 +258,7 @@ def cargo(target, names=()):
 def commands(suite):
     if suite in CONTROL_SUITES:
         fixtures, tests = CONTROL_SUITES[suite]
-        return [(["node", "scripts/observe-" + name + ".mjs", "--check"], None)
+        return [(["node", observer_path(name), "--check"], None)
                 for name, _ in fixtures] + [(cargo("contracts", tests), len(tests))]
     if suite == "emitter-universe-oracle":
         return [(["node", "scripts/observe-emitter-final-universe.mjs", "--check", "--set", name], None)

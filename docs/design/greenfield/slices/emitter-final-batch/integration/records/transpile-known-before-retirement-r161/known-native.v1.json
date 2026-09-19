@@ -1,0 +1,106 @@
+{
+ "schema": "h2-8c-transpile-known-native.v1",
+ "producer_commit": "ddf4caf6d",
+ "case_count": 8,
+ "observations": {
+  "h2-8c/program-no-check/syntax-error/still-emits": {
+   "actual": {
+    "kind": "ordinary-command",
+    "target_source": null,
+    "writes": [],
+    "reported_diagnostics": null,
+    "status_writes": null,
+    "exit_code": null,
+    "emit_result": null,
+    "exception": {
+     "message": "Emit(Transform(ParseDiagnosticsDeferred { count: 1, recovery_events: 1, owner_slice: \"H2.9\" }))"
+    }
+   },
+   "kind": null
+  },
+  "h2-8c/transpile-js/inventory/declarationSingleFileHasErrors.ts~default~module~declarationSingleFileHasErrors.ts": {
+   "actual": {
+    "exception": {
+     "message": "driver failed: emit recovery for 1 parse diagnostics (1 recovery events) is deferred to H2.9"
+    },
+    "outputText": null,
+    "diagnostics_present": null,
+    "diagnostics": null,
+    "sourceMapText": null
+   },
+   "kind": "rust-driver"
+  },
+  "h2-8c/transpile-js/inventory/declarationSingleFileHasErrorsReported.ts~default~module~declarationSingleFileHasErrorsReported.ts": {
+   "actual": {
+    "exception": {
+     "message": "driver failed: emit recovery for 1 parse diagnostics (1 recovery events) is deferred to H2.9"
+    },
+    "outputText": null,
+    "diagnostics_present": null,
+    "diagnostics": null,
+    "sourceMapText": null
+   },
+   "kind": "rust-driver"
+  },
+  "h2-8c/transpile-js/diag/syntax-error-report-on": {
+   "actual": {
+    "exception": {
+     "message": "driver failed: emit recovery for 1 parse diagnostics (1 recovery events) is deferred to H2.9"
+    },
+    "outputText": null,
+    "diagnostics_present": null,
+    "diagnostics": null,
+    "sourceMapText": null
+   },
+   "kind": "rust-driver"
+  },
+  "h2-8c/transpile-js/diag/syntax-error-report-off": {
+   "actual": {
+    "exception": {
+     "message": "driver failed: emit recovery for 1 parse diagnostics (1 recovery events) is deferred to H2.9"
+    },
+    "outputText": null,
+    "diagnostics_present": null,
+    "diagnostics": null,
+    "sourceMapText": null
+   },
+   "kind": "rust-driver"
+  },
+  "h2-8c/transpile-js/diag/syntax-error-report-absent": {
+   "actual": {
+    "exception": {
+     "message": "driver failed: emit recovery for 1 parse diagnostics (1 recovery events) is deferred to H2.9"
+    },
+    "outputText": null,
+    "diagnostics_present": null,
+    "diagnostics": null,
+    "sourceMapText": null
+   },
+   "kind": "rust-driver"
+  },
+  "h2-8c/transpile-js/text/unicode": {
+   "actual": {
+    "exception": {
+     "message": "driver failed: emit recovery for 9 parse diagnostics (19 recovery events) is deferred to H2.9"
+    },
+    "outputText": null,
+    "diagnostics_present": null,
+    "diagnostics": null,
+    "sourceMapText": null
+   },
+   "kind": "rust-driver"
+  },
+  "h2-8c/transpile-js/numeric-target/transform-100": {
+   "actual": {
+    "exception": {
+     "message": "driver failed: unsupported emit compiler option: target"
+    },
+    "outputText": null,
+    "diagnostics_present": null,
+    "diagnostics": null,
+    "sourceMapText": null
+   },
+   "kind": "rust-driver"
+  }
+ }
+}

@@ -4528,9 +4528,8 @@ impl Printer {
                     writer,
                 )?;
                 if let Some(declaration_list) = declaration_list {
-                    self.emit_child_boundary_comments_before_terminator(
+                    self.emit_trailing_comments_for_node_in_container(
                         transformation,
-                        node,
                         declaration_list,
                         declaration_context.comments(),
                         writer,
@@ -8835,75 +8834,6 @@ impl Printer {
             }
         }
         self.child_trailing_comments_escape_parent_container(transformation, parent, child)
-    }
-
-    /// Emit the comment boundary between a retained final child and the end
-    /// of its parent container.
-    ///
-    /// tsc restores `containerEnd` after emitting each nested node. A final
-    /// child therefore emits comments at its end only when the enclosing
-    /// source container extends beyond that boundary. Keep that ownership
-    /// transition explicit in Rust and carry the source through a typed token
-    /// cursor; when both ends coincide, ownership remains with the enclosing
-    /// caller instead of being visited twice.
-    fn emit_child_boundary_comments_before_parent_end(
-        &self,
-        transformation: &TransformationResult<'_>,
-        parent: TransformNode,
-        child: TransformNode,
-        active_scope: CommentEmissionScope,
-        writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
-        // `NoTrailingComments` still establishes tsc's `containerEnd`, but
-        // `emitTrailingCommentsOfNode` must not visit that boundary.  This
-        // explicit parent/child handoff is the Rust equivalent of that trailing
-        // phase, so honor the child's ownership metadata before completing it.
-        // In particular, a downleveled private postfix update deliberately
-        // suppresses the synthesized comma expression's trailing boundary and
-        // leaves the source update's comment with the original-linked outer
-        // helper call.
-        if transformation
-            .arena()
-            .metadata(child)
-            .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS))
-        {
-            return Ok(());
-        }
-        if !self.child_trailing_comments_escape_active_container(
-            transformation,
-            parent,
-            child,
-            active_scope,
-        )? {
-            return Ok(());
-        }
-        self.emit_comments_at_cursor(
-            transformation,
-            self.comment_range_end_cursor(transformation, child)?,
-            None,
-            false,
-            writer,
-        )
-    }
-
-    /// Statement-facing name for the common final-child boundary. A parsed
-    /// semicolon is simply one concrete parent end that extends past its
-    /// expression or declaration list.
-    fn emit_child_boundary_comments_before_terminator(
-        &self,
-        transformation: &TransformationResult<'_>,
-        parent: TransformNode,
-        child: TransformNode,
-        active_scope: CommentEmissionScope,
-        writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
-        self.emit_child_boundary_comments_before_parent_end(
-            transformation,
-            parent,
-            child,
-            active_scope,
-            writer,
-        )
     }
 
     fn source_node_range_is_on_single_line(
@@ -17296,18 +17226,9 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         name: TransformNode,
     ) -> Option<TransformNode> {
-        let mut current = name;
-        let mut visited = BTreeSet::new();
-        while let Some(metadata) = transformation.arena().metadata(current) {
-            if !metadata.generated_binding_print_order() {
-                return (current != name).then(|| metadata.type_node()).flatten();
-            }
-            if !visited.insert(current) {
-                return None;
-            }
-            current = metadata.original()?;
-        }
-        None
+        let arena = transformation.arena();
+        let original_name = arena.pre_substitution_binding_name(name)?;
+        arena.metadata(original_name)?.type_node()
     }
 
     fn original_node_end_cursor(
