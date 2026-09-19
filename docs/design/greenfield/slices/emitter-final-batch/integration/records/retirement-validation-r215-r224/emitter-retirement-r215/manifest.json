@@ -1,0 +1,11 @@
+{
+  "head": "4dfc0fb4d3b3ca2364957c85d9ad84bd0a677dc2",
+  "qualified": false,
+  "steps": [
+    {
+      "label": "retirement-compiler-build-r215",
+      "exit": 0
+    }
+  ],
+  "artifacts": []
+}

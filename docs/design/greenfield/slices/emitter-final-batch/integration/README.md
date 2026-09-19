@@ -8,50 +8,46 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
 提出時の検証と統合候補の検証は以下で区別する。hosted完了前に全体完了を主張しない。
 
-## 現在の統合候補と未完了事項（2026-09-20）
+## r211–r224 の固定候補に対する検証記録（2026-09-20）
 
-統合は未完了。候補 `0336c56663ff243503a18987a2cf8021109e8295` を固定したr211は、
-1,600 controlsすべてで各2回のcomplete-command一致を確認した。Unicode改行・コメント/map・
-constructorの測定済み差分はこの範囲で解消している。元48 commandsと108 projectsのr212、
-emitter/checker等の全回帰r213、最終walk・full gate・hostedはまだ完了していない。
-以下の過去の成功を現在の候補の全体成功とは数えない。
+この節はruntime source `0336c56663ff243503a18987a2cf8021109e8295` と、その検証後に
+既知差分を退役させた `4dfc0fb4d3b3ca2364957c85d9ad84bd0a677dc2` の実測記録。
+最終のqualificationと統合状態は [architecture validation](architecture-validation.md) と
+[PR #561](https://github.com/kazhiramatsu/tsc-rs/pull/561) に記録する。
 
 | 検証 | 実測結果と範囲 |
 | --- | --- |
-| controls r211 | 176＋1,080＋344＝1,600件すべて各2回完全一致、失敗0、全4 steps exit0。[実測記録](records/layout-controls-r211-result/manifest.json) |
-| 元census r78 | 14,329 ID = 14,219 loaded＋110明示的load failure。元16,994 parse inputsは変更しない |
-| parser proof r185 | 16,994入力でAST・診断・raw recovery factsはr177と一致、先行5 profiles不変、最終context admissionは単調。syntax treeと依存hashが一致する範囲で再利用する |
-| corpus selection r185 | 48元commands。従来44件を保持し、新しいescaped-keyword分を含む。class-body gapが新たに許可する元入力は0件で、この新動作は専用controlsで検証する |
-| 元command r186 | 48件中45 complete commands＋2 noEmit commandsが各2回一致。escaped-default後のコメント欠落1件を確認。108 projectsは失敗後に未実行 |
-| controls r184 | 176＋280＋232件中682件が各2回一致。Unicode detached comments 4件とES5 missing constructor 2件が不一致。syntax 211 tests成功 |
-| controls r194 | 952件中892件が各2回一致。44コメント/map差分（BOM比較条件4件を含む）＋16 constructor差分。raw exit101、全観測を保存 |
-| controls r203 | 176＋672＋344件中1,176件が各2回一致。U+2028/U+2029を含む関数本体2形状×8設定だけが不一致。raw exit101を保存 |
-| regression r204–r205 | r203不一致の前提条件でbuild前に停止。再実行成功として数えない |
-| 元commands / project r195 | 46 emit＋2 noEmitの元48 commands、および108 projectsが各2回完全一致。noEmitはemit成功へ数えない |
-| planner r200 | 84 tests成功。r199はfixtureの採取完了前に実行して2 FileNotFoundErrorとなったため、その失敗も保存 |
-| project r144 | 108件が各2回完全一致した過去の証拠。r195では再検証成功。最終修復後の再検証は未完了 |
-| earlier regression r196 | r194不一致のため前提確認で停止。旧508＋145＋120＋JSDoc1、emitter 1,015 tests、checker lib、独立transpileの再検証は未実行 |
+| controls r211 | 176＋1,080＋344＝1,600件すべて各2回完全一致、失敗0、全4 steps exit0 |
+| 元commands / projects r212 | 46 emit＋2 noEmitの元48 commands、および108 projectsが各2回完全一致。全9 steps exit0。noEmitはemit成功へ数えない |
+| 既存command回帰 r213 | 508＋145＋120＋JSDoc1＝774件すべて各2回完全一致。773件の完全観測archiveと、JSDoc1件を各2回比較する別helperの成功記録を保持 |
+| emitter / checker r213 | emitter全23 targets・1,015 tests、checker lib全1,739 testsが成功。ignored0 |
+| transpile r213 | 291件中289 exact・2 independent known。6件がexactへ変わったため、2 testsは退役要求assertionだけでexit101。新規不一致0 |
+| 退役 r222–r223 | live parse KNOWN36→0、transpile KNOWN8→2。過去のnative観測を比較器の改変検知testに残し、witness入力へ明示登録。planner全84 tests成功 |
+| 退役後 r224 | 元36行すべて各2回完全一致、比較器guard3 tests・transpile9 tests成功。workspace Clippyは構文回復testのunnecessary_filter_map指摘1件でexit101 |
+| 元census / parser proof r185 | 元16,994 parse inputsを保持。AST・診断・raw recovery factsはr177と一致、先行5 profiles不変、context admissionは単調。製品sourceと依存hashの同一性で証拠を再利用。r224後のClippy修正は構文回復testの同値なfilter置換のみで、元crate全体のtree hash不変とは主張しない |
+| corpus selection r185 | 元14,329 ID＝14,219 loaded＋110明示的load failureから48 commandsを選択。従来44件を保持。110 load failuresは成功に数えない。class-body gapの新動作は元入力0件・専用controlsで検証 |
 
-実際のOpus154–160と、Unicode-aware detached discovery、ES2015のconstructor本体判定、
-escaped-defaultの末尾コメント所有境界を照合した。コメント修復はsource-mapのphaseまで
-[明示的に検証](cross-review/r194-comment-phase-validation.md)する。レビュー意見だけではqualifyしない。
-[r184–r190の全失敗とparser証拠](records/corpus-controls-r184-r190-complete/manifest.json)を保存している。
+[全127 artifactsと観測archive](records/layout-controls-r211-r213-complete/manifest.json)、
+[退役差分とplanner記録](records/known-retirement-r222-r223/README.md)を保存した。
+[退役後の全記録](records/retirement-validation-r215-r224/manifest.json)も保存した。
+この記録時点で、r224のClippy指摘の再検証、最終chain walk、unsplit local CI、hosted確認、mergeは未完了。
+r215はbuild成功後に通常binをtest artifactと誤認して停止した準備スクリプトの失敗であり、
+同じ固定sourceで対象testの選択を修正したr224で全runtime再比較が成功した。失敗記録も保存した。
 
 [Opus162](cross-review/round162-opus.md) と [Opus163](cross-review/round163-opus.md) は、
 関数本体ではtriviaを除いた開始位置、JSXではraw開始位置を使う差を確認した。
-両者と、case/default・binary・property access・conditionalの5 helperは既存の行indexで
+両者とcase/default・binary・property access・conditionalの5 helperは既存の行indexで
 比較する。コメントcollectorのCR/LF限定の所有境界は別契約であり、この修復では変更しない。
-parser/checkerの共有処理は変更しない。レイアウトの追加controlsは既存の全観測を保持して
-拡張し、JavaScript・宣言・両map・診断・write callbackを含むcomplete commandで比較する。
+この最終レイアウト修復はparser/checkerの共有処理を変更せず、既存の全観測を保持してcontrolsを
+拡張した。JavaScript・宣言・両map・診断・write callbackを含むcomplete commandで比較した。
 
-live parse KNOWN36と独立transpile KNOWN8は変更していない。退役は元commandsと周辺修復の
-qualification後に行い、過去の拒否／出力を検証するguardを保存する。
-最終sourceでのchain walk、unsplit local CI、hosted確認、mergeは未完了。
-PR561の旧HEADの失敗は、現在候補の成否とは別に保存する。
+先行r203の1,192件中16不一致と、それを前提にbuild前に停止したr204–r205も
+[保存](records/unicode-layout-controls-r203-r205-complete/manifest.json)している。
+過去の成功を後の候補の成功へ読み替えず、各記録のsource hashと実行範囲を使う。
 
 ## r120–r124 の固定候補に対する検証履歴（2026-09-19）
 
-統合は未完了。検証対象の Rust・fixture・HEAD を固定し、修復候補の準備は別 worktree で行う。
+r120–r124の記録時点では統合は未完了だった。検証対象のRust・fixture・HEADを固定し、修復候補は別worktreeで準備した。
 次の成功はそれぞれ記載した候補の証拠であり、現在の最終候補の成功へ読み替えない。
 
 | 検証 | 確認済みの結果 |
@@ -158,13 +154,14 @@ H2.5h 12、H2.6a 1、H2.6c 8の既知差分台帳を空にした。
 | emitter-global | 既存global output-only 769行を各2回 |
 | emitter-comment-controls | export/destructuring1130＋元JSDoc1＋async arrow372の完全commandを各2回。emitter-globalと同じjobで実行 |
 | emitter-class-0 / -1 | 既存8 class bandsを700/528行に分割、各2回 |
-| emitter-system-controls | System・関数・コメント・構文回復の周辺5,549 fixture memberships、23 Rust tests。新1,192 controlsを含む |
+| emitter-system-controls | System・関数・コメント・構文回復の周辺5,957 fixture memberships、23 Rust tests。新1,600 controlsを含む |
 | emitter-recovery-controls | bounded parse-recovery 1,224 fixture memberships、8 Rust tests |
 
 重複する観測所属なので件数を足して互換ケース総数にしない。PLAN-BASEの約70分のローカル直列測定は
 hosted一jobへ持ち込まない。専用fixtureは担当suiteを選び、shared sourceは全既存群を含める。
 editing selectorsを除去し、zero/ignored testsと欠けたshard summaryを拒否する。
-入口台帳v35はcomposite runnerを実Cargo commandsへ展開する。
+入口台帳はcomposite runnerを実Cargo commandsへ展開する。
+[固定台帳の案内](../../witness-coverage/README.md)からsource hash付きの記録を参照できる。
 
 ## Validationとarchitecture
 
@@ -172,9 +169,9 @@ editing selectorsを除去し、zero/ignored testsと欠けたshard summaryを�
 macOS background priority・Cargo 2 workersで逐次実行し、canonicalのtargetをcacheとして利用する。
 68 KNOWNの再比較、planner 83 tests、policy checkとfocused policy 2 testsは成功。
 ローカル途中のhash drift失敗は、oracle修正後に旧pinを検出したもので記録から除外しない。
-最終候補の成功とhosted receiptsは完了後に追記する。
+最終候補のqualificationは[専用記録](architecture-validation.md)とPR #561に記録する。
 
-現在変更中の18 concernsは `active-unqualified` に戻した。
+この統合作業の開始時、変更する18 concernsを `active-unqualified` に戻した。
 [以前のqualification](records/architecture-before.v1.json)を保存し、最終immutable headの実測後に
 変更した範囲だけ再qualifyする。E-PLAN-SCRIPTのoption admission、resolver/checker facts、
 metadata/class provenance、async capture、name allocation、helper import、printer/commentが対象。
@@ -226,3 +223,13 @@ filtered countの旧423 pinが実測430を拒否していた。選択・ignored�
 構文回復は別候補で段階的に検証中。通常候補の36 KNOWNは維持しており、
 新しいparser predicateや追加426 controlsのTypeScript観測だけを根拠に退役させない。
 Claude Fableとの実際の比較を継続している。現時点でrate limitによるOpus切替はない。
+
+## 最終入力台帳の登録修復（r228–r229、2026-09-20）
+
+H2.5gのchanged-crates入力規則を再計算し、599未登録pathsと既に削除されたtest1 pathを確認した。
+486 pathsはtrusted mainからbyte不変で、113 pathsはこの統合で変更したものだった。
+親86と既存の生存236を保持し、599を明示追加、削除済み1だけを除いて計921入力とした。
+既存のshadow除外はbyte不変であり、入力hashをtest実行の証明には数えない。
+[Opus165の独立再計算](cross-review/round165-opus.md)と
+[提案・census](records/runtime-input-registration-r229/proposal.json)を保存した。
+最終の生成物は公式chain walkで更新し、入口台帳v36はwalk後の固定sourceから新規生成する。

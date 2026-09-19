@@ -1633,16 +1633,16 @@ fn class_member_missing_body_arrow_requires_its_own_gap() {
             .parse_recovery
             .actions()
             .iter()
-            .filter_map(|action| {
+            .filter(|action| {
                 let ParseRecoveryAction::TokenSkipped {
                     token,
                     start,
                     length,
                     site,
                     ..
-                } = *action
+                } = **action
                 else {
-                    return None;
+                    return false;
                 };
                 let expected_site = if expected_token == SyntaxKind::EqualsToken {
                     ParseTokenSkipSite::BlockTrailingEquals
@@ -1650,7 +1650,7 @@ fn class_member_missing_body_arrow_requires_its_own_gap() {
                     ParseTokenSkipSite::ListAbort
                 };
                 if token != expected_token || site != expected_site {
-                    return None;
+                    return false;
                 }
                 let start = parsed.positions().utf16_to_byte(start).unwrap() as usize;
                 let end = start + length as usize;
@@ -1658,7 +1658,7 @@ fn class_member_missing_body_arrow_requires_its_own_gap() {
                     parsed.text().get(start..end),
                     crate::tokens::token_to_string(token)
                 );
-                Some(action)
+                true
             })
             .collect();
         assert_eq!(

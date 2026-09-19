@@ -3,7 +3,8 @@
 2026-09-18。提出r11を受領した統合候補 `ed71c45343b2063414d5563c9b5455631d7c5c68`
 に対する追加監査。**提出REPORTの「emitter ownerの未解決行0」は、通常emitの残作業0を
 意味しない。実際に通常のProgram/commandで残差と回帰を確認した。**
-本書の修復は検証中であり、最終hosted receiptが完成するまで統合完了とはしない。
+本書は受領時の残差と、その後の修復・検証履歴を残す。最終候補の実測は
+[統合記録](README.md)、qualificationと統合状態は[専用記録](architecture-validation.md)を参照する。
 
 ## 確認した残差と修復
 
