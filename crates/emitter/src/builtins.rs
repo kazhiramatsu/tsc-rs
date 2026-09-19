@@ -8505,9 +8505,32 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if self.context.arena().node(original)?.pos == u32::MAX {
             return Ok(None);
         }
+        let resolver_node = self.resolver_node(identifier)?;
+        // getExports resolves an imported alias before looking for value
+        // declarations: its publication belongs to the import declaration.
+        if let Some(import) = self
+            .resolver
+            .get_referenced_import_declaration(resolver_node)?
+        {
+            return Ok(self
+                .info
+                .exported_bindings
+                .get(&import.node())
+                .map(|exports| ExportAssignmentPlan {
+                    local_name: data.text.clone(),
+                    exports: exports.clone(),
+                    direct_export_storage: self
+                        .info
+                        .direct_exported_variable_names
+                        .contains(data.text.as_str())
+                        && exports
+                            .iter()
+                            .any(|export| export.as_js() == data.text.as_str()),
+                }));
+        }
         let declarations = self
             .resolver
-            .get_referenced_value_declarations(self.resolver_node(identifier)?)?;
+            .get_referenced_value_declarations(resolver_node)?;
         let mut exports = Vec::new();
         let mut seen = BTreeSet::new();
         for declaration in declarations {
@@ -11708,7 +11731,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                                 original,
                                 id,
                                 data,
-                                class_is_decorated || facts.has_member_decorators,
+                                facts.has_static_initialized_properties,
                             )?)
                         } else {
                             let updated = self.update_class_declaration(original, id, data)?;
@@ -15454,13 +15477,12 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         original: TransformNode,
         parent: NodeId,
         data: tsc_syntax::nodes::ClassDeclarationData,
-        decorated: bool,
+        has_static_initialized_properties: bool,
     ) -> Result<NodeId, TransformError> {
         // Upstream promotes unconditionally at `languageVersion < ES2015`
         // (`_tsc.js:94436`, `94448`); the decorated lanes compose with the
         // separate decorator transformers over the wrapper's inner class
         // (H2.5h CA-2a A/D).
-        let _ = decorated;
         // `moveModifiers`: the promoted lane elides the declaration's
         // modifiers (`modifierElidingVisitor`); the export binding is
         // re-created AFTER the wrapper by the caller's lane split
@@ -15492,10 +15514,12 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let updated_class = self.update_class_declaration(original, parent, data)?;
         let updated_class = self.node(updated_class);
         // `if (facts & HasStaticInitializedProperties) emitFlags |= NoTrailingSourceMap`
-        self.context
-            .arena_mut()?
-            .metadata_mut(updated_class)
-            .add_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
+        if has_static_initialized_properties {
+            self.context
+                .arena_mut()?
+                .metadata_mut(updated_class)
+                .add_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
+        }
         let name_text = {
             let NodeData::ClassDeclaration(updated) =
                 &self.context.arena().node(updated_class)?.data

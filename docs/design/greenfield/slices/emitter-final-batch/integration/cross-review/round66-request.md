@@ -1,0 +1,17 @@
+# Round66: native System scope/publication failures
+
+Read-only review, no builds/mutations. /Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next immutable18c0e70a4; Rust source stays frozen while native run/capture completes. Active first722System completecommand test plus h2_2bnamespace regression. Log records/local/system-publication-native-r65.log is nearly complete; inspect final summary when present. Eachcase x2; nofilters/expectation changes. Most pass; residual failures require corrections, not waivers. Actual capture pass will run underTSC_RS_H2_8A_CAPTURE_WRITES_DIR (fullsame722test) afterthisrun, becausemapcomparisons occurbeforeJSbytes; artifacts in integration/records/captures/system-r66 (ifavailable). Source and TSfixturesalreadyfinalat18c.
+
+Please independently diagnose fromsource/upstream+log:
+- using-object-pattern/nested-rest-pattern ES5/15 maps differ by one generatedcolumn: likelylostparentheses in ESNext hoistedconvertedObjectAssignmentPattern expression after flattening; using-local-patternES5mapalsobeginsafterstatementrange. ComparehoistInitializedVariable+createExpressionStatement parenthesization vs ourconverter/visitexpressionstatement.
+- capture-this ES5 (includingpattern) emits extra outerwrapper `_this=this` start/endmaps atsource0:0→2:0,TSnone. Hoistedvarorderwasfixed; nowcustomprologueassignment retainsinappropriateSourceFilerange?
+- scope-discarded, scope-earlier-temp(nullish), scope-generator, for-of-postfix: value-usedvsdiscarded/rangedparentheses/tempdeclaration differences. Fulltexts inobserver, expectedJSinfixture. Systemsemicolon/bracketcommaparenthesizerandfunction-localtempnames needcompare.
+- optional-property-before-newline ESNext bothcommentssettings: linebreakscopes? Ordinaryquestiondotnode implemented62, staticreviewapprovedbutnativeguardsnowexposeactualdiff.
+- CommonJS mirroredimportupdate/reexport cases showmapsdifferences. We changed sharedCommonJsModuleInfo exportspecifier resolution toimport-first withfallback; Systemallimportvariants mostlypass. CheckCJSupstreamsemantics ratherthanundoingimport-first globally. Oldside mayalreadybeincorrectforinvalidassignmenttoimports.
+- await-computed-method ES5/ES2015 outputs`yield source` whereTSkeeps`await source`, whiletopSystemasyncisfalse. CurrentES2017visit: AwaitExpressionifin_non_top_level_context(); method'scomputednameprobablyvisitedunderwrongcontext, unlikefunctionbody/parameter. Source_containsAwaitstaticfix passeditscontrols; don'tconfusewiththisearlierpass.
+
+Allproposedfixes must preserveexistingasync372 andqualifiedglobaltests. Please prioritizeconcretecause+minimalpatch, noting anynewcontrolneeded. Codeinspectiononly; Codexwillcaptureandsubsequentlyeditafterreview.
+
+Round65postassignedwarning: directTSprobes in system-await-postassigned-probes-r66.json show staticdecoratorparsecleanbutTSstripsdecoratorbeforeSystem. Thetwoobjectdecoratorinputs do NOT producePropertyAssignment/Shorthand withmodifiers; theyproduceparse1136/1146/1128,emptyobject+MissingDeclarationlaterremoved. Thus those are not evidenceofsurvivingpostassignedfields. Do notaddblindskips withoutactualtransformednativefailure; wecanaddcleanstaticdecoratorcontrolafterthisrun.
+
+Separatelycensusimplementation+CIchangescontinueONLYinnewtree/Users/hiramatsu/dev/tsc-rs-emitter-final-census, notreviewscope. Singleload+replayaccepted65; coretoolnotbuilt yet. No productionRustfileschangeinreviewtree.

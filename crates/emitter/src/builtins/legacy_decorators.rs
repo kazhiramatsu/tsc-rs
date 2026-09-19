@@ -2398,7 +2398,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         is_intersection: bool,
         serialization_context: MetadataSerializationContext,
     ) -> Result<TransformNode, TransformError> {
-        let mut serialized: Option<(TransformNode, String)> = None;
+        let mut serialized: Option<TransformNode> = None;
         for r#type in types {
             let r#type = self.skip_type_parentheses(r#type)?;
             let kind = self.context.arena().node(self.node(r#type))?.kind;
@@ -2425,21 +2425,20 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 MetadataFallback::Object,
                 serialization_context,
             )?;
-            let key = self
-                .serialized_type_key(node)?
-                .unwrap_or_else(|| "other".to_owned());
-            if key == "id:Object" {
+            if matches!(&self.context.arena().node(node)?.data,
+                NodeData::Identifier(data) if data.escaped_text == "Object")
+            {
                 return Ok(node);
             }
-            if let Some((_, previous)) = &serialized {
-                if *previous != key {
+            if let Some(previous) = serialized {
+                if !self.equate_serialized_type_nodes(previous, node)? {
                     return self.create_identifier("Object");
                 }
             } else {
-                serialized = Some((node, key));
+                serialized = Some(node);
             }
         }
-        if let Some((node, _)) = serialized {
+        if let Some(node) = serialized {
             Ok(node)
         } else {
             self.create_void_zero()
@@ -2476,36 +2475,87 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         }))
     }
 
-    fn serialized_type_key(&self, node: TransformNode) -> Result<Option<String>, TransformError> {
-        Ok(match &self.context.arena().node(node)?.data {
-            NodeData::Identifier(data) => Some(format!("id:{}", data.text)),
-            NodeData::VoidExpression(data) => data
-                .expression
-                .and_then(|expression| self.context.arena().node_ref(self.source, expression))
-                .and_then(|expression| self.context.arena().node(expression).ok())
-                .and_then(|expression| {
-                    matches!(&expression.data, NodeData::NumericLiteral(data) if data.text == "0")
-                        .then_some("void:0".to_owned())
-                }),
-            NodeData::PropertyAccessExpression(data) => {
-                let expression = data
-                    .expression
-                    .and_then(|expression| self.context.arena().node_ref(self.source, expression));
-                let name = data
-                    .name
-                    .and_then(|name| self.context.arena().node_ref(self.source, name));
-                match (expression, name) {
-                    (Some(expression), Some(name)) => {
-                        let left = self.serialized_type_key(expression)?;
-                        let right = self.serialized_type_key(name)?;
-                        left.zip(right)
-                            .map(|(left, right)| format!("{left}.{right}"))
-                    }
-                    _ => None,
+    /// tsc-port: equateSerializedTypeNodes @6.0.3
+    /// tsc-span: _tsc.js:98304-98330
+    fn equate_serialized_type_nodes(
+        &self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let arena = self.context.arena();
+        let mut pending = vec![(left, right)];
+        while let Some((left, right)) = pending.pop() {
+            let left_data = &arena.node(left)?.data;
+            let right_data = &arena.node(right)?.data;
+            let generated = |node, data: &NodeData| {
+                matches!(data, NodeData::Identifier(_))
+                    && arena
+                        .metadata(node)
+                        .and_then(|m| m.generated_binding_id())
+                        .is_some()
+            };
+            let left_generated = generated(left, left_data);
+            let right_generated = generated(right, right_data);
+            if left_generated || right_generated {
+                // Upstream temporary escapedText is synthetic. Our provisional
+                // printable spelling must not equate it with a source name.
+                if left_generated != right_generated {
+                    return Ok(false);
                 }
+                continue;
             }
-            _ => None,
-        })
+            let mut children = Vec::new();
+            match (left_data, right_data) {
+                (NodeData::Identifier(a), NodeData::Identifier(b))
+                    if a.escaped_text == b.escaped_text => {}
+                (NodeData::PropertyAccessExpression(a), NodeData::PropertyAccessExpression(b)) => {
+                    children.extend([(a.expression, b.expression), (a.name, b.name)]);
+                }
+                (NodeData::VoidExpression(a), NodeData::VoidExpression(b)) => {
+                    for operand in [a.expression, b.expression] {
+                        let Some(operand) = operand else {
+                            return Ok(false);
+                        };
+                        if !matches!(&arena.node(self.node(operand))?.data,
+                            NodeData::NumericLiteral(data) if data.text == "0")
+                        {
+                            return Ok(false);
+                        }
+                    }
+                }
+                (NodeData::StringLiteral(a), NodeData::StringLiteral(b)) if a.text == b.text => {}
+                (NodeData::TypeOfExpression(a), NodeData::TypeOfExpression(b)) => {
+                    children.push((a.expression, b.expression));
+                }
+                (NodeData::ParenthesizedExpression(a), NodeData::ParenthesizedExpression(b)) => {
+                    children.push((a.expression, b.expression));
+                }
+                (NodeData::ConditionalExpression(a), NodeData::ConditionalExpression(b)) => {
+                    children.extend([
+                        (a.condition, b.condition),
+                        (a.when_true, b.when_true),
+                        (a.when_false, b.when_false),
+                    ]);
+                }
+                (NodeData::BinaryExpression(a), NodeData::BinaryExpression(b)) => {
+                    let (Some(a_op), Some(b_op)) = (a.operator_token, b.operator_token) else {
+                        return Ok(false);
+                    };
+                    if arena.node(self.node(a_op))?.kind != arena.node(self.node(b_op))?.kind {
+                        return Ok(false);
+                    }
+                    children.extend([(a.left, b.left), (a.right, b.right)]);
+                }
+                _ => return Ok(false),
+            }
+            for (a, b) in children {
+                let (Some(a), Some(b)) = (a, b) else {
+                    return Ok(false);
+                };
+                pending.push((self.node(a), self.node(b)));
+            }
+        }
+        Ok(true)
     }
 
     /// tsc-port: serializeTypeReferenceNode @6.0.3
@@ -2637,14 +2687,18 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                         parent: SyntaxKind::QualifiedName,
                         field: "right",
                     })?;
-                let right = self.identifier_text(right.node())?.to_owned();
+                let right_name = self
+                    .context
+                    .factory()?
+                    .clone_node_with_source_spelling(right)?;
+                self.context.factory()?.set_text_range(right_name, right)?;
                 if matches!(
                     self.context.arena().node(left)?.data,
                     NodeData::Identifier(_)
                 ) {
                     let (guard, left_value) =
                         self.checked_entity_name_parts(left, serialization_context)?;
-                    let value = self.create_property_access(left_value, &right)?;
+                    let value = self.create_property_access_with_name(left_value, right_name)?;
                     return Ok((guard, value));
                 }
                 let (left_guard, left_value) =
@@ -2664,7 +2718,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 let guard =
                     self.create_binary(left_guard, SyntaxKind::AmpersandAmpersandToken, defined)?;
                 let temp = self.create_generated_identifier(&temp_name)?;
-                let value = self.create_property_access(temp, &right)?;
+                let value = self.create_property_access_with_name(temp, right_name)?;
                 Ok((guard, value))
             }
             _ => Err(TransformError::RequiredChildRemoved {
@@ -2698,9 +2752,13 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                         parent: SyntaxKind::QualifiedName,
                         field: "right",
                     })?;
-                let right = self.identifier_text(right.node())?.to_owned();
+                let right_name = self
+                    .context
+                    .factory()?
+                    .clone_node_with_source_spelling(right)?;
+                self.context.factory()?.set_text_range(right_name, right)?;
                 let left = self.entity_name_expression(left, serialization_context)?;
-                let expression = self.create_property_access(left, &right)?;
+                let expression = self.create_property_access_with_name(left, right_name)?;
                 self.set_original_and_range(expression, node)
             }
             _ => self.create_identifier("Object"),
@@ -3772,6 +3830,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         name: &str,
     ) -> Result<TransformNode, TransformError> {
         let name = self.create_identifier(name)?;
+        self.create_property_access_with_name(expression, name)
+    }
+
+    fn create_property_access_with_name(
+        &mut self,
+        expression: TransformNode,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::PropertyAccessExpression(tsc_syntax::nodes::PropertyAccessExpressionData {

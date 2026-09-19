@@ -234,6 +234,12 @@ fn source_contains_top_level_await(
         let record = arena.node(node)?;
         match &record.data {
             NodeData::AwaitExpression(_) => return Ok(true),
+            // createClassStaticBlockDeclaration propagates the body's flags.
+            // The parser assigns invalid modifiers later, without propagating.
+            NodeData::ClassStaticBlockDeclaration(data) => {
+                stack.extend(data.body);
+                continue;
+            }
             NodeData::FunctionDeclaration(_)
             | NodeData::FunctionExpression(_)
             | NodeData::ArrowFunction(_)
@@ -490,16 +496,16 @@ struct SystemVisitor<'context, 'resolver> {
     used_names: BTreeSet<String>,
     generated_bindings: BTreeMap<String, TargetBinding>,
     export_star_name: Option<String>,
-    hoisted_names: Vec<String>,
+    hoisted_names: Vec<SystemHoistedName>,
     hoisted_declarations: Vec<TransformNode>,
-    temp_ordinal: usize,
     function_scope_depth: usize,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
 }
 
-enum SystemUpdateTemp {
-    Module(String),
-    Function(TargetBinding),
+#[derive(Clone)]
+enum SystemHoistedName {
+    Plain(String),
+    Generated(TargetBinding),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -698,7 +704,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             export_star_name: None,
             hoisted_names: Vec::new(),
             hoisted_declarations: Vec::new(),
-            temp_ordinal: 0,
             function_scope_depth: 0,
             arrays: BTreeMap::new(),
         })
@@ -784,7 +789,13 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         if !self.hoisted_names.is_empty() {
             let mut declarations = Vec::with_capacity(self.hoisted_names.len());
             for name in self.hoisted_names.clone() {
-                declarations.push(self.create_variable_declaration(&name, None)?);
+                let name = match name {
+                    SystemHoistedName::Plain(name) => self.create_identifier(&name)?,
+                    SystemHoistedName::Generated(binding) => {
+                        self.create_generated_reference(&binding)?
+                    }
+                };
+                declarations.push(self.create_variable_declaration_with_name(name, None)?);
             }
             let statement = self.create_variable_statement(declarations, NodeFlags::NONE)?;
             outer.insert(standard_prologue_end, statement);
@@ -909,11 +920,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn hoist_name_node(&mut self, name: TransformNode) -> Result<(), TransformError> {
         let text = identifier_text_owned(self.context.arena(), name)?;
         if let Some(binding) = self.generated_binding_of_identifier(name) {
-            self.generated_bindings
-                .entry(text.clone())
-                .or_insert(binding);
+            self.hoisted_names
+                .push(SystemHoistedName::Generated(binding));
+        } else {
+            self.push_hoisted_name(&text);
         }
-        self.push_hoisted_name(&text);
         Ok(())
     }
 
@@ -951,40 +962,29 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
             return None;
         };
-        Some(TargetBinding::from_existing(
-            id,
-            identifier.text.clone(),
-            metadata.generated_binding_base().map(str::to_owned),
-            metadata
-                .generated_binding_preferred_base()
-                .map(str::to_owned),
-            metadata.generated_binding_role_suffix().map(str::to_owned),
-            metadata.generated_binding_is_file_level_optimistic(),
-            metadata.generated_binding_planned_name_is_authoritative(),
-            metadata.generated_binding_is_loop_variable(),
-            metadata.generated_binding_reserved_in_nested_scopes(),
-            metadata.generated_binding_is_private_temp(),
-        ))
+        Some(
+            TargetBinding::from_existing(
+                id,
+                identifier.text.clone(),
+                metadata.generated_binding_base().map(str::to_owned),
+                metadata
+                    .generated_binding_preferred_base()
+                    .map(str::to_owned),
+                metadata.generated_binding_role_suffix().map(str::to_owned),
+                metadata.generated_binding_is_file_level_optimistic(),
+                metadata.generated_binding_planned_name_is_authoritative(),
+                metadata.generated_binding_is_loop_variable(),
+                metadata.generated_binding_reserved_in_nested_scopes(),
+                metadata.generated_binding_is_private_temp(),
+            )
+            .with_derived_from(metadata.generated_binding_derived_from()),
+        )
     }
 
     fn push_hoisted_name(&mut self, name: &str) {
-        self.hoisted_names.push(name.to_owned());
+        self.hoisted_names
+            .push(SystemHoistedName::Plain(name.to_owned()));
         self.used_names.insert(name.to_owned());
-    }
-
-    fn next_temp_name(&mut self) -> String {
-        loop {
-            let ordinal = self.temp_ordinal;
-            self.temp_ordinal += 1;
-            let candidate = if ordinal < 26 {
-                format!("_{}", (b'a' + ordinal as u8) as char)
-            } else {
-                format!("_{}", ordinal - 26)
-            };
-            if self.used_names.insert(candidate.clone()) {
-                return candidate;
-            }
-        }
     }
 
     fn transform_hoisted_function(
@@ -1009,6 +1009,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 data.name = Some(self.create_identifier(&name)?.node());
             }
         }
+        let local_node = data.name.map(|id| self.node(id));
         let local = data
             .name
             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -1048,7 +1049,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let mut output = vec![function];
         if let Some(local) = local {
             for export in exports {
-                let value = self.create_identifier(&local)?;
+                let value = self.create_local_name_reference(local_node, &local)?;
                 let call = self.create_export_call_with_name(&export.name, value)?;
                 output.push(self.create_expression_statement(call)?);
             }
@@ -1823,7 +1824,12 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let mut output = Vec::new();
         if let Some(expression) = self.inline_expressions(initialization_expressions)? {
             let statement = self.create_expression_statement(expression)?;
-            self.set_original_and_range(statement, original)?;
+            // System copies the statement's text range, not its emit metadata.
+            // A capture-this custom prologue has a separate SourceFile mapping
+            // which must not leak into the replacement assignment statement.
+            self.context
+                .factory()?
+                .set_text_range(statement, original)?;
             output.push(statement);
         }
         output.extend(trailing_exports);
@@ -2167,15 +2173,14 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         if reuse_identifier && self.context.arena().node(value)?.kind == SyntaxKind::Identifier {
             return Ok(value);
         }
-        let temp = self.next_temp_name();
-        self.push_hoisted_name(&temp);
-        let target = self.create_identifier(&temp)?;
+        let temp = self.allocate_update_temp()?;
+        let target = self.create_generated_reference(&temp)?;
         let assignment = self.create_assignment(target, value)?;
         self.context
             .factory()?
             .set_text_range(assignment, location)?;
         plan.push_evaluation(assignment);
-        self.create_identifier(&temp)
+        self.create_generated_reference(&temp)
     }
 
     fn system_binding_element(
@@ -2307,6 +2312,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         publish_exports: bool,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let key = self.context.arena().get_original_node(original).node();
+        let local_node = data.name.map(|id| self.node(id));
         let local = data
             .name
             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -2372,7 +2378,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .set_text_range(class_expression, original)?;
         let mut output = Vec::new();
         if let Some(local) = local {
-            let target = self.create_identifier(&local)?;
+            let target = self.create_local_name_reference(local_node, &local)?;
             let assignment = self.create_assignment(target, class_expression)?;
             let statement = self.create_expression_statement(assignment)?;
             self.context
@@ -2380,7 +2386,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 .set_text_range(statement, original)?;
             output.push(statement);
             for export in exports {
-                let value = self.create_identifier(&local)?;
+                let value = self.create_local_name_reference(local_node, &local)?;
                 let call = self.create_export_call_with_name(&export.name, value)?;
                 output.push(self.create_expression_statement(call)?);
             }
@@ -2621,30 +2627,29 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         ))
     }
 
-    fn allocate_update_temp(&mut self) -> Result<SystemUpdateTemp, TransformError> {
+    fn allocate_update_temp(&mut self) -> Result<TargetBinding, TransformError> {
+        let binding = TargetBinding::allocate(self.context, "_a".to_owned())?;
         if self.function_scope_depth == 0 {
-            let name = self.next_temp_name();
-            self.push_hoisted_name(&name);
-            Ok(SystemUpdateTemp::Module(name))
+            // Preserve allocation identity through hoisting. Final names are
+            // chosen in wrapper declaration order, including earlier-pass
+            // temps whose provisional spellings can be identical.
+            self.hoisted_names
+                .push(SystemHoistedName::Generated(binding.clone()));
         } else {
-            let binding = TargetBinding::allocate(self.context, "_a".to_owned())?;
-            let name = self.create_function_temp_reference(&binding)?;
+            let name = self.create_generated_reference(&binding)?;
             self.context.hoist_variable_declaration(name)?;
-            Ok(SystemUpdateTemp::Function(binding))
         }
+        Ok(binding)
     }
 
     fn create_update_temp_reference(
         &mut self,
-        temp: &SystemUpdateTemp,
+        temp: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
-        match temp {
-            SystemUpdateTemp::Module(name) => self.create_identifier(name),
-            SystemUpdateTemp::Function(binding) => self.create_function_temp_reference(binding),
-        }
+        self.create_generated_reference(temp)
     }
 
-    fn create_function_temp_reference(
+    fn create_generated_reference(
         &mut self,
         binding: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
@@ -2717,17 +2722,17 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         ) {
             let alias = TargetBinding::allocate(self.context, "_a".to_owned())?;
             let value = if let Some(initializer) = data.initializer.map(|id| self.node(id)) {
-                let condition_name = self.create_function_temp_reference(&alias)?;
+                let condition_name = self.create_generated_reference(&alias)?;
                 let condition = self.create_strict_undefined_check(condition_name)?;
-                let fallback_name = self.create_function_temp_reference(&alias)?;
+                let fallback_name = self.create_generated_reference(&alias)?;
                 self.create_conditional(condition, initializer, fallback_name)?
             } else {
-                self.create_function_temp_reference(&alias)?
+                self.create_generated_reference(&alias)?
             };
             let declaration = self.create_named_variable_declaration(name, Some(value))?;
             let statement = self.create_variable_statement(vec![declaration], NodeFlags::NONE)?;
             self.context.add_initialization_statement(statement)?;
-            let alias_name = self.create_function_temp_reference(&alias)?;
+            let alias_name = self.create_generated_reference(&alias)?;
             data.name = Some(alias_name.node());
             data.initializer = None;
         } else if let Some(initializer) = data.initializer.map(|id| self.node(id)) {
@@ -3670,15 +3675,16 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         }
                     }
                     NodeData::ImportEqualsDeclaration(data) => {
-                        let name = data
+                        let name_node = data
                             .name
-                            .and_then(|id| self.context.arena().node_ref(self.source, id))
+                            .and_then(|id| self.context.arena().node_ref(self.source, id));
+                        let name = name_node
                             .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
                             .ok_or(TransformError::RequiredChildRemoved {
                                 parent: SyntaxKind::ImportEqualsDeclaration,
                                 field: "name",
                             })?;
-                        let target = self.create_identifier(&name)?;
+                        let target = self.create_local_name_reference(name_node, &name)?;
                         let value = self.create_identifier(&parameter_name)?;
                         let assignment = self.create_assignment(target, value)?;
                         statements.push(self.create_expression_statement(assignment)?);
@@ -3969,6 +3975,19 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         };
         self.generated_bindings.insert(name.clone(), binding);
         Ok(name)
+    }
+
+    fn create_local_name_reference(
+        &mut self,
+        original: Option<TransformNode>,
+        text: &str,
+    ) -> Result<TransformNode, TransformError> {
+        if let Some(binding) = original.and_then(|name| self.generated_binding_of_identifier(name))
+        {
+            self.create_generated_reference(&binding)
+        } else {
+            self.create_identifier(text)
+        }
     }
 
     fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
@@ -4290,6 +4309,14 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         initializer: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let name = self.create_identifier(name)?;
+        self.create_variable_declaration_with_name(name, initializer)
+    }
+
+    fn create_variable_declaration_with_name(
+        &mut self,
+        name: TransformNode,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
@@ -4411,19 +4438,7 @@ impl FlattenHost for SystemVisitor<'_, '_> {
     }
     fn allocate_flatten_temp(&mut self, hoist: bool) -> Result<TargetBinding, TransformError> {
         debug_assert!(hoist, "System only flattens assignments");
-        let binding = if self.function_scope_depth == 0 {
-            let name = self.next_temp_name();
-            self.push_hoisted_name(&name);
-            let binding = TargetBinding::allocate_planned(self.context, name.clone())?;
-            self.generated_bindings.insert(name, binding.clone());
-            binding
-        } else {
-            let binding = TargetBinding::allocate(self.context, "_a".to_owned())?;
-            let name = self.create_function_temp_reference(&binding)?;
-            self.context.hoist_variable_declaration(name)?;
-            binding
-        };
-        Ok(binding)
+        self.allocate_update_temp()
     }
     fn visit_expression(&mut self, node: TransformNode) -> Result<TransformNode, TransformError> {
         self.visit(node.node())

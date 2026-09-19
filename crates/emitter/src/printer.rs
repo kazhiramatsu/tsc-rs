@@ -5756,15 +5756,8 @@ impl Printer {
                 writer,
             ),
             NodeData::ClassStaticBlockDeclaration(data) => {
-                if self.emit_modifiers(
-                    transformation,
-                    node.source(),
-                    data.modifiers,
-                    expression_context,
-                    writer,
-                )? {
-                    writer.write_space(" ");
-                }
+                // emitClassStaticBlockDeclaration ignores parser-attached
+                // modifiers; the emitted construct consists of static + body.
                 writer.write_keyword("static");
                 writer.write_space(" ");
                 self.emit_required_node_with_context(
@@ -12648,7 +12641,14 @@ impl Printer {
             return Ok(false);
         };
         let start = left_range.end().value() as usize;
-        let end = right_range.start().value() as usize;
+        let full_start = right_range.start().value() as usize;
+        let end = if transformation.arena().node(right)?.kind == SyntaxKind::QuestionDotToken {
+            // getLinesBetweenNodes compares the token's trivia-skipped start.
+            // Its full start can coincide with the receiver's end.
+            skip_trivia(syntax.text(), full_start)
+        } else {
+            full_start
+        };
         if start > end || end > syntax.text().len() {
             return Ok(false);
         }
@@ -12754,12 +12754,18 @@ impl Printer {
     ) -> Result<Option<GrammarParentheses>, PrinterError> {
         let emitted = self.skip_partially_emitted_expressions(transformation, expression)?;
         let parentheses = match context {
-            ExpressionGrammarContext::PrefixUnaryOperand => (!self
-                .is_unary_expression_kind(transformation.arena().node(emitted)?.kind))
-            .then_some(GrammarParentheses::SourceRanged),
-            ExpressionGrammarContext::PostfixUnaryOperand => (!self
-                .is_left_hand_side_expression_kind(transformation.arena().node(emitted)?.kind))
-            .then_some(GrammarParentheses::SourceRanged),
+            ExpressionGrammarContext::PrefixUnaryOperand => {
+                (!crate::factory::is_unary_expression_kind(
+                    transformation.arena().node(emitted)?.kind,
+                ))
+                .then_some(GrammarParentheses::SourceRanged)
+            }
+            ExpressionGrammarContext::PostfixUnaryOperand => {
+                (!crate::factory::is_left_hand_side_expression_kind(
+                    transformation.arena().node(emitted)?.kind,
+                ))
+                .then_some(GrammarParentheses::SourceRanged)
+            }
             ExpressionGrammarContext::NewCallee => {
                 let leftmost = self.leftmost_expression(transformation, emitted, true)?;
                 let leftmost_record = transformation.arena().node(leftmost)?;
@@ -12833,7 +12839,7 @@ impl Printer {
         optional_chain: bool,
     ) -> Result<bool, PrinterError> {
         let record = transformation.arena().node(expression)?;
-        if !self.is_left_hand_side_expression_kind(record.kind)
+        if !crate::factory::is_left_hand_side_expression_kind(record.kind)
             || matches!(&record.data, NodeData::NewExpression(data) if data.arguments.is_none())
         {
             return Ok(true);
@@ -12842,55 +12848,6 @@ impl Printer {
             return Ok(true);
         }
         Ok(false)
-    }
-
-    fn is_left_hand_side_expression_kind(&self, kind: SyntaxKind) -> bool {
-        matches!(
-            kind,
-            SyntaxKind::PropertyAccessExpression
-                | SyntaxKind::ElementAccessExpression
-                | SyntaxKind::NewExpression
-                | SyntaxKind::CallExpression
-                | SyntaxKind::JsxElement
-                | SyntaxKind::JsxSelfClosingElement
-                | SyntaxKind::JsxFragment
-                | SyntaxKind::TaggedTemplateExpression
-                | SyntaxKind::ArrayLiteralExpression
-                | SyntaxKind::ParenthesizedExpression
-                | SyntaxKind::ObjectLiteralExpression
-                | SyntaxKind::ClassExpression
-                | SyntaxKind::FunctionExpression
-                | SyntaxKind::Identifier
-                | SyntaxKind::PrivateIdentifier
-                | SyntaxKind::RegularExpressionLiteral
-                | SyntaxKind::NumericLiteral
-                | SyntaxKind::BigIntLiteral
-                | SyntaxKind::StringLiteral
-                | SyntaxKind::NoSubstitutionTemplateLiteral
-                | SyntaxKind::TemplateExpression
-                | SyntaxKind::FalseKeyword
-                | SyntaxKind::NullKeyword
-                | SyntaxKind::ThisKeyword
-                | SyntaxKind::TrueKeyword
-                | SyntaxKind::SuperKeyword
-                | SyntaxKind::NonNullExpression
-                | SyntaxKind::ExpressionWithTypeArguments
-                | SyntaxKind::MetaProperty
-                | SyntaxKind::ImportKeyword
-        )
-    }
-
-    fn is_unary_expression_kind(&self, kind: SyntaxKind) -> bool {
-        matches!(
-            kind,
-            SyntaxKind::PrefixUnaryExpression
-                | SyntaxKind::PostfixUnaryExpression
-                | SyntaxKind::DeleteExpression
-                | SyntaxKind::TypeOfExpression
-                | SyntaxKind::VoidExpression
-                | SyntaxKind::AwaitExpression
-                | SyntaxKind::TypeAssertionExpression
-        ) || self.is_left_hand_side_expression_kind(kind)
     }
 
     fn is_optional_chain(&self, record: &tsc_syntax::Node) -> bool {
