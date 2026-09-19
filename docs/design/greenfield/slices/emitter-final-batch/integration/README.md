@@ -8,26 +8,32 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
 提出時の検証と統合候補の検証は以下で区別する。hosted完了前に全体完了を主張しない。
 
-## r120 着手時点の状態（2026-09-19）
+## r120–r123 検証途中の状態（2026-09-19）
 
 統合は未完了。検証対象の Rust・fixture・HEAD を固定し、修復候補の準備は別 worktree で行う。
 次の成功はそれぞれ記載した候補の証拠であり、現在の最終候補の成功へ読み替えない。
 
 | 検証 | 確認済みの結果 |
 | --- | --- |
-| r106 recovery 境界 | 1,930 complete commands が各2回一致。直前の39差分を解消 |
+| r120 recovery 境界 | 1,930 complete commands が各2回一致。3,860回分の完全観測archiveもr106とbyte同一 |
 | r106 program / checker | program 558成功・5 ignored、checker lib 1,739成功 |
-| r109 emitter | 23 binaries、1,015 tests成功・ignored0 |
+| r120 emitter | 23 binaries、1,015 tests成功・ignored0 |
 | r112 post-child metadata | 既存96＋追加24の120 controlsが各2回一致 |
-| r116 追加境界 | 74 commands中71が各2回一致、3差分。以前のr109の5差分はすべて解消 |
+| r120 追加境界 | 110 commandsが各2回一致。r116で残った3差分も解消 |
+| r122 parse KNOWN | 残る36行すべて各2回一致。2 testsは退役要求assertionのみでexit101。全corpusの影響確認・退役は未完了 |
+| r123 config/library | 現在の固定compiler binaryで24 tests成功・ignored0・filtered459。r121 planner全84 testsも成功 |
 | r110b ledger | 固定済み旧xtask実行ファイルで4,113 entries、stale0・undispositioned0。最終toolによる再確認は未実施 |
 
-r116の3差分は、System変数名の型コメントと、クラス／引数プロパティの宣言コメント。
+r116の3差分は、System変数名の型コメントと、クラス／引数プロパティの宣言コメントだった。
 [全tupleと結果](cross-review/r116-native-results.md)を保存した。
 Opus116–119と照合した限定修復、および追加12＋24 controlsを統合し、
-`b451489e4a18abbff42651d8eb814537f4c5f800` に対するr120検証を開始した。
-順序は110 complete commands、emitter全1,015 tests、境界1,930、元の4,088 commands。
+`b451489e4a18abbff42651d8eb814537f4c5f800` に対するr120検証を継続している。
+110 complete commands、emitter全1,015 tests、境界1,930が成功し、元の4,088 commandsは実行中。
 失敗時は後続を進めず、current bytesでの成功を要求する。
+
+[r122の36行の一致と退役要求](cross-review/r122-known36-results.md)は元fixture・比較器で確認した。
+live KNOWNはまだ変更していない。過去の拒否観測をbyte同一で保存し、parser/corpusの証明が
+完了した後に比較ガードをarchiveへ接続して退役させる。単独36行の一致で共有変更をqualifyしない。
 
 全7,908 plansのcensus、4つのparser replay、選択された元commandのnative/TS比較、
 36 parse KNOWNの判断、最終chain walk・unsplit local CI・hosted確認・mergeは未完了。
