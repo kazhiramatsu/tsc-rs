@@ -1610,7 +1610,7 @@ impl<'a> CheckerState<'a> {
             self.error_at_js(
                 Some(access_expression),
                 &diagnostics::Property_0_does_not_exist_on_type_1,
-                &[(display).into(), (&object_display).into()],
+                &[(display), (&object_display).into()],
             );
         } else if no_implicit_any
             && !access_flags.intersects(AccessFlags::SUPPRESS_NO_IMPLICIT_ANY_ERROR)
@@ -1674,11 +1674,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at_js(
                             argument.or(Some(access_expression)),
                             &diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
-                            &[
-                                (name).into(),
-                                (&object_display).into(),
-                                (&suggestion).into(),
-                            ],
+                            &[(name), (&object_display).into(), (&suggestion).into()],
                         );
                     } else {
                         let index_suggestion = self
@@ -1702,8 +1698,8 @@ impl<'a> CheckerState<'a> {
                                 tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
                                     &[
-                                        (crate::concat_js(&[&"[", &index_display, &"]"])).into(),
-                                        (object_display).into(),
+                                        (crate::concat_js(&[&"[", &index_display, &"]"])),
+                                        (object_display),
                                     ],
                                 ));
                             } else if index_flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
@@ -1722,8 +1718,8 @@ impl<'a> CheckerState<'a> {
                                 tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
                                     &[
-                                        (crate::concat_js(&[&"[", &symbol_name, &"]"])).into(),
-                                        (object_display).into(),
+                                        (crate::concat_js(&[&"[", &symbol_name, &"]"])),
+                                        (object_display),
                                     ],
                                 ));
                             } else if index_flags
@@ -1735,7 +1731,7 @@ impl<'a> CheckerState<'a> {
                                 let object_display = self.type_to_string_slice(object_type)?;
                                 tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
-                                    &[value, object_display.into()],
+                                    &[value, object_display],
                                 ));
                             } else if index_flags.intersects(TypeFlags::NUMBER | TypeFlags::STRING)
                             {
@@ -1743,14 +1739,14 @@ impl<'a> CheckerState<'a> {
                                 let object_display = self.type_to_string_slice(object_type)?;
                                 tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1,
-                                    &[(index_display).into(), (object_display).into()],
+                                    &[(index_display), (object_display)],
                                 ));
                             }
                             let full_display = self.type_to_string_slice(full_index_type)?;
                             let object_display = self.type_to_string_slice(object_type)?;
                             let head = tsc_diagnostics::MessageChain::new_js(
                                 &diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
-                                &[(full_display).into(), (object_display).into()],
+                                &[(full_display), (object_display)],
                             );
                             let mut diagnostic = self.diagnostic_for_node(
                                 access_expression,

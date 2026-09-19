@@ -3383,7 +3383,7 @@ impl<'a> CheckerState<'a> {
                     let subtype_name = self.type_to_string_slice(subtype)?;
                     chain_tail.push(tsc_diagnostics::MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                        &[missing_property.clone(), subtype_name.into()],
+                        &[missing_property.clone(), subtype_name],
                     ));
                     break;
                 }
@@ -3398,7 +3398,7 @@ impl<'a> CheckerState<'a> {
             suggestion.push_js(missing_property.as_js());
             head = tsc_diagnostics::MessageChain::new_js(
                 &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
-                &[missing_property.clone(), type_name.into(), suggestion],
+                &[missing_property.clone(), type_name, suggestion],
             );
         } else {
             let promised = self.get_promised_type_of_promise(containing_type)?;
@@ -3412,7 +3412,7 @@ impl<'a> CheckerState<'a> {
                 let type_name = self.type_to_string_slice(containing_type)?;
                 head = tsc_diagnostics::MessageChain::new_js(
                     &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                    &[missing_property.clone(), type_name.into()],
+                    &[missing_property.clone(), type_name],
                 );
                 related = Some(self.related_info_for_node(
                     prop_node,
@@ -3451,7 +3451,7 @@ impl<'a> CheckerState<'a> {
                 if let Some(lib) = lib_suggestion {
                     head = tsc_diagnostics::MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_2_or_later,
-                        &[missing_property.clone(), container.into(), lib.into()],
+                        &[missing_property.clone(), container, lib.into()],
                     );
                 } else {
                     let suggestion = self.get_suggested_symbol_for_nonexistent_property(
@@ -3470,11 +3470,7 @@ impl<'a> CheckerState<'a> {
                         };
                         head = tsc_diagnostics::MessageChain::new_js(
                             message,
-                            &[
-                                missing_property.clone(),
-                                container.into(),
-                                suggested_name.clone(),
-                            ],
+                            &[missing_property.clone(), container, suggested_name.clone()],
                         );
                         if let Some(value_declaration) =
                             self.binder.symbol(suggestion).value_declaration
@@ -3488,7 +3484,7 @@ impl<'a> CheckerState<'a> {
                     } else if self.container_seems_to_be_empty_dom_element(containing_type)? {
                         head = tsc_diagnostics::MessageChain::new_js(
                             &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Try_changing_the_lib_compiler_option_to_include_dom,
-                            &[missing_property.clone(), container.into()],
+                            &[missing_property.clone(), container],
                         );
                     } else {
                         // chainDiagnosticMessages NESTS: the never-
@@ -3503,7 +3499,7 @@ impl<'a> CheckerState<'a> {
                         }
                         head = tsc_diagnostics::MessageChain::new_js(
                             &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                            &[missing_property.clone(), container.into()],
+                            &[missing_property.clone(), container],
                         );
                     }
                 }
@@ -4124,7 +4120,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at_js(
                             Some(access_node),
                             &tsc_diagnostics::gen::Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter,
-                            &[(display).into()],
+                            &[(display)],
                         );
                         return Ok(self.tables.intrinsics.error);
                     }

@@ -633,10 +633,9 @@ impl<'a> ModuleResolver<'a> {
             None => None,
             Some(_) if base_url.is_some() => base_url.clone(),
             Some(paths) => Some(match paths.config_base_path() {
-                Some(base_path) => Arc::new(normalize_paths_base_path(
-                    base_path.into(),
-                    normalized.as_js(),
-                )?),
+                Some(base_path) => {
+                    Arc::new(normalize_paths_base_path(base_path, normalized.as_js())?)
+                }
                 None => Arc::new(normalized.clone()),
             }),
         };
@@ -728,7 +727,7 @@ impl<'a> ModuleResolver<'a> {
         else {
             return self
                 .host
-                .file_exists_js(JsStr::from(file_name))
+                .file_exists_js(file_name)
                 .map(|exists| exists.then_some(ProbedFile::Borrowed(file_name)))
                 .map_err(Into::into);
         };
@@ -741,7 +740,7 @@ impl<'a> ModuleResolver<'a> {
         for suffix in suffixes {
             let suffix = suffix.runtime_text();
             if suffix.is_empty() {
-                if self.host.file_exists_js(JsStr::from(file_name))? {
+                if self.host.file_exists_js(file_name)? {
                     return Ok(Some(ProbedFile::Borrowed(file_name)));
                 }
                 continue;
@@ -851,11 +850,8 @@ impl<'a> ModuleResolver<'a> {
         let specifier = specifier.into();
         self.validate_common_configuration()?;
         let current_directory = self.current_directory_text();
-        let containing_file = normalize_absolute_js_path(
-            JsStr::from(containing_file),
-            Some(JsStr::from(current_directory)),
-            true,
-        )?;
+        let containing_file =
+            normalize_absolute_js_path(containing_file, Some(current_directory), true)?;
         let containing_directory = js_directory_name(&containing_file);
         if is_relative_specifier(specifier) {
             return self.resolve_relative_with_passes(
@@ -934,11 +930,8 @@ impl<'a> ModuleResolver<'a> {
         let containing_file = containing_file.into();
         let specifier = specifier.into();
         self.validate_supported_module_configuration(mode)?;
-        let containing_file = normalize_absolute_js_path(
-            JsStr::from(containing_file),
-            Some(JsStr::from(self.current_directory_text())),
-            true,
-        )?;
+        let containing_file =
+            normalize_absolute_js_path(containing_file, Some(self.current_directory_text()), true)?;
         let containing_directory = js_directory_name(&containing_file);
         let (mut result, diagnostics) =
             self.with_input_request(&containing_directory, true, |resolver| {
@@ -1088,8 +1081,7 @@ impl<'a> ModuleResolver<'a> {
                     // it cannot be used as a Rust str byte range.
                     let expanded = match capture.as_ref() {
                         Some(capture) if !capture.is_empty() => {
-                            let captured =
-                                JsStr::from(specifier).substring(capture.start, capture.end);
+                            let captured = specifier.substring(capture.start, capture.end);
                             Some(js_replace_first_star(substitution, &captured)?)
                         }
                         None | Some(_) => None,
@@ -1206,11 +1198,7 @@ impl<'a> ModuleResolver<'a> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
         let candidate = preserve_trailing_directory_separator(
-            normalize_absolute_js_path(
-                JsStr::from(specifier),
-                Some(JsStr::from(containing_directory)),
-                true,
-            )?,
+            normalize_absolute_js_path(specifier, Some(containing_directory), true)?,
             specifier,
         );
         let candidates = {
@@ -1395,7 +1383,7 @@ impl<'a> ModuleResolver<'a> {
                 );
             }
         }
-        let candidate_exists = self.host.directory_exists_js(JsStr::from(candidate))?;
+        let candidate_exists = self.host.directory_exists_js(candidate)?;
         if !allow_implicit || !candidate_exists {
             return Ok(ResolutionOutcome::NotFound);
         }
@@ -1483,7 +1471,7 @@ impl<'a> ModuleResolver<'a> {
         // resolver's raw selected spelling for submoduleName.
         let normalized_lexical_path = normalize_absolute_js_path(
             JsStr::from(&lexical_path),
-            Some(JsStr::from(self.current_directory_text())),
+            Some(self.current_directory_text()),
             true,
         )?;
         let Some(package_root) = node_modules_package_root(&normalized_lexical_path) else {
@@ -1606,7 +1594,7 @@ impl<'a> ModuleResolver<'a> {
                 }
                 let candidate = preserve_trailing_directory_separator(
                     normalize_absolute_js_path(
-                        JsStr::from(specifier),
+                        specifier,
                         Some(JsStr::from(&containing_directory)),
                         true,
                     )?,
@@ -2133,7 +2121,7 @@ impl<'a> ModuleResolver<'a> {
 
         let current_directory = self.current_directory_text().to_owned();
         let containing_file = normalize_absolute_js_path(
-            JsStr::from(containing_file),
+            containing_file,
             Some(JsStr::from(&current_directory)),
             true,
         )?;
@@ -2196,8 +2184,8 @@ impl<'a> ModuleResolver<'a> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
         let containing_directory = normalize_absolute_js_path(
-            JsStr::from(containing_directory),
-            Some(JsStr::from(self.current_directory_text())),
+            containing_directory,
+            Some(self.current_directory_text()),
             true,
         )?;
         let active = ActiveResolution {
@@ -2298,7 +2286,7 @@ impl<'a> ModuleResolver<'a> {
                 } => {
                     let containing_directory = normalize_absolute_js_path(
                         JsStr::from(&containing_directory),
-                        Some(JsStr::from(self.current_directory_text())),
+                        Some(self.current_directory_text()),
                         true,
                     )?;
                     // Count redirects plus only newly-created specifier bytes.
@@ -3714,7 +3702,7 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let type_root = type_root.into();
         let specifier = specifier.into();
-        if !self.host.directory_exists_js(JsStr::from(type_root))? {
+        if !self.host.directory_exists_js(type_root)? {
             return Ok(ResolutionOutcome::NotFound);
         }
         let name_for_lookup = if type_root.ends_with("/node_modules/@types") {
@@ -3834,7 +3822,7 @@ impl<'a> ModuleResolver<'a> {
         let directory_spelling = has_node_directory_spelling(specifier);
         let target = preserve_node_directory_spelling(
             normalize_absolute_js_path(
-                JsStr::from(specifier),
+                specifier,
                 Some(JsStr::from(&js_directory_name(containing_file))),
                 true,
             )?,
@@ -3955,11 +3943,7 @@ impl<'a> ModuleResolver<'a> {
         // node_modules.
         let raw_target = combine_paths_spelling(containing_directory, specifier)?;
         let target = preserve_node_directory_spelling(
-            normalize_absolute_js_path(
-                JsStr::from(specifier),
-                Some(JsStr::from(containing_directory)),
-                true,
-            )?,
+            normalize_absolute_js_path(specifier, Some(containing_directory), true)?,
             directory_spelling,
         );
         let external = path_contains_node_modules(&raw_target);
@@ -4084,7 +4068,7 @@ impl<'a> ModuleResolver<'a> {
                 return Ok(outcome);
             }
         }
-        let candidate_exists = self.host.directory_exists_js(JsStr::from(candidate))?;
+        let candidate_exists = self.host.directory_exists_js(candidate)?;
         if !allow_implicit || !candidate_exists {
             return Ok(ResolutionOutcome::NotFound);
         }
@@ -4256,9 +4240,7 @@ impl<'a> ModuleResolver<'a> {
                     .directory_exists_js(JsStr::from(&js_directory_name(candidate)))
             })
             .transpose()?;
-        let only_record_failures_for_index = !self
-            .host
-            .directory_exists_js(JsStr::from(candidate_directory))?;
+        let only_record_failures_for_index = !self.host.directory_exists_js(candidate_directory)?;
         let only_record_failures_for_types_versions =
             package_field_parent_exists == Some(false) || only_record_failures_for_index;
         let types_versions_eligible = package_field_candidate
@@ -4421,7 +4403,7 @@ impl<'a> ModuleResolver<'a> {
         // directory only after an applicable version range was selected.
         // Directory-worker callers already supply their combined latch.
         let only_record_failures = if matches!(loader, TypesVersionsLoader::PackageSubpath) {
-            only_record_failures || !self.host.directory_exists_js(JsStr::from(base_directory))?
+            only_record_failures || !self.host.directory_exists_js(base_directory)?
         } else {
             only_record_failures
         };
@@ -4574,7 +4556,7 @@ impl<'a> ModuleResolver<'a> {
         // Even in ESM mode, nodeLoadModuleByRelativeName observes the
         // candidate directory after a file miss before deciding that the
         // directory loader is disabled.
-        let candidate_exists = self.host.directory_exists_js(JsStr::from(candidate))?;
+        let candidate_exists = self.host.directory_exists_js(candidate)?;
         if !allow_implicit || !candidate_exists {
             return Ok(ResolutionOutcome::NotFound);
         }
@@ -5032,7 +5014,7 @@ impl<'a> ModuleResolver<'a> {
             }
             Value::String(_) => Search::Continue,
             Value::Object(table) => {
-                let mut own_keys = table.keys().filter_map(|key| decode_user_object_key(key));
+                let mut own_keys = table.keys().filter_map(decode_user_object_key);
                 let no_key_starts_with_dot = own_keys.clone().all(|key| !key.starts_with("."));
                 let all_keys_start_with_dot = own_keys.all(|key| key.starts_with("."));
 
@@ -6029,14 +6011,13 @@ fn parse_package_request<'p>(
     }
     // parsePackageName splits only at ASCII slashes. A scoped name uses
     // the second slash; a malformed bare @scope remains a package name.
-    let separators = specifier
+    let mut separators = specifier
         .as_bytes()
         .iter()
         .enumerate()
         .filter_map(|(index, byte)| (*byte == b'/').then_some(index));
     let package_end = separators
-        .skip(usize::from(specifier.starts_with("@")))
-        .next()
+        .nth(usize::from(specifier.starts_with("@")))
         .unwrap_or(specifier.as_bytes().len());
     let (package_name, tail) = specifier
         .split_at_byte(package_end)
@@ -6850,12 +6831,10 @@ fn js_json_to_string(value: &Value) -> Result<JsString, ResolutionError> {
                 )
             }),
         Value::String(value) => Ok(value.clone()),
-        Value::Array(values) => js_json_array_to_string(values).map(JsString::from),
+        Value::Array(values) => js_json_array_to_string(values),
         Value::Object(value) => match js_json_object_to_string_method(value)? {
             JsJsonObjectToStringMethod::Object => Ok(JsString::from("[object Object]")),
-            JsJsonObjectToStringMethod::ArrayJoin => {
-                js_json_object_array_join_to_string(value).map(JsString::from)
-            }
+            JsJsonObjectToStringMethod::ArrayJoin => js_json_object_array_join_to_string(value),
         },
     }
 }
@@ -7374,7 +7353,7 @@ fn select_package_map_target<'a, 'n>(
 
     let mut expanding_keys = table
         .keys()
-        .filter_map(|key| decode_user_object_key(key))
+        .filter_map(decode_user_object_key)
         .filter(|key| has_one_asterisk(*key) || key.ends_with("/"))
         .collect::<Vec<_>>();
     expanding_keys.sort_by(|left, right| compare_pattern_keys(*left, *right));

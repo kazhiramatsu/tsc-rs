@@ -4772,7 +4772,7 @@ impl<'a> CheckerState<'a> {
                         let this_text = self.type_to_string_slice(this_type)?;
                         vec![tsc_diagnostics::MessageChain::new_js(
                             &tsc_diagnostics::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
-                            &[(type_text).into(), (this_text).into()],
+                            &[(type_text), (this_text)],
                         )]
                     }
                     None => Vec::new(),

@@ -1984,7 +1984,7 @@ impl DisplayClonePrinter<'_, '_> {
                 (&"    ".repeat(self.state.slice_display_clone_indent + extra_indent)).into(),
             );
         }
-        text.push_js((fragment).into());
+        text.push_js((fragment));
     }
 }
 

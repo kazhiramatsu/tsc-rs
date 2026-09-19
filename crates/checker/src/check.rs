@@ -4756,7 +4756,9 @@ impl<'a> CheckerState<'a> {
                 /*report_errors*/ true,
                 Some(error_node),
             )? {
-                crate::engine::ExcessPropertyOutcome::UnknownProperty { diagnostic } => diagnostic,
+                crate::engine::ExcessPropertyOutcome::UnknownProperty { diagnostic } => {
+                    diagnostic.map(|diagnostic| *diagnostic)
+                }
                 _ => None,
             },
         )
@@ -5482,7 +5484,7 @@ impl<'a> CheckerState<'a> {
     /// TypeNode recovery boundary.
     fn reused_initializer_expression_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
         match self.display_clone_expression_text_at_line_start(node, false)? {
-            Some(text) => Ok(text.into()),
+            Some(text) => Ok(text),
             None => {
                 self.slice_reuse_had_error = true;
                 Ok(JsString::new())
@@ -12004,7 +12006,7 @@ impl<'a> CheckerState<'a> {
         let (mut text, kind) = self.symbol_to_type_face_at_slice(symbol, meaning, enclosing)?;
         if !type_arguments.is_empty() {
             text.push('<');
-            text.push_js((&crate::join_js_texts(&type_arguments, ", ")).into());
+            text.push_js((&crate::join_js_texts(type_arguments, ", ")).into());
             text.push('>');
         }
         Ok(Some((text, kind)))
@@ -13123,7 +13125,7 @@ impl<'a> CheckerState<'a> {
         nodes: Vec<NodeId>,
     ) -> CheckResult<JsString> {
         match self.display_clone_parameter_nodes_text(nodes)? {
-            Some(text) => Ok(text.into()),
+            Some(text) => Ok(text),
             None => {
                 self.slice_reuse_had_error = true;
                 Ok(JsString::new())
@@ -13457,7 +13459,7 @@ impl<'a> CheckerState<'a> {
         expression: NodeId,
     ) -> CheckResult<JsString> {
         match self.display_clone_computed_property_expression_text(expression)? {
-            Some(text) => Ok(text.into()),
+            Some(text) => Ok(text),
             None => {
                 self.slice_reuse_had_error = true;
                 Ok(JsString::new())

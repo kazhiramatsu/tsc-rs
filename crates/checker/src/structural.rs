@@ -2135,7 +2135,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     {
                         self.report_error_js(
                             &tsc_diagnostics::gen::Types_have_separate_declarations_of_a_private_property_0,
-                            vec![name.into()],
+                            vec![name],
                         )?;
                     } else {
                         let private_source = if source_prop_flags.intersects(ModifierFlags::PRIVATE)
@@ -2158,7 +2158,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             .type_to_string_slice_with_error_enclosing(public_source)?;
                         self.report_error_js(
                             &tsc_diagnostics::gen::Property_0_is_private_in_type_1_but_not_in_type_2,
-                            vec![name.into(), private_text.into(), public_text.into()],
+                            vec![name, private_text, public_text],
                         )?;
                     }
                 }
@@ -2178,7 +2178,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         .type_to_string_slice_with_error_enclosing(target_class)?;
                     self.report_error_js(
                         &tsc_diagnostics::gen::Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2,
-                        vec![name.into(), source_text.into(), target_text.into()],
+                        vec![name, source_text, target_text],
                     )?;
                 }
                 return Ok(Ternary::FALSE);
@@ -2191,7 +2191,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
                 self.report_error_js(
                     &tsc_diagnostics::gen::Property_0_is_protected_in_type_1_but_public_in_type_2,
-                    vec![name.into(), source_text.into(), target_text.into()],
+                    vec![name, source_text, target_text],
                 )?;
             }
             return Ok(Ternary::FALSE);
@@ -2238,7 +2238,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
                 self.report_error_js(
                     &tsc_diagnostics::gen::Property_0_is_optional_in_type_1_but_required_in_type_2,
-                    vec![name.into(), source_text.into(), target_text.into()],
+                    vec![name, source_text, target_text],
                 )?;
             }
             return Ok(Ternary::FALSE);
@@ -2551,7 +2551,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         let target_text = self.st.type_to_string_slice(target)?;
                         self.report_error_js(
                             &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                            vec![prop_name.into(), target_text.into()],
+                            vec![prop_name, target_text],
                         )?;
                     }
                     return Ok(Ternary::FALSE);
@@ -2745,11 +2745,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
             self.report_error_js(
                 &tsc_diagnostics::gen::Property_0_is_missing_in_type_1_but_required_in_type_2,
-                vec![
-                    (name.clone()).into(),
-                    (source_text).into(),
-                    (target_text).into(),
-                ],
+                vec![(name.clone()), (source_text), (target_text)],
             )?;
             if let Some(&declaration) = self
                 .st
@@ -2794,12 +2790,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if properties.len() > 5 {
             self.report_error_js(
                 &tsc_diagnostics::gen::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more,
-                vec![(source_text).into(), (target_text).into(), (names).into(), ((properties.len() - 4).to_string()).into()],
+                vec![(source_text), (target_text), (names), ((properties.len() - 4).to_string()).into()],
             )?;
         } else {
             self.report_error_js(
                 &tsc_diagnostics::gen::Type_0_is_missing_the_following_properties_from_type_1_2,
-                vec![(source_text).into(), (target_text).into(), (names).into()],
+                vec![(source_text), (target_text), (names)],
             )?;
         }
         self.override_next_error_after_unmatched_property();
@@ -2826,7 +2822,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let target_text = self.st.type_to_string_slice(target)?;
                     self.report_error_js(
                         &tsc_diagnostics::gen::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
-                        vec![(source_text).into(), (target_text).into()],
+                        vec![(source_text), (target_text)],
                     )?;
                 }
                 return Ok(false);
@@ -2839,7 +2835,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let target_text = self.st.type_to_string_slice(target)?;
                 self.report_error_js(
                     &tsc_diagnostics::gen::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
-                    vec![(source_text).into(), (target_text).into()],
+                    vec![(source_text), (target_text)],
                 )?;
             }
             return Ok(false);
@@ -3134,7 +3130,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         )?;
                     self.report_error_js(
                         &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
-                        vec![(source_text).into(), (target_text).into()],
+                        vec![(source_text), (target_text)],
                     )?;
                     self.report_error(
                         &tsc_diagnostics::gen::Types_of_construct_signatures_are_incompatible,
@@ -3171,7 +3167,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         .signature_to_string_slice_for_relation_error(t, kind)?;
                     self.report_error_js(
                         &tsc_diagnostics::gen::Type_0_provides_no_match_for_the_signature_1,
-                        vec![(source_text).into(), (signature_text).into()],
+                        vec![(source_text), (signature_text)],
                     )?;
                 }
                 return Ok(Ternary::FALSE);
@@ -3965,7 +3961,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         )?;
                         self.report_error_js(
                             &tsc_diagnostics::gen::Signature_0_must_be_a_type_predicate,
-                            vec![(source_text).into()],
+                            vec![(source_text)],
                         )?;
                     }
                     return Ok(Ternary::FALSE);
@@ -4019,10 +4015,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             &tsc_diagnostics::gen::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
                         }
                     };
-                    self.report_incompatible_error_js(
-                        message,
-                        vec![(source_text).into(), (target_text).into()],
-                    );
+                    self.report_incompatible_error_js(message, vec![(source_text), (target_text)]);
                 }
             }
         }
@@ -4231,7 +4224,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let name = self.st.symbol_name_as_written_slice(prop);
                     self.report_error_js(
                         &tsc_diagnostics::gen::Property_0_is_incompatible_with_index_signature,
-                        vec![name.into()],
+                        vec![name],
                     )?;
                 }
                 return Ok(Ternary::FALSE);
@@ -4279,7 +4272,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if source_info.key_type == target_info.key_type {
                 self.report_error_js(
                     &tsc_diagnostics::gen::_0_index_signatures_are_incompatible,
-                    vec![(source_key).into()],
+                    vec![(source_key)],
                 )?;
             } else {
                 let target_key = self
@@ -4287,7 +4280,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .type_to_string_slice_with_error_enclosing(target_info.key_type)?;
                 self.report_error_js(
                     &tsc_diagnostics::gen::_0_and_1_index_signatures_are_incompatible,
-                    vec![(source_key).into(), (target_key).into()],
+                    vec![(source_key), (target_key)],
                 )?;
             }
         }
@@ -4390,7 +4383,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
             self.report_error_js(
                 &tsc_diagnostics::gen::Index_signature_for_type_0_is_missing_in_type_1,
-                vec![(key).into(), (source_text).into()],
+                vec![(key), (source_text)],
             )?;
         }
         Ok(Ternary::FALSE)
@@ -5115,7 +5108,7 @@ impl<'a> CheckerState<'a> {
                 let prop_name = self.symbol_name_as_written_slice(prop);
                 return Ok(Some(tsc_diagnostics::MessageChain::new_js(
                     &tsc_diagnostics::gen::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
-                    &[type_name.into(), prop_name],
+                    &[type_name, prop_name],
                 )));
             }
         }
@@ -5125,7 +5118,7 @@ impl<'a> CheckerState<'a> {
                 let prop_name = self.symbol_name_as_written_slice(prop);
                 return Ok(Some(tsc_diagnostics::MessageChain::new_js(
                     &tsc_diagnostics::gen::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
-                    &[type_name.into(), prop_name],
+                    &[type_name, prop_name],
                 )));
             }
         }

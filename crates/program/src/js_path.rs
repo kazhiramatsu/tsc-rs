@@ -54,7 +54,7 @@ fn root_end_byte(path: JsStr<'_>) -> usize {
     };
     let authority_end = authority_start + authority.as_bytes().len();
     if scheme == "file"
-        && (authority == "" || authority == "localhost")
+        && (authority.is_empty() || authority == "localhost")
         && bytes
             .get(authority_end + 1)
             .is_some_and(u8::is_ascii_alphabetic)

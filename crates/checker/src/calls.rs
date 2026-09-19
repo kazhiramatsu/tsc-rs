@@ -4327,7 +4327,7 @@ impl<'a> CheckerState<'a> {
                             &[
                                 ((i + 1).to_string()).into(),
                                 (ctx.candidates.len().to_string()).into(),
-                                (signature_text.clone()).into(),
+                                (signature_text.clone()),
                             ],
                         );
                         diagnostic.message =

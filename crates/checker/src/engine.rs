@@ -1037,7 +1037,7 @@ impl<'a> CheckerState<'a> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ExcessPropertyOutcome {
     None,
-    UnknownProperty { diagnostic: Option<Diagnostic> },
+    UnknownProperty { diagnostic: Option<Box<Diagnostic>> },
     Incompatible,
 }
 
@@ -1699,7 +1699,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             } else {
                 &diagnostics::Type_0_has_no_properties_in_common_with_type_1
             },
-            vec![(source_text).into(), (target_text).into()],
+            vec![(source_text), (target_text)],
         )
     }
 
@@ -1713,10 +1713,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let target_text = self.st.get_type_name_for_error_display(target_type)?;
                 self.report_error_js(
                     &diagnostics::Property_0_is_missing_in_type_1,
-                    vec![
-                        self.st.symbol_display_name(source_member),
-                        target_text.into(),
-                    ],
+                    vec![self.st.symbol_display_name(source_member), target_text],
                 )?;
             }
             EnumRelationError::MismatchedMemberValue {
@@ -2090,7 +2087,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             source_text.clone()
                         } else {
                             generalized_source_text.clone()
-                        }).into(), (target_text.clone()).into(), (constraint_text).into()],
+                        }), (target_text.clone()), (constraint_text)],
                 )?;
             } else {
                 self.error_state.error_info = None;
@@ -2098,7 +2095,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     self.error_state.error_info_revision.wrapping_add(1);
                 self.report_error_js(
                     &diagnostics::_0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1,
-                    vec![(target_text.clone()).into(), (generalized_source_text.clone()).into()],
+                    vec![(target_text.clone()), (generalized_source_text.clone())],
                 )?;
             }
         }
@@ -2125,11 +2122,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         let suggested_text = self.st.type_to_string_slice(suggested_type)?;
                         self.report_error_js(
                             &diagnostics::Type_0_is_not_assignable_to_type_1_Did_you_mean_2,
-                            vec![
-                                (generalized_source_text).into(),
-                                (target_text).into(),
-                                (suggested_text).into(),
-                            ],
+                            vec![(generalized_source_text), (target_text), (suggested_text)],
                         )?;
                         return Ok(());
                     }
@@ -2139,7 +2132,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         self.report_error_js(
             message.expect("relation error has a selected head"),
-            vec![(generalized_source_text).into(), (target_text).into()],
+            vec![(generalized_source_text), (target_text)],
         )?;
         Ok(())
     }
@@ -2165,7 +2158,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if wrapper_to_primitive {
             self.report_error_js(
                 &diagnostics::_0_is_a_primitive_but_1_is_a_wrapper_object_Prefer_using_0_when_possible,
-                vec![(target_text).into(), (source_text).into()],
+                vec![(target_text), (source_text)],
             )?;
         }
         Ok(())
@@ -2439,7 +2432,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     } else {
                         None
                     };
-                    return Ok(ExcessPropertyOutcome::UnknownProperty { diagnostic });
+                    return Ok(ExcessPropertyOutcome::UnknownProperty {
+                        diagnostic: diagnostic.map(Box::new),
+                    });
                 }
                 if let Some(check_types) = &check_types {
                     let prop_type = self.st.get_type_of_symbol(prop)?;
@@ -2507,11 +2502,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let detail = match suggestion {
                     Some(suggestion) => MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
-                        &[prop_text, target_text.clone().into(), suggestion],
+                        &[prop_text, target_text.clone(), suggestion],
                     ),
                     None => MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                        &[prop_text, target_text.clone().into()],
+                        &[prop_text, target_text.clone()],
                     ),
                 };
                 let message = MessageChain::new_js(
@@ -2568,11 +2563,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             } => match suggestion {
                 Some(suggestion) => self.report_error_js(
                     &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
-                    vec![prop_text, target_text.into(), suggestion],
+                    vec![prop_text, target_text, suggestion],
                 )?,
                 None => self.report_error_js(
                     &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                    vec![prop_text, target_text.into()],
+                    vec![prop_text, target_text],
                 )?,
             },
             ExcessPropertyReportKind::ObjectLiteral {
@@ -2583,11 +2578,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 match suggestion {
                     Some(suggestion) => self.report_error_js(
                         &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2,
-                        vec![prop_text, target_text.into(), suggestion],
+                        vec![prop_text, target_text, suggestion],
                     )?,
                     None => self.report_error_js(
                         &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                        vec![prop_text, target_text.into()],
+                        vec![prop_text, target_text],
                     )?,
                 }
                 // reportParentSkippedError: suppress this recursion level's

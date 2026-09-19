@@ -1,0 +1,1738 @@
+{
+  "baseline_head": "663da193844047b951bb9035787e914d7372831f",
+  "entries": [
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/access.rs",
+      "old_line": 3388,
+      "new_line": 3386,
+      "column": 53,
+      "before": "subtype_name.into()",
+      "after": "subtype_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/access.rs",
+      "old_line": 3403,
+      "new_line": 3401,
+      "column": 45,
+      "before": "type_name.into()",
+      "after": "type_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/access.rs",
+      "old_line": 3417,
+      "new_line": 3415,
+      "column": 49,
+      "before": "type_name.into()",
+      "after": "type_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/access.rs",
+      "old_line": 3456,
+      "new_line": 3454,
+      "column": 53,
+      "before": "container.into()",
+      "after": "container"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/annotate.rs",
+      "old_line": 5983,
+      "new_line": 6008,
+      "column": 23,
+      "before": "(text).into()",
+      "after": "(text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/check.rs",
+      "old_line": 5485,
+      "new_line": 5485,
+      "column": 30,
+      "before": "text.into()",
+      "after": "text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/check.rs",
+      "old_line": 13126,
+      "new_line": 13126,
+      "column": 30,
+      "before": "text.into()",
+      "after": "text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/check.rs",
+      "old_line": 13460,
+      "new_line": 13460,
+      "column": 30,
+      "before": "text.into()",
+      "after": "text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/display_clone.rs",
+      "old_line": 1987,
+      "new_line": 1987,
+      "column": 22,
+      "before": "(fragment).into()",
+      "after": "(fragment)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/elaboration.rs",
+      "old_line": 475,
+      "new_line": 480,
+      "column": 17,
+      "before": "display.into()",
+      "after": "display"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 1657,
+      "new_line": 1702,
+      "column": 18,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 1657,
+      "new_line": 1702,
+      "column": 40,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 1673,
+      "new_line": 1718,
+      "column": 25,
+      "before": "target_text.into()",
+      "after": "target_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2048,
+      "new_line": 2093,
+      "column": 36,
+      "before": "(target_text.clone()).into()",
+      "after": "(target_text.clone())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2048,
+      "new_line": 2093,
+      "column": 66,
+      "before": "(constraint_text).into()",
+      "after": "(constraint_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2056,
+      "new_line": 2101,
+      "column": 26,
+      "before": "(target_text.clone()).into()",
+      "after": "(target_text.clone())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2056,
+      "new_line": 2101,
+      "column": 56,
+      "before": "(generalized_source_text.clone()).into()",
+      "after": "(generalized_source_text.clone())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2097,
+      "new_line": 2142,
+      "column": 18,
+      "before": "(generalized_source_text).into()",
+      "after": "(generalized_source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2097,
+      "new_line": 2142,
+      "column": 52,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2123,
+      "new_line": 2168,
+      "column": 22,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2123,
+      "new_line": 2168,
+      "column": 44,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2465,
+      "new_line": 2510,
+      "column": 38,
+      "before": "target_text.clone().into()",
+      "after": "target_text.clone()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2469,
+      "new_line": 2514,
+      "column": 38,
+      "before": "target_text.clone().into()",
+      "after": "target_text.clone()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2526,
+      "new_line": 2571,
+      "column": 37,
+      "before": "target_text.into()",
+      "after": "target_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2530,
+      "new_line": 2575,
+      "column": 37,
+      "before": "target_text.into()",
+      "after": "target_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2541,
+      "new_line": 2586,
+      "column": 41,
+      "before": "target_text.into()",
+      "after": "target_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2545,
+      "new_line": 2590,
+      "column": 41,
+      "before": "target_text.into()",
+      "after": "target_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1613,
+      "new_line": 1613,
+      "column": 19,
+      "before": "(display).into()",
+      "after": "(display)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/jsx.rs",
+      "old_line": 890,
+      "new_line": 890,
+      "column": 23,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/jsx.rs",
+      "old_line": 890,
+      "new_line": 890,
+      "column": 45,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/jsx.rs",
+      "old_line": 1809,
+      "new_line": 1809,
+      "column": 27,
+      "before": "(display).into()",
+      "after": "(display)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/jsx.rs",
+      "old_line": 1980,
+      "new_line": 1980,
+      "column": 19,
+      "before": "(display).into()",
+      "after": "(display)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 3944,
+      "new_line": 3959,
+      "column": 23,
+      "before": "(without_prefix).into()",
+      "after": "(without_prefix)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 3944,
+      "new_line": 3959,
+      "column": 48,
+      "before": "(module_reference).into()",
+      "after": "(module_reference)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 3982,
+      "new_line": 3997,
+      "column": 23,
+      "before": "(module_reference).into()",
+      "after": "(module_reference)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4180,
+      "new_line": 4195,
+      "column": 27,
+      "before": "(module_reference).into()",
+      "after": "(module_reference)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4298,
+      "new_line": 4313,
+      "column": 23,
+      "before": "(module_reference.to_owned()).into()",
+      "after": "(module_reference.to_owned())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4308,
+      "new_line": 4323,
+      "column": 23,
+      "before": "(module_reference).into()",
+      "after": "(module_reference)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4352,
+      "new_line": 4367,
+      "column": 19,
+      "before": "(module_reference).into()",
+      "after": "(module_reference)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4373,
+      "new_line": 4388,
+      "column": 61,
+      "before": "(module_reference.to_owned()).into()",
+      "after": "(module_reference.to_owned())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4483,
+      "new_line": 4498,
+      "column": 35,
+      "before": "module_reference.to_owned().into()",
+      "after": "module_reference.to_owned()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4889,
+      "new_line": 4904,
+      "column": 24,
+      "before": "module_reference.into()",
+      "after": "module_reference"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4959,
+      "new_line": 4974,
+      "column": 36,
+      "before": "module_reference.to_owned().into()",
+      "after": "module_reference.to_owned()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5445,
+      "new_line": 5460,
+      "column": 19,
+      "before": "(alternate_result.to_owned()).into()",
+      "after": "(alternate_result.to_owned())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5458,
+      "new_line": 5473,
+      "column": 15,
+      "before": "(alternate_result.to_owned()).into()",
+      "after": "(alternate_result.to_owned())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5458,
+      "new_line": 5473,
+      "column": 53,
+      "before": "(library_name).into()",
+      "after": "(library_name)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5496,
+      "new_line": 5511,
+      "column": 27,
+      "before": "(package_name.clone()).into()",
+      "after": "(package_name.clone())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5496,
+      "new_line": 5511,
+      "column": 58,
+      "before": "(Self::mangle_scoped_package_name(package_name)).into()",
+      "after": "(Self::mangle_scoped_package_name(package_name))"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5501,
+      "new_line": 5516,
+      "column": 27,
+      "before": "(package_name.clone()).into()",
+      "after": "(package_name.clone())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5501,
+      "new_line": 5516,
+      "column": 58,
+      "before": "(module_reference.to_owned()).into()",
+      "after": "(module_reference.to_owned())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5506,
+      "new_line": 5521,
+      "column": 27,
+      "before": "(module_reference.to_owned()).into()",
+      "after": "(module_reference.to_owned())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5506,
+      "new_line": 5521,
+      "column": 65,
+      "before": "(Self::mangle_scoped_package_name(package_name)).into()",
+      "after": "(Self::mangle_scoped_package_name(package_name))"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5512,
+      "new_line": 5527,
+      "column": 15,
+      "before": "(module_reference.to_owned()).into()",
+      "after": "(module_reference.to_owned())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5512,
+      "new_line": 5527,
+      "column": 53,
+      "before": "(resolution.resolved_file_name.clone()).into()",
+      "after": "(resolution.resolved_file_name.clone())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5624,
+      "new_line": 5639,
+      "column": 37,
+      "before": "resolved_file_name.into()",
+      "after": "resolved_file_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5635,
+      "new_line": 5650,
+      "column": 37,
+      "before": "resolved_file_name.into()",
+      "after": "resolved_file_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5690,
+      "new_line": 5705,
+      "column": 33,
+      "before": "resolved_file_name.into()",
+      "after": "resolved_file_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5950,
+      "new_line": 5965,
+      "column": 62,
+      "before": "path.into()",
+      "after": "path"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5951,
+      "new_line": 5966,
+      "column": 66,
+      "before": "path.into()",
+      "after": "path"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 6477,
+      "new_line": 6488,
+      "column": 37,
+      "before": "path.to_owned().into()",
+      "after": "path.to_owned()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "old_line": 406,
+      "new_line": 406,
+      "column": 33,
+      "before": "JsString::from(checker.host_current_directory.clone())",
+      "after": "checker.host_current_directory.clone()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/node_builder/specifier.rs",
+      "old_line": 1078,
+      "new_line": 1078,
+      "column": 32,
+      "before": "specifier.into()",
+      "after": "specifier"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/node_builder/specifier.rs",
+      "old_line": 1518,
+      "new_line": 1518,
+      "column": 84,
+      "before": "file_name.into()",
+      "after": "file_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/node_builder/specifier.rs",
+      "old_line": 1549,
+      "new_line": 1549,
+      "column": 50,
+      "before": "imported_file_name.into()",
+      "after": "imported_file_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/node_builder/specifier.rs",
+      "old_line": 1550,
+      "new_line": 1550,
+      "column": 53,
+      "before": "imported_file_name.into()",
+      "after": "imported_file_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/node_builder/specifier.rs",
+      "old_line": 1557,
+      "new_line": 1557,
+      "column": 30,
+      "before": "imported_file_name.to_owned().into()",
+      "after": "imported_file_name.to_owned()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2181,
+      "new_line": 2181,
+      "column": 30,
+      "before": "name.into()",
+      "after": "name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2181,
+      "new_line": 2181,
+      "column": 43,
+      "before": "source_text.into()",
+      "after": "source_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2181,
+      "new_line": 2181,
+      "column": 63,
+      "before": "target_text.into()",
+      "after": "target_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2194,
+      "new_line": 2194,
+      "column": 26,
+      "before": "name.into()",
+      "after": "name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2194,
+      "new_line": 2194,
+      "column": 39,
+      "before": "source_text.into()",
+      "after": "source_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2194,
+      "new_line": 2194,
+      "column": 59,
+      "before": "target_text.into()",
+      "after": "target_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2241,
+      "new_line": 2241,
+      "column": 26,
+      "before": "name.into()",
+      "after": "name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2241,
+      "new_line": 2241,
+      "column": 39,
+      "before": "source_text.into()",
+      "after": "source_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2241,
+      "new_line": 2241,
+      "column": 59,
+      "before": "target_text.into()",
+      "after": "target_text"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2749,
+      "new_line": 2749,
+      "column": 21,
+      "before": "(name.clone()).into()",
+      "after": "(name.clone())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2750,
+      "new_line": 2750,
+      "column": 21,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2751,
+      "new_line": 2751,
+      "column": 21,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2797,
+      "new_line": 2797,
+      "column": 22,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2797,
+      "new_line": 2797,
+      "column": 44,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2797,
+      "new_line": 2797,
+      "column": 66,
+      "before": "(names).into()",
+      "after": "(names)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2802,
+      "new_line": 2802,
+      "column": 22,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2802,
+      "new_line": 2802,
+      "column": 44,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2802,
+      "new_line": 2802,
+      "column": 66,
+      "before": "(names).into()",
+      "after": "(names)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2829,
+      "new_line": 2829,
+      "column": 30,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2829,
+      "new_line": 2829,
+      "column": 52,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2842,
+      "new_line": 2842,
+      "column": 26,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2842,
+      "new_line": 2842,
+      "column": 48,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 3137,
+      "new_line": 3137,
+      "column": 30,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 3137,
+      "new_line": 3137,
+      "column": 52,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 3174,
+      "new_line": 3174,
+      "column": 30,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 3174,
+      "new_line": 3174,
+      "column": 52,
+      "before": "(signature_text).into()",
+      "after": "(signature_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 4024,
+      "new_line": 4024,
+      "column": 30,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 4024,
+      "new_line": 4024,
+      "column": 52,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 4234,
+      "new_line": 4234,
+      "column": 30,
+      "before": "name.into()",
+      "after": "name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 4282,
+      "new_line": 4282,
+      "column": 26,
+      "before": "(source_key).into()",
+      "after": "(source_key)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 4290,
+      "new_line": 4290,
+      "column": 26,
+      "before": "(source_key).into()",
+      "after": "(source_key)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 4290,
+      "new_line": 4290,
+      "column": 47,
+      "before": "(target_key).into()",
+      "after": "(target_key)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 4393,
+      "new_line": 4393,
+      "column": 22,
+      "before": "(key).into()",
+      "after": "(key)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 4393,
+      "new_line": 4393,
+      "column": 36,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 5118,
+      "new_line": 5118,
+      "column": 23,
+      "before": "type_name.into()",
+      "after": "type_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 5128,
+      "new_line": 5128,
+      "column": 23,
+      "before": "type_name.into()",
+      "after": "type_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log",
+      "path": "crates/checker/src/lib.rs",
+      "old_line": 2120,
+      "new_line": 2130,
+      "column": 40,
+      "before": "host_current_directory.into()",
+      "after": "host_current_directory"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/config.rs",
+      "old_line": 1911,
+      "new_line": 1916,
+      "column": 76,
+      "before": "config_base_path.into()",
+      "after": "config_base_path"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/config.rs",
+      "old_line": 2297,
+      "new_line": 2302,
+      "column": 35,
+      "before": "path.into()",
+      "after": "path"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/config.rs",
+      "old_line": 2799,
+      "new_line": 2804,
+      "column": 32,
+      "before": "base_path.into()",
+      "after": "base_path"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/config.rs",
+      "old_line": 4507,
+      "new_line": 4512,
+      "column": 13,
+      "before": "base_path.into()",
+      "after": "base_path"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/config.rs",
+      "old_line": 4706,
+      "new_line": 4711,
+      "column": 48,
+      "before": "value.into()",
+      "after": "value"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 930,
+      "new_line": 930,
+      "column": 30,
+      "before": "(name.clone()).into()",
+      "after": "(name.clone())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 1813,
+      "new_line": 1813,
+      "column": 18,
+      "before": "self.resolver.type_root_base_directory().into()",
+      "after": "self.resolver.type_root_base_directory()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 2861,
+      "new_line": 2861,
+      "column": 17,
+      "before": "reference.file_name().into()",
+      "after": "reference.file_name()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 2869,
+      "new_line": 2869,
+      "column": 26,
+      "before": "(reference.file_name().to_owned()).into()",
+      "after": "(reference.file_name().to_owned())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 2890,
+      "new_line": 2890,
+      "column": 26,
+      "before": "(reference.file_name().to_owned()).into()",
+      "after": "(reference.file_name().to_owned())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 2968,
+      "new_line": 2968,
+      "column": 26,
+      "before": "(reference.file_name().to_owned()).into()",
+      "after": "(reference.file_name().to_owned())"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 3495,
+      "new_line": 3495,
+      "column": 22,
+      "before": "(specifier).into()",
+      "after": "(specifier)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 3514,
+      "new_line": 3514,
+      "column": 26,
+      "before": "(specifier).into()",
+      "after": "(specifier)"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 4458,
+      "new_line": 4458,
+      "column": 15,
+      "before": "specifier.clone().into()",
+      "after": "specifier.clone()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 637,
+      "new_line": 637,
+      "column": 21,
+      "before": "base_path.into()",
+      "after": "base_path"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 731,
+      "new_line": 731,
+      "column": 33,
+      "before": "JsStr::from(file_name)",
+      "after": "file_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 744,
+      "new_line": 744,
+      "column": 45,
+      "before": "JsStr::from(file_name)",
+      "after": "file_name"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 855,
+      "new_line": 855,
+      "column": 13,
+      "before": "JsStr::from(containing_file)",
+      "after": "containing_file"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 856,
+      "new_line": 856,
+      "column": 18,
+      "before": "JsStr::from(current_directory)",
+      "after": "current_directory"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 938,
+      "new_line": 938,
+      "column": 13,
+      "before": "JsStr::from(containing_file)",
+      "after": "containing_file"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 939,
+      "new_line": 939,
+      "column": 18,
+      "before": "JsStr::from(self.current_directory_text())",
+      "after": "self.current_directory_text()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 1210,
+      "new_line": 1210,
+      "column": 17,
+      "before": "JsStr::from(specifier)",
+      "after": "specifier"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 1211,
+      "new_line": 1211,
+      "column": 22,
+      "before": "JsStr::from(containing_directory)",
+      "after": "containing_directory"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 1398,
+      "new_line": 1398,
+      "column": 62,
+      "before": "JsStr::from(candidate)",
+      "after": "candidate"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 1486,
+      "new_line": 1486,
+      "column": 18,
+      "before": "JsStr::from(self.current_directory_text())",
+      "after": "self.current_directory_text()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 1609,
+      "new_line": 1609,
+      "column": 25,
+      "before": "JsStr::from(specifier)",
+      "after": "specifier"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 2136,
+      "new_line": 2136,
+      "column": 13,
+      "before": "JsStr::from(containing_file)",
+      "after": "containing_file"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 2199,
+      "new_line": 2199,
+      "column": 13,
+      "before": "JsStr::from(containing_directory)",
+      "after": "containing_directory"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 2200,
+      "new_line": 2200,
+      "column": 18,
+      "before": "JsStr::from(self.current_directory_text())",
+      "after": "self.current_directory_text()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 2301,
+      "new_line": 2301,
+      "column": 30,
+      "before": "JsStr::from(self.current_directory_text())",
+      "after": "self.current_directory_text()"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 3717,
+      "new_line": 3717,
+      "column": 43,
+      "before": "JsStr::from(type_root)",
+      "after": "type_root"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 3837,
+      "new_line": 3837,
+      "column": 17,
+      "before": "JsStr::from(specifier)",
+      "after": "specifier"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 3959,
+      "new_line": 3959,
+      "column": 17,
+      "before": "JsStr::from(specifier)",
+      "after": "specifier"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 3960,
+      "new_line": 3960,
+      "column": 22,
+      "before": "JsStr::from(containing_directory)",
+      "after": "containing_directory"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 4087,
+      "new_line": 4087,
+      "column": 62,
+      "before": "JsStr::from(candidate)",
+      "after": "candidate"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 4261,
+      "new_line": 4261,
+      "column": 34,
+      "before": "JsStr::from(candidate_directory)",
+      "after": "candidate_directory"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 4424,
+      "new_line": 4424,
+      "column": 68,
+      "before": "JsStr::from(base_directory)",
+      "after": "base_directory"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 4577,
+      "new_line": 4577,
+      "column": 62,
+      "before": "JsStr::from(candidate)",
+      "after": "candidate"
+    },
+    {
+      "source_log": "/Users/hiramatsu/dev/tsc-rs-emitter-final/docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log",
+      "path": "crates/program/src/prepared.rs",
+      "old_line": 2283,
+      "new_line": 2283,
+      "column": 18,
+      "before": "file_name.into()",
+      "after": "file_name"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/access.rs",
+      "old_line": 3477,
+      "new_line": 3475,
+      "column": 33,
+      "before": "container.into()",
+      "after": "container"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/access.rs",
+      "old_line": 3493,
+      "new_line": 3491,
+      "column": 57,
+      "before": "container.into()",
+      "after": "container"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/access.rs",
+      "old_line": 3508,
+      "new_line": 3506,
+      "column": 57,
+      "before": "container.into()",
+      "after": "container"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/access.rs",
+      "old_line": 4129,
+      "new_line": 4127,
+      "column": 31,
+      "before": "(display).into()",
+      "after": "(display)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/calls.rs",
+      "old_line": 4322,
+      "new_line": 4330,
+      "column": 33,
+      "before": "(signature_text.clone()).into()",
+      "after": "(signature_text.clone())"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2084,
+      "new_line": 2129,
+      "column": 33,
+      "before": "(generalized_source_text).into()",
+      "after": "(generalized_source_text)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2085,
+      "new_line": 2130,
+      "column": 33,
+      "before": "(target_text).into()",
+      "after": "(target_text)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/engine.rs",
+      "old_line": 2086,
+      "new_line": 2131,
+      "column": 33,
+      "before": "(suggested_text).into()",
+      "after": "(suggested_text)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1678,
+      "new_line": 1678,
+      "column": 33,
+      "before": "(name).into()",
+      "after": "(name)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1705,
+      "new_line": 1705,
+      "column": 41,
+      "before": "(crate::concat_js(&[&\"[\", &index_display, &\"]\"])).into()",
+      "after": "(crate::concat_js(&[&\"[\", &index_display, &\"]\"]))"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1706,
+      "new_line": 1706,
+      "column": 41,
+      "before": "(object_display).into()",
+      "after": "(object_display)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1725,
+      "new_line": 1725,
+      "column": 41,
+      "before": "(crate::concat_js(&[&\"[\", &symbol_name, &\"]\"])).into()",
+      "after": "(crate::concat_js(&[&\"[\", &symbol_name, &\"]\"]))"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1726,
+      "new_line": 1726,
+      "column": 41,
+      "before": "(object_display).into()",
+      "after": "(object_display)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1738,
+      "new_line": 1738,
+      "column": 46,
+      "before": "object_display.into()",
+      "after": "object_display"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1746,
+      "new_line": 1746,
+      "column": 39,
+      "before": "(index_display).into()",
+      "after": "(index_display)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1746,
+      "new_line": 1746,
+      "column": 63,
+      "before": "(object_display).into()",
+      "after": "(object_display)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1753,
+      "new_line": 1753,
+      "column": 35,
+      "before": "(full_display).into()",
+      "after": "(full_display)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/indexed.rs",
+      "old_line": 1753,
+      "new_line": 1753,
+      "column": 58,
+      "before": "(object_display).into()",
+      "after": "(object_display)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/jsx.rs",
+      "old_line": 544,
+      "new_line": 544,
+      "column": 31,
+      "before": "(display).into()",
+      "after": "(display)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4068,
+      "new_line": 4083,
+      "column": 31,
+      "before": "(extension).into()",
+      "after": "(extension)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4152,
+      "new_line": 4167,
+      "column": 33,
+      "before": "(module_reference).into()",
+      "after": "(module_reference)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4168,
+      "new_line": 4183,
+      "column": 31,
+      "before": "(module_reference).into()",
+      "after": "(module_reference)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 4930,
+      "new_line": 4945,
+      "column": 40,
+      "before": "module_reference.to_owned().into()",
+      "after": "module_reference.to_owned()"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5073,
+      "new_line": 5088,
+      "column": 53,
+      "before": "probed.clone().into()",
+      "after": "probed.clone()"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 5095,
+      "new_line": 5110,
+      "column": 57,
+      "before": "probed.clone().into()",
+      "after": "probed.clone()"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/modules.rs",
+      "old_line": 6512,
+      "new_line": 6523,
+      "column": 49,
+      "before": "twin.into()",
+      "after": "twin"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/operators.rs",
+      "old_line": 4751,
+      "new_line": 4775,
+      "column": 31,
+      "before": "(type_text).into()",
+      "after": "(type_text)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/operators.rs",
+      "old_line": 4751,
+      "new_line": 4775,
+      "column": 51,
+      "before": "(this_text).into()",
+      "after": "(this_text)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2138,
+      "new_line": 2138,
+      "column": 34,
+      "before": "name.into()",
+      "after": "name"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2161,
+      "new_line": 2161,
+      "column": 34,
+      "before": "name.into()",
+      "after": "name"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2161,
+      "new_line": 2161,
+      "column": 47,
+      "before": "private_text.into()",
+      "after": "private_text"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2161,
+      "new_line": 2161,
+      "column": 68,
+      "before": "public_text.into()",
+      "after": "public_text"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2554,
+      "new_line": 2554,
+      "column": 34,
+      "before": "prop_name.into()",
+      "after": "prop_name"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 2554,
+      "new_line": 2554,
+      "column": 52,
+      "before": "target_text.into()",
+      "after": "target_text"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/checker/src/structural.rs",
+      "old_line": 3968,
+      "new_line": 3968,
+      "column": 34,
+      "before": "(source_text).into()",
+      "after": "(source_text)"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/program/src/config.rs",
+      "old_line": 2690,
+      "new_line": 2695,
+      "column": 59,
+      "before": "spec.text.clone().into()",
+      "after": "spec.text.clone()"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 1674,
+      "new_line": 1674,
+      "column": 34,
+      "before": "(name.clone()).into()",
+      "after": "(name.clone())"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 3040,
+      "new_line": 3040,
+      "column": 34,
+      "before": "(key.specifier().to_owned()).into()",
+      "after": "(key.specifier().to_owned())"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/program/src/loader.rs",
+      "old_line": 3169,
+      "new_line": 3169,
+      "column": 34,
+      "before": "(key.specifier().to_owned()).into()",
+      "after": "(key.specifier().to_owned())"
+    },
+    {
+      "source_log": "inherited truncated-line diagnostic; original column and exact expression verified",
+      "path": "crates/program/src/module_resolution.rs",
+      "old_line": 1092,
+      "new_line": 1092,
+      "column": 33,
+      "before": "JsStr::from(specifier)",
+      "after": "specifier"
+    }
+  ],
+  "multiline_and_style_edits": [
+    {
+      "path": "crates/checker/src/engine.rs",
+      "before": "                        }).into(), (target_text.clone()), (constraint_text)],",
+      "after": "                        }), (target_text.clone()), (constraint_text)],"
+    },
+    {
+      "path": "crates/program/src/config.rs",
+      "before": "                let mut difference = JsString::from(relative_directory_path(\n                    base_path,\n                    &spec.base_path,\n                    case_sensitive,\n                )?);",
+      "after": "                let mut difference = relative_directory_path(\n                    base_path,\n                    &spec.base_path,\n                    case_sensitive,\n                )?;"
+    },
+    {
+      "path": "crates/program/src/loader.rs",
+      "before": "        let wildcard_matches: Vec<JsString> = self\n            .discover_wildcard_type_directives()?\n            .into_iter()\n            .map(JsString::from)\n            .collect();",
+      "after": "        let wildcard_matches: Vec<JsString> = self.discover_wildcard_type_directives()?;"
+    },
+    {
+      "path": "crates/program/src/loader.rs",
+      "before": ".filter_map(|key| crate::json::decode_user_object_key(key))",
+      "after": ".filter_map(crate::json::decode_user_object_key)"
+    },
+    {
+      "path": "crates/program/src/module_resolution.rs",
+      "before": "js_json_array_to_string(values).map(JsString::from)",
+      "after": "js_json_array_to_string(values)"
+    },
+    {
+      "path": "crates/program/src/module_resolution.rs",
+      "before": "js_json_object_array_join_to_string(value).map(JsString::from)",
+      "after": "js_json_object_array_join_to_string(value)"
+    },
+    {
+      "path": "crates/program/src/module_resolution.rs",
+      "before": ".filter_map(|key| decode_user_object_key(key))",
+      "after": ".filter_map(decode_user_object_key)"
+    },
+    {
+      "path": "crates/program/src/module_resolution.rs",
+      "before": "    let separators = specifier\n        .as_bytes()",
+      "after": "    let mut separators = specifier\n        .as_bytes()"
+    },
+    {
+      "path": "crates/program/src/module_resolution.rs",
+      "before": ".skip(usize::from(specifier.starts_with(\"@\")))\n        .next()",
+      "after": ".nth(usize::from(specifier.starts_with(\"@\")))"
+    },
+    {
+      "path": "crates/program/src/js_path.rs",
+      "before": "authority == \"\" || authority == \"localhost\"",
+      "after": "authority.is_empty() || authority == \"localhost\""
+    },
+    {
+      "path": "crates/checker/src/check.rs",
+      "before": "crate::join_js_texts(&type_arguments, \", \")",
+      "after": "crate::join_js_texts(type_arguments, \", \")"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "before": ".filter(|&end| source.as_bytes().get(end).is_none_or(|&byte| byte == b'/'))\n            .next_back()?",
+      "after": ".rfind(|&end| source.as_bytes().get(end).is_none_or(|&byte| byte == b'/'))?"
+    },
+    {
+      "path": "crates/checker/src/node_builder/specifier.rs",
+      "before": "targets.iter().all(|path| contains_ignored_path(path))",
+      "after": "targets.iter().all(contains_ignored_path)"
+    }
+  ],
+  "pending_resolved_by_manual_source_review": [
+    {
+      "path": "crates/checker/src/engine.rs",
+      "line": 2044,
+      "diagnostic": "useless conversion to the same type: `tsc_types::JsString`\n    --> crates/checker/src/engine.rs:2044:26\n     |\n2044 |                       vec![(if needs_original_source {\n     |  __________________________^\n2045 | |                             source_text.clone()\n2046 | |                         } else {\n2047 | |                             generalized_source_text.clone()\n2048 | |                         }).into(), (target_text.clone()).into(), (constraint_text).into()],\n     | |_________________________________^\n     |\n     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion\nhelp: consider removing `.into()`\n     |\n2044 ~                     vec![(if needs_original_source {\n2045 +                             source_text.clone()\n2046 +                         } else {\n2047 +                             generalized_source_text.clone()\n2048 ~                         }), (target_text.clone()).into(), (constraint_text).into()],\n     |\n"
+    },
+    {
+      "path": "crates/program/src/config.rs",
+      "line": 6365,
+      "diagnostic": "useless conversion to the same type: `tsc_diagnostics::JsString`\n    --> crates/program/src/config.rs:6365:38\n     |\n6365 |                   let mut difference = JsString::from(relative_directory_path(\n     |  ______________________________________^\n6366 | |                     base_path,\n6367 | |                     &spec.base_path,\n6368 | |                     case_sensitive,\n6369 | |                 )?);\n     | |___________________^\n     |\n     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion\nhelp: consider removing `JsString::from()`\n     |\n6365 ~                 let mut difference = relative_directory_path(\n6366 +                     base_path,\n6367 +                     &spec.base_path,\n6368 +                     case_sensitive,\n6369 ~                 )?;\n     |\n"
+    },
+    {
+      "path": "crates/program/src/loader.rs",
+      "line": 1759,
+      "diagnostic": "useless conversion to the same type: `tsc_diagnostics::JsString`\n    --> crates/program/src/loader.rs:1759:25\n     |\n1759 |                .into_iter()\n     |   _________________________^\n     |  |_________________________|\n1760 | ||             .map(JsString::from)\n     | ||________________________________^\n1761 | |              .collect();\n     | |_____________- help: consider removing\n     |\n     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion\n"
+    },
+    {
+      "path": "crates/program/src/module_resolution.rs",
+      "line": 6853,
+      "diagnostic": "useless conversion to the same type: `tsc_diagnostics::JsString`\n    --> crates/program/src/module_resolution.rs:6853:64\n     |\n6853 |         Value::Array(values) => js_json_array_to_string(values).map(JsString::from),\n     |                                                                ^^^^^^^^^^^^^^^^^^^^ help: consider removing\n     |\n     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion\n"
+    },
+    {
+      "path": "crates/program/src/module_resolution.rs",
+      "line": 6857,
+      "diagnostic": "useless conversion to the same type: `tsc_diagnostics::JsString`\n    --> crates/program/src/module_resolution.rs:6857:59\n     |\n6857 |                   js_json_object_array_join_to_string(value).map(JsString::from)\n     |  ___________________________________________________________-^^^^^^^^^^^^^^^^^^^\n6858 | |             }\n     | |____________- help: consider removing\n     |\n     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#useless_conversion\n"
+    }
+  ],
+  "qualification": "uncompiled; no fresh clippy result"
+}

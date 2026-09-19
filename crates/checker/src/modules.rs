@@ -3956,7 +3956,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at_js(
                     Some(error_node),
                     &diagnostics::Cannot_import_type_declaration_files_Consider_importing_0_instead_of_1,
-                    &[(without_prefix).into(), (module_reference).into()],
+                    &[(without_prefix), (module_reference)],
                 );
             }
         }
@@ -3994,7 +3994,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at_js(
                     error_node,
                     resolution_diagnostic,
-                    &[(module_reference).into(), (&diagnostic_file_name).into()],
+                    &[(module_reference), (&diagnostic_file_name).into()],
                 );
             }
             // resolveExternalModule only loads a source behind the JSX
@@ -4080,7 +4080,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at_js(
                             Some(error_node),
                             &diagnostics::This_import_uses_a_0_extension_to_resolve_to_an_input_TypeScript_file_but_will_not_be_rewritten_during_emit_because_it_is_not_a_relative_path,
-                            &[(extension).into()],
+                            &[(extension)],
                         );
                     }
                 }
@@ -4163,10 +4163,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at_js(
                             Some(error_node),
                             &diagnostics::Module_0_was_resolved_to_1_but_jsx_is_not_set,
-                            &[
-                                (module_reference).into(),
-                                (&untyped.resolved_file_name).into(),
-                            ],
+                            &[(module_reference), (&untyped.resolved_file_name).into()],
                         );
                     }
                     return Ok(None);
@@ -4180,7 +4177,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at_js(
                             Some(error_node),
                             &diagnostics::Module_0_was_resolved_to_1_but_allowArbitraryExtensions_is_not_set,
-                            &[(module_reference).into(), (&resolved_file_name).into()],
+                            &[(module_reference), (&resolved_file_name).into()],
                         );
                     }
                     return Ok(None);
@@ -4192,7 +4189,7 @@ impl<'a> CheckerState<'a> {
                     self.error_at_js(
                         Some(error_node),
                         &diagnostics::Invalid_module_name_in_augmentation_Module_0_resolves_to_an_untyped_module_at_1_which_cannot_be_augmented,
-                        &[(module_reference).into(), (&untyped.resolved_file_name).into()],
+                        &[(module_reference), (&untyped.resolved_file_name).into()],
                     );
                 } else {
                     let is_error = module_not_found_error.is_some()
@@ -4308,11 +4305,9 @@ impl<'a> CheckerState<'a> {
             if let Some(alternate_result) = alternate_result {
                 let details = self
                     .alternate_result_module_not_found_detail(alternate_result, module_reference);
-                let chain = MessageChain::new_js(
-                    module_not_found_error,
-                    &[(module_reference.to_owned()).into()],
-                )
-                .with_next(vec![details]);
+                let chain =
+                    MessageChain::new_js(module_not_found_error, &[(module_reference.to_owned())])
+                        .with_next(vec![details]);
                 let span = self.diag_span_of_node(error_node);
                 let diagnostic = self.diagnostic_at_span(&span, chain);
                 self.push_error_diagnostic(diagnostic);
@@ -4320,7 +4315,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at_js(
                     Some(error_node),
                     module_not_found_error,
-                    &[(module_reference).into()],
+                    &[(module_reference)],
                 );
             }
         }
@@ -4364,7 +4359,7 @@ impl<'a> CheckerState<'a> {
             self.error_at_js(
                 Some(error_node),
                 &diagnostics::Module_0_cannot_be_imported_using_this_construct_The_specifier_only_resolves_to_an_ES_module_which_cannot_be_imported_with_require_Use_an_ECMAScript_import_instead,
-                &[(module_reference).into()],
+                &[(module_reference)],
             );
         } else {
             let message = match override_host.map(|node| self.data_of(node)) {
@@ -4385,7 +4380,7 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::The_current_file_is_a_CommonJS_module_whose_imports_will_produce_require_calls_however_the_referenced_file_is_an_ECMAScript_module_and_cannot_be_imported_with_require_Consider_writing_a_dynamic_import_0_call_instead
                 }
             };
-            let mut chain = MessageChain::new_js(message, &[(module_reference.to_owned()).into()]);
+            let mut chain = MessageChain::new_js(message, &[(module_reference.to_owned())]);
             if let Some(details) = self.create_mode_mismatch_details(location) {
                 chain = chain.with_next(vec![details]);
             }
@@ -4495,7 +4490,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let entry = crate::state::UnresolvedModuleAugmentation {
-                module_reference: module_reference.to_owned().into(),
+                module_reference: module_reference.to_owned(),
                 augmentation_file: augmentation_file.clone(),
                 container_path: path.clone(),
                 container_symbol: current,
@@ -4631,8 +4626,7 @@ impl<'a> CheckerState<'a> {
             .enumerate()
             .filter(|(_, bytes)| *bytes == marker.as_bytes())
             .map(|(position, _)| position + marker.as_bytes().len())
-            .filter(|&end| source.as_bytes().get(end).is_none_or(|&byte| byte == b'/'))
-            .next_back()?;
+            .rfind(|&end| source.as_bytes().get(end).is_none_or(|&byte| byte == b'/'))?;
         Some(
             source
                 .split_at_byte(end)
@@ -4901,7 +4895,7 @@ impl<'a> CheckerState<'a> {
         let request = crate::AuthoritativeModuleRequest {
             source_token,
             containing_file: containing_file.into(),
-            specifier: module_reference.into(),
+            specifier: module_reference,
             mode,
         };
         let provider = self
@@ -4942,7 +4936,7 @@ impl<'a> CheckerState<'a> {
                         crate::AuthoritativeModuleFailure::UnknownTargetToken {
                             source_token,
                             containing_file: containing_file.clone(),
-                            specifier: module_reference.to_owned().into(),
+                            specifier: module_reference.to_owned(),
                             mode,
                             target_token: resolved.target_token,
                         },
@@ -4971,7 +4965,7 @@ impl<'a> CheckerState<'a> {
                     crate::AuthoritativeModuleFailure::Lookup {
                         source_token,
                         containing_file: containing_file.clone(),
-                        specifier: module_reference.to_owned().into(),
+                        specifier: module_reference.to_owned(),
                         mode,
                         failure,
                     },
@@ -5085,7 +5079,7 @@ impl<'a> CheckerState<'a> {
                         if let Some(&index) = self.program_path_index.get(probed.as_bytes()) {
                             return ProgramModuleResolution::Resolved(ResolvedProgramModule {
                                 file_index: index,
-                                resolved_file_name: probed.clone().into(),
+                                resolved_file_name: probed.clone(),
                                 resolved_using_ts_extension: false,
                                 is_tsx: probed.ends_with(".tsx"),
                                 is_arbitrary_extension: false,
@@ -5107,7 +5101,7 @@ impl<'a> CheckerState<'a> {
                             if let Some(&index) = self.program_path_index.get(probed.as_bytes()) {
                                 return ProgramModuleResolution::Resolved(ResolvedProgramModule {
                                     file_index: index,
-                                    resolved_file_name: probed.clone().into(),
+                                    resolved_file_name: probed.clone(),
                                     resolved_using_ts_extension: false,
                                     is_tsx: probed.ends_with(".jsx"),
                                     is_arbitrary_extension: false,
@@ -5457,7 +5451,7 @@ impl<'a> CheckerState<'a> {
         if self.options.emit_module_resolution_kind() == 2 {
             return MessageChain::new_js(
                 &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
-                &[(alternate_result.to_owned()).into()],
+                &[(alternate_result.to_owned())],
             );
         }
         let library_name = if alternate_result.contains("/node_modules/@types/") {
@@ -5470,7 +5464,7 @@ impl<'a> CheckerState<'a> {
         };
         MessageChain::new_js(
             &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_when_respecting_package_json_exports_The_1_library_may_need_to_update_its_package_json_or_typings,
-            &[(alternate_result.to_owned()).into(), (library_name).into()],
+            &[(alternate_result.to_owned()), (library_name)],
         )
     }
 
@@ -5508,23 +5502,23 @@ impl<'a> CheckerState<'a> {
                 } else if resolution.types_package_exists {
                     MessageChain::new_js(
                         &diagnostics::If_the_0_package_actually_exposes_this_module_consider_sending_a_pull_request_to_amend_https_github_com_DefinitelyTyped_DefinitelyTyped_tree_master_types_1,
-                        &[(package_name.clone()).into(), (Self::mangle_scoped_package_name(package_name)).into()],
+                        &[(package_name.clone()), (Self::mangle_scoped_package_name(package_name))],
                     )
                 } else if resolution.package_bundles_types {
                     MessageChain::new_js(
                         &diagnostics::If_the_0_package_actually_exposes_this_module_try_adding_a_new_declaration_d_ts_file_containing_declare_module_1,
-                        &[(package_name.clone()).into(), (module_reference.to_owned()).into()],
+                        &[(package_name.clone()), (module_reference.to_owned())],
                     )
                 } else {
                     MessageChain::new_js(
                         &diagnostics::Try_npm_i_save_dev_types_1_if_it_exists_or_add_a_new_declaration_d_ts_file_containing_declare_module_0,
-                        &[(module_reference.to_owned()).into(), (Self::mangle_scoped_package_name(package_name)).into()],
+                        &[(module_reference.to_owned()), (Self::mangle_scoped_package_name(package_name))],
                     )
                 }
             });
         let mut chain = MessageChain::new_js(
             &diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type,
-            &[(module_reference.to_owned()).into(), (resolution.resolved_file_name.clone()).into()],
+            &[(module_reference.to_owned()), (resolution.resolved_file_name.clone())],
         );
         if !is_error {
             chain.category = DiagnosticCategory::Suggestion;
@@ -5636,7 +5630,7 @@ impl<'a> CheckerState<'a> {
             || module_reference.starts_with("/")
         {
             return UntypedModuleResolution {
-                resolved_file_name: resolved_file_name.into(),
+                resolved_file_name: resolved_file_name,
                 package_name: None,
                 alternate_result: None,
                 types_package_exists: false,
@@ -5647,7 +5641,7 @@ impl<'a> CheckerState<'a> {
         let (package, subpath) = Self::bare_package_parts(module_reference);
         let Some(package_root) = self.nearest_visible_package_root(&importer, &package) else {
             return UntypedModuleResolution {
-                resolved_file_name: resolved_file_name.into(),
+                resolved_file_name: resolved_file_name,
                 package_name: None,
                 alternate_result: None,
                 types_package_exists: false,
@@ -5702,7 +5696,7 @@ impl<'a> CheckerState<'a> {
             None
         };
         UntypedModuleResolution {
-            resolved_file_name: resolved_file_name.into(),
+            resolved_file_name: resolved_file_name,
             package_name,
             alternate_result,
             types_package_exists,
@@ -5962,8 +5956,8 @@ impl<'a> CheckerState<'a> {
     ) -> Option<HostModuleTarget> {
         let candidate = candidate.into();
         let exists = |path: JsStr<'_>| self.host_file_paths.contains(path.as_bytes());
-        let typed = |path: JsString| HostModuleTarget::Typed(path.into());
-        let untyped = |path: JsString| HostModuleTarget::Untyped(path.into());
+        let typed = |path: JsString| HostModuleTarget::Typed(path);
+        let untyped = |path: JsString| HostModuleTarget::Untyped(path);
         if Self::is_typed_host_path(candidate) && exists(candidate) {
             return Some(typed(candidate.to_owned()));
         }
@@ -6485,7 +6479,7 @@ impl<'a> CheckerState<'a> {
         let make = |file_index: usize, resolved_using_ts_extension: bool, path: JsStr<'_>| {
             ResolvedProgramModule {
                 file_index,
-                resolved_file_name: path.to_owned().into(),
+                resolved_file_name: path.to_owned(),
                 resolved_using_ts_extension,
                 is_tsx: (path.ends_with(".tsx") && !path.ends_with(".d.tsx"))
                     || path.ends_with(".jsx"),
@@ -6520,7 +6514,7 @@ impl<'a> CheckerState<'a> {
                     if let Some(index) = lookup(twin.as_js()) {
                         return Some(ResolvedProgramModule {
                             file_index: index,
-                            resolved_file_name: twin.into(),
+                            resolved_file_name: twin,
                             resolved_using_ts_extension: false,
                             is_tsx: false,
                             is_arbitrary_extension: true,

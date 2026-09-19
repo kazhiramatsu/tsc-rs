@@ -2127,7 +2127,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         // untouched on POSIX; on Windows backslashes flipped and
         // everything before the first "/" (the drive) dropped. ""
         // (the old "/"-rooted world) is the no-cwd degenerate fallback.
-        state.host_current_directory = host_current_directory.into();
+        state.host_current_directory = host_current_directory;
         // The resolver's host view (M4 5.8d): every INPUT path, incl.
         // files the program dropped (.json bodies, .js without
         // allowJs) — the suppression probes need them to keep 2307

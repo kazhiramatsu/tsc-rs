@@ -6005,7 +6005,7 @@ impl<'a> CheckerState<'a> {
                 let text = state.type_to_string_slice(reduced_base_type)?;
                 let head = tsc_diagnostics::MessageChain::new_js(
                     &diagnostics::Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members,
-                    &[(text).into()],
+                    &[(text)],
                 );
                 let mut diagnostic = state.diagnostic_for_node(
                     base_expression,

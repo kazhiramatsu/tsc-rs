@@ -541,7 +541,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at_js(
                             Some(attribute_parent),
                             &diagnostics::_0_are_specified_twice_The_attribute_named_0_will_be_overwritten,
-                            &[(display).into()],
+                            &[(display)],
                         );
                     }
                     let contextual_type =
@@ -887,7 +887,7 @@ impl<'a> CheckerState<'a> {
                 let target_text = self.type_to_string_slice(target)?;
                 let chain = containing.with_next(vec![MessageChain::new_js(
                     head,
-                    &[(source_text).into(), (target_text).into()],
+                    &[(source_text), (target_text)],
                 )]);
                 self.diagnostic_at_span(&span, chain)
             }
@@ -1806,7 +1806,7 @@ impl<'a> CheckerState<'a> {
                     self.error_at_js(
                         Some(context),
                         &diagnostics::JSX_element_class_does_not_support_attributes_because_it_does_not_have_a_0_property,
-                        &[(display).into()],
+                        &[(display)],
                     );
                 }
             }
@@ -1977,7 +1977,7 @@ impl<'a> CheckerState<'a> {
             self.error_at_js(
                 Some(declaration),
                 &diagnostics::The_global_type_JSX_0_may_not_have_more_than_one_property,
-                &[(display).into()],
+                &[(display)],
             );
         }
         Ok(None)

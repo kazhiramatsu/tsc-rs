@@ -904,7 +904,7 @@ fn lib_phase_precedes_module_resolution_and_descends_sequentially() {
     let ProgramLoadError::Host { source, .. } = error else {
         unreachable!("kind identifies the host variant");
     };
-    assert_eq!(source, nested_lib_read);
+    assert_eq!(*source, nested_lib_read);
 }
 
 #[test]

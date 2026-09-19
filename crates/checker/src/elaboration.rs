@@ -477,7 +477,7 @@ impl<'a> CheckerState<'a> {
                 let Ok(display) = self.type_to_string_slice(name_type) else {
                     return Ok(None);
                 };
-                display.into()
+                display
             }
         };
         let Ok(target_text) = self.type_to_string_slice(target_type) else {

@@ -403,7 +403,7 @@ struct BasicModuleSpecifierHost {
 
 impl BasicModuleSpecifierHost {
     fn new(checker: &CheckerState<'_>) -> Self {
-        let current_directory = JsString::from(checker.host_current_directory.clone());
+        let current_directory = checker.host_current_directory.clone();
         let mut files = HashMap::new();
         let mut modes = HashMap::with_capacity(checker.binder.file_count());
         for index in 0..checker.binder.file_count() {
