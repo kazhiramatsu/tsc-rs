@@ -1,0 +1,11 @@
+# Round 155 — ES5 untyped missing constructor body
+
+Read-only actual Opus review; no edits/builds/commits. Same frozen Repair3e28cb21344eae8980cfe66992913f2d8758ede2; r184 all688 finished: r167176exact, r168276/280exact (only Unicode detached header4), r171230/232exact (only untyped constructor ES5/System removeComments false/true). Fresh16994 proof is now running/queued; source remains frozen through185/186/190.
+
+C input `class C { constructor(x) => 1; }`: on ES5/System/noCheckfalse native JS prints `function C(x) {}` but TS prints synthesized `function C() {}`, resulting maps differ. Modern-target controls already exact; typed-constructor controls all exact. Capture target/emitter-corpus-controls-r184/captures-171; summarizer /tmp/summarize-emitter-control-captures.py. Fixture r171 includes every complete TS command.
+
+Root hypothesis: untyped class has no ContainsTypeScript, so TS transform deliberately leaves constructor for ES2015 lowering. getFirstConstructorWithBody / equivalent ES2015 selection likely tests body.is_some rather than nodeIsPresent (zero-width parsed Block is missing), so it chooses malformed untyped ctor while TS synthesizes a default. DO NOT globally force TypeScript transform of untyped class: modern-target currently-exact output may deliberately retain that constructor. Please trace actual exact helper ownership and callers (ES2015/ClassFields/decorators), suggest smallest fix and bounded controls (real empty body vs zero-width, synthesized body posMAX, derived class+super, fields/parameter-properties). If shared helper needs change, assess every caller; we need evidence before expanding.
+
+Unicode follow-up154: Root confirms detached_leading_trivia ASCII-only scan. Need choose local Unicode-aware scan vs reuse existing collect_source_comment_ranges + contains_two_line_breaks while retaining old emitted_end whitespace boundary. Reuse seems faithful and removes duplicate trivia semantics; ordinary-leading will only change if a complete probe actually fails. No implementation yet. Actual154 source/history conclusion will be recorded.
+
+Please prioritize constructor cause and minimal bounded path; do not defer merely duefreeze/qualification cost.
