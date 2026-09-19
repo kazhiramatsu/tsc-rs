@@ -1,0 +1,43 @@
+{
+  "before": "cd0f92042ac60873a729567c19dc7a71459b4be3",
+  "after": "b79ceaef0a19fd45a48cb23a3637ed30616bbf93",
+  "validation_source": "0336c56663ff243503a18987a2cf8021109e8295",
+  "steps": [
+    {
+      "argv": [
+        "git",
+        "merge",
+        "--ff-only",
+        "0336c56663ff243503a18987a2cf8021109e8295"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "merge",
+        "--no-edit",
+        "8e9960372"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "merge",
+        "--no-edit",
+        "--no-ff",
+        "c79925c63c6b6d2a0960791f7cfa921a6924d058"
+      ],
+      "exit": 0
+    }
+  ],
+  "runtime_changes": [],
+  "proof_script_changes": [
+    "scripts/replay-recovery-parse.rs",
+    "scripts/select-recovery-parse-corpus.py",
+    "scripts/test-select-recovery-parse-corpus.py"
+  ],
+  "log_sha256": "286bf681530942db95a33f88a9ebf6d73482aff41eb22435bb0063c3f2aa6f98",
+  "qualification": "r2111600 passed at source; r212/r213 still pending. No new source-qualified or whole-gate claim."
+}
