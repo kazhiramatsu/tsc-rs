@@ -622,6 +622,9 @@ enum ExpressionGrammarContext {
     LeftSideOfAccess {
         optional_chain: bool,
     },
+    /// A factory-owned grammar boundary: the printer applies the rule only
+    /// to a replacement supplied by substitution, as pipelineEmit does.
+    LeftSideOfAccessAfterSubstitution,
     NewCallee,
     PrefixUnaryOperand,
     PostfixUnaryOperand,
@@ -5277,9 +5280,9 @@ impl Printer {
                 writer.write_space(" ");
                 writer.write_keyword(keyword);
                 writer.write_space(" ");
-                self.emit_node_array(
+                self.emit_heritage_list(
                     transformation,
-                    node.source(),
+                    node,
                     data.types,
                     ", ",
                     expression_context,
@@ -5287,12 +5290,10 @@ impl Printer {
                 )
             }
             NodeData::ExpressionWithTypeArguments(data) => {
-                // tsc emits every heritage expression through
-                // parenthesizeLeftSideOfAccess. Earlier transforms may turn
-                // an optional chain into a conditional expression; retaining
-                // the left-hand-side grammar boundary preserves the meaning
-                // of `extends (condition ? left : right)`.
-                //
+                // Factory updates already applied the structural rule. The
+                // printer reapplies it only when substitution changes the
+                // expression. All three heritage levels retain their own
+                // comments phase, including after erased type arguments.
                 // tsc-port: emitExpressionWithTypeArguments @6.0.3
                 // tsc-span: _tsc.js:118536-118539
                 let expression = data
@@ -5303,39 +5304,17 @@ impl Printer {
                         field: "expression",
                     })?;
                 let child_context = expression_context
-                    .for_child(ExpressionSyntaxContext::left_side_of_access(false));
-                if self
-                    .node_end_cursor(transformation, expression)?
-                    .source_position()
-                    .is_some()
-                {
-                    // A parsed child completes within the heritage item's
-                    // container. The item's trailing phase then restores the
-                    // clause container and owns comments after erased types.
-                    self.emit_required_node_with_context(
-                        transformation,
-                        node.source(),
-                        data.expression,
-                        SyntaxKind::ExpressionWithTypeArguments,
-                        "expression",
-                        child_context,
-                        writer,
-                    )?;
-                } else {
-                    // Lowered optional chains have no current source range;
-                    // retain the existing wrapper extent for that transport.
-                    self.emit_required_node_with_context_and_source_extent(
-                        transformation,
-                        node.source(),
-                        data.expression,
-                        node,
-                        SyntaxKind::ExpressionWithTypeArguments,
-                        "expression",
-                        child_context,
-                        DeferredSourceCommentExtent::LeadingAndTrailing,
-                        writer,
-                    )?;
-                }
+                    .for_child(ExpressionSyntaxContext::NORMAL)
+                    .with_grammar(ExpressionGrammarContext::LeftSideOfAccessAfterSubstitution);
+                self.emit_optional_ordinary_child(
+                    transformation,
+                    node,
+                    Some(expression.node()),
+                    EmitHint::Expression,
+                    None,
+                    child_context,
+                    writer,
+                )?;
                 self.emit_type_arguments(
                     transformation,
                     node.source(),
@@ -7317,7 +7296,11 @@ impl Printer {
             NodeData::ParenthesizedExpression(data) => {
                 let expression = data
                     .expression
-                    .and_then(|id| transformation.arena().node_ref(node.source(), id));
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                    .ok_or(PrinterError::MissingTransformedChild {
+                        parent: SyntaxKind::ParenthesizedExpression,
+                        field: "expression",
+                    })?;
                 let has_source_parentheses =
                     self.node_has_source_token_shape(transformation, node)?;
                 let open = self.emit_token_with_comments(
@@ -7328,50 +7311,19 @@ impl Printer {
                     false,
                     writer,
                 )?;
-                if let Some(expression) = expression.filter(|_| has_source_parentheses) {
-                    let token_owned_prefix =
-                        self.token_owned_child_prefix(transformation, open, Some(expression))?;
-                    self.emit_leading_comments_for_node_worker(
-                        transformation,
-                        expression,
-                        LeadingCommentContext::Normal,
-                        token_owned_prefix,
-                        writer,
-                    )?;
-                }
-                if has_source_parentheses {
-                    self.emit_required_node_with_context(
-                        transformation,
-                        node.source(),
-                        data.expression,
-                        SyntaxKind::ParenthesizedExpression,
-                        "expression",
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                        writer,
-                    )?;
-                } else {
-                    // A precedence parenthesis created by a transform has no
-                    // source close-token to run the ordinary comments phase.
-                    // Complete the retained child against the ambient source
-                    // container before writing `)`. In particular, a parsed
-                    // outer statement keeps ownership of its final trailing
-                    // boundary through any number of synthetic wrappers.
-                    self.emit_required_node_with_context_and_source_extent(
-                        transformation,
-                        node.source(),
-                        data.expression,
-                        node,
-                        SyntaxKind::ParenthesizedExpression,
-                        "expression",
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                        DeferredSourceCommentExtent::LeadingAndTrailing,
-                        writer,
-                    )?;
-                }
-                let close_cursor = expression
-                    .map(|expression| self.original_node_end_cursor(transformation, expression))
-                    .transpose()?
-                    .unwrap_or(open.cursor());
+                // A real child trailing phase owns same-line comments unless
+                // its end equals the enclosing end (a missing close paren).
+                // The close token then owns only positional leading comments.
+                self.emit_optional_ordinary_child(
+                    transformation,
+                    node,
+                    Some(expression.node()),
+                    EmitHint::Expression,
+                    has_source_parentheses.then_some(open),
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
+                let close_cursor = self.node_end_cursor(transformation, expression)?;
                 self.emit_token_with_source_leading_comments(
                     transformation,
                     node,
@@ -9772,9 +9724,9 @@ impl Printer {
             .transpose()?
             .is_some_and(|array| !array.nodes.is_empty());
         if has_heritage_clauses {
-            self.emit_node_array(
+            self.emit_heritage_list(
                 transformation,
-                source,
+                class_node,
                 heritage_clauses,
                 "",
                 expression_context,
@@ -11450,9 +11402,9 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        self.emit_node_array(
+        self.emit_heritage_list(
             transformation,
-            node.source(),
+            node,
             data.heritage_clauses,
             "",
             expression_context,
@@ -12815,6 +12767,9 @@ impl Printer {
             ExpressionGrammarContext::LeftSideOfAccess { optional_chain } => self
                 .left_side_of_access_requires_parentheses(transformation, emitted, optional_chain)?
                 .then_some(GrammarParentheses::SourceRanged),
+            ExpressionGrammarContext::LeftSideOfAccessAfterSubstitution => self
+                .left_side_of_access_requires_parentheses(transformation, emitted, false)?
+                .then_some(GrammarParentheses::SourceRanged),
             ExpressionGrammarContext::ComputedPropertyName => self
                 .is_comma_sequence(transformation, emitted)?
                 .then_some(GrammarParentheses::Synthetic),
@@ -13607,6 +13562,46 @@ impl Printer {
                 writer,
             )?;
             self.emit_trailing_comments_for_node(transformation, attribute, writer)?;
+        }
+        Ok(())
+    }
+
+    /// Heritage clauses and their expression lists have no following fixed
+    /// token to complete their source comments. Give every list element the
+    /// ordinary pipeline, restoring the enclosing container before trailing
+    /// comments are emitted, just as emitList does upstream.
+    fn emit_heritage_list(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        array: Option<tsc_syntax::NodeArrayId>,
+        separator: &str,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let Some(array) =
+            array.and_then(|id| transformation.arena().node_array_ref(parent.source(), id))
+        else {
+            return Ok(());
+        };
+        let ids = transformation.arena().node_array(array)?.nodes.clone();
+        for (index, id) in ids.into_iter().enumerate() {
+            if index != 0 {
+                writer.write(separator);
+            }
+            self.record_list_element_position(
+                transformation,
+                TransformNode::new(parent.source(), id),
+            )?;
+            self.emit_optional_ordinary_child(
+                transformation,
+                parent,
+                Some(id),
+                EmitHint::Unspecified,
+                None,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
         }
         Ok(())
     }
@@ -14628,7 +14623,12 @@ impl Printer {
                 | ExpressionGrammarContext::AssignmentRightSide
                 | ExpressionGrammarContext::ExportDefault
                 | ExpressionGrammarContext::DisallowedComma
-        ) || was_substituted && grammar == ExpressionGrammarContext::ComputedPropertyName
+        ) || was_substituted
+            && matches!(
+                grammar,
+                ExpressionGrammarContext::ComputedPropertyName
+                    | ExpressionGrammarContext::LeftSideOfAccessAfterSubstitution
+            )
         {
             self.context_parentheses(transformation, substituted, grammar)?
         } else {

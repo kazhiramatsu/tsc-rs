@@ -84,9 +84,13 @@ parse-recovery/stable type orderingの一律guardは変更していない。
 raw text拒否を撤去し、下記の実際のcomment phase欠落を修復した。literal/comment本文も
 通常commandの完全比較へ追加した。AstDepth 256は別の資源上限である。
 
-H1歴史的omission writerの `--check` は `emitter-artifact-protocol` anchorで失敗する。
+H1 omission writerの `--check` は `emitter-artifact-protocol` anchorで失敗する。
 参照するartifact.rsとwriterはtrusted main `3b1f5fe`からbyte不変であり、この統合の
-新規失敗ではない。現在の入口台帳は別に再生成し、古い全Rust棚卸しを互換証拠として再署名しない。
+新規失敗ではない。ただし、この棚卸しは歴史的に固定された証拠ではなく、生成時点の
+全production Rustをハッシュするスナップショットである。直近の生成は `879fba6d1`
+（H2.7b w4、2026-09-06）。現在の実装を参照するanchorの修復と、古いartifactおよび
+下流pinの更新は別の検証として扱う。古いコメントだけで未実装と判定せず、対応する
+production経路の実装を照合する。再生成前のartifactに現在性や互換性の保証を付けない。
 
 ## Comment / CLI / numeric target の追加監査
 
@@ -237,3 +241,43 @@ r23でES2018 retained object/array patternの余分な全体rangeを除去した
 TypeScript oracle全551×2、planner82、policy、fmtも成功。checker1739＋syntax175はr19で成功。
 このsourceを固定して既存acceptance・emitter/CLI/transpile・EF7を再検証する。
 parse36は通常emitの残作業として継続し、r22/r24の共同設計に従ってparser factsから実装する。
+
+
+## r89–r93 の追加修復候補と未完了の検証
+
+r82 (`f4d9ccbe1`) の境界検証は、旧70対照が66 exact / 4 failed、追加774対照が
+700 exact / 74 failedだった。計78失敗は66の完全観測差分と12のtyped refusalであり、
+この時点の結果を成功として扱わない。最初のassertionだけではJS本文差分を除外できないため、
+元のビルドを別名保存し、全callback・全診断を補助採取する。
+
+r89のemitter候補は、decoratorの `.bind` receiver、heritageの構造的括弧、
+括弧／heritage子ノードのcomment pipelineを修復する。Opus89がsourceをreviewした。
+r91–93では不足していた9箇所のhelper診断と、class宣言／無名class式に共通の
+static要素判定を追加した。decorator accessorの構文上の組、class field mode、
+`__proto__` のnamed evaluation除外、診断を最初に要求するノードの位置を保持する。
+Opus91–93と上流6.0.3の実装を照合した。review中の「320 fixturesでproven」は
+Rust検証完了を意味しない。現時点はTypeScriptの期待値採取とsource reviewである。
+
+nested missing-parenthesisは、同じ終端を持つ直接の括弧チェーンとreport数を結び付ける。
+連続する余剰 `)` は、各tokenの独立したreport・実source text・同一のarray ownerを確認して
+既存のstatement gapへ接続する。型assertion／commaを挟む別チェーン、混合closer、
+owner不在、捏造event/actionは拒否する。元のadmission経路は維持する。
+このpredicate変更はcensus保存済みのcurrent snapshotとは別のsuccessorとして検証する。
+
+新しいTypeScript全command観測は各2回一致した：heritage132、helper122、
+nested-parenthesis96、class-helper320。元heritage108／helper72／nested72のcase objectは
+byteの意味を変えず保持した。CI登録検査はr93でfixture生成中に起動したため2件の
+missing-fileエラーとなり、生成完了後のr93bは84件成功した。
+Rustの候補ビルド・unit・完全command比較は未完了である。
+
+H1 omission generatorは現在のprotocolへ11 anchorを更新し、実装済み20 elisionを
+候補一覧から除去した。残るconstructor captureはTS6.0.3にobservable consumerがない
+理由を明記する。古いabsence proofは改名後の実装を見落としていたため削除し、schemaは
+真の0件を表現できるよう2箇所を変更した。`--check-anchors` は全参照・catalog・候補構造を
+検査し、保存artifactの鮮度を保証しないことを明示する。artifact/pinの再mintはまだ行わない。
+
+全censusはclean `67df86615a45f9595025064bcc12fde93063fedf` に固定して7908 planを調査する。
+長時間のscanと修復確認を両立するため、同processを一時停止して別の固定binary／候補の
+Rust検証を順番に実行し、停止区間・binary identityを記録して同processを再開する。
+censusのelapsedは停止時間を含むため性能値として使用しない。censusのsourceは変更しない。
+元36 KNOWNの退役、全replay、最終CI・統合は引き続き未完了である。

@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-emitter-helper-probes.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T03:12:52.776745+00:00",
+  "head": "f4d9ccbe1d0d112330968058cfec117c227b76d0",
+  "tracked_clean": false,
+  "diff_sha256": "0e20d76d59f1c2752e96bf36b71a391d606712189c3c4e0f0619b8b3eb1b59cf",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 25.594,
+  "log_sha256": "4858e49acfb2807209d5455780e02aaca1d68233465be7f65707c7ab90e506af",
+  "log_bytes": 81
+}

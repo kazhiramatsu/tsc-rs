@@ -253,7 +253,7 @@ impl ParseRecovery {
                         Some(index) if index < source.parse_diagnostics.len() => {
                             self.actions.iter().any(|action| matches!(action,
                                 ParseRecoveryAction::TokenSkipped { start, .. } if *start == event.start))
-                            || Self::report_has_retained_syntax_owner(source, parents.as_ref().unwrap(), event)
+                            || self.report_has_retained_syntax_owner(source, parents.as_ref().unwrap(), event)
                             || context_support.as_ref().is_some_and(|support| support.assertion_reports.contains(&event_index))
                         }
                         None => self.events.iter().any(|retained| {
@@ -400,8 +400,13 @@ impl ParseRecovery {
             return false;
         };
         let mut skip_spans = BTreeSet::new();
+        // Only validated close-paren runs may bridge a gap after the last
+        // retained statement. Every token still needs its own report and
+        // must have the same unique reachable array owner.
+        let mut close_paren_runs = BTreeMap::new();
         for action in actions {
             let ParseRecoveryAction::TokenSkipped {
+                token,
                 start,
                 length,
                 site: ParseTokenSkipSite::ListAbort,
@@ -443,6 +448,11 @@ impl ParseRecovery {
                 return false;
             }
             let event = retained[0];
+            let can_bridge_close_paren = allow_statement_gaps
+                && event.missing_node.is_none()
+                && token == SyntaxKind::CloseParenToken
+                && event.length == length
+                && source.text().get(start_byte as usize..end_byte as usize) == Some(")");
             let position = if allow_statement_gaps {
                 if !Self::is_current_token_report(source, event)
                     || event
@@ -455,9 +465,17 @@ impl ParseRecovery {
             } else {
                 event.missing_node.unwrap().position
             };
-            let Some(missing_byte) = source.positions().utf16_to_byte(position) else {
+            let Some(mut missing_byte) = source.positions().utf16_to_byte(position) else {
                 return false;
             };
+            let prior_close_paren = if can_bridge_close_paren {
+                close_paren_runs.get(&event.full_start).copied()
+            } else {
+                None
+            };
+            if let Some((_, boundary)) = prior_close_paren {
+                missing_byte = boundary;
+            }
             let mut operand_ancestors = BTreeSet::new();
             let mut await_operand = false;
             if event.missing_node.is_some() {
@@ -555,8 +573,11 @@ impl ParseRecovery {
                     owners.push(id);
                 }
             }
-            if owners.len() != 1 {
+            if owners.len() != 1 || prior_close_paren.is_some_and(|(owner, _)| owner != owners[0]) {
                 return false;
+            }
+            if can_bridge_close_paren {
+                close_paren_runs.insert(end, (owners[0], missing_byte));
             }
         }
         !skip_spans.is_empty()
@@ -578,6 +599,7 @@ impl ParseRecovery {
     }
 
     fn report_has_retained_syntax_owner(
+        &self,
         source: &SourceFile,
         parents: &BTreeMap<NodeId, Option<NodeId>>,
         event: &ParseRecoveryEvent,
@@ -608,9 +630,45 @@ impl ParseRecovery {
                             .expression
                             .is_some_and(|expression| source.arena.node(expression).end == node.end)
                 })
-                .count();
-            if closers > 0 {
-                return closers == 1;
+                .copied()
+                .collect::<BTreeSet<_>>();
+            if closers.len() == 1 {
+                return true;
+            }
+            if !closers.is_empty() {
+                let roots = closers
+                    .iter()
+                    .filter(|id| !parents[*id].is_some_and(|parent| closers.contains(&parent)))
+                    .copied()
+                    .collect::<Vec<_>>();
+                if roots.len() != 1 {
+                    return false;
+                }
+                let mut chain = BTreeSet::new();
+                let mut current = Some(roots[0]);
+                while let Some(id) = current.filter(|id| closers.contains(id)) {
+                    if !chain.insert(id) {
+                        return false;
+                    }
+                    let NodeData::ParenthesizedExpression(data) = &source.arena.node(id).data
+                    else {
+                        return false;
+                    };
+                    current = data.expression;
+                }
+                let reports = self.events.iter().filter(|candidate| {
+                    candidate.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                        && candidate.start == event.start
+                        && candidate.length == event.length
+                        && candidate.full_start == event.full_start
+                        && candidate.missing_node.is_none()
+                });
+                return chain == closers
+                    && reports.clone().count() == closers.len()
+                    && reports
+                        .filter(|candidate| candidate.diagnostic_index.is_some())
+                        .count()
+                        == 1;
             }
         }
         let statements = parents

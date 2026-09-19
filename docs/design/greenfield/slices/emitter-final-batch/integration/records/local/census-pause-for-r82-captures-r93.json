@@ -1,0 +1,24 @@
+{
+  "census_pid": 56011,
+  "census_command": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask utf16-literal-recovery-census --all-profiles --out /Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles --parse-snapshot-out /Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/parse-snapshot.json",
+  "census_head": "67df86615a45f9595025064bcc12fde93063fedf",
+  "census_binary_sha256": "8bdfd58da50dd32576998c8604c14acca42ec64ae812ed4590aa3eba442ab47d",
+  "reason": "temporarily serialize immutable f4 supplemental capture before long census finishes; wall time is not a performance observation",
+  "replaced_waiter_pid": 57703,
+  "supplemental_manifest": {
+    "kind": "supplemental-complete-command-capture",
+    "compiled_head": "f4d9ccbe1d0d112330968058cfec117c227b76d0",
+    "binary_sha256": "dd844a8a8c83ce32e3d52927e19d1548098b0eef89ed66c67d040cbc2a8ac4ca",
+    "original_cargo_receipt": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/recovery-boundary-native-r82.json",
+    "original_cargo_receipt_sha256": "695d939549fc626052e78177353b4e1853d26bfd1c8b7c4f1916cac9f6c7e3a4",
+    "runtime_fixture_sha256": {
+      "emitter-r77-regressions.json": "3138ce800620869068cfc5d87f6d51e54d49533f13565ad316671af4cda31860",
+      "emitter-context-recovery.json": "6c7aba80431862a48db7adfb67d8d3a0c2cf900077f4c876724942b12a1d0168",
+      "emitter-statement-gap-recovery.json": "ac17d43eb0460d0f524ce0e79cefd70287813c8526089779517671c0f45e90e0",
+      "system-binding-publication.json": "6da39336f4c84fdb51c20b34a9b4b8e9f202c4fb43a97c7db6ff685bd55b5890"
+    }
+  },
+  "paused_at": "2026-09-19T03:47:03.546338+00:00",
+  "capture_exit": 101,
+  "resumed_at": "2026-09-19T03:53:12.667358+00:00"
+}

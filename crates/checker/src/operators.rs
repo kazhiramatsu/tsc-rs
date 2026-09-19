@@ -1140,8 +1140,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:79591-79608
     ///
     /// Both operand rows are plain 2322 (2360/2361 do not exist in
-    /// 6.0.3); the ClassPrivateFieldIn emit-helper rows are
-    /// importHelpers-gated (no-op).
+    /// 6.0.3). Private-name helper requirements use the same target and
+    /// class-field mode gates as private property accesses.
     fn check_in_expression(
         &mut self,
         left: NodeId,
@@ -1154,6 +1154,14 @@ impl<'a> CheckerState<'a> {
             return Ok(silent_never);
         }
         if self.kind_of(left) == SyntaxKind::PrivateIdentifier {
+            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES_NEXT
+                || !self.options.use_define_for_class_fields_effective()
+            {
+                self.check_external_emit_helpers(
+                    left,
+                    crate::modules::EMIT_HELPER_CLASS_PRIVATE_FIELD_IN,
+                )?;
+            }
             let unresolved = self.links.node(left).resolved_symbol.resolved().is_none();
             if unresolved && self.get_containing_class_of(left).is_some() {
                 // isUncheckedJSSuggestion is false in TS files.
@@ -2463,8 +2471,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a8df092688dc76db0fc8fc2c03d0d9d01f0ae09de7aeb8808a9ef9a33e7ad1c6
     /// tsc-span: _tsc.js:79743-79753
     ///
-    /// The ClassPrivateFieldSet emit-helper row is importHelpers-gated
-    /// (no-op).
+    /// The private-set tail is intentionally independent of the target gate
+    /// in checkPropertyAccessExpression; it remains observable at ESNext.
     fn check_reference_assignment(
         &mut self,
         target: NodeId,
@@ -2493,6 +2501,16 @@ impl<'a> CheckerState<'a> {
                 Some(target),
                 &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
             )?;
+        }
+        if matches!(self.data_of(target), NodeData::PropertyAccessExpression(data)
+            if data.name.is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier))
+        {
+            if let Some(parent) = self.parent_of(target) {
+                self.check_external_emit_helpers(
+                    parent,
+                    crate::modules::EMIT_HELPER_CLASS_PRIVATE_FIELD_SET,
+                )?;
+            }
         }
         Ok(source_type)
     }

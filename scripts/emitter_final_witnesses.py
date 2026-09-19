@@ -42,12 +42,17 @@ COMMENT_TESTS = (
     "async_arrow_body_ranges::async_arrow_body_ranges_matches_complete_typescript_observations",
 )
 SYSTEM_FIXTURES = (("system-binding-publication", 1044), ("await-flag-commands", 690),
-                   ("emitter-recovery-boundaries", 774))
+                   ("emitter-recovery-boundaries", 774), ("emitter-heritage-boundaries", 132),
+                   ("emitter-helper-probes", 122), ("emitter-nested-paren-recovery", 96), ("emitter-class-helper-gates", 320))
 SYSTEM_TESTS = (
     "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
     "emitter_residual_audit::await_flag_boundaries_match_complete_typescript_commands",
     "emitter_residual_audit::recovery_boundary_neighbours_match_complete_typescript_commands",
     "emitter_residual_audit::r77_recovery_regressions_match_complete_typescript_commands",
+    "emitter_residual_audit::heritage_factory_boundaries_match_complete_typescript_commands",
+    "emitter_residual_audit::helper_diagnostic_boundaries_match_complete_typescript_commands",
+    "emitter_residual_audit::class_helper_gates_match_complete_typescript_commands",
+    "emitter_residual_audit::nested_parenthesis_recovery_matches_complete_typescript_commands",
 )
 RECOVERY_FIXTURES = (
     ("emitter-missing-await", 60), ("emitter-missing-declaration", 72),

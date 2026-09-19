@@ -129,17 +129,25 @@ pub(crate) const EMIT_HELPER_EXTENDS: u32 = 1 << 0;
 pub(crate) const EMIT_HELPER_ASSIGN: u32 = 1 << 1;
 pub(crate) const EMIT_HELPER_REST: u32 = 1 << 2;
 pub(crate) const EMIT_HELPER_DECORATE: u32 = 1 << 3;
+pub(crate) const EMIT_HELPER_METADATA: u32 = 1 << 4;
+pub(crate) const EMIT_HELPER_PARAM: u32 = 1 << 5;
 pub(crate) const EMIT_HELPER_AWAITER: u32 = 1 << 6;
 pub(crate) const EMIT_HELPER_GENERATOR: u32 = 1 << 7;
+pub(crate) const EMIT_HELPER_VALUES: u32 = 1 << 8;
 /// `AsyncGeneratorIncludes = Await | AsyncGenerator`.
 pub(crate) const EMIT_HELPER_ASYNC_GENERATOR_INCLUDES: u32 = (1 << 11) | (1 << 12);
+/// `AsyncDelegatorIncludes = Await | AsyncDelegator | AsyncValues`.
+pub(crate) const EMIT_HELPER_ASYNC_DELEGATOR_INCLUDES: u32 = (1 << 11) | (1 << 13) | (1 << 14);
+pub(crate) const EMIT_HELPER_FOR_AWAIT_OF_INCLUDES: u32 = 1 << 14;
 pub(crate) const EMIT_HELPER_READ: u32 = 1 << 9;
 pub(crate) const EMIT_HELPER_SPREAD_ARRAY: u32 = 1 << 10;
 pub(crate) const EMIT_HELPER_EXPORT_STAR: u32 = 1 << 15;
 pub(crate) const EMIT_HELPER_IMPORT_STAR: u32 = 1 << 16;
 pub(crate) const EMIT_HELPER_IMPORT_DEFAULT: u32 = 1 << 17;
+pub(crate) const EMIT_HELPER_MAKE_TEMPLATE_OBJECT: u32 = 1 << 18;
 pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_GET: u32 = 1 << 19;
 pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_SET: u32 = 1 << 20;
+pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_IN: u32 = 1 << 21;
 pub(crate) const EMIT_HELPER_SET_FUNCTION_NAME: u32 = 1 << 22;
 pub(crate) const EMIT_HELPER_PROP_KEY: u32 = 1 << 23;
 pub(crate) const EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES: u32 = 1 << 24;
@@ -6335,24 +6343,24 @@ impl<'a> CheckerState<'a> {
             EMIT_HELPER_REST => &["__rest"],
             EMIT_HELPER_DECORATE if legacy_decorators => &["__decorate"],
             EMIT_HELPER_DECORATE => &["__esDecorate", "__runInitializers"],
-            16 => &["__metadata"],
-            32 => &["__param"],
+            EMIT_HELPER_METADATA => &["__metadata"],
+            EMIT_HELPER_PARAM => &["__param"],
             64 => &["__awaiter"],
             128 => &["__generator"],
-            256 => &["__values"],
+            EMIT_HELPER_VALUES => &["__values"],
             EMIT_HELPER_READ => &["__read"],
             EMIT_HELPER_SPREAD_ARRAY => &["__spreadArray"],
             2_048 => &["__await"],
             4_096 => &["__asyncGenerator"],
             8_192 => &["__asyncDelegator"],
-            16_384 => &["__asyncValues"],
+            EMIT_HELPER_FOR_AWAIT_OF_INCLUDES => &["__asyncValues"],
             EMIT_HELPER_EXPORT_STAR => &["__exportStar"],
             EMIT_HELPER_IMPORT_STAR => &["__importStar"],
             EMIT_HELPER_IMPORT_DEFAULT => &["__importDefault"],
-            262_144 => &["__makeTemplateObject"],
+            EMIT_HELPER_MAKE_TEMPLATE_OBJECT => &["__makeTemplateObject"],
             EMIT_HELPER_CLASS_PRIVATE_FIELD_GET => &["__classPrivateFieldGet"],
             EMIT_HELPER_CLASS_PRIVATE_FIELD_SET => &["__classPrivateFieldSet"],
-            2_097_152 => &["__classPrivateFieldIn"],
+            EMIT_HELPER_CLASS_PRIVATE_FIELD_IN => &["__classPrivateFieldIn"],
             EMIT_HELPER_SET_FUNCTION_NAME => &["__setFunctionName"],
             EMIT_HELPER_PROP_KEY => &["__propKey"],
             EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES => {
@@ -9740,8 +9748,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// Non-ambient import-equals declarations require runtime syntax and fail
     /// erasableSyntaxOnly before internal/external reference checking. The
-    /// exported-alias accessibility mark is live; markLinkedReferences'
-    /// declaration-emit traversal remains outside this checker slice.
+    /// exported-alias accessibility mark is live; unchecked emit-time alias
+    /// traversal uses mark_linked_references_unspecified.
     pub(crate) fn check_import_equals_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         if self.check_grammar_module_element_context(
             node,

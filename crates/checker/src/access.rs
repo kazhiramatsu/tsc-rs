@@ -1975,11 +1975,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: cd288efe571bfca00aa5dea8cea66ae89c8a6d13c180bcf483606acc60c3ece3
     /// tsc-span: _tsc.js:75201-75322
     ///
-    /// Elisions/dispositions, each FN-only or unobservable:
-    /// - markLinkedReferences' non-alias bookkeeping; its
-    ///   identifier/property/export/JSX alias paths are live from M7
-    ///   8.3a;
-    /// - getWidenedType is the 5.6 [WIDEN] identity (extraction §6).
+    /// Checked alias paths and unchecked emit-time alias traversal both
+    /// preserve linked references. getWidenedType uses the 5.6 [WIDEN]
+    /// identity (extraction §6).
     fn check_property_access_expression_or_qualified_name(
         &mut self,
         node: NodeId,

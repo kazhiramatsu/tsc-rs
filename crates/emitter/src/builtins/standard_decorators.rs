@@ -3000,7 +3000,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }
             _ => return Ok(expression),
         };
-        let bind = self.create_property_access(target, "bind")?;
+        // createCallBinding's uncached target may retain an optional chain.
+        // The factory's ranged parentheses must exist before later lowering
+        // and source-map emission, not only as printer grammar punctuation.
+        let bind_name = self.create_identifier("bind")?;
+        let bind = self.context.factory()?.create_property_access_expression(
+            self.source,
+            target,
+            bind_name,
+        )?;
         self.create_call(bind, vec![receiver])
     }
 

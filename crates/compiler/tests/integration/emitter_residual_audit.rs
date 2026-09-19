@@ -231,6 +231,56 @@ fn system_binding_publication_matches_complete_typescript_commands() {
 }
 
 #[test]
+fn heritage_factory_boundaries_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-heritage-boundaries.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 132);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn helper_diagnostic_boundaries_match_complete_typescript_commands() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-helper-probes.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 122);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn class_helper_gates_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-class-helper-gates.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 320);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn nested_parenthesis_recovery_matches_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-nested-paren-recovery.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 96);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
 fn recovery_boundary_neighbours_match_complete_typescript_commands() {
     let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
         "../fixtures/emitter-recovery-boundaries.json"

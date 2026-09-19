@@ -802,6 +802,98 @@ fn statement_gap_recovery_rejects_unowned_or_forged_events() {
 }
 
 #[test]
+fn nested_parenthesis_recovery_requires_a_direct_chain_and_owned_closing_tokens() {
+    for text in [
+        "export const z = ((x //c\n as number));",
+        "export const z = (((x //c\n as number)));",
+        "foo()\n))",
+        "(x //c\n as number)) /*m*/ );",
+        "export const z = ((x) //c\n as number);",
+        "export const z = ((x /*c*/\n as number));",
+        "export const z = x; )))\n",
+        "{ const z = ((x //😀\n as number) /*😀*/ ); }",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+        assert!(parsed.has_only_statement_gap_emit_recovery(), "{text}");
+        assert!(parsed.has_supported_emit_recovery(), "{text}");
+    }
+    for text in [
+        "export const z = (<any>(x //c\n as number));",
+        "(a, (x //c\n as number))",
+        "export const z = ((x\n as number)\n as string);",
+        "export const z = x; )]\n",
+        "));",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(!parsed.has_only_statement_gap_emit_recovery(), "{text}");
+        assert!(!parsed.has_supported_emit_recovery(), "{text}");
+    }
+}
+
+#[test]
+fn nested_parenthesis_recovery_rejects_forged_chains_and_skip_runs() {
+    let parsed = source("export const z = ((x //c\n as number));");
+    assert!(parsed.has_only_statement_gap_emit_recovery());
+    let check = |mutate: &dyn Fn(&mut ParseRecovery)| {
+        let mut changed = parsed.clone();
+        mutate(&mut changed.parse_recovery);
+        assert!(!changed.has_only_statement_gap_emit_recovery());
+        assert!(!changed.has_supported_emit_recovery());
+    };
+    check(&|r| {
+        let index = r
+            .events
+            .iter()
+            .position(|event| {
+                event.diagnostic_index.is_none() && event.full_start == r.events[0].full_start
+            })
+            .unwrap();
+        r.events.remove(index);
+    });
+    check(&|r| {
+        let event = *r
+            .events
+            .iter()
+            .find(|event| {
+                event.diagnostic_index.is_none() && event.full_start == r.events[0].full_start
+            })
+            .unwrap();
+        r.events.push(event);
+    });
+    check(&|r| {
+        let full_start = r.events[0].full_start;
+        r.events
+            .iter_mut()
+            .find(|event| event.diagnostic_index.is_none() && event.full_start == full_start)
+            .unwrap()
+            .full_start += 1;
+    });
+    check(&|r| r.actions.reverse());
+    check(&|r| r.actions.push(r.actions[0]));
+    check(&|r| {
+        if let ParseRecoveryAction::TokenSkipped { start, .. } = &mut r.actions[1] {
+            *start -= 1;
+        }
+    });
+    check(&|r| {
+        if let ParseRecoveryAction::TokenSkipped { token, .. } = &mut r.actions[1] {
+            *token = SyntaxKind::CloseBracketToken;
+        }
+    });
+    let mut mixed = source("export const z = x; )]\n");
+    for action in &mut mixed.parse_recovery.actions {
+        if let ParseRecoveryAction::TokenSkipped { token, .. } = action {
+            *token = SyntaxKind::CloseParenToken;
+        }
+    }
+    assert!(!mixed.has_only_statement_gap_emit_recovery());
+    assert!(!mixed.has_supported_emit_recovery());
+}
+
+#[test]
 fn decorator_await_consumption_has_a_typed_token_skip_and_missing_head() {
     for text in [
         "export {}; @await class C {}",

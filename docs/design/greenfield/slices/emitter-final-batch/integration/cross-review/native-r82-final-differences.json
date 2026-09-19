@@ -1,0 +1,2535 @@
+{
+  "partial": false,
+  "head": "f4d9ccbe1d0d112330968058cfec117c227b76d0",
+  "log_sha256": "b0f612db2a4dab003f01c07f59ca289a12e54b0e32f6f7f947f3344822d989d7",
+  "differences": [
+    {
+      "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/heritage-trivia",
+      "fixture": "emitter-context-recovery.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/heritage-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAM,CAAE,SAAoB,MAAc;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAM,CAAE,SAAoB,MAAM,CAAC,MAAO;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/esnext/remove-false/heritage-trivia",
+      "fixture": "emitter-context-recovery.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/esnext/remove-false/heritage-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAM,CAAE,SAAoB,MAAc;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAM,CAAE,SAAoB,MAAM,CAAC,MAAO;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/esnext/commonjs/remove-false/heritage-trivia",
+      "fixture": "emitter-context-recovery.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/esnext/commonjs/remove-false/heritage-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAM,CAAE,SAAoB,MAAc;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAM,CAAE,SAAoB,MAAM,CAAC,MAAO;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/esnext/esnext/remove-false/heritage-trivia",
+      "fixture": "emitter-context-recovery.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/esnext/esnext/remove-false/heritage-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAM,CAAE,SAAoB,MAAc;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAM,CAAE,SAAoB,MAAM,CAAC,MAAO;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es5/commonjs/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es5/commonjs/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;;;AADW;4BAAV,EAAC,KAAI,aAAJ,KAAI,uBAAJ,KAAI,CAAE,CAAC,OAAP,KAAI,EAAI;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG;AAAS,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;;;AADW;4BAAV,CAAC,CAAA,KAAI,aAAJ,KAAI,uBAAJ,KAAI,CAAE,CAAC,CAAA,MAAP,KAAI,EAAI;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG;AAAS,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es5/commonjs/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es5/commonjs/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;;;AADA;;;;;;;gBAAa,mDAAC;;YAAc,aAAC,GAAD,cAAK,CAAC;YAAC,QAAC;QAAD,CAAC;;;6BAAlB,EAAC,mEAAM,CAAC,mBAAC;YAAC,yLAAA,CAAC,gEAAK;;;;IAAE;AAAvB,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;;;AADA;;;;;;;gBAAa,mDAAC;;YAAc,aAAC,GAAD,cAAK,CAAC;YAAC,QAAC;QAAD,CAAC;;;6BAAlB,CAAC,CAAA,mEAAM,CAAC,CAAA,kBAAC;YAAC,yLAAA,CAAC,gEAAK;;;;IAAE;AAAvB,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es5/commonjs/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es5/commonjs/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;;;AADW;4BAAV,EAAC,KAAI,aAAJ,KAAI,uBAAJ,KAAI,CAAE,CAAC,OAAP,KAAI,EAAI;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG;AAAS,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;;;AADW;4BAAV,CAAC,CAAA,KAAI,aAAJ,KAAI,uBAAJ,KAAI,CAAE,CAAC,CAAA,MAAP,KAAI,EAAI;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG;AAAS,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es5/commonjs/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es5/commonjs/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;;;AADA;;;;;;;gBAAa,mDAAC;;YAAc,aAAC,GAAD,cAAK,CAAC;YAAC,QAAC;QAAD,CAAC;;;6BAAlB,EAAC,mEAAM,CAAC,mBAAC;YAAC,yLAAA,CAAC,gEAAK;;;;IAAE;AAAvB,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;;;AADA;;;;;;;gBAAa,mDAAC;;YAAc,aAAC,GAAD,cAAK,CAAC;YAAC,QAAC;QAAD,CAAC;;;6BAAlB,CAAC,CAAA,mEAAM,CAAC,CAAA,kBAAC;YAAC,yLAAA,CAAC,gEAAK;;;;IAAE;AAAvB,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es5/esnext/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es5/esnext/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;AADW;4BAAV,EAAC,KAAI,aAAJ,KAAI,uBAAJ,KAAI,CAAE,CAAC,OAAP,KAAI,EAAI;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG;AAAC,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;AADW;4BAAV,CAAC,CAAA,KAAI,aAAJ,KAAI,uBAAJ,KAAI,CAAE,CAAC,CAAA,MAAP,KAAI,EAAI;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG;AAAC,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es5/esnext/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es5/esnext/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;AADA;;;;;;;gBAAa,mDAAC;;YAAc,aAAC,GAAD,cAAK,CAAC;YAAC,QAAC;QAAD,CAAC;;;6BAAlB,EAAC,mEAAM,CAAC,mBAAC;YAAC,yLAAA,CAAC,gEAAK;;;;IAAE;SAAvB,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;AADA;;;;;;;gBAAa,mDAAC;;YAAc,aAAC,GAAD,cAAK,CAAC;YAAC,QAAC;QAAD,CAAC;;;6BAAlB,CAAC,CAAA,mEAAM,CAAC,CAAA,kBAAC;YAAC,yLAAA,CAAC,gEAAK;;;;IAAE;SAAvB,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es5/esnext/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es5/esnext/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;AADW;4BAAV,EAAC,KAAI,aAAJ,KAAI,uBAAJ,KAAI,CAAE,CAAC,OAAP,KAAI,EAAI;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG;AAAC,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;AADW;4BAAV,CAAC,CAAA,KAAI,aAAJ,KAAI,uBAAJ,KAAI,CAAE,CAAC,CAAA,MAAP,KAAI,EAAI;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG;AAAC,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es5/esnext/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es5/esnext/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;AADA;;;;;;;gBAAa,mDAAC;;YAAc,aAAC,GAAD,cAAK,CAAC;YAAC,QAAC;QAAD,CAAC;;;6BAAlB,EAAC,mEAAM,CAAC,mBAAC;YAAC,yLAAA,CAAC,gEAAK;;;;IAAE;SAAvB,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAEA;AADA;;;;;;;gBAAa,mDAAC;;YAAc,aAAC,GAAD,cAAK,CAAC;YAAC,QAAC;QAAD,CAAC;;;6BAAlB,CAAC,CAAA,mEAAM,CAAC,CAAA,kBAAC;YAAC,yLAAA,CAAC,gEAAK;;;;IAAE;SAAvB,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2015/commonjs/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es2015/commonjs/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,EAAC,IAAI,aAAJ,IAAI,uBAAJ,IAAI,CAAE,CAAC,OAAP,IAAI,EAAI;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC;;;;AAAY,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,CAAC,CAAA,IAAI,aAAJ,IAAI,uBAAJ,IAAI,CAAE,CAAC,CAAA,MAAP,IAAI,EAAI;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC;;;;AAAY,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2015/commonjs/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es2015/commonjs/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;;sBAAD,CAAC;YAAc,CAAC,KAAI,CAAC;;gBAArB,mDAAC;;;;;6BAAI,EAAC,mEAAM,CAAC,mBAAC;YAAC,oJAAA,CAAC,6DAAK;;;;;AAArB,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;;sBAAD,CAAC;YAAc,CAAC,KAAI,CAAC;;gBAArB,mDAAC;;;;;6BAAI,CAAC,CAAA,mEAAM,CAAC,CAAA,kBAAC;YAAC,oJAAA,CAAC,6DAAK;;;;;AAArB,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2015/commonjs/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es2015/commonjs/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,EAAC,IAAI,aAAJ,IAAI,uBAAJ,IAAI,CAAE,CAAC,OAAP,IAAI,EAAI;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC;;;;AAAY,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,CAAC,CAAA,IAAI,aAAJ,IAAI,uBAAJ,IAAI,CAAE,CAAC,CAAA,MAAP,IAAI,EAAI;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC;;;;AAAY,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2015/commonjs/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es2015/commonjs/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;;sBAAD,CAAC;YAAc,CAAC,KAAI,CAAC;;gBAArB,mDAAC;;;;;6BAAI,EAAC,mEAAM,CAAC,mBAAC;YAAC,oJAAA,CAAC,6DAAK;;;;;AAArB,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;;sBAAD,CAAC;YAAc,CAAC,KAAI,CAAC;;gBAArB,mDAAC;;;;;6BAAI,CAAC,CAAA,mEAAM,CAAC,CAAA,kBAAC;YAAC,oJAAA,CAAC,6DAAK;;;;;AAArB,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2015/esnext/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es2015/esnext/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,EAAC,IAAI,aAAJ,IAAI,uBAAJ,IAAI,CAAE,CAAC,OAAP,IAAI,EAAI;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC;;;;AAAI,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,CAAC,CAAA,IAAI,aAAJ,IAAI,uBAAJ,IAAI,CAAE,CAAC,CAAA,MAAP,IAAI,EAAI;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC;;;;AAAI,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2015/esnext/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es2015/esnext/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;;sBAAD,CAAC;YAAc,CAAC,KAAI,CAAC;;gBAArB,mDAAC;;;;;6BAAI,EAAC,mEAAM,CAAC,mBAAC;YAAC,oJAAA,CAAC,6DAAK;;;;;SAArB,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;;sBAAD,CAAC;YAAc,CAAC,KAAI,CAAC;;gBAArB,mDAAC;;;;;6BAAI,CAAC,CAAA,mEAAM,CAAC,CAAA,kBAAC;YAAC,oJAAA,CAAC,6DAAK;;;;;SAArB,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2015/esnext/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es2015/esnext/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,EAAC,IAAI,aAAJ,IAAI,uBAAJ,IAAI,CAAE,CAAC,OAAP,IAAI,EAAI;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC;;;;AAAI,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,CAAC,CAAA,IAAI,aAAJ,IAAI,uBAAJ,IAAI,CAAE,CAAC,CAAA,MAAP,IAAI,EAAI;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC;;;;AAAI,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2015/esnext/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es2015/esnext/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;;sBAAD,CAAC;YAAc,CAAC,KAAI,CAAC;;gBAArB,mDAAC;;;;;6BAAI,EAAC,mEAAM,CAAC,mBAAC;YAAC,oJAAA,CAAC,6DAAK;;;;;SAArB,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;;sBAAD,CAAC;YAAc,CAAC,KAAI,CAAC;;gBAArB,mDAAC;;;;;6BAAI,CAAC,CAAA,mEAAM,CAAC,CAAA,kBAAC;YAAC,oJAAA,CAAC,6DAAK;;;;;SAArB,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2022/commonjs/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es2022/commonjs/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,EAAC,IAAI,EAAE,CAAC,OAAP,IAAI,EAAI;;;;;;;;YAAC,6KAAU;;;YAAJ,uDAAC;;;;;AAAY,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,CAAC,CAAA,IAAI,EAAE,CAAC,CAAA,MAAP,IAAI,EAAI;;;;;;;;YAAC,6KAAU;;;YAAJ,uDAAC;;;;;AAAY,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2022/commonjs/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es2022/commonjs/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;iBAAD,CAAC;;;6BAAI,EAAC,UAAI,EAAE,CAAC,mBAAC;YAAC,sJAAA,CAAC,6DAAK;;;QAAN,CAAC,KAAI,CAAC;;YAArB,mDAAC;;;;AAAD,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;iBAAD,CAAC;;;6BAAI,CAAC,CAAA,UAAI,EAAE,CAAC,CAAA,kBAAC;YAAC,sJAAA,CAAC,6DAAK;;;QAAN,CAAC,KAAI,CAAC;;YAArB,mDAAC;;;;AAAD,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2022/commonjs/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es2022/commonjs/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,EAAC,IAAI,EAAE,CAAC,OAAP,IAAI,EAAI;;;;;;;;YAAC,6KAAU;;;YAAJ,uDAAC;;;;;AAAY,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,CAAC,CAAA,IAAI,EAAE,CAAC,CAAA,MAAP,IAAI,EAAI;;;;;;;;YAAC,6KAAU;;;YAAJ,uDAAC;;;;;AAAY,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2022/commonjs/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es2022/commonjs/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;iBAAD,CAAC;;;6BAAI,EAAC,UAAI,EAAE,CAAC,mBAAC;YAAC,sJAAA,CAAC,6DAAK;;;QAAN,CAAC,KAAI,CAAC;;YAArB,mDAAC;;;;AAAD,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;iBAAD,CAAC;;;6BAAI,CAAC,CAAA,UAAI,EAAE,CAAC,CAAA,kBAAC;YAAC,sJAAA,CAAC,6DAAK;;;QAAN,CAAC,KAAI,CAAC;;YAArB,mDAAC;;;;AAAD,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2022/esnext/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es2022/esnext/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,EAAC,IAAI,EAAE,CAAC,OAAP,IAAI,EAAI;;;;;;;;YAAC,6KAAU;;;YAAJ,uDAAC;;;;;AAAI,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,CAAC,CAAA,IAAI,EAAE,CAAC,CAAA,MAAP,IAAI,EAAI;;;;;;;;YAAC,6KAAU;;;YAAJ,uDAAC;;;;;AAAI,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2022/esnext/remove-false/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es2022/esnext/remove-false/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;iBAAD,CAAC;;;6BAAI,EAAC,UAAI,EAAE,CAAC,mBAAC;YAAC,sJAAA,CAAC,6DAAK;;;QAAN,CAAC,KAAI,CAAC;;YAArB,mDAAC;;;;SAAD,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;iBAAD,CAAC;;;6BAAI,CAAC,CAAA,UAAI,EAAE,CAAC,CAAA,kBAAC;YAAC,sJAAA,CAAC,6DAAK;;;QAAN,CAAC,KAAI,CAAC;;YAArB,mDAAC;;;;SAAD,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2022/esnext/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-class/es2022/esnext/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\n@(this?.x) class C {} export {C};\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,EAAC,IAAI,EAAE,CAAC,OAAP,IAAI,EAAI;;;;;;;;YAAC,6KAAU;;;YAAJ,uDAAC;;;;;AAAI,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACiB,CAAC;4BAAjB,CAAC,CAAA,IAAI,EAAE,CAAC,CAAA,MAAP,IAAI,EAAI;;;;;;;;YAAC,6KAAU;;;YAAJ,uDAAC;;;;;AAAI,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2022/esnext/remove-true/this",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/standard-member/es2022/esnext/remove-true/this",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C { @(this?.x) m() {} }\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;iBAAD,CAAC;;;6BAAI,EAAC,UAAI,EAAE,CAAC,mBAAC;YAAC,sJAAA,CAAC,6DAAK;;;QAAN,CAAC,KAAI,CAAC;;YAArB,mDAAC;;;;SAAD,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACa,CAAC;;;;iBAAD,CAAC;;;6BAAI,CAAC,CAAA,UAAI,EAAE,CAAC,CAAA,kBAAC;YAAC,sJAAA,CAAC,6DAAK;;;QAAN,CAAC,KAAI,CAAC;;YAArB,mDAAC;;;;SAAD,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/paren-line",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/paren-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x //c\n);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAClB,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAAC,GAAG;CACtB,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/paren-block",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/paren-block",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x /*c*/);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAAO,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/heritage-optional",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/heritage-optional",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAA6B,CAAC;IAAD,QAAC;AAAD,CAAC,AAA9B,CAAuB,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,GAAG;AAAjB,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAA6B,CAAC;IAAD,QAAC;AAAD,CAAC,AAA9B,CAAuB,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,GAAG;AAAjB,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/heritage-optional-trivia",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/heritage-optional-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;AACA;IAAuB,qBAAI,CAAC,KAAK;IAAjC;;IAAmC,CAAC;IAAD,QAAC;AAAD,CAAC,AAApC,CAAuB,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAC,KAAK,GAAG;AAAvB,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;AACA;IAAuB,qBAAI,CAAC,KAAK;IAAjC;;IAAmC,CAAC;IAAD,QAAC;AAAD,CAAC,AAApC,CAAuB,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,CAAC,KAAK,GAAG;AAAvB,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-true/heritage-optional",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-true/heritage-optional",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAA6B,CAAC;IAAD,QAAC;AAAD,CAAC,AAA9B,CAAuB,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,GAAG;AAAjB,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAA6B,CAAC;IAAD,QAAC;AAAD,CAAC,AAA9B,CAAuB,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,GAAG;AAAjB,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-true/heritage-optional-trivia",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-true/heritage-optional-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAAmC,CAAC;IAAD,QAAC;AAAD,CAAC,AAApC,CAAuB,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,GAAS;AAAvB,cAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAAmC,CAAC;IAAD,QAAC;AAAD,CAAC,AAApC,CAAuB,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,GAAS;AAAvB,cAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/paren-line",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/paren-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x //c\n);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,IAAM,CAAC,GAAG,CAAC,CAAC,CAClB,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,IAAM,CAAC,GAAG,CAAC,CAAC,CAAC,GAAG;CACtB,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/paren-block",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/paren-block",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x /*c*/);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,IAAM,CAAC,GAAG,CAAC,CAAC,CAAO,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,IAAM,CAAC,GAAG,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/heritage-optional",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/heritage-optional",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAA6B,CAAC;IAAD,QAAC;AAAD,CAAC,AAA9B,CAAuB,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,GAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAA6B,CAAC;IAAD,QAAC;AAAD,CAAC,AAA9B,CAAuB,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,GAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/heritage-optional-trivia",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/heritage-optional-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AACA;IAAuB,qBAAI,CAAC,KAAK;IAAjC;;IAAmC,CAAC;IAAD,QAAC;AAAD,CAAC,AAApC,CAAuB,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAC,KAAK,GAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AACA;IAAuB,qBAAI,CAAC,KAAK;IAAjC;;IAAmC,CAAC;IAAD,QAAC;AAAD,CAAC,AAApC,CAAuB,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,CAAC,KAAK,GAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-true/heritage-optional",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-true/heritage-optional",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAA6B,CAAC;IAAD,QAAC;AAAD,CAAC,AAA9B,CAAuB,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,GAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAA6B,CAAC;IAAD,QAAC;AAAD,CAAC,AAA9B,CAAuB,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,GAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-true/heritage-optional-trivia",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-true/heritage-optional-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAAmC,CAAC;IAAD,QAAC;AAAD,CAAC,AAApC,CAAuB,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,GAAS\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AACA;IAAuB,qBAAI;IAA3B;;IAAmC,CAAC;IAAD,QAAC;AAAD,CAAC,AAApC,CAAuB,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,GAAS\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/paren-line",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/paren-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x //c\n);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAClB,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAAC,GAAG;CACtB,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/paren-block",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/paren-block",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x /*c*/);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAAO,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/heritage-before-types",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/heritage-before-types",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x /*c*/<any> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAY;CAAG;AAAtC,cAAsC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAC,CAAC,KAAU;CAAG;AAAtC,cAAsC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/heritage-after-types",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/heritage-after-types",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x<any> /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAM;CAAS;AAAtC,cAAsC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAM,CAAC,KAAK;CAAG;AAAtC,cAAsC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/heritage-optional-trivia",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/heritage-optional-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA;CAAS;AAApC,cAAoC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,CAAC,KAAK;CAAG;AAApC,cAAoC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/paren-line",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/paren-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x //c\n);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC,CAClB,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC,CAAC,GAAG;CACtB,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/paren-block",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/paren-block",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x /*c*/);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC,CAAO,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/heritage-before-types",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/heritage-before-types",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x /*c*/<any> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAY;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAC,CAAC,KAAU;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/heritage-after-types",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/heritage-after-types",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x<any> /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAM;CAAS\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAM,CAAC,KAAK;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/heritage-optional-trivia",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/heritage-optional-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA;CAAS\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,CAAC,KAAK;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/paren-line",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/paren-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x //c\n);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAClB,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAAC,GAAG;CACtB,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/paren-block",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/paren-block",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x /*c*/);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAAO,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACa,QAAA,CAAC,GAAG,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-before-types",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-before-types",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x /*c*/<any> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAY;CAAG;AAAtC,cAAsC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAC,CAAC,KAAU;CAAG;AAAtC,cAAsC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-after-types",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-after-types",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x<any> /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAM;CAAS;AAAtC,cAAsC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAM,CAAC,KAAK;CAAG;AAAtC,cAAsC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-optional",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-optional",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAA,CAAC,EAAE,CAAC,CAAA;CAAG;AAA9B,cAA8B\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAC,EAAE,CAAC;CAAG;AAA9B,cAA8B\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-optional-trivia",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-optional-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAA,CAAC,EAAE,CAAC,CAAA;CAAS;AAApC,cAAoC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAC,EAAE,CAAC,CAAC,KAAK;CAAG;AAApC,cAAoC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-true/heritage-optional",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-true/heritage-optional",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAA,CAAC,EAAE,CAAC,CAAA;CAAG;AAA9B,cAA8B\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAC,EAAE,CAAC;CAAG;AAA9B,cAA8B\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-true/heritage-optional-trivia",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-true/heritage-optional-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAA,CAAC,EAAE,CAAC,CAAA;CAAS;AAApC,cAAoC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AACA,MAAa,CAAE,SAAQ,CAAC,EAAE,CAAC;CAAS;AAApC,cAAoC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/paren-line",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/paren-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x //c\n);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC,CAClB,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC,CAAC,GAAG;CACtB,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/paren-block",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/paren-block",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = (x /*c*/);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC,CAAO,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-before-types",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-before-types",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x /*c*/<any> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAY;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAC,CAAC,KAAU;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-after-types",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-after-types",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x<any> /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAM;CAAS\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAM,CAAC,KAAK;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-optional",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-optional",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAA,CAAC,EAAE,CAAC,CAAA;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAC,EAAE,CAAC;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-optional-trivia",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-optional-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAA,CAAC,EAAE,CAAC,CAAA;CAAS\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAC,EAAE,CAAC,CAAC,KAAK;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-true/heritage-optional",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-true/heritage-optional",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAA,CAAC,EAAE,CAAC,CAAA;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAC,EAAE,CAAC;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-true/heritage-optional-trivia",
+      "fixture": "emitter-recovery-boundaries.json",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-true/heritage-optional-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport class C extends x?.y /*c*/ {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAA,CAAC,EAAE,CAAC,CAAA;CAAS\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,OAAO,CAAE,SAAQ,CAAC,EAAE,CAAC;CAAS\"}"
+        }
+      ]
+    }
+  ],
+  "refusals": [
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-true/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-true/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-true/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-true/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-true/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-true/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-true/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-true/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-true/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-true/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-true/paren-missing-nested",
+      "input": {
+        "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-true/paren-missing-nested",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nexport const z = ((x //c\n as number));\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "message": "emit recovery for 4 parse diagnostics (6 recovery events) is deferred to H2.9"
+    }
+  ]
+}

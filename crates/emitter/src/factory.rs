@@ -5657,7 +5657,12 @@ impl<'arena> NodeFactory<'arena> {
         if record.data == data && self.arena.transform_flags(original) == transform_flags {
             return Ok(original);
         }
-        self.apply_parenthesizer_rules(original.source, &mut data)?;
+        // updateExpressionWithTypeArguments rebuilds only when its factory
+        // fields change. A flags-only reconciliation must retain parsed
+        // optional heritage syntax at targets that leave the chain intact.
+        if record.data != data || !matches!(data, NodeData::ExpressionWithTypeArguments(_)) {
+            self.apply_parenthesizer_rules(original.source, &mut data)?;
+        }
         let (pos, end) = (record.pos, record.end);
         let literal_payload = matches!(
             record.kind,
@@ -5919,6 +5924,7 @@ impl<'arena> NodeFactory<'arena> {
         source: TransformSourceId,
         data: &mut NodeData,
     ) -> Result<(), TransformError> {
+        self.parenthesize_heritage_expression(source, data)?;
         self.parenthesize_statement_and_unary_expressions(source, data)?;
         self.parenthesize_comma_delimited_expression_children(source, data)?;
         self.parenthesize_binary_operands(source, data)?;
@@ -5927,6 +5933,29 @@ impl<'arena> NodeFactory<'arena> {
         self.parenthesize_computed_property_name_expression(source, data)?;
         self.parenthesize_export_assignment_expression(source, data)?;
         self.parenthesize_updated_arrow_concise_body(source, data)
+    }
+
+    /// tsc-port: createExpressionWithTypeArguments @6.0.3
+    /// tsc-span: _tsc.js:22944-22957
+    /// Factory parentheses survive the ES2015 class transform, which moves
+    /// the base expression into the class IIFE's argument list.
+    fn parenthesize_heritage_expression(
+        &mut self,
+        source: TransformSourceId,
+        data: &mut NodeData,
+    ) -> Result<(), TransformError> {
+        let NodeData::ExpressionWithTypeArguments(data) = data else {
+            return Ok(());
+        };
+        let Some(id) = data.expression else {
+            return Ok(());
+        };
+        let expression = self
+            .arena
+            .node_ref(source, id)
+            .ok_or(TransformError::UnknownNode(TransformNode::new(source, id)))?;
+        data.expression = Some(self.parenthesize_left_side_of_access(expression)?.node());
+        Ok(())
     }
 
     /// tsc-port: parenthesizeExpressionOfExpressionStatement/parenthesizeOperandOfPrefixUnary/parenthesizeOperandOfPostfixUnary @6.0.3

@@ -1706,8 +1706,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:80447-80512
     ///
     /// Grammar closure runs eager (the 5.4 addLazyDiagnostic
-    /// decision), as does the noImplicitAny 7057 closure. Emit-helper
-    /// probes are importHelpers-gated (no-op).
+    /// decision), as does the noImplicitAny 7057 closure. Delegating yield
+    /// checks its target-dependent helper requirements before its operand.
     pub(crate) fn check_yield_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
         self.check_yield_expression_grammar(node);
         let func = self.get_containing_function(node);
@@ -1723,6 +1723,21 @@ impl<'a> CheckerState<'a> {
             NodeData::YieldExpression(data) => (data.expression, data.asterisk_token),
             _ => (None, None),
         };
+        if asterisk_token.is_some() {
+            let target = self.options.emit_script_target();
+            if is_async && target < tsc_types::ScriptTarget::ES2018 {
+                self.check_external_emit_helpers(
+                    node,
+                    crate::modules::EMIT_HELPER_ASYNC_DELEGATOR_INCLUDES,
+                )?;
+            }
+            if !is_async
+                && target < tsc_types::ScriptTarget::ES2015
+                && self.options.downlevel_iteration == Some(true)
+            {
+                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_VALUES)?;
+            }
+        }
         let mut return_type = self.get_return_type_from_annotation(func)?;
         if let Some(current) = return_type {
             if self.tables.flags_of(current).intersects(TypeFlags::UNION) {
@@ -2028,7 +2043,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c740ef163bdd457d25dd1f9a18e6dde5f7cb24f26cdba99764015af155055c19
     /// tsc-span: _tsc.js:81289-81355
     ///
-    /// Emit-helper probes are importHelpers-gated (no-op). The lazy
+    /// Emit-helper probes use the effective target and importHelpers. The lazy
     /// tail runs eager (the 5.4 addLazyDiagnostic decision).
     pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let kind = self.kind_of(node);
@@ -2968,8 +2983,9 @@ impl<'a> CheckerState<'a> {
     /// nodeImmediatelyReferencesSuperOrThis 81616-81624 +
     /// findFirstSuperCall 72321-72323)
     ///
-    /// captureLexicalThis is emit-only (no-op); the lazy tail runs
-    /// eager. emitStandardClassFields makes the root-level band dead
+    /// Constructor captureLexicalThis has no observable consumer in TS 6.0.3:
+    /// potentialThisCollisions is never populated. The lazy tail runs eager.
+    /// emitStandardClassFields makes the root-level band dead
     /// at the default target and LIVE for low-@target fixtures.
     pub(crate) fn check_constructor_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_signature_declaration(node)?;
@@ -3130,7 +3146,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// isPrivateIdentifierClassElementDeclaration (11944-11946).
-    fn is_private_identifier_class_element(&self, node: NodeId) -> bool {
+    pub(crate) fn is_private_identifier_class_element(&self, node: NodeId) -> bool {
         matches!(
             self.kind_of(node),
             SyntaxKind::PropertyDeclaration

@@ -2036,8 +2036,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 08b449c328a80dc775d3d2a2a8ed70659946c2d654441989dbfd0a2a42f496ff
     /// tsc-span: _tsc.js:83819-83857
     ///
-    /// Iteration semantics live since 5.8b (§4); emit-helper probes
-    /// elided (module note).
+    /// Helper requirements precede initializer checking, so a missing tslib
+    /// export is reported at its first requesting syntax node.
     pub(crate) fn check_for_of_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_for_in_or_for_of_statement(node)?;
         let NodeData::ForOfStatement(data) = self.data_of(node) else {
@@ -2055,10 +2055,27 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::for_await_loops_cannot_be_used_inside_a_class_static_block,
                     &[],
                 );
+            } else {
+                let flags = container.map_or(crate::functions::FUNCTION_FLAGS_INVALID, |id| {
+                    self.get_function_flags(id)
+                });
+                if flags
+                    & (crate::functions::FUNCTION_FLAGS_INVALID
+                        | crate::functions::FUNCTION_FLAGS_ASYNC)
+                    == crate::functions::FUNCTION_FLAGS_ASYNC
+                    && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2018
+                {
+                    self.check_external_emit_helpers(
+                        node,
+                        crate::modules::EMIT_HELPER_FOR_AWAIT_OF_INCLUDES,
+                    )?;
+                }
             }
-            // (else: the ForAwaitOf emit-helper probe — elided.)
+        } else if self.options.downlevel_iteration == Some(true)
+            && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
+        {
+            self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_VALUES)?;
         }
-        // (downlevelIteration ForOf emit-helper probe — elided.)
         if let Some(initializer) = initializer {
             if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
                 self.check_variable_declaration_list(initializer)?;

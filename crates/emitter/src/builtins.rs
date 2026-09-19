@@ -488,8 +488,8 @@ pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transfo
 }
 
 /// transformECMAScriptModule with the emit host that decides a file's helpers
-/// import form (EF7-PRESERVE-CJS-HELPERS); the host-less entry above keeps the
-/// H1 omission-inventory anchor.
+/// import form (EF7-PRESERVE-CJS-HELPERS). The host-less wrapper above is
+/// retained for callers that do not supply an emit host.
 pub fn transform_ecmascript_module_with_host<'host>(
     options: &CompilerOptions,
     host: Option<&'host dyn EmitHost>,

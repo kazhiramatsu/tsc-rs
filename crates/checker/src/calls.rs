@@ -148,9 +148,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c9d5b1fd8dd418487134d131d2a23dc1575b2a5e9105dc7bf2d1278dd45ece84
     /// tsc-span: _tsc.js:82744-82783
     ///
-    /// markLinkedReferences is declaration-emit bookkeeping. The
-    /// importHelpers probe is semantic and verifies the resolved
-    /// helper module before decorator checking.
+    /// Helper requirements and metadata alias references precede decorator
+    /// checking, preserving the first requesting syntax node's diagnostic.
     pub(crate) fn check_decorators(&mut self, node: NodeId) -> CheckResult<()> {
         if !crate::js_grammar::can_have_decorators(self.kind_of(node)) {
             return Ok(());
@@ -185,31 +184,17 @@ impl<'a> CheckerState<'a> {
                 crate::modules::EMIT_HELPER_DECORATE,
             )?;
         }
+        if self.options.experimental_decorators && self.kind_of(node) == SyntaxKind::Parameter {
+            self.check_external_emit_helpers(first_decorator, crate::modules::EMIT_HELPER_PARAM)?;
+        }
         if !self.options.experimental_decorators
             && self.options.emit_script_target() < tsc_types::ScriptTarget::ES_NEXT
         {
             if self.kind_of(node) == SyntaxKind::ClassDeclaration {
-                let (name, members) = match self.data_of(node) {
-                    NodeData::ClassDeclaration(data) => (data.name, data.members),
-                    _ => (None, None),
-                };
-                let needs_set_function_name = name.is_none()
-                    || self.nodes_of(members).into_iter().any(|member| {
-                        self.is_static_element(member)
-                            && (self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration
-                                || self.name_of_node(member).is_some_and(|name| {
-                                    self.kind_of(name) == SyntaxKind::PrivateIdentifier
-                                })
-                                || node_util::modifiers_of(
-                                    self.binder.source_of_node(member),
-                                    member,
-                                )
-                                .is_some_and(|modifiers| {
-                                    self.nodes_of(Some(modifiers)).into_iter().any(|modifier| {
-                                        self.kind_of(modifier) == SyntaxKind::Decorator
-                                    })
-                                }))
-                    });
+                let needs_set_function_name = self.name_of_node(node).is_none()
+                    || self
+                        .first_transformable_static_class_element(node)
+                        .is_some();
                 if needs_set_function_name {
                     self.check_external_emit_helpers(
                         first_decorator,
@@ -262,6 +247,27 @@ impl<'a> CheckerState<'a> {
     /// checker therefore records when a type-syntax use is also a runtime
     /// alias use, and import elision consumes that durable fact later.
     pub(crate) fn mark_decorator_metadata_aliases(&mut self, node: NodeId) -> CheckResult<()> {
+        // markLinkedReferences(node, Decorator) front-door gates also apply
+        // to the helper diagnostic, not just to the eventual alias marks.
+        if self.options.verbatim_module_syntax == Some(true)
+            || self.options.emit_decorator_metadata != Some(true)
+            || self.binder.flags_of(node).intersects(NodeFlags::AMBIENT)
+                && !matches!(
+                    self.kind_of(node),
+                    SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration
+                )
+        {
+            return Ok(());
+        }
+        let modifiers = node_util::modifiers_of(self.binder.source_of_node(node), node);
+        let Some(first_decorator) = self
+            .nodes_of(modifiers)
+            .into_iter()
+            .find(|id| self.kind_of(*id) == SyntaxKind::Decorator)
+        else {
+            return Ok(());
+        };
+        self.check_external_emit_helpers(first_decorator, crate::modules::EMIT_HELPER_METADATA)?;
         match self.data_of(node).clone() {
             NodeData::ClassDeclaration(data) => {
                 let constructor = self.nodes_of(data.members).into_iter().find(|&member| {
@@ -6408,8 +6414,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bf84590375623f25ebdfe8448c801b669b4a508fc18eb3541399e48c96cb7230
     /// tsc-span: _tsc.js:77854-77862
     ///
-    /// The MakeTemplateObject emit-helper check is dead at ES2025
-    /// (languageVersion >= TaggedTemplates).
+    /// ES5 tagged templates require the external MakeTemplateObject helper
+    /// before call-signature resolution is checked.
     pub(crate) fn check_tagged_template_expression(
         &mut self,
         node: NodeId,
@@ -6421,6 +6427,12 @@ impl<'a> CheckerState<'a> {
         let type_arguments = data.type_arguments;
         if !self.check_grammar_tagged_template_chain(node) {
             self.check_grammar_type_arguments(node, type_arguments);
+        }
+        if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
+            self.check_external_emit_helpers(
+                node,
+                crate::modules::EMIT_HELPER_MAKE_TEMPLATE_OBJECT,
+            )?;
         }
         let signature = self.get_resolved_signature(node, check_mode)?;
         self.check_deprecated_signature(signature, node)?;
