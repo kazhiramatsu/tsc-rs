@@ -8,10 +8,12 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
 提出時の検証と統合候補の検証は以下で区別する。hosted完了前に全体完了を主張しない。
 
-## 現在の統合候補と未完了事項（2026-09-19）
+## 現在の統合候補と未完了事項（2026-09-20）
 
-統合は未完了。候補 `d2b29439dd3eed32fcfd50f65317f7cadcd86628` を固定したr194–r196は終了した。
-追加controlsで判明したコメント所有境界とconstructor選択を修復中であり、次候補のnative検証は未完了。
+統合は未完了。候補 `ed4a419830cc05b4c6d3063b22a8dc5813950bfd` を固定したr203–r205は終了した。
+1,192 controlsのうち1,176件が一致し、残る16件は関数本体のUnicode改行レイアウトだった。
+コメント所有境界・constructor選択の前回の差分は解消した。追加のレイアウト修復を実施し、
+1,600 controls、元48 commands、108 projects、全回帰を次の候補で再検証する。
 以下の過去の成功を現在の候補の全体成功とは数えない。
 
 | 検証 | 実測結果と範囲 |
@@ -22,15 +24,24 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 | 元command r186 | 48件中45 complete commands＋2 noEmit commandsが各2回一致。escaped-default後のコメント欠落1件を確認。108 projectsは失敗後に未実行 |
 | controls r184 | 176＋280＋232件中682件が各2回一致。Unicode detached comments 4件とES5 missing constructor 2件が不一致。syntax 211 tests成功 |
 | controls r194 | 952件中892件が各2回一致。44コメント/map差分（BOM比較条件4件を含む）＋16 constructor差分。raw exit101、全観測を保存 |
+| controls r203 | 176＋672＋344件中1,176件が各2回一致。U+2028/U+2029を含む関数本体2形状×8設定だけが不一致。raw exit101を保存 |
+| regression r204–r205 | r203不一致の前提条件でbuild前に停止。再実行成功として数えない |
 | 元commands / project r195 | 46 emit＋2 noEmitの元48 commands、および108 projectsが各2回完全一致。noEmitはemit成功へ数えない |
 | planner r200 | 84 tests成功。r199はfixtureの採取完了前に実行して2 FileNotFoundErrorとなったため、その失敗も保存 |
-| project r144 | 108件が各2回完全一致した過去の証拠。最終候補はr195で再検証する |
+| project r144 | 108件が各2回完全一致した過去の証拠。r195では再検証成功。最終修復後の再検証は未完了 |
 | earlier regression r196 | r194不一致のため前提確認で停止。旧508＋145＋120＋JSDoc1、emitter 1,015 tests、checker lib、独立transpileの再検証は未実行 |
 
 実際のOpus154–160と、Unicode-aware detached discovery、ES2015のconstructor本体判定、
 escaped-defaultの末尾コメント所有境界を照合した。コメント修復はsource-mapのphaseまで
 [明示的に検証](cross-review/r194-comment-phase-validation.md)する。レビュー意見だけではqualifyしない。
 [r184–r190の全失敗とparser証拠](records/corpus-controls-r184-r190-complete/manifest.json)を保存している。
+
+[Opus162](cross-review/round162-opus.md) と [Opus163](cross-review/round163-opus.md) は、
+関数本体ではtriviaを除いた開始位置、JSXではraw開始位置を使う差を確認した。
+両者と、case/default・binary・property access・conditionalの5 helperは既存の行indexで
+比較する。コメントcollectorのCR/LF限定の所有境界は別契約であり、この修復では変更しない。
+parser/checkerの共有処理は変更しない。レイアウトの追加controlsは既存の全観測を保持して
+拡張し、JavaScript・宣言・両map・診断・write callbackを含むcomplete commandで比較する。
 
 live parse KNOWN36と独立transpile KNOWN8は変更していない。退役は元commandsと周辺修復の
 qualification後に行い、過去の拒否／出力を検証するguardを保存する。
