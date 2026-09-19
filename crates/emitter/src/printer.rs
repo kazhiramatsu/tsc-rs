@@ -4719,6 +4719,19 @@ impl Printer {
                         expression_context,
                         writer,
                     )?;
+                    if !initializer_context.nested_comments_suppressed() {
+                        if let Some(type_node) = data
+                            .r#type
+                            .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                        {
+                            self.emit_trailing_comments_for_node_in_container(
+                                transformation,
+                                type_node,
+                                initializer_context.comments(),
+                                writer,
+                            )?;
+                        }
+                    }
                 }
                 if let Some(initializer) = data.initializer {
                     let erased_type = (!self.options.declaration_syntax)
@@ -7663,6 +7676,62 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                if let Some(type_node) = (!expression_context.nested_comments_suppressed())
+                    .then(|| {
+                        transformation
+                            .arena()
+                            .metadata(name)
+                            .and_then(crate::EmitMetadata::type_node)
+                    })
+                    .flatten()
+                {
+                    // mergeEmitNode does not donate typeNode to clones in tsc.
+                    // Only the original variable name owns this extra phase.
+                    let variable_name = if transformation.arena().get_original_node(name) == name {
+                        transformation
+                            .arena()
+                            .node(name)?
+                            .parent
+                            .and_then(|parent| {
+                                transformation.arena().node_ref(name.source(), parent)
+                            })
+                            .map(|parent| transformation.arena().node(parent))
+                            .transpose()?
+                            .is_some_and(|parent| parent.kind == SyntaxKind::VariableDeclaration)
+                    } else {
+                        false
+                    };
+                    if variable_name {
+                        // Module lowering reuses a variable's parsed name as
+                        // an exports property. Its erased-type phase precedes
+                        // the access's own trailing name comment. Parameter
+                        // names carry Rust-only type metadata and do not opt in.
+                        let name_owner =
+                            self.expression_comment_phase_owner_for_node(transformation, name)?;
+                        let type_record = transformation.arena().node(type_node)?;
+                        let type_source =
+                            transformation.arena().source(type_node.source())?.syntax();
+                        let type_owner = ExpressionCommentPhaseOwner {
+                            range: CommentRange::from_raw(
+                                type_node.source(),
+                                type_record.pos,
+                                type_record.end,
+                                type_source.positions(),
+                            )?,
+                            ..name_owner
+                        };
+                        let trailing = DeferredExpressionSourceComments::nested(
+                            expression_context.comments(),
+                            DeferredSourceCommentExtent::LeadingAndTrailing,
+                        );
+                        self.emit_deferred_expression_trailing_comments(
+                            transformation,
+                            Some(&trailing),
+                            type_owner,
+                            writer,
+                        )?;
+                    }
+                }
                 if break_after_dot {
                     writer.decrease_indent();
                 }
