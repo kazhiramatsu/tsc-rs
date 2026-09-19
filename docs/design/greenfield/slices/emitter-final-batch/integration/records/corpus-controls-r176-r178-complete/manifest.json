@@ -297,9 +297,9 @@
       "raw_bytes": 764
     },
     {
-      "path": "emitter-class-recovery-r179.log",
-      "sha256": "f9b6a9438c71898f93822290d7a1b0cc1c0aaa8ee1aee7447d1cb3111e02b025",
-      "bytes": 10232,
+      "path": "emitter-class-recovery-r179.log.gz",
+      "sha256": "8ead644f7035ee01b5000095cf560ac254cad9a3a718be2d76567846ced22ba6",
+      "bytes": 1405,
       "raw_sha256": "f9b6a9438c71898f93822290d7a1b0cc1c0aaa8ee1aee7447d1cb3111e02b025",
       "raw_bytes": 10232
     },

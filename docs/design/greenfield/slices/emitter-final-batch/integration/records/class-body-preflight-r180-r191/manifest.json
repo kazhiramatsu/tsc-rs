@@ -61,8 +61,11 @@
       "sha256": "03dc60877b301da761ccd5c5aa3c06f20aab92e0479c82df78d80e99a21aa90a"
     },
     {
-      "path": "emitter-class-negative-r191.log",
-      "sha256": "580018a578b8ac8671fc1b219901e8a75cc087c170e54427c8dc4cd9d212d3da"
+      "path": "emitter-class-negative-r191.log.gz",
+      "sha256": "eecb245343d203ef887584d93ef841cb0cb40881128732ec2c311e050562e237",
+      "bytes": 418,
+      "raw_sha256": "580018a578b8ac8671fc1b219901e8a75cc087c170e54427c8dc4cd9d212d3da",
+      "raw_bytes": 2645
     }
   ],
   "notes": "r181 newly added expectation failed: class expression already admitted; r183 class2PASS. r187 strengthened fact assertion expected ListAbort for equals but actual unchanged parser site is BlockTrailingEquals; corrected expectation from native dump r191, refusal assertion retained. r188 inventory drift fixed counts; r189 planner84PASS. Source candidate still requires frozen full qualification."
