@@ -1,0 +1,88 @@
+{
+  "candidate": "000716e3b7219000fd241b8c3b707789eb02c662",
+  "qualified": false,
+  "artifacts": [
+    {
+      "path": "pipeline.py",
+      "sha256": "ef5e33e7b67f0d9eefdcf8d688d99716e302ee551b67b1da0584b24eb66a4405",
+      "bytes": 2383
+    },
+    {
+      "path": "native-manifest.json",
+      "sha256": "2c05fe30db694055517a502a417795e0a3344209a5ae1a7312dfc9252ad8431c",
+      "bytes": 563
+    },
+    {
+      "path": "corpus-controls-oracle-r167.json",
+      "sha256": "2e81c5d72a4325520debb33d37ec4a02c017e1a76ee8b6e811a595582c2e02c6",
+      "bytes": 713
+    },
+    {
+      "path": "corpus-controls-oracle-r167.log.gz",
+      "sha256": "cc18997f79cf553eb10d2fc9b40d45daf431e00842842ddb5a5f2bdd8fe463f9",
+      "bytes": 89
+    },
+    {
+      "path": "corpus-controls-oracle-r168.json",
+      "sha256": "5c3cff840c2c6bbb745bb018b806a94018847347353d4f141fa859c17cb7e87e",
+      "bytes": 713
+    },
+    {
+      "path": "corpus-controls-oracle-r168.log.gz",
+      "sha256": "71267bfc637646d244284fe44eeab6ba4dc6c883fd5b213d8df316352a18150b",
+      "bytes": 89
+    },
+    {
+      "path": "corpus-controls-pipeline-r169.json",
+      "sha256": "129f171c491bbd91f37f85703f89f5fcfd0b0696d9585054d049900f7061d1ab",
+      "bytes": 694
+    },
+    {
+      "path": "corpus-controls-pipeline-r169.log.gz",
+      "sha256": "acb240a6cf54484a6361facf8268f81ed65fea0671a97c33ca85d1c4d7bf9830",
+      "bytes": 1620
+    },
+    {
+      "path": "corpus-controls-compiler-build-r169.json",
+      "sha256": "f747c4619bdbbd722591e897c327688aaeadad28989092f099ac3b36da94f213",
+      "bytes": 784
+    },
+    {
+      "path": "corpus-controls-compiler-build-r169.log.gz",
+      "sha256": "3887da7d9d7fa320b4242ee2258ab149ae3dd85db02709c8258863db917850bc",
+      "bytes": 3983
+    },
+    {
+      "path": "corpus-controls-167-native-r169.json",
+      "sha256": "43801a67f9bc8632ea8621dd23fb63ba3e0624dc802f00058500ab48f53555c0",
+      "bytes": 1008
+    },
+    {
+      "path": "corpus-controls-167-native-r169.log.gz",
+      "sha256": "9cf63175836335a22cc0817ebdbfbda799f378fcfdbf0fba2d09a170703ba842",
+      "bytes": 3808
+    },
+    {
+      "path": "corpus-controls-168-native-r169.json",
+      "sha256": "4b59b759b2b69a78f2a262691a04f3f293d469ed2b880033ec74949b947cc324",
+      "bytes": 1007
+    },
+    {
+      "path": "corpus-controls-168-native-r169.log.gz",
+      "sha256": "a315a3a326d46c50d22ae1719f47ff3a29f3edaab327e538ce9d07b0f9d2e9dd",
+      "bytes": 3352
+    },
+    {
+      "path": "captures-167.tar.gz",
+      "sha256": "d57bdcf287de01b7e4215a8a0e612e37b2254740b88b8889e315106d1f6cfef4",
+      "bytes": 149235,
+      "captures": 300
+    },
+    {
+      "path": "captures-168.tar.gz",
+      "sha256": "9fb709ba413e70203d43de57dcd30b0350d7f22974a515286a3bff7b36832f79",
+      "bytes": 103808,
+      "captures": 280
+    }
+  ]
+}

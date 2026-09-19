@@ -1040,6 +1040,19 @@ impl<'text> Parser<'text> {
                 &gen::Keywords_cannot_contain_escape_characters,
                 &[],
             );
+            let start = self.to_utf16(self.scanner.token_start());
+            let end = self.to_utf16(self.scanner.pos());
+            self.parse_recovery
+                .actions
+                .push(ParseRecoveryAction::EscapedKeywordConsumed {
+                    token: self.token(),
+                    start,
+                    length: end.saturating_sub(start),
+                    statement_start: self.to_utf16(
+                        self.recovery_statement_start
+                            .unwrap_or(self.scanner.token_start()),
+                    ),
+                });
         }
         self.next_token_without_check()
     }

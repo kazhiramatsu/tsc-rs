@@ -77,12 +77,31 @@ pub enum ParseRecoveryAction {
         start: u32,
         end: u32,
     },
+    /// A keyword was consumed normally after reporting its escaped spelling.
+    /// This records a reporting fact, not a structural recovery operation.
+    EscapedKeywordConsumed {
+        token: SyntaxKind,
+        start: u32,
+        length: u32,
+        statement_start: u32,
+    },
 }
 
 impl ParseRecoveryAction {
+    /// tsrs-native: distinguish tree recovery from a consumed-token report.
+    pub(crate) fn is_structural(self) -> bool {
+        match self {
+            Self::TokenSkipped { .. } | Self::Reparsed { .. } => true,
+            Self::EscapedKeywordConsumed { .. } => false,
+        }
+    }
+
     pub(crate) fn owner_start(self) -> u32 {
         match self {
             Self::TokenSkipped {
+                statement_start, ..
+            }
+            | Self::EscapedKeywordConsumed {
                 statement_start, ..
             } => statement_start,
             Self::Reparsed { start, .. } => start,
@@ -92,6 +111,12 @@ impl ParseRecoveryAction {
     pub(crate) fn intersects(self, node_start: u32, node_end: u32) -> bool {
         let (start, end) = match self {
             Self::TokenSkipped {
+                start,
+                length,
+                statement_start,
+                ..
+            }
+            | Self::EscapedKeywordConsumed {
                 start,
                 length,
                 statement_start,
@@ -200,11 +225,19 @@ impl ParseRecovery {
         } else {
             None
         };
+        // Report-only consumption facts must not alter the older profiles'
+        // structural gap checks (including their empty-action fast path).
+        let structural_actions = self
+            .actions
+            .iter()
+            .copied()
+            .filter(|action| action.is_structural())
+            .collect::<Vec<_>>();
         if self.diagnostic_origins.len() != source.parse_diagnostics.len()
             || !(allow_context_recovery
-                || self.actions.is_empty()
+                || structural_actions.is_empty()
                 || allow_parameter_gaps
-                    && self.supports_array_gaps(source, allow_statement_gaps, &self.actions))
+                    && self.supports_array_gaps(source, allow_statement_gaps, &structural_actions))
         {
             return false;
         }
@@ -254,6 +287,9 @@ impl ParseRecovery {
                             self.actions.iter().any(|action| matches!(action,
                                 ParseRecoveryAction::TokenSkipped { start, .. } if *start == event.start))
                             || self.report_has_retained_syntax_owner(source, parents.as_ref().unwrap(), event)
+                            || allow_context_recovery && self.actions.iter().any(|action| matches!(action,
+                                ParseRecoveryAction::EscapedKeywordConsumed { start, length, .. }
+                                    if *start == event.start && *length == event.length))
                             || allow_context_recovery && self.report_has_retained_variable_delimiter(source, parents.as_ref().unwrap(), event)
                             || context_support.as_ref().is_some_and(|support| support.assertion_reports.contains(&event_index))
                         }

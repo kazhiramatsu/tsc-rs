@@ -54,6 +54,12 @@ enum PositionCommentPhase {
     SourceLeading,
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum DecoratorPolicy {
+    Allow,
+    Omit,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ModifierListItemKind {
     Decorator,
@@ -3831,6 +3837,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Omit,
                     expression_context,
                     writer,
                 )? {
@@ -4153,6 +4160,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Omit,
                     expression_context,
                     writer,
                 )? {
@@ -4434,6 +4442,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Omit,
                     expression_context,
                     writer,
                 )? {
@@ -4508,6 +4517,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Omit,
                     declaration_context,
                     writer,
                 )? {
@@ -5549,6 +5559,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Omit,
                     expression_context,
                     writer,
                 )? {
@@ -5616,6 +5627,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Omit,
                     expression_context,
                     writer,
                 )? {
@@ -5700,6 +5712,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Omit,
                     expression_context,
                     writer,
                 )? {
@@ -5793,6 +5806,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Allow,
                     expression_context,
                     writer,
                 )? {
@@ -5933,6 +5947,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Allow,
                     expression_context,
                     writer,
                 )? {
@@ -6073,6 +6088,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Omit,
                     expression_context,
                     writer,
                 )? {
@@ -6107,6 +6123,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Allow,
                     expression_context,
                     writer,
                 )? {
@@ -6174,6 +6191,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Allow,
                     expression_context,
                     writer,
                 )? {
@@ -6242,6 +6260,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
+                    DecoratorPolicy::Allow,
                     expression_context,
                     writer,
                 )? {
@@ -9864,6 +9883,7 @@ impl Printer {
             transformation,
             source,
             modifiers,
+            DecoratorPolicy::Allow,
             expression_context,
             writer,
         )? {
@@ -10251,6 +10271,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Omit,
             expression_context,
             writer,
         )? {
@@ -10308,6 +10329,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Allow,
             expression_context,
             writer,
         )? {
@@ -10379,6 +10401,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Allow,
             expression_context,
             writer,
         )? {
@@ -10485,6 +10508,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Omit,
             expression_context,
             writer,
         )? {
@@ -10718,6 +10742,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Omit,
             expression_context,
             writer,
         )? {
@@ -11588,6 +11613,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Omit,
             expression_context,
             writer,
         )? {
@@ -11649,6 +11675,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Omit,
             expression_context,
             writer,
         )? {
@@ -11702,6 +11729,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Omit,
             expression_context,
             writer,
         )? {
@@ -11781,6 +11809,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Omit,
             expression_context,
             writer,
         )? {
@@ -11905,6 +11934,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Omit,
             expression_context,
             writer,
         )? {
@@ -11955,6 +11985,7 @@ impl Printer {
             transformation,
             node.source(),
             data.modifiers,
+            DecoratorPolicy::Omit,
             expression_context,
             writer,
         )? {
@@ -13456,6 +13487,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         modifiers: Option<tsc_syntax::NodeArrayId>,
+        decorators: DecoratorPolicy,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<bool, PrinterError> {
@@ -13481,6 +13513,12 @@ impl Printer {
                 })
             })
             .collect::<Result<Vec<_>, TransformError>>()?;
+        let items: Vec<_> = items
+            .into_iter()
+            .filter(|item| {
+                decorators == DecoratorPolicy::Allow || item.kind != ModifierListItemKind::Decorator
+            })
+            .collect();
 
         for (index, item) in items.iter().enumerate() {
             self.record_list_element_position(
@@ -19450,7 +19488,7 @@ fn emit_triple_slash_leading_comments(
         }
         let text = &source[comment.start..comment.end];
         if is_recognized_triple_slash_comment(text) {
-            write_comment_with_normalized_newlines(text, writer);
+            write_source_comment(source, comment.start, comment.end, writer);
             writer.write_line(false);
         }
     }

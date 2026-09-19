@@ -1373,3 +1373,112 @@ fn context_recovery_refuses_truncated_runs_and_unowned_heritage_reports() {
         .diagnostic_index = None;
     assert!(!parsed.has_supported_emit_recovery());
 }
+
+#[test]
+fn escaped_keyword_consumption_requires_the_committed_report_span() {
+    for text in [
+        r"\u0069f (true) {}",
+        r"\u{0076}ar x = 1;",
+        r"(\u0061sync x => x);",
+        r"export {}; \u0061wait x;",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(
+            parsed.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+        for action in parsed.parse_recovery.actions() {
+            if let ParseRecoveryAction::EscapedKeywordConsumed { start, length, .. } = *action {
+                assert!(parsed.parse_recovery.events().iter().any(|event| event.kind
+                    == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                    && event.start == start
+                    && event.length == length));
+            }
+        }
+    }
+    let mut parsed = source(r"\u0069f (true) {}");
+    let action = parsed
+        .parse_recovery
+        .actions
+        .iter_mut()
+        .find(|action| matches!(action, ParseRecoveryAction::EscapedKeywordConsumed { .. }))
+        .unwrap();
+    let ParseRecoveryAction::EscapedKeywordConsumed { length, .. } = action else {
+        unreachable!()
+    };
+    *length -= 1;
+    assert!(!parsed.has_supported_emit_recovery());
+    let identifier = source(r"let \u0061sync = 1;");
+    assert!(identifier.parse_diagnostics.is_empty());
+    assert!(!identifier
+        .parse_recovery
+        .actions()
+        .iter()
+        .any(|action| matches!(action, ParseRecoveryAction::EscapedKeywordConsumed { .. })));
+}
+
+#[test]
+fn escaped_keyword_facts_preserve_earlier_structural_profiles() {
+    for text in [r"\u0074his", r"\u{0076}ar x = 1;", r"(\u0061sync x => x);"] {
+        let parsed = source(text);
+        let mut without_fact = source(text);
+        without_fact
+            .parse_recovery
+            .actions
+            .retain(|action| action.is_structural());
+        assert_eq!(
+            parsed.has_only_literal_or_missing_await_recovery(),
+            without_fact.has_only_literal_or_missing_await_recovery(),
+            "{text}"
+        );
+        assert_eq!(
+            parsed.has_only_missing_node_emit_recovery(),
+            without_fact.has_only_missing_node_emit_recovery(),
+            "{text}"
+        );
+        assert_eq!(
+            parsed.has_only_parameter_gap_emit_recovery(),
+            without_fact.has_only_parameter_gap_emit_recovery(),
+            "{text}"
+        );
+        assert_eq!(
+            parsed.has_only_statement_gap_emit_recovery(),
+            without_fact.has_only_statement_gap_emit_recovery(),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn escaped_keyword_facts_follow_speculation_commit_and_rollback() {
+    let mut parser = Parser::new(
+        "main.ts".into(),
+        r"\u0069f (true) {}",
+        LanguageVariant::Standard,
+        false,
+    );
+    parser.next_token();
+    let baseline = parser.parse_recovery.clone();
+    parser.look_ahead(|parser| {
+        parser.next_token();
+        assert!(matches!(
+            parser.parse_recovery.actions().last(),
+            Some(ParseRecoveryAction::EscapedKeywordConsumed { .. })
+        ));
+        true
+    });
+    assert_eq!(parser.parse_recovery, baseline);
+    assert!(!parser.try_parse(|parser| {
+        parser.next_token();
+        false
+    }));
+    assert_eq!(parser.parse_recovery, baseline);
+    assert!(parser.try_parse(|parser| {
+        parser.next_token();
+        true
+    }));
+    assert_eq!(parser.parse_recovery.actions().len(), 1);
+    assert_coverage(&parser.parse_diagnostics, &parser.parse_recovery);
+}
