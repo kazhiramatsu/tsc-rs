@@ -70,6 +70,4 @@ fn catalog_loaded_library_prefix_flows_through_the_owned_program_session() {
     assert!(outcome.semantic_diagnostics().is_empty());
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

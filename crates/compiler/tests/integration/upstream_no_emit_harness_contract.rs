@@ -505,10 +505,6 @@ fn audit_all_recorded_compiler_no_emit_sessions_locally() {
     assert!(failures.is_empty(), "compiler session audit found failures");
 }
 
-#[path = "../../../program/tests/support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use crate::utf16_scalar_json::observe as scalar_json;
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

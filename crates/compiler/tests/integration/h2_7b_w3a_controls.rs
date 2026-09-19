@@ -433,6 +433,4 @@ fn w4_a0_expando_scope_does_not_escape_to_synthetic_signature_scopes() {
     }
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

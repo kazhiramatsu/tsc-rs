@@ -1,0 +1,207 @@
+{
+  "head": "34dea8e69de2219e9f1f9b1649c610e0b18938bc",
+  "tracked_clean": false,
+  "reason": "git diff --cached --check rejected whitespace in the nested raw patch archive context lines; source40files formatted and frozen, commit not created. Clippy proceeded because the shell command lacked set -e. Keep this attempt as validation of the explicit source hashes, not a clean committed head. After clippy, compress the exact patch archive bytes and then commit source, without changing source bytes.",
+  "files": [
+    {
+      "path": "crates/compiler/examples/h2_baseline_qualification.rs",
+      "before_sha256": "cc9b458f27ca4deed543862a3cbe527ffebdc1301c472f7af800a54f873b4c2d",
+      "after_sha256": "0795cedf297121346084c4ca52bc7257c45764a29b1cc50e97daa88fb0202af3"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "before_sha256": "15707ad56fb1d247b08c49b169b73448382fb77e457c46d94787e17ba94348d7",
+      "after_sha256": "16b7d8adf5b1528304438e8d327c550ef5e1cf0eaa1fcbfd77e54df2e35313bb"
+    },
+    {
+      "path": "crates/compiler/tests/emitter_final_rows.rs",
+      "before_sha256": "ffdc78b32b65f9dd9a416a8c747d72bca610949510c42466e6e0801134fc6194",
+      "after_sha256": "06631f2bdff04e92b4f5c445bf74881791d3fe1ce611fbe3ddf97c92903cb310"
+    },
+    {
+      "path": "crates/compiler/tests/h2_5h_utf16_literal_rows.rs",
+      "before_sha256": "82993106449848b140b2feae110e99719ab8fd47d6281188fa3380afa63e4bb6",
+      "after_sha256": "64e2511d6ff5504088e82e849197a41cd350e4051dda50a7b8586e7be4f11c03"
+    },
+    {
+      "path": "crates/compiler/tests/h2_7e_declaration_map_apis.rs",
+      "before_sha256": "bf36712dd2643598d18d3e501b3a73ed2dd54a5d451d9f45bf47050536293dd9",
+      "after_sha256": "223a93caa63f349776155969d196857d2071bf044001f99f928a3fcb3618f7c5"
+    },
+    {
+      "path": "crates/compiler/tests/h2_7e_declaration_maps.rs",
+      "before_sha256": "ecf9d41600e9cdb299ea495e4eb76215422dd45b88de6b00a5b5fdde25238f45",
+      "after_sha256": "da0047168441f858be55b8e4ae28fc240548f20017480e4f9da7fd22e0a46899"
+    },
+    {
+      "path": "crates/compiler/tests/integration/automatic_type_directive_session_contract.rs",
+      "before_sha256": "9628058e918b8e84f3cde6cf7fa27d20315622e1c98ad4cf5962ae33428b654a",
+      "after_sha256": "f1128c673dcff28568f275b4ae08382a2124faa26f18ccc98407abcf9a3e5b46"
+    },
+    {
+      "path": "crates/compiler/tests/integration/declaration_transformer_replay_decision_equal.rs",
+      "before_sha256": "ee9e0644cc8409da14d14b6487f6fb7a1e9d6518ca557bb64df826725b790920",
+      "after_sha256": "6613933306b748169b020a0c90f9d987039ee966dd88d14ab09755ff98dba9b3"
+    },
+    {
+      "path": "crates/compiler/tests/integration/emit_session_contract.rs",
+      "before_sha256": "90732a3b2b673d6c9ab885bd7f9e533caa9a75f924bd260c96760e1b9d5d9432",
+      "after_sha256": "000264d96bb21e5a0f64f48cce7de4c433e0e87f6e27165bdb397850905ac6cc"
+    },
+    {
+      "path": "crates/compiler/tests/integration/filesystem_loader_contract.rs",
+      "before_sha256": "6d92cd334ffb471f3bc5aef9c1e5035a9555bda4c54c94ffe787f6151f10e1cc",
+      "after_sha256": "ebdabce79992c18936a613f8af9371195abd1a288dfd07bf3aa1fc538ca3467e"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h1_emit_qualification_contract.rs",
+      "before_sha256": "a83671793c81d681a580af19a1975f3b3548c48571608a6c467cc2480d5a61df",
+      "after_sha256": "690fb87e65b8beefb8ca6165e569ed1b25c9535b15c2d460505663796b9f32b7"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h1_memory_emit_oracle_contract.rs",
+      "before_sha256": "3b45de5517dc22793437e183cb4019db61d14ff20b2ef6c4ccee2d927960dd63",
+      "after_sha256": "62227beaf9c4ac547d5bf9e7b8e8f9f9f6bfda299767a9cdfaec365d87aba645"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_5h_static_this_super_rows.rs",
+      "before_sha256": "98ce380b65d29f64110b9fcc1e5fec9c66c5027ad075b23ef7c9144549b25304",
+      "after_sha256": "7327e96d433075b0a58feac3b63a49dcdb77c25b71c3ce497493529c87dbbdfd"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_5h_static_this_super_witnesses.rs",
+      "before_sha256": "82d1c1fe1834e65edf43d156cbf3a8a80d6d684262aeb2f82e436c4d6dee3d06",
+      "after_sha256": "880257d9c0e4202addf78aca246a1311fbe4e8a49da02a2789c66dd1391c6d62"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_m2_controls.rs",
+      "before_sha256": "3534bf06aec714e45a15ec5c21b3078fffcdc18149b556fd3d3de3b0d92eb4b7",
+      "after_sha256": "5ac724aeb05411c880a05bee49ee114dae57d5ef5e1bff85f96d53c42e06b682"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w1_controls.rs",
+      "before_sha256": "d86aa03d80982ff7f8acf7f99663db904fd70fe9ca7edbed0eaad002365b8b5e",
+      "after_sha256": "343ea3481b6aaeca8572e07500eace135de07b2ad9bb0f83840f8f4d6bfef569"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w2_write_census.rs",
+      "before_sha256": "b5b68adf7adde48bf3c02c6968e5fce2686a2cd744956ba63fea33e978c30987",
+      "after_sha256": "2d4e08a226aaf4bf17777c61043f29560ac0d4dcfc653e68b011c7f5b1de21b9"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w2a_controls.rs",
+      "before_sha256": "39b9d491d26cc0ef2bc330127a38d5666e5a80c9c19f931d829faeb315daaf15",
+      "after_sha256": "5013f33da356aa17eb65cda7c119f291d4d93fe821942e92bd86c860017f4336"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w2b_controls.rs",
+      "before_sha256": "4406daad5fcbe4ddcd262da7441d163dd203dcb5c9464b8df7bc2bb31a06ef2c",
+      "after_sha256": "da183fae3fa16a2ab05d6ea3cb79b21382101bfe2c35ab508a41561c5fb44495"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w3a_controls.rs",
+      "before_sha256": "534ffccab3f856f0ea01ecea49528178cd71805f5467666a2c25844c7248e172",
+      "after_sha256": "84c05cd2fc74f2945959b058d7ee4d9deda311ae3b76496204538a59f80b2477"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w3b_controls.rs",
+      "before_sha256": "b169c47601307619f758f41544593bd7f893776a7d9c819158296106dd7978ff",
+      "after_sha256": "9307fda3c352d7532183e38e9e20f9db498ae6da16e844c47c60c35d8d5ac4fe"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4b_controls.rs",
+      "before_sha256": "ecf537a1047a992b1c38e608cd8fe86108928872cb14e4778154f3d7e8ce60ad",
+      "after_sha256": "d131575277456a08090e03809943990e6a5d8158beaea1bd87a5f702c7f8fa2d"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4i_controls.rs",
+      "before_sha256": "2593162f11b5e26d08140d1db0ff118cfc7c662e0da42a46a19b5d532d2492fc",
+      "after_sha256": "605dbea2d92a80545b2b30f1541caef780f361a7f3852f1126a0025285245ef5"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs",
+      "before_sha256": "a988319d7cc6f5dc08aa77e9856e36f287f9e000bffaa8deb322d2dc9110deee",
+      "after_sha256": "222dd1244d3f466d924c4fa986e201a320ab7834daab7ddaf9c7a265b7c2a43d"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs",
+      "before_sha256": "a942b9b22190892f016f9a84611d26faa4261eae73e8b82d93adfefa7a74789b",
+      "after_sha256": "cc8bf7d1e515b1a276092ac890b2c4be5b6dcb8d9a2f2e0049e46b3b458de553"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_import_helpers.rs",
+      "before_sha256": "9b55f56a09499fe8e5493cae6ee122cb89716723417b61f486d9b03f81f499e7",
+      "after_sha256": "d0905011388cbbb614f5dd7d0b6281c864f969a988ddd0b390eb08be8644790c"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_object_property_owners.rs",
+      "before_sha256": "7886c9ae7b98f9ad31ed150d59ba6888a786a41028937879103b084d53584b4a",
+      "after_sha256": "22e22b57ec92f229fcd7d7c697f14544f08837e1c852257660560dd6ad6a706b"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_package_output_inputs.rs",
+      "before_sha256": "28600d08e33c87ea752abff9b13d6c7c8ebd1cfa3888c04ee45aa9081d6fb05d",
+      "after_sha256": "400e3c1c3497c7f7f54f2115af04fa6ee4f6e9ac778eba93bd6fd1e87da10057"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
+      "before_sha256": "081ded62e90f0bfa18a04ae4d88675e1758d85c64bc456e078187bf38e5e146d",
+      "after_sha256": "87c390a570e703389e8fb3526a960ef6cfe9525b9d56574a1861f7663334dfd1"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_token_comment_phases.rs",
+      "before_sha256": "2ad47062d53758aa11bb81533b4f86eeae850391baf4f788032c664643f9c8fc",
+      "after_sha256": "e90e0a5619f4f27359b3e5f9bc4357a248d6335039fd1112584781bd7f4bef42"
+    },
+    {
+      "path": "crates/compiler/tests/integration/library_loader_session_contract.rs",
+      "before_sha256": "ab3ed200845cd1a9f241c9b76304458855fedce28ae027917c7e804a8743660e",
+      "after_sha256": "8c029d234e681caadbebb66fa5db4c44d0087b49e75080fafe78bbc81dd0faaf"
+    },
+    {
+      "path": "crates/compiler/tests/integration/original_path_session_contract.rs",
+      "before_sha256": "07840587b223d90d3ee597cf40c0318a2485dfdf53ecc21c5d16a9d3b5a5c1e0",
+      "after_sha256": "c0b537ae375ae872c4e3b290be53ef2dfbdaebdc8db501d4f4dc2c805382c3a9"
+    },
+    {
+      "path": "crates/compiler/tests/integration/preserve_symlinks_session_contract.rs",
+      "before_sha256": "2b4ce884fcbe261e24293a7c69b89294027acec8cbca57194e4add1de63e2ced",
+      "after_sha256": "014ccc884b7661eaab2c077aab40d3aae3f4499f9e4b2fca3fab8f6abecad9c9"
+    },
+    {
+      "path": "crates/compiler/tests/integration/source_map_band_probe.rs",
+      "before_sha256": "95fcc2a747c4c62eb99d7e365b2c98498f5a74c9e4f29b2250fcc5fda02483e9",
+      "after_sha256": "3afaf03e7cd66238a9f37f03e8ebba5d0528e8582d98da8268e2027811cf4fee"
+    },
+    {
+      "path": "crates/compiler/tests/integration/source_map_emit_witness_contract.rs",
+      "before_sha256": "fbff4b356a96bd3fac5c5fbb074dab8c2cdb825250c7e03e7c322a45db2d792b",
+      "after_sha256": "43385031feaac4f9299d7ac8f2d49f56c95d6141da5885e423edae6c799e9c4a"
+    },
+    {
+      "path": "crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs",
+      "before_sha256": "d4a6ae5465dee0f7cde0a2d74fe55708a1a6de0bafbd3a63b0a1a9681a5b1237",
+      "after_sha256": "daaa29f444e0be1af3619429442be2eec379cf10cec56d4eb184bd8c6d41685d"
+    },
+    {
+      "path": "crates/harness/tests/contracts.rs",
+      "before_sha256": "4104e16f1293558a9396a811d85a31e333f43699b13a6dcac9a4a9d755754d37",
+      "after_sha256": "6c8aa6174bfdb43247ee01b05d9c54fea37fd2235b46677240f42767bd84a74c"
+    },
+    {
+      "path": "crates/harness/tests/integration/module_suffixes_oracle_contract.rs",
+      "before_sha256": "c756fafc48b9111475bf510b7a94acd2689c3558efbb76e97a69f83f2ad965d7",
+      "after_sha256": "f032ef534f77e6a7502d06bad02bddaf67fc30ade928c9b2df55d86b3a6fcfc8"
+    },
+    {
+      "path": "crates/harness/tests/integration/upstream_execution_plan.rs",
+      "before_sha256": "6db6323def2d8b62c764826631431daed201a9e9842b0965ea7fb7796d6db337",
+      "after_sha256": "44308e38d9d0b7c6cc058f3ff95ed617d30dedd4218a2907e3f089ce9e917625"
+    },
+    {
+      "path": "crates/xtask/src/utf16_literal_recovery_census.rs",
+      "before_sha256": "950b5e9d6d3363f57bbfcfe0a62bbba596aa587e08686e931e7cbf475d6e17b5",
+      "after_sha256": "319ce912ef2c28076017ae529f408ee43e57c5e34afc3593b02bfe2bb5651587"
+    }
+  ]
+}

@@ -1405,10 +1405,6 @@ fn node_modules_search_project_configs_load_all_six_variants_without_claiming_em
     );
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;
 
-#[path = "../../../program/tests/support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use crate::utf16_scalar_json::observe as scalar_json;

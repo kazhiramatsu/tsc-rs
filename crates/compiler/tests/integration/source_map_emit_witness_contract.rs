@@ -404,6 +404,4 @@ fn an_inline_mapped_emit_is_deterministic_across_two_runs() {
     assert_eq!(run(), run(), "inline mapped emit is not deterministic");
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

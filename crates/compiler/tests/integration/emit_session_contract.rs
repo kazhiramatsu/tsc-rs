@@ -75,13 +75,10 @@ impl EmitFileSystem for InjectedFileSystem {
         path: tsc_diagnostics::JsStr<'_>,
     ) -> Result<(), tsc_diagnostics::JsString> {
         let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
-        (|| -> Result<(), String> {
-            panic!(
-                "existing project parent must not be created: {}",
-                path.display()
-            )
-        })()
-        .map_err(Into::into)
+        panic!(
+            "existing project parent must not be created: {}",
+            path.display()
+        )
     }
 
     fn directory_exists(&mut self, path: tsc_diagnostics::JsStr<'_>) -> bool {
@@ -2606,6 +2603,4 @@ fn assert_filesystem_failure_at_each_write_index(
     }
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

@@ -1,3 +1,9 @@
+// Share each unchanged scalar fixture observer once per test crate.
+#[path = "../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+
 #[path = "integration/automatic_type_directive_session_contract.rs"]
 mod automatic_type_directive_session_contract;
 #[path = "integration/cli_contract.rs"]

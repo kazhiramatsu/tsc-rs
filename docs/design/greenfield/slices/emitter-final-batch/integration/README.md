@@ -36,7 +36,12 @@ r231ではfilter修正のunit2 testsが成功し、全targetsのClippyが記録�
 r234では記録用testの全36・432・72・285件が成功した。全targetsのClippyはハーネスのslice複製4件とtestの借用2件を検出し、同値な標準処理へ修復した。
 [全記録](records/prewalk-validation-r234/manifest.json)と[修復範囲](records/lint-repairs-r237/manifest.json)を保存した。
 compiler/emitter/parserの製品sourceは変更していないが、projectハーネスの4式は変更するため、製品source全体のbyte不変とは主張しない。
-この記録時点で、関連testのr238、最終Clippy・chain walk、unsplit local CI、hosted確認、mergeは未完了。
+r238では関連23 testsが成功し、全targetsのClippyがtest補助moduleの重複読み込みと型移行後の冗長処理を検出した。
+[失敗を含む全記録](records/prewalk-validation-r238/manifest.json)を保持し、[Opus166](cross-review/round166-opus.md)と補助moduleの全rootを照合して、各test crateの入口で一度だけ読み込む形へ修復した。補助処理の実装とtest登録は不変。
+[修復差分と範囲](records/lint-repairs-r241/manifest.json)を保存した。
+r242–r243では修復後Rustの固定hashに対して全targetsのClippyとstatic walk preconditionsが成功した。
+[実行記録とsource同一性](records/prewalk-validation-r242-r243/manifest.json)を保持する。生成artifactのfreshnessはchain walkで確認する。
+この記録時点で、修復後のruntime再検証、chain walk、unsplit local CI、hosted確認、mergeは未完了。
 r215はbuild成功後に通常binをtest artifactと誤認して停止した準備スクリプトの失敗であり、
 同じ固定sourceで対象testの選択を修正したr224で全runtime再比較が成功した。失敗記録も保存した。
 

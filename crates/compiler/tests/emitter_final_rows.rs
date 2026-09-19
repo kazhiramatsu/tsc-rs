@@ -432,12 +432,12 @@ fn compare(actual: &Value, expected: &Value) -> Vec<String> {
         ));
     }
     if actual_result["emitted_files_present"].as_bool().unwrap()
-        != !expected_result["emitted_files"].is_null()
+        == expected_result["emitted_files"].is_null()
     {
         differences.push("emitted_files presence differs".to_owned());
     }
     if actual_result["source_maps_present"].as_bool().unwrap()
-        != !expected_result["source_maps"].is_null()
+        == expected_result["source_maps"].is_null()
     {
         differences.push("source_maps presence differs".to_owned());
     }

@@ -1,3 +1,9 @@
+// Share each unchanged scalar fixture observer once per test crate.
+#[path = "../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+
 #[path = "integration/h1_compiler_profile_classification.rs"]
 mod h1_compiler_profile_classification;
 #[path = "integration/h1_conformance_expansion.rs"]

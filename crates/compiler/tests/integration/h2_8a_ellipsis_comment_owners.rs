@@ -198,6 +198,4 @@ fn captured_write(index: usize, artifact: &EmitArtifact) -> Value {
         "data_source_map_url_pos":position,"data_diagnostics":data_diagnostics,"data_build_info":null})
 }
 
-#[path = "../../../program/tests/support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use crate::utf16_scalar_json::observe as scalar_json;

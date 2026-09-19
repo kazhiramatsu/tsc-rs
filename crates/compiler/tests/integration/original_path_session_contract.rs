@@ -215,6 +215,4 @@ fn memory_loader_and_session_report_physical_unloaded_javascript_paths() {
     }
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

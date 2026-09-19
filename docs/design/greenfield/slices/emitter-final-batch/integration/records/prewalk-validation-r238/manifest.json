@@ -1,0 +1,77 @@
+{
+  "head": "34dea8e69de2219e9f1f9b1649c610e0b18938bc",
+  "qualified": false,
+  "scope": "Format, template escape flags5, compiler-host contracts14 and project-loader contracts4 PASS. Workspace all-targets Clippy keep-going -D warnings failed with test-support duplicate modules and redundant code after type migration; xtask census has one needless borrow. Static walk preconditions not run. No complete prewalk/full CI/canonical walk qualification.",
+  "files": [
+    {
+      "path": "final-format-r238.json",
+      "sha256": "52ed0d313dcdcd08f397708e7d0c34edd8d3ddfad4becbd26fec9fecb0807ccf",
+      "bytes": 689
+    },
+    {
+      "path": "final-format-r238.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "final-prewalk-validation-pipeline-r238.json",
+      "sha256": "7934611fdbe08c09fe90be49c00579e55e1e1d782b0e5de83229b3ee29f5d85b",
+      "bytes": 703
+    },
+    {
+      "path": "final-prewalk-validation-pipeline-r238.log.gz",
+      "sha256": "c0ba6a21d30cab0305158dbb51cdb95b8424cb4d8dc77fc2b6aa1ccdabfb1553",
+      "bytes": 2430
+    },
+    {
+      "path": "final-workspace-clippy-r238.json",
+      "sha256": "ae54855ad26f1c051dbffdc1bba2b2f539c91657fc37f1898559acf1817aca72",
+      "bytes": 758
+    },
+    {
+      "path": "final-workspace-clippy-r238.log.gz",
+      "sha256": "55522932108ce0489a7abc5174242ab7b21b2ef37a2de2a9a583d8b6720e01e1",
+      "bytes": 3417
+    },
+    {
+      "path": "host-path-contracts-r238.json",
+      "sha256": "f05a68f5311550fe4a44794a09d87a9b2ab644db73bf762ac01cca60d38fb0a6",
+      "bytes": 799
+    },
+    {
+      "path": "host-path-contracts-r238.log.gz",
+      "sha256": "23623414e33a4ae42bfc5b157c1683f354b346ecc1353382edda8bea356e9a97",
+      "bytes": 650
+    },
+    {
+      "path": "project-loader-contracts-r238.json",
+      "sha256": "b083453ebd95fbe340ca0d94b556c61896858c41c4ba6b1c328fc3c4e59c77d2",
+      "bytes": 817
+    },
+    {
+      "path": "project-loader-contracts-r238.log.gz",
+      "sha256": "51f634e2d74b907ae6bcf89997f0214712fa0d955325579d34006fadd8dd96cc",
+      "bytes": 450
+    },
+    {
+      "path": "template-flags-r238.json",
+      "sha256": "b4975051146b6e811485b9165f38a042a833aac095555fb34121e11819ff4b69",
+      "bytes": 797
+    },
+    {
+      "path": "template-flags-r238.log.gz",
+      "sha256": "5cc7e34e9e1d4f51047336d0326044e5c1462b4ecab2ac712ac3ed2fccb20dab",
+      "bytes": 395
+    },
+    {
+      "path": "pipeline-manifest.json",
+      "sha256": "9aedf52254c74c328bc1ec5771d8968c16b338cb487d0473355985daddb5172a",
+      "bytes": 454
+    },
+    {
+      "path": "emitter-final-prewalk-validation-r238.py",
+      "sha256": "16e1502c021ad6044dd85a9e4744761d0afcedb36211f107799b5f73eabe3165",
+      "bytes": 1820
+    }
+  ]
+}

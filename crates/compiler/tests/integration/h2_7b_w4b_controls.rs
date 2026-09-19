@@ -401,6 +401,4 @@ fn imported_source_module_names_feed_amd_dependencies_and_require_calls() {
     assert_every_row(EXTERNAL_MODULE_NAME_CASES);
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

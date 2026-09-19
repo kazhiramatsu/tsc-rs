@@ -1207,10 +1207,7 @@ fn write_report(
     if let Some(parent) = out.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(
-        &out,
-        format!("{}\n", serde_json::to_string_pretty(&report)?),
-    )?;
+    fs::write(out, format!("{}\n", serde_json::to_string_pretty(&report)?))?;
     println!(
         "{}",
         json!({
