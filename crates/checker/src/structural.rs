@@ -3961,7 +3961,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         )?;
                         self.report_error_js(
                             &tsc_diagnostics::gen::Signature_0_must_be_a_type_predicate,
-                            vec![(source_text)],
+                            vec![source_text],
                         )?;
                     }
                     return Ok(Ternary::FALSE);
@@ -4272,7 +4272,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if source_info.key_type == target_info.key_type {
                 self.report_error_js(
                     &tsc_diagnostics::gen::_0_index_signatures_are_incompatible,
-                    vec![(source_key)],
+                    vec![source_key],
                 )?;
             } else {
                 let target_key = self

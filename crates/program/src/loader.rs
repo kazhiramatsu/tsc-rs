@@ -3488,7 +3488,7 @@ fn publish_program(
             ProgramLoadError::resolution_js(
                 ProgramLoadOperation::BindResolutions,
                 Some(key_path),
-                Some((specifier)),
+                Some(specifier),
                 error,
             )
         })?;
@@ -3507,7 +3507,7 @@ fn publish_program(
                 ProgramLoadError::resolution_js(
                     ProgramLoadOperation::BindResolutions,
                     Some(key_path),
-                    Some((specifier)),
+                    Some(specifier),
                     error,
                 )
             })?;
