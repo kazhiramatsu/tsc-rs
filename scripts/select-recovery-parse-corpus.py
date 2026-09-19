@@ -10,11 +10,23 @@ PROFILE_KEYS = {"literal", "missing_await", "missing_declaration", "parameter_ga
 # The reviewed nested-parenthesis patch changes predicates and their tests.
 # Changes to event production or another parser owner need a separate proof.
 SUCCESSOR_SOURCE_PATHS = {"crates/syntax/src/recovery.rs", "crates/syntax/tests/unit/parser/recovery.rs"}
+# One reviewed Clippy-only predicate spelling change; this does not admit
+# arbitrary changes to context recovery. Both full file identities are fixed.
+SUCCESSOR_STYLE_SOURCE_PAIRS = {
+    "crates/syntax/src/recovery/context.rs": (
+        "780fbb2dba7ab8d686bb5e37792be81c32afce2943fdfc46e6fd32a5929ea30f",
+        "b7e382ff51a2193fd23070b667473f41128d9aef32fec541a94a1e4c3a54724e",
+    ),
+}
 
 
 def successor_source_changes(before, after):
     changed = {path for path in before.keys() | after.keys() if before.get(path) != after.get(path)}
-    assert changed <= SUCCESSOR_SOURCE_PATHS, f"successor source changed outside reviewed predicates: {sorted(changed - SUCCESSOR_SOURCE_PATHS)}"
+    unreviewed = changed - SUCCESSOR_SOURCE_PATHS
+    for path, pair in SUCCESSOR_STYLE_SOURCE_PAIRS.items():
+        if (before.get(path), after.get(path)) == pair:
+            unreviewed.discard(path)
+    assert not unreviewed, f"successor source changed outside reviewed predicates: {sorted(unreviewed)}"
     return sorted(changed)
 
 

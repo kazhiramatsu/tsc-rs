@@ -77,7 +77,7 @@ def main():
         changed = selector.successor_source_changes(reference, source_hashes)
         assert (tree / "Cargo.lock").read_bytes() == (source_tree / "Cargo.lock").read_bytes()
         reference_head = git(source_tree, "rev-parse", "HEAD").decode().strip()
-        predicate_diff = git(tree, "diff", reference_head, "HEAD", "--", "crates/syntax/src/recovery.rs")
+        predicate_diff = git(tree, "diff", reference_head, "HEAD", "--", *changed) if changed else b""
         successor_proof = {"reference_source_files_sha256": reference, "changed_source_paths": changed,
                            "predicate_diff_sha256": sha(predicate_diff)}
     else:

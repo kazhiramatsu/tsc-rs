@@ -182,6 +182,15 @@ class SelectionTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "removed admission"):
             self.select_successor(original)
 
+    def test_successor_style_change_requires_the_exact_reviewed_pair(self):
+        path, pair = next(iter(selector.SUCCESSOR_STYLE_SOURCE_PAIRS.items()))
+        before, after = {path: pair[0]}, {path: pair[1]}
+        self.assertEqual(selector.successor_source_changes(before, after), [path])
+        for left, right in [(after, before), ({}, after), (before, {}),
+                            ({path: "0" * 64}, after), (before, {path: "0" * 64})]:
+            with self.assertRaisesRegex(AssertionError, "outside reviewed predicates"):
+                selector.successor_source_changes(left, right)
+
     def test_successor_source_changes_are_limited_to_the_reviewed_predicate_and_test(self):
         original = self.successor()
         for path in ["Cargo.lock", "rust-toolchain.toml", "crates/syntax/src/parser.rs",

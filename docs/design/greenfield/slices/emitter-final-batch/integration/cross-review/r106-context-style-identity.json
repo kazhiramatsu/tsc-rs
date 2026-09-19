@@ -1,0 +1,8 @@
+{
+  "kind": "pre-replay source identity check only",
+  "census_head": "67df86615a45f9595025064bcc12fde93063fedf",
+  "path": "crates/syntax/src/recovery/context.rs",
+  "disk_equals_committed": true,
+  "sha256": "780fbb2dba7ab8d686bb5e37792be81c32afce2943fdfc46e6fd32a5929ea30f",
+  "snapshot_verification": "pending census completion; selector still verifies exact recorded pair during replay"
+}
