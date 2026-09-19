@@ -201,7 +201,7 @@ fn system_binding_publication_matches_complete_typescript_commands() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 858);
+    assert_eq!(cases.len(), 1044);
     let mut failures = Vec::new();
     for case in cases {
         let id = case["case_id"].as_str().unwrap();
@@ -237,7 +237,7 @@ fn await_flag_boundaries_match_complete_typescript_commands() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 604);
+    assert_eq!(cases.len(), 690);
     let mut failures = Vec::new();
     for case in cases {
         let id = case["case_id"].as_str().unwrap();

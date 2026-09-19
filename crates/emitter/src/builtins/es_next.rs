@@ -1101,7 +1101,10 @@ impl<'context> EsNextVisitor<'context> {
                         )?
                     };
                     let assignment = self.create_assignment(target, self.node(initializer))?;
-                    self.set_original_and_range(assignment, declaration)?;
+                    // hoistInitializedVariable: the assignment remains
+                    // synthetic. A later parenthesizer copies its raw range,
+                    // while only this node owns the declaration's maps.
+                    self.set_hoisted_initializer_range(assignment, declaration)?;
                     assignments.push(assignment);
                 }
             }
@@ -2322,6 +2325,36 @@ impl<'context> EsNextVisitor<'context> {
             NodeData::Identifier(data) => Some(&data.text),
             _ => None,
         }
+    }
+
+    /// tsc-port: hoistInitializedVariable @6.0.3
+    /// tsc-span: _tsc.js:103664-103677
+    fn set_hoisted_initializer_range(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) -> Result<(), TransformError> {
+        let record = self.context.arena().node(original)?;
+        let positions = self
+            .context
+            .arena()
+            .source(original.source())?
+            .syntax()
+            .positions();
+        let range =
+            crate::SourceRange::from_raw(record.pos, record.end, positions).map_err(|error| {
+                TransformError::InvalidSourceRange {
+                    node: original,
+                    error,
+                }
+            })?;
+        self.context
+            .arena_mut()?
+            .set_original_node(node, Some(original))?;
+        let metadata = self.context.arena_mut()?.metadata_mut(node);
+        metadata.set_comment_range(crate::CommentRange::new(original.source(), range));
+        metadata.set_source_map_range(crate::SourceMapRange::new(original.source(), range));
+        Ok(())
     }
 
     fn set_original_and_range(

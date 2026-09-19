@@ -234,6 +234,12 @@ fn source_contains_top_level_await(
         let record = arena.node(node)?;
         match &record.data {
             NodeData::AwaitExpression(_) => return Ok(true),
+            // createClassStaticBlockDeclaration propagates the body's flags.
+            // The parser assigns invalid modifiers later, without propagating.
+            NodeData::ClassStaticBlockDeclaration(data) => {
+                stack.extend(data.body);
+                continue;
+            }
             NodeData::FunctionDeclaration(_)
             | NodeData::FunctionExpression(_)
             | NodeData::ArrowFunction(_)
@@ -3669,15 +3675,16 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         }
                     }
                     NodeData::ImportEqualsDeclaration(data) => {
-                        let name = data
+                        let name_node = data
                             .name
-                            .and_then(|id| self.context.arena().node_ref(self.source, id))
+                            .and_then(|id| self.context.arena().node_ref(self.source, id));
+                        let name = name_node
                             .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
                             .ok_or(TransformError::RequiredChildRemoved {
                                 parent: SyntaxKind::ImportEqualsDeclaration,
                                 field: "name",
                             })?;
-                        let target = self.create_identifier(&name)?;
+                        let target = self.create_local_name_reference(name_node, &name)?;
                         let value = self.create_identifier(&parameter_name)?;
                         let assignment = self.create_assignment(target, value)?;
                         statements.push(self.create_expression_statement(assignment)?);

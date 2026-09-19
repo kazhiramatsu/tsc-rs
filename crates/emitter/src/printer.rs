@@ -5756,15 +5756,8 @@ impl Printer {
                 writer,
             ),
             NodeData::ClassStaticBlockDeclaration(data) => {
-                if self.emit_modifiers(
-                    transformation,
-                    node.source(),
-                    data.modifiers,
-                    expression_context,
-                    writer,
-                )? {
-                    writer.write_space(" ");
-                }
+                // emitClassStaticBlockDeclaration ignores parser-attached
+                // modifiers; the emitted construct consists of static + body.
                 writer.write_keyword("static");
                 writer.write_space(" ");
                 self.emit_required_node_with_context(

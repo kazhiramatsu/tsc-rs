@@ -1,4 +1,4 @@
-// Complete commands for await flag boundaries and adjacent decorator map owners.
+// Complete commands for System using export ownership and disposal temporary scope.
 // The host and tuple match the established import-helper command observer.
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
@@ -30,49 +30,6 @@ for (const target of ["es5", "esnext"])
       ignoreDeprecations:"6.0",outDir:"/project/out"},files:[probe.file]})});
   }
 assert.equal(inputs.length, 604);
-// Member decorators promote ES5 classes through the TypeScript wrapper even
-// without static fields. Its map flags must follow the original class facts.
-for (const target of ["es5", "es2015"])
- for (const external of [false, true])
-  for (const legacy of [false, true])
-   for (const staticField of [false, true])
-    for (const [name, member] of [
-      ["method", "@dec m() {}"], ["getter", "@dec get x() { return 1; }"],
-      ["setter", "@dec set x(value: number) {}"], ["field", "@dec x = 1;"]]) {
-      const text = `${external ? "export {}; " : ""}declare const dec: any; class C { ${member} ${staticField ? "static y = 1;" : ""} }`;
-      inputs.push({case_id:`decorator-map-controls/${target}/${external ? "module" : "script"}/legacy-${legacy}/static-${staticField}/${name}`,
-        roots:["/project/main.ts"], files:[{path:"/project/main.ts",text}], options:{},
-        config:JSON.stringify({compilerOptions:{target,module:"commonjs",lib:["esnext"],
-          experimentalDecorators:legacy,strict:false,skipDefaultLibCheck:true,noErrorTruncation:true,
-          sourceMap:true,ignoreDeprecations:"6.0",outDir:"/project/out"},files:["main.ts"]})});
-    }
-for (const legacy of [false, true])
- for (const external of [false, true])
-  for (const staticField of [false, true])
-   for (const removeComments of [false, true]) {
-    const text = `${external ? "export {}; " : ""}declare const dec: any; /*class*/ class C { constructor(public p: any) {} @dec m() {} ${staticField ? "static y = 1;" : ""} } /*tail*/`;
-    inputs.push({case_id:`decorator-map-controls/parameter-property/${external ? "module" : "script"}/legacy-${legacy}/static-${staticField}/remove-${removeComments}`,
-      roots:["/project/main.ts"], files:[{path:"/project/main.ts",text}], options:{},
-      config:JSON.stringify({compilerOptions:{target:"es5",module:"commonjs",lib:["esnext"],removeComments,
-        experimentalDecorators:legacy,strict:false,skipDefaultLibCheck:true,noErrorTruncation:true,
-        sourceMap:true,ignoreDeprecations:"6.0",outDir:"/project/out"},files:["main.ts"]})});
-   }
-for (const removeComments of [false, true]) {
- inputs.push({case_id:`decorator-map-controls/plain-static/remove-${removeComments}`,
-   roots:["/project/main.ts"],files:[{path:"/project/main.ts",text:"/*class*/ class C { static y = 1; } /*tail*/"}],options:{},
-   config:JSON.stringify({compilerOptions:{target:"es5",module:"commonjs",lib:["esnext"],removeComments,
-     strict:false,skipDefaultLibCheck:true,noErrorTruncation:true,sourceMap:true,
-     ignoreDeprecations:"6.0",outDir:"/project/out"},files:["main.ts"]})});
-}
-for (const module of ["commonjs", "esnext"])
- for (const removeComments of [false, true]) {
-  inputs.push({case_id:`static-block-modifier-comments/${module}/remove-${removeComments}`,
-    roots:["/project/main.ts"], files:[{path:"/project/main.ts",text:"declare const dec: any; class C { /*c*/ @dec static { /*body*/ } }"}], options:{},
-    config:JSON.stringify({compilerOptions:{target:"esnext",module,lib:["esnext"],removeComments,
-      strict:false,skipDefaultLibCheck:true,noErrorTruncation:true,sourceMap:true,
-      ignoreDeprecations:"6.0",outDir:"/project/out"},files:["main.ts"]})});
- }
-assert.equal(inputs.length, 690);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),

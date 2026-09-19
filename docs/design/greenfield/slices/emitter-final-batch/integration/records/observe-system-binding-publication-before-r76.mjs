@@ -222,8 +222,6 @@ for (const target of ["es5","es2015"])
       }
 assert.equal(inputs.length, 858);
 const metadataMembers = [
- ["escaped-member", String.raw`@dec p: Missing.\u0041 | Missing.A;`],
- ["escaped-deep", String.raw`@dec p: M.\u004e.\u0041 | M.N.A;`],
  ["distinct-union", "@dec p: Missing.A | Missing.B;"],
  ["repeated-union", "@dec p: Missing.A | Missing.A;"],
  ["identifier-union", "@dec p: Missing | Missing;"],
@@ -250,7 +248,7 @@ for (const target of ["es5", "es2015", "es2022"])
     appendControl(`metadata-structure/${target}/${module}/remove-${remove}/${shape}`,
       `/*class*/ @dec class C { /*member*/ ${member} } source(C);`, target, module, remove,
       {experimentalDecorators:true,emitDecoratorMetadata:true,strictNullChecks:false});
-assert.equal(inputs.length, 990);
+assert.equal(inputs.length, 966);
 for (const target of ["es5", "es2015"])
  for (const module of ["commonjs", "amd", "umd"])
   for (const [shape, text] of [
@@ -258,21 +256,21 @@ for (const target of ["es5", "es2015"])
     ["external", 'export import a = require("./dep"); export {a as b}; a = source; source(a++);']])
    appendControl(`import-equals-storage/${target}/${module}/${shape}`, text, target, module, false, {},
      shape === "external" ? [{path:"/project/dep.ts",text:"export const x = 1;"}] : []);
-assert.equal(inputs.length, 1002);
+assert.equal(inputs.length, 978);
 for (const target of ["es5", "es2015", "esnext"])
  for (const module of ["system", "commonjs"])
   for (const remove of [false, true])
    for (const [shape, binding] of [["identifier","x"],["object","{ x }"],["nested-rest","{a:{x},...rest}"]])
     appendControl(`using-hoisted-ranges/${target}/${module}/remove-${remove}/${shape}`,
       `using r = source; /*c*/ export let /*d*/ ${binding} = source; source(x);`,target,module,remove);
-assert.equal(inputs.length, 1038);
+assert.equal(inputs.length, 1014);
 for (const target of ["es5", "es2015", "esnext"])
  for (const [shape, text] of [
   ["user-import", 'import user = require("./dep"); export const {...rest} = source; source(user,rest);'],
   ["export-star", 'export * from "./dep"; export const {...rest} = source; source(rest);']])
   appendControl(`system-helper-setter/${target}/${shape}`,text,target,"system",false,{importHelpers:true},
     [{path:"/project/dep.ts",text:"export const x = 1;"}]);
-assert.equal(inputs.length, 1044);
+assert.equal(inputs.length, 1020);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

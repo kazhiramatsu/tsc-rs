@@ -41,7 +41,7 @@ COMMENT_TESTS = (
     "emitter_residual_audit::exported_destructuring_comments_match_complete_typescript_commands",
     "async_arrow_body_ranges::async_arrow_body_ranges_matches_complete_typescript_observations",
 )
-SYSTEM_FIXTURES = (("system-binding-publication", 722), ("await-flag-commands", 604))
+SYSTEM_FIXTURES = (("system-binding-publication", 1044), ("await-flag-commands", 690))
 SYSTEM_TESTS = (
     "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
     "emitter_residual_audit::await_flag_boundaries_match_complete_typescript_commands",

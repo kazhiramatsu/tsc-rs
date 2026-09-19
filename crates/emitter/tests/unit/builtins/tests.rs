@@ -6843,7 +6843,7 @@ fn missing_declaration_transform_flags_do_not_propagate_decorator_effects() {
         let missing = parsed
             .arena
             .node_ids()
-            .find(|id| parsed.arena.node(*id).kind == SyntaxKind::MissingDeclaration)
+            .find(|id| parsed.arena.node(*id).kind == tsc_syntax::SyntaxKind::MissingDeclaration)
             .unwrap();
         let node = arena.node_ref(source, missing).unwrap();
         assert_eq!(arena.transform_flags(node), TransformFlags::NONE, "{text}");
