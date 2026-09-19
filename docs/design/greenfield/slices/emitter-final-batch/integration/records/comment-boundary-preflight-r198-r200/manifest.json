@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "path": "detached-owner-oracle-r198.json",
+      "sha256": "c7f6ce32d8c95188adf7b0bf4d00c6305d7d59d1ad0b733b60f2b8d51f32dc17"
+    },
+    {
+      "path": "detached-owner-oracle-r198.log.gz",
+      "sha256": "25abb8c79b0a185cd542222e57b7db807cb49ca03b6ccd90b7b5eac845e32b13"
+    },
+    {
+      "path": "witness-registration-r199.json",
+      "sha256": "5e1ec562788779af3cfab9b815168d8ae66b888ccb20cc4d20cb8f6e11e423b3"
+    },
+    {
+      "path": "witness-registration-r199.log.gz",
+      "sha256": "056ad7406af38fdda83ec7e6ff180e958eb2bc426e7051af60b294515a4188db"
+    },
+    {
+      "path": "witness-registration-r200.json",
+      "sha256": "99991996d8ecb7520f4a0e340517b76047c9b309b1cd45e1b6c7bee4dcecd0f1"
+    },
+    {
+      "path": "witness-registration-r200.log.gz",
+      "sha256": "bba82369cf64739359c6983989ddc76be9205e5bd26cd83fd3885e9ba21daf3a"
+    }
+  ],
+  "notes": "r199 planner ran before oracle fixture materialization and failed with FileNotFoundError. r200 ran after r198 completed; 84 tests passed. Prior 488 TS observations retained; 8 namespace controls added. Total native controls 952; native qualification pending."
+}

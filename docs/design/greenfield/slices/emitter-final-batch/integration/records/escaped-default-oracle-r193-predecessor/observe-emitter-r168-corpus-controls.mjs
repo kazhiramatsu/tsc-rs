@@ -10,41 +10,67 @@ const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
 assert.ok(["--write", "--check"].includes(process.argv[2]));
 const shapes = [
-  ["function-expression-typed", "var f = function (x: number) => x;"],
-  ["function-expression-untyped", "var f = function (x) => x;"],
-  ["method-typed", "class C { m(x: number) => x; }"],
-  ["method-untyped", "class C { m(x) => x; }"],
-  ["object-method-typed", "var o = { m(x: number) => x };"],
-  ["object-method-untyped", "var o = { m(x) => x };"],
-  ["constructor-typed", "class C { constructor(x: number) => 1; }"],
-  ["constructor-untyped", "class C { constructor(x) => 1; }"],
-  ["getter-typed", "class C { get g(): number => 1; }"],
-  ["getter-abstract", "abstract class C { abstract get g(): number => 1; }"],
-  ["setter-typed", "class C { set g(x: number) => 1; }"],
-  ["setter-abstract", "abstract class C { abstract set g(x: number) => 1; }"],
-  ["namespace-missing-body-untyped", "namespace N { export function f(p) => p; }"],
-  ["strict-missing-body-assignment", "export function f(x: number) => x; export const v: string = f(1);", {strict: true}],
-  ["strict-generic-missing-body", "export function g<T>(x: T) => x; export const v: string = g(1);", {strict: true}],
-  ["var-numeric", "var 1;"],
-  ["let-numeric", "let 1;"],
-  ["using-numeric", "using 1;"],
-  ["using-comma-numeric", "using x, 1;"],
-  ["decorator-using-comment", "declare function dec(...args: any[]): any; @dec using 1 /*c*/ ;"],
-  ["decorator-function", "declare function dec(...args: any[]): any; @dec function f() {}"],
-  ["decorator-enum", "declare function dec(...args: any[]): any; @dec enum E {}"],
-  ["valid-parameter-decorator", "declare function dec(...args: any[]): any; class C { m(@dec x: number) {} }", {experimentalDecorators: true}],
-  ["escaped-top-level-await", "export {}; \\u0061wait x;"],
-  ["named-variable-numeric-follower", "let a 1;"],
-  ["method-following-member", "class C { m(x: number) => x; n() {} }"],
-  ["method-class-expression", "var D = class { m(x: number) => x; };"],
-  ["method-arrow-trivia", "class C { m(x: number) /*\ud83d\ude00*/ => x; }"],
-  ["method-arrow-close", "class C { m(x: number) => }"],
-  ["constructor-real-empty", "class C { constructor(x) {} }"],
-  ["constructor-missing-derived", "class B {} class C extends B { constructor(x) => 1; }"],
-  ["constructor-missing-before-present", "class C { constructor(x) => 1; constructor(y) { this.y = y; } }"],
-  ["constructor-missing-field", "class C { y = 1; constructor(x) => 1; }"],
-  ["constructor-missing-parameter-property", "class C { constructor(public x: number) => 1; }"],
-  ["constructor-missing-decorated-parameter", "declare function dec(...args: any[]): any; class C { constructor(@dec x) => 1; }", {"experimentalDecorators": true}],
+  ["arrow-newline", "x;\n// c\narg => 2;"],
+  ["arrow-same-line-replay", "x; /*c*/ arg => 2;"],
+  ["arrow-source-start", "/*c*/ arg => 2;"],
+  ["arrow-call", "f(/*c*/ arg => 2);"],
+  ["arrow-parenthesized", "(/*c*/ arg) => 2;"],
+  ["arrow-async", "async /*c*/ arg => 2;"],
+  ["arrow-initializer", "var f = /*c*/ arg => 2;"],
+  ["reference-detached-block", "/* license */\n\n///<reference path='./dep.d.ts'/>\n\ndeclare var x: Dep; function f() {}", {dependency: true}],
+  ["reference-same-line", "/* license */ ///<reference path='./dep.d.ts'/>\n\ndeclare var x: Dep; function f() {}", {dependency: true}],
+  ["reference-unrecognized", "// license\n\n/// plain\n\ndeclare var x: number; function f() {}"],
+  ["reference-emitted-first", "// license\n\n///<reference path='./dep.d.ts'/>\n\nvar x: Dep; function f() {}", {dependency: true}],
+  ["reference-crlf", "// license\r\n\r\n///<reference path='./dep.d.ts'/>\r\n\r\ndeclare var x: Dep; function f() {}", {dependency: true}],
+  ["reference-pinned", "/*! license */\n\n///<reference path='./dep.d.ts'/>\n\ndeclare var x: Dep; function f() {}", {dependency: true}],
+  ["escaped-if", "\\u0069f (true) {}"],
+  ["escaped-speculative-async", "(\\u0061sync x => x);"],
+  ["escaped-identifier-async", "let \\u0061sync = 1;"],
+  ["escaped-extended-var", "\\u{0076}ar x = 'hello';"],
+  ["escaped-type", "type typ\\u0065 = 12; typ\\u0065 notok = 0; export {};"],
+  ["escaped-await-yield", "var \\u0061wait = 12; async function main() { \\u0061wait 12; } var \\u0079ield = 12; function* gen() { \\u0079ield 12; } export {};"],
+  ["escaped-extended-await-yield", "var \\u{0061}wait = 12; async function main() { \\u{0061}wait 12; } var \\u{0079}ield = 12; function* gen() { \\u{0079}ield 12; } export {};"],
+  ["invalid-export-variable-decorator", "declare function dec(...args: any[]): any; @dec export const x = 1;"],
+  ["missing-body-export", "export function f(p: number) => p;"],
+  ["escaped-async-function", "\\u0061sync function f() {}"],
+  ["escaped-static", "class C { \\u0073tatic x = 1; }"],
+  ["escaped-export", "\\u0065xport const x = 1;"],
+  ["escaped-declare", "\\u0064eclare var y: number;"],
+  ["escaped-identifier-property", "var \\u0061sync = 1; var x: any; x.\\u0069f;"],
+  ["detached-two-blocks", "/* a */ /* b */\n\ndeclare var x: number;"],
+  ["detached-jsdoc-block", "/** a */ /* b */\n\ndeclare var x: number;"],
+  ["detached-single-block", "/* a */\n\ndeclare var x: number;"],
+  ["detached-lines", "// a\n// b\n\ndeclare var x: number;"],
+  ["detached-separated-reference", "/* a */\n///<reference path='./dep.d.ts'/>\n\ndeclare var x: Dep;", {"dependency": true}],
+  ["detached-jsdoc-reference", "/** a */ ///<reference path='./dep.d.ts'/>\n\ndeclare var x: Dep;", {"dependency": true}],
+  ["detached-namespace", "namespace N {\n/* a */ /* b */\n\nexport var x = 1;\n}"],
+  ["detached-unicode-lines", "/* a */\u2028/* b */\u2028\u2028declare var x: number;"],
+  ["detached-newline-crlf", "/* a */\r\n/* b */\r\n\r\ndeclare var x: number; var y = 1;"],
+  ["detached-newline-cr", "/* a */\r/* b */\r\rdeclare var x: number; var y = 1;"],
+  ["detached-newline-u2029", "/* a */\u2029/* b */\u2029\u2029declare var x: number; var y = 1;"],
+  ["detached-newline-mixed", "/* a */\u2028\ndeclare var x: number; var y = 1;"],
+  ["ordinary-single-crlf", "/* a */\r\ndeclare var x: number; var y = 1;"],
+  ["detached-unicode-line-comment", "// a\u2028\u2028declare var x: number; var y = 1;"],
+  ["detached-nbsp-blank", "/* a */\n\u00a0\ndeclare var x: number; var y = 1;"],
+  ["detached-namespace-unicode", "namespace N {\u2028/* a */\u2028\u2028export var v = 1; }"],
+  ["detached-function-unicode", "function f() {\u2028/* a */\u2028\u2028return 1; }"],
+  ["detached-pinned-unicode", "/*! a */\u2028\u2028var y = 1;"],
+  ["ordinary-unicode-leading", "x;\n/* a */\u2028/* b */\u2028y;"],
+  ["detached-bom-unicode", "\ufeff/* a */\u2028\u2028declare var x: number; var y = 1;"],
+  ["detached-shebang-unicode", "#!/usr/bin/env node\u2028/* a */\u2028\u2028declare var x: number; var y = 1;"],
+  ["detached-newline-lf", "/* a */\n/* b */\n\ndeclare var x: number; var y = 1;"],
+  ["ordinary-call-unicode", "f(/* a */\u2028/* b */\u2028x);"],
+  ["detached-after-trailing-block", "function f() { /* same */\n\n/* b */\n\nreturn 1; }"],
+  ["escaped-default-empty-line", "var x = 1; switch (x) { def\\u0061ult: // c\n}"],
+  ["escaped-default-empty-block", "var x = 1; switch (x) { def\\u0061ult: /* c */ }"],
+  ["escaped-default-statements", "var x = 1; switch (x) { def\\u0061ult: // c\n x++; }"],
+  ["escaped-default-single-statement", "var x = 1; switch (x) { def\\u0061ult: x++; // c\n}"],
+  ["escaped-case-empty-line", "var x = 1; switch (x) { c\\u0061se 1: // c\n}"],
+  ["escaped-default-intervening", "var x = 1; switch (x) { def\\u0061ult /* a */ : // c\n}"],
+  ["ordinary-default-empty-line", "var x = 1; switch (x) { default: // c\n}"],
+  ["ordinary-case-empty-line", "var x = 1; switch (x) { case 1: // c\n}"],
+  ["ordinary-default-statements", "var x = 1; switch (x) { default: // c\n x++; }"],
+  ["ordinary-case-statements", "var x = 1; switch (x) { case 1: // c\n x++; }"],
 ];
 const inputs = [];
 for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015", "esnext", true], ["es5", "system", false], ["esnext", "commonjs", true]])
@@ -53,15 +79,15 @@ for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015
       const main = "/project/main.ts";
       const files = [{path: main, text: text + "\n"}];
       if (extra.dependency) files.push({path: "/project/dep.d.ts", text: "interface Dep { value: number; }\n"});
-      inputs.push({case_id: `emitter-r171-corpus-controls/${target}/${module}/nocheck-${noCheck}/remove-${removeComments}/${shape}`,
+      inputs.push({case_id: `emitter-r168-corpus-controls/${target}/${module}/nocheck-${noCheck}/remove-${removeComments}/${shape}`,
         roots: [main], files, options: {},
         config: JSON.stringify({compilerOptions: {target, module, noCheck, removeComments,
           experimentalDecorators: extra.experimentalDecorators ?? false,
-          lib: ["esnext"], strict: extra.strict ?? false, skipDefaultLibCheck: true, noErrorTruncation: true,
+          lib: ["esnext"], strict: false, skipDefaultLibCheck: true, noErrorTruncation: true,
           sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
           outDir: "/project/out"}, files: ["main.ts"]})});
     }
-assert.equal(inputs.length, 280);
+assert.equal(inputs.length, 488);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
@@ -126,8 +152,8 @@ const cases = inputs.map(input => {
 const artifact = {version: 1, typescript: ts.version, repetitions: 2,
   compiler_sha256: sha256(fs.readFileSync(path.join(root, "vendor/typescript-6.0.3/lib/typescript.js"))),
   observer_sha256: sha256(fs.readFileSync(import.meta.filename)), cases};
-const destination = path.join(root, "crates/compiler/tests/fixtures/emitter-r171-corpus-controls.json");
+const destination = path.join(root, "crates/compiler/tests/fixtures/emitter-r168-corpus-controls.json");
 const rendered = JSON.stringify(artifact, null, 2) + "\n";
 if (process.argv[2] === "--write") fs.writeFileSync(destination, rendered, {flag: "wx"});
 else assert.equal(fs.readFileSync(destination, "utf8"), rendered);
-console.log(`r171 corpus controls: ${cases.length} cases, two identical complete observations each`);
+console.log(`r168 corpus controls: ${cases.length} cases, two identical complete observations each`);

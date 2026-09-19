@@ -6865,7 +6865,7 @@ impl Printer {
                 }
                 self.emit_case_clause_statements(
                     transformation,
-                    node.source(),
+                    node,
                     data.statements,
                     colon,
                     single_line_statement,
@@ -6932,7 +6932,7 @@ impl Printer {
                 }
                 self.emit_case_clause_statements(
                     transformation,
-                    node.source(),
+                    node,
                     data.statements,
                     colon,
                     single_line_statement,
@@ -8698,13 +8698,14 @@ impl Printer {
     fn emit_case_clause_statements(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
+        clause: TransformNode,
         statements: Option<tsc_syntax::NodeArrayId>,
         colon: TokenEmission,
         single_line: bool,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        let source = clause.source();
         let statements = statements
             .and_then(|array| transformation.arena().node_array_ref(source, array))
             .map(|array| transformation.arena().node_array(array))
@@ -8717,6 +8718,19 @@ impl Printer {
             .and_then(|statement| transformation.arena().node_ref(source, statement));
         let token_owned_prefix = self.token_owned_child_prefix(transformation, colon, first)?;
         if statements.is_empty() {
+            // The colon normally owns the empty clause's trailing boundary.
+            // Escaped keywords keep tsc's arithmetic token cursor, which can
+            // end inside the raw keyword. The clause's parsed end still owns
+            // its trailing comments in that case.
+            let clause_end = transformation.arena().node(clause)?.end;
+            if self.node_has_source_token_shape(transformation, clause)?
+                && colon
+                    .cursor()
+                    .source_position()
+                    .is_some_and(|(_, position)| position.value() != clause_end)
+            {
+                self.emit_trailing_comments_for_node(transformation, clause, writer)?;
+            }
             return Ok(());
         }
         let first = first.ok_or(PrinterError::UnknownStatement(statements[0].0))?;
@@ -16433,13 +16447,11 @@ impl Printer {
             };
             (detached_end, DetachedSourceCommentPolicy::PinnedOnly)
         } else {
-            let Some(detached) = detached_leading_trivia(&source.text()[start..code_start]) else {
+            let Some(detached_end) = detached_leading_trivia_end(source.text(), start, code_start)
+            else {
                 return Ok(None);
             };
-            (
-                start.saturating_add(detached.len()),
-                DetachedSourceCommentPolicy::All,
-            )
+            (detached_end, DetachedSourceCommentPolicy::All)
         };
         let Some(last_detached_comment) =
             collect_source_comment_ranges(source.text(), start, false)
@@ -19299,51 +19311,28 @@ fn strip_same_line_comment_prefix(trivia: SourceTrivia<'_>) -> SourceTrivia<'_> 
     }
 }
 
-fn detached_leading_trivia(trivia: &str) -> Option<&str> {
-    let bytes = trivia.as_bytes();
-    let mut cursor = 0usize;
-    let mut saw_comment = false;
-    while cursor < bytes.len() {
-        let mut line_breaks = 0usize;
-        while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
-            if bytes[cursor] == b'\r' {
-                line_breaks += 1;
-                cursor += 1;
-                if bytes.get(cursor) == Some(&b'\n') {
-                    cursor += 1;
-                }
-            } else if bytes[cursor] == b'\n' {
-                line_breaks += 1;
-                cursor += 1;
-            } else {
-                cursor += 1;
-            }
+// Discover the first detached group using the same comment and line-break
+// semantics as the pinned path. Keep its emitted-through whitespace boundary;
+// the ordinary leading phase separately resumes at the last comment's end.
+fn detached_leading_trivia_end(source: &str, position: usize, code_start: usize) -> Option<usize> {
+    let mut comments = collect_source_comment_ranges(source, position, false)
+        .into_iter()
+        .take_while(|comment| comment.end <= code_start);
+    let mut last = comments.next()?;
+    for comment in comments {
+        if contains_two_line_breaks(source, last.end, comment.start) {
+            break;
         }
-        if saw_comment && line_breaks >= 2 {
-            return Some(&trivia[..cursor]);
-        }
-        if bytes.get(cursor..cursor + 2) == Some(b"//") {
-            saw_comment = true;
-            cursor += 2;
-            while cursor < bytes.len() && !matches!(bytes[cursor], b'\r' | b'\n') {
-                cursor += trivia[cursor..].chars().next().map_or(1, char::len_utf8);
-            }
-            continue;
-        }
-        if bytes.get(cursor..cursor + 2) == Some(b"/*") {
-            saw_comment = true;
-            cursor += 2;
-            while cursor + 1 < bytes.len() && &bytes[cursor..cursor + 2] != b"*/" {
-                cursor += trivia[cursor..].chars().next().map_or(1, char::len_utf8);
-            }
-            cursor = (cursor + 2).min(bytes.len());
-            continue;
-        }
-        if cursor < bytes.len() {
-            cursor += trivia[cursor..].chars().next().map_or(1, char::len_utf8);
-        }
+        last = comment;
     }
-    None
+    if !contains_two_line_breaks(source, last.end, code_start) {
+        return None;
+    }
+    let gap = source.get(last.end..code_start)?;
+    let whitespace_end = gap
+        .find(|character| !is_whitespace_like(character))
+        .unwrap_or(gap.len());
+    Some(last.end + whitespace_end)
 }
 
 /// `removeComments` retains one deliberately narrow exception: pinned
@@ -19785,17 +19774,6 @@ fn calculate_source_indent(source: &str, start: usize, end: usize) -> usize {
         }
     }
     indent
-}
-
-fn write_comment_with_normalized_newlines(comment: &str, writer: &mut TextWriter) {
-    let normalized = comment.replace("\r\n", "\n").replace('\r', "\n");
-    let mut lines = normalized.split('\n').peekable();
-    while let Some(line) = lines.next() {
-        writer.write_comment(line);
-        if lines.peek().is_some() {
-            writer.write_line(true);
-        }
-    }
 }
 
 fn normalize_new_lines(text: &str, new_line: &str) -> String {

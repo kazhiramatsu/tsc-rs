@@ -45,6 +45,33 @@ const shapes = [
   ["detached-jsdoc-reference", "/** a */ ///<reference path='./dep.d.ts'/>\n\ndeclare var x: Dep;", {"dependency": true}],
   ["detached-namespace", "namespace N {\n/* a */ /* b */\n\nexport var x = 1;\n}"],
   ["detached-unicode-lines", "/* a */\u2028/* b */\u2028\u2028declare var x: number;"],
+  ["detached-newline-crlf", "/* a */\r\n/* b */\r\n\r\ndeclare var x: number; var y = 1;"],
+  ["detached-newline-cr", "/* a */\r/* b */\r\rdeclare var x: number; var y = 1;"],
+  ["detached-newline-u2029", "/* a */\u2029/* b */\u2029\u2029declare var x: number; var y = 1;"],
+  ["detached-newline-mixed", "/* a */\u2028\ndeclare var x: number; var y = 1;"],
+  ["ordinary-single-crlf", "/* a */\r\ndeclare var x: number; var y = 1;"],
+  ["detached-unicode-line-comment", "// a\u2028\u2028declare var x: number; var y = 1;"],
+  ["detached-nbsp-blank", "/* a */\n\u00a0\ndeclare var x: number; var y = 1;"],
+  ["detached-namespace-unicode", "namespace N {\u2028/* a */\u2028\u2028export var v = 1; }"],
+  ["detached-function-unicode", "function f() {\u2028/* a */\u2028\u2028return 1; }"],
+  ["detached-pinned-unicode", "/*! a */\u2028\u2028var y = 1;"],
+  ["ordinary-unicode-leading", "x;\n/* a */\u2028/* b */\u2028y;"],
+  ["detached-bom-unicode", "\ufeff/* a */\u2028\u2028declare var x: number; var y = 1;"],
+  ["detached-shebang-unicode", "#!/usr/bin/env node\u2028/* a */\u2028\u2028declare var x: number; var y = 1;"],
+  ["detached-newline-lf", "/* a */\n/* b */\n\ndeclare var x: number; var y = 1;"],
+  ["ordinary-call-unicode", "f(/* a */\u2028/* b */\u2028x);"],
+  ["detached-namespace-after-trailing-block", "namespace N { /* same */\n\n/* b */\n\nexport var x = 1; }"],
+  ["detached-after-trailing-block", "function f() { /* same */\n\n/* b */\n\nreturn 1; }"],
+  ["escaped-default-empty-line", "var x = 1; switch (x) { def\\u0061ult: // c\n}"],
+  ["escaped-default-empty-block", "var x = 1; switch (x) { def\\u0061ult: /* c */ }"],
+  ["escaped-default-statements", "var x = 1; switch (x) { def\\u0061ult: // c\n x++; }"],
+  ["escaped-default-single-statement", "var x = 1; switch (x) { def\\u0061ult: x++; // c\n}"],
+  ["escaped-case-empty-line", "var x = 1; switch (x) { c\\u0061se 1: // c\n}"],
+  ["escaped-default-intervening", "var x = 1; switch (x) { def\\u0061ult /* a */ : // c\n}"],
+  ["ordinary-default-empty-line", "var x = 1; switch (x) { default: // c\n}"],
+  ["ordinary-case-empty-line", "var x = 1; switch (x) { case 1: // c\n}"],
+  ["ordinary-default-statements", "var x = 1; switch (x) { default: // c\n x++; }"],
+  ["ordinary-case-statements", "var x = 1; switch (x) { case 1: // c\n x++; }"],
 ];
 const inputs = [];
 for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015", "esnext", true], ["es5", "system", false], ["esnext", "commonjs", true]])
@@ -61,7 +88,7 @@ for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015
           sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
           outDir: "/project/out"}, files: ["main.ts"]})});
     }
-assert.equal(inputs.length, 280);
+assert.equal(inputs.length, 496);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

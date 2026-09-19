@@ -8910,8 +8910,16 @@ impl Es2015Visitor<'_, '_, '_> {
         };
         for member in self.array_nodes(members)? {
             if let NodeData::Constructor(data) = &self.context.arena().node(member)?.data {
-                if data.body.is_some() {
-                    return Ok(Some(member));
+                if let Some(body) = data.body {
+                    let body = self.context.arena().node(self.node(body))?;
+                    // Parsed zero-width bodies are missing. Synthesized
+                    // bodies retain nodeIsPresent's negative-range exception.
+                    if body.pos == u32::MAX
+                        || body.pos != body.end
+                        || body.kind == SyntaxKind::EndOfFileToken
+                    {
+                        return Ok(Some(member));
+                    }
                 }
             }
         }
