@@ -16,7 +16,7 @@ SUCCESSOR_SOURCE_PATHS = {"crates/syntax/src/recovery.rs", "crates/syntax/tests/
 SUCCESSOR_STYLE_SOURCE_PAIRS = {
     "crates/syntax/src/recovery/context.rs": (
         "780fbb2dba7ab8d686bb5e37792be81c32afce2943fdfc46e6fd32a5929ea30f",
-        "aa36f68f2b04134703269d901416fab46c73949ed548fa9a5886d6d88fa400b2",
+        "c1e18d476453ff4ce90172b009310d0c160771190509583d3436d1e6f8e9aaa4",
     ),
     "crates/syntax/src/parser.rs": (
         "ffe64e0cf029c96b3bc91239a71be2c918f2e6c7803c57f189c0a771ab8f6701",
