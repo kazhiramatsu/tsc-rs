@@ -86,7 +86,10 @@ def main():
     probe_paths = [source_tree / "scripts/replay-recovery-parse.rs", source_tree / "crates/xtask/src/recovery_parse_snapshot.rs",
                    Path(__file__).resolve(), source_tree / "scripts/select-recovery-parse-corpus.py"]
     probe_hashes = {str(path): sha(path.read_bytes()) for path in probe_paths}
-    manifest = ['[package]', 'name = "recovery-parse-replay"', 'version = "0.0.0"', 'edition = "2021"', '', '[workspace]', '', '[[bin]]', 'name = "recovery-parse-replay"', f'path = {json.dumps(str(probe_paths[0]))}', '', '[dependencies]', 'base64 = "0.22"', 'serde_json = "1.0"', 'sha2 = "0.10"']
+    # The census workspace enables preserve_order through program/harness.
+    # Its input IDs and graph digests hash serialized JSON bytes, so the
+    # standalone probe must use the same map representation.
+    manifest = ['[package]', 'name = "recovery-parse-replay"', 'version = "0.0.0"', 'edition = "2021"', '', '[workspace]', '', '[[bin]]', 'name = "recovery-parse-replay"', f'path = {json.dumps(str(probe_paths[0]))}', '', '[dependencies]', 'base64 = "0.22"', 'serde_json = { version = "1.0", features = ["preserve_order"] }', 'sha2 = "0.10"']
     for name in ["syntax", "types", "diagnostics"]:
         manifest.append(f'tsc-{name} = {{ package = "tsc-rs-{name}", path = {json.dumps(str(tree / "crates" / name))} }}')
     manifest += ['', '[features]', 'current-recovery-profiles = []', '', '[profile.dev]', 'opt-level = 3', 'debug = 0', 'incremental = false', '']

@@ -1,0 +1,50 @@
+serde_json v1.0.150
+├── serde_json feature "default"
+│   ├── tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/checker)
+│   │   └── tsc-rs-checker feature "default"
+│   │       ├── tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/compiler)
+│   │       │   └── tsc-rs-compiler feature "default"
+│   │       │       ├── tsc-rs-conformance v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/conformance)
+│   │       │       │   └── tsc-rs-conformance feature "default"
+│   │       │       │       └── tsc-rs-xtask v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/xtask)
+│   │       │       │           └── tsc-rs-xtask feature "default" (command-line)
+│   │       │       └── tsc-rs-xtask v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/xtask) (*)
+│   │       ├── tsc-rs-conformance v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/conformance) (*)
+│   │       ├── tsc-rs-fuzz v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/fuzz)
+│   │       │   └── tsc-rs-fuzz feature "default"
+│   │       │       └── tsc-rs-xtask v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/xtask) (*)
+│   │       ├── tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/harness)
+│   │       │   └── tsc-rs-harness feature "default"
+│   │       │       ├── tsc-rs-conformance v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/conformance) (*)
+│   │       │       ├── tsc-rs-fuzz v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/fuzz) (*)
+│   │       │       └── tsc-rs-xtask v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/xtask) (*)
+│   │       └── tsc-rs-xtask v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/xtask) (*)
+│   ├── tsc-rs-conformance v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/conformance) (*)
+│   ├── tsc-rs-fuzz v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/fuzz) (*)
+│   ├── tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/harness) (*)
+│   ├── tsc-rs-oracle v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/oracle)
+│   │   └── tsc-rs-oracle feature "default"
+│   │       ├── tsc-rs-conformance v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/conformance) (*)
+│   │       └── tsc-rs-xtask v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/xtask) (*)
+│   ├── tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/program)
+│   │   └── tsc-rs-program feature "default"
+│   │       ├── tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/checker) (*)
+│   │       ├── tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/compiler) (*)
+│   │       ├── tsc-rs-conformance v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/conformance) (*)
+│   │       ├── tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/emitter)
+│   │       │   └── tsc-rs-emitter feature "default"
+│   │       │       ├── tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/checker) (*)
+│   │       │       ├── tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/compiler) (*)
+│   │       │       └── tsc-rs-xtask v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/xtask) (*)
+│   │       ├── tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/harness) (*)
+│   │       └── tsc-rs-xtask v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/xtask) (*)
+│   └── tsc-rs-xtask v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/xtask) (*)
+├── serde_json feature "indexmap"
+│   └── serde_json feature "preserve_order"
+│       ├── tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/checker) (*)
+│       ├── tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/harness) (*)
+│       └── tsc-rs-program v0.1.0 (/Users/hiramatsu/dev/tsc-rs-emitter-final-census/crates/program) (*)
+├── serde_json feature "preserve_order" (*)
+└── serde_json feature "std"
+    ├── serde_json feature "default" (*)
+    └── serde_json feature "preserve_order" (*)
