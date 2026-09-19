@@ -8,7 +8,36 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
 提出時の検証と統合候補の検証は以下で区別する。hosted完了前に全体完了を主張しない。
 
-## r120–r124 検証途中の状態（2026-09-19）
+## r157 統合候補の検証中（2026-09-19）
+
+統合は未完了。`add70fc29e3c553f36c9b78e23733877379e6a28` は、確認済みのproject/noEmit観測経路と
+ES5変数修復を組み合わせた候補であり、r157/r158の実行中はsourceとHEADを固定する。
+下表の過去の成功を、この候補の全体成功へ読み替えない。
+
+| 検証 | 確認済みの範囲 |
+| --- | --- |
+| 元のcensus r78 | 14,329 ID = 14,219 loaded＋110明示的load failure。16,994 parse inputsを保存。元snapshotは変更しない |
+| parser replay r131/r151 | 元入力のAST・診断・順序付き回復記録は不変。許可判定の差から44 commandを選択し、従来43件をすべて含む。完全command比較はr158待ち |
+| project r144 | 108件のsource/order/options、診断、全callback bytes、map、status/exitを各2回完全一致。最終候補でも再確認する |
+| noEmit r153 | 元censusのemit loaderで拒否された2件を既存の通常checking commandで各2回完全一致。4観測を保存。元loader成功やemitter呼び出しとは数えない |
+| variable r150 | emitter全1,015 tests・printer147 cases成功。268 complete commands中263 exact×2、追加ES5 controlsの5件が失敗 |
+| comma/neighbours r152 | missing-comma 145 complete commandsが各2回一致、関連7 Rust tests成功 |
+| transpile r152 | 独立291件は289 exact×2・2 known、unexpected差分0。6件のKNOWN退役要求だけでraw exit101。live KNOWNは全8件を保持中 |
+| ES5 producer候補 r154/r156 | 全404 TypeScript complete commandsが各2回一致し、元268/中間380 recordsは構造同一。native比較はr157実行中 |
+
+r150の5件は、CommonJS変数名変更後のresolver参照2件、Systemの消えた型に続くコメント1件、
+for-of変換後のsemicolonをまたぐコメント2件だった。実際のOpus136/137と、semantic originalが
+コメントmetadataを複製しないこと、置換前の型末尾はinitializer cursorだけが参照すること、
+for-ofの片側コメント範囲を区別して検討した。候補修復は共有comment/map collectorを変更しない。
+
+証拠は[parser replay](records/parser-replays-r131-complete/manifest.json)、
+[project108](records/project-supplement-r144-complete/archive-manifest.json)、
+[noEmit2](records/noemit-r153-complete/manifest.json)、
+[選択44件のTS観測](records/selected-corpus-oracle-r155/manifest.json)に保存する。
+r150/r152とES5候補の記録は候補worktreeで固定し、検証後に統合する。
+KNOWN36と独立transpile KNOWNの退役、全体chain walk、unsplit local CI、hosted確認、mergeは未完了。
+
+## r120–r124 の固定候補に対する検証履歴（2026-09-19）
 
 統合は未完了。検証対象の Rust・fixture・HEAD を固定し、修復候補の準備は別 worktree で行う。
 次の成功はそれぞれ記載した候補の証拠であり、現在の最終候補の成功へ読み替えない。
@@ -44,10 +73,10 @@ censusは7,908 recorded plansと、過去のqualification/candidate入力にの�
 計14,329 IDを対象にする。これは入力IDの棚卸しであり、実行成功件数ではない。
 固定したCensus HEADの入力hashと全IDは `records/census-r78-claimed-id-inventory.json.gz` に保存した。
 census完了時には各IDがloaded rowsまたは明示的なload failureへ残っていることも確認する。
-このcensus、4つのparser replay、選択された元commandのnative/TS比較、
-36 parse KNOWNの判断、最終chain walk・unsplit local CI・hosted確認・mergeは未完了。
-censusは別の固定sourceと実行ファイルで継続し、Cargo buildの間だけ停止する。
-停止を含む経過時間や、機能比較を併走させた時間を性能qualificationには使用しない。
+この時点で進行中だったcensusとparser replayは、その後r131/r151で完了した。
+選択された元commandのnative比較と最終統合は、上段の現状を参照する。
+censusは固定sourceと実行ファイルで採取し、停止を含む経過時間や機能比較を併走させた時間は
+性能qualificationに使用しない。
 Fableはround54でlimitに達したため、以降は実際のClaude Opusを1 CLIずつ使用している。
 
 共通処理の変更が複数出力へ及ぶ設計は、[統合後の設計調査](cross-review/post-integration-dependency-boundaries.md)
