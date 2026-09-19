@@ -1,0 +1,14 @@
+{
+  "baseline_head": "e80dfc18fc7822a73d83e20e900c7fafb1396740",
+  "candidate_head": "b451489e4a18abbff42651d8eb814537f4c5f800",
+  "complete_boundary_cases": 1930,
+  "complete_observations": 3860,
+  "capture_archives_byte_identical": true,
+  "shared_archive_sha256": "fe313477dd434c9f78b508da7eac2bffffe94749656c1926c8b12f09781fce25",
+  "note": "r120 used its own fresh capture directory and immutable executable; run receipts prove a new execution. Equality concerns the complete observation payloads, not binaries or source revisions.",
+  "r116_failures_now_exact_twice": [
+    "emitter-r113-type-comment-controls/type-comment/es5/commonjs/remove-false/class-property",
+    "emitter-r113-type-comment-controls/type-comment/es5/commonjs/remove-false/parameter-property",
+    "emitter-r113-type-comment-controls/type-comment/es5/system/remove-false/system-binding"
+  ]
+}

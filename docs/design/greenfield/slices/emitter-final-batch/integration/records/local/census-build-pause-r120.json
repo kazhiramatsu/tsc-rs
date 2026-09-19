@@ -1,0 +1,142 @@
+{
+  "head": "b451489e4a18abbff42651d8eb814537f4c5f800",
+  "census_manifest": {
+    "census_pid": 56011,
+    "head": "67df86615a45f9595025064bcc12fde93063fedf",
+    "original_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask",
+    "original_inode": 120896494,
+    "original_device": 16777234,
+    "sha256": "8bdfd58da50dd32576998c8604c14acca42ec64ae812ed4590aa3eba442ab47d",
+    "retained_copy": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-census-r78-immutable/xtask",
+    "recorded_at": "2026-09-19T03:52:26.570523+00:00",
+    "process_text_mappings": "p56011\nftxt\ni120896494\nn/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask\nftxt\ni1152921500312573277\nn/usr/lib/dyld\n"
+  },
+  "steps": [
+    {
+      "label": "compiler-bounded-build-r120",
+      "exit": 0
+    },
+    {
+      "label": "recovery-new-controls-r120",
+      "exit": 0,
+      "expected_cases": 110
+    },
+    {
+      "label": "emitter-all-build-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-comma-list-printer-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-tsc-emitter-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-utf16-writer-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-literal-parent-provenance-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-decorator-super-direct-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-token-comment-phase-metadata-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-list-comment-flags-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-ellipsis-comment-metadata-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-source-comment-topology-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-literal-value-provenance-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-list-format-flags-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-literal-update-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-comma-argument-factory-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-contracts-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-compact-body-comments-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-printer-failure-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-decorator-binding-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-emit-pipeline-phases-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-class-header-token-metadata-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-import-type-attributes-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-mapped-type-members-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-string-literal-identifier-source-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "emitter-utf16-literal-escaping-contract-r120",
+      "exit": 0
+    },
+    {
+      "label": "recovery-complete-boundaries-r120",
+      "exit": 0,
+      "expected_cases": 1930
+    },
+    {
+      "label": "system-recovery-native-r120",
+      "exit": 0,
+      "expected_cases": 4088
+    }
+  ],
+  "protocol": "Census paused only for Cargo build; immutable native functional replays may overlap the read-only frozen census. All commands demoted; no timing qualifies performance. No xtask rebuild or source mutation.",
+  "paused_at": "2026-09-19T07:12:32.862931+00:00",
+  "resumed_at": "2026-09-19T07:14:24.081618+00:00",
+  "census_executable_preserved": true,
+  "additional_build_pauses": [
+    {
+      "paused_at": "2026-09-19T07:15:10.812581+00:00",
+      "label": "emitter-all-build-r120",
+      "resumed_at": "2026-09-19T07:23:46.424910+00:00"
+    }
+  ]
+}

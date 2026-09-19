@@ -20,6 +20,7 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 | r120 emitter | 23 binaries、1,015 tests成功・ignored0 |
 | r112 post-child metadata | 既存96＋追加24の120 controlsが各2回一致 |
 | r120 追加境界 | 110 commandsが各2回一致。r116で残った3差分も解消 |
+| r120 元のSystem/recovery | 4,088 commandsが各2回一致、11 Rust tests成功。全8,176観測を保存 |
 | r122 parse KNOWN | 残る36行すべて各2回一致。2 testsは退役要求assertionのみでexit101。全corpusの影響確認・退役は未完了 |
 | r123 config/library | 現在の固定compiler binaryで24 tests成功・ignored0・filtered459。r121 planner全84 testsも成功 |
 | r110b ledger | 固定済み旧xtask実行ファイルで4,113 entries、stale0・undispositioned0。最終toolによる再確認は未実施 |
@@ -28,7 +29,8 @@ r116の3差分は、System変数名の型コメントと、クラス／引数プ
 [全tupleと結果](cross-review/r116-native-results.md)を保存した。
 Opus116–119と照合した限定修復、および追加12＋24 controlsを統合し、
 `b451489e4a18abbff42651d8eb814537f4c5f800` に対するr120検証を継続している。
-110 complete commands、emitter全1,015 tests、境界1,930が成功し、元の4,088 commandsは実行中。
+110 complete commands、emitter全1,015 tests、境界1,930、元の4,088 commandsがすべて成功した。
+[r120の全結果と観測archive](cross-review/r120-native-results.md)を保存した。
 失敗時は後続を進めず、current bytesでの成功を要求する。
 
 [r122の36行の一致と退役要求](cross-review/r122-known36-results.md)は元fixture・比較器で確認した。
