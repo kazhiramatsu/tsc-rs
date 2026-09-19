@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use tsc_syntax::{
     for_each_observable_field, JSDocParsingMode, LanguageVariant, NodeArrayId, NodeData, NodeId,
-    ObservableField, ParseOptions, SourceFile, SyntaxKind,
+    ObservableField, ParseOptions, SourceFile,
 };
 use tsc_types::{NodeFlags, ScriptTarget};
 
@@ -141,7 +141,7 @@ pub fn digest(source: &SourceFile) -> Value {
                 for_each_observable_field(node, |name, value| {
                     fields.push((name, graph.observable(value)));
                 });
-                extra_fields(node, &mut graph, |name, value| fields.push((name, value)));
+                extra_fields(node, |name, value| fields.push((name, value)));
                 contexts.update((flags & NodeFlags::CONTEXT_FLAGS.bits()).to_le_bytes());
                 json!({"node":*kind as u16,"pos":position(*pos),"end":position(*end),
                     "flags":flags & !NodeFlags::CONTEXT_FLAGS.bits(),
@@ -288,39 +288,15 @@ impl CanonicalGraph {
 }
 
 // The generated observable visitor deliberately omits some AST fields. Keep
-// their names and exact optional presence, including recovery-only child slots.
-fn extra_fields(
-    node: &tsc_syntax::nodes::Node,
-    graph: &mut CanonicalGraph,
-    mut cb: impl FnMut(&'static str, Value),
-) {
-    macro_rules! child {
-        ($field:expr,$name:literal) => {
-            if let Some(id) = $field {
-                cb($name, json!(["node", graph.node(id)]));
-            }
-        };
-    }
-    macro_rules! array {
-        ($field:expr,$name:literal) => {
-            if let Some(id) = $field {
-                cb($name, json!(["array", graph.array(id)]));
-            }
-        };
-    }
+// their names and exact optional presence, including kind-valued payloads.
+fn extra_fields(node: &tsc_syntax::nodes::Node, mut cb: impl FnMut(&'static str, Value)) {
     // Kind values are tagged independently from graph indices.
     macro_rules! kind {
         ($field:expr,$name:literal) => {
-            cb($name, json!(["kind", $field as u16]));
+            cb($name, json!(["kind", $field as u16]))
         };
     }
     match &node.data {
-        NodeData::DebuggerStatement(d) => child!(d.expression, "expression"),
-        NodeData::EmptyStatement(d) => {
-            child!(d.name, "name");
-            array!(d.modifiers, "modifiers");
-            array!(d.members, "members");
-        }
         NodeData::HeritageClause(d) => kind!(d.token, "token"),
         NodeData::Identifier(d) => cb("text", json!(["string", d.text])),
         NodeData::ImportAttributes(d) => kind!(d.token, "token"),
@@ -329,33 +305,10 @@ fn extra_fields(
                 kind!(kind, "phaseModifier");
             }
         }
-        NodeData::JSDocAllType(d) => {
-            child!(d.tag_name, "tagName");
-            child!(d.class, "class");
-            if let Some(comment) = &d.comment {
-                match comment {
-                    tsc_syntax::nodes::JSDocComment::Text(text) => {
-                        cb("comment", json!(["string", text]))
-                    }
-                    tsc_syntax::nodes::JSDocComment::Nodes(nodes) => {
-                        cb("comment", json!(["array", graph.array(*nodes)]))
-                    }
-                }
-            }
-        }
-        NodeData::JSDocUnknownType(d) => child!(d.r#type, "type"),
         NodeData::MetaProperty(d) => kind!(d.keyword_token, "keywordToken"),
-        NodeData::NotEmittedStatement(d) => cb("text", json!(["string", d.text])),
-        NodeData::OmittedExpression(d) => child!(d.r#type, "type"),
         NodeData::PostfixUnaryExpression(d) => kind!(d.operator, "operator"),
         NodeData::PrefixUnaryExpression(d) => kind!(d.operator, "operator"),
         NodeData::PrivateIdentifier(d) => cb("text", json!(["string", d.text])),
-        NodeData::SyntaxList(d) => {
-            child!(d.tag, "tag");
-            array!(d.type_arguments, "typeArguments");
-            child!(d.template, "template");
-            child!(d.question_dot_token, "questionDotToken");
-        }
         NodeData::TypeOperator(d) => kind!(d.operator, "operator"),
         _ => {}
     }
@@ -375,7 +328,7 @@ pub fn validate_schema() {
             let Some((name,body))=part.split_once(" {") else {continue;};
             if name.contains('\n') {continue;}
             let Some(variant)=name.strip_suffix("Data") else {continue;};
-            let body=body.split("\n}").next().unwrap();
+            let body=body.split('}').next().unwrap();
             let fields=rust_fields(body);
             let ordinary=variant_body(observed,variant);
             let extra=variant_body(extras,variant);
@@ -420,6 +373,7 @@ fn has_field(source: &str, field: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tsc_syntax::SyntaxKind;
 
     fn parse(text: &str, node_base: u32, array_base: u32) -> SourceFile {
         tsc_syntax::parse_source_file(
