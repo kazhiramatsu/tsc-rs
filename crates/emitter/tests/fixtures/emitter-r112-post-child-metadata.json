@@ -1,0 +1,610 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "route": "direct-printer-metadata",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "0fba10570e231598e79f560bcd2bef83cfd110205ad18d4c876ce545ee83468c",
+  "cases": [
+    {
+      "case_id": "emitter-r112-post-child-metadata/import-clause/none/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "import-clause",
+      "mode": "none",
+      "selection_kind": "ImportClause",
+      "selected_byte_range": {
+        "start": 6,
+        "end": 42
+      },
+      "emit_flags": 0,
+      "remove_comments": false,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} /*d💠*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIC8qcPCfmIAqLyBhcyBiYXIgLyppYvCfjYAqLyB9IC8qY/CfjIoqLyBmcm9tIC8qc/Cfp60qLyAibSI7DQpleHBvcnQgeyBhIC8qcfCflKUqLyBhcyBiIC8qZWLwn4yZKi8gfSAvKmXwn6qQKi8gZnJvbSAibSI7DQpkbyB7DQogICAgeDsgLypkYvCfjosqLw0KfSAvKmTwn5KgKi8gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 183,
+        "end_utf16": {
+          "position": 165,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/import-clause/none/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "import-clause",
+      "mode": "none",
+      "selection_kind": "ImportClause",
+      "selected_byte_range": {
+        "start": 6,
+        "end": 42
+      },
+      "emit_flags": 0,
+      "remove_comments": true,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/import-clause/no-trailing/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "import-clause",
+      "mode": "no-trailing",
+      "selection_kind": "ImportClause",
+      "selected_byte_range": {
+        "start": 6,
+        "end": 42
+      },
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} /*d💠*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIC8qcPCfmIAqLyBhcyBiYXIgLyppYvCfjYAqLyB9IGZyb20gLypz8J+nrSovICJtIjsNCmV4cG9ydCB7IGEgLypx8J+UpSovIGFzIGIgLyplYvCfjJkqLyB9IC8qZfCfqpAqLyBmcm9tICJtIjsNCmRvIHsNCiAgICB4OyAvKmRi8J+OiyovDQp9IC8qZPCfkqAqLyB3aGlsZSAoeSk7DQo=",
+        "utf8_bytes": 173,
+        "end_utf16": {
+          "position": 157,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/import-clause/no-trailing/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "import-clause",
+      "mode": "no-trailing",
+      "selection_kind": "ImportClause",
+      "selected_byte_range": {
+        "start": 6,
+        "end": 42
+      },
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/import-clause/range/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "import-clause",
+      "mode": "range",
+      "selection_kind": "ImportClause",
+      "selected_byte_range": {
+        "start": 6,
+        "end": 42
+      },
+      "emit_flags": 0,
+      "remove_comments": false,
+      "comment_range_bytes": {
+        "start": 6,
+        "end": 29
+      },
+      "typescript_observation": {
+        "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ /*ib🍀*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} /*d💠*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIC8qcPCfmIAqLyBhcyBiYXIgLyppYvCfjYAqLyB9IC8qY/CfjIoqLyAvKmli8J+NgCovIGZyb20gLypz8J+nrSovICJtIjsNCmV4cG9ydCB7IGEgLypx8J+UpSovIGFzIGIgLyplYvCfjJkqLyB9IC8qZfCfqpAqLyBmcm9tICJtIjsNCmRvIHsNCiAgICB4OyAvKmRi8J+OiyovDQp9IC8qZPCfkqAqLyB3aGlsZSAoeSk7DQo=",
+        "utf8_bytes": 194,
+        "end_utf16": {
+          "position": 174,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/import-clause/range/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "import-clause",
+      "mode": "range",
+      "selection_kind": "ImportClause",
+      "selected_byte_range": {
+        "start": 6,
+        "end": 42
+      },
+      "emit_flags": 0,
+      "remove_comments": true,
+      "comment_range_bytes": {
+        "start": 6,
+        "end": 29
+      },
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/export-clause/none/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "export-clause",
+      "mode": "none",
+      "selection_kind": "NamedExports",
+      "selected_byte_range": {
+        "start": 79,
+        "end": 111
+      },
+      "emit_flags": 0,
+      "remove_comments": false,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} /*d💠*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIC8qcPCfmIAqLyBhcyBiYXIgLyppYvCfjYAqLyB9IC8qY/CfjIoqLyBmcm9tIC8qc/Cfp60qLyAibSI7DQpleHBvcnQgeyBhIC8qcfCflKUqLyBhcyBiIC8qZWLwn4yZKi8gfSAvKmXwn6qQKi8gZnJvbSAibSI7DQpkbyB7DQogICAgeDsgLypkYvCfjosqLw0KfSAvKmTwn5KgKi8gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 183,
+        "end_utf16": {
+          "position": 165,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/export-clause/none/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "export-clause",
+      "mode": "none",
+      "selection_kind": "NamedExports",
+      "selected_byte_range": {
+        "start": 79,
+        "end": 111
+      },
+      "emit_flags": 0,
+      "remove_comments": true,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/export-clause/no-trailing/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "export-clause",
+      "mode": "no-trailing",
+      "selection_kind": "NamedExports",
+      "selected_byte_range": {
+        "start": 79,
+        "end": 111
+      },
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} /*d💠*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIC8qcPCfmIAqLyBhcyBiYXIgLyppYvCfjYAqLyB9IC8qY/CfjIoqLyBmcm9tIC8qc/Cfp60qLyAibSI7DQpleHBvcnQgeyBhIC8qcfCflKUqLyBhcyBiIC8qZWLwn4yZKi8gfSBmcm9tICJtIjsNCmRvIHsNCiAgICB4OyAvKmRi8J+OiyovDQp9IC8qZPCfkqAqLyB3aGlsZSAoeSk7DQo=",
+        "utf8_bytes": 173,
+        "end_utf16": {
+          "position": 157,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/export-clause/no-trailing/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "export-clause",
+      "mode": "no-trailing",
+      "selection_kind": "NamedExports",
+      "selected_byte_range": {
+        "start": 79,
+        "end": 111
+      },
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/export-clause/range/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "export-clause",
+      "mode": "range",
+      "selection_kind": "NamedExports",
+      "selected_byte_range": {
+        "start": 79,
+        "end": 111
+      },
+      "emit_flags": 0,
+      "remove_comments": false,
+      "comment_range_bytes": {
+        "start": 79,
+        "end": 98
+      },
+      "typescript_observation": {
+        "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b } /*eb🌙*/ from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} /*d💠*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIC8qcPCfmIAqLyBhcyBiYXIgLyppYvCfjYAqLyB9IC8qY/CfjIoqLyBmcm9tIC8qc/Cfp60qLyAibSI7DQpleHBvcnQgeyBhIC8qcfCflKUqLyBhcyBiIH0gLyplYvCfjJkqLyBmcm9tICJtIjsNCmRvIHsNCiAgICB4OyAvKmRi8J+OiyovDQp9IC8qZPCfkqAqLyB3aGlsZSAoeSk7DQo=",
+        "utf8_bytes": 173,
+        "end_utf16": {
+          "position": 157,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/export-clause/range/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "export-clause",
+      "mode": "range",
+      "selection_kind": "NamedExports",
+      "selected_byte_range": {
+        "start": 79,
+        "end": 111
+      },
+      "emit_flags": 0,
+      "remove_comments": true,
+      "comment_range_bytes": {
+        "start": 79,
+        "end": 98
+      },
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/specifier-property/none/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "specifier-property",
+      "mode": "none",
+      "selection_kind": "Identifier",
+      "selected_byte_range": {
+        "start": 8,
+        "end": 12
+      },
+      "emit_flags": 0,
+      "remove_comments": false,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} /*d💠*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIC8qcPCfmIAqLyBhcyBiYXIgLyppYvCfjYAqLyB9IC8qY/CfjIoqLyBmcm9tIC8qc/Cfp60qLyAibSI7DQpleHBvcnQgeyBhIC8qcfCflKUqLyBhcyBiIC8qZWLwn4yZKi8gfSAvKmXwn6qQKi8gZnJvbSAibSI7DQpkbyB7DQogICAgeDsgLypkYvCfjosqLw0KfSAvKmTwn5KgKi8gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 183,
+        "end_utf16": {
+          "position": 165,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/specifier-property/none/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "specifier-property",
+      "mode": "none",
+      "selection_kind": "Identifier",
+      "selected_byte_range": {
+        "start": 8,
+        "end": 12
+      },
+      "emit_flags": 0,
+      "remove_comments": true,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/specifier-property/no-trailing/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "specifier-property",
+      "mode": "no-trailing",
+      "selection_kind": "Identifier",
+      "selected_byte_range": {
+        "start": 8,
+        "end": 12
+      },
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} /*d💠*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciAvKmli8J+NgCovIH0gLypj8J+MiiovIGZyb20gLypz8J+nrSovICJtIjsNCmV4cG9ydCB7IGEgLypx8J+UpSovIGFzIGIgLyplYvCfjJkqLyB9IC8qZfCfqpAqLyBmcm9tICJtIjsNCmRvIHsNCiAgICB4OyAvKmRi8J+OiyovDQp9IC8qZPCfkqAqLyB3aGlsZSAoeSk7DQo=",
+        "utf8_bytes": 173,
+        "end_utf16": {
+          "position": 157,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/specifier-property/no-trailing/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "specifier-property",
+      "mode": "no-trailing",
+      "selection_kind": "Identifier",
+      "selected_byte_range": {
+        "start": 8,
+        "end": 12
+      },
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/specifier-property/range/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "specifier-property",
+      "mode": "range",
+      "selection_kind": "Identifier",
+      "selected_byte_range": {
+        "start": 8,
+        "end": 12
+      },
+      "emit_flags": 0,
+      "remove_comments": false,
+      "comment_range_bytes": {
+        "start": 8,
+        "end": 25
+      },
+      "typescript_observation": {
+        "text": "import { foo as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} /*d💠*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciAvKmli8J+NgCovIH0gLypj8J+MiiovIGZyb20gLypz8J+nrSovICJtIjsNCmV4cG9ydCB7IGEgLypx8J+UpSovIGFzIGIgLyplYvCfjJkqLyB9IC8qZfCfqpAqLyBmcm9tICJtIjsNCmRvIHsNCiAgICB4OyAvKmRi8J+OiyovDQp9IC8qZPCfkqAqLyB3aGlsZSAoeSk7DQo=",
+        "utf8_bytes": 173,
+        "end_utf16": {
+          "position": 157,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/specifier-property/range/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "specifier-property",
+      "mode": "range",
+      "selection_kind": "Identifier",
+      "selected_byte_range": {
+        "start": 8,
+        "end": 12
+      },
+      "emit_flags": 0,
+      "remove_comments": true,
+      "comment_range_bytes": {
+        "start": 8,
+        "end": 25
+      },
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/do-body/none/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "do-body",
+      "mode": "none",
+      "selection_kind": "Block",
+      "selected_byte_range": {
+        "start": 134,
+        "end": 152
+      },
+      "emit_flags": 0,
+      "remove_comments": false,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} /*d💠*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIC8qcPCfmIAqLyBhcyBiYXIgLyppYvCfjYAqLyB9IC8qY/CfjIoqLyBmcm9tIC8qc/Cfp60qLyAibSI7DQpleHBvcnQgeyBhIC8qcfCflKUqLyBhcyBiIC8qZWLwn4yZKi8gfSAvKmXwn6qQKi8gZnJvbSAibSI7DQpkbyB7DQogICAgeDsgLypkYvCfjosqLw0KfSAvKmTwn5KgKi8gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 183,
+        "end_utf16": {
+          "position": 165,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/do-body/none/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "do-body",
+      "mode": "none",
+      "selection_kind": "Block",
+      "selected_byte_range": {
+        "start": 134,
+        "end": 152
+      },
+      "emit_flags": 0,
+      "remove_comments": true,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/do-body/no-trailing/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "do-body",
+      "mode": "no-trailing",
+      "selection_kind": "Block",
+      "selected_byte_range": {
+        "start": 134,
+        "end": 152
+      },
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\r\ndo {\r\n    x; /*db🎋*/\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIC8qcPCfmIAqLyBhcyBiYXIgLyppYvCfjYAqLyB9IC8qY/CfjIoqLyBmcm9tIC8qc/Cfp60qLyAibSI7DQpleHBvcnQgeyBhIC8qcfCflKUqLyBhcyBiIC8qZWLwn4yZKi8gfSAvKmXwn6qQKi8gZnJvbSAibSI7DQpkbyB7DQogICAgeDsgLypkYvCfjosqLw0KfSB3aGlsZSAoeSk7DQo=",
+        "utf8_bytes": 173,
+        "end_utf16": {
+          "position": 157,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/do-body/no-trailing/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "do-body",
+      "mode": "no-trailing",
+      "selection_kind": "Block",
+      "selected_byte_range": {
+        "start": 134,
+        "end": 152
+      },
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "comment_range_bytes": null,
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/do-body/range/retain",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "do-body",
+      "mode": "range",
+      "selection_kind": "Block",
+      "selected_byte_range": {
+        "start": 134,
+        "end": 152
+      },
+      "emit_flags": 0,
+      "remove_comments": false,
+      "comment_range_bytes": {
+        "start": 134,
+        "end": 139
+      },
+      "typescript_observation": {
+        "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\r\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\r\ndo {\r\n    x;\r\n} /*db🎋*/ while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIC8qcPCfmIAqLyBhcyBiYXIgLyppYvCfjYAqLyB9IC8qY/CfjIoqLyBmcm9tIC8qc/Cfp60qLyAibSI7DQpleHBvcnQgeyBhIC8qcfCflKUqLyBhcyBiIC8qZWLwn4yZKi8gfSAvKmXwn6qQKi8gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gLypkYvCfjosqLyB3aGlsZSAoeSk7DQo=",
+        "utf8_bytes": 173,
+        "end_utf16": {
+          "position": 157,
+          "line": 5,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emitter-r112-post-child-metadata/do-body/range/remove",
+      "text": "import { foo /*p😀*/ as bar /*ib🍀*/ } /*c🌊*/ from /*s🧭*/ \"m\";\nexport { a /*q🔥*/ as b /*eb🌙*/ } /*e🪐*/ from \"m\";\ndo { x; /*db🎋*/ } /*d💠*/ while (y);\n",
+      "shape": "do-body",
+      "mode": "range",
+      "selection_kind": "Block",
+      "selected_byte_range": {
+        "start": 134,
+        "end": 152
+      },
+      "emit_flags": 0,
+      "remove_comments": true,
+      "comment_range_bytes": {
+        "start": 134,
+        "end": 139
+      },
+      "typescript_observation": {
+        "text": "import { foo as bar } from \"m\";\r\nexport { a as b } from \"m\";\r\ndo {\r\n    x;\r\n} while (y);\r\n",
+        "utf8_base64": "aW1wb3J0IHsgZm9vIGFzIGJhciB9IGZyb20gIm0iOw0KZXhwb3J0IHsgYSBhcyBiIH0gZnJvbSAibSI7DQpkbyB7DQogICAgeDsNCn0gd2hpbGUgKHkpOw0K",
+        "utf8_bytes": 90,
+        "end_utf16": {
+          "position": 90,
+          "line": 5,
+          "column": 0
+        }
+      }
+    }
+  ]
+}

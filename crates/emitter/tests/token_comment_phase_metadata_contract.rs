@@ -1,7 +1,8 @@
 //! Direct printer metadata controls, separate from ordinary Program commands.
 use tsc_emitter::{
-    base64_encode, create_printer, transform_nodes, EmitFlags, NewLineKind, PrintRequest,
-    PrinterOptions, SourceFileTextMode, TransformArena, TransformRoot,
+    base64_encode, create_printer, transform_nodes, CommentRange, EmitFlags, NewLineKind,
+    PrintRequest, PrinterOptions, SourceByteRange, SourceFileTextMode, SourceRange, TransformArena,
+    TransformRoot,
 };
 use tsc_syntax::{parse_source_file, NodeId};
 
@@ -16,6 +17,16 @@ fn token_comment_phase_printer_metadata_matches_typescript() {
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 96);
+    let post_child: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "fixtures/emitter-r112-post-child-metadata.json"
+    ))
+    .unwrap();
+    assert_eq!(post_child["typescript"], "6.0.3");
+    assert_eq!(post_child["route"], "direct-printer-metadata");
+    assert_eq!(post_child["repetitions"], 2);
+    let additional = post_child["cases"].as_array().unwrap();
+    assert_eq!(additional.len(), 24);
+    let cases = cases.iter().chain(additional).collect::<Vec<_>>();
     let mut failures = Vec::new();
     for (case_index, case) in cases.iter().enumerate() {
         let id = case["case_id"].as_str().unwrap();
@@ -35,6 +46,11 @@ fn token_comment_phase_printer_metadata_matches_typescript() {
                     .enumerate()
                     .filter(|(_, node)| {
                         format!("{:?}", node.kind) == case["selection_kind"].as_str().unwrap()
+                            && (case["selected_byte_range"].is_null()
+                                || (i64::from(node.pos)
+                                    == case["selected_byte_range"]["start"].as_i64().unwrap()
+                                    && i64::from(node.end)
+                                        == case["selected_byte_range"]["end"].as_i64().unwrap()))
                     })
                     .map(|(index, _)| NodeId(u32::try_from(index).unwrap()))
                     .collect::<Vec<_>>();
@@ -47,6 +63,18 @@ fn token_comment_phase_printer_metadata_matches_typescript() {
                 arena
                     .metadata_mut(class)
                     .set_flags(EmitFlags::from_bits(bits));
+                if !case["comment_range_bytes"].is_null() {
+                    let range = &case["comment_range_bytes"];
+                    let bytes = SourceByteRange::new(
+                        u32::try_from(range["start"].as_u64().unwrap()).unwrap(),
+                        u32::try_from(range["end"].as_u64().unwrap()).unwrap(),
+                        parsed.positions(),
+                    )
+                    .unwrap();
+                    arena
+                        .metadata_mut(class)
+                        .set_comment_range(CommentRange::new(source, SourceRange::Original(bytes)));
+                }
                 let mut result = transform_nodes(
                     arena,
                     vec![TransformRoot::SourceFile(source)],
