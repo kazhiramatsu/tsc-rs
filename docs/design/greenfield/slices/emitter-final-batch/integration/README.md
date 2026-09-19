@@ -10,14 +10,15 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 
 ## 現在の統合候補と未完了事項（2026-09-20）
 
-統合は未完了。候補 `ed4a419830cc05b4c6d3063b22a8dc5813950bfd` を固定したr203–r205は終了した。
-1,192 controlsのうち1,176件が一致し、残る16件は関数本体のUnicode改行レイアウトだった。
-コメント所有境界・constructor選択の前回の差分は解消した。追加のレイアウト修復を実施し、
-1,600 controls、元48 commands、108 projects、全回帰を次の候補で再検証する。
+統合は未完了。候補 `0336c56663ff243503a18987a2cf8021109e8295` を固定したr211は、
+1,600 controlsすべてで各2回のcomplete-command一致を確認した。Unicode改行・コメント/map・
+constructorの測定済み差分はこの範囲で解消している。元48 commandsと108 projectsのr212、
+emitter/checker等の全回帰r213、最終walk・full gate・hostedはまだ完了していない。
 以下の過去の成功を現在の候補の全体成功とは数えない。
 
 | 検証 | 実測結果と範囲 |
 | --- | --- |
+| controls r211 | 176＋1,080＋344＝1,600件すべて各2回完全一致、失敗0、全4 steps exit0。[実測記録](records/layout-controls-r211-result/manifest.json) |
 | 元census r78 | 14,329 ID = 14,219 loaded＋110明示的load failure。元16,994 parse inputsは変更しない |
 | parser proof r185 | 16,994入力でAST・診断・raw recovery factsはr177と一致、先行5 profiles不変、最終context admissionは単調。syntax treeと依存hashが一致する範囲で再利用する |
 | corpus selection r185 | 48元commands。従来44件を保持し、新しいescaped-keyword分を含む。class-body gapが新たに許可する元入力は0件で、この新動作は専用controlsで検証する |
