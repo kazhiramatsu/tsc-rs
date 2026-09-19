@@ -45,6 +45,14 @@ const shapes = [
   ["constructor-missing-field", "class C { y = 1; constructor(x) => 1; }"],
   ["constructor-missing-parameter-property", "class C { constructor(public x: number) => 1; }"],
   ["constructor-missing-decorated-parameter", "declare function dec(...args: any[]): any; class C { constructor(@dec x) => 1; }", {"experimentalDecorators": true}],
+  ["constructor-present-parameter-property", "class C { constructor(public x: number) {} }"],
+  ["constructor-missing-then-present-properties", "class C { constructor(public a: number) => 1; constructor(public b: number) {} }"],
+  ["constructor-missing-property-overload", "class C { constructor(public x: number); }"],
+  ["constructor-missing-decorated-metadata", "declare function dec(...args: any[]): any; class C { constructor(@dec x: number) => 1; }", {"experimentalDecorators": true, "emitDecoratorMetadata": true}],
+  ["constructor-class-decorated-missing-metadata", "declare function dec(...args: any[]): any; @dec class C { constructor(x: number) => 1; }", {"experimentalDecorators": true, "emitDecoratorMetadata": true}],
+  ["constructor-class-decorated-present-metadata", "declare function dec(...args: any[]): any; @dec class C { constructor(x: number) {} }", {"experimentalDecorators": true, "emitDecoratorMetadata": true}],
+  ["constructor-parameter-decorated-present-metadata", "declare function dec(...args: any[]): any; class C { constructor(@dec x: number) {} }", {"experimentalDecorators": true, "emitDecoratorMetadata": true}],
+  ["constructor-missing-then-present-decorated", "declare function dec(...args: any[]): any; class C { constructor(@dec x: number) => 1; constructor(@dec y: number) {} }", {"experimentalDecorators": true, "emitDecoratorMetadata": true}],
 ];
 const inputs = [];
 for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015", "esnext", true], ["es5", "system", false], ["esnext", "commonjs", true]])
@@ -57,11 +65,12 @@ for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015
         roots: [main], files, options: {},
         config: JSON.stringify({compilerOptions: {target, module, noCheck, removeComments,
           experimentalDecorators: extra.experimentalDecorators ?? false,
+          ...(extra.emitDecoratorMetadata ? {emitDecoratorMetadata: true} : {}),
           lib: ["esnext"], strict: extra.strict ?? false, skipDefaultLibCheck: true, noErrorTruncation: true,
           sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
           outDir: "/project/out"}, files: ["main.ts"]})});
     }
-assert.equal(inputs.length, 280);
+assert.equal(inputs.length, 344);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

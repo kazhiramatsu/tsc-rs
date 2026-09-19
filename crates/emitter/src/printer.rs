@@ -14,8 +14,7 @@ use crate::comment_cursor::{
     CommentCursor, CommentEmissionScope, CommentResume, CommentResumeError,
 };
 use crate::token_cursor::{
-    FixedToken, TokenAnchor, TokenCommentBoundary, TokenCursor, TokenEmission, TokenLeadingSpace,
-    TokenWriteKind,
+    FixedToken, TokenAnchor, TokenCursor, TokenEmission, TokenLeadingSpace, TokenWriteKind,
 };
 use crate::{
     create_text_writer, CommentRange, DeclarationPrintHandlers, EmitFlags, EmitHelper, EmitHint,
@@ -6845,7 +6844,7 @@ impl Printer {
                         writer,
                     )?;
                 }
-                let colon = self.emit_list_boundary_token_with_comments(
+                let colon = self.emit_token_with_comments(
                     transformation,
                     node,
                     FixedToken::punctuation(SyntaxKind::ColonToken),
@@ -6912,7 +6911,7 @@ impl Printer {
                         writer,
                     )?;
                 }
-                let colon = self.emit_list_boundary_token_with_comments(
+                let colon = self.emit_token_with_comments(
                     transformation,
                     node,
                     FixedToken::punctuation(SyntaxKind::ColonToken),
@@ -8640,6 +8639,14 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                // Complete the clause after its node map-end. Its last
+                // statement retains this same source trailing boundary.
+                self.emit_trailing_comments_for_node_in_container(
+                    transformation,
+                    clause,
+                    expression_context.comments(),
+                    writer,
+                )?;
                 writer.write_line(false);
             }
             // Like tsc's close-brace token, this boundary is anchored at the
@@ -8718,19 +8725,6 @@ impl Printer {
             .and_then(|statement| transformation.arena().node_ref(source, statement));
         let token_owned_prefix = self.token_owned_child_prefix(transformation, colon, first)?;
         if statements.is_empty() {
-            // The colon normally owns the empty clause's trailing boundary.
-            // Escaped keywords keep tsc's arithmetic token cursor, which can
-            // end inside the raw keyword. The clause's parsed end still owns
-            // its trailing comments in that case.
-            let clause_end = transformation.arena().node(clause)?.end;
-            if self.node_has_source_token_shape(transformation, clause)?
-                && colon
-                    .cursor()
-                    .source_position()
-                    .is_some_and(|(_, position)| position.value() != clause_end)
-            {
-                self.emit_trailing_comments_for_node(transformation, clause, writer)?;
-            }
             return Ok(());
         }
         let first = first.ok_or(PrinterError::UnknownStatement(statements[0].0))?;
@@ -8751,7 +8745,12 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
-            self.emit_trailing_comments_for_node(transformation, first, writer)?;
+            self.emit_trailing_comments_for_node_in_container(
+                transformation,
+                first,
+                expression_context.comments(),
+                writer,
+            )?;
             return Ok(());
         }
         writer.write_line(false);
@@ -8785,7 +8784,12 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
-            self.emit_trailing_comments_for_node(transformation, statement, writer)?;
+            self.emit_trailing_comments_for_node_in_container(
+                transformation,
+                statement,
+                expression_context.comments(),
+                writer,
+            )?;
             if index + 1 < statement_count {
                 writer.write_line(false);
             }
@@ -17392,7 +17396,6 @@ impl Printer {
             owner,
             token,
             anchor,
-            TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::None,
             Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
@@ -17416,7 +17419,6 @@ impl Printer {
             owner,
             token,
             anchor,
-            TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::None,
             Some(PositionCommentPhase::SourceLeading),
             indent_leading,
@@ -17442,33 +17444,10 @@ impl Printer {
             owner,
             token,
             anchor,
-            TokenCommentBoundary::OwnerEnd,
             leading_space,
             (!expression_context.nested_comments_suppressed())
                 .then_some(PositionCommentPhase::SourceLeading),
             false,
-            writer,
-        )
-    }
-
-    fn emit_list_boundary_token_with_comments(
-        &self,
-        transformation: &TransformationResult<'_>,
-        owner: TransformNode,
-        token: FixedToken,
-        anchor: impl Into<TokenAnchor>,
-        indent_leading: bool,
-        writer: &mut TextWriter,
-    ) -> Result<TokenEmission, PrinterError> {
-        self.emit_token_with_comments_at_boundary(
-            transformation,
-            owner,
-            token,
-            anchor,
-            TokenCommentBoundary::AdjacentListItem,
-            TokenLeadingSpace::None,
-            Some(PositionCommentPhase::BoundaryUnion),
-            indent_leading,
             writer,
         )
     }
@@ -17487,7 +17466,6 @@ impl Printer {
             owner,
             token,
             anchor,
-            TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::Required,
             Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
@@ -17516,7 +17494,6 @@ impl Printer {
             owner,
             token,
             anchor,
-            TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::Required,
             Some(PositionCommentPhase::SourceLeading),
             indent_leading,
@@ -17534,7 +17511,6 @@ impl Printer {
         owner: TransformNode,
         token: FixedToken,
         anchor: impl Into<TokenAnchor>,
-        comment_boundary: TokenCommentBoundary,
         leading_space: TokenLeadingSpace,
         leading_phase: Option<PositionCommentPhase>,
         indent_leading: bool,
@@ -17703,8 +17679,7 @@ impl Printer {
 
         let mut comment_resume = None;
         if similar
-            && (comment_boundary == TokenCommentBoundary::AdjacentListItem
-                || owner_record.end != token_end_raw)
+            && owner_record.end != token_end_raw
             && !self.comments_disabled()
             && leading_phase.is_some()
         {
@@ -19085,7 +19060,7 @@ pub(crate) fn collect_source_comment_ranges(
             .chars()
             .next()
             .expect("cursor below source length is a character boundary");
-        if is_line_break(character) {
+        if matches!(character, '\r' | '\n') {
             cursor += character.len_utf8();
             if character == '\r' && source.as_bytes().get(cursor) == Some(&b'\n') {
                 cursor += 1;
@@ -19100,6 +19075,13 @@ pub(crate) fn collect_source_comment_ranges(
             continue;
         }
         if is_whitespace_like(character) {
+            // U+2028/U+2029 mark a pending comment's newline, but unlike
+            // CR/LF neither start leading collection nor stop trailing scans.
+            if is_line_break(character) {
+                if let Some(comment) = pending.as_mut() {
+                    comment.has_trailing_new_line = true;
+                }
+            }
             cursor += character.len_utf8();
             continue;
         }
@@ -19169,84 +19151,22 @@ fn emit_same_line_trailing_comments(
     only_print_js_doc_style: bool,
     writer: &mut TextWriter,
 ) -> Option<usize> {
-    let mut cursor = rest.start;
     let mut last_comment_end = None;
-    loop {
-        while cursor < rest.end {
-            let character = rest.source[cursor..rest.end]
-                .chars()
-                .next()
-                .expect("trivia cursor is a character boundary");
-            if is_line_break(character) {
-                return last_comment_end;
-            }
-            if !is_whitespace_like(character) {
-                break;
-            }
-            cursor += character.len_utf8();
-        }
-        if cursor >= rest.end {
-            return last_comment_end;
-        }
-
-        let comment = if rest.source.as_bytes().get(cursor..cursor + 2) == Some(b"//") {
-            let mut end = cursor + 2;
-            let mut has_trailing_new_line = false;
-            while end < rest.end {
-                let character = rest.source[end..rest.end]
-                    .chars()
-                    .next()
-                    .expect("line-comment cursor is a character boundary");
-                if is_line_break(character) {
-                    has_trailing_new_line = true;
-                    break;
-                }
-                end += character.len_utf8();
-            }
-            SourceCommentRange {
-                start: cursor,
-                end,
-                kind: SourceCommentKind::Line,
-                has_trailing_new_line,
-            }
-        } else if rest.source.as_bytes().get(cursor..cursor + 2) == Some(b"/*") {
-            let mut end = cursor + 2;
-            while end + 1 < rest.end && &rest.source.as_bytes()[end..end + 2] != b"*/" {
-                end += 1;
-            }
-            SourceCommentRange {
-                start: cursor,
-                end: (end + 2).min(rest.end),
-                kind: SourceCommentKind::Block,
-                has_trailing_new_line: false,
-            }
-        } else {
-            return last_comment_end;
-        };
+    for comment in collect_source_comment_ranges(&rest.source[..rest.end], rest.start, true) {
+        last_comment_end = Some(comment.end);
         if only_print_js_doc_style && !should_write_js_doc_style_comment(rest.source, comment.start)
         {
-            cursor = comment.end;
-            last_comment_end = Some(comment.end);
-            if comment.kind == SourceCommentKind::Line {
-                return last_comment_end;
-            }
             continue;
         }
-        // emitTrailingComment prefixes a space whenever the line has content,
-        // even when an empty recovery operand follows an already written space.
         if !writer.is_at_start_of_line() {
             writer.write_space(" ");
         }
         write_source_comment(rest.source, comment.start, comment.end, writer);
-        cursor = comment.end;
-        last_comment_end = Some(comment.end);
         if comment.has_trailing_new_line {
             writer.write_line(false);
         }
-        if comment.kind == SourceCommentKind::Line {
-            return last_comment_end;
-        }
     }
+    last_comment_end
 }
 
 fn emit_same_line_trailing_block_comments(rest: SourceTrivia<'_>, writer: &mut TextWriter) {
@@ -19279,8 +19199,15 @@ fn strip_same_line_comment_prefix(trivia: SourceTrivia<'_>) -> SourceTrivia<'_> 
     let mut cursor = 0usize;
     let mut found = false;
     loop {
-        while cursor < bytes.len() && matches!(bytes[cursor], b' ' | b'\t') {
-            cursor += 1;
+        while cursor < bytes.len() {
+            let character = text[cursor..]
+                .chars()
+                .next()
+                .expect("trivia character boundary");
+            if matches!(character, '\r' | '\n') || !is_whitespace_like(character) {
+                break;
+            }
+            cursor += character.len_utf8();
         }
         if bytes.get(cursor..cursor + 2) == Some(b"//") {
             while cursor < bytes.len() && !matches!(bytes[cursor], b'\r' | b'\n') {

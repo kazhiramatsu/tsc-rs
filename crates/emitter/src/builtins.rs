@@ -12002,7 +12002,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             let NodeData::Constructor(data) = &record.data else {
                 continue;
             };
-            if data.body.is_some() {
+            if !self.function_body_is_missing(data.body)? {
                 parameters = self.parameter_properties(data.parameters)?;
                 break;
             }

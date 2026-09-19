@@ -2841,11 +2841,16 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         members: Option<NodeArrayId>,
     ) -> Result<Option<TransformNode>, TransformError> {
         for member in self.array_nodes(members)? {
-            if matches!(
-                &self.context.arena().node(member)?.data,
-                NodeData::Constructor(data) if data.body.is_some()
-            ) {
-                return Ok(Some(member));
+            if let NodeData::Constructor(data) = &self.context.arena().node(member)?.data {
+                if let Some(body) = data.body {
+                    let body = self.context.arena().node(self.node(body))?;
+                    if body.pos == u32::MAX
+                        || body.pos != body.end
+                        || body.kind == SyntaxKind::EndOfFileToken
+                    {
+                        return Ok(Some(member));
+                    }
+                }
             }
         }
         Ok(None)

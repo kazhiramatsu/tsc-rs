@@ -72,6 +72,28 @@ const shapes = [
   ["ordinary-case-empty-line", "var x = 1; switch (x) { case 1: // c\n}"],
   ["ordinary-default-statements", "var x = 1; switch (x) { default: // c\n x++; }"],
   ["ordinary-case-statements", "var x = 1; switch (x) { case 1: // c\n x++; }"],
+  ["ordinary-default-single-trailing", "var x = 1; switch (x) { default: x++; // c\n}"],
+  ["ordinary-case-single-trailing", "var x = 1; switch (x) { case 1: x++; // c\n}"],
+  ["ordinary-default-multiple-trailing", "var x = 1; switch (x) { default:\n x++; /* first */\n x--; // last\n}"],
+  ["ordinary-case-multiple-trailing", "var x = 1; switch (x) { case 1:\n x++; /* first */\n x--; // last\n}"],
+  ["ordinary-empty-followed-clause", "var x = 1; switch (x) { case 1: // first\n default: /* last */ }"],
+  ["generator-switch-trailing", "function* f(x: number) { switch (x) { case 1: yield x; // c\n break; /* last */\n default: // empty\n} }"],
+  ["ordinary-statement-u2028", "x; /* a */\u2028/* b */\u2028y;"],
+  ["ordinary-statement-u2029", "x; /* a */\u2029/* b */\u2029y;"],
+  ["ordinary-line-comment-u2028", "x; // a\u2028y;"],
+  ["ordinary-line-comment-u2029", "x; // a\u2029y;"],
+  ["ordinary-call-u2029", "f(/* a */\u2029/* b */\u2029x);"],
+  ["ordinary-call-line-u2028", "f(// a\u2028/* b */\u2028x);"],
+  ["detached-body-u2029", "function f() {\u2029/* a */\u2029\u2029return 1; }"],
+  ["detached-body-crlf-u2028", "function f() {\r\n/* a */\u2028\u2028return 1; }"],
+  ["detached-embedded-feff", " \ufeff/* a */\u2028\u2028declare var x: number; var y = 1;"],
+  ["detached-double-bom", "\ufeff\ufeff/* a */\u2028\u2028declare var x: number; var y = 1;"],
+  ["trailing-function-u2028", "function f() { x; /* a */\u2028/* b */\u2028}"],
+  ["trailing-empty-block-u2028", "{ /* a */\u2028/* b */\u2028}"],
+  ["trailing-file-end-u2028", "x; /* a */\u2028/* b */\u2028"],
+  ["trailing-function-u2029", "function f() { x; /* a */\u2029/* b */\u2029}"],
+  ["trailing-empty-block-u2029", "{ /* a */\u2029/* b */\u2029}"],
+  ["trailing-file-end-u2029", "x; /* a */\u2029/* b */\u2029"],
 ];
 const inputs = [];
 for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015", "esnext", true], ["es5", "system", false], ["esnext", "commonjs", true]])
@@ -88,7 +110,7 @@ for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015
           sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
           outDir: "/project/out"}, files: ["main.ts"]})});
     }
-assert.equal(inputs.length, 496);
+assert.equal(inputs.length, 672);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
@@ -117,7 +139,8 @@ function observe(input) {
   const files = new Map(input.files.map(file => [canonical(file.path), file.text]));
   const libraryRoot = path.join(root, "vendor/typescript-6.0.3/lib");
   const library = name => /^\/lib\/lib(?:\.[a-z0-9.-]+)?\.d\.ts$/i.test(name) && fs.existsSync(path.join(libraryRoot, path.basename(name)));
-  const read = name => files.get(canonical(ts.normalizePath(name))) ?? (library(name) ? fs.readFileSync(path.join(libraryRoot, path.basename(name)), "utf8") : undefined);
+  // Inputs enter the native byte host; sys.readFile removes exactly one UTF-8 BOM.
+  const read = name => files.get(canonical(ts.normalizePath(name)))?.replace(/^\uFEFF/, "") ?? (library(name) ? fs.readFileSync(path.join(libraryRoot, path.basename(name)), "utf8") : undefined);
   const overlay = createHermeticDirectoryOverlay(files.keys(), { currentDirectory: "/project", useCaseSensitiveFileNames: sensitive,
     fallbackHost: { directoryExists: name => name === "/lib", getDirectories: () => [] } });
   const host = { ...ts.createCompilerHost(input.options, true), ...overlay,

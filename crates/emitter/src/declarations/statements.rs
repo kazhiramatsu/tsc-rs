@@ -1011,8 +1011,16 @@ fn first_constructor_with_body(
 ) -> Result<Option<TransformNode>, TransformError> {
     for member in source_array(context, class.source(), class_data(context, class)?.members)? {
         if let NodeData::Constructor(data) = &context.arena().node(member)?.data {
-            if data.body.is_some() {
-                return Ok(Some(member));
+            if let Some(body) = data.body {
+                let body = context
+                    .arena()
+                    .node(TransformNode::new(member.source(), body))?;
+                if body.pos == u32::MAX
+                    || body.pos != body.end
+                    || body.kind == SyntaxKind::EndOfFileToken
+                {
+                    return Ok(Some(member));
+                }
             }
         }
     }

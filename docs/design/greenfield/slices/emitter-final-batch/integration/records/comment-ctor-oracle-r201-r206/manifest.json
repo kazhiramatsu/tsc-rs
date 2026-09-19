@@ -1,0 +1,90 @@
+{
+  "files": [
+    {
+      "path": "bom-host-protocol-r201.json",
+      "sha256": "8f8b75d30aa6303d00e40f54680b07d9b2b575a0a02a8e2d70b7125695c314c4",
+      "bytes": 689
+    },
+    {
+      "path": "bom-host-protocol-r201.log.gz",
+      "sha256": "c34d109cdd6e49c90b4a62d6246e6e2da9332818c0d452889562850b00e335a0",
+      "bytes": 341
+    },
+    {
+      "path": "comment-ctor-oracle-168-r202.json",
+      "sha256": "f4f87498bf4440d18951f971cba0c9d5fe699e3f0c143a7c824faaf3a1af9144",
+      "bytes": 714
+    },
+    {
+      "path": "comment-ctor-oracle-168-r202.log.gz",
+      "sha256": "b120c3da656774ae752c33a94544166e87e3b27518b9dce73ab96fbc15837e6d",
+      "bytes": 90
+    },
+    {
+      "path": "comment-ctor-oracle-171-r202.json",
+      "sha256": "b541db39482e2d8b6b4e1183f42f34a86b30b4bfdda2ee5428661b9efe8c162e",
+      "bytes": 713
+    },
+    {
+      "path": "comment-ctor-oracle-171-r202.log.gz",
+      "sha256": "4adf0e490683a760b30dcb5f0018a573851fd106d8c12cf3888a4157839b3899",
+      "bytes": 90
+    },
+    {
+      "path": "comment-ctor-oracle-pipeline-r202.json",
+      "sha256": "1a641c1ac107a1205bf0ad88c1fe78d4cc8366a4e6878c3ba2b6c36f225e9e36",
+      "bytes": 680
+    },
+    {
+      "path": "comment-ctor-oracle-pipeline-r202.log.gz",
+      "sha256": "4678747d5e6c57a95ea9c2c0aaa30865bee5e7160521ed0b3c1a3e74960ad5b1",
+      "bytes": 344
+    },
+    {
+      "path": "witness-registration-r206.json",
+      "sha256": "cc46de547808c4416acff5c30c80da5bd6b40291c015b03fa92e285d466e8572",
+      "bytes": 681
+    },
+    {
+      "path": "witness-registration-r206.log.gz",
+      "sha256": "bc4ca7a20c8cea4fb180e06ee5d943573dd7370c07c4bdcc8e6ca84f996c75fe",
+      "bytes": 18559
+    },
+    {
+      "path": "emitter-bom-host-protocol-r201.mjs",
+      "sha256": "88f62039c85fe5073f2fd275a6bc56749ad7aaecdaf70bd788753b7b19158b6d",
+      "bytes": 1140
+    },
+    {
+      "path": "emitter-bom-observer-correction-r202.json",
+      "sha256": "ef61d333645a752ae084fbaa66a88c0d069d3ee921d39fc3125a38ae316f4c8b",
+      "bytes": 37006
+    },
+    {
+      "path": "mint-emitter-r202.py",
+      "sha256": "3a6b7784cf05bcdbcad16e0dbe55eb25faf84e9de47897ea6cba4a9db0490660",
+      "bytes": 2348
+    },
+    {
+      "path": "emitter-next-control-shapes-r201.json",
+      "sha256": "94875061998a806fede2bfe43d5a0296b653ed6e8530d73de3fd08b7bc6dab3e",
+      "bytes": 3859
+    },
+    {
+      "path": "emitter-r201-source.patch.gz",
+      "sha256": "655e1362ffd564bd1a8225092b22fa011242d939f6bf5973b1664ee8cb0dda86",
+      "bytes": 2590,
+      "raw_sha256": "6cf4a1075952c4ec1ce1ed18796214cceab2a1fc21c586b0f12c65c0e970ee2c"
+    }
+  ],
+  "counts": {
+    "r167": 176,
+    "r168": 672,
+    "r171": 344,
+    "total": 1192
+  },
+  "native_qualified": false,
+  "predecessor_inputs_preserved": 776,
+  "observation_corrections": 4,
+  "reason": "BOM virtual read follows actual sys.readFile; source fixes reviewed in actual Opus158-161; native final proof pending."
+}

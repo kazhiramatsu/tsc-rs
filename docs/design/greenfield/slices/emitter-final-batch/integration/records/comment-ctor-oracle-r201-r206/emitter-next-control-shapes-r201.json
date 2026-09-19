@@ -1,0 +1,146 @@
+{
+  "r168": [
+    [
+      "ordinary-default-single-trailing",
+      "var x = 1; switch (x) { default: x++; // c\n}"
+    ],
+    [
+      "ordinary-case-single-trailing",
+      "var x = 1; switch (x) { case 1: x++; // c\n}"
+    ],
+    [
+      "ordinary-default-multiple-trailing",
+      "var x = 1; switch (x) { default:\n x++; /* first */\n x--; // last\n}"
+    ],
+    [
+      "ordinary-case-multiple-trailing",
+      "var x = 1; switch (x) { case 1:\n x++; /* first */\n x--; // last\n}"
+    ],
+    [
+      "ordinary-empty-followed-clause",
+      "var x = 1; switch (x) { case 1: // first\n default: /* last */ }"
+    ],
+    [
+      "generator-switch-trailing",
+      "function* f(x: number) { switch (x) { case 1: yield x; // c\n break; /* last */\n default: // empty\n} }"
+    ],
+    [
+      "ordinary-statement-u2028",
+      "x; /* a */ /* b */ y;"
+    ],
+    [
+      "ordinary-statement-u2029",
+      "x; /* a */ /* b */ y;"
+    ],
+    [
+      "ordinary-line-comment-u2028",
+      "x; // a y;"
+    ],
+    [
+      "ordinary-line-comment-u2029",
+      "x; // a y;"
+    ],
+    [
+      "ordinary-call-u2029",
+      "f(/* a */ /* b */ x);"
+    ],
+    [
+      "ordinary-call-line-u2028",
+      "f(// a /* b */ x);"
+    ],
+    [
+      "detached-body-u2029",
+      "function f() { /* a */  return 1; }"
+    ],
+    [
+      "detached-body-crlf-u2028",
+      "function f() {\r\n/* a */  return 1; }"
+    ],
+    [
+      "detached-embedded-feff",
+      " ﻿/* a */  declare var x: number; var y = 1;"
+    ],
+    [
+      "detached-double-bom",
+      "﻿﻿/* a */  declare var x: number; var y = 1;"
+    ],
+    [
+      "trailing-function-u2028",
+      "function f() { x; /* a */ /* b */ }"
+    ],
+    [
+      "trailing-empty-block-u2028",
+      "{ /* a */ /* b */ }"
+    ],
+    [
+      "trailing-file-end-u2028",
+      "x; /* a */ /* b */ "
+    ],
+    [
+      "trailing-function-u2029",
+      "function f() { x; /* a */ /* b */ }"
+    ],
+    [
+      "trailing-empty-block-u2029",
+      "{ /* a */ /* b */ }"
+    ],
+    [
+      "trailing-file-end-u2029",
+      "x; /* a */ /* b */ "
+    ]
+  ],
+  "r171": [
+    [
+      "constructor-present-parameter-property",
+      "class C { constructor(public x: number) {} }"
+    ],
+    [
+      "constructor-missing-then-present-properties",
+      "class C { constructor(public a: number) => 1; constructor(public b: number) {} }"
+    ],
+    [
+      "constructor-missing-property-overload",
+      "class C { constructor(public x: number); }"
+    ],
+    [
+      "constructor-missing-decorated-metadata",
+      "declare function dec(...args: any[]): any; class C { constructor(@dec x: number) => 1; }",
+      {
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true
+      }
+    ],
+    [
+      "constructor-class-decorated-missing-metadata",
+      "declare function dec(...args: any[]): any; @dec class C { constructor(x: number) => 1; }",
+      {
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true
+      }
+    ],
+    [
+      "constructor-class-decorated-present-metadata",
+      "declare function dec(...args: any[]): any; @dec class C { constructor(x: number) {} }",
+      {
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true
+      }
+    ],
+    [
+      "constructor-parameter-decorated-present-metadata",
+      "declare function dec(...args: any[]): any; class C { constructor(@dec x: number) {} }",
+      {
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true
+      }
+    ],
+    [
+      "constructor-missing-then-present-decorated",
+      "declare function dec(...args: any[]): any; class C { constructor(@dec x: number) => 1; constructor(@dec y: number) {} }",
+      {
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true
+      }
+    ]
+  ]
+}
