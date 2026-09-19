@@ -35,7 +35,11 @@ Opus116–119と照合した限定修復、および追加12＋24 controlsを統
 live KNOWNはまだ変更していない。過去の拒否観測をbyte同一で保存し、parser/corpusの証明が
 完了した後に比較ガードをarchiveへ接続して退役させる。単独36行の一致で共有変更をqualifyしない。
 
-全7,908 plansのcensus、4つのparser replay、選択された元commandのnative/TS比較、
+censusは7,908 recorded plansと、過去のqualification/candidate入力にのみある6,421 IDの
+計14,329 IDを対象にする。これは入力IDの棚卸しであり、実行成功件数ではない。
+固定したCensus HEADの入力hashと全IDは `records/census-r78-claimed-id-inventory.json.gz` に保存した。
+census完了時には各IDがloaded rowsまたは明示的なload failureへ残っていることも確認する。
+このcensus、4つのparser replay、選択された元commandのnative/TS比較、
 36 parse KNOWNの判断、最終chain walk・unsplit local CI・hosted確認・mergeは未完了。
 censusは別の固定sourceと実行ファイルで継続し、Cargo buildの間だけ停止する。
 停止を含む経過時間や、機能比較を併走させた時間を性能qualificationには使用しない。
