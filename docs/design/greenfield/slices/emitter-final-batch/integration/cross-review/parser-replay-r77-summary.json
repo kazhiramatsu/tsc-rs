@@ -1,0 +1,8 @@
+{
+  "typescript_statement_and_diagnostic_ranges_exact": 285,
+  "all_three_parser_builds_and_graph_mutation_tests_passed": true,
+  "core_changed": {
+    "projection": 100,
+    "merge-base": 100
+  }
+}

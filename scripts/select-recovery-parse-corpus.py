@@ -81,11 +81,15 @@ def select(snapshot, snapshot_sha, current, baselines, reports):
             continue
         if row["loader"] in ["load_compiler_no_emit", "load_project_no_emit"]:
             assert row["emit_load_error"] and row["emit_disposition"] == "parse-admission-only; emit-not-qualified", f"fallback row lost emit refusal: {id}"
+        else:
+            assert row["emit_load_error"] is None and row["emit_disposition"] == "pending-complete-command-comparison", f"emit row carried a fallback disposition: {id}"
         assert row["command_input"] is not None, f"selected row has no exact loader input: {id}"
         collect_documents(row["command_input"])
         cases.append({**row, "reasons": reasons[id]})
     return {"schema": 1, "kind": "emitter-recovery-corpus-selection", "head": snapshot["head"],
             "snapshot_sha256": snapshot_sha, "digest_code_sha256": snapshot["digest_code_sha256"],
+            "syntax_tree_hash": snapshot["syntax_tree_hash"], "vendor_tree_hash": snapshot["vendor_tree_hash"],
+            "plan_manifest_sha256": snapshot["plan_manifest_sha256"],
             "summary": {"loaded_rows": len(rows), "selected_rows": len(cases), "unchanged_rows": len(rows) - len(cases),
                         "load_failures": len(snapshot["load_failures"]),
                         "selected_no_emit_fallbacks": sum(row["loader"] in ["load_compiler_no_emit", "load_project_no_emit"] for row in cases), "changed_inputs": {k: len(v) for k, v in changed_inputs.items()}},

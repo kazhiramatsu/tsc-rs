@@ -13,11 +13,13 @@ spec.loader.exec_module(selector)
 class SelectionTests(unittest.TestCase):
     def setUp(self):
         self.snapshot = {"schema": 1, "kind": "emitter-recovery-parse-snapshot", "head": "head",
+            "syntax_tree_hash": "syntax", "vendor_tree_hash": "vendor", "plan_manifest_sha256": "manifest",
             "digest_code_sha256": "digest", "inputs": {"emit": {}, "module": {}},
             "digests": {key: {"core": key, "profiles": {"literal": True}} for key in ["emit", "module"]},
             "input_manifest": {"manifest": "sha"}, "documents": {"doc": "base64"},
             "load_failures": [{"case_id": "unloaded", "error": "explicit failure"}],
             "rows": [{"case_id": "clean-command", "universe": "compiler", "loader": "emit",
+                "emit_load_error": None, "emit_disposition": "pending-complete-command-comparison",
                 "units": [{"input_id": key, "path": key + ".ts", "role": role}
                     for key, role in [("emit", "emit-preflight"), ("module", "module-request-parse")]],
                 "command_input": {"route": "recorded-compiler", "units": [{"content_sha256": "doc"}]}}]}
@@ -83,6 +85,12 @@ class SelectionTests(unittest.TestCase):
         row["emit_load_error"] = "unsupported emit option"
         row["emit_disposition"] = "parse-admission-only; emit-not-qualified"
         self.assertEqual(self.select()["summary"]["selected_no_emit_fallbacks"], 1)
+
+    def test_emit_loader_cannot_absorb_a_fallback_disposition(self):
+        self.baselines["projection"]["digests"]["emit"]["core"] = "before"
+        self.snapshot["rows"][0]["emit_load_error"] = "refused"
+        with self.assertRaisesRegex(AssertionError, "carried a fallback"):
+            self.select()
 
     def test_selected_command_requires_exact_loader_input(self):
         self.baselines["projection"]["digests"]["emit"]["core"] = "before"
