@@ -114,9 +114,9 @@ impl ParseRecovery {
             };
             if data.right != Some(id)
                 || binary.end != node.end
-                || !data
+                || data
                     .operator_token
-                    .is_some_and(|token| source.arena.node(token).kind == SyntaxKind::CommaToken)
+                    .is_none_or(|token| source.arena.node(token).kind != SyntaxKind::CommaToken)
             {
                 continue;
             }

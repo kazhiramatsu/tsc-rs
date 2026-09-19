@@ -201,10 +201,10 @@ impl ParseRecovery {
             None
         };
         if self.diagnostic_origins.len() != source.parse_diagnostics.len()
-            || (!allow_context_recovery
-                && !self.actions.is_empty()
-                && !(allow_parameter_gaps
-                    && self.supports_array_gaps(source, allow_statement_gaps, &self.actions)))
+            || !(allow_context_recovery
+                || self.actions.is_empty()
+                || allow_parameter_gaps
+                    && self.supports_array_gaps(source, allow_statement_gaps, &self.actions))
         {
             return false;
         }
@@ -719,12 +719,12 @@ impl ParseRecovery {
             let Some(declarations) = data.declarations else {
                 continue;
             };
-            if !source
+            if source
                 .arena
                 .node_array(declarations)
                 .nodes
                 .last()
-                .is_some_and(|last| source.arena.node(*last).end == boundary)
+                .is_none_or(|last| source.arena.node(*last).end != boundary)
             {
                 continue;
             }
