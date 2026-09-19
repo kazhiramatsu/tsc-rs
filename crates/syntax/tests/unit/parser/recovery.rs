@@ -43,6 +43,12 @@ fn missing_variable_type_annotations_keep_other_type_and_expression_slots_closed
         "export let x: /*c*/ = 1;",
         "export let x: //c\n = 1;",
         "namespace N { export let x: = 1; }",
+        "export {}; { using x: = f(); }",
+        "export async function h() { await using x: = f(); }",
+        "declare let d: ; export declare let e: ;",
+        "export let x!: = 1;",
+        "export function* g() { let x: = 1; yield x; }",
+        "export async function h() { let x: = 1; await 0; return x; }",
     ] {
         let parsed = source(text);
         assert!(!parsed.parse_diagnostics.is_empty(), "{text}");

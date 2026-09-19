@@ -323,11 +323,9 @@ impl ParseRecovery {
                         .as_ref()
                         .is_some_and(|support| support.missing_slots.contains(&id))
                     || allow_context_recovery
-                        && Self::is_missing_variable_type_slot(
-                            source,
-                            parents.as_ref().unwrap(),
-                            id,
-                        ))
+                        && parents.as_ref().is_some_and(|parents| {
+                            Self::is_missing_variable_type_slot(source, parents, id)
+                        }))
                     || missing_positions.remove(&position) != Some(SyntaxKind::Identifier)
                 {
                     return false;

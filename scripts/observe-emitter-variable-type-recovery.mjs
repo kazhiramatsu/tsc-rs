@@ -24,6 +24,12 @@ const shapes = [
   ["namespace", "export namespace N { export let x: = 1; }"],
   ["script", "let x: = 1;"],
   ["uninitialized-comment", "export let x: /*c*/ ;"],
+  ["using", "export {}; declare const f: () => Disposable; { using x: = f(); }"],
+  ["await-using", "declare const f: () => AsyncDisposable; export async function h() { await using x: = f(); }"],
+  ["ambient", "declare let d: ; export declare let e: ;"],
+  ["definite", "export let x!: = 1;"],
+  ["generator", "export function* g() { let x: = 1; yield x; }"],
+  ["async", "export async function h() { let x: = 1; await 0; return x; }"],
 ];
 const configurations = [
   ["es5", "commonjs", false],
@@ -43,7 +49,16 @@ for (const [target, module, noCheck] of configurations)
           sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
           outDir: "/project/out"}, files: ["main.ts"]})});
     }
-assert.equal(inputs.length, 64);
+for (const [target, module, noCheck] of configurations) {
+  const main = "/project/main.js";
+  inputs.push({case_id: `emitter-r129-variable-type-controls/${target}/${module}/nocheck-${noCheck}/javascript`,
+    roots: [main], files: [{path: main, text: "export let x: = 1;\n"}], options: {},
+    config: JSON.stringify({compilerOptions: {target, module, noCheck, allowJs: true,
+      lib: ["esnext"], strict: false, skipDefaultLibCheck: true, noErrorTruncation: true,
+      sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
+      outDir: "/project/out"}, files: ["main.js"]})});
+}
+assert.equal(inputs.length, 92);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
