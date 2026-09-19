@@ -209,5 +209,76 @@ class SelectionTests(unittest.TestCase):
             self.select_successor(successor)
 
 
+class KeywordExtensionTests(unittest.TestCase):
+    def setUp(self):
+        probes = {"/old/" + path: "a" * 64 for path in ["scripts/replay-recovery-parse.rs", "scripts/replay-recovery-parse.py", "scripts/select-recovery-parse-corpus.py", "crates/xtask/src/recovery_parse_snapshot.rs"]}
+        self.before = {"recovery_facts_sha256": {"one": "a" * 64}, "build": {"probe_files_sha256": probes}}
+        self.after = {"recovery_extension_format": "escaped-keyword-consumed-v1",
+            "legacy_recovery_facts_sha256": {"one": "a" * 64},
+            "recovery_facts_sha256": {"one": "b" * 64},
+            "escaped_keyword_actions": {"one": [{"token": 101, "start": 1, "length": 7, "statement_start": 0, "matching_report_events": 1}]},
+            "build": {"probe_files_sha256": {p.replace("/old/", "/new/"): value for p, value in probes.items()}}}
+        self.after["build"]["probe_files_sha256"]["/new/scripts/replay-recovery-parse.rs"] = "b" * 64
+
+    def check(self):
+        selector.validate_keyword_extension(self.before, self.after, {"one"})
+
+    def test_only_additive_report_fact_passes(self):
+        self.check()
+        self.after["escaped_keyword_actions"]["one"] = []
+        self.after["recovery_facts_sha256"]["one"] = "a" * 64
+        self.check()
+
+    def test_changed_prior_event_or_digest_producer_is_rejected(self):
+        self.after["legacy_recovery_facts_sha256"]["one"] = "c" * 64
+        with self.assertRaisesRegex(AssertionError, "prior events"):
+            self.check()
+        self.after["legacy_recovery_facts_sha256"]["one"] = "a" * 64
+        self.after["build"]["probe_files_sha256"]["/new/crates/xtask/src/recovery_parse_snapshot.rs"] = "c" * 64
+        with self.assertRaises(AssertionError): self.check()
+
+    def test_unreported_or_duplicate_consumption_is_rejected(self):
+        fact = self.after["escaped_keyword_actions"]["one"][0]
+        fact["matching_report_events"] = 0
+        with self.assertRaisesRegex(AssertionError, "unreported"): self.check()
+        fact["matching_report_events"] = 1
+        self.after["escaped_keyword_actions"]["one"].append(copy.deepcopy(fact))
+        with self.assertRaisesRegex(AssertionError, "unreported"): self.check()
+
+    def test_missing_input_or_raw_fact_change_is_rejected(self):
+        self.after["escaped_keyword_actions"]["one"] = []
+        with self.assertRaisesRegex(AssertionError, "accounting"): self.check()
+        del self.after["escaped_keyword_actions"]["one"]
+        with self.assertRaisesRegex(AssertionError, "omitted/added"): self.check()
+
+
+class PreviousKeywordSuccessorTests(unittest.TestCase):
+    def setUp(self):
+        self.before = {"input_artifact_sha256": "snapshot", "digest_code_sha256": "digest",
+            "recovery_facts_format": "rust-debug-ParseRecovery-v1", "recovery_facts_sha256": {"one": "a"},
+            "digests": {"one": {"core": "core", "profiles": {key: False for key in selector.PROFILE_KEYS}}}}
+        self.after = copy.deepcopy(self.before)
+        self.after["legacy_recovery_facts_sha256"] = self.before["recovery_facts_sha256"].copy()
+        self.after["escaped_keyword_actions"] = {"one": []}
+        self.after["retained_statement_terminator_reports"] = {"one": [{"start": 1}]}
+
+    def test_context_extension_is_classified_without_changing_other_profiles(self):
+        self.after["digests"]["one"]["profiles"]["context_recovery"] = True
+        self.assertEqual(selector.compare_previous_successor(self.before, self.after)["without_consumed_keyword_fact"], ["one"])
+        self.after["escaped_keyword_actions"]["one"] = [{"start": 1}]
+        self.assertEqual(selector.compare_previous_successor(self.before, self.after)["with_consumed_keyword_fact"], ["one"])
+        self.after["digests"]["one"]["profiles"]["statement_gaps"] = True
+        with self.assertRaisesRegex(AssertionError, "non-context"): selector.compare_previous_successor(self.before, self.after)
+
+    def test_unclassified_context_extension_is_rejected(self):
+        self.after["digests"]["one"]["profiles"]["context_recovery"] = True
+        self.after["retained_statement_terminator_reports"]["one"] = []
+        with self.assertRaisesRegex(AssertionError, "unclassified"): selector.compare_previous_successor(self.before, self.after)
+
+    def test_prior_context_admission_cannot_be_lost(self):
+        self.before["digests"]["one"]["profiles"]["context_recovery"] = True
+        with self.assertRaisesRegex(AssertionError, "lost prior admission"): selector.compare_previous_successor(self.before, self.after)
+
+
 if __name__ == "__main__":
     unittest.main()

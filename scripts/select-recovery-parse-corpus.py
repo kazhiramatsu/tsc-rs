@@ -10,7 +10,8 @@ PROFILE_KEYS = {"literal", "missing_await", "missing_declaration", "parameter_ga
 # The reviewed nested-parenthesis patch changes predicates and their tests.
 # Changes to event production or another parser owner need a separate proof.
 SUCCESSOR_SOURCE_PATHS = {"crates/syntax/src/recovery.rs", "crates/syntax/tests/unit/parser/recovery.rs"}
-# Reviewed Clippy-only context spelling and parser doc annotation repairs.
+# Reviewed context spelling and additive consumed-keyword parser reporting.
+# The independent extension proof must preserve every prior recovery fact.
 # Each exception fixes both full file identities; neither admits arbitrary edits.
 SUCCESSOR_STYLE_SOURCE_PAIRS = {
     "crates/syntax/src/recovery/context.rs": (
@@ -19,7 +20,7 @@ SUCCESSOR_STYLE_SOURCE_PAIRS = {
     ),
     "crates/syntax/src/parser.rs": (
         "ffe64e0cf029c96b3bc91239a71be2c918f2e6c7803c57f189c0a771ab8f6701",
-        "8b4be1f2a8c40f5a1088cf364ecfef53cf86ea3bedc1c8c30b4ab227c97c10fb",
+        "7cbc667b37ec7ac796ef086d1abac8a26b94e680c8a165bd789e2e77d7c4e07d",
     ),
 }
 
@@ -34,6 +35,41 @@ def successor_source_changes(before, after):
     return sorted(changed)
 
 
+def validate_keyword_extension(current, successor, ids):
+    assert successor["recovery_extension_format"] == "escaped-keyword-consumed-v1"
+    assert successor["legacy_recovery_facts_sha256"] == current["recovery_facts_sha256"], "prior events/origins/actions changed"
+    assert set(successor["escaped_keyword_actions"]) == ids, "keyword facts omitted/added inputs"
+    assert set(successor["legacy_recovery_facts_sha256"]) == ids
+    def relative_probes(artifact):
+        probes = artifact["build"]["probe_files_sha256"]
+        result = {}
+        for path, digest in probes.items():
+            prefixes = [p for p in ("/scripts/", "/crates/") if p in path]
+            assert len(prefixes) == 1, path
+            relative = prefixes[0][1:] + path.split(prefixes[0], 1)[1]
+            assert relative not in result
+            result[relative] = digest
+        return result
+    before, after = relative_probes(current), relative_probes(successor)
+    assert set(before) == set(after)
+    # Only the new replay/guard scripts may change; the parse-graph digest code
+    # is still the exact producer used by the immutable original census.
+    allowed = {"scripts/replay-recovery-parse.rs", "scripts/replay-recovery-parse.py", "scripts/select-recovery-parse-corpus.py"}
+    assert {p for p in before if before[p] != after[p]} <= allowed
+    for id in ids:
+        actions = successor["escaped_keyword_actions"][id]
+        assert isinstance(actions, list)
+        seen = {}
+        for action in actions:
+            assert set(action) == {"token", "start", "length", "statement_start", "matching_report_events"}
+            assert all(type(value) is int and value >= 0 for value in action.values())
+            assert action["length"] > 0 and action["statement_start"] <= action["start"]
+            key = (action["start"], action["length"])
+            seen[key] = seen.get(key, 0) + 1
+            assert seen[key] == action["matching_report_events"] == 1, "duplicate unreported keyword fact"
+        assert (successor["recovery_facts_sha256"][id] != successor["legacy_recovery_facts_sha256"][id]) == bool(actions), "raw/legacy recovery fact accounting differs"
+
+
 def successor_changes(snapshot, snapshot_sha, current, successor):
     ids = set(snapshot["inputs"])
     assert successor["schema"] == 1 and successor["kind"] == "emitter-recovery-parse-replay"
@@ -46,13 +82,17 @@ def successor_changes(snapshot, snapshot_sha, current, successor):
     assert successor["build"]["reference_source_files_sha256"] == current["build"]["source_files_sha256"]
     changed_sources = successor_source_changes(current["build"]["source_files_sha256"], successor["build"]["source_files_sha256"])
     assert changed_sources == successor["build"]["changed_source_paths"]
-    assert current["build"]["probe_files_sha256"] == successor["build"]["probe_files_sha256"], "successor recovery digest producer differs"
+    if successor.get("recovery_extension_format") == "escaped-keyword-consumed-v1":
+        validate_keyword_extension(current, successor, ids)
+    else:
+        assert current["build"]["probe_files_sha256"] == successor["build"]["probe_files_sha256"], "successor recovery digest producer differs"
     assert current["recovery_facts_format"] == successor["recovery_facts_format"] == "rust-debug-ParseRecovery-v1"
     for replay in [current, successor]:
         assert set(replay["recovery_facts_sha256"]) == ids, "recovery facts omitted/added parse inputs"
         assert all(isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
                    for value in replay["recovery_facts_sha256"].values()), "invalid recovery facts digest"
-    assert current["recovery_facts_sha256"] == successor["recovery_facts_sha256"], "successor changed committed recovery facts"
+    if "recovery_extension_format" not in successor:
+        assert current["recovery_facts_sha256"] == successor["recovery_facts_sha256"], "successor changed committed recovery facts"
     changed = {}
     for id in sorted(ids):
         before, after = current["digests"][id], successor["digests"][id]
@@ -183,11 +223,39 @@ def select(snapshot, snapshot_sha, current, baselines, reports, successor=None):
     return result
 
 
+def compare_previous_successor(previous, successor):
+    assert previous["input_artifact_sha256"] == successor["input_artifact_sha256"]
+    assert previous["digest_code_sha256"] == successor["digest_code_sha256"]
+    assert previous["recovery_facts_format"] == successor["recovery_facts_format"] == "rust-debug-ParseRecovery-v1"
+    assert previous["recovery_facts_sha256"] == successor["legacy_recovery_facts_sha256"]
+    assert set(previous["digests"]) == set(successor["digests"])
+    assert set(successor["retained_statement_terminator_reports"]) == set(previous["digests"])
+    groups = {"with_consumed_keyword_fact": [], "without_consumed_keyword_fact": []}
+    for id, before in previous["digests"].items():
+        after = successor["digests"][id]
+        assert before["core"] == after["core"], f"previous parse core changed: {id}"
+        for key in PROFILE_KEYS:
+            assert type(before["profiles"][key]) is bool and type(after["profiles"][key]) is bool
+            if key != "context_recovery":
+                assert before["profiles"][key] == after["profiles"][key], f"changed non-context profile: {id}/{key}"
+            else:
+                assert not before["profiles"][key] or after["profiles"][key], f"lost prior admission: {id}"
+        if before["profiles"] != after["profiles"]:
+            if successor["escaped_keyword_actions"][id]:
+                group = "with_consumed_keyword_fact"
+            else:
+                assert successor["retained_statement_terminator_reports"][id], f"unclassified new admission: {id}"
+                group = "without_consumed_keyword_fact"
+            groups[group].append(id)
+    return groups
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ["snapshot", "current", "projection", "merge-base", "profiles-dir", "out"]:
         p.add_argument("--" + name, type=Path, required=True)
     p.add_argument("--successor", type=Path)
+    p.add_argument("--previous-successor", type=Path)
     args = p.parse_args()
     snapshot, snapshot_sha = load(args.snapshot)
     current, current_sha = load(args.current)
@@ -203,6 +271,12 @@ def main():
                           "selector_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
     if successor is not None:
         result["evidence"]["successor_sha256"] = successor_sha
+        if successor.get("recovery_extension_format") == "escaped-keyword-consumed-v1":
+            assert args.previous_successor is not None, "keyword extension requires the prior qualified parser replay"
+            previous, previous_sha = load(args.previous_successor)
+            result["keyword_extension"] = compare_previous_successor(previous, successor)
+            result["evidence"]["previous_successor_sha256"] = previous_sha
+            result["summary"]["keyword_extension_changed_inputs"] = {key: len(value) for key, value in result["keyword_extension"].items()}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("x") as file:
         json.dump(result, file, ensure_ascii=False, separators=(",", ":"))
