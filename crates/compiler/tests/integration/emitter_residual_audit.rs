@@ -276,7 +276,7 @@ fn nested_parenthesis_recovery_matches_complete_typescript_commands() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 96);
+    assert_eq!(cases.len(), 108);
     assert_recovery_boundary_commands(cases);
 }
 

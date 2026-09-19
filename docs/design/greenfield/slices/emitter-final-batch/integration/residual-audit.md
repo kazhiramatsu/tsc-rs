@@ -281,3 +281,17 @@ H1 omission generatorは現在のprotocolへ11 anchorを更新し、実装済み
 Rust検証を順番に実行し、停止区間・binary identityを記録して同processを再開する。
 censusのelapsedは停止時間を含むため性能値として使用しない。censusのsourceは変更しない。
 元36 KNOWNの退役、全replay、最終CI・統合は引き続き未完了である。
+
+
+r93の補助採取は844 caseの全tupleを保存した（766 exactは各2回、78失敗は最初の
+完全観測でassertion停止、計1610観測）。24の `this` decorator差分はmapのみと確定した。
+残る42はJSまたはwrite metadataを含む差分、12はtyped refusalである。
+
+r94のsyntax unitは199中198成功。追加した「different boundaries」の負例が受理された。
+実際のASTはouter/inner parenが同じ位置で終わる直接チェーンで、その後の2つの `)` も
+それぞれ既存のstatement gap条件を満たす。Opus95と事実を再確認し、predicateを変えず
+正例へ訂正した。12の完全command対照を追加してnested観測は108となり、旧96は不変。
+assertion／commaで切れるチェーン、混合closer、owner不在、捏造event/actionの負例は維持する。
+Opus95が確認したheritage.typesのdelimiter前／list末尾のleading comment処理も、
+既存のcomma-list helperを使って補った。heritage clauseのspace listには適用しない。
+この次の固定候補でRust検証を再開する。H1参照検査4件と登録検査84件は成功した。

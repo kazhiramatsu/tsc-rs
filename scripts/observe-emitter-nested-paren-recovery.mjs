@@ -12,6 +12,7 @@ assert.equal(ts.version, "6.0.3");
 assert.ok(["--write", "--check"].includes(process.argv[2]));
 const inputs = [];
 const scenarios = [
+ ["nested-separate-skips", "export const z = ((x\n as number)\n as string);"],
  ["call-stray-closers", "x()\n))"],
  ["single-missing-close-comment-run", "(x //c\n as number)) /*m*/ );"],
  ["nested", "export const z = ((x //c\n as number));"],
@@ -31,7 +32,7 @@ for (const [shape, text] of scenarios)
       skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
       outDir: "/project/out", removeComments, ignoreDeprecations: "6.0"}, files: ["main.ts"]})
    });
-assert.equal(inputs.length, 96);
+assert.equal(inputs.length, 108);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

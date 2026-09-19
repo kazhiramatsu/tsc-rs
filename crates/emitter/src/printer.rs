@@ -13585,14 +13585,22 @@ impl Printer {
             return Ok(());
         };
         let ids = transformation.arena().node_array(array)?.nodes.clone();
-        for (index, id) in ids.into_iter().enumerate() {
-            if index != 0 {
+        let mut previous = None;
+        for id in ids {
+            if let Some(previous) = previous {
+                if separator == ", " {
+                    self.emit_comma_element_end_comments(
+                        transformation,
+                        parent,
+                        previous,
+                        expression_context,
+                        writer,
+                    )?;
+                }
                 writer.write(separator);
             }
-            self.record_list_element_position(
-                transformation,
-                TransformNode::new(parent.source(), id),
-            )?;
+            let child = TransformNode::new(parent.source(), id);
+            self.record_list_element_position(transformation, child)?;
             self.emit_optional_ordinary_child(
                 transformation,
                 parent,
@@ -13602,6 +13610,18 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
+            previous = Some(child);
+        }
+        if separator == ", " {
+            if let Some(previous) = previous {
+                self.emit_comma_element_end_comments(
+                    transformation,
+                    parent,
+                    previous,
+                    expression_context,
+                    writer,
+                )?;
+            }
         }
         Ok(())
     }

@@ -43,7 +43,7 @@ COMMENT_TESTS = (
 )
 SYSTEM_FIXTURES = (("system-binding-publication", 1044), ("await-flag-commands", 690),
                    ("emitter-recovery-boundaries", 774), ("emitter-heritage-boundaries", 132),
-                   ("emitter-helper-probes", 122), ("emitter-nested-paren-recovery", 96), ("emitter-class-helper-gates", 320))
+                   ("emitter-helper-probes", 122), ("emitter-nested-paren-recovery", 108), ("emitter-class-helper-gates", 320))
 SYSTEM_TESTS = (
     "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
     "emitter_residual_audit::await_flag_boundaries_match_complete_typescript_commands",

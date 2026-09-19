@@ -806,6 +806,9 @@ fn nested_parenthesis_recovery_requires_a_direct_chain_and_owned_closing_tokens(
     for text in [
         "export const z = ((x //c\n as number));",
         "export const z = (((x //c\n as number)));",
+        // Both missing parens end before the first as; the later closers
+        // belong to two independently owned statement gaps.
+        "export const z = ((x\n as number)\n as string);",
         "foo()\n))",
         "(x //c\n as number)) /*m*/ );",
         "export const z = ((x) //c\n as number);",
@@ -822,7 +825,6 @@ fn nested_parenthesis_recovery_requires_a_direct_chain_and_owned_closing_tokens(
     for text in [
         "export const z = (<any>(x //c\n as number));",
         "(a, (x //c\n as number))",
-        "export const z = ((x\n as number)\n as string);",
         "export const z = x; )]\n",
         "));",
     ] {
