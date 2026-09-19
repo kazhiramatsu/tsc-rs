@@ -1353,7 +1353,8 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         original: TransformNode,
         mut data: tsc_syntax::nodes::MethodDeclarationData,
     ) -> Result<NodeId, TransformError> {
-        data.name = self.visit_optional_node(data.name)?;
+        // ES2017 passes computed member names through unchanged. Their
+        // expressions are outside the transformed method/accessor body.
         data.question_token = self.visit_optional_node(data.question_token)?;
         data.exclamation_token = self.visit_optional_node(data.exclamation_token)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
@@ -1379,7 +1380,8 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         original: TransformNode,
         mut data: tsc_syntax::nodes::GetAccessorData,
     ) -> Result<NodeId, TransformError> {
-        data.name = self.visit_optional_node(data.name)?;
+        // ES2017 passes computed member names through unchanged. Their
+        // expressions are outside the transformed method/accessor body.
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.r#type = self.visit_optional_node(data.r#type)?;
         let transformed = self.transform_function(
@@ -1402,7 +1404,8 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         original: TransformNode,
         mut data: tsc_syntax::nodes::SetAccessorData,
     ) -> Result<NodeId, TransformError> {
-        data.name = self.visit_optional_node(data.name)?;
+        // ES2017 passes computed member names through unchanged. Their
+        // expressions are outside the transformed method/accessor body.
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.r#type = self.visit_optional_node(data.r#type)?;
         let transformed = self.transform_function(

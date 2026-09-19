@@ -11,14 +11,6 @@ const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
 assert.ok(["--write", "--check"].includes(process.argv[2]));
 const shapes = [
- ["later-array-multi-temp", "export let x = 0; const v = x++; var [a,b] = source(); source(v,a,b);"],
- ["earlier-array-multi-temp", "var [a,b] = source(); export let x = 0; const v = x++; source(v,a,b);"],
- ["later-object-multi-temp", "export let x = 0; const v = x++; let {c,d} = source(); source(v,c,d);"],
- ["earlier-object-multi-temp", "let {c,d} = source(); export let x = 0; const v = x++; source(v,c,d);"],
- ["two-postfix-array-temp", "export let x = 0; const v = x++; const u = x++; var [a,b] = source(); source(v,u,a,b);"],
- ["later-nullish-temp", "export let x = 0; const v = x++; const w = source() ?? 1; source(v,w);"],
- ["earlier-nullish-temp", "export let x = 0; const w = source() ?? 1; const v = x++; source(v,w);"],
- ["private-field-temp", "class C { #x = 1; } export let y = 0; const v = y++; source(C,v);"],
  ["later-array-temp", "export let x = 0; const v = x++; var [a] = source(); source(v,a);"],
  ["earlier-array-temp", "var [a] = source(); export let x = 0; const v = x++; source(v,a);"],
  ["later-object-temp", "export let x = 0; const v = x++; let {b} = source(); source(v,b);"],
@@ -150,7 +142,7 @@ for (const target of ["es5", "es2015", "esnext"])
           strict: false, skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
           ignoreDeprecations: "6.0", outDir: "/project/out"}, files: [main.slice(9)]})});
     }
-assert.equal(inputs.length, 744);
+assert.equal(inputs.length, 696);
 for (const target of ["es5", "es2015"])
   for (const removeComments of [false, true])
     for (const [shape] of shapes.filter(([name]) => name.startsWith("import-") || name === "export-import-assignment")) {
@@ -159,14 +151,14 @@ for (const target of ["es5", "es2015"])
       const config = JSON.parse(input.config); config.compilerOptions.module = "commonjs";
       input.config = JSON.stringify(config); inputs.push(input);
     }
-assert.equal(inputs.length, 796);
+assert.equal(inputs.length, 748);
 for (const remove of [false, true]) {
   const input = structuredClone(inputs.find(row => row.case_id === `system-binding-publication/es2015/remove-${remove}/scope-earlier-temp`));
   input.case_id = input.case_id.replace("/es2015/", "/es2019/");
   const config = JSON.parse(input.config); config.compilerOptions.target = "es2019";
   input.config = JSON.stringify(config); inputs.push(input);
 }
-assert.equal(inputs.length, 798);
+assert.equal(inputs.length, 750);
 for (const target of ["es2015", "esnext"])
   for (const importHelpers of [false, true])
     for (const [shape, text, read] of [
@@ -184,7 +176,7 @@ for (const target of ["es2015", "esnext"])
             lib: ["esnext"], strict: false, skipDefaultLibCheck: true, noErrorTruncation: true, sourceMap: true,
             ignoreDeprecations: "6.0", outDir: "/project/out"}, files: roots.map(root => root.slice(9))})});
       }
-assert.equal(inputs.length, 830);
+assert.equal(inputs.length, 782);
 for (const target of ["es5", "es2015"])
   for (const remove of [false, true]) {
     const input = structuredClone(inputs.find(row => row.case_id === `system-binding-publication/${target}/remove-${remove}/using-object-pattern`));
@@ -198,29 +190,7 @@ for (const remove of [false, true]) {
   const config = JSON.parse(input.config); config.compilerOptions.importHelpers = true;
   input.config = JSON.stringify(config); inputs.push(input);
 }
-assert.equal(inputs.length, 836);
-for (const [shape,target] of [["later-nullish-temp","es2019"], ["earlier-nullish-temp","es2019"], ["private-field-temp","es2021"]])
-  for (const remove of [false,true]) {
-    const input = structuredClone(inputs.find(row => row.case_id === `system-binding-publication/es2015/remove-${remove}/${shape}`));
-    input.case_id = input.case_id.replace("/es2015/", `/${target}/`);
-    const config = JSON.parse(input.config); config.compilerOptions.target = target;
-    input.config = JSON.stringify(config); inputs.push(input);
-  }
-assert.equal(inputs.length, 842);
-for (const target of ["es5","es2015"])
-  for (const removeComments of [false,true])
-    for (const order of ["before","after"])
-      for (const [shape,type] of [["distinct-union","Missing.A | Missing.B"],["repeated-union","Missing.A | Missing.A"]]) {
-        const input = structuredClone(inputs.find(row => row.case_id === `system-binding-publication/${target}/remove-${removeComments}/postfix-value`));
-        input.case_id = `system-binding-publication/${target}/remove-${removeComments}/legacy-${shape}/${order}`;
-        const update = "export let x = 0; const v = x++;";
-        const decorated = `declare const dec: any; @dec class C { @dec p: ${type}; }`;
-        input.files[0].text = "declare const source: any;\n" + (order === "before" ? update + decorated : decorated + update) + "source(C,v);\n";
-        const config = JSON.parse(input.config);
-        Object.assign(config.compilerOptions,{experimentalDecorators:true,emitDecoratorMetadata:true,strictNullChecks:false});
-        input.config = JSON.stringify(config); inputs.push(input);
-      }
-assert.equal(inputs.length, 858);
+assert.equal(inputs.length, 788);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),

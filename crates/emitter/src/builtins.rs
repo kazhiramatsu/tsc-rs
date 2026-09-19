@@ -8505,9 +8505,26 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if self.context.arena().node(original)?.pos == u32::MAX {
             return Ok(None);
         }
+        let resolver_node = self.resolver_node(identifier)?;
+        // getExports resolves an imported alias before looking for value
+        // declarations: its publication belongs to the import declaration.
+        if let Some(import) = self
+            .resolver
+            .get_referenced_import_declaration(resolver_node)?
+        {
+            return Ok(self
+                .info
+                .exported_bindings
+                .get(&import.node())
+                .map(|exports| ExportAssignmentPlan {
+                    local_name: data.text.clone(),
+                    exports: exports.clone(),
+                    direct_export_storage: false,
+                }));
+        }
         let declarations = self
             .resolver
-            .get_referenced_value_declarations(self.resolver_node(identifier)?)?;
+            .get_referenced_value_declarations(resolver_node)?;
         let mut exports = Vec::new();
         let mut seen = BTreeSet::new();
         for declaration in declarations {

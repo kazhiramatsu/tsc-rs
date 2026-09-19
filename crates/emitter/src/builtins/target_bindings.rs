@@ -136,6 +136,11 @@ pub(super) struct TargetBinding {
 }
 
 impl TargetBinding {
+    pub(super) fn with_derived_from(mut self, parent: Option<GeneratedBindingId>) -> Self {
+        self.derived_from = parent;
+        self
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn from_existing(
         id: GeneratedBindingId,

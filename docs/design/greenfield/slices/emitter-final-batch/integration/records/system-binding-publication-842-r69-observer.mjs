@@ -207,20 +207,6 @@ for (const [shape,target] of [["later-nullish-temp","es2019"], ["earlier-nullish
     input.config = JSON.stringify(config); inputs.push(input);
   }
 assert.equal(inputs.length, 842);
-for (const target of ["es5","es2015"])
-  for (const removeComments of [false,true])
-    for (const order of ["before","after"])
-      for (const [shape,type] of [["distinct-union","Missing.A | Missing.B"],["repeated-union","Missing.A | Missing.A"]]) {
-        const input = structuredClone(inputs.find(row => row.case_id === `system-binding-publication/${target}/remove-${removeComments}/postfix-value`));
-        input.case_id = `system-binding-publication/${target}/remove-${removeComments}/legacy-${shape}/${order}`;
-        const update = "export let x = 0; const v = x++;";
-        const decorated = `declare const dec: any; @dec class C { @dec p: ${type}; }`;
-        input.files[0].text = "declare const source: any;\n" + (order === "before" ? update + decorated : decorated + update) + "source(C,v);\n";
-        const config = JSON.parse(input.config);
-        Object.assign(config.compilerOptions,{experimentalDecorators:true,emitDecoratorMetadata:true,strictNullChecks:false});
-        input.config = JSON.stringify(config); inputs.push(input);
-      }
-assert.equal(inputs.length, 858);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),

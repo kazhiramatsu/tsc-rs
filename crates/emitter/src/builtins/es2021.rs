@@ -1735,6 +1735,9 @@ impl<'context> TargetVisitor<'context> {
                 }),
                 return_flags,
             )?;
+            self.context
+                .factory()?
+                .set_text_range(return_statement, body)?;
             let statements = self
                 .context
                 .factory()?
@@ -1747,6 +1750,7 @@ impl<'context> TargetVisitor<'context> {
                 }),
                 block_flags,
             )?;
+            self.context.factory()?.set_text_range(block, body)?;
             self.context.factory()?.set_multi_line(block, false)?;
             let NodeData::Block(mut data) = self.context.arena().node(block)?.data.clone() else {
                 unreachable!("created block has block data")

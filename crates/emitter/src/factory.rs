@@ -3986,7 +3986,7 @@ impl<'arena> NodeFactory<'arena> {
         operand: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let emitted = self.skip_partially_emitted_expressions(operand)?;
-        if self.expression_precedence(emitted)? >= PRECEDENCE_UNARY {
+        if is_unary_expression_kind(self.arena.node(emitted)?.kind) {
             return Ok(operand);
         }
         let flags = self.arena.propagate_child_flags(operand)?;
@@ -5919,6 +5919,7 @@ impl<'arena> NodeFactory<'arena> {
         source: TransformSourceId,
         data: &mut NodeData,
     ) -> Result<(), TransformError> {
+        self.parenthesize_statement_and_unary_expressions(source, data)?;
         self.parenthesize_comma_delimited_expression_children(source, data)?;
         self.parenthesize_binary_operands(source, data)?;
         self.parenthesize_conditional_operands(source, data)?;
@@ -5926,6 +5927,144 @@ impl<'arena> NodeFactory<'arena> {
         self.parenthesize_computed_property_name_expression(source, data)?;
         self.parenthesize_export_assignment_expression(source, data)?;
         self.parenthesize_updated_arrow_concise_body(source, data)
+    }
+
+    /// tsc-port: parenthesizeExpressionOfExpressionStatement/parenthesizeOperandOfPrefixUnary/parenthesizeOperandOfPostfixUnary @6.0.3
+    /// tsc-span: _tsc.js:20473-20511
+    /// Ranged factory parentheses survive subsequent transforms and own their
+    /// source mappings; printer-only grammar parentheses cannot do either.
+    fn parenthesize_statement_and_unary_expressions(
+        &mut self,
+        source: TransformSourceId,
+        data: &mut NodeData,
+    ) -> Result<(), TransformError> {
+        let field = match data {
+            NodeData::ExpressionStatement(data) => &mut data.expression,
+            NodeData::DeleteExpression(data) => &mut data.expression,
+            NodeData::TypeOfExpression(data) => &mut data.expression,
+            NodeData::VoidExpression(data) => &mut data.expression,
+            NodeData::AwaitExpression(data) => &mut data.expression,
+            NodeData::PrefixUnaryExpression(data) => &mut data.operand,
+            NodeData::PostfixUnaryExpression(data) => &mut data.operand,
+            NodeData::YieldExpression(data) => &mut data.expression,
+            _ => return Ok(()),
+        };
+        let Some(id) = *field else {
+            return Ok(());
+        };
+        let expression = self
+            .arena
+            .node_ref(source, id)
+            .ok_or(TransformError::UnknownNode(TransformNode::new(source, id)))?;
+        let parenthesized = match data {
+            NodeData::ExpressionStatement(_) => {
+                self.parenthesize_statement_expression(expression)?
+            }
+            NodeData::YieldExpression(_) => {
+                self.parenthesize_expression_for_disallowed_comma(expression)?
+            }
+            NodeData::PostfixUnaryExpression(_) => {
+                let emitted = self.skip_partially_emitted_expressions(expression)?;
+                if is_left_hand_side_expression_kind(self.arena.node(emitted)?.kind) {
+                    expression
+                } else {
+                    self.create_ranged_parenthesized_expression(expression)?
+                }
+            }
+            _ => self.parenthesize_operand_of_prefix_unary(expression)?,
+        };
+        match data {
+            NodeData::ExpressionStatement(data) => data.expression = Some(parenthesized.node),
+            NodeData::DeleteExpression(data) => data.expression = Some(parenthesized.node),
+            NodeData::TypeOfExpression(data) => data.expression = Some(parenthesized.node),
+            NodeData::VoidExpression(data) => data.expression = Some(parenthesized.node),
+            NodeData::AwaitExpression(data) => data.expression = Some(parenthesized.node),
+            NodeData::PrefixUnaryExpression(data) => data.operand = Some(parenthesized.node),
+            NodeData::PostfixUnaryExpression(data) => data.operand = Some(parenthesized.node),
+            NodeData::YieldExpression(data) => data.expression = Some(parenthesized.node),
+            _ => unreachable!("expression owner was checked above"),
+        }
+        Ok(())
+    }
+
+    fn create_ranged_parenthesized_expression(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.arena.propagate_child_flags(expression)?;
+        let parenthesized = self.create_node(
+            expression.source,
+            NodeData::ParenthesizedExpression(ParenthesizedExpressionData {
+                expression: Some(expression.node),
+            }),
+            flags,
+        )?;
+        self.set_text_range(parenthesized, expression)
+    }
+
+    fn parenthesize_statement_expression(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let emitted = self.skip_partially_emitted_expressions(expression)?;
+        if let NodeData::CallExpression(mut call) = self.arena.node(emitted)?.data.clone() {
+            if let Some(callee) = call
+                .expression
+                .and_then(|id| self.arena.node_ref(emitted.source, id))
+            {
+                let inner = self.skip_partially_emitted_expressions(callee)?;
+                if matches!(
+                    self.arena.node(inner)?.kind,
+                    SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+                ) {
+                    call.expression =
+                        Some(self.create_ranged_parenthesized_expression(callee)?.node);
+                    let flags = self.arena.transform_flags(emitted);
+                    let mut updated =
+                        self.update_node(emitted, NodeData::CallExpression(call), flags)?;
+                    let mut outer = Vec::new();
+                    let mut cursor = expression;
+                    while cursor != emitted {
+                        let NodeData::PartiallyEmittedExpression(data) =
+                            self.arena.node(cursor)?.data.clone()
+                        else {
+                            unreachable!(
+                                "skipPartiallyEmittedExpressions only removes partial nodes"
+                            )
+                        };
+                        outer.push((cursor, data.clone()));
+                        let child =
+                            data.expression
+                                .ok_or(TransformError::RequiredChildRemoved {
+                                    parent: SyntaxKind::PartiallyEmittedExpression,
+                                    field: "expression",
+                                })?;
+                        cursor = self.arena.node_ref(cursor.source, child).ok_or(
+                            TransformError::UnknownNode(TransformNode::new(cursor.source, child)),
+                        )?;
+                    }
+                    for (original, mut data) in outer.into_iter().rev() {
+                        data.expression = Some(updated.node);
+                        let flags = self.arena.transform_flags(original);
+                        updated = self.update_node(
+                            original,
+                            NodeData::PartiallyEmittedExpression(data),
+                            flags,
+                        )?;
+                    }
+                    return Ok(updated);
+                }
+            }
+        }
+        let leftmost = self.leftmost_expression(emitted, false)?;
+        if matches!(
+            self.arena.node(leftmost)?.kind,
+            SyntaxKind::ObjectLiteralExpression | SyntaxKind::FunctionExpression
+        ) {
+            self.create_ranged_parenthesized_expression(expression)
+        } else {
+            Ok(expression)
+        }
     }
 
     /// tsc-port: updateArrowFunction @6.0.3 (through createArrowFunction's
@@ -7970,3 +8109,55 @@ mod factory_classifier_tests;
 #[cfg(test)]
 #[path = "../tests/unit/factory_seams/tests.rs"]
 mod original_provenance_tests;
+
+// tsc-port: isLeftHandSideExpressionKind/isUnaryExpressionKind @6.0.3
+// tsc-span: _tsc.js:12210-12266
+pub(crate) fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::NewExpression
+            | SyntaxKind::CallExpression
+            | SyntaxKind::JsxElement
+            | SyntaxKind::JsxSelfClosingElement
+            | SyntaxKind::JsxFragment
+            | SyntaxKind::TaggedTemplateExpression
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::Identifier
+            | SyntaxKind::PrivateIdentifier
+            | SyntaxKind::RegularExpressionLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateExpression
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::ThisKeyword
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::SuperKeyword
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::ExpressionWithTypeArguments
+            | SyntaxKind::MetaProperty
+            | SyntaxKind::ImportKeyword
+            | SyntaxKind::MissingDeclaration
+    )
+}
+
+pub(crate) fn is_unary_expression_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::PrefixUnaryExpression
+            | SyntaxKind::PostfixUnaryExpression
+            | SyntaxKind::DeleteExpression
+            | SyntaxKind::TypeOfExpression
+            | SyntaxKind::VoidExpression
+            | SyntaxKind::AwaitExpression
+            | SyntaxKind::TypeAssertionExpression
+    ) || is_left_hand_side_expression_kind(kind)
+}
