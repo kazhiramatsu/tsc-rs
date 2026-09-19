@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/tmp/emitter-delivery-final-input-audit-r255.py",
+    "--tree",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+    "--validation",
+    "628562c31a5102348a7e8769f3a2aa88deef70f1",
+    "--out",
+    "/tmp/emitter-delivery-final-input-audit-r255.json"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T19:26:07.268460+00:00",
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 37.167,
+  "log_sha256": "8482f3bca69431049b90ec1a19abdfe95e701548e14d58d306a1be4b220eb7b4",
+  "log_bytes": 289
+}

@@ -1,0 +1,245 @@
+{
+  "scope": "baseline628 only; proposal not linked",
+  "rows": [
+    {
+      "index": 0,
+      "text": "export const \\u{10400} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "fee597941550629902cf7b45cacb11b91fcfc12407069b4ae75ac9707f99872e"
+    },
+    {
+      "index": 1,
+      "text": "let \\u{10401} = 2;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 5 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "0b11997b973cbe72e85e43d0f9203abd2f5004e367f7bce8b2d20e427c4e5bb0"
+    },
+    {
+      "index": 2,
+      "text": "var \\u{10400} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "4d6c782dd48346737bde32312652343c40363163ad373053f83c847ee0d57ea9"
+    },
+    {
+      "index": 3,
+      "text": "export const \\u{10400} = 1; export const \\u{10401} = 2;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 6 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "47a19ac2b8bf514dd3d6e1944b0e811e2d912515011bfa36ca824940acbf1be9"
+    },
+    {
+      "index": 4,
+      "text": "/* 😀 */ export const \\u{10400} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "42c984b8aaea2b1564223b1158a0b826570ec2c602112a9ec94571d116eb1151"
+    },
+    {
+      "index": 5,
+      "text": "main.d.ts",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "46b30b76bcee5d38fecaccffdaa5c4a856958a5595e21c1ebe953ea70f3c532a"
+    },
+    {
+      "index": 6,
+      "text": "const ¬u = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 1 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 1 PROFILES [false, false, false, false, false] FINAL false"
+      ],
+      "facts_sha256": "4a25bfeca58fd472f6a5fb20a00d09700d4b5d61913ac3c503e0292a9a0f4a28"
+    },
+    {
+      "index": 7,
+      "text": "const u {a} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 1 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 1 PROFILES [false, false, false, false, false] FINAL false"
+      ],
+      "facts_sha256": "304d33b7be883617971b8d5c3b5be49d11d023962f4a5fd1b5d1b93596bc661a"
+    },
+    {
+      "index": 8,
+      "text": "const u, {10400} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 1 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 1 PROFILES [false, false, false, false, false] FINAL false"
+      ],
+      "facts_sha256": "ae21619d6d4a40c48eeb35c161c8fda1796602fd3e840b581a2b3199f4f39cb3"
+    },
+    {
+      "index": 9,
+      "text": "const a, \\u{10400} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "81af36269d12e6ad489c4afb32d81fa48aec25f75f2a6b14d51dc7e57b0ced09"
+    },
+    {
+      "index": 10,
+      "text": "for (var \\u{10400} = 0;;) {}",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "c7bdaa2fd3af4c4593d259553bb7ce0292b9f5741841c842f0957f3b6755f167"
+    },
+    {
+      "index": 11,
+      "text": "declare const \\u{10400} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "55411ac1be1e38a9e1371cbda91e8ede6467acf370e5973edc412383640ac287"
+    },
+    {
+      "index": 12,
+      "text": "declare namespace N { const \\u{10400} = 1; }",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "1becec9cc16ba6f332717a7e1c87050465bec8dc450fbf6adcfdf26a08a6a3ec"
+    },
+    {
+      "index": 13,
+      "text": "export const \\u{10400} = f();",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "cceec515094a0cc32d865acea6809e170053440fdd441084054edacabef9dca1"
+    },
+    {
+      "index": 14,
+      "text": "export const \\u{10400} = 'text';",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "68ab1ea46ba46215a925e55555bc7aff1791108982bd0cfd0c3be0ab0c6a8c17"
+    },
+    {
+      "index": 15,
+      "text": "const \\u{\"a\"} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false"
+      ],
+      "facts_sha256": "6b15eab7c413a03e4e1372abecf00b4a87546b92785846c8e2a2dc2a6bc323a0"
+    },
+    {
+      "index": 16,
+      "text": "const \\u{10400} = 1, z = 2;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "1b629a27ec1ce025c6e7ab2b3aeeb20a18ede1d8b75393d5365a9ace7013782c"
+    },
+    {
+      "index": 17,
+      "text": "const \\u{10400,10401} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 4 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 4 PROFILES [false, false, false, false, false] FINAL false"
+      ],
+      "facts_sha256": "ed7b762862d26c4340c3555fa4a5166bc4da1755d9cc6728b9d51a1ba08129fa"
+    },
+    {
+      "index": 18,
+      "text": "using \\u{10400} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "bd3eab404dbacc6d1962f9828a64a501c647a47dc43a3eb2a5215d6717479c87"
+    },
+    {
+      "index": 19,
+      "text": "export const \\u{1F600}x = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 4 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 4 PROFILES [false, false, false, false, false] FINAL false"
+      ],
+      "facts_sha256": "4a8c3aa21399462c67e0af29a8b1c71a49948127a6dfa7b0fd0e42da30fd96d7"
+    },
+    {
+      "index": 20,
+      "text": "main.ts",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "46b30b76bcee5d38fecaccffdaa5c4a856958a5595e21c1ebe953ea70f3c532a"
+    },
+    {
+      "index": 21,
+      "text": "export let \\u{10401} = 2;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "b4d29d3a4f6c52cb2079eb3f08be2cd3700da644b96f5f6494eac5cd26f045c3"
+    },
+    {
+      "index": 22,
+      "text": "const \\u{10400} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "4423daffd7ba93a61a5e10f799a4eab28da325ac32c157b0fbe1cd209cda8b00"
+    },
+    {
+      "index": 23,
+      "text": "export var \\u{10400} = 1;",
+      "exit": 0,
+      "summary": [
+        "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+        "TARGET ScriptTarget(2) DECL false DIAGNOSTICS 0 PROFILES [true, true, true, true, true] FINAL true"
+      ],
+      "facts_sha256": "b4d29d3a4f6c52cb2079eb3f08be2cd3700da644b96f5f6494eac5cd26f045c3"
+    }
+  ]
+}

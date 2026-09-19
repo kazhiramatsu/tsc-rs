@@ -1,0 +1,33 @@
+{
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "scope": "interim r244 failure classification; pipeline running, not qualification",
+  "failed_tests": [
+    "h2_7a_m4_controls::declaration_bundle_root_remains_refused_at_the_transform_seam",
+    "h2_7a_m4_controls::declaration_plan_execute_and_printer_refusals_are_retained",
+    "h2_7a_m4_controls::production_declaration_transform_requires_exactly_one_source_root",
+    "h2_8a_ellipsis_comment_owners::ellipsis_comment_owners_match_complete_typescript_observations",
+    "h2_8a_export_name_syntax_maps::export_name_syntax_maps_match_complete_typescript_observations"
+  ],
+  "reasons": [
+    "token-comment-phases/recovery/import: production command completes: comment resumes have different owner starts 26 and 6 in source 0",
+    "token-comment-phases/recovery/import: token-comment-phases/recovery/import: production command completes: comment resumes have different owner starts 26 and 6 in source 0",
+    "complete ellipsis comment owners failures: [\"token-comment-phases/recovery/import\"]",
+    "cjs/js/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "cjs/js/es5/direct-extended-unicode: cjs/js/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "cjs/ts/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "cjs/ts/es5/direct-extended-unicode: cjs/ts/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "amd/js/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "amd/js/es5/direct-extended-unicode: amd/js/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "amd/ts/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "amd/ts/es5/direct-extended-unicode: amd/ts/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "umd/js/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "umd/js/es5/direct-extended-unicode: umd/js/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "umd/ts/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "umd/ts/es5/direct-extended-unicode: umd/ts/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "system/js/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "system/js/es5/direct-extended-unicode: system/js/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "system/ts/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "system/ts/es5/direct-extended-unicode: system/ts/es5/direct-extended-unicode: production command completes: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9",
+    "complete export name syntax maps failures: [\"cjs/js/es5/direct-extended-unicode\", \"cjs/ts/es5/direct-extended-unicode\", \"amd/js/es5/direct-extended-unicode\", \"amd/ts/es5/direct-extended-unicode\", \"umd/js/es5/direct-extended-unicode\", \"umd/ts/es5/direct-extended-unicode\", \"system/js/es5/direct-extended-unicode\", \"system/ts/es5/direct-extended-unicode\"]"
+  ]
+}

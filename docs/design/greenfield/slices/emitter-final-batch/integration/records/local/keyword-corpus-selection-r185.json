@@ -1,0 +1,40 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-escaped-keyword-proof/scripts/select-recovery-parse-corpus.py",
+    "--snapshot",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/parse-snapshot.json",
+    "--current",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/current.json",
+    "--projection",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/projection.json",
+    "--merge-base",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/merge-base.json",
+    "--profiles-dir",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles",
+    "--successor",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-keyword-successor-r185/successor.json",
+    "--previous-successor",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-variable-successor-r151/successor.json",
+    "--out",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-keyword-successor-r185/selection.json"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T14:30:28.623450+00:00",
+  "head": "3e28cb21344eae8980cfe66992913f2d8758ede2",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 10.391,
+  "log_sha256": "b3ec9bce678b5c3a8da62225b33a10ce906e98ca8f3b669bf48e14b2e2e5a02f",
+  "log_bytes": 344
+}

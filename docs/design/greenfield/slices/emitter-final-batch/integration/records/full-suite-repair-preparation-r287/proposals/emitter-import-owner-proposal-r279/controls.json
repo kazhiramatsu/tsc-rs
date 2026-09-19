@@ -1,0 +1,11 @@
+{
+  "status": "prepared only; not observed/applied/qualified",
+  "old_token_cases": 129,
+  "new_cases": 36,
+  "new_token_cases": 165,
+  "old_total_ellipsis_cases": 398,
+  "new_total_ellipsis_cases": 434,
+  "expectations": "Actual vendored tsc6.0.3 complete command observations x2 only after pipeline; all old fixture cases unchanged",
+  "controls": "9 source shapes x removeComments false/true x declaration-only/all outputs, including sourceMap+declarationMap alloutputs; explicit linebreak between export and import plus unicode CRLF",
+  "pending": "Official generator after r244; update test counts129->165 and398->434. No change old fixtures or weakening expectations"
+}

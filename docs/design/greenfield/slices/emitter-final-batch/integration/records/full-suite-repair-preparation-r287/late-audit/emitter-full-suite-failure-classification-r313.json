@@ -1,0 +1,137 @@
+{
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "qualified": false,
+  "failed_tests": 12,
+  "distinct_cause_groups": 9,
+  "groups": [
+    {
+      "id": "declaration-controls",
+      "tests": [
+        "h2_7a_m4_controls::declaration_bundle_root_remains_refused_at_the_transform_seam",
+        "h2_7a_m4_controls::declaration_plan_execute_and_printer_refusals_are_retained",
+        "h2_7a_m4_controls::production_declaration_transform_requires_exactly_one_source_root"
+      ],
+      "cause": "stale pre-bundle test expectations",
+      "candidate": "r264",
+      "product_change": false
+    },
+    {
+      "id": "import-comment-ownership",
+      "tests": [
+        "h2_8a_ellipsis_comment_owners::ellipsis_comment_owners_match_complete_typescript_observations",
+        "h2_8a_token_comment_phases::token_comment_phases_match_complete_typescript_observations"
+      ],
+      "cause": "same erased import-modifier clause comment ownership; overlap is not two bugs",
+      "candidate": "r279 +r297",
+      "product_change": true
+    },
+    {
+      "id": "leading-unicode-binding",
+      "tests": [
+        "h2_8a_export_name_syntax_maps::export_name_syntax_maps_match_complete_typescript_observations"
+      ],
+      "cause": "eight ES5 full commands rejected by composite syntax recovery boundary",
+      "candidate": "private2df syntax213pass; full40 r309 pending",
+      "product_change": true
+    },
+    {
+      "id": "retired-import-refusals",
+      "tests": [
+        "h2_8a_import_helpers::import_helpers_matches_complete_typescript_observations"
+      ],
+      "cause": "12 refusal annotations obsolete; full comparison after retirement still pending",
+      "candidate": "r282",
+      "product_change": false
+    },
+    {
+      "id": "node-option-control",
+      "tests": [
+        "program_session_contract::programmatic_node_module_resolution_relationships_keep_exact_module_names"
+      ],
+      "cause": "Node20/Next also requireTS5070 alongside5109; nativeandTSagreed",
+      "candidate": "r302; r301 evidence",
+      "product_change": false
+    },
+    {
+      "id": "historical-source-promotions",
+      "tests": [
+        "h2_1a_acceptance::tests::all_h2_1a_candidate_dispositions_execute"
+      ],
+      "cause": "three H2.9 historical source refusals now exact twice against original fullcomparator",
+      "candidate": "r308; r307 evidence",
+      "product_change": false
+    },
+    {
+      "id": "legacy-regression-qualification-pin",
+      "tests": [
+        "h2_2c_acceptance::h2_6c_de_legacy_collector::nonbundle_declaration_maps_dispose_javascript_parse_metadata"
+      ],
+      "cause": "active regression hardpins oldhash at mutablelivequalificationpath; frozenrowidentity repair needs review",
+      "candidate": "actualOpus177 pending",
+      "product_change": false
+    },
+    {
+      "id": "retired-empty-manifest",
+      "tests": [
+        "h2_2c_acceptance::h2_7b_tests::h2_6c_current_manifest_keeps_only_unclosed_historical_refusals"
+      ],
+      "cause": "test assumes retiredempty6cmanifestexists and omits laterpromotionadjustments",
+      "candidate": "actualOpus177 pending",
+      "product_change": false
+    },
+    {
+      "id": "json-owner-routing-expectation",
+      "tests": [
+        "h2_3d_acceptance::tests::pinned_h2_3d_acceptance_is_exact"
+      ],
+      "cause": "AMD/UMD usesdirectmoduledelegate, noH2.1a; all14frozenoutputs/diagnosticsmatchtwice before counter assertion",
+      "candidate": "actualOpus177 pending; r310 evidence",
+      "product_change": false
+    }
+  ],
+  "logs": {
+    "compiler-affected-targets-r244": {
+      "sha256": "ffc187dfcea1172047e6e61fd803bdef8e3ceebf2e50005d16847a2c779771b2",
+      "tests": [
+        "h2_7a_m4_controls::declaration_bundle_root_remains_refused_at_the_transform_seam",
+        "h2_7a_m4_controls::declaration_plan_execute_and_printer_refusals_are_retained",
+        "h2_7a_m4_controls::production_declaration_transform_requires_exactly_one_source_root",
+        "h2_8a_ellipsis_comment_owners::ellipsis_comment_owners_match_complete_typescript_observations",
+        "h2_8a_export_name_syntax_maps::export_name_syntax_maps_match_complete_typescript_observations",
+        "h2_8a_import_helpers::import_helpers_matches_complete_typescript_observations",
+        "h2_8a_token_comment_phases::token_comment_phases_match_complete_typescript_observations",
+        "program_session_contract::programmatic_node_module_resolution_relationships_keep_exact_module_names"
+      ],
+      "results": [
+        "test result: FAILED. 464 passed; 8 failed; 16 ignored; 0 measured; 0 filtered out; finished in 14598.63s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.69s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.43s",
+        "test result: ok. 3 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 82.50s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 73.96s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 163.09s"
+      ]
+    },
+    "xtask-tests-r244": {
+      "sha256": "0a2cb70179f1993ca075a4ab55af1d05d8b46d61669aafcd716044d259e6653b",
+      "tests": [
+        "h2_1a_acceptance::tests::all_h2_1a_candidate_dispositions_execute",
+        "h2_2c_acceptance::h2_6c_de_legacy_collector::nonbundle_declaration_maps_dispose_javascript_parse_metadata",
+        "h2_2c_acceptance::h2_7b_tests::h2_6c_current_manifest_keeps_only_unclosed_historical_refusals",
+        "h2_3d_acceptance::tests::pinned_h2_3d_acceptance_is_exact"
+      ],
+      "results": [
+        "test result: FAILED. 310 passed; 4 failed; 5 ignored; 0 measured; 0 filtered out; finished in 771.21s"
+      ]
+    }
+  },
+  "additional_non_red_boundary": {
+    "id": "empty-variable-list",
+    "source": "existing H2.6a source map witness typedrefusal; outsideoriginal68",
+    "status": "review175/176bounded guard accepted with safeguards; ASTprobes303/305/306done; initializedflags311pending;96fullcommanddraft312notminted; no product change applied"
+  },
+  "limits": [
+    "No source repair is applied in canonical628 yet.",
+    "No universal H2.9 or emitter completion claim.",
+    "r244 static/build stages and final unsplitCI remain separate obligations."
+  ]
+}

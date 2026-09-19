@@ -1,0 +1,9 @@
+{
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "status": "unreviewed unapplied scratch proposal, no runtime verification",
+  "file": "crates/emitter/src/printer.rs",
+  "before_sha256": "b6e37345ff0ab98a076c2fb922bc9589cc7f05e01ed0379c2e8d50c3d4b64131",
+  "after_sha256": "13032214e9c58ff7f8bc9a49a10cb9364e140e9ddf6cbc640814b0f08876f03e",
+  "scope": "ImportDeclaration two cursor-to-child projections use existing exact owner matcher; typed cursor/resume invariants unchanged",
+  "pending": "Actual Opus170+followup review; TS-command fixture expansion; runtime proof after r244 finishes"
+}

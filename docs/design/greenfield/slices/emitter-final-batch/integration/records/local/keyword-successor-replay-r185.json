@@ -1,0 +1,37 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-escaped-keyword-proof/scripts/replay-recovery-parse.py",
+    "--parser-tree",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+    "--input",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/parse-snapshot.json",
+    "--out",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-keyword-successor-r185/successor.json",
+    "--build-dir",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-keyword-successor-r185/build-successor",
+    "--label",
+    "r185-successor",
+    "--baseline-kind",
+    "successor",
+    "--with-recovery-profiles"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T14:29:00.415098+00:00",
+  "head": "3e28cb21344eae8980cfe66992913f2d8758ede2",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 87.599,
+  "log_sha256": "8ef9cb58f968dd90bffda1186575bc6f57bf280356b378db702530dc168801b5",
+  "log_bytes": 47
+}

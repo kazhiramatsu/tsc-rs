@@ -1,0 +1,1 @@
+declare const \u{10400} = 1;

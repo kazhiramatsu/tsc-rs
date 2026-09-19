@@ -1,0 +1,11 @@
+{
+  "status": "unapplied scratch follows actual Opus171 structural erasure guard; not runtime qualified",
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "before_sha256": "b6e37345ff0ab98a076c2fb922bc9589cc7f05e01ed0379c2e8d50c3d4b64131",
+  "after_sha256": "9a494e786f3538594d87fefc7a244829e13eb3d71516275a2f1e877d0ea203d5",
+  "supersedes": "r273 printer proposal rejected for lost clipping/range/error checks; keep r273 rejection evidence",
+  "scope": "Only clause site of ImportDeclaration; non-erased clauses still strict helper and module-specifier site unchanged",
+  "controls": "r279 36 controls prepared; old398 unchanged casewise",
+  "note": "parser.rs parse_modifiers returns None for empty modifier vector; parsed original modifier arrays are nonempty",
+  "scratch_format": "rustfmt edition2021 skip_children=true, not runtime test"
+}

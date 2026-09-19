@@ -1,0 +1,130 @@
+{
+  "status": "UNAPPLIED candidate retirement; r244 proves command no longer refused, not yet complete observation equality",
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "retired": [
+    {
+      "case_id": "import-helpers/comment-boundary/es2015/remove-false/optional-line-comment",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2015/remove-false/optional-own-line",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2015/remove-true/optional-line-comment",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2015/remove-true/optional-own-line",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2022/remove-false/optional-line-comment",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2022/remove-false/optional-own-line",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2022/remove-true/optional-line-comment",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/es2022/remove-true/optional-own-line",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/esnext/remove-false/optional-line-comment",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/esnext/remove-false/optional-own-line",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/esnext/remove-true/optional-line-comment",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    },
+    {
+      "case_id": "import-helpers/comment-boundary/esnext/remove-true/optional-own-line",
+      "prior_boundary": {
+        "count": 3,
+        "recovery_events": 4,
+        "owner_slice": "H2.9",
+        "partial_writes": [],
+        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+      }
+    }
+  ],
+  "case_count": 551,
+  "preservation": "All input and typescript_observation fields identical; remove only native-refusal metadata12 and set new observer script hash",
+  "pending": "afterr244archive, actual12selected fullcommands x2 via TSC_RS_IMPORT_HELPERS_CASE_FILTER=comment-boundary and exact test or isolated12caseprobe; generator --check to verify preservation; do not claim retired until exact",
+  "patch_lines": 201
+}

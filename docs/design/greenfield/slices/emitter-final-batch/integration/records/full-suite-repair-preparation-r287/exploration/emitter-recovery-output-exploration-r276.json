@@ -1,0 +1,9 @@
+{
+  "scope": "mock resolver with false collision answer; diagnostics and recovery cleared via harness hook; no real command, checker, declaration, maps or qualification",
+  "argv": [
+    "/tmp/emitter-recovery-output-exploration-r276",
+    "/tmp/emitter-recovery-inspection-r272.ts"
+  ],
+  "exit": 0,
+  "log_sha256": "97a09153d8819ceab89d719afd89c90b9852ea16898297fc4efd35d084c66e8f"
+}

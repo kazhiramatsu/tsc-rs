@@ -1,0 +1,9 @@
+{
+  "status": "UNAPPLIED test-only correction, canonical unchanged duringr244",
+  "path": "crates/compiler/tests/integration/program_session_contract.rs",
+  "before_sha256": "0a162ebf4ec820b3d03f95d75408d5f0c8e0db5e05bd1754ee13185acc845c85",
+  "after_sha256": "ec8836216fea44c1c13f6b85f57ca4e18d485066a405888bd6e856bdaa1ef8ed",
+  "reason": "Node20 andNodeNext default resolveJsonModule=true and thus reportTS5070 alongsideTS5109 with Classic resolution; actualvendor6.0.3getOptionsDiagnostics repeatsx2 andcurrentnative exactmessages/ranges match. Keepfullorderedcodevector; neverfilterawayotherdiagnostics.",
+  "evidence": "/tmp/emitter-node-option-diagnostics-r301",
+  "pending": "focused actualcontract afterr244; module-resolution programunit neighbours"
+}

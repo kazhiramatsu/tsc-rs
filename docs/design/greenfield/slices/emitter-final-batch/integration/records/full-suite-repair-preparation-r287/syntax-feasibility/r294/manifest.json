@@ -1,0 +1,67 @@
+{
+  "base_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "scope": "isolated small syntax feasibility tests only; canonical628 and its r244 battery untouched; no full command or corpus qualification",
+  "changes": [
+    "crates/syntax/src/recovery/context.rs",
+    "crates/syntax/src/recovery.rs",
+    "crates/syntax/tests/unit/parser/recovery.rs"
+  ],
+  "steps": [
+    {
+      "label": "rustfmt",
+      "argv": [
+        "rustfmt",
+        "--edition",
+        "2021",
+        "--config",
+        "skip_children=true",
+        "crates/syntax/src/recovery/context.rs",
+        "crates/syntax/src/recovery.rs",
+        "crates/syntax/tests/unit/parser/recovery.rs"
+      ],
+      "exit": 0,
+      "seconds": 0.152,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "new-composite-unit-tests",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-syntax",
+        "--lib",
+        "--config",
+        "profile.dev.package.tsc-rs-syntax.opt-level=0",
+        "--config",
+        "profile.dev.package.tsc-rs-types.opt-level=0",
+        "--config",
+        "profile.dev.package.tsc-rs-diagnostics.opt-level=0",
+        "leading_invalid_binding_recovery",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 101,
+      "seconds": 24.335,
+      "log_sha256": "accc4c191257e1234f7a26ce6ce9c025c30fe6ab234143a06d4a15b0945dba4f"
+    }
+  ],
+  "previous_failed_preparation": "r293 rustfmt wrongly requested edition2024; canonicalworkspace is2021; compiler was not run",
+  "source_sha256": {
+    "crates/syntax/src/recovery/context.rs": "72f6163200262c33e83f4080e36b68dd5d3cd0fdda8f36cf67e8095ce82a3af4",
+    "crates/syntax/src/recovery.rs": "27eb7dbc0d144d72c5ceffe58ad7fd701b72c4e8e8f83038c06d757eaaa36085",
+    "crates/syntax/tests/unit/parser/recovery.rs": "bd97af252bfa6b8bee6b09974ef97f0ba55d741195a70ef01b44d9fa3310bf24"
+  },
+  "test_env": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_TARGET_DIR": "/tmp/emitter-leading-binding-r293-target",
+    "CARGO_NET_OFFLINE": "true"
+  }
+}

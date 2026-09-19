@@ -1,0 +1,26 @@
+{
+  "source_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "path": "crates/compiler/tests/integration/h2_7a_m4_controls.rs",
+  "before_sha256": "44d9afa32e2f1e4fae25f2b29c5471dc4d0987a494d8034d866ad623fa56df7f",
+  "after_sha256": "c9602ab235544d226bb6c45c5e27148b379bd75ce45bd8d439ba5cb676477128",
+  "tests_before": 4,
+  "tests_after": 4,
+  "test_renames": "Three stale names now describe current contracts; production caller allowlist test unchanged. No name selector in live scripts/workflows/xtask per Opus169; preserve names in archived raw failures and record renames in commit.",
+  "scope": "Scratch proposal only; not applied or tested. Product, fixture and oracle bytes unchanged. Supplied-path empty-transform positive omitted: existing complete H2.7d bundle controls cover supported emission; plan nonempty/empty behaviour is retained here.",
+  "review": {
+    "actual_claude_round": 169,
+    "status": "Read-only source/ancestry review agrees these are stale controls; no product repair is called for.",
+    "historical_inference_limit": "The review comment about gates having been abolished is not adopted; exact trusted-base bytes and bundle activation ancestry suffice."
+  },
+  "scratch_format_check": {
+    "argv": [
+      "rustfmt",
+      "--edition",
+      "2021",
+      "--check",
+      "/tmp/emitter-stale-declaration-controls-r264/h2_7a_m4_controls.rs"
+    ],
+    "exit": 0,
+    "note": "Formatting only on scratch copy; not applied to canonical source and not a runtime test."
+  }
+}

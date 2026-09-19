@@ -1,0 +1,27 @@
+{
+  "base_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "scope": "isolated small syntax feasibility tests only; canonical628 and its r244 battery untouched; no full command or corpus qualification",
+  "changes": [
+    "crates/syntax/src/recovery/context.rs",
+    "crates/syntax/src/recovery.rs",
+    "crates/syntax/tests/unit/parser/recovery.rs"
+  ],
+  "steps": [
+    {
+      "label": "rustfmt",
+      "argv": [
+        "rustfmt",
+        "--edition",
+        "2024",
+        "--config",
+        "skip_children=true",
+        "crates/syntax/src/recovery/context.rs",
+        "crates/syntax/src/recovery.rs",
+        "crates/syntax/tests/unit/parser/recovery.rs"
+      ],
+      "exit": 1,
+      "seconds": 0.187,
+      "log_sha256": "8875ce29378b639271501fc77fe28f8865e0015f6e1a08c41f4b487cc45290d8"
+    }
+  ]
+}

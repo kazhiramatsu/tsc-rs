@@ -1,0 +1,60 @@
+{
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "qualified": false,
+  "scope": "read-only baseline parsed ownership inspection; newadmission prototype not linked or executed",
+  "setup_note": "First launcher aborted before any case because desired output directory matched compiled executable path; corrected to separate -records directory.",
+  "cases": [
+    {
+      "case": "ambient",
+      "text": "declare namespace N { const \\u{10400} = 1; }",
+      "filename": "main.ts",
+      "argv": [
+        "/tmp/emitter-leading-binding-baseline-r289",
+        "/tmp/emitter-leading-binding-baseline-r289-records/ambient.ts",
+        "main.ts"
+      ],
+      "exit": 0,
+      "log": "ambient.log",
+      "sha256": "1becec9cc16ba6f332717a7e1c87050465bec8dc450fbf6adcfdf26a08a6a3ec"
+    },
+    {
+      "case": "declaration",
+      "text": "export const \\u{10400} = 1;",
+      "filename": "main.d.ts",
+      "argv": [
+        "/tmp/emitter-leading-binding-baseline-r289",
+        "/tmp/emitter-leading-binding-baseline-r289-records/declaration.ts",
+        "main.d.ts"
+      ],
+      "exit": 0,
+      "log": "declaration.log",
+      "sha256": "99f1abc205d43ab06dc79e49272049e4e5919aeee94cfb0464b2aa28f1d697c9"
+    },
+    {
+      "case": "two-statements",
+      "text": "export const \\u{10400} = 1; export const \\u{10401} = 2;",
+      "filename": "main.ts",
+      "argv": [
+        "/tmp/emitter-leading-binding-baseline-r289",
+        "/tmp/emitter-leading-binding-baseline-r289-records/two-statements.ts",
+        "main.ts"
+      ],
+      "exit": 0,
+      "log": "two-statements.log",
+      "sha256": "47a19ac2b8bf514dd3d6e1944b0e811e2d912515011bfa36ca824940acbf1be9"
+    },
+    {
+      "case": "unicode-leading",
+      "text": "/* 😀 */ export const \\u{10400} = 1;",
+      "filename": "main.ts",
+      "argv": [
+        "/tmp/emitter-leading-binding-baseline-r289",
+        "/tmp/emitter-leading-binding-baseline-r289-records/unicode-leading.ts",
+        "main.ts"
+      ],
+      "exit": 0,
+      "log": "unicode-leading.log",
+      "sha256": "42c984b8aaea2b1564223b1158a0b826570ec2c602112a9ec94571d116eb1151"
+    }
+  ]
+}

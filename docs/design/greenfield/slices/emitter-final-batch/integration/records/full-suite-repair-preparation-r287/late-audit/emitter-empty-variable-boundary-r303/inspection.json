@@ -1,0 +1,7 @@
+{
+  "case_id": "edge-shapes--fault-parse-error",
+  "source_sha256": "19b3566387a0b4ce57ebf64d5d1e13c3501031ceb7e98d2cd0d72232f0a89fe9",
+  "exit": 0,
+  "log_sha256": "9046a06b7e6866d842672f4dce897645bf5e545fb4f1184356e9478a02fdf42e",
+  "scope": "existing explicit H2.6a legacy parse refusal; not one of original68 retirement rows; review safe fix scope before broadening admission"
+}

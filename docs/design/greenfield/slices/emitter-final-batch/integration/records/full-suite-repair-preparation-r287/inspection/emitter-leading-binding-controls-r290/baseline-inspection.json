@@ -1,0 +1,35 @@
+{
+  "scope": "read-only existing628 syntaxlib, newproposal not linked; not outputqualification",
+  "cases": [
+    {
+      "shape": "let-script",
+      "text": "let \\u{10401} = 2;\n",
+      "baseline_es5_summary": "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 5 PROFILES [false, false, false, false, false] FINAL false",
+      "log_sha256": "0b11997b973cbe72e85e43d0f9203abd2f5004e367f7bce8b2d20e427c4e5bb0"
+    },
+    {
+      "shape": "var-script",
+      "text": "var \\u{10400} = 1;\n",
+      "baseline_es5_summary": "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+      "log_sha256": "4d6c782dd48346737bde32312652343c40363163ad373053f83c847ee0d57ea9"
+    },
+    {
+      "shape": "unicode-leading",
+      "text": "/* 😀 */ export const \\u{10400} = 1;\n",
+      "baseline_es5_summary": "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+      "log_sha256": "42c984b8aaea2b1564223b1158a0b826570ec2c602112a9ec94571d116eb1151"
+    },
+    {
+      "shape": "two-statements",
+      "text": "export const \\u{10400} = 1; export const \\u{10401} = 2;\n",
+      "baseline_es5_summary": "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 6 PROFILES [false, false, false, false, false] FINAL false",
+      "log_sha256": "47a19ac2b8bf514dd3d6e1944b0e811e2d912515011bfa36ca824940acbf1be9"
+    },
+    {
+      "shape": "property-trivia",
+      "text": "export const \\u{ 10400 } = 1;\n",
+      "baseline_es5_summary": "TARGET ScriptTarget(1) DECL false DIAGNOSTICS 3 PROFILES [false, false, false, false, false] FINAL false",
+      "log_sha256": "be758075b44b7cb4a1c6e2ae8d298584f05be3cda5a226495e678262beee124a"
+    }
+  ]
+}

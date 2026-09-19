@@ -1,0 +1,111 @@
+{
+  "case_id": "edge-shapes--fault-parse-error",
+  "role": "fault",
+  "rust_lane": "parity",
+  "description": "a parse error still emits js and map (no noEmitOnError): recovery nodes map from their recovered positions",
+  "option_overrides": {},
+  "expected_reported_codes": [
+    1134,
+    1134
+  ],
+  "expected_emit_skipped": false,
+  "expected_write_paths": [
+    "/project/input.js.map",
+    "/project/input.js"
+  ],
+  "composition_facets": [],
+  "input": {
+    "current_directory": "/project",
+    "roots": [
+      "/project/input.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/input.ts",
+        "root": true,
+        "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgPSA1OwpzaW5rKDApOwo=",
+        "utf8_sha256": "19b3566387a0b4ce57ebf64d5d1e13c3501031ceb7e98d2cd0d72232f0a89fe9",
+        "utf8_bytes": 65
+      }
+    ],
+    "compiler_options": {
+      "ignoreDeprecations": "6.0",
+      "module": 1,
+      "newLine": 1,
+      "sourceMap": true,
+      "target": 1
+    }
+  },
+  "markers": [],
+  "repetitions": 2,
+  "observation": {
+    "reported_diagnostics": [
+      {
+        "phase": "pre-emit",
+        "code": 1134,
+        "category": "Error",
+        "file": "/project/input.ts",
+        "start": 51,
+        "length": 1
+      },
+      {
+        "phase": "pre-emit",
+        "code": 1134,
+        "category": "Error",
+        "file": "/project/input.ts",
+        "start": 53,
+        "length": 1
+      }
+    ],
+    "emit_diagnostics": [],
+    "emit_skipped": false,
+    "writes": [
+      {
+        "index": 0,
+        "path": "/project/input.js.map",
+        "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTyxDQUFBO0FBQUMsQ0FBQyxDQUFDO0FBQ1YsSUFBSSxDQUFDLENBQUMsQ0FBQyxDQUFDIn0=",
+        "callback_utf8_sha256": "9ae4357ee75d73b1cfe286ebeb9937a676688127c4456e2db958989dc7c12f93",
+        "callback_utf8_bytes": 155,
+        "write_byte_order_mark": false,
+        "on_error_callback_present": true,
+        "source_files": [
+          "/project/input.ts"
+        ],
+        "materialized_utf8_sha256": "9ae4357ee75d73b1cfe286ebeb9937a676688127c4456e2db958989dc7c12f93",
+        "materialized_utf8_bytes": 155,
+        "data_present": false,
+        "data_source_map_url_pos": null,
+        "data_diagnostics_count": null
+      },
+      {
+        "index": 1,
+        "path": "/project/input.js",
+        "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgOwo1OwpzaW5rKDApOwovLyMgc291cmNlTWFwcGluZ1VSTD1pbnB1dC5qcy5tYXA=",
+        "callback_utf8_sha256": "1e1054de0a1a358a2c959395cc3a3d43d86d91f89ba3b7707482d2b111e6089a",
+        "callback_utf8_bytes": 65,
+        "write_byte_order_mark": false,
+        "on_error_callback_present": true,
+        "source_files": [
+          "/project/input.ts"
+        ],
+        "materialized_utf8_sha256": "1e1054de0a1a358a2c959395cc3a3d43d86d91f89ba3b7707482d2b111e6089a",
+        "materialized_utf8_bytes": 65,
+        "data_present": true,
+        "data_source_map_url_pos": 32,
+        "data_diagnostics_count": 0
+      }
+    ],
+    "source_maps": [
+      {
+        "input_source_file_names": [
+          "/project/input.ts"
+        ],
+        "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAO,CAAA;AAAC,CAAC,CAAC;AACV,IAAI,CAAC,CAAC,CAAC,CAAC\"}"
+      }
+    ],
+    "emitted_files": null,
+    "marker_occurrences": [],
+    "observation_fingerprint_sha256": "4ef072b2fb8bf85c0353318bde81865595b58484d5f4eea38d3dc6b8d10498b8"
+  },
+  "case_fingerprint_sha256": "ca61ec4f37e04e3b43771b6fbda6fb19aab0d15984ccb8365a660687f714f0b7"
+}

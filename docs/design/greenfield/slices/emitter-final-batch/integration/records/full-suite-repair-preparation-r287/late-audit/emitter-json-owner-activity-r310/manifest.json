@@ -1,0 +1,251 @@
+{
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "scope": "original full owner comparator, all14 frozen controls twice; third read-only emit only to display actual activity",
+  "qualified": false,
+  "build_argv": [
+    "rustc",
+    "--edition=2021",
+    "/tmp/emitter-json-owner-activity-r310/main.rs",
+    "-L",
+    "dependency=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps",
+    "-o",
+    "/tmp/emitter-json-owner-activity-r310/probe",
+    "--extern",
+    "base64=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libbase64-94d286f1018cc12f.rlib",
+    "--extern",
+    "serde_json=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libserde_json-a6f8a2e55c480a80.rlib",
+    "--extern",
+    "sha2=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libsha2-e6d405148dede4cd.rlib",
+    "--extern",
+    "tsc_compiler=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_compiler-b6c594b373b590f1.rlib",
+    "--extern",
+    "tsc_diagnostics=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib",
+    "--extern",
+    "tsc_harness=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_harness-cd538c6365c1c92e.rlib",
+    "--extern",
+    "tsc_program=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-d551a6a48da91fa2.rlib"
+  ],
+  "libraries": {
+    "base64": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libbase64-94d286f1018cc12f.rlib",
+      "sha256": "067eca0b5bc0085889cbd4d73e8e76215dae792f7aa9260c59127664cdeb4a68",
+      "expected_fingerprint": 8576723375312483276
+    },
+    "serde_json": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libserde_json-a6f8a2e55c480a80.rlib",
+      "sha256": "f188f4d1a082e3641228200af2532000ed4b38bacb0c68fea6a1855fe0224241",
+      "expected_fingerprint": 6829825325130802498
+    },
+    "sha2": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libsha2-e6d405148dede4cd.rlib",
+      "sha256": "927936b21b1d956022c561a02aa7dc39900379eac73ec411d26c081625528d32",
+      "expected_fingerprint": 2176646239485399302
+    },
+    "tsc_compiler": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_compiler-b6c594b373b590f1.rlib",
+      "sha256": "4bbbc3c9ad79c77091d58963944a4a9cce7aa4632781b29123daa6f8d6a91d71",
+      "expected_fingerprint": 5107751563941122261
+    },
+    "tsc_diagnostics": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib",
+      "sha256": "b98178cf99caa06f0ea627ac7867c2595639e5c77c0280995d50d0ad9364075c",
+      "expected_fingerprint": 3662875448620651183
+    },
+    "tsc_harness": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_harness-cd538c6365c1c92e.rlib",
+      "sha256": "42b9808284e591af4cf9070191b6c83f81836e38d3906f1698742c1a92106518",
+      "expected_fingerprint": 5123576684318059397
+    },
+    "tsc_program": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-d551a6a48da91fa2.rlib",
+      "sha256": "b9ef29594bfe1bd6b09153f6d477a6b55f3e07d40cb3f2d4f8af87e4eb63abf6",
+      "expected_fingerprint": 4425454659278275463
+    }
+  },
+  "build_exit": 0,
+  "native_exit": 0,
+  "seconds": 2.5774389589205384,
+  "results": [
+    {
+      "id": "multiline-lf-formatting-and-trailing-comma-rules",
+      "comparator": {
+        "exact": true,
+        "writes": 1,
+        "diagnostics": 0
+      },
+      "activity": {
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "crlf-input-bom-output-and-object-trailing-comma",
+      "comparator": {
+        "exact": true,
+        "writes": 1,
+        "diagnostics": 0
+      },
+      "activity": {
+        "H2.1a": 1,
+        "H2.1b": 1,
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "compact-text-escapes-and-nested-values",
+      "comparator": {
+        "exact": true,
+        "writes": 1,
+        "diagnostics": 0
+      },
+      "activity": {
+        "H2.1a": 1,
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "amd-copy-is-module-invariant",
+      "comparator": {
+        "exact": false,
+        "error": "amd-copy-is-module-invariant: H2.1a owner activity expected 1, observed 0"
+      },
+      "activity": {
+        "H2.1b": 1,
+        "H2.1c": 1,
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "umd-copy-is-module-invariant",
+      "comparator": {
+        "exact": false,
+        "error": "umd-copy-is-module-invariant: H2.1a owner activity expected 1, observed 0"
+      },
+      "activity": {
+        "H2.1b": 1,
+        "H2.1c": 1,
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "system-copy-is-module-invariant",
+      "comparator": {
+        "exact": true,
+        "writes": 1,
+        "diagnostics": 1
+      },
+      "activity": {
+        "H2.1d": 1,
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "node16-copy-is-module-invariant",
+      "comparator": {
+        "exact": true,
+        "writes": 1,
+        "diagnostics": 0
+      },
+      "activity": {
+        "H2.1a": 1,
+        "H2.1e": 1,
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "node18-copy-is-module-invariant",
+      "comparator": {
+        "exact": true,
+        "writes": 1,
+        "diagnostics": 0
+      },
+      "activity": {
+        "H2.1a": 1,
+        "H2.1e": 1,
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "node20-copy-is-module-invariant",
+      "comparator": {
+        "exact": true,
+        "writes": 1,
+        "diagnostics": 0
+      },
+      "activity": {
+        "H2.1a": 1,
+        "H2.1e": 1,
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "nodenext-copy-is-module-invariant",
+      "comparator": {
+        "exact": true,
+        "writes": 1,
+        "diagnostics": 0
+      },
+      "activity": {
+        "H2.1a": 1,
+        "H2.1e": 1,
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "json-without-outdir-is-not-emit-eligible",
+      "comparator": {
+        "exact": true,
+        "writes": 0,
+        "diagnostics": 0
+      },
+      "activity": {},
+      "writes": 0
+    },
+    {
+      "id": "same-location-json-output-is-suppressed",
+      "comparator": {
+        "exact": true,
+        "writes": 0,
+        "diagnostics": 0
+      },
+      "activity": {
+        "H2.3d": 1
+      },
+      "writes": 0
+    },
+    {
+      "id": "empty-json-emits-empty-callback",
+      "comparator": {
+        "exact": true,
+        "writes": 1,
+        "diagnostics": 0
+      },
+      "activity": {
+        "H2.3d": 1
+      },
+      "writes": 1
+    },
+    {
+      "id": "mixed-typescript-json-relocation-and-write-order",
+      "comparator": {
+        "exact": true,
+        "writes": 2,
+        "diagnostics": 0
+      },
+      "activity": {
+        "H2.3d": 1
+      },
+      "writes": 2
+    }
+  ],
+  "source_sha256": "f6db15837d05ce75a83929d12ce65c661e641758c8f4128698c3b0c0826c30e2"
+}

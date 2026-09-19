@@ -1,0 +1,11 @@
+{
+  "status": "prepared only; not observed/applied/qualified",
+  "old_token_cases": 129,
+  "new_cases": 32,
+  "new_token_cases": 161,
+  "old_total_ellipsis_cases": 398,
+  "new_total_ellipsis_cases": 430,
+  "expectations": "Only actual vendored tsc6.0.3 complete command observations x2 from official generator after pipeline; all old fixtures remain byteidentical casewise",
+  "controls": "8 import source shapes x comments retained/removed x all outputs/declaration-only. BothJSmap+dtsmap in all outputs. Original398 remains regression scope",
+  "pending": "Opus171 caller-projection review; do not apply r273printerproposal without review; tests count updates when fixture generated"
+}

@@ -1,0 +1,17 @@
+{
+  "scope": "read-only baseline syntax fact inspection linked existinglibraries; not newprototype qualification",
+  "argv": [
+    "rustc",
+    "--edition=2021",
+    "/tmp/emitter-leading-binding-baseline-r289.rs",
+    "-L",
+    "dependency=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps",
+    "--extern",
+    "tsc_syntax=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+    "--extern",
+    "tsc_types=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_types-0a881027b005f88b.rlib",
+    "-o",
+    "/tmp/emitter-leading-binding-baseline-r289"
+  ],
+  "exit": 0
+}

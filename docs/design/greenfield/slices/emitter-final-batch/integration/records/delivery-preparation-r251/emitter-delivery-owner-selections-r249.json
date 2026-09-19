@@ -1,0 +1,342 @@
+{
+  "status": "preparation only, actual Opus167 proposed scoped declarations; verify unique source ranges and body digests before use",
+  "rows": {
+    "E-ENTRY": [
+      {
+        "name": "emit",
+        "line": 123568
+      },
+      {
+        "name": "emitWorker",
+        "line": 123595
+      },
+      {
+        "name": "handleNoEmitOptions",
+        "line": 125636
+      },
+      {
+        "name": "emitFiles",
+        "line": 116530
+      }
+    ],
+    "E-PLAN-SCRIPT": [
+      {
+        "name": "getSourceFilesToEmit",
+        "line": 16600
+      },
+      {
+        "name": "sourceFileMayBeEmitted",
+        "line": 16617
+      },
+      {
+        "name": "getOutputPathsFor",
+        "line": 116373
+      },
+      {
+        "name": "forEachEmittedFile",
+        "line": 116312
+      }
+    ],
+    "E-RESOLVER-IDENTITY-G": [
+      {
+        "name": "getParseTreeNode",
+        "line": 11426
+      },
+      {
+        "name": "getEmitResolver",
+        "line": 47561
+      },
+      {
+        "name": "createResolver",
+        "line": 88545
+      }
+    ],
+    "E-METADATA-BASE": [
+      {
+        "name": "getOriginalNode",
+        "line": 11400
+      },
+      {
+        "name": "setOriginalNode",
+        "line": 25208
+      },
+      {
+        "name": "mergeEmitNode",
+        "line": 25218
+      },
+      {
+        "name": "cloneNode",
+        "line": 24436
+      },
+      {
+        "name": "propagateChildFlags",
+        "line": 25110
+      }
+    ],
+    "E-METADATA-G-CLASS": [
+      {
+        "name": "getClassFacts",
+        "line": 94410
+      },
+      {
+        "name": "transformNamedEvaluation",
+        "line": 93950
+      },
+      {
+        "name": "getAssignedName",
+        "line": 11566
+      },
+      {
+        "name": "visitClassDeclarationInNewClassLexicalEnvironment",
+        "line": 96971
+      },
+      {
+        "name": "getFirstConstructorWithBody",
+        "line": 16674
+      },
+      {
+        "name": "transformClassMembers",
+        "line": 94564
+      }
+    ],
+    "E-CAPTURE-BASE": [
+      {
+        "name": "transformES2017",
+        "line": 100810
+      }
+    ],
+    "E-CHECKER-FACTS-BASE": [
+      {
+        "name": "createResolver",
+        "line": 88545
+      },
+      {
+        "name": "getEmitResolver",
+        "line": 47561
+      }
+    ],
+    "E-NAMES-BASE": [
+      {
+        "name": "generateName",
+        "line": 120624
+      },
+      {
+        "name": "generateNameCached",
+        "line": 120633
+      },
+      {
+        "name": "makeUniqueName",
+        "line": 120741
+      },
+      {
+        "name": "makeTempVariableName",
+        "line": 120703
+      },
+      {
+        "name": "generateNameForNode",
+        "line": 120876
+      }
+    ],
+    "E-NAMES-CLASS-G": [
+      {
+        "name": "getClassFacts",
+        "line": 96844
+      },
+      {
+        "name": "visitClassExpressionInNewClassLexicalEnvironment",
+        "line": 97049
+      },
+      {
+        "name": "createClassTempVar",
+        "line": 97056
+      }
+    ],
+    "E-HELPERS-IMPORT-STATE": [
+      {
+        "name": "getExternalHelpersModuleName",
+        "line": 27603
+      },
+      {
+        "name": "createExternalHelpersImportDeclarationIfNeeded",
+        "line": 27613
+      },
+      {
+        "name": "emitHelpers",
+        "line": 117719
+      },
+      {
+        "name": "requestEmitHelper",
+        "line": 116243
+      }
+    ],
+    "E-PRINTER-G": [
+      {
+        "name": "emitParametersForArrow",
+        "line": 119983
+      },
+      {
+        "name": "emitNodeListItems",
+        "line": 120068
+      },
+      {
+        "name": "canEmitSimpleArrowHead",
+        "line": 119979
+      },
+      {
+        "name": "shouldEmitBlockFunctionBodyOnSingleLine",
+        "line": 118999
+      },
+      {
+        "name": "emitCaseOrDefaultClauseRest",
+        "line": 119486
+      },
+      {
+        "name": "emitIdentifierName",
+        "line": 117149
+      }
+    ],
+    "E-COMMENT-SCOPE-H": [
+      {
+        "name": "pipelineEmitWithComments",
+        "line": 120978
+      },
+      {
+        "name": "emitCommentsBeforeNode",
+        "line": 120987
+      },
+      {
+        "name": "emitCommentsAfterNode",
+        "line": 120995
+      }
+    ],
+    "E-MAPS": [
+      {
+        "name": "createTextWriter",
+        "line": 16365
+      },
+      {
+        "name": "createSourceMapGenerator",
+        "line": 92365
+      },
+      {
+        "name": "pipelineEmitWithSourceMaps",
+        "line": 121277
+      },
+      {
+        "name": "emitSourceMapsBeforeNode",
+        "line": 121283
+      },
+      {
+        "name": "emitSourceMapsAfterNode",
+        "line": 121294
+      }
+    ],
+    "E-OUTPUT-FUTURE": [
+      {
+        "name": "emitFiles",
+        "line": 116530
+      },
+      {
+        "name": "writeFile",
+        "line": 16644
+      },
+      {
+        "name": "writeFileEnsuringDirectories",
+        "line": 16663
+      }
+    ],
+    "E-RECOVERY-FACTS": [
+      {
+        "name": "nextToken",
+        "line": 29502
+      },
+      {
+        "name": "parseList",
+        "line": 30169
+      },
+      {
+        "name": "parseDelimitedList",
+        "line": 30428
+      },
+      {
+        "name": "parseSemicolon",
+        "line": 29770
+      },
+      {
+        "name": "parseErrorAtPosition",
+        "line": 29467
+      },
+      {
+        "name": "abortParsingListOrMoveToNextToken",
+        "line": 30356
+      }
+    ],
+    "E-COMMENTS-G": [
+      {
+        "name": "emitLeadingComments",
+        "line": 121123
+      },
+      {
+        "name": "emitTrailingComments",
+        "line": 121176
+      },
+      {
+        "name": "iterateCommentRanges",
+        "line": 8491
+      },
+      {
+        "name": "forEachLeadingCommentToEmit",
+        "line": 121219
+      },
+      {
+        "name": "emitTokenWithComment",
+        "line": 118731
+      },
+      {
+        "name": "emitDetachedComments",
+        "line": 16817
+      },
+      {
+        "name": "emitComments",
+        "line": 16794
+      }
+    ],
+    "E-COMMENT-PHASES-A36": [
+      {
+        "name": "emitSpreadElement",
+        "line": 118528
+      },
+      {
+        "name": "emitSourceFileWorker",
+        "line": 119753
+      },
+      {
+        "name": "emitDecoratorsAndModifiers",
+        "line": 119846
+      },
+      {
+        "name": "emitModifierList",
+        "line": 119903
+      }
+    ],
+    "E-COMMENT-ELLIPSIS-A37": [
+      {
+        "name": "emitParameter",
+        "line": 117855
+      },
+      {
+        "name": "emitSpreadAssignment",
+        "line": 119536
+      },
+      {
+        "name": "emitJsxExpression",
+        "line": 119448
+      }
+    ]
+  },
+  "adjacent_semantic_correction": {
+    "name": "getReturnTypeOfSignature",
+    "line": 59810,
+    "scope": "Adjacent semantic correction protected by checker regression and declaration/map complete commands; not a new architecture owner for E-CHECKER-FACTS-BASE."
+  }
+}

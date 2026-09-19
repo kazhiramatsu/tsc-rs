@@ -1,0 +1,25 @@
+{
+  "status": "UNAPPLIED NOT COMPILED/TESTED/QUALIFIED; rustfmt parsed scratch",
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "supersedes": "r281 implementation; preserve281/actual172review",
+  "files": [
+    {
+      "path": "crates/syntax/src/recovery/context.rs",
+      "before_sha256": "c1e18d476453ff4ce90172b009310d0c160771190509583d3436d1e6f8e9aaa4",
+      "after_sha256": "72f6163200262c33e83f4080e36b68dd5d3cd0fdda8f36cf67e8095ce82a3af4"
+    },
+    {
+      "path": "crates/syntax/src/recovery.rs",
+      "before_sha256": "2057b4a631a0a9aa48faa168cc7fa5ef391cd6a5091933d1bcfb4f9be7686e17",
+      "after_sha256": "27eb7dbc0d144d72c5ceffe58ad7fd701b72c4e8e8f83038c06d757eaaa36085"
+    }
+  ],
+  "changes_from_281": [
+    "per-unit pure matcher so unrecognized actions remain oldcontext path; claims committed after complete match",
+    "declarationfile and ambientstmt exclusions",
+    "numeric literal initializer only to bound unproven flattening",
+    "exact brace bytechecks retained pending173; these verify known grammar positions and never search text"
+  ],
+  "tests": "tests-append.rs pending standalone unit integration; positive/negative/forged tests not qualification",
+  "pending": "actual Opus173 bounded followup; isolated build and40completecommands afterr244; corpusadmission proof beforecanonicalintegration"
+}

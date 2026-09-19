@@ -1,0 +1,22 @@
+{
+  "status": "UNAPPLIED unobserved adjacent command controls; only run after prototype original8 targets pass",
+  "source_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "old_count": 40,
+  "additional_count": 40,
+  "new_count": 80,
+  "new_shapes": [
+    "let-script",
+    "var-script",
+    "unicode-leading",
+    "two-statements",
+    "property-trivia"
+  ],
+  "axes": "5shapes x4moduleforms xJS/TS; ES5 sourceMap/declaration complete commands x2",
+  "preservation": "All40originalinput andTSobservations muststayidenticalcasewise; no literal expectedoutput fromRust",
+  "pending": [
+    "Actual officialTSgenerator observations afterr244/prototype feasibility",
+    "existingexport-name-syntax-mapstestcount40->80; full80realcommandsx2",
+    "independentallnewadmittedcorpusproof stillrequired"
+  ],
+  "runtime_membership": "reuseexistingfixture/testfiles alreadyin5g921; no newfilemembership orpolicycountchange"
+}
