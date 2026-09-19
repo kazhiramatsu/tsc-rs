@@ -8,7 +8,7 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
 提出時の検証と統合候補の検証は以下で区別する。hosted完了前に全体完了を主張しない。
 
-## r120–r123 検証途中の状態（2026-09-19）
+## r120–r124 検証途中の状態（2026-09-19）
 
 統合は未完了。検証対象の Rust・fixture・HEAD を固定し、修復候補の準備は別 worktree で行う。
 次の成功はそれぞれ記載した候補の証拠であり、現在の最終候補の成功へ読み替えない。
@@ -23,6 +23,7 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 | r120 元のSystem/recovery | 4,088 commandsが各2回一致、11 Rust tests成功。全8,176観測を保存 |
 | r122 parse KNOWN | 残る36行すべて各2回一致。2 testsは退役要求assertionのみでexit101。全corpusの影響確認・退役は未完了 |
 | r123 config/library | 現在の固定compiler binaryで24 tests成功・ignored0・filtered459。r121 planner全84 testsも成功 |
+| r124 EF7 / PLAN-BASE全件 | 217 / 1,798行すべて各2回一致・新規差分0。両testsは既存KNOWNの退役要求のみでexit101。比較器／shard guard3 testsは成功 |
 | r110b ledger | 固定済み旧xtask実行ファイルで4,113 entries、stale0・undispositioned0。最終toolによる再確認は未実施 |
 
 r116の3差分は、System変数名の型コメントと、クラス／引数プロパティの宣言コメントだった。
@@ -36,6 +37,8 @@ Opus116–119と照合した限定修復、および追加12＋24 controlsを統
 [r122の36行の一致と退役要求](cross-review/r122-known36-results.md)は元fixture・比較器で確認した。
 live KNOWNはまだ変更していない。過去の拒否観測をbyte同一で保存し、parser/corpusの証明が
 完了した後に比較ガードをarchiveへ接続して退役させる。単独36行の一致で共有変更をqualifyしない。
+[r124の全件比較](cross-review/r124-full-universe-results.md)でも元の217＋1,798行の集合を
+変えずに全件一致した。raw exit101と全実行IDを保存し、KNOWN退役前の成功扱いはしない。
 
 censusは7,908 recorded plansと、過去のqualification/candidate入力にのみある6,421 IDの
 計14,329 IDを対象にする。これは入力IDの棚卸しであり、実行成功件数ではない。
