@@ -63,15 +63,19 @@ fn keyword_extension(source: &tsc_syntax::SourceFile) -> (Value, Value) {
                 let matching = recovery.events().iter().filter(|event|
                     event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
                         && event.start == start && event.length == length
-                        && event.diagnostic_index.is_some_and(|index| source.parse_diagnostics[index].code == 1260)).count();
+                        && event.diagnostic_index.is_some_and(|index| source.parse_diagnostics[index].code() == 1260)).count();
                 assert_eq!(matching, 1, "consumed keyword must retain its own reporting event");
+                assert_eq!(recovery.events().iter().filter(|event|
+                    event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                        && event.diagnostic_index.is_some() && event.start == start && event.length == length).count(),
+                    1, "keyword span must not justify another retained report");
                 facts.push(json!({"token":token as u16,"start":start,"length":length,
                     "statement_start":statement_start,"matching_report_events":matching}));
             }
             ParseRecoveryAction::TokenSkipped { .. } | ParseRecoveryAction::Reparsed { .. } => structural.push(action),
         }
     }
-    assert_eq!(facts.len(), source.parse_diagnostics.iter().filter(|diagnostic| diagnostic.code == 1260).count(),
+    assert_eq!(facts.len(), source.parse_diagnostics.iter().filter(|diagnostic| diagnostic.code() == 1260).count(),
         "every retained escaped-keyword report has exactly one consumption fact");
     let legacy = format!("ParseRecovery {{ diagnostic_origins: {:?}, events: {:?}, actions: {:?} }}",
         recovery.diagnostic_origins(), recovery.events(), structural);
