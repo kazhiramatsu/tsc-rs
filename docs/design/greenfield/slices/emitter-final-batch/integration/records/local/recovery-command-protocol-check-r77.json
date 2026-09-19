@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "check",
+    "--offline",
+    "-p",
+    "tsc-rs-xtask"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census",
+  "started_at": "2026-09-19T01:17:41.577691+00:00",
+  "head": "06f5e35ea622365a2d2450803210f414b303ba57",
+  "tracked_clean": false,
+  "diff_sha256": "6941e97c60496e7336b740dae245762327c3a87d22e65977c1e171ef4a009f52",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 12.145,
+  "log_sha256": "75b5ec63c3d295522f03729dd824abb14c149346ee08cb7dd56be0ecbcd444da",
+  "log_bytes": 578
+}

@@ -1,0 +1,14 @@
+{
+  "typescript_statements_and_diagnostic_ranges_exact": 285,
+  "inputs": 285,
+  "comparisons": {
+    "projection": {
+      "core_changed": 100,
+      "profile_changed": 24
+    },
+    "merge-base": {
+      "core_changed": 100,
+      "profile_changed": null
+    }
+  }
+}

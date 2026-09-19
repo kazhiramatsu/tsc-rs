@@ -14,6 +14,7 @@ use super::{
     compare_utf16, error, join_config_path, normalize_virtual_path, EmitOptionFloor,
     ProjectExecutionPlan, ProjectModule, ProjectMount, ProjectRootSelection,
 };
+use crate::upstream_suites::VIRTUAL_SOURCE_ROOT;
 use crate::HarnessResult;
 
 const PROJECT_RUNNER_DEFAULT_LIBRARY: &str = "lib.es5.d.ts";
@@ -392,6 +393,14 @@ fn apply_project_emit_options(
     plan: &ProjectExecutionPlan,
     options: &mut CompilerOptions,
 ) -> HarnessResult<()> {
+    let mut resolve_map_root = false;
+    let mut resolve_source_root = false;
+    let mut descriptor_map_root = None;
+    let mut descriptor_source_root = None;
+    // projectsRunner's existing-options object owns both keys even when the
+    // descriptor omits them; those undefined values override config roots.
+    options.map_root = None;
+    options.source_root = None;
     options.no_error_truncation = Some(false);
     options.skip_default_lib_check = Some(false);
     options.module_resolution = Some(1); // Classic
@@ -423,13 +432,24 @@ fn apply_project_emit_options(
                 options.source_map = Some(property_bool(&property.value, "sourceMap")?);
             }
             "sourceRoot" => {
+                descriptor_source_root = Some(&property.value);
                 options.source_root = property.value.as_str().map(JsString::from);
             }
             "mapRoot" => {
+                descriptor_map_root = Some(&property.value);
                 options.map_root = property.value.as_str().map(JsString::from);
             }
             "outDir" => {
                 options.out_dir = property.value.as_str().map(JsString::from);
+            }
+            "declarationDir" => {
+                options.declaration_dir = Some(
+                    property
+                        .value
+                        .as_str()
+                        .ok_or_else(|| error("project declarationDir must be a string".to_owned()))?
+                        .into(),
+                );
             }
             "outFile" => {
                 options.out_file = property.value.as_str().map(JsString::from);
@@ -437,8 +457,14 @@ fn apply_project_emit_options(
             "rootDir" => {
                 options.root_dir = property.value.as_str().map(JsString::from);
             }
-            "scenario" | "projectRoot" | "inputFiles" | "baselineCheck" | "runTest" | "project" => {
+            "resolveMapRoot" => {
+                resolve_map_root = property_bool(&property.value, "resolveMapRoot")?;
             }
+            "resolveSourceRoot" => {
+                resolve_source_root = property_bool(&property.value, "resolveSourceRoot")?;
+            }
+            "scenario" | "projectRoot" | "inputFiles" | "baselineCheck" | "runTest" | "project"
+            | "emittedFiles" => {}
             other => {
                 return Err(error(format!(
                     "project descriptor contains unsupported property {other:?}"
@@ -446,7 +472,93 @@ fn apply_project_emit_options(
             }
         }
     }
+    resolve_project_descriptor_root(
+        &mut options.map_root,
+        resolve_map_root,
+        descriptor_map_root,
+        "mapRoot",
+    )?;
+    resolve_project_descriptor_root(
+        &mut options.source_root,
+        resolve_source_root,
+        descriptor_source_root,
+        "sourceRoot",
+    )?;
     Ok(())
+}
+
+/// The project runner resolves these descriptor controls against its shared
+/// source mount, independently of the project's current directory and key order.
+/// Keep this projection bounded to the plain relative paths in the recorded
+/// descriptors; URL, drive and parent/trailing-separator semantics need their
+/// own observation before this loader can accept them with a resolve flag.
+fn resolve_project_descriptor_root(
+    value: &mut Option<JsString>,
+    resolve: bool,
+    descriptor: Option<&Value>,
+    name: &str,
+) -> HarnessResult<()> {
+    let Some(raw) = descriptor.filter(|_| resolve) else {
+        return Ok(());
+    };
+    let path = raw
+        .as_str()
+        .ok_or_else(|| error(format!("resolved project {name} must be a string")))?;
+    if path.is_empty() {
+        return Ok(());
+    }
+    if path.contains([':', '\\', '\0'])
+        || path.split('/').any(|part| matches!(part, "" | "." | ".."))
+    {
+        return Err(error(format!(
+            "resolved project {name} requires a plain relative path: {path:?}"
+        )));
+    }
+    *value = Some(normalize_virtual_path(VIRTUAL_SOURCE_ROOT, path)?.into());
+    Ok(())
+}
+
+#[cfg(test)]
+mod descriptor_option_tests {
+    use super::*;
+    use crate::upstream_suites::execution::{
+        load_recorded_execution_plans, UpstreamExecutionInput,
+    };
+
+    #[test]
+    fn absent_descriptor_roots_override_config_roots_like_existing_options() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let corpus = load_recorded_execution_plans(&workspace).unwrap();
+        let plan = corpus
+            .plans
+            .iter()
+            .find_map(|record| {
+                if record.provenance.case_id.as_ref()
+                    != "typescript-6.0.3/project/baseline.json#module%3Damd"
+                {
+                    return None;
+                }
+                match &record.input {
+                    UpstreamExecutionInput::Project(plan) => Some(plan),
+                    _ => None,
+                }
+            })
+            .unwrap();
+        for no_emit in [false, true] {
+            let mut options = CompilerOptions {
+                map_root: Some("config/maps".into()),
+                source_root: Some("config/src".into()),
+                ..CompilerOptions::default()
+            };
+            if no_emit {
+                apply_project_runner_existing_options(plan, &mut options).unwrap();
+            } else {
+                apply_project_emit_options(plan, &mut options).unwrap();
+            }
+            assert_eq!(options.map_root, None);
+            assert_eq!(options.source_root, None);
+        }
+    }
 }
 
 /// Parse and load the six `NodeModulesSearch` CommonJS/AMD variants through
@@ -565,6 +677,8 @@ fn apply_project_runner_existing_options(
     options: &mut CompilerOptions,
 ) -> HarnessResult<()> {
     // createCompilerOptions initializes these before descriptor options.
+    options.map_root = None;
+    options.source_root = None;
     options.no_error_truncation = Some(false);
     options.skip_default_lib_check = Some(false);
     options.module_resolution = Some(1); // Classic

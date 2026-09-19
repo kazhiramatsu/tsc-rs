@@ -43,6 +43,7 @@ use super::{
 use crate::HarnessResult;
 
 mod js_paths;
+pub mod observable_input;
 mod project;
 
 pub use project::{

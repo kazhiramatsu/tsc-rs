@@ -613,6 +613,19 @@ pub(crate) fn parse_prepared_source(
     path: &str,
     lower_path: &str,
 ) -> SourceFile {
+    parse_source_file_from_snapshot(
+        path.to_owned(),
+        Arc::clone(source.snapshot()),
+        prepared_parse_options(options, source, lower_path),
+        None,
+    )
+}
+
+pub(crate) fn prepared_parse_options(
+    options: &CompilerOptions,
+    source: &PreparedSourceFile,
+    lower_path: &str,
+) -> ParseOptions {
     let javascript_file = [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
         .any(|extension| lower_path.ends_with(extension));
@@ -636,19 +649,14 @@ pub(crate) fn parse_prepared_source(
         };
     let detect_external_module_from_jsx =
         !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
-    parse_source_file_from_snapshot(
-        path.to_owned(),
-        Arc::clone(source.snapshot()),
-        ParseOptions {
-            script_target: options.emit_script_target(),
-            language_variant,
-            javascript_file,
-            force_external_module,
-            detect_external_module_from_jsx,
-            ..ParseOptions::default()
-        },
-        None,
-    )
+    ParseOptions {
+        script_target: options.emit_script_target(),
+        language_variant,
+        javascript_file,
+        force_external_module,
+        detect_external_module_from_jsx,
+        ..ParseOptions::default()
+    }
 }
 
 pub(crate) fn is_declaration_file_path(lower_path: &str) -> bool {

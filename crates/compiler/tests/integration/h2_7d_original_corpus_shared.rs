@@ -1119,6 +1119,80 @@ pub(super) fn assert_output_matrix_projection(
     assert_output_matrix_cases(workspace_root, Some(&ids))
 }
 
+/// The parse census used the qualified emit loader and therefore refused these
+/// two noEmit commands. Exercise the existing ordinary checking-command route
+/// against the original TS tuples without changing that historical census.
+#[allow(dead_code)] // Only emitter_final_batch selects this supplemental entry.
+pub(super) fn assert_no_emit_census_commands(workspace_root: &Path) {
+    assert_eq!(
+        workspace_root.canonicalize().unwrap(),
+        workspace().canonicalize().unwrap()
+    );
+    let read = |name: &str| -> Value {
+        serde_json::from_slice(&std::fs::read(workspace().join(name)).unwrap()).unwrap()
+    };
+    let candidates = read("ratchets/h2-8a-candidates.v1.json");
+    let inputs = read("ratchets/h2-8a-candidate-inputs.v1.json");
+    let oracle = read("ratchets/h2-8a-observations.v1.json");
+    for artifact in [&candidates, &inputs, &oracle] {
+        assert_eq!(artifact["typescript"], "6.0.3");
+        assert_eq!(artifact["source_commit"], SOURCE_COMMIT);
+        assert_eq!(artifact["cases"].as_array().unwrap().len(), 809);
+    }
+    for artifact in [&candidates, &oracle] {
+        for pin in artifact["inputs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain([&artifact["generator"]])
+        {
+            assert_eq!(
+                json!(digest(
+                    std::fs::read(workspace().join(pin["path"].as_str().unwrap())).unwrap()
+                )),
+                pin["sha256"]
+            );
+        }
+    }
+    assert_eq!(oracle["repetitions"], 2);
+    let candidate_rows = indexed(&candidates);
+    let input_rows = indexed(&inputs);
+    let oracle_rows = indexed(&oracle);
+    let libraries = libraries();
+    for value in ["false", "true"] {
+        let id = format!("typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3D{value}%2Cnoemit%3Dtrue");
+        let candidate = candidate_rows[id.as_str()];
+        let input = input_rows[id.as_str()];
+        let reference = oracle_rows[id.as_str()];
+        assert_original_source(candidate);
+        assert_eq!(
+            candidate["input_sha256"],
+            digest(serde_json::to_vec(input).unwrap())
+        );
+        assert_eq!(reference["input_sha256"], candidate["input_sha256"]);
+        assert_eq!(reference["required_slices"], candidate["required_slices"]);
+        assert_eq!(owners(candidate), ["H2.8a", "H2.9"]);
+        assert_eq!(reference["repetitions"], 2);
+        assert_eq!(input["effective_options"]["noEmit"], true);
+        let expected = &reference["typescript_observation"];
+        assert_eq!(expected["writes"], json!([]));
+        for repetition in 0..2 {
+            let host = memory_host(input, &inputs, &libraries);
+            let actual = observe(input, &host, &libraries);
+            if let Some(directory) = std::env::var_os("TSC_RS_EMITTER_FINAL_CAPTURE_DIR") {
+                let directory = PathBuf::from(directory);
+                std::fs::create_dir_all(&directory).unwrap();
+                std::fs::write(
+                    directory.join(format!("{}-{repetition}.json", digest(&id))),
+                    serde_json::to_vec_pretty(&json!({"case_id":id,"repetition":repetition,"actual":actual,"expected":expected})).unwrap(),
+                ).unwrap();
+            }
+            assert_complete(&actual, expected);
+        }
+        eprintln!("noEmit census command EXACT x2 {id}");
+    }
+}
+
 fn assert_output_matrix_cases(
     workspace_root: &Path,
     selected: Option<&BTreeSet<&str>>,

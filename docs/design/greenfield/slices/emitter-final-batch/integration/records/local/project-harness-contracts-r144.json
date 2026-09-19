@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-project-supplement-r144/contracts-90e107de739350c1",
+    "h2_5h_project_emit::",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-project-projection-prep",
+  "started_at": "2026-09-19T11:09:51.316505+00:00",
+  "head": "d345e83c47444a216a7806344250e7e59ffeda27",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 8.931,
+  "log_sha256": "a3e7d5194cf745aef30476cf5c140ba44a3dede44fe236860f9913bf9a543e6b",
+  "log_bytes": 506
+}

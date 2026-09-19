@@ -1,0 +1,1378 @@
+{
+  "schema": 1,
+  "kind": "emitter-noemit-sibling-parse-derivation",
+  "snapshot_sha256": "1846fce26da956f515874486d43b9ac856fda31456e76a2925455a8488f76d75",
+  "candidate_inputs_sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b",
+  "reviewed_owner_sha256": {
+    "crates/program/src/module_requests.rs": "d72fd81d18e0e7ea486453d9a2e96be3fbb392654b86afd70ad462d30a896f2f",
+    "crates/program/src/library.rs": "8315ec4aa0ab762196ce49ff8be001e65b58243caab3dd6dc34885221a646fec",
+    "crates/program/src/prepared.rs": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da",
+    "crates/xtask/src/h2_2c_acceptance.rs": "2bbaf5da8a3fe8c81e9e88262749a39864d4e56e9ca0261f537cccf750a689c2"
+  },
+  "reason": "Reviewed parse projections read target/moduleDetection/jsx plus file kind and implied module format. noEmit is absent from both projections. Input, selection, all other options, roots and source bytes match the loaded sibling. This derivation does not execute the two failed loader rows.",
+  "complete_command_qualification": false,
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dfalse%2Cnoemit%3Dtrue",
+      "historical_load_failure": {
+        "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dfalse%2Cnoemit%3Dtrue",
+        "suite": "conformance",
+        "universe": "ratchets/h2-8a-candidate-inputs.v1.json",
+        "loader": "load_qualified_compiler_emit_with_symlinks",
+        "error": "failed to load qualified compiler fixture: validate program loader options: emitting program rejects effective compilerOptions.noEmit=true",
+        "emit_disposition": "not-loaded; emit-not-qualified"
+      },
+      "sibling_case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dfalse%2Cnoemit%3Dfalse",
+      "identical_input_and_selection": true,
+      "only_effective_option_difference": "noEmit: true versus false",
+      "derived_parse_tuples": [
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es6.d.ts",
+          "input_id": "28789d41d15c06b1a270d0507aaee17bea671de52b6d9a3243593db4b8be579c",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210",
+          "core_sha256": "267c420c16e5f0ae4de5d998a4a14ca66d2d7f78a3b30a775ac089bb17d4b058"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+          "input_id": "4811a2a96f6b89d4c36d5875adbce33cf271d8ff4ef3bcd2b73970cfba34d071",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd",
+          "core_sha256": "cc578c049b28d748cbb1819b12f99d24e247c5a9cb25b9726585f3b2c469ed7c"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.d.ts",
+          "input_id": "673e5929d7c1c2f9b6e2b822da6a945eafe1840e3a52518a8977e977c295fb87",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6",
+          "core_sha256": "ad837192687c9e981d65cc2cb4d04626c2c27a4f4c508ae59241d39010e1aa18"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.dom.d.ts",
+          "input_id": "6eea3293648fcc1d4ec9e1eb757677b36e316e820bc2d011f63d9d76f44b33a1",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f",
+          "core_sha256": "e7f1e65e02c2070ba762507f8b485fb6c720127920776e362181b25bb6f638cd"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.dom.iterable.d.ts",
+          "input_id": "59e1e59978f3d95633ddffd52bfcf3c6839b0926cf6aa932345e815003327a76",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54",
+          "core_sha256": "ee70248355fe76ed6a58c4058ccd29dac5908ec226b9e5e3013c02ad32354399"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.webworker.importscripts.d.ts",
+          "input_id": "8a180fb5e99d9ed007ed380adc4a7e683a91b6b3c8a3d08cafc39bc4445a06dc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78",
+          "core_sha256": "39c12ac395372abae6cce8f0b086abcadf76d6e03d31b7e5e5d85589f501e3af"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.scripthost.d.ts",
+          "input_id": "6669b41a92411ff11075ce97688c74595a741286ceff665a741ca998587ebcfb",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee",
+          "core_sha256": "4108a9e0604b9b4dbd6cae0f7a1049ae1820c6aee1c3afd35ef5a81b5cdc29e7"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.core.d.ts",
+          "input_id": "43f9d527f17264da86bb308bb31677064f00eef25613df604a4c9b90444617b7",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504",
+          "core_sha256": "558d163ffb0f98407f1bd63c15d53e93de6e10e29a3aaf16a5a8469ebde9d053"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.collection.d.ts",
+          "input_id": "4f38244a365ca82955ce18f8cee77b9c9395de9504afb3499df652539fb24c1e",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711",
+          "core_sha256": "85cc5efbffcf138546ead2f9305ac28d32a1ca804da7ca41e237770bff4e668a"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.generator.d.ts",
+          "input_id": "38b080c056af973a7076eecd8ad36f18a6d3ad1478d52193b7522a2379263717",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c",
+          "core_sha256": "b868ed303c1a5e6a86fa56fefb87141c42f112245da6ab322be7e4717dc0df25"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.iterable.d.ts",
+          "input_id": "67506003d699f97ad0e1605b5a8c133d63a8af81fb2a8c82e643aebbb838171c",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4",
+          "core_sha256": "8577e4eb6d9911f2e9e489a43c096a6d986bbcf971e4e1c4838e93276bfd533d"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.promise.d.ts",
+          "input_id": "8b027f84c9479fa9841535159f1af195e10611f2bc23adb5d5d2f5160aa2c4e1",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad",
+          "core_sha256": "9ca34c588e28349a5e29c83cd28aae4ed61d6a58786558413626659766c69857"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.proxy.d.ts",
+          "input_id": "47c89b31d4b27125bd9b93156cfc7298d6f2b01ede9b9296ee299010f987f66a",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f",
+          "core_sha256": "a1d44ebaae9d4b923600566b5162b739451993e81cb095f3c47487e8a6b459da"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.reflect.d.ts",
+          "input_id": "f781e3cecb184f0c9b48f9f236f25c580cd26bf64561cdbd7e16b85c517d468b",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60",
+          "core_sha256": "ccf8343dc266834cc0f3d25958084062bf901939a1f5245c3e482ad5571eeccb"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.symbol.d.ts",
+          "input_id": "2558013dc05018228b6252c8e7c1775c9624c3fa0a53038d948fd1c9ebbdef16",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f",
+          "core_sha256": "d405df2e959c198e12970b0dfdcc5730c785a0f53c800ca99d41c0e673c55e62"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.symbol.wellknown.d.ts",
+          "input_id": "920aba70594a36d24d629122dd481a362c34e00e3c86cbc7325cb0e3e9f0e4cb",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42",
+          "core_sha256": "002e62470d06082048c670ccac2809db4766ff85bb5f52844001b3647b204869"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2018.asynciterable.d.ts",
+          "input_id": "a7e0d76598e520279d5f5b7e31820448c6b9064349e9ccdb6185790812670d03",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c",
+          "core_sha256": "743f0f09e6442936f7b6fd6003535c6985b3caa5f93143aad83b674c06057402"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.decorators.d.ts",
+          "input_id": "7c9eb8ddd4e62dbf5d37b36322a86f9038c4ad2bfd163d5b2050300e1c0fd36d",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4",
+          "core_sha256": "8880b3dfde11fa17eee71323e8d2934d6d4e98a482c4b12ab3c16dca3c5ce098"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.decorators.legacy.d.ts",
+          "input_id": "6fb2abe2577709edca97f515479aad9ec43a9ef07d68af6e55da66e172d987b2",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da",
+          "core_sha256": "bc4a821db6376d335c65f3c6dda560d1c08d5000d81629e518726f47dfadafb4"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/a.ts",
+          "input_id": "d54da2548295f57a1678068e9ba92f8c0688ade5b01b0ab5e335daca789ce8a7",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "a84b8a5684dcddd21bcfc2285e34b17903207f47b3caf53f31034878a8f0f60a"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/a.ts",
+          "input_id": "d54da2548295f57a1678068e9ba92f8c0688ade5b01b0ab5e335daca789ce8a7",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "a84b8a5684dcddd21bcfc2285e34b17903207f47b3caf53f31034878a8f0f60a"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/b.ts",
+          "input_id": "819d9d4221d0596ff256c1ad888fff45e926690b65324342bc59892d5a4954cc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "dc7d74bece455c8c128bc2381658286288b7c73489f7e978bae6ec6bc9be46f0"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/b.ts",
+          "input_id": "819d9d4221d0596ff256c1ad888fff45e926690b65324342bc59892d5a4954cc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "dc7d74bece455c8c128bc2381658286288b7c73489f7e978bae6ec6bc9be46f0"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/b.js",
+          "input_id": "3ef106958d6017eb44051933486d990b2a4f410485ebc099f04e115f03b003fc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 1,
+            "javascript_file": true,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "7bd4ef35b5a70e2015525ca4d0e7d45823faab2e9ca340a4eacc07fa71ff763a"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/b.js",
+          "input_id": "3ef106958d6017eb44051933486d990b2a4f410485ebc099f04e115f03b003fc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 1,
+            "javascript_file": true,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "7bd4ef35b5a70e2015525ca4d0e7d45823faab2e9ca340a4eacc07fa71ff763a"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/b.d.ts",
+          "input_id": "36878149df0310f3ff7eba64c4b570f4cbb6cc6764eb301f6000eaa3eb60fbbc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "7ab969bbc627c7d5c01a9c2a97e5c20490e95f77f8e8776b6b34cf662da94ac0"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/c.ts",
+          "input_id": "436a79f4f453ebae37733eab32c1c5e371af9485b3ad0c9c06918622ad7a506f",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "1f6e4c5c39beeb9dbfc25d60f98ef2c59b224edc529febfa215098addb422d66"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/c.ts",
+          "input_id": "436a79f4f453ebae37733eab32c1c5e371af9485b3ad0c9c06918622ad7a506f",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "1f6e4c5c39beeb9dbfc25d60f98ef2c59b224edc529febfa215098addb422d66"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/c.tsx",
+          "input_id": "a628a7eefa85fad19a8a86d9e4d30db12557c4be6edc8877f5a1711aebca21d7",
+          "options": {
+            "script_target": 2,
+            "language_variant": 1,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "66f11a72e9ab60dea498b4cfc19db08f9b65ccca849cdde49e5981ae45f5f78a"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/c.tsx",
+          "input_id": "a628a7eefa85fad19a8a86d9e4d30db12557c4be6edc8877f5a1711aebca21d7",
+          "options": {
+            "script_target": 2,
+            "language_variant": 1,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "66f11a72e9ab60dea498b4cfc19db08f9b65ccca849cdde49e5981ae45f5f78a"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/d/index.ts",
+          "input_id": "ea2288df4705d81efaacf684d43077649636ecf4aa52ba9437705d1a461309c8",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "186ac5af4e0c7b8dfb908e1123780174d4e913a5b785dc1e232084639ed5d048"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/d/index.ts",
+          "input_id": "ea2288df4705d81efaacf684d43077649636ecf4aa52ba9437705d1a461309c8",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "186ac5af4e0c7b8dfb908e1123780174d4e913a5b785dc1e232084639ed5d048"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/e.ts",
+          "input_id": "36bdc9edef85236898d57dae3aa60d87189f2ec4d0fa2159d1bb64fe3aa19e19",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "cc613079f92b686a0ce0305513711e98a3cae579b01c910c91c621f6ae36c596"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/e.ts",
+          "input_id": "36bdc9edef85236898d57dae3aa60d87189f2ec4d0fa2159d1bb64fe3aa19e19",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "cc613079f92b686a0ce0305513711e98a3cae579b01c910c91c621f6ae36c596"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/e.txt.ts",
+          "input_id": "e94c51e16357dbf3736070364ee97dd16c42bba9040302a2bd583026b1236599",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "2a92499f06fbd6d3cdfe31434a477c609aa27d7808f075e7e47ea2c7cb3626b7"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/e.txt.ts",
+          "input_id": "e94c51e16357dbf3736070364ee97dd16c42bba9040302a2bd583026b1236599",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "2a92499f06fbd6d3cdfe31434a477c609aa27d7808f075e7e47ea2c7cb3626b7"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/main.ts",
+          "input_id": "9600f86bb35b34dc953b40a0dfe41c47b8096625031f728e9e0a73922a62d56c",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "efebdf363b1f7a9ceeba0bbc05512d49450d44d064cf80c30a7e639836efa470",
+          "core_sha256": "2a36fa2e0827823236286280527edf75baa04a0f644f4862b941ac96dc09ec5b"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/main.ts",
+          "input_id": "9600f86bb35b34dc953b40a0dfe41c47b8096625031f728e9e0a73922a62d56c",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "efebdf363b1f7a9ceeba0bbc05512d49450d44d064cf80c30a7e639836efa470",
+          "core_sha256": "2a36fa2e0827823236286280527edf75baa04a0f644f4862b941ac96dc09ec5b"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/types.d.ts",
+          "input_id": "d0ea4ebd1ca7be3ed9be4e08bb5cb603833c50d7ae88644cb1f14c2fabd2374b",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "ac4cede680924c20775b9745ad10cd14e78faaee4a1c97f2f200636f81890cf7",
+          "core_sha256": "bcb8c86fc4a3af785ada62860ae61b7bf7278a84ecc245941b03081282938009"
+        }
+      ],
+      "unique_parse_inputs": 30,
+      "disposition": "sibling parse-input coverage derived; noEmit complete-command witness pending; historical load failure retained"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dtrue%2Cnoemit%3Dtrue",
+      "historical_load_failure": {
+        "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dtrue%2Cnoemit%3Dtrue",
+        "suite": "conformance",
+        "universe": "ratchets/h2-8a-candidate-inputs.v1.json",
+        "loader": "load_qualified_compiler_emit_with_symlinks",
+        "error": "failed to load qualified compiler fixture: validate program loader options: emitting program rejects effective compilerOptions.noEmit=true",
+        "emit_disposition": "not-loaded; emit-not-qualified"
+      },
+      "sibling_case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dtrue%2Cnoemit%3Dfalse",
+      "identical_input_and_selection": true,
+      "only_effective_option_difference": "noEmit: true versus false",
+      "derived_parse_tuples": [
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es6.d.ts",
+          "input_id": "28789d41d15c06b1a270d0507aaee17bea671de52b6d9a3243593db4b8be579c",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210",
+          "core_sha256": "267c420c16e5f0ae4de5d998a4a14ca66d2d7f78a3b30a775ac089bb17d4b058"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+          "input_id": "4811a2a96f6b89d4c36d5875adbce33cf271d8ff4ef3bcd2b73970cfba34d071",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd",
+          "core_sha256": "cc578c049b28d748cbb1819b12f99d24e247c5a9cb25b9726585f3b2c469ed7c"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.d.ts",
+          "input_id": "673e5929d7c1c2f9b6e2b822da6a945eafe1840e3a52518a8977e977c295fb87",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6",
+          "core_sha256": "ad837192687c9e981d65cc2cb4d04626c2c27a4f4c508ae59241d39010e1aa18"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.dom.d.ts",
+          "input_id": "6eea3293648fcc1d4ec9e1eb757677b36e316e820bc2d011f63d9d76f44b33a1",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f",
+          "core_sha256": "e7f1e65e02c2070ba762507f8b485fb6c720127920776e362181b25bb6f638cd"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.dom.iterable.d.ts",
+          "input_id": "59e1e59978f3d95633ddffd52bfcf3c6839b0926cf6aa932345e815003327a76",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54",
+          "core_sha256": "ee70248355fe76ed6a58c4058ccd29dac5908ec226b9e5e3013c02ad32354399"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.webworker.importscripts.d.ts",
+          "input_id": "8a180fb5e99d9ed007ed380adc4a7e683a91b6b3c8a3d08cafc39bc4445a06dc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78",
+          "core_sha256": "39c12ac395372abae6cce8f0b086abcadf76d6e03d31b7e5e5d85589f501e3af"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.scripthost.d.ts",
+          "input_id": "6669b41a92411ff11075ce97688c74595a741286ceff665a741ca998587ebcfb",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee",
+          "core_sha256": "4108a9e0604b9b4dbd6cae0f7a1049ae1820c6aee1c3afd35ef5a81b5cdc29e7"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.core.d.ts",
+          "input_id": "43f9d527f17264da86bb308bb31677064f00eef25613df604a4c9b90444617b7",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504",
+          "core_sha256": "558d163ffb0f98407f1bd63c15d53e93de6e10e29a3aaf16a5a8469ebde9d053"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.collection.d.ts",
+          "input_id": "4f38244a365ca82955ce18f8cee77b9c9395de9504afb3499df652539fb24c1e",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711",
+          "core_sha256": "85cc5efbffcf138546ead2f9305ac28d32a1ca804da7ca41e237770bff4e668a"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.generator.d.ts",
+          "input_id": "38b080c056af973a7076eecd8ad36f18a6d3ad1478d52193b7522a2379263717",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c",
+          "core_sha256": "b868ed303c1a5e6a86fa56fefb87141c42f112245da6ab322be7e4717dc0df25"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.iterable.d.ts",
+          "input_id": "67506003d699f97ad0e1605b5a8c133d63a8af81fb2a8c82e643aebbb838171c",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4",
+          "core_sha256": "8577e4eb6d9911f2e9e489a43c096a6d986bbcf971e4e1c4838e93276bfd533d"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.promise.d.ts",
+          "input_id": "8b027f84c9479fa9841535159f1af195e10611f2bc23adb5d5d2f5160aa2c4e1",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad",
+          "core_sha256": "9ca34c588e28349a5e29c83cd28aae4ed61d6a58786558413626659766c69857"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.proxy.d.ts",
+          "input_id": "47c89b31d4b27125bd9b93156cfc7298d6f2b01ede9b9296ee299010f987f66a",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f",
+          "core_sha256": "a1d44ebaae9d4b923600566b5162b739451993e81cb095f3c47487e8a6b459da"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.reflect.d.ts",
+          "input_id": "f781e3cecb184f0c9b48f9f236f25c580cd26bf64561cdbd7e16b85c517d468b",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60",
+          "core_sha256": "ccf8343dc266834cc0f3d25958084062bf901939a1f5245c3e482ad5571eeccb"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.symbol.d.ts",
+          "input_id": "2558013dc05018228b6252c8e7c1775c9624c3fa0a53038d948fd1c9ebbdef16",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f",
+          "core_sha256": "d405df2e959c198e12970b0dfdcc5730c785a0f53c800ca99d41c0e673c55e62"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2015.symbol.wellknown.d.ts",
+          "input_id": "920aba70594a36d24d629122dd481a362c34e00e3c86cbc7325cb0e3e9f0e4cb",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42",
+          "core_sha256": "002e62470d06082048c670ccac2809db4766ff85bb5f52844001b3647b204869"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.es2018.asynciterable.d.ts",
+          "input_id": "a7e0d76598e520279d5f5b7e31820448c6b9064349e9ccdb6185790812670d03",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c",
+          "core_sha256": "743f0f09e6442936f7b6fd6003535c6985b3caa5f93143aad83b674c06057402"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.decorators.d.ts",
+          "input_id": "7c9eb8ddd4e62dbf5d37b36322a86f9038c4ad2bfd163d5b2050300e1c0fd36d",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4",
+          "core_sha256": "8880b3dfde11fa17eee71323e8d2934d6d4e98a482c4b12ab3c16dca3c5ce098"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/vendor/typescript-6.0.3/lib/lib.decorators.legacy.d.ts",
+          "input_id": "6fb2abe2577709edca97f515479aad9ec43a9ef07d68af6e55da66e172d987b2",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da",
+          "core_sha256": "bc4a821db6376d335c65f3c6dda560d1c08d5000d81629e518726f47dfadafb4"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/a.ts",
+          "input_id": "d54da2548295f57a1678068e9ba92f8c0688ade5b01b0ab5e335daca789ce8a7",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "a84b8a5684dcddd21bcfc2285e34b17903207f47b3caf53f31034878a8f0f60a"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/a.ts",
+          "input_id": "d54da2548295f57a1678068e9ba92f8c0688ade5b01b0ab5e335daca789ce8a7",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "a84b8a5684dcddd21bcfc2285e34b17903207f47b3caf53f31034878a8f0f60a"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/b.ts",
+          "input_id": "819d9d4221d0596ff256c1ad888fff45e926690b65324342bc59892d5a4954cc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "dc7d74bece455c8c128bc2381658286288b7c73489f7e978bae6ec6bc9be46f0"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/b.ts",
+          "input_id": "819d9d4221d0596ff256c1ad888fff45e926690b65324342bc59892d5a4954cc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "dc7d74bece455c8c128bc2381658286288b7c73489f7e978bae6ec6bc9be46f0"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/b.js",
+          "input_id": "3ef106958d6017eb44051933486d990b2a4f410485ebc099f04e115f03b003fc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 1,
+            "javascript_file": true,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "7bd4ef35b5a70e2015525ca4d0e7d45823faab2e9ca340a4eacc07fa71ff763a"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/b.js",
+          "input_id": "3ef106958d6017eb44051933486d990b2a4f410485ebc099f04e115f03b003fc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 1,
+            "javascript_file": true,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "7bd4ef35b5a70e2015525ca4d0e7d45823faab2e9ca340a4eacc07fa71ff763a"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/b.d.ts",
+          "input_id": "36878149df0310f3ff7eba64c4b570f4cbb6cc6764eb301f6000eaa3eb60fbbc",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "7ab969bbc627c7d5c01a9c2a97e5c20490e95f77f8e8776b6b34cf662da94ac0"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/c.ts",
+          "input_id": "436a79f4f453ebae37733eab32c1c5e371af9485b3ad0c9c06918622ad7a506f",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "1f6e4c5c39beeb9dbfc25d60f98ef2c59b224edc529febfa215098addb422d66"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/c.ts",
+          "input_id": "436a79f4f453ebae37733eab32c1c5e371af9485b3ad0c9c06918622ad7a506f",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "1f6e4c5c39beeb9dbfc25d60f98ef2c59b224edc529febfa215098addb422d66"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/c.tsx",
+          "input_id": "a628a7eefa85fad19a8a86d9e4d30db12557c4be6edc8877f5a1711aebca21d7",
+          "options": {
+            "script_target": 2,
+            "language_variant": 1,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "66f11a72e9ab60dea498b4cfc19db08f9b65ccca849cdde49e5981ae45f5f78a"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/c.tsx",
+          "input_id": "a628a7eefa85fad19a8a86d9e4d30db12557c4be6edc8877f5a1711aebca21d7",
+          "options": {
+            "script_target": 2,
+            "language_variant": 1,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "66f11a72e9ab60dea498b4cfc19db08f9b65ccca849cdde49e5981ae45f5f78a"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/d/index.ts",
+          "input_id": "ea2288df4705d81efaacf684d43077649636ecf4aa52ba9437705d1a461309c8",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "186ac5af4e0c7b8dfb908e1123780174d4e913a5b785dc1e232084639ed5d048"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/d/index.ts",
+          "input_id": "ea2288df4705d81efaacf684d43077649636ecf4aa52ba9437705d1a461309c8",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "186ac5af4e0c7b8dfb908e1123780174d4e913a5b785dc1e232084639ed5d048"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/e.ts",
+          "input_id": "36bdc9edef85236898d57dae3aa60d87189f2ec4d0fa2159d1bb64fe3aa19e19",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "cc613079f92b686a0ce0305513711e98a3cae579b01c910c91c621f6ae36c596"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/e.ts",
+          "input_id": "36bdc9edef85236898d57dae3aa60d87189f2ec4d0fa2159d1bb64fe3aa19e19",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "cc613079f92b686a0ce0305513711e98a3cae579b01c910c91c621f6ae36c596"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/e.txt.ts",
+          "input_id": "e94c51e16357dbf3736070364ee97dd16c42bba9040302a2bd583026b1236599",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "2a92499f06fbd6d3cdfe31434a477c609aa27d7808f075e7e47ea2c7cb3626b7"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/e.txt.ts",
+          "input_id": "e94c51e16357dbf3736070364ee97dd16c42bba9040302a2bd583026b1236599",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "core_sha256": "2a92499f06fbd6d3cdfe31434a477c609aa27d7808f075e7e47ea2c7cb3626b7"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/main.ts",
+          "input_id": "9600f86bb35b34dc953b40a0dfe41c47b8096625031f728e9e0a73922a62d56c",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "efebdf363b1f7a9ceeba0bbc05512d49450d44d064cf80c30a7e639836efa470",
+          "core_sha256": "2a36fa2e0827823236286280527edf75baa04a0f644f4862b941ac96dc09ec5b"
+        },
+        {
+          "role": "emit-preflight",
+          "path": "/project/main.ts",
+          "input_id": "9600f86bb35b34dc953b40a0dfe41c47b8096625031f728e9e0a73922a62d56c",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "efebdf363b1f7a9ceeba0bbc05512d49450d44d064cf80c30a7e639836efa470",
+          "core_sha256": "2a36fa2e0827823236286280527edf75baa04a0f644f4862b941ac96dc09ec5b"
+        },
+        {
+          "role": "module-request-parse",
+          "path": "/project/types.d.ts",
+          "input_id": "d0ea4ebd1ca7be3ed9be4e08bb5cb603833c50d7ae88644cb1f14c2fabd2374b",
+          "options": {
+            "script_target": 2,
+            "language_variant": 0,
+            "javascript_file": false,
+            "js_doc_parsing_mode": 0,
+            "force_external_module": false,
+            "detect_external_module_from_jsx": false,
+            "node_id_base": 0,
+            "node_array_id_base": 0
+          },
+          "text_sha256": "ac4cede680924c20775b9745ad10cd14e78faaee4a1c97f2f200636f81890cf7",
+          "core_sha256": "bcb8c86fc4a3af785ada62860ae61b7bf7278a84ecc245941b03081282938009"
+        }
+      ],
+      "unique_parse_inputs": 30,
+      "disposition": "sibling parse-input coverage derived; noEmit complete-command witness pending; historical load failure retained"
+    }
+  ]
+}

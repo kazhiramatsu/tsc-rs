@@ -159,6 +159,8 @@ def case_ids(suite):
             + ids(FIXTURES + "empty-block-comments.json", 72)
             + ids(FIXTURES + "emitter-session-retirements.json", 4) + source_map_ids()
             + ids(FIXTURES + "emitter-cli-options.json", 58)
+            + [f"typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3D{value}%2Cnoemit%3Dtrue"
+               for value in ("false", "true")]
             + ["typescript-6.0.3/compiler/jsFileCompilationAwaitModifier.ts#default",
                "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeAliases.ts#default"])
 
@@ -211,6 +213,9 @@ def inputs(suite):
         "scripts/observe-emitter-session-retirements.mjs",
         PACKET + "inventory.v1.json", PACKET + "ef7/universe-217.v1.json",
         "crates/compiler/tests/emitter_final_rows.rs", "crates/compiler/tests/emitter_final_batch.rs",
+        "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+        "ratchets/h2-8a-candidates.v1.json", "ratchets/h2-8a-candidate-inputs.v1.json",
+        "ratchets/h2-8a-observations.v1.json",
         "crates/compiler/tests/integration/h2_8a_output_matrix.rs", "scripts/observe-output-matrix.mjs",
         "crates/compiler/tests/integration/h2_8a_output_filesystem.rs",
         "crates/compiler/tests/integration/h2_8a_import_helpers.rs", "scripts/observe-import-helpers.mjs",
@@ -266,7 +271,7 @@ def commands(suite):
             (["node", "scripts/observe-emitter-cli-options.mjs", "--check"], None),
             (["cargo", "test", "--manifest-path", "crates/program/Cargo.toml", "--test", "contracts",
               "module_request_contract::", "--", "--nocapture", "--test-threads=1"], 40),
-            (cargo("emitter_final_rows"), 1), (cargo("emitter_final_batch"), 11),
+            (cargo("emitter_final_rows"), 1), (cargo("emitter_final_batch"), 12),
             (cargo("contracts", ("h2_8a_output_matrix::output_matrix_matches_complete_typescript_observations",
                                  "h2_8a_output_matrix::output_matrix_filesystem_matches_complete_typescript_observations",
                                  "h2_8a_import_helpers::import_helpers_matches_complete_typescript_observations",

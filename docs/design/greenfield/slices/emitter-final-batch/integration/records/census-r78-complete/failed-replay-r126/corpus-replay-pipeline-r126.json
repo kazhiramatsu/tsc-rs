@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/tmp/emitter-corpus-replay-pipeline-r126.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T09:28:39.802834+00:00",
+  "head": "d0edc1a74a6249318b19aa449ab2735983a8df46",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 1,
+  "seconds": 2081.202,
+  "log_sha256": "875f67959c6448b24126c6b906b6f53714dce7572e34e5cc59b8dfc53420d895",
+  "log_bytes": 5578
+}

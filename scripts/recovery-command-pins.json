@@ -1,0 +1,13 @@
+{
+  "crates/harness/src/upstream_suites/execution.rs": "9e8d7ecea830e281827d5dbd64b18170a14e594c43133557e98ded207dd64f7e",
+  "crates/harness/src/upstream_suites/execution/project.rs": "dc82805e089ce1888569d697d78115768d942c35996681d88fdaa55b0de75e71",
+  "crates/oracle/vfs-directory-overlay.mjs": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76",
+  "crates/types/src/options.rs": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde",
+  "crates/program/src/prepared.rs": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da",
+  "crates/program/src/config.rs": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c",
+  "crates/program/src/text.rs": "ca37622822c0b897a8460adbf2880be3e16a94a847ba6b5d736863b71a3ab7bb",
+  "crates/program/src/library.rs": "8315ec4aa0ab762196ce49ff8be001e65b58243caab3dd6dc34885221a646fec",
+  "crates/harness/src/upstream_suites.rs": "5712b5e1c33e92233429b3a93188da23f8a39ef041c415045f1f145840482425",
+  "crates/harness/src/upstream_suites/execution/observable_input.rs": "202fc104eeceefafee48a98ec48fbc73a4bd23101f2f3d9dd407f580459235b5",
+  "crates/xtask/src/utf16_literal_recovery_census.rs": "41a2d489dfdc3dca5b849d08ed5730deb744e2d98ef700e029b4812cceac5c68"
+}

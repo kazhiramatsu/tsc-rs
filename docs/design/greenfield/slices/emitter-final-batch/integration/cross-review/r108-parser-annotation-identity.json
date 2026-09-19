@@ -1,0 +1,11 @@
+{
+  "kind": "pre-replay source identity check only",
+  "census_head": "67df86615a45f9595025064bcc12fde93063fedf",
+  "path": "crates/syntax/src/parser.rs",
+  "before_sha256": "ffe64e0cf029c96b3bc91239a71be2c918f2e6c7803c57f189c0a771ab8f6701",
+  "after_sha256": "8b4be1f2a8c40f5a1088cf364ecfef53cf86ea3bedc1c8c30b4ab227c97c10fb",
+  "non_doc_bytes_equal": true,
+  "disk_equals_committed": true,
+  "after_source_tree": "/Users/hiramatsu/dev/tsc-rs-emitter-final-ledger-prep",
+  "qualification": "pending ledger integration and four full parser replays; every core and ordered recovery fact must remain equal"
+}
