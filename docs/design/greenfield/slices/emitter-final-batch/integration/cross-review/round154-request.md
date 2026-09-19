@@ -1,0 +1,9 @@
+# Round 154 — Unicode detached-header command difference
+
+Read-only actual Opus investigation; no edits/builds/commits. Repair /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep is FROZEN at3e28cb21344eae8980cfe66992913f2d8758ede2 through r184/r185/r186/r190. Proof c79925c63 frozen. Do not modify.
+
+A/B/C reviewed153 are implemented. C claimer now cannot abort other actions (returns set, continues on every precondition); both positive/negative tests pass in full211 syntax. Strengthened negative equals skip actually uses BlockTrailingEquals, not ListAbort; native exactdump preserved. Inventory5045 planner84PASS. The688 command run is in progress. r167176 all exact. r168 so far has only detached-unicode-lines differences: source `/* a */\u2028/* b */\u2028\u2028declare var x: number;` (actual U+2028), removeComments false. Native JS is only use-strict+mapURL; TS retains both comments on separate lines and maps them. All ordinary-newline header/keyword controls so far pass. Full failures/captures target/emitter-corpus-controls-r184/captures-168; summarize script /tmp/summarize-emitter-control-captures.py. Fixture scripts/observe-emitter-r168-corpus-controls.mjs, fixture json includes complete TS expectations.
+
+Please trace exact source owner/phase of dropping these comments (detached prefix discovery vs All writer vs first NotEmitted handling), inspect whether preexisting at4d09 (do not executeheavybuild), and suggest minimal safe fix plus CR/LF/CRLF/U+2029 and non-file controls. Shared collection already recognizes Unicode line breaks; do not assume discovery uses same line semantics. Need avoid changing unrelated ordinary-leading handling.
+
+Separate remaining lint cleanup: write_comment_with_normalized_newlines is now unused (only definition under crates), will delete after freeze. No need review that routine removal. All other tests/proof are queuedserial, no source changes before they end.
