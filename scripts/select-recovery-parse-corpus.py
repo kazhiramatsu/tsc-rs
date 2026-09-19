@@ -90,6 +90,7 @@ def select(snapshot, snapshot_sha, current, baselines, reports):
             "snapshot_sha256": snapshot_sha, "digest_code_sha256": snapshot["digest_code_sha256"],
             "syntax_tree_hash": snapshot["syntax_tree_hash"], "vendor_tree_hash": snapshot["vendor_tree_hash"],
             "plan_manifest_sha256": snapshot["plan_manifest_sha256"],
+            "input_manifest": snapshot["input_manifest"],
             "summary": {"loaded_rows": len(rows), "selected_rows": len(cases), "unchanged_rows": len(rows) - len(cases),
                         "load_failures": len(snapshot["load_failures"]),
                         "selected_no_emit_fallbacks": sum(row["loader"] in ["load_compiler_no_emit", "load_project_no_emit"] for row in cases), "changed_inputs": {k: len(v) for k, v in changed_inputs.items()}},

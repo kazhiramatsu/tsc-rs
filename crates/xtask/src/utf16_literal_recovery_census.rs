@@ -37,7 +37,7 @@ const CENSUS_KIND: &str = "utf16-literal-recovery-admission-census";
 
 /// Qualification artifacts whose rows embed the exact qualified VFS input the
 /// acceptance runner reconstructs (`input.files` as base64 bytes).
-const QUALIFIED_INPUT_ARTIFACTS: &[&str] = &[
+pub(super) const QUALIFIED_INPUT_ARTIFACTS: &[&str] = &[
     "ratchets/h2-1a-qualification.v1.json",
     "ratchets/h2-1b-qualification.v1.json",
     "ratchets/h2-1c-qualification.v1.json",
@@ -68,14 +68,14 @@ const QUALIFIED_INPUT_ARTIFACTS: &[&str] = &[
 
 /// Candidate-input artifacts whose rows embed `input.files` as text plus the
 /// merged harness settings (`settings` pairs) and `input.config`.
-const CANDIDATE_INPUT_ARTIFACTS: &[&str] = &[
+pub(super) const CANDIDATE_INPUT_ARTIFACTS: &[&str] = &[
     "ratchets/h2-7de-candidate-inputs.v1.json",
     "ratchets/h2-8a-candidate-inputs.v1.json",
 ];
 
 /// Artifacts carrying TypeScript-side `source_facts.parse_diagnostic_units`
 /// for a parity cross-check of diagnostic presence and codes.
-const TYPESCRIPT_FACT_ARTIFACTS: &[&str] = &[
+pub(super) const TYPESCRIPT_FACT_ARTIFACTS: &[&str] = &[
     "ratchets/h2-7b-qualification.v1.json",
     "ratchets/h2-7de-candidates.v1.json",
     "ratchets/h2-8a-candidates.v1.json",
@@ -831,7 +831,10 @@ fn roots(input: &Value) -> Result<Vec<PathBuf>, Box<dyn Error>> {
 
 /// The acceptance runner's qualified input reconstruction
 /// (`h2_2c_acceptance::case_input_with_floor`), at the established floor.
-fn qualified_input(workspace: &Path, input: &Value) -> Result<PreparedProgram, Box<dyn Error>> {
+pub(super) fn qualified_input(
+    workspace: &Path,
+    input: &Value,
+) -> Result<PreparedProgram, Box<dyn Error>> {
     let current_directory = string(input, "current_directory")?;
     let mut files = input["files"]
         .as_array()
@@ -867,7 +870,10 @@ fn qualified_input(workspace: &Path, input: &Value) -> Result<PreparedProgram, B
 
 /// Candidate-input rows carry the merged harness settings as pairs and the
 /// VFS as text; the same qualified loader reconstructs the program.
-fn candidate_input(workspace: &Path, case: &Value) -> Result<PreparedProgram, Box<dyn Error>> {
+pub(super) fn candidate_input(
+    workspace: &Path,
+    case: &Value,
+) -> Result<PreparedProgram, Box<dyn Error>> {
     let input = &case["input"];
     let current_directory = string(input, "current_directory")?;
     let mut files = input["files"]
