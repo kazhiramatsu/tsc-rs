@@ -1016,7 +1016,7 @@ class WitnessTests(unittest.TestCase):
             "mapped-type-members": 328, "token-comment-phase-metadata": 120,
             "utf16-identity-recovery": 79, "utf16-review-fix": 25, "utf16-tagged-template": 16,
             "utf16-literal-witnesses": 64, "utf16-original-commands": 4,
-            "emitter-final": 1123, "emitter-comment-controls": 1503, "emitter-universe-oracle": 2015,
+            "emitter-final": 1125, "emitter-comment-controls": 1503, "emitter-universe-oracle": 2015,
             "emitter-system-controls": 3704, "emitter-recovery-controls": 1224,
             "emitter-plan-base-0": 450, "emitter-plan-base-1": 450,
             "emitter-plan-base-2": 449, "emitter-plan-base-3": 449,
@@ -1278,7 +1278,9 @@ class WitnessTests(unittest.TestCase):
                      "crates/oracle/vfs-directory-overlay.mjs",
                      "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
                      "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs"):
-            self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
+            plan = replay.selection([path])
+            self.assertEqual(plan["witnesses"], list(witness.SUITES))
+            self.assertEqual(plan["acceptance"], list(replay.GROUPS))
         plan = replay.selection(["crates/compiler/tests/fixtures/declaration-comment-ranges.json",
                                  "crates/compiler/tests/fixtures/h2-8a-jsdoc-return.json"])
         self.assertEqual(plan["acceptance"], [])

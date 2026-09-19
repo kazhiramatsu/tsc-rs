@@ -99,6 +99,7 @@ def selection(paths):
         if file in ("crates/compiler/tests/fixtures/declaration-reference-paths.json",
                     "crates/emitter/tests/fixtures/bundle-module-identities.json",
                     "crates/compiler/tests/fixtures/utf16-literals-adjacent-probes-inputs.json",
+                    "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
                     "crates/emitter/tests/fixtures/bundle-plan.json", "scripts/observe-bundle-plan.mjs"):
             # Module identity facts also feed the declaration observer and
             # emitter unit tests; registering one consumer cannot narrow them.
