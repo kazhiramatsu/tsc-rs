@@ -525,7 +525,7 @@ fn variable_type_recovery_matches_complete_typescript_commands() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 268);
+    assert_eq!(cases.len(), 404);
     assert_recovery_boundary_commands(cases);
 }
 

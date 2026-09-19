@@ -83,7 +83,38 @@ for (const [target, module, noCheck] of configurations) {
       sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
       outDir: "/project/out"}, files: ["main.js"]})});
 }
-assert.equal(inputs.length, 268);
+const es5ProducerShapes = [
+  ["rename-export-alias", "let x = 1; export { x }; { let x /*a*/ = 2; (() => x)(); }"],
+  ["rename-untyped-mixed", "let x = 1; { let x /*a*/\n/*b*/ = 2; (() => x)(); } export {};"],
+  ["for-of-pattern-assignment", "export function f(arr: number[][]) { let x; for ([x] /*a*/ of arr) { x; } }"],
+  ["rename-untyped", "let x = 1; { let x = 2; (() => x)(); } export {};"],
+  ["rename-untyped-inline", "let x = 1; { let x /*n*/ = 2; (() => x)(); } export {};"],
+  ["rename-typed-inline", "let x = 1; { let x: number /*t*/ = 2; (() => x)(); } export {};"],
+  ["rename-typed-newline", "let x = 1; { let x: number\n/*t*/ = 2; (() => x)(); } export {};"],
+  ["rename-name-and-type", "let x = 1; { let x /*n*/: number /*t*/\n/*next*/ = 2; (() => x)(); } export {};"],
+  ["rename-shadow-export", "export let x = 1; { let x /*n*/ = 2; (() => x)(); }"],
+  ["rename-destructure", "let x = 1; { let {a: x /*n*/} = {a: 2}; (() => x)(); } export {};"],
+  ["for-of-inline", "export function f(arr: number[]) { for (const x /*a*/ of arr) { x; } }"],
+  ["for-of-newline", "export function f(arr: number[]) { for (const x\n/*a*/ of arr) { x; } }"],
+  ["for-of-leading", "export function f(arr: number[]) { for (/*l*/ const x of arr) { x; } }"],
+  ["for-of-assignment", "export function f(arr: number[]) { let x; for (x /*a*/ of arr) { x; } }"],
+  ["for-of-pattern", "export function f(arr: number[][]) { for (const [x] /*a*/ of arr) { (() => x)(); } }"],
+  ["for-of-unicode", "export function f(arr: number[]) { for (const é /*a*/ of arr) { (() => é)(); } }"],
+  ["for-of-escaped-name", "export function f(arr: number[]) { for (const \\u{61} /*a*/ of arr) { (() => a)(); } }"],
+];
+for (const module of ["commonjs", "system"])
+  for (const noCheck of [false, true])
+    for (const removeComments of [false, true])
+      for (const [shape, text] of es5ProducerShapes) {
+        const main = "/project/main.ts";
+        inputs.push({case_id: `emitter-r154-variable-producers/es5/${module}/nocheck-${noCheck}/remove-${removeComments}/${shape}`,
+          roots: [main], files: [{path: main, text: text + "\n"}], options: {},
+          config: JSON.stringify({compilerOptions: {target: "es5", module, noCheck, removeComments,
+            lib: ["esnext"], strict: false, skipDefaultLibCheck: true, noErrorTruncation: true,
+            sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
+            outDir: "/project/out"}, files: ["main.ts"]})});
+      }
+assert.equal(inputs.length, 404);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

@@ -4748,12 +4748,23 @@ impl Printer {
                         .then_some(data.r#type)
                         .flatten()
                         .and_then(|r#type| transformation.arena().node_ref(node.source(), r#type));
+                    // ES2015 materializes colliding names before printing.
+                    // emitInitializer still reads the pre-substitution name's
+                    // type boundary, while name comments belong to the actual
+                    // replacement, whose metadata does not own that type.
+                    let pre_substitution_type = (!self.options.declaration_syntax
+                        && erased_type.is_none())
+                    .then(|| self.variable_initializer_pre_substitution_type(transformation, name))
+                    .flatten();
                     // emitInitializer uses the selected node's own end. An
                     // original link does not give a synthetic name or type
                     // a source position for the following equals token.
                     let equal_cursor = self.node_end_cursor(
                         transformation,
-                        declared_type.or(erased_type).unwrap_or(name),
+                        declared_type
+                            .or(erased_type)
+                            .or(pre_substitution_type)
+                            .unwrap_or(name),
                     )?;
                     if !initializer_context.nested_comments_suppressed() && declared_type.is_none()
                     {
@@ -17276,6 +17287,27 @@ impl Printer {
                 SourceRange::Synthesized => TokenCursor::Synthetic,
             },
         )
+    }
+
+    /// Recover only the name that ES2015 replaced before its print-time phase.
+    /// A deeper original must not donate a type absent from that actual name.
+    fn variable_initializer_pre_substitution_type(
+        &self,
+        transformation: &TransformationResult<'_>,
+        name: TransformNode,
+    ) -> Option<TransformNode> {
+        let mut current = name;
+        let mut visited = BTreeSet::new();
+        while let Some(metadata) = transformation.arena().metadata(current) {
+            if !metadata.generated_binding_print_order() {
+                return (current != name).then(|| metadata.type_node()).flatten();
+            }
+            if !visited.insert(current) {
+                return None;
+            }
+            current = metadata.original()?;
+        }
+        None
     }
 
     fn original_node_end_cursor(
