@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/tmp/mint-emitter-r209.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T15:34:17.193908+00:00",
+  "head": "ed4a419830cc05b4c6d3063b22a8dc5813950bfd",
+  "tracked_clean": false,
+  "diff_sha256": "ef689a3c7f8826a633232fd203c2edd0c1f2f51c835de1f3c61a6a34e62dcf59",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 119.5,
+  "log_sha256": "e667e00c5ae92ba53409d4adadf8f4af85dcafe766f1e7071892f9dc7f1943e0",
+  "log_bytes": 486
+}

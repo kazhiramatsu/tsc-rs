@@ -47,7 +47,7 @@ SYSTEM_FIXTURES = (("system-binding-publication", 1044), ("await-flag-commands",
                    ("emitter-r129-variable-type-controls", 508),
                    ("emitter-r145-variable-comma-controls", 145),
                    ("emitter-r167-corpus-controls", 176),
-                   ("emitter-r168-corpus-controls", 672),
+                   ("emitter-r168-corpus-controls", 1080),
                    ("emitter-r171-corpus-controls", 344))
 SYSTEM_TESTS = (
     "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",

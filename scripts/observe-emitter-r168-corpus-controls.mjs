@@ -94,23 +94,75 @@ const shapes = [
   ["trailing-function-u2029", "function f() { x; /* a */\u2029/* b */\u2029}"],
   ["trailing-empty-block-u2029", "{ /* a */\u2029/* b */\u2029}"],
   ["trailing-file-end-u2029", "x; /* a */\u2029/* b */\u2029"],
+  ["layout-function-lf", "function f() { return 1;\n}"],
+  ["layout-function-cr", "function f() { return 1;\r}"],
+  ["layout-function-crlf", "function f() { return 1;\r\n}"],
+  ["layout-function-inline", "function f() { return 1; }"],
+  ["layout-function-leading-lf", "function f()\n{ return 1; }"],
+  ["layout-function-leading-crlf", "function f()\r\n{ return 1; }"],
+  ["layout-function-leading-u2028", "function f()\u2028{ return 1; }"],
+  ["layout-function-leading-u2029", "function f()\u2029{ return 1; }"],
+  ["layout-function-leading-comment", "function f() /* a\n b */\n{ return 1; }"],
+  ["layout-function-u2028", "function f() { return 1;\u2028}"],
+  ["layout-function-u2029", "function f() { return 1;\u2029}"],
+  ["layout-arrow-u2028", "var g = () => { return 1;\u2028};"],
+  ["layout-method-u2028", "class C { m() { return 1;\u2028} }"],
+  ["layout-getter-u2028", "class C { get x() { return 1;\u2028} }"],
+  ["layout-jsx-inline", "var v = <div>{/* c */}</div>;", {"jsx": true}],
+  ["layout-jsx-lf", "var v = <div>{\n/* c */}</div>;", {"jsx": true}],
+  ["layout-jsx-crlf", "var v = <div>{\r\n/* c */}</div>;", {"jsx": true}],
+  ["layout-jsx-u2028", "var v = <div>{\u2028/* c */}</div>;", {"jsx": true}],
+  ["layout-jsx-u2029", "var v = <div>{\u2029/* c */}</div>;", {"jsx": true}],
+  ["layout-jsx-multiline-comment", "var v = <div>{\u2028/* a\n   b */}</div>;", {"jsx": true}],
+  ["layout-case-u2028", "var x=1; switch(x) { case 1:\u2028x++; }"],
+  ["layout-default-u2028", "var x=1; switch(x) { default:\u2028x++; }"],
+  ["layout-binary-before-u2028", "var a=1,b=2; var v=a\u2028+b;"],
+  ["layout-binary-after-u2028", "var a=1,b=2; var v=a+\u2028b;"],
+  ["layout-property-before-u2028", "var a:any; a\u2028.b;"],
+  ["layout-property-after-u2028", "var a:any; a.\u2028b;"],
+  ["layout-optional-before-u2028", "var a:any; a\u2028?.b;"],
+  ["layout-optional-after-u2028", "var a:any; a?.\u2028b;"],
+  ["layout-conditional-before-question-u2028", "var x=true; var v=x\u2028?1:2;"],
+  ["layout-conditional-after-question-u2028", "var x=true; var v=x?\u20281:2;"],
+  ["layout-conditional-before-colon-u2028", "var x=true; var v=x?1\u2028:2;"],
+  ["layout-conditional-after-colon-u2028", "var x=true; var v=x?1:\u20282;"],
+  ["layout-case-u2029", "var x=1; switch(x) { case 1:\u2029x++; }"],
+  ["layout-default-u2029", "var x=1; switch(x) { default:\u2029x++; }"],
+  ["layout-binary-before-u2029", "var a=1,b=2; var v=a\u2029+b;"],
+  ["layout-binary-after-u2029", "var a=1,b=2; var v=a+\u2029b;"],
+  ["layout-property-before-u2029", "var a:any; a\u2029.b;"],
+  ["layout-property-after-u2029", "var a:any; a.\u2029b;"],
+  ["layout-optional-before-u2029", "var a:any; a\u2029?.b;"],
+  ["layout-optional-after-u2029", "var a:any; a?.\u2029b;"],
+  ["layout-conditional-before-question-u2029", "var x=true; var v=x\u2029?1:2;"],
+  ["layout-conditional-after-question-u2029", "var x=true; var v=x?\u20291:2;"],
+  ["layout-conditional-before-colon-u2029", "var x=true; var v=x?1\u2029:2;"],
+  ["layout-conditional-after-colon-u2029", "var x=true; var v=x?1:\u20292;"],
+  ["layout-case-inline", "var x=1; switch(x) { case 1: x++; }"],
+  ["layout-case-lf", "var x=1; switch(x) { case 1:\nx++; }"],
+  ["layout-case-crlf", "var x=1; switch(x) { case 1:\r\nx++; }"],
+  ["layout-binary-inline", "var a=1,b=2; var v=a+b;"],
+  ["layout-property-inline", "var a:any; a.b;"],
+  ["layout-optional-inline", "var a:any; a?.b;"],
+  ["layout-conditional-inline", "var x=true; var v=x?1:2;"],
 ];
 const inputs = [];
 for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015", "esnext", true], ["es5", "system", false], ["esnext", "commonjs", true]])
   for (const removeComments of [false, true])
     for (const [shape, text, extra = {}] of shapes) {
-      const main = "/project/main.ts";
+      const main = extra.jsx ? "/project/main.tsx" : "/project/main.ts";
       const files = [{path: main, text: text + "\n"}];
       if (extra.dependency) files.push({path: "/project/dep.d.ts", text: "interface Dep { value: number; }\n"});
       inputs.push({case_id: `emitter-r168-corpus-controls/${target}/${module}/nocheck-${noCheck}/remove-${removeComments}/${shape}`,
         roots: [main], files, options: {},
         config: JSON.stringify({compilerOptions: {target, module, noCheck, removeComments,
           experimentalDecorators: extra.experimentalDecorators ?? false,
+          ...(extra.jsx ? {jsx: "preserve"} : {}),
           lib: ["esnext"], strict: false, skipDefaultLibCheck: true, noErrorTruncation: true,
           sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
-          outDir: "/project/out"}, files: ["main.ts"]})});
+          outDir: "/project/out"}, files: [path.basename(main)]})});
     }
-assert.equal(inputs.length, 672);
+assert.equal(inputs.length, 1080);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

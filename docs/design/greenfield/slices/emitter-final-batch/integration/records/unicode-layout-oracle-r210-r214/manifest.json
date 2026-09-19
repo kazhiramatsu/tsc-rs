@@ -1,0 +1,65 @@
+{
+  "files": [
+    {
+      "path": "unicode-layout-oracle-r210.json",
+      "sha256": "4f7c49ebea9b4a9d0c8b1f4f54b63e5a138ae09d80eb664aa4d145d7b5d34ab6",
+      "raw_sha256": "4f7c49ebea9b4a9d0c8b1f4f54b63e5a138ae09d80eb664aa4d145d7b5d34ab6",
+      "bytes": 714
+    },
+    {
+      "path": "unicode-layout-oracle-r210.log.gz",
+      "sha256": "725cb6ca38d1d1a71c13367480ecb1d90df57d2e18c31e2d1aa4ad6ff61a2a25",
+      "raw_sha256": "725cb6ca38d1d1a71c13367480ecb1d90df57d2e18c31e2d1aa4ad6ff61a2a25",
+      "bytes": 90
+    },
+    {
+      "path": "unicode-layout-oracle-pipeline-r210.log.gz",
+      "sha256": "7a31d19609bc6efc176bdd57615d11d827f9fa2c7c8e2d191408b027ea1e3f9f",
+      "raw_sha256": "7a31d19609bc6efc176bdd57615d11d827f9fa2c7c8e2d191408b027ea1e3f9f",
+      "bytes": 318
+    },
+    {
+      "path": "unicode-layout-oracle-pipeline-r210.json",
+      "sha256": "47ad1ce9d8b0ad38bc779f689c785eea23cfa262861bc8b0536f02bca584b98b",
+      "raw_sha256": "47ad1ce9d8b0ad38bc779f689c785eea23cfa262861bc8b0536f02bca584b98b",
+      "bytes": 680
+    },
+    {
+      "path": "witness-registration-r214.log.gz",
+      "sha256": "2f4b24bbc631a0cdaf9b5bf98aaa2cca630dc051caebaf3402e75c1b3a89f3a1",
+      "raw_sha256": "2f4b24bbc631a0cdaf9b5bf98aaa2cca630dc051caebaf3402e75c1b3a89f3a1",
+      "bytes": 18551
+    },
+    {
+      "path": "witness-registration-r214.json",
+      "sha256": "e530d99b409affdab7ec92821a447a83acc1433a8f8b876cf6d203652549db56",
+      "raw_sha256": "e530d99b409affdab7ec92821a447a83acc1433a8f8b876cf6d203652549db56",
+      "bytes": 681
+    },
+    {
+      "path": "mint-emitter-r210.py",
+      "sha256": "4be4a5d3c956a89c465ea337fce1ee78727e3b9fe3ae2653af8d9ade6806f66a",
+      "raw_sha256": "4be4a5d3c956a89c465ea337fce1ee78727e3b9fe3ae2653af8d9ade6806f66a",
+      "bytes": 936
+    },
+    {
+      "path": "emitter-layout-shapes-r210.json",
+      "sha256": "fab4e37f761a93549ad6206c7a8f85aa091c1e0c7abc758068bde26fab171768",
+      "raw_sha256": "fab4e37f761a93549ad6206c7a8f85aa091c1e0c7abc758068bde26fab171768",
+      "bytes": 2461
+    },
+    {
+      "path": "source.patch.gz",
+      "sha256": "a13522d009c6947f8ec1bcd5ba0bef44d92d40a7f184fa0a3ac45031ea1da6e3",
+      "raw_sha256": "c91b42596592a0a40635ba0d9a7648bbc3e4c6ddc0aa8f2bdce9700ba80d60ad",
+      "bytes": 1820
+    }
+  ],
+  "previous_cases": 832,
+  "retained_all_previous_cases_and_observations": true,
+  "new_cases": 248,
+  "total": 1080,
+  "all_controls": 1600,
+  "planner_tests": 84,
+  "native_qualification": "pending"
+}

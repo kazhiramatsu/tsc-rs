@@ -36,6 +36,12 @@ enum SourceFileEmitMode {
     Bundle,
 }
 
+#[derive(Clone, Copy)]
+enum SourceLineStart {
+    FullStart,
+    TokenStart,
+}
+
 struct SourceFilePrintBody<'helpers> {
     source_id: TransformSourceId,
     root: TransformNode,
@@ -3652,7 +3658,11 @@ impl Printer {
                 {
                     return Ok(());
                 }
-                let multiline = !self.source_node_range_is_on_single_line(transformation, node)?;
+                let multiline = !self.source_node_range_is_on_single_line(
+                    transformation,
+                    node,
+                    SourceLineStart::FullStart,
+                )?;
                 if multiline {
                     writer.increase_indent();
                 }
@@ -8213,8 +8223,11 @@ impl Printer {
                             || function_body_has_prologue
                             || synthesized_statement_break
                             || function_body
-                                && !self
-                                    .source_node_range_is_on_single_line(transformation, node)?);
+                                && !self.source_node_range_is_on_single_line(
+                                    transformation,
+                                    node,
+                                    SourceLineStart::TokenStart,
+                                )?);
                 // tsc-port: emitBlock/emitBlockStatements @6.0.3
                 // tsc-hash: 9c296db81136b7d3b5fb7f0e5d47f750926728a1146ec273677021fd6249e90a
                 // tsc-span: _tsc.js:118579-118601
@@ -8798,6 +8811,23 @@ impl Printer {
         Ok(())
     }
 
+    /// Compare already validated byte endpoints using the source line map.
+    /// Layout counts Unicode line separators as well as CR/LF; comment
+    /// collection has a different boundary contract and does not use this.
+    fn source_positions_are_on_same_line(
+        positions: &PositionIndex,
+        start: usize,
+        end: usize,
+    ) -> bool {
+        let line = |position| {
+            positions
+                .line_and_character_byte(u32::try_from(position).expect("source position fits u32"))
+                .expect("validated source endpoint")
+                .line
+        };
+        line(start) == line(end)
+    }
+
     fn source_nodes_start_on_same_line(
         &self,
         transformation: &TransformationResult<'_>,
@@ -8824,9 +8854,11 @@ impl Printer {
         if left_start > right_start || right_start > source.text().len() {
             return Ok(false);
         }
-        Ok(!source.text()[left_start..right_start]
-            .bytes()
-            .any(|byte| matches!(byte, b'\r' | b'\n')))
+        Ok(Self::source_positions_are_on_same_line(
+            source.positions(),
+            left_start,
+            right_start,
+        ))
     }
 
     /// Mirrors the `containerEnd` guard in tsc's comment pipeline. A parsed
@@ -8886,6 +8918,7 @@ impl Printer {
         &self,
         transformation: &TransformationResult<'_>,
         node: TransformNode,
+        start_kind: SourceLineStart,
     ) -> Result<bool, PrinterError> {
         let original = transformation.arena().get_original_node(node);
         let source = transformation.arena().source(original.source())?.syntax();
@@ -8895,14 +8928,24 @@ impl Printer {
         else {
             return Ok(true);
         };
-        let start = range.start().value() as usize;
+        // Function bodies use rangeIsOnSingleLine (trivia-skipped start),
+        // while emitJsxExpression compares the raw pos and end. Both use
+        // source lines, including U+2028 and U+2029, rather than CR/LF alone.
+        let start = match start_kind {
+            SourceLineStart::FullStart => range.start().value() as usize,
+            SourceLineStart::TokenStart => {
+                skip_trivia(source.text(), range.start().value() as usize)
+            }
+        };
         let end = range.end().value() as usize;
         if start > end || end > source.text().len() {
             return Ok(true);
         }
-        Ok(!source.text()[start..end]
-            .bytes()
-            .any(|byte| matches!(byte, b'\r' | b'\n')))
+        Ok(Self::source_positions_are_on_same_line(
+            source.positions(),
+            start,
+            end,
+        ))
     }
 
     fn source_node_end_and_node_start_are_on_same_line(
@@ -8945,11 +8988,11 @@ impl Printer {
         if left_end > right_start || right_start > source.text().len() {
             return Ok(None);
         }
-        Ok(Some(
-            !source.text()[left_end..right_start]
-                .bytes()
-                .any(|byte| matches!(byte, b'\r' | b'\n')),
-        ))
+        Ok(Some(Self::source_positions_are_on_same_line(
+            source.positions(),
+            left_end,
+            right_start,
+        )))
     }
 
     /// tsc-port: createPrinter.getSeparatingLineTerminatorCount @6.0.3
@@ -9168,9 +9211,8 @@ impl Printer {
         if left_end > right_start || right_start > source.text().len() {
             return Ok(0);
         }
-        let same_line = !source.text()[left_end..right_start]
-            .bytes()
-            .any(|byte| matches!(byte, b'\r' | b'\n'));
+        let same_line =
+            Self::source_positions_are_on_same_line(source.positions(), left_end, right_start);
         Ok((!same_line) as u32)
     }
 
@@ -12906,7 +12948,11 @@ impl Printer {
         if start > end || end > syntax.text().len() {
             return Ok(false);
         }
-        Ok(syntax.text()[start..end].contains('\r') || syntax.text()[start..end].contains('\n'))
+        Ok(!Self::source_positions_are_on_same_line(
+            syntax.positions(),
+            start,
+            end,
+        ))
     }
 
     fn source_node_leading_trivia_has_line_break(
@@ -12932,9 +12978,11 @@ impl Printer {
         if start > code_start || code_start > syntax.text().len() {
             return Ok(false);
         }
-        Ok(syntax.text()[start..code_start]
-            .bytes()
-            .any(|byte| matches!(byte, b'\r' | b'\n')))
+        Ok(!Self::source_positions_are_on_same_line(
+            syntax.positions(),
+            start,
+            code_start,
+        ))
     }
 
     fn can_emit_simple_arrow_head(

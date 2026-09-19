@@ -1,0 +1,6 @@
+{
+  "captured_cases": 344,
+  "exact_twice": 344,
+  "failed_cases": 0,
+  "failure_shapes": {}
+}
