@@ -5295,18 +5295,47 @@ impl Printer {
                 //
                 // tsc-port: emitExpressionWithTypeArguments @6.0.3
                 // tsc-span: _tsc.js:118536-118539
-                self.emit_required_node_with_context_and_source_extent(
-                    transformation,
-                    node.source(),
-                    data.expression,
-                    node,
-                    SyntaxKind::ExpressionWithTypeArguments,
-                    "expression",
-                    expression_context
-                        .for_child(ExpressionSyntaxContext::left_side_of_access(false)),
-                    DeferredSourceCommentExtent::LeadingAndTrailing,
-                    writer,
-                )?;
+                let expression = data
+                    .expression
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                    .ok_or(PrinterError::MissingTransformedChild {
+                        parent: SyntaxKind::ExpressionWithTypeArguments,
+                        field: "expression",
+                    })?;
+                let child_context = expression_context
+                    .for_child(ExpressionSyntaxContext::left_side_of_access(false));
+                if self
+                    .node_end_cursor(transformation, expression)?
+                    .source_position()
+                    .is_some()
+                {
+                    // A parsed child completes within the heritage item's
+                    // container. The item's trailing phase then restores the
+                    // clause container and owns comments after erased types.
+                    self.emit_required_node_with_context(
+                        transformation,
+                        node.source(),
+                        data.expression,
+                        SyntaxKind::ExpressionWithTypeArguments,
+                        "expression",
+                        child_context,
+                        writer,
+                    )?;
+                } else {
+                    // Lowered optional chains have no current source range;
+                    // retain the existing wrapper extent for that transport.
+                    self.emit_required_node_with_context_and_source_extent(
+                        transformation,
+                        node.source(),
+                        data.expression,
+                        node,
+                        SyntaxKind::ExpressionWithTypeArguments,
+                        "expression",
+                        child_context,
+                        DeferredSourceCommentExtent::LeadingAndTrailing,
+                        writer,
+                    )?;
+                }
                 self.emit_type_arguments(
                     transformation,
                     node.source(),
@@ -6887,6 +6916,7 @@ impl Printer {
                     node,
                     expression,
                     true,
+                    expression_context,
                     writer,
                 )?;
                 self.emit_expression_child_with_source_comments(
@@ -6902,6 +6932,7 @@ impl Printer {
                     node,
                     expression,
                     false,
+                    expression_context,
                     writer,
                 )
             }
@@ -7341,7 +7372,7 @@ impl Printer {
                     .map(|expression| self.original_node_end_cursor(transformation, expression))
                     .transpose()?
                     .unwrap_or(open.cursor());
-                self.emit_token_with_comments(
+                self.emit_token_with_source_leading_comments(
                     transformation,
                     node,
                     FixedToken::punctuation(SyntaxKind::CloseParenToken),
@@ -16449,9 +16480,10 @@ impl Printer {
         wrapper: TransformNode,
         expression: TransformNode,
         before_expression: bool,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.comments_disabled() {
+        if self.comments_disabled() || expression_context.nested_comments_suppressed() {
             return Ok(());
         }
         let flags = transformation
@@ -16489,6 +16521,15 @@ impl Printer {
                 let SourceRange::Original(expression_range) = expression_range else {
                     return Ok(());
                 };
+                if expression_context
+                    .comments()
+                    .retains_end(Self::comment_container_position(
+                        transformation,
+                        CommentCursor::new(expression.source(), expression_range.start()),
+                    )?)
+                {
+                    return Ok(());
+                }
                 let position = expression_range.start().value() as usize;
                 emit_source_intervening_comments_of_position(source.text(), position, writer);
                 // The child's ordinary phase owns leading comments here.
@@ -16499,6 +16540,14 @@ impl Printer {
             let SourceRange::Original(expression_range) = expression_range else {
                 return Ok(());
             };
+            if expression_context.comments().container_pos()
+                == Some(Self::comment_container_position(
+                    transformation,
+                    CommentCursor::new(expression.source(), expression_range.end()),
+                )?)
+            {
+                return Ok(());
+            }
             emit_source_leading_comments_of_position(
                 source.text(),
                 expression_range.end().value() as usize,

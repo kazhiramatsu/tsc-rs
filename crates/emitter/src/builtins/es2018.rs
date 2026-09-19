@@ -12,9 +12,9 @@ use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, No
 use tsc_types::{CompilerOptions, JsStr, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName, EmitFlags, LexicalEnvironment, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
-    Transformer,
+    factory::EmitHelperName, EmitFlags, LexicalEnvironment, SourceRange, TransformError,
+    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
+    TransformationContext, Transformer,
 };
 
 use super::{
@@ -3292,7 +3292,33 @@ impl<'context> Es2018Visitor<'context> {
         } else {
             right
         };
-        self.flatten_pattern_target(&mut plan, pattern, value, Some(original))?;
+        // Synthetic assignments use the visited RHS as their source location
+        // only when the value is unused and the caching arms did not run.
+        // This is flattenDestructuringAssignment's nodeIsSynthesized arm.
+        let location = if !force_fresh_value && value_use == ExpressionValueUse::Unused {
+            let record = self.context.arena().node(original)?;
+            let positions = self
+                .context
+                .arena()
+                .source(original.source())?
+                .syntax()
+                .positions();
+            let range =
+                SourceRange::from_raw(record.pos, record.end, positions).map_err(|error| {
+                    TransformError::InvalidSourceRange {
+                        node: original,
+                        error,
+                    }
+                })?;
+            if matches!(range, SourceRange::Synthesized) {
+                value
+            } else {
+                original
+            }
+        } else {
+            original
+        };
+        self.flatten_pattern_target(&mut plan, pattern, value, Some(location))?;
         let mut expressions = self.materialize_assignment_plan(plan)?;
         if value_use == ExpressionValueUse::Required {
             expressions.push(value);

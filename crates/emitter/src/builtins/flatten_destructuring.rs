@@ -13,8 +13,8 @@
 use tsc_syntax::{NodeData, SyntaxKind};
 
 use crate::{
-    factory::EmitHelperName, EmitHelper, SourceRange, TransformError, TransformFlags,
-    TransformNode, TransformSourceId, TransformationContext,
+    factory::EmitHelperName, EmitHelper, InternalEmitFlags, SourceRange, TransformError,
+    TransformFlags, TransformNode, TransformSourceId, TransformationContext,
 };
 
 use super::{generated_bindings::GeneratedBindingScopes, helpers, target_bindings::TargetBinding};
@@ -44,6 +44,16 @@ impl FlattenLevel {
 pub(super) enum FlattenPatternKind {
     Binding,
     Assignment,
+}
+
+/// Binding-pattern leaves normally retain their existing identity. The
+/// top-level using hoist emits them as runtime assignment references; clone
+/// only those leaves so their parsed BindingElement parent cannot suppress
+/// module substitution. Generic assignment flattening keeps its old role.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum AssignmentTargetRole {
+    Existing,
+    ExpressionReference,
 }
 
 /// The consumer seam. tsc passes `(visitor, context)` into the family and
@@ -1072,7 +1082,12 @@ fn create_flatten_object_pattern<H: FlattenHost>(
         FlattenPatternKind::Binding => make_object_binding_pattern(host, elements),
         FlattenPatternKind::Assignment => {
             let source = host.flatten_source();
-            make_object_assignment_pattern(host.context(), source, elements)
+            make_object_assignment_pattern(
+                host.context(),
+                source,
+                elements,
+                AssignmentTargetRole::Existing,
+            )
         }
     }
 }
@@ -1086,7 +1101,12 @@ fn create_flatten_array_pattern<H: FlattenHost>(
         FlattenPatternKind::Binding => make_array_binding_pattern(host, elements),
         FlattenPatternKind::Assignment => {
             let source = host.flatten_source();
-            make_array_assignment_pattern(host.context(), source, elements)
+            make_array_assignment_pattern(
+                host.context(),
+                source,
+                elements,
+                AssignmentTargetRole::Existing,
+            )
         }
     }
 }
@@ -1145,11 +1165,12 @@ fn make_array_assignment_pattern(
     context: &mut TransformationContext,
     source: TransformSourceId,
     elements: Vec<TransformNode>,
+    role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
     let mut converted = Vec::with_capacity(elements.len());
     for element in elements {
         converted.push(convert_to_array_assignment_element(
-            context, source, element,
+            context, source, element, role,
         )?);
     }
     let elements = context.factory()?.create_node_array(source, converted)?;
@@ -1206,11 +1227,12 @@ fn make_object_assignment_pattern(
     context: &mut TransformationContext,
     source: TransformSourceId,
     elements: Vec<TransformNode>,
+    role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
     let mut converted = Vec::with_capacity(elements.len());
     for element in elements {
         converted.push(convert_to_object_assignment_element(
-            context, source, element,
+            context, source, element, role,
         )?);
     }
     let elements = context.factory()?.create_node_array(source, converted)?;
@@ -1265,6 +1287,7 @@ fn convert_to_array_assignment_element(
     context: &mut TransformationContext,
     source: TransformSourceId,
     element: TransformNode,
+    role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
     if let NodeData::BindingElement(data) = context.arena().node(element)?.data.clone() {
         let name = data
@@ -1276,6 +1299,7 @@ fn convert_to_array_assignment_element(
             })?;
         if data.dot_dot_dot_token.is_some() {
             require_identifier(context, name)?;
+            let name = assignment_reference_target(context, name, role)?;
             let flags = context.arena().propagate_child_flags(name)?
                 | TransformFlags::CONTAINS_ES_2015
                 | TransformFlags::CONTAINS_REST_OR_SPREAD;
@@ -1288,7 +1312,7 @@ fn convert_to_array_assignment_element(
             )?;
             return with_original_and_range(context, spread, element);
         }
-        let expression = convert_to_assignment_element_target(context, source, name)?;
+        let expression = convert_to_assignment_element_target(context, source, name, role)?;
         return match data.initializer {
             Some(initializer) => {
                 let initializer = context.arena().node_ref(source, initializer).ok_or(
@@ -1315,6 +1339,7 @@ fn convert_to_object_assignment_element(
     context: &mut TransformationContext,
     source: TransformSourceId,
     element: TransformNode,
+    role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
     if let NodeData::BindingElement(data) = context.arena().node(element)?.data.clone() {
         let name = data
@@ -1326,6 +1351,7 @@ fn convert_to_object_assignment_element(
             })?;
         if data.dot_dot_dot_token.is_some() {
             require_identifier(context, name)?;
+            let name = assignment_reference_target(context, name, role)?;
             let flags = context.arena().propagate_child_flags(name)?
                 | TransformFlags::CONTAINS_ES_2018
                 | TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD;
@@ -1345,7 +1371,7 @@ fn convert_to_object_assignment_element(
                     field: "property name",
                 },
             )?;
-            let expression = convert_to_assignment_element_target(context, source, name)?;
+            let expression = convert_to_assignment_element_target(context, source, name, role)?;
             let initializer = match data.initializer {
                 Some(initializer) => {
                     let initializer = context.arena().node_ref(source, initializer).ok_or(
@@ -1377,6 +1403,7 @@ fn convert_to_object_assignment_element(
             return with_original_and_range(context, assignment, element);
         }
         require_identifier(context, name)?;
+        let name = assignment_reference_target(context, name, role)?;
         let initializer = data
             .initializer
             .and_then(|initializer| context.arena().node_ref(source, initializer));
@@ -1415,13 +1442,14 @@ pub(super) fn convert_to_assignment_pattern(
     context: &mut TransformationContext,
     source: TransformSourceId,
     node: TransformNode,
+    role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
     match context.arena().node(node)?.kind {
         SyntaxKind::ArrayBindingPattern | SyntaxKind::ArrayLiteralExpression => {
-            convert_to_array_assignment_pattern(context, source, node)
+            convert_to_array_assignment_pattern(context, source, node, role)
         }
         SyntaxKind::ObjectBindingPattern | SyntaxKind::ObjectLiteralExpression => {
-            convert_to_object_assignment_pattern(context, source, node)
+            convert_to_object_assignment_pattern(context, source, node, role)
         }
         kind => Err(TransformError::RequiredChildRemoved {
             parent: kind,
@@ -1437,6 +1465,7 @@ fn convert_to_object_assignment_pattern(
     context: &mut TransformationContext,
     source: TransformSourceId,
     node: TransformNode,
+    role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
     match context.arena().node(node)?.kind {
         SyntaxKind::ObjectBindingPattern => {
@@ -1445,7 +1474,7 @@ fn convert_to_object_assignment_pattern(
                 unreachable!("kind checked above");
             };
             let elements = array_nodes_in_context(context, source, data.elements)?;
-            let literal = make_object_assignment_pattern(context, source, elements)?;
+            let literal = make_object_assignment_pattern(context, source, elements, role)?;
             with_original_and_range(context, literal, node)
         }
         SyntaxKind::ObjectLiteralExpression => Ok(node),
@@ -1463,6 +1492,7 @@ fn convert_to_array_assignment_pattern(
     context: &mut TransformationContext,
     source: TransformSourceId,
     node: TransformNode,
+    role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
     match context.arena().node(node)?.kind {
         SyntaxKind::ArrayBindingPattern => {
@@ -1471,7 +1501,7 @@ fn convert_to_array_assignment_pattern(
                 unreachable!("kind checked above");
             };
             let elements = array_nodes_in_context(context, source, data.elements)?;
-            let literal = make_array_assignment_pattern(context, source, elements)?;
+            let literal = make_array_assignment_pattern(context, source, elements, role)?;
             with_original_and_range(context, literal, node)
         }
         SyntaxKind::ArrayLiteralExpression => Ok(node),
@@ -1489,15 +1519,58 @@ fn convert_to_assignment_element_target(
     context: &mut TransformationContext,
     source: TransformSourceId,
     node: TransformNode,
+    role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
     if matches!(
         context.arena().node(node)?.kind,
         SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
     ) {
-        return convert_to_assignment_pattern(context, source, node);
+        return convert_to_assignment_pattern(context, source, node, role);
     }
     require_not_binding_shape(context, node, "assignment element target")?;
-    Ok(node)
+    assignment_reference_target(context, node, role)
+}
+
+fn assignment_reference_target(
+    context: &mut TransformationContext,
+    name: TransformNode,
+    role: AssignmentTargetRole,
+) -> Result<TransformNode, TransformError> {
+    if role == AssignmentTargetRole::Existing
+        || context.arena().node(name)?.kind != SyntaxKind::Identifier
+        || context
+            .arena()
+            .metadata(name)
+            .and_then(|m| m.generated_binding_id())
+            .is_some()
+    {
+        return Ok(name);
+    }
+    let original = context.arena().get_original_node(name);
+    let record = context.arena().node(original)?;
+    let positions = context
+        .arena()
+        .source(original.source())?
+        .syntax()
+        .positions();
+    let range = SourceRange::from_raw(record.pos, record.end, positions).map_err(|error| {
+        TransformError::InvalidSourceRange {
+            node: original,
+            error,
+        }
+    })?;
+    if matches!(range, SourceRange::Synthesized) {
+        return Ok(name);
+    }
+    // factory converters reuse the binding name, including its emit flags.
+    // Our explicit reference role belongs to this clone, never the parse node.
+    let clone = context.factory()?.clone_node(name)?;
+    let clone = with_original_and_range(context, clone, name)?;
+    let metadata = context.arena_mut()?.metadata_mut(clone);
+    metadata.set_internal_flags(InternalEmitFlags::from_bits(
+        metadata.internal_flags().bits() | InternalEmitFlags::DECLARATION_NAME_REFERENCE.bits(),
+    ));
+    Ok(clone)
 }
 
 // ---------------------------------------------------------------------------

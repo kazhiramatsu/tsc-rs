@@ -2938,6 +2938,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 let cached = bound_receiver != receiver;
                 data.expression = Some(bound_receiver.node());
                 let target = if cached {
+                    data.question_dot_token = None;
                     // createCallBinding (_tsc.js:24710-24722): the target of
                     // a cached receiver is a fresh access expression ranged
                     // to the callee, with neither the callee's original nor
@@ -2974,6 +2975,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 let cached = bound_receiver != receiver;
                 data.expression = Some(bound_receiver.node());
                 let target = if cached {
+                    data.question_dot_token = None;
                     // createCallBinding (_tsc.js:24723-24735): same fresh
                     // node for an element access.
                     let target = self.context.factory()?.create_node(

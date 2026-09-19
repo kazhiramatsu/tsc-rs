@@ -231,6 +231,79 @@ fn system_binding_publication_matches_complete_typescript_commands() {
 }
 
 #[test]
+fn recovery_boundary_neighbours_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-recovery-boundaries.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 774);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r77_recovery_regressions_match_complete_typescript_commands() {
+    use sha2::{Digest, Sha256};
+    let roster: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-r77-regressions.json")).unwrap();
+    let rows = roster["cases"].as_array().unwrap();
+    assert_eq!(rows.len(), 70);
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let mut cases = Vec::new();
+    for (name, hash) in roster["fixtures"].as_object().unwrap() {
+        let bytes = std::fs::read(root.join(name)).unwrap();
+        assert_eq!(
+            format!("{:x}", Sha256::digest(&bytes)),
+            hash.as_str().unwrap()
+        );
+        let fixture: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        for row in rows.iter().filter(|row| row["fixture"] == *name) {
+            let matching: Vec<_> = fixture["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|case| case["case_id"] == row["case_id"])
+                .collect();
+            assert_eq!(matching.len(), 1);
+            cases.push(matching[0].clone());
+        }
+    }
+    assert_eq!(cases.len(), 70);
+    assert_recovery_boundary_commands(&cases);
+}
+
+fn assert_recovery_boundary_commands(cases: &[serde_json::Value]) {
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &serde_json::json!({"cases": [case]}),
+                true,
+                super::h2_8a_import_helpers::capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("Recovery boundary EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "Recovery boundary SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "Recovery boundary failures: {failures:?}"
+    );
+}
+
+#[test]
 fn await_flag_boundaries_match_complete_typescript_commands() {
     let artifact: serde_json::Value =
         serde_json::from_slice(include_bytes!("../fixtures/await-flag-commands.json")).unwrap();

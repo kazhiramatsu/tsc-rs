@@ -122,6 +122,7 @@ struct LegacyDecoratorVisitor<'context, 'resolver> {
     preentered_function_scopes: BTreeSet<NodeId>,
     class_aliases: BTreeMap<NodeId, TargetBinding>,
     computed_names: BTreeMap<NodeId, TargetBinding>,
+    metadata_owner_members: BTreeSet<NodeId>,
 }
 
 /// The source interval that begins after a declaration's modifiers while
@@ -131,6 +132,16 @@ struct LegacyDecoratorVisitor<'context, 'resolver> {
 struct RangePastModifiers {
     source: TransformSourceId,
     range: SourceRange,
+}
+
+/// Metadata decorators are synthesized after the TypeScript modifier pass.
+/// Their sentinel end changes moveRangePastModifiers even though the native
+/// pipeline carries their expressions separately from the modifier array.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InjectedMetadata {
+    None,
+    Class,
+    Element,
 }
 
 #[derive(Debug, Default)]
@@ -454,6 +465,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             preentered_function_scopes: BTreeSet::new(),
             class_aliases: BTreeMap::new(),
             computed_names: BTreeMap::new(),
+            metadata_owner_members: BTreeSet::new(),
         }
     }
 
@@ -654,6 +666,11 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             constructor_handoff.map(|handoff| handoff.original_with_body),
             serialization_context,
         );
+        let class_metadata = if constructor_metadata.is_some() {
+            InjectedMetadata::Class
+        } else {
+            InjectedMetadata::None
+        };
         let metadata = constructor_metadata
             .map(|plan| self.create_constructor_parameter_metadata(plan))
             .transpose()?;
@@ -722,6 +739,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 name,
                 expression_name,
                 class_alias.as_ref(),
+                class_metadata,
             )?
         } else {
             data.name = if materializes_member_decoration {
@@ -780,7 +798,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             // ES5 uses an internal name local to the class wrapper. ES2015
             // uses a declaration name so the module can publish this update.
             let assignment = self.create_assignment(class_name, decorate)?;
-            let statement = self.create_class_decoration_statement(assignment, current)?;
+            let statement =
+                self.create_class_decoration_statement(assignment, current, class_metadata)?;
             statements.push(statement);
         }
         if has_constructor_decoration && is_export {
@@ -815,8 +834,10 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         name: NodeId,
         expression_name: Option<NodeId>,
         class_alias: Option<&TargetBinding>,
+        injected_metadata: InjectedMetadata,
     ) -> Result<Vec<TransformNode>, TransformError> {
-        let location = self.move_range_past_modifiers(original, data.modifiers)?;
+        let location =
+            self.move_range_past_modifiers(original, data.modifiers, injected_metadata)?;
         let declaration_comment_range = self.raw_comment_range(original)?;
         // tsc keeps the alias assignment in the variable initializer below
         // ES2022.  Only native static fields/blocks need the class-this
@@ -1026,6 +1047,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                         });
                     }
                     let metadata = self.member_metadata(owner_member, serialization_context)?;
+                    if !metadata.is_empty() {
+                        self.metadata_owner_members.insert(owner_member.node());
+                    }
                     metadata_by_original.insert(owner_member.node(), metadata);
                 }
             }
@@ -1490,12 +1514,13 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         &mut self,
         assignment: TransformNode,
         class: TransformNode,
+        injected_metadata: InjectedMetadata,
     ) -> Result<TransformNode, TransformError> {
         let modifiers = match &self.context.arena().node(class)?.data {
             NodeData::ClassDeclaration(data) => data.modifiers,
             _ => None,
         };
-        let location = self.move_range_past_modifiers(class, modifiers)?;
+        let location = self.move_range_past_modifiers(class, modifiers, injected_metadata)?;
         {
             let metadata = self.context.arena_mut()?.metadata_mut(assignment);
             metadata.add_flags(EmitFlags::NO_COMMENTS);
@@ -1553,6 +1578,11 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             )?);
         }
         debug_assert!(!decorators.is_empty());
+        let injected_metadata = if metadata.is_empty() {
+            InjectedMetadata::None
+        } else {
+            InjectedMetadata::Element
+        };
         decorators.extend(metadata);
         let target = if self.has_modifier(modifiers, SyntaxKind::StaticKeyword)? {
             self.create_identifier(class_name)?
@@ -1582,14 +1612,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             };
         let call =
             self.create_decorate_call(decorators, target, Some(member_name), Some(descriptor))?;
-        let original_modifiers = match &record.data {
-            NodeData::PropertyDeclaration(data) => data.modifiers,
-            NodeData::MethodDeclaration(data) => data.modifiers,
-            NodeData::GetAccessor(data) => data.modifiers,
-            NodeData::SetAccessor(data) => data.modifiers,
-            _ => None,
-        };
-        let location = self.move_range_past_modifiers(owner_member, original_modifiers)?;
+        // The source range observes surviving runtime modifiers. Type-only
+        // modifiers have already been removed by transformTypeScript.
+        let location = self.move_range_past_modifiers(member, modifiers, injected_metadata)?;
         {
             let metadata = self.context.arena_mut()?.metadata_mut(call);
             metadata.add_flags(EmitFlags::NO_COMMENTS);
@@ -4341,7 +4366,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         let updated_node = self.node(updated);
         if updated_node != original {
             let comment_range = self.raw_comment_range(original)?;
-            let source_map_range = self.move_range_past_modifiers(original, modifiers)?;
+            let parsed = self.context.arena().get_original_node(original);
+            let injected_metadata = if self.metadata_owner_members.contains(&parsed.node()) {
+                InjectedMetadata::Element
+            } else {
+                InjectedMetadata::None
+            };
+            let source_map_range =
+                self.move_range_past_modifiers(original, modifiers, injected_metadata)?;
             let metadata = self.context.arena_mut()?.metadata_mut(updated_node);
             metadata.set_comment_range(comment_range);
             metadata.set_source_map_range(SourceMapRange::new(
@@ -4361,6 +4393,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         &self,
         declaration: TransformNode,
         modifiers: Option<NodeArrayId>,
+        injected_metadata: InjectedMetadata,
     ) -> Result<RangePastModifiers, TransformError> {
         let declaration_record = self.context.arena().node(declaration)?.clone();
         let member_name_pos = match &declaration_record.data {
@@ -4373,11 +4406,29 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         .transpose()?;
         let mut last_modifier_end = None;
         let mut last_decorator_end = None;
+        let mut leading_export = injected_metadata == InjectedMetadata::Class;
         for modifier in self.array_nodes(modifiers)? {
             let record = self.context.arena().node(modifier)?;
-            last_modifier_end = Some(record.end);
-            if record.kind == SyntaxKind::Decorator {
-                last_decorator_end = Some(record.end);
+            if injected_metadata != InjectedMetadata::None {
+                // Class injection keeps only a leading export/default run
+                // before decorators; element injection starts with decorators.
+                if leading_export
+                    && matches!(
+                        record.kind,
+                        SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword
+                    )
+                {
+                    continue;
+                }
+                leading_export = false;
+                if record.kind != SyntaxKind::Decorator {
+                    last_modifier_end = Some(record.end);
+                }
+            } else {
+                last_modifier_end = Some(record.end);
+                if record.kind == SyntaxKind::Decorator {
+                    last_decorator_end = Some(record.end);
+                }
             }
         }
         let start = member_name_pos.unwrap_or_else(|| {

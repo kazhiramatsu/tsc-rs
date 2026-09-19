@@ -1,0 +1,2457 @@
+{
+  "partial": false,
+  "head": "5e6a4cfa1545dfb878f971bfb254dce7c293730a",
+  "log_sha256": "dbce792dd71ff364333d49010fb84ff5a0faab9d29cb0167c8dc85227553efdf",
+  "differences": [
+    {
+      "case_id": "system-binding-publication/es5/remove-false/using-object-pattern/commonjs-control",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "system-binding-publication/es5/remove-false/using-object-pattern/commonjs-control",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any;\nusing r = source; export let {x,y} = source;\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC;IAAC,CAAY,CAAC,GAAM,MAAM,EAAZ,EAAC,CAAC,GAAI,MAAM,EAAV,EAAW\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC;IAAC,CAAY,SAAC,GAAM,MAAM,EAAZ,EAAC,SAAC,GAAI,MAAM,EAAV,EAAW\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/using-object-pattern/commonjs-control",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "system-binding-publication/es5/remove-true/using-object-pattern/commonjs-control",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any;\nusing r = source; export let {x,y} = source;\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC;IAAC,CAAY,CAAC,GAAM,MAAM,EAAZ,EAAC,CAAC,GAAI,MAAM,EAAV,EAAW\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC;IAAC,CAAY,SAAC,GAAM,MAAM,EAAZ,EAAC,SAAC,GAAI,MAAM,EAAV,EAAW\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es5/system/remove-false/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es5/system/remove-false/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACA,SAAS,CAAM;IAAqB,WAAY,CAAwB;IAAG,CAAC;;IAAvD,CAAC;QAAX,GAAG;6DAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;OAAvC,CAAC,CAAwD;IAAD,QAAC;CAAA,AAA/D,IAA+D;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACA,SAAS,CAAM;IAAqB,WAAY,CAAwB;IAAG,CAAC;;IAAvD,CAAC;QAAX,GAAG;6DAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;OAAvC,CAAC,CAAwD;IAAD,QAAC;CAAA,AAApE,IAAoE;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es5/system/remove-false/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es5/system/remove-false/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACA,SAAS,CAAM;IAAA;IAAmH,CAAC;IAA1F,sBAAI,gBAAC;aAAL,cAAiC,OAAO,MAAM,CAAC,CAAC,CAAC;aAAC,UAAM,KAA4B,IAAG,CAAC;;;OAAvC;;IAAjD;QAAJ,GAAG;sDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;6DAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;8BAAvB;IAArE,CAAC;QAAX,GAAG;OAAO,CAAC,CAA6G;IAAD,QAAC;CAAA,AAApH,IAAoH;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACA,SAAS,CAAM;IAAA;IAAmH,CAAC;IAA/F,sBAAS,gBAAC;aAAV,cAAsC,OAAO,MAAM,CAAC,CAAC,CAAC;aAAC,UAAM,KAA4B,IAAG,CAAC;;;OAAvC;;IAAtD;QAAC,GAAG;sDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;6DAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;8BAAvB;IAArE,CAAC;QAAX,GAAG;OAAO,CAAC,CAA6G;IAAD,QAAC;CAAA,AAApH,IAAoH;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es5/system/remove-true/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es5/system/remove-true/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACe;IAAqB,WAAY,CAAwB;IAAG,CAAC;;IAAvD,CAAC;QAAX,GAAG;6DAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;OAAvC,CAAC,CAAwD;IAAD,QAAC;CAAA,AAA/D,IAA+D;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACe;IAAqB,WAAY,CAAwB;IAAG,CAAC;;IAAvD,CAAC;QAAX,GAAG;6DAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;OAAvC,CAAC,CAAwD;IAAD,QAAC;CAAA,AAApE,IAAoE;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es5/system/remove-true/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es5/system/remove-true/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACe;IAAA;IAAmH,CAAC;IAA1F,sBAAI,gBAAC;aAAL,cAAiC,OAAO,MAAM,CAAC,CAAC,CAAC;aAAC,UAAM,KAA4B,IAAG,CAAC;;;OAAvC;;IAAjD;QAAJ,GAAG;sDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;6DAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;8BAAvB;IAArE,CAAC;QAAX,GAAG;OAAO,CAAC,CAA6G;IAAD,QAAC;CAAA,AAApH,IAAoH;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACe;IAAA;IAAmH,CAAC;IAA/F,sBAAS,gBAAC;aAAV,cAAsC,OAAO,MAAM,CAAC,CAAC,CAAC;aAAC,UAAM,KAA4B,IAAG,CAAC;;;OAAvC;;IAAtD;QAAC,GAAG;sDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;6DAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;8BAAvB;IAArE,CAAC;QAAX,GAAG;OAAO,CAAC,CAA6G;IAAD,QAAC;CAAA,AAApH,IAAoH;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es5/commonjs/remove-false/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es5/commonjs/remove-false/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACA,SAAS,CAAM;IAAqB,WAAY,CAAwB;IAAG,CAAC;;IAAvD,CAAC;QAAX,GAAG;6DAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;OAAvC,CAAC,CAAwD;IAAD,QAAC;CAAA,AAA/D,IAA+D;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACA,SAAS,CAAM;IAAqB,WAAY,CAAwB;IAAG,CAAC;;IAAvD,CAAC;QAAX,GAAG;6DAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;OAAvC,CAAC,CAAwD;IAAD,QAAC;CAAA,AAApE,IAAoE;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es5/commonjs/remove-false/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es5/commonjs/remove-false/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACA,SAAS,CAAM;IAAA;IAAmH,CAAC;IAA1F,sBAAI,gBAAC;aAAL,cAAiC,OAAO,MAAM,CAAC,CAAC,CAAC;aAAC,UAAM,KAA4B,IAAG,CAAC;;;OAAvC;;IAAjD;QAAJ,GAAG;sDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;6DAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;8BAAvB;IAArE,CAAC;QAAX,GAAG;OAAO,CAAC,CAA6G;IAAD,QAAC;CAAA,AAApH,IAAoH;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACA,SAAS,CAAM;IAAA;IAAmH,CAAC;IAA/F,sBAAS,gBAAC;aAAV,cAAsC,OAAO,MAAM,CAAC,CAAC,CAAC;aAAC,UAAM,KAA4B,IAAG,CAAC;;;OAAvC;;IAAtD;QAAC,GAAG;sDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;6DAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;8BAAvB;IAArE,CAAC;QAAX,GAAG;OAAO,CAAC,CAA6G;IAAD,QAAC;CAAA,AAApH,IAAoH;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es5/commonjs/remove-true/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es5/commonjs/remove-true/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACe;IAAqB,WAAY,CAAwB;IAAG,CAAC;;IAAvD,CAAC;QAAX,GAAG;6DAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;OAAvC,CAAC,CAAwD;IAAD,QAAC;CAAA,AAA/D,IAA+D;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACe;IAAqB,WAAY,CAAwB;IAAG,CAAC;;IAAvD,CAAC;QAAX,GAAG;6DAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;OAAvC,CAAC,CAAwD;IAAD,QAAC;CAAA,AAApE,IAAoE;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es5/commonjs/remove-true/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es5/commonjs/remove-true/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACe;IAAA;IAAmH,CAAC;IAA1F,sBAAI,gBAAC;aAAL,cAAiC,OAAO,MAAM,CAAC,CAAC,CAAC;aAAC,UAAM,KAA4B,IAAG,CAAC;;;OAAvC;;IAAjD;QAAJ,GAAG;sDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;6DAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;8BAAvB;IAArE,CAAC;QAAX,GAAG;OAAO,CAAC,CAA6G;IAAD,QAAC;CAAA,AAApH,IAAoH;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;AACe;IAAA;IAAmH,CAAC;IAA/F,sBAAS,gBAAC;aAAV,cAAsC,OAAO,MAAM,CAAC,CAAC,CAAC;aAAC,UAAM,KAA4B,IAAG,CAAC;;;OAAvC;;IAAtD;QAAC,GAAG;sDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;6DAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;8BAAvB;IAArE,CAAC;QAAX,GAAG;OAAO,CAAC,CAA6G;IAAD,QAAC;CAAA,AAApH,IAAoH;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2015/system/remove-false/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2015/system/remove-false/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAC,IAAW,CAAC,GAAZ,MAAW,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2015/system/remove-false/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2015/system/remove-false/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAmB,IAAI,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA1F;IAAJ,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,IAAS,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA/F;IAAC,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2015/system/remove-true/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2015/system/remove-true/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACU,IAAW,CAAC,GAAZ,MAAW,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2015/system/remove-true/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2015/system/remove-true/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAmB,IAAI,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA1F;IAAJ,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,IAAS,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA/F;IAAC,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2015/commonjs/remove-false/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2015/commonjs/remove-false/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAC,IAAW,CAAC,GAAZ,MAAW,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2015/commonjs/remove-false/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2015/commonjs/remove-false/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAmB,IAAI,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA1F;IAAJ,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,IAAS,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA/F;IAAC,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2015/commonjs/remove-true/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2015/commonjs/remove-true/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACU,IAAW,CAAC,GAAZ,MAAW,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2015/commonjs/remove-true/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2015/commonjs/remove-true/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAmB,IAAI,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA1F;IAAJ,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,IAAS,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA/F;IAAC,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2022/system/remove-false/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2022/system/remove-false/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAC,IAAW,CAAC,GAAZ,MAAW,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2022/system/remove-false/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2022/system/remove-false/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAmB,IAAI,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA1F;IAAJ,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,IAAS,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA/F;IAAC,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2022/system/remove-true/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2022/system/remove-true/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACU,IAAW,CAAC,GAAZ,MAAW,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2022/system/remove-true/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2022/system/remove-true/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAmB,IAAI,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA1F;IAAJ,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,IAAS,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA/F;IAAC,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2022/commonjs/remove-false/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2022/commonjs/remove-false/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAC,IAAW,CAAC,GAAZ,MAAW,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2022/commonjs/remove-false/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2022/commonjs/remove-false/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAmB,IAAI,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA1F;IAAJ,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACA,SAAS,CAAM,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,IAAS,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA/F;IAAC,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2022/commonjs/remove-true/constructor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2022/commonjs/remove-true/constructor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ constructor(p: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACU,IAAW,CAAC,GAAZ,MAAW,CAAC;IAAc,YAAY,CAAwB,IAAG,CAAC;CAAE,CAAA;AAAzD,CAAC;IAAX,GAAG;yDAAqC,OAAO,oBAAP,OAAO,CAAC,CAAC;GAAvC,CAAC,CAAwD;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "metadata-structure/es2022/commonjs/remove-true/accessor-union",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "metadata-structure/es2022/commonjs/remove-true/accessor-union",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\n/*class*/ @dec class C { /*member*/ @dec get p(): Missing.A | Missing.A { return source; } set p(value: Missing.A | Missing.A) {} } source(C);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2022\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictNullChecks\":false},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAmB,IAAI,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA1F;IAAJ,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AACe,IAAM,CAAC,GAAP,MAAM,CAAC;IAAc,IAAS,CAAC,KAA4B,OAAO,MAAM,CAAC,CAAC,CAAC;IAAC,IAAI,CAAC,CAAC,KAA4B,IAAG,CAAC;CAAE,CAAA;AAA/F;IAAC,GAAG;kDAAgE,OAAO,oBAAP,OAAO,CAAC,CAAC;yDAAT,OAAO,oBAAP,OAAO,CAAC,CAAC;0BAAvB;AAArE,CAAC;IAAX,GAAG;GAAO,CAAC,CAA6G;AAAC,MAAM,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "using-hoisted-ranges/es5/commonjs/remove-false/object",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "using-hoisted-ranges/es5/commonjs/remove-false/object",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\nusing r = source; /*c*/ export let /*d*/ { x } = source; source(x);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC,CAAC,KAAK;IAAC,CAAmB,CAAC,GAAK,MAAM,EAAX,EAAY;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC,CAAC,KAAK;IAAC,CAAmB,SAAC,GAAK,MAAM,EAAX,EAAY;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "using-hoisted-ranges/es5/commonjs/remove-false/nested-rest",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "using-hoisted-ranges/es5/commonjs/remove-false/nested-rest",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\nusing r = source; /*c*/ export let /*d*/ {a:{x},...rest} = source; source(x);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC,CAAC,KAAK;IAAC,CAAqB,CAAC,GAAa,MAAM,IAAnB,EAAK,IAAI,UAAI,MAAM,EAA9B,KAAK,CAAC,KAAe,CAAD,EAAW;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC,CAAC,KAAK;IAAC,CAAqB,SAAC,GAAa,MAAM,IAAnB,EAAK,YAAI,UAAI,MAAM,EAA9B,KAAK,CAAC,KAAe,CAAD,EAAW;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "using-hoisted-ranges/es5/commonjs/remove-true/object",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "using-hoisted-ranges/es5/commonjs/remove-true/object",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\nusing r = source; /*c*/ export let /*d*/ { x } = source; source(x);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC;IAAO,CAAmB,CAAC,GAAK,MAAM,EAAX,EAAY;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC;IAAO,CAAmB,SAAC,GAAK,MAAM,EAAX,EAAY;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "using-hoisted-ranges/es5/commonjs/remove-true/nested-rest",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "using-hoisted-ranges/es5/commonjs/remove-true/nested-rest",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\nusing r = source; /*c*/ export let /*d*/ {a:{x},...rest} = source; source(x);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC;IAAO,CAAqB,CAAC,GAAa,MAAM,IAAnB,EAAK,IAAI,UAAI,MAAM,EAAxB,KAAe,CAAD,EAAW;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC;IAAO,CAAqB,SAAC,GAAa,MAAM,IAAnB,EAAK,YAAI,UAAI,MAAM,EAAxB,KAAe,CAAD,EAAW;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "using-hoisted-ranges/es2015/commonjs/remove-false/nested-rest",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "using-hoisted-ranges/es2015/commonjs/remove-false/nested-rest",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\nusing r = source; /*c*/ export let /*d*/ {a:{x},...rest} = source; source(x);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC,CAAC,KAAK;IAAC,CAAiB,EAAC,CAAC,EAAC,EAAC,CAAC,EAAD,SAAC,EAAC,KAAY,MAAM,EAAd,IAAI,UAAI,MAAM,EAA9B,KAAK,CAAC,KAAe,CAAD,EAAW;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC,CAAC,KAAK;IAAC,CAAmC,EAAjB,CAAC,EAAC,EAAC,CAAC,EAAD,SAAC,EAAC,KAAY,MAAM,EAAd,YAAI,UAAI,MAAM,EAA9B,KAAK,CAAC,KAAe,CAAD,EAAW;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "using-hoisted-ranges/es2015/commonjs/remove-true/nested-rest",
+      "fixture": "system-binding-publication",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "using-hoisted-ranges/es2015/commonjs/remove-true/nested-rest",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const source: any; declare const dec: any;\nusing r = source; /*c*/ export let /*d*/ {a:{x},...rest} = source; source(x);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC;IAAO,CAAiB,EAAC,CAAC,EAAC,EAAC,CAAC,EAAD,SAAC,EAAC,KAAY,MAAM,EAAd,IAAI,UAAI,MAAM,EAAxB,KAAe,CAAD,EAAW;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACM,mCAAI,MAAM,QAAA,CAAC;IAAO,CAAmC,EAAjB,CAAC,EAAC,EAAC,CAAC,EAAD,SAAC,EAAC,KAAY,MAAM,EAAd,YAAI,UAAI,MAAM,EAAxB,KAAe,CAAD,EAAW;IAAC,MAAM,CAAC,SAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es5/commonjs/remove-false/decorator-optional-property-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es5/commonjs/remove-false/decorator-optional-property-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.x class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACU;;6BAAT,CAAA,KAAA,CAAK,EAAE,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACU;;4BAAT,CAAA,KAAA,CAAA,CAAO,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es5/commonjs/remove-false/decorator-optional-element-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es5/commonjs/remove-false/decorator-optional-element-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.[x] class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACY;;6BAAX,CAAA,KAAA,CAAK,EAAE,CAAC,CAAC,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACY;;4BAAX,CAAA,KAAA,CAAA,CAAQ,CAAC,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es5/commonjs/remove-false/assertion-trivia",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es5/commonjs/remove-false/assertion-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; await <number /*😀*/, string>(1);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAc,MAAM,CAAA,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAoB,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es5/commonjs/remove-true/decorator-optional-property-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es5/commonjs/remove-true/decorator-optional-property-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.x class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACU;;6BAAT,CAAA,KAAA,CAAK,EAAE,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACU;;4BAAT,CAAA,KAAA,CAAA,CAAO,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es5/commonjs/remove-true/decorator-optional-element-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es5/commonjs/remove-true/decorator-optional-element-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.[x] class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACY;;6BAAX,CAAA,KAAA,CAAK,EAAE,CAAC,CAAC,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACY;;4BAAX,CAAA,KAAA,CAAA,CAAQ,CAAC,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es5/esnext/remove-false/decorator-optional-property-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es5/esnext/remove-false/decorator-optional-property-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.x class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACU;;6BAAT,CAAA,KAAA,CAAK,EAAE,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACU;;4BAAT,CAAA,KAAA,CAAA,CAAO,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es5/esnext/remove-false/decorator-optional-element-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es5/esnext/remove-false/decorator-optional-element-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.[x] class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACY;;6BAAX,CAAA,KAAA,CAAK,EAAE,CAAC,CAAC,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACY;;4BAAX,CAAA,KAAA,CAAA,CAAQ,CAAC,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es5/esnext/remove-false/assertion-trivia",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es5/esnext/remove-false/assertion-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; await <number /*😀*/, string>(1);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAc,MAAM,CAAA,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAoB,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es5/esnext/remove-true/decorator-optional-property-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es5/esnext/remove-true/decorator-optional-property-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.x class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":true,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACU;;6BAAT,CAAA,KAAA,CAAK,EAAE,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACU;;4BAAT,CAAA,KAAA,CAAA,CAAO,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es5/esnext/remove-true/decorator-optional-element-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es5/esnext/remove-true/decorator-optional-element-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.[x] class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":true,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACY;;6BAAX,CAAA,KAAA,CAAK,EAAE,CAAC,CAAC,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACY;;4BAAX,CAAA,KAAA,CAAA,CAAQ,CAAC,CAAC;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/decorator-optional-property-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/decorator-optional-property-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.x class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACgB,CAAC;;6BAAhB,CAAA,KAAA,CAAK,EAAE,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACgB,CAAC;;4BAAhB,CAAA,KAAA,CAAA,CAAO,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/decorator-optional-element-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/decorator-optional-element-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.[x] class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACkB,CAAC;;6BAAlB,CAAA,KAAA,CAAK,EAAE,CAAC,CAAC,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACkB,CAAC;;4BAAlB,CAAA,KAAA,CAAA,CAAQ,CAAC,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/heritage-trivia",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/heritage-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAM,CAAE,SAAoB,MAAc;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAM,CAAE,SAAoB,MAAM,CAAC,MAAO;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/assertion-trivia",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/assertion-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; await <number /*😀*/, string>(1);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAc,MAAM,CAAA,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAoB,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/commonjs/remove-true/decorator-optional-property-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/commonjs/remove-true/decorator-optional-property-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.x class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACgB,CAAC;;6BAAhB,CAAA,KAAA,CAAK,EAAE,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACgB,CAAC;;4BAAhB,CAAA,KAAA,CAAA,CAAO,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/commonjs/remove-true/decorator-optional-element-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/commonjs/remove-true/decorator-optional-element-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.[x] class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACkB,CAAC;;6BAAlB,CAAA,KAAA,CAAK,EAAE,CAAC,CAAC,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACkB,CAAC;;4BAAlB,CAAA,KAAA,CAAA,CAAQ,CAAC,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/esnext/remove-false/decorator-optional-property-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/esnext/remove-false/decorator-optional-property-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.x class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACgB,CAAC;;6BAAhB,CAAA,KAAA,CAAK,EAAE,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACgB,CAAC;;4BAAhB,CAAA,KAAA,CAAA,CAAO,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/esnext/remove-false/decorator-optional-element-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/esnext/remove-false/decorator-optional-element-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.[x] class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACkB,CAAC;;6BAAlB,CAAA,KAAA,CAAK,EAAE,CAAC,CAAC,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACkB,CAAC;;4BAAlB,CAAA,KAAA,CAAA,CAAQ,CAAC,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/esnext/remove-false/heritage-trivia",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/esnext/remove-false/heritage-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAM,CAAE,SAAoB,MAAc;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAM,CAAE,SAAoB,MAAM,CAAC,MAAO;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/esnext/remove-false/assertion-trivia",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/esnext/remove-false/assertion-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; await <number /*😀*/, string>(1);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAc,MAAM,CAAA,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAoB,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/esnext/remove-true/decorator-optional-property-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/esnext/remove-true/decorator-optional-property-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.x class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":true,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACgB,CAAC;;6BAAhB,CAAA,KAAA,CAAK,EAAE,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACgB,CAAC;;4BAAhB,CAAA,KAAA,CAAA,CAAO,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/esnext/remove-true/decorator-optional-element-standard",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/es2015/esnext/remove-true/decorator-optional-element-standard",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {};\n@await?.[x] class C {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":true,\"experimentalDecorators\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACkB,CAAC;;6BAAlB,CAAA,KAAA,CAAK,EAAE,CAAC,CAAC,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IACkB,CAAC;;4BAAlB,CAAA,KAAA,CAAA,CAAQ,CAAC,CAAC;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/esnext/commonjs/remove-false/heritage-trivia",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/esnext/commonjs/remove-false/heritage-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAM,CAAE,SAAoB,MAAc;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAM,CAAE,SAAoB,MAAM,CAAC,MAAO;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/esnext/commonjs/remove-false/assertion-trivia",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/esnext/commonjs/remove-false/assertion-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; await <number /*😀*/, string>(1);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"commonjs\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAc,MAAM,CAAA,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAW,MAAoB,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/esnext/esnext/remove-false/heritage-trivia",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/esnext/esnext/remove-false/heritage-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAM,CAAE,SAAoB,MAAc;CAAG\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAM,CAAE,SAAoB,MAAM,CAAC,MAAO;CAAG\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/esnext/esnext/remove-false/assertion-trivia",
+      "fixture": "emitter-context-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-context-recovery/esnext/esnext/remove-false/assertion-trivia",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "export {}; await <number /*😀*/, string>(1);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"esnext\",\"removeComments\":false,\"experimentalDecorators\":true,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAc,MAAM,CAAA,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAoB,AAAP,CAAC,MAAM,EAAE,MAAM,GAAC,CAAC,CAAC,CAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/es5/commonjs/remove-false/optional-line",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/es5/commonjs/remove-false/optional-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const object: { x: number }; export const value = (object?.x // value\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAkD,QAAA,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAC,QAAQ;CAAT,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAkD,QAAA,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAA,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/es5/commonjs/remove-false/utf16-comments",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/es5/commonjs/remove-false/utf16-comments",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "/*😀*/ declare const a: number; export const value = (a //😀\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAA6C,QAAA,KAAK,GAAG,CAAC,CAAC,CAAC,IAAI;CAAL,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAA6C,QAAA,KAAK,GAAG,CAAC,CAAC,CAAA,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/es5/esnext/remove-false/optional-line",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/es5/esnext/remove-false/optional-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const object: { x: number }; export const value = (object?.x // value\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAqC,MAAM,CAAC,IAAM,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAC,QAAQ;CAAT,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAqC,MAAM,CAAC,IAAM,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAA,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/es5/esnext/remove-false/utf16-comments",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/es5/esnext/remove-false/utf16-comments",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "/*😀*/ declare const a: number; export const value = (a //😀\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAgC,MAAM,CAAC,IAAM,KAAK,GAAG,CAAC,CAAC,CAAC,IAAI;CAAL,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAgC,MAAM,CAAC,IAAM,KAAK,GAAG,CAAC,CAAC,CAAA,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/es2015/commonjs/remove-false/optional-line",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/es2015/commonjs/remove-false/optional-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const object: { x: number }; export const value = (object?.x // value\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAkD,QAAA,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAC,QAAQ;CAAT,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAkD,QAAA,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAA,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/es2015/commonjs/remove-false/utf16-comments",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/es2015/commonjs/remove-false/utf16-comments",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "/*😀*/ declare const a: number; export const value = (a //😀\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAA6C,QAAA,KAAK,GAAG,CAAC,CAAC,CAAC,IAAI;CAAL,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAA6C,QAAA,KAAK,GAAG,CAAC,CAAC,CAAA,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/es2015/esnext/remove-false/optional-line",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/es2015/esnext/remove-false/optional-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const object: { x: number }; export const value = (object?.x // value\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAqC,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAC,QAAQ;CAAT,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAqC,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAA,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/es2015/esnext/remove-false/utf16-comments",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/es2015/esnext/remove-false/utf16-comments",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "/*😀*/ declare const a: number; export const value = (a //😀\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAgC,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC,CAAC,IAAI;CAAL,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAgC,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC,CAAA,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/esnext/commonjs/remove-false/optional-line",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/esnext/commonjs/remove-false/optional-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const object: { x: number }; export const value = (object?.x // value\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"commonjs\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAkD,QAAA,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC,CAAC,QAAQ;CAAT,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAkD,QAAA,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC,CAAA,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/esnext/commonjs/remove-false/utf16-comments",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/esnext/commonjs/remove-false/utf16-comments",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "/*😀*/ declare const a: number; export const value = (a //😀\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"commonjs\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAA6C,QAAA,KAAK,GAAG,CAAC,CAAC,CAAC,IAAI;CAAL,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAA6C,QAAA,KAAK,GAAG,CAAC,CAAC,CAAA,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/esnext/esnext/remove-false/optional-line",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/esnext/esnext/remove-false/optional-line",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "declare const object: { x: number }; export const value = (object?.x // value\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"esnext\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAqC,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC,CAAC,QAAQ;CAAT,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAqC,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC,CAAA,CAAA,CAAC,QAAQ;AAC5E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    },
+    {
+      "case_id": "emitter-statement-gap-recovery/esnext/esnext/remove-false/utf16-comments",
+      "fixture": "emitter-statement-gap-recovery",
+      "assertion": "exact source-map result",
+      "input": {
+        "case_id": "emitter-statement-gap-recovery/esnext/esnext/remove-false/utf16-comments",
+        "roots": [
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/main.ts",
+            "text": "/*😀*/ declare const a: number; export const value = (a //😀\n as number);\n"
+          }
+        ],
+        "options": {},
+        "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"esnext\",\"removeComments\":false,\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+      },
+      "actual": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAgC,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC,CAAC,IAAI;CAAL,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ],
+      "expected": [
+        {
+          "input_source_file_names": [
+            "/project/main.ts"
+          ],
+          "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAgC,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC,CAAA,CAAA,CAAC,IAAI;AAC3D,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+        }
+      ]
+    }
+  ]
+}

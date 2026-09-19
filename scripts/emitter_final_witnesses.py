@@ -41,10 +41,13 @@ COMMENT_TESTS = (
     "emitter_residual_audit::exported_destructuring_comments_match_complete_typescript_commands",
     "async_arrow_body_ranges::async_arrow_body_ranges_matches_complete_typescript_observations",
 )
-SYSTEM_FIXTURES = (("system-binding-publication", 1044), ("await-flag-commands", 690))
+SYSTEM_FIXTURES = (("system-binding-publication", 1044), ("await-flag-commands", 690),
+                   ("emitter-recovery-boundaries", 774))
 SYSTEM_TESTS = (
     "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
     "emitter_residual_audit::await_flag_boundaries_match_complete_typescript_commands",
+    "emitter_residual_audit::recovery_boundary_neighbours_match_complete_typescript_commands",
+    "emitter_residual_audit::r77_recovery_regressions_match_complete_typescript_commands",
 )
 RECOVERY_FIXTURES = (
     ("emitter-missing-await", 60), ("emitter-missing-declaration", 72),
@@ -155,6 +158,9 @@ def inputs(suite):
                 "crates/compiler/tests/integration/emitter_residual_audit.rs",
                 "crates/compiler/tests/integration/async_arrow_body_ranges.rs"},
             "emitter-system-controls": {
+                FIXTURES + "emitter-r77-regressions.json",
+                FIXTURES + "emitter-context-recovery.json",
+                FIXTURES + "emitter-statement-gap-recovery.json",
                 "crates/compiler/tests/integration/emitter_residual_audit.rs",
                 "crates/compiler/tests/integration/h2_8a_import_helpers.rs",
                 "crates/syntax/tests/fixtures/await-flag-boundary.json"},

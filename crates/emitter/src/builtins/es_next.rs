@@ -1094,6 +1094,7 @@ impl<'context> EsNextVisitor<'context> {
                             self.context,
                             self.source,
                             name,
+                            super::flatten_destructuring::AssignmentTargetRole::ExpressionReference,
                         )?
                     } else {
                         self.create_runtime_assignment_target(
