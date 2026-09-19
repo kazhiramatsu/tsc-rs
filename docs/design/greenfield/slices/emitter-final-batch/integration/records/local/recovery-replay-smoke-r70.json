@@ -1,0 +1,35 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "scripts/replay-recovery-parse.py",
+    "--parser-tree",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-census",
+    "--input",
+    "/tmp/emitter-replay-r70/smoke-input.json",
+    "--out",
+    "/tmp/emitter-replay-r70/current.json",
+    "--build-dir",
+    "/tmp/emitter-replay-r70/current-build",
+    "--label",
+    "candidate",
+    "--with-recovery-profiles"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census",
+  "started_at": "2026-09-19T00:24:24.931097+00:00",
+  "head": "85231f7cb99d4d8990cb203873f6991e8c1f2064",
+  "tracked_clean": false,
+  "diff_sha256": "0524b90ad3c4e4d73cb2b5e36cc5f361afa6b544101aec1601ae9bc738b151fb",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 117.357,
+  "log_sha256": "7874bde81c0fd81f605571f481682b414b7178a0e61437cbc9dea697882e9212",
+  "log_bytes": 41
+}

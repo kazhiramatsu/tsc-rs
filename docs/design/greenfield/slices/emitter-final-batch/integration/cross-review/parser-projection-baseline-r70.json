@@ -1,0 +1,7 @@
+{
+  "base_head": "18c0e70a43a84517a1c2a430b3232cae1b19f3c7",
+  "parser_source_ref": "81d5aa52e:crates/syntax/src/parser.rs",
+  "before_sha256": "ffe64e0cf029c96b3bc91239a71be2c918f2e6c7803c57f189c0a771ab8f6701",
+  "restored_sha256": "31500e409e3fbc7f6320c74f6b8d82d756b09fce1a3aee8950c6d7658229a099",
+  "diff_sha256": "301de61e6f7b050af7b91b0b79e64a52faab57ae1d0f121ccaa5abc1fdfa313b"
+}

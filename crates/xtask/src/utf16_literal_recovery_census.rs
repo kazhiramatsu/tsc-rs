@@ -27,7 +27,10 @@ use tsc_program::{PreparedProgram, ProgramLoadLimits};
 use tsc_syntax::{ParseDiagnosticOrigin, ParseRecoveryAction, ParseRecoveryKind, SyntaxKind};
 
 use crate::codegen_common::find_workspace_root;
-use crate::h2_2c_acceptance::{is_declaration_file_path, parse_prepared_source};
+use crate::h2_2c_acceptance::{
+    is_declaration_file_path, parse_prepared_source, prepared_parse_options,
+};
+use crate::recovery_parse_snapshot as parse_snapshot;
 
 const CENSUS_KIND: &str = "utf16-literal-recovery-admission-census";
 
@@ -79,6 +82,15 @@ const TYPESCRIPT_FACT_ARTIFACTS: &[&str] = &[
 
 fn limits() -> ProgramLoadLimits {
     ProgramLoadLimits::new(256, 2_048, 64, 16 * 1_024 * 1_024, 128 * 1_024 * 1_024)
+}
+
+fn limits_input() -> Value {
+    let limits = limits();
+    json!({"max_source_files":limits.max_source_files(),
+        "max_request_edges":limits.max_request_edges(),
+        "max_source_depth":limits.max_source_depth(),
+        "max_source_file_bytes":limits.max_source_file_bytes(),
+        "max_total_source_bytes":limits.max_total_source_bytes()})
 }
 
 #[derive(Clone, Debug)]
@@ -157,21 +169,42 @@ fn program_facts(
     parameter_gaps: bool,
     statement_gaps: bool,
     context_recovery: bool,
-) -> Vec<UnitFacts> {
+    mut capture: Option<&mut ParseCapture>,
+) -> (Vec<UnitFacts>, Vec<Value>) {
     let options = program.compiler_options();
     let mut facts = Vec::new();
-    for source in program
-        .source_files()
-        .iter()
-        .filter(|source| source.may_be_emitted())
-    {
+    let mut parse_units = Vec::new();
+    for source in program.source_files() {
         let display = source.path().display().to_string_lossy();
         let path = display.as_ref();
         let lower_path = path.to_ascii_lowercase();
-        if is_declaration_file_path(&lower_path) || lower_path.ends_with(".json") {
+        if lower_path.ends_with(".json") {
+            continue;
+        }
+        if let Some(capture) = capture.as_deref_mut() {
+            // Capture the planner-owned options for every source, including
+            // libraries and declaration files, using its case-preserving path.
+            let module_options = tsc_program::source_request_parse_options(source, options);
+            let input = parse_snapshot::input(path, source.snapshot().text(), &module_options);
+            let id = input["input_id"].as_str().unwrap().to_owned();
+            if !capture.inputs.contains_key(&id) {
+                let syntax = parse_snapshot::replay(&input);
+                assert_eq!(
+                    capture.record(path, source.snapshot().text(), &module_options, &syntax),
+                    id
+                );
+            }
+            parse_units.push(json!({"path":path,"input_id":id,"role":"module-request-parse", "emit_eligible":false}));
+        }
+        if !source.may_be_emitted() || is_declaration_file_path(&lower_path) {
             continue;
         }
         let syntax = parse_prepared_source(options, source, path, &lower_path);
+        if let Some(capture) = capture.as_deref_mut() {
+            let parse_options = prepared_parse_options(options, source, &lower_path);
+            let input_id = capture.record(path, source.snapshot().text(), &parse_options, &syntax);
+            parse_units.push(json!({"path":path,"input_id":input_id,"role":"emit-preflight", "emit_eligible":true}));
+        }
         let recovery = syntax.parse_recovery();
         let diagnostics = syntax.parse_diagnostics.len();
         let events = recovery.events();
@@ -223,7 +256,184 @@ fn program_facts(
         }
         facts.push(unit);
     }
-    facts
+    (facts, parse_units)
+}
+
+fn symlink_input(
+    operation: &tsc_harness::upstream_suites::execution::CompilerSymlinkOperation,
+) -> Value {
+    let tsc_harness::upstream_suites::execution::CompilerSymlinkOperation {
+        phase,
+        raw_target,
+        raw_link_path,
+        anchor,
+        normalized_target,
+        normalized_link_path,
+    } = operation;
+    json!({"phase":format!("{phase:?}"),"raw_target":raw_target.as_ref(),"raw_link_path":raw_link_path.as_ref(),
+        "anchor":anchor.as_ref(),"target":normalized_target.as_ref(),"link":normalized_link_path.as_ref()})
+}
+
+#[derive(Default)]
+struct ParseCapture {
+    inputs: BTreeMap<String, Value>,
+    digests: BTreeMap<String, Value>,
+    documents: BTreeMap<String, String>,
+}
+
+impl ParseCapture {
+    fn document(&mut self, text: &[u8]) -> String {
+        let id = parse_snapshot::sha256(text);
+        self.documents
+            .entry(id.clone())
+            .or_insert_with(|| base64::engine::general_purpose::STANDARD.encode(text));
+        id
+    }
+
+    fn prepared_summary(program: &PreparedProgram) -> Value {
+        json!({
+            "current_directory":program.current_directory().display().to_string_lossy(),
+            "roots":program.roots().iter().map(|root| root.path().display().to_string_lossy().into_owned()).collect::<Vec<_>>(),
+            "source_files":program.source_files().iter().map(|source| json!({
+                "path":source.path().display().to_string_lossy(),
+                "sha256":parse_snapshot::sha256(source.snapshot().text()),
+                "may_be_emitted":source.may_be_emitted(),
+                "implied_node_format":format!("{:?}",source.implied_node_format())
+            })).collect::<Vec<_>>(),
+            // These are verification digests, not an alternative option decoder.
+            "compiler_options_debug_sha256":parse_snapshot::sha256(format!("{:?}",program.compiler_options())),
+            "program_options_debug_sha256":parse_snapshot::sha256(format!("{:?}",program.program_options()))
+        })
+    }
+
+    fn artifact_input(
+        &mut self,
+        route: &str,
+        input: &Value,
+        settings: &Value,
+        program: &PreparedProgram,
+    ) -> Value {
+        json!({"route":route,"input":input,"settings":settings,"limits":limits_input(),
+            "floor":"established","use_case_sensitive_file_names":program.path_context().use_case_sensitive_file_names(),
+            "prepared":Self::prepared_summary(program)})
+    }
+
+    fn plan_input(&mut self, input: &UpstreamExecutionInput, program: &PreparedProgram) -> Value {
+        use tsc_harness::upstream_suites::execution::CompilerRootSelection;
+        let mut result = match input {
+            UpstreamExecutionInput::Compiler(plan) => {
+                let (vfs, roots) = match &plan.root_selection {
+                    CompilerRootSelection::Explicit {
+                        vfs_write_order,
+                        program_root_units,
+                        ..
+                    }
+                    | CompilerRootSelection::Config {
+                        vfs_write_order,
+                        program_root_units,
+                        ..
+                    } => (vfs_write_order, program_root_units),
+                };
+                let units = plan.fixture.units.iter().map(|unit| json!({
+                    "id":unit.id.0,"name":unit.name.as_ref(),
+                    "content_sha256":unit.content.as_ref().map(|text|self.document(text.as_bytes())),
+                    "file_options":unit.file_options.iter().map(|s| json!([s.name.as_str(),s.value.as_str()])).collect::<Vec<_>>(),
+                    "original_fixture_path":unit.original_fixture_path.as_ref(),
+                    "document_symlinks":unit.document_symlinks.iter().map(symlink_input).collect::<Vec<_>>()
+                })).collect::<Vec<_>>();
+                let symlinks = plan
+                    .fixture
+                    .global_symlinks
+                    .iter()
+                    .chain(
+                        plan.fixture
+                            .units
+                            .iter()
+                            .flat_map(|unit| unit.document_symlinks.iter()),
+                    )
+                    .map(symlink_input)
+                    .collect::<Vec<_>>();
+                json!({"route":"recorded-compiler","floor":"established",
+                    "fixture_path":plan.fixture.source.relative_path.as_ref(),"fixture_blob_sha1":plan.fixture.source.git_blob_sha1.as_ref(),
+                    "variant":{"configuration_index":plan.variant.configuration_index,"key":plan.variant.key.as_ref(),
+                        "description":plan.variant.description.as_ref(),"upstream_name":plan.variant.upstream_name.as_ref(),
+                        "overrides":plan.variant.overrides.iter().map(|s|json!([s.name.as_str(),s.value.as_str()])).collect::<Vec<_>>()},
+                    "current_directory":plan.current_directory.as_ref(),"use_case_sensitive_file_names":plan.use_case_sensitive_file_names,
+                    "settings":plan.effective_settings.iter().map(|s| json!([s.name.as_str(),s.value.as_str()])).collect::<Vec<_>>(),
+                    "units":units,"config_unit":plan.fixture.config_unit.map(|id|id.0),
+                    "vfs_write_order":vfs.iter().map(|id|id.0).collect::<Vec<_>>(),
+                    "program_root_units":roots.iter().map(|id|id.0).collect::<Vec<_>>(),"vfs_symlinks":symlinks,
+                    "global_symlink_directives":plan.fixture.global_symlink_directives.iter().map(symlink_input).collect::<Vec<_>>(),
+                    "global_symlinks":plan.fixture.global_symlinks.iter().map(symlink_input).collect::<Vec<_>>(),
+                    "root_selection_debug":format!("{:?}",plan.root_selection)})
+            }
+            UpstreamExecutionInput::Project(plan) => {
+                let files = plan.fixture.mount.files.iter().map(|file| json!({
+                    "path":file.virtual_path.as_ref(),"content_sha256":self.document(file.source.decoded.as_bytes()),
+                    "upstream_blob_sha1":file.source.git_blob_sha1.as_ref()
+                })).collect::<Vec<_>>();
+                json!({"route":"recorded-project","floor":"established",
+                    "descriptor_utf8_base64":base64::engine::general_purpose::STANDARD.encode(plan.fixture.descriptor_text.as_bytes()),
+                    "descriptor_raw_base64":base64::engine::general_purpose::STANDARD.encode(&plan.fixture.descriptor_raw),
+                    "descriptor_blob_sha1":plan.fixture.source.git_blob_sha1.as_ref(),
+                    "descriptor_path":plan.fixture.source.relative_path.as_ref(),
+                    "current_directory":plan.fixture.current_directory.as_ref(),"project_root":plan.fixture.project_root.as_ref(),
+                    "scenario":plan.fixture.scenario.as_ref(),"module_variant":format!("{:?}",plan.module_variant),
+                    "descriptor_module_override":plan.descriptor_module_override,
+                    "mount":{"virtual_path":plan.fixture.mount.virtual_path.as_ref(),"case_sensitive":plan.fixture.mount.case_sensitive,
+                        "read_only":plan.fixture.mount.read_only,"files":files},
+                    "root_selection_debug":format!("{:?}",plan.fixture.root_selection)})
+            }
+        };
+        result["limits"] = limits_input();
+        result["prepared"] = Self::prepared_summary(program);
+        result
+    }
+
+    fn record(
+        &mut self,
+        path: &str,
+        text: &str,
+        options: &tsc_syntax::ParseOptions,
+        syntax: &tsc_syntax::SourceFile,
+    ) -> String {
+        let input = parse_snapshot::input(path, text, options);
+        let id = input["input_id"].as_str().unwrap().to_owned();
+        let core = parse_snapshot::digest(syntax);
+        let recovery = syntax.parse_recovery();
+        let digest = json!({"core":core,"recovery_counts":{
+            "events":recovery.events().len(),"actions":recovery.actions().len(),
+            "diagnostic_origins":recovery.diagnostic_origins().len()},
+            "profiles":{
+                "literal":syntax.has_only_literal_recovery(),
+                "missing_await":syntax.has_only_literal_or_missing_await_recovery(),
+                "missing_declaration":syntax.has_only_missing_node_emit_recovery(),
+                "parameter_gaps":syntax.has_only_parameter_gap_emit_recovery(),
+                "statement_gaps":syntax.has_only_statement_gap_emit_recovery(),
+                "context_recovery":syntax.has_supported_emit_recovery()}});
+        if let Some(previous) = self.inputs.get(&id) {
+            assert_eq!(previous, &input, "parse snapshot identity collision");
+            assert_eq!(
+                self.digests[&id], digest,
+                "same parse input produced a different digest"
+            );
+        } else {
+            let replayed = parse_snapshot::replay(&input);
+            assert_eq!(
+                parse_snapshot::digest(&replayed),
+                core,
+                "export does not reproduce the actual census parse: {path}"
+            );
+            assert_eq!(
+                replayed.parse_recovery(),
+                syntax.parse_recovery(),
+                "export changed committed recovery facts: {path}"
+            );
+            self.inputs.insert(id.clone(), input);
+            self.digests.insert(id.clone(), digest);
+        }
+        id
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -303,6 +513,8 @@ struct Row {
     universe: String,
     loader: String,
     units: Vec<UnitFacts>,
+    parse_units: Vec<Value>,
+    command_input: Option<Value>,
     verdict: Verdict,
 }
 
@@ -343,6 +555,7 @@ struct Census {
     seen: BTreeSet<String>,
     load_failures: Vec<Value>,
     inputs: Map<String, Value>,
+    parse_capture: Option<ParseCapture>,
 }
 
 impl Census {
@@ -406,23 +619,30 @@ impl Census {
             };
             match loaded {
                 Ok(program) => {
-                    let units = program_facts(
+                    let (units, parse_units) = program_facts(
                         &program,
                         self.missing_await,
                         self.emit_recovery,
                         self.parameter_gaps,
                         self.statement_gaps,
                         self.context_recovery,
+                        self.parse_capture.as_mut(),
                     );
                     let verdict = Verdict::of(&units);
-                    self.record(Row {
+                    let row = Row {
                         case_id: case_id.to_owned(),
                         suite,
                         universe: "recorded-execution-plans".to_owned(),
                         loader: loader.to_owned(),
                         units,
+                        parse_units,
+                        command_input: self
+                            .parse_capture
+                            .as_mut()
+                            .map(|capture| capture.plan_input(&plan.input, &program)),
                         verdict,
-                    });
+                    };
+                    self.record(row);
                 }
                 Err(error) => self.load_failures.push(json!({
                     "case_id": case_id,
@@ -464,23 +684,34 @@ impl Census {
                 let suite = case["suite"].as_str().unwrap_or("unknown").to_owned();
                 match qualified_input(&self.workspace, &case["input"]) {
                     Ok(program) => {
-                        let units = program_facts(
+                        let (units, parse_units) = program_facts(
                             &program,
                             self.missing_await,
                             self.emit_recovery,
                             self.parameter_gaps,
                             self.statement_gaps,
                             self.context_recovery,
+                            self.parse_capture.as_mut(),
                         );
                         let verdict = Verdict::of(&units);
-                        self.record(Row {
+                        let row = Row {
                             case_id: case_id.to_owned(),
                             suite,
                             universe: (*relative).to_owned(),
                             loader: "load_qualified_compiler_emit_with_symlinks".to_owned(),
                             units,
+                            parse_units,
+                            command_input: self.parse_capture.as_mut().map(|capture| {
+                                capture.artifact_input(
+                                    "qualified",
+                                    &case["input"],
+                                    &Value::Null,
+                                    &program,
+                                )
+                            }),
                             verdict,
-                        });
+                        };
+                        self.record(row);
                     }
                     Err(error) => self.load_failures.push(json!({
                         "case_id": case_id,
@@ -534,23 +765,34 @@ impl Census {
                 let suite = case["suite"].as_str().unwrap_or("unknown").to_owned();
                 match candidate_input(&self.workspace, case) {
                     Ok(program) => {
-                        let units = program_facts(
+                        let (units, parse_units) = program_facts(
                             &program,
                             self.missing_await,
                             self.emit_recovery,
                             self.parameter_gaps,
                             self.statement_gaps,
                             self.context_recovery,
+                            self.parse_capture.as_mut(),
                         );
                         let verdict = Verdict::of(&units);
-                        self.record(Row {
+                        let row = Row {
                             case_id: case_id.to_owned(),
                             suite,
                             universe: (*relative).to_owned(),
                             loader: "load_qualified_compiler_emit_with_symlinks".to_owned(),
                             units,
+                            parse_units,
+                            command_input: self.parse_capture.as_mut().map(|capture| {
+                                capture.artifact_input(
+                                    "candidate",
+                                    input,
+                                    &case["settings"],
+                                    &program,
+                                )
+                            }),
                             verdict,
-                        });
+                        };
+                        self.record(row);
                     }
                     Err(error) => self.load_failures.push(json!({
                         "case_id": case_id,
@@ -780,6 +1022,7 @@ fn candidate_input(workspace: &Path, case: &Value) -> Result<PreparedProgram, Bo
 
 pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut out = None;
+    let mut parse_snapshot_out = None;
     let mut missing_await = false;
     let mut emit_recovery = false;
     let mut parameter_gaps = false;
@@ -794,6 +1037,11 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             "--statement-gaps" => statement_gaps = true,
             "--context-recovery" => context_recovery = true,
             "--all-profiles" => all_profiles = true,
+            "--parse-snapshot-out" => {
+                parse_snapshot_out = Some(PathBuf::from(
+                    args.next().ok_or("missing --parse-snapshot-out value")?,
+                ));
+            }
             "--out" => {
                 out = Some(PathBuf::from(
                     args.next().ok_or("missing value after --out")?,
@@ -817,7 +1065,38 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     {
         return Err("choose one recovery comparison profile".into());
     }
+    if parse_snapshot_out.is_some() && !all_profiles {
+        return Err("parse snapshots require --all-profiles".into());
+    }
     let workspace = find_workspace_root()?;
+    if parse_snapshot_out.is_some() {
+        let clean = std::process::Command::new("git")
+            .args(["diff", "--quiet", "HEAD", "--"])
+            .current_dir(&workspace)
+            .status()?;
+        if !clean.success() {
+            return Err("parse snapshots require a clean committed tree".into());
+        }
+        let untracked = std::process::Command::new("git")
+            .args([
+                "ls-files",
+                "--others",
+                "--exclude-standard",
+                "--",
+                "crates",
+                "scripts",
+            ])
+            .current_dir(&workspace)
+            .output()?;
+        if !untracked.status.success() || !untracked.stdout.is_empty() {
+            return Err("parse snapshots require all code and fixtures to be tracked".into());
+        }
+        if fs::read(workspace.join("crates/xtask/src/recovery_parse_snapshot.rs"))?
+            != include_bytes!("recovery_parse_snapshot.rs")
+        {
+            return Err("parse snapshot binary does not match its digest source".into());
+        }
+    }
     let out = out.unwrap_or_else(|| {
         workspace.join(if all_profiles {
             "target/emitter-recovery-census"
@@ -847,12 +1126,45 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         seen: BTreeSet::new(),
         load_failures: Vec::new(),
         inputs: Map::new(),
+        parse_capture: parse_snapshot_out.as_ref().map(|_| ParseCapture::default()),
     };
     census.recorded_plans()?;
     census.qualified_artifacts()?;
     census.candidate_artifacts()?;
     let mismatches = census.typescript_parity()?;
 
+    if let Some(path) = parse_snapshot_out {
+        let capture = census.parse_capture.as_ref().unwrap();
+        let git = |spec: &str| -> Result<String, Box<dyn Error>> {
+            let output = std::process::Command::new("git")
+                .args(["rev-parse", spec])
+                .current_dir(&workspace)
+                .output()?;
+            if !output.status.success() {
+                return Err(format!("cannot pin git identity {spec}").into());
+            }
+            Ok(String::from_utf8(output.stdout)?.trim().to_owned())
+        };
+        let rows: Vec<_> = census
+            .rows
+            .iter()
+            .map(|row| {
+                json!({"case_id":row.case_id,
+            "universe":row.universe,"loader":row.loader,"units":row.parse_units,"command_input":row.command_input})
+            })
+            .collect();
+        let artifact = json!({"schema":1,"kind":"emitter-recovery-parse-snapshot",
+            "head":git("HEAD")?,"syntax_tree_hash":git("HEAD:crates/syntax")?,
+            "vendor_tree_hash":git("HEAD:vendor/typescript-6.0.3")?,
+            "digest_code_sha256":parse_snapshot::sha256(include_bytes!("recovery_parse_snapshot.rs")),
+            "plan_manifest_sha256":parse_snapshot::sha256(fs::read(workspace.join(tsc_harness::upstream_suites::MANIFEST_RELATIVE_PATH))?),
+            "input_manifest":census.inputs,"load_failures":census.load_failures,
+            "inputs":capture.inputs,"digests":capture.digests,"documents":capture.documents,"rows":rows});
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, serde_json::to_vec(&artifact)?)?;
+    }
     let elapsed_seconds = started.elapsed().as_secs_f64();
     if all_profiles {
         for (filename, flags) in [

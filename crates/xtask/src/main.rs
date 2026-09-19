@@ -52,6 +52,7 @@ mod m8_plan;
 mod m8_trace;
 mod node_codegen;
 mod recovery_census;
+mod recovery_parse_snapshot;
 mod relpin;
 mod slice_evidence;
 mod symbol_audit;

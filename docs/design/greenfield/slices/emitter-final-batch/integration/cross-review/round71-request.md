@@ -1,0 +1,20 @@
+# Round71: complete graph digest and exact-input observer route
+
+Read-only/no builds/no edits. Census worktree /Users/hiramatsu/dev/tsc-rs-emitter-final-census has round70 amendments, all files frozen during review. No Rust build there while System/factory native suite runs in Recovery-next (head5f32b6041, sourcefrozen, 5tests/System858+await604+destruct1076+async372+namespace). New census edits NOT yet compiled.
+
+Review blockers B1-B5 implementation:
+- Shared digest now canonical BFS graph with named observable fields, explicit omitted-node-data fields (including recovery child slots), node arrays (ranges/trailing/missing), alias references, parent and attached JSDoc. Every Node/NodeArray record destructured exhaustively; allocationIDs neutral. Context flags separatehash stillpartofcore. SyntaxKindextras numeric tags. FullDiagnostic debughash+tuple. SourceFile allpublicfactsinclcommentdirectives,pragmas,moduleName,rename,parseoptions+text; snapshot/privateparseRecovery excluded deliberately. Cannot destructureSourceFile without.. because snapshot/parse_recovery areprivate. Runtimevalidate_schema scanscompiledlib/nodes/observable text toassertcompletefieldcoverage/SourceFileexactfieldlist; runsonceperprocess viaOnceLock, notoptionaltests. Three mutation/canonicalIDtests added, drivercargo testrequired for allbaselinebuilds.
+- Moduleparseoptions now owned public tsc_program::source_request_parse_options. Straight extraction fromplan_module_requests_worker, originalplanner callsit, censususesit. Acceptance prepared_parse_options retainsitslowerpathsemantics (no behaviorchange). No blindprojectionduplication.
+- Qualified/candidatecasesensitivityfromactualPreparedProgram.path_context; raw+normalizedsymlinkdata exported in globalsraw/effective andunitdocuments plusactualeffectivechain. Exactcontentshashpoolandpreparedroots/source/optiondigests.
+- Replaylockoverwritteneverybuild, explicitbaselinekindguards candidate/sourcebytes, projectionparserexact81d5plusallothersyntax/types/diagcandidatebytes, mergebasepinned3b1f. Source/probebinary lockhashes/premutationguards. Standalone schema include filescandidatevsolderNodeData/observable sourceassertsame.
+- New scripts/select-recovery-parse-corpus.py union everyinputfullcore/profiledelta for BOTH emit/module roles underbothbaselines +all5newlyadmitted/newlyrefusedsets. Verifycurrentreplayfullsetcore/profile==actualsnapshot. Flagsloadfailureswithoutclaimingcoverage. Carriesexactcommand_input plusreferenceddocuments.
+
+Please confirm fieldguard/canonicalgraph correctness (cycles/sharing/positionids), selectorproof and helperextraction; note compilableAPItypos ifobvious.
+
+Nextboundeddesign question: TSobserver/nativeconsumer mustconsumecommand_input directly. Existing complete_command_corpus.rs onlyqualified case-sensitive=true establishedfloor. Recorded compilerplans includevirtualconfig/rootselection/case andharness VFSsymlinksemantics; projects rawdescriptor+mount. What is smallest reliable native reconstruction route without lossy caseIDfallback? Options:
+A) New harness capture/reconstruction protocol building CompilerExecutionPlan fromsavedrawplan (fullJSONunits/options/config plan enough?);
+B) Retain rawfixturebytes/ref andrebuild verifiedplan through existingharnessbuilder usingexplicitfixture+variant, assert serializedresult equalscapturedinput; this is not lookupanotherqualificationbycaseID, butdoesreusecaseplanconstructor;
+C) normalizeexactmountedVFS/options atcapture andnativebuildPreparedProgram directly (riskfullyserializingCompilerOptions/ProgramOptions/configdiagnostics).
+Preferbestboundedapproach reuseexisting testedloaders withassertedexactinput; no silentcase-sensitive/floorchange, skiporinputlocatefallback. Needfixallselectedrowsinclprojectifselected. We can knowselectiononlyafterfullcensus, butinputprotocolmustcomplete now toavoidrerun80minutes.
+
+Do not edit or build. Please prioritizeconcretebugs over hypotheticalnewscopes. Current tool smoke285passedbeforefullgraphamendments; allthreeupdatedsmokesnext afterrunningnativefinishes.
