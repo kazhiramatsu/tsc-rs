@@ -1,0 +1,9 @@
+# Remaining 36 KNOWN rows at r120 source
+
+All 36 remaining parse-recovery KNOWN rows match the frozen complete TypeScript command observation twice at Recovery HEAD `b451489e4a18abbff42651d8eb814537f4c5f800`: PLAN-BASE 35/35 and universe 1/1, with zero new divergences. The two Rust tests exit101 solely because their existing stale-KNOWN assertions require retirement. This is not a green suite or a full-corpus qualification claim. The selected ID set and both stale assertion lists were checked against every row in the current KNOWN fixture.
+
+The comparison uses the unchanged original EF7 fixtures and comparator, including input/source pins and native repetition equality. Successful native tuples are compared in memory and logged as exact; this observer archives only differences, and produced none. [The result index](r122-known36-results.json) pins the immutable executable, source head, selected IDs, reference artifacts, old KNOWN payload, and log. The failed run and its full output are preserved, rather than relabelled exit0.
+
+The old 36-row native refusal fixture is copied byte-for-byte to `records/parse-known-before-retirement-r122.json`. Live KNOWN lists and fixtures are not changed yet. After the parser/corpus proof passes, use that archive for the existing refusal/partial-write comparator guard, empty both live KNOWN lists and the live native case array, and register the archive as a witness input. Keep all original rows and the new-divergence/stale-KNOWN guards. Run the complete 217/1,798 suites and all three guards before final convergence.
+
+The separate universe test binary required a21.11-second build. Only the frozen census paused during that build and resumed after its executable identity was verified. The r120 immutable binary and all tracked source/HEAD bytes stayed unchanged. The resumed census and functional comparisons may overlap; none of these elapsed times qualify performance.
