@@ -408,7 +408,16 @@ mod tests {
                 .arena
                 .nodes()
                 .iter()
-                .position(|node| node.kind == kind)
+                .position(|node| {
+                    node.kind == kind
+                        && match &node.data {
+                            // The initial `import type` lookahead leaves an
+                            // unattached speculative identifier in the arena.
+                            // Mutate the reachable class name, not that orphan.
+                            NodeData::Identifier(data) => data.text == "C",
+                            _ => true,
+                        }
+                })
                 .unwrap();
             match &mut changed.arena.node_mut(NodeId(index as u32)).data {
                 NodeData::ImportClause(d) => d.is_type_only = !d.is_type_only,
