@@ -1,0 +1,70 @@
+emitter-r107-declaration-comments/declaration-comment/es5/amd/remove-false/module-bundle
+--- TypeScript /project/bundle.js
++++ native /project/bundle.js
+@@ -2,6 +2,6 @@
+     "use strict";
+     Object.defineProperty(exports, "__esModule", { value: true });
+     exports.y = exports.x = void 0;
+-    exports.y /** type */ /** name */ = 1;
++    exports.y /** name */ = 1;
+ });
+ //# sourceMappingURL=bundle.js.map
+emitter-r107-declaration-comments/declaration-comment/es5/amd/remove-false/module-bundle
+--- TypeScript /project/bundle.d.ts
++++ native /project/bundle.d.ts
+@@ -1,5 +1,5 @@
+ declare module "main" {
+     export let x /** name */: number /** type */;
+-    export let y /** name */ /** type */: number /** type */;
++    export let y /** name */ /** type */: number;
+ }
+ //# sourceMappingURL=bundle.d.ts.map
+emitter-r107-declaration-comments/declaration-comment/es2017/none/remove-false/script-bundle
+--- TypeScript /project/bundle.d.ts
++++ native /project/bundle.d.ts
+@@ -1,4 +1,4 @@
+ declare const dec: any, key: any, fn: any, values: any;
+ declare let s /** name */: number /** type */;
+-declare let t /** name */ /** type */: number /** type */;
++declare let t /** name */ /** type */: number;
+ //# sourceMappingURL=bundle.d.ts.map
+emitter-r107-declaration-comments/declaration-comment/es5/commonjs/remove-false/module-per-file
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -1,5 +1,5 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.y = exports.x = void 0;
+-exports.y /** type */ /** name */ = 1;
++exports.y /** name */ = 1;
+ //# sourceMappingURL=main.js.map
+emitter-r107-declaration-comments/declaration-comment/es5/commonjs/remove-false/module-per-file
+--- TypeScript /project/out/main.d.ts
++++ native /project/out/main.d.ts
+@@ -1,3 +1,3 @@
+ export declare let x /** name */: number /** type */;
+-export declare let y /** name */: number /** type */;
++export declare let y /** name */: number;
+ //# sourceMappingURL=main.d.ts.map
+emitter-r109-token-neighbours/token-neighbours/es2020/preserve/remove-false/do-nonblock-same
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -1,5 +1,5 @@
+ "use strict";
+ do
+-    x(); /*尾😀*/
+-while (y);
++    x();
++/*尾😀*/ while (y);
+ //# sourceMappingURL=main.js.map
+emitter-r109-token-neighbours/token-neighbours/es2020/preserve/remove-false/do-nonblock-both
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -1,5 +1,6 @@
+ "use strict";
+ do
+-    x(); /*尾😀*/
++    x();
++/*尾😀*/
+ /*行🍀*/ while (y);
+ //# sourceMappingURL=main.js.map

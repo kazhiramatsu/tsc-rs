@@ -1,0 +1,34 @@
+{
+  "head": "d74ca0fbc092dfc65f02dc5987b1683d0648274c",
+  "binary": {
+    "head": "d74ca0fbc092dfc65f02dc5987b1683d0648274c",
+    "copied_at": "2026-09-19T06:26:34.429990+00:00",
+    "qualified_at_copy": false,
+    "running_pid": 75244,
+    "original_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/contracts-05a4948cfadf681b",
+    "original_inode": 121113870,
+    "original_device": 16777234,
+    "immutable_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r109-immutable/contracts",
+    "sha256": "d03f8ee97ffce154f7c316fe769348f18261cdeb3a11fbdd2f052a285aebe653",
+    "source_tree": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next"
+  },
+  "records": 117,
+  "cases": 61,
+  "exact": 56,
+  "failed": 5,
+  "failed_cases": [
+    "emitter-r107-declaration-comments/declaration-comment/es2017/none/remove-false/script-bundle",
+    "emitter-r107-declaration-comments/declaration-comment/es5/amd/remove-false/module-bundle",
+    "emitter-r107-declaration-comments/declaration-comment/es5/commonjs/remove-false/module-per-file",
+    "emitter-r109-token-neighbours/token-neighbours/es2020/preserve/remove-false/do-nonblock-both",
+    "emitter-r109-token-neighbours/token-neighbours/es2020/preserve/remove-false/do-nonblock-same"
+  ],
+  "counts_by_repetitions": {
+    "2": 56,
+    "1": 5
+  },
+  "capture_archive_sha256": "4fbe05d259ab09dec6995753e64f9e470ca701ca0c880ec1889d03f63981c099",
+  "capture_archive_bytes": 14411,
+  "receipt_exit": 101,
+  "log_sha256": "1729fda3502026defd46661ed7e24ff4adc1b77e4721443c1ca2e5f82094cf80"
+}
