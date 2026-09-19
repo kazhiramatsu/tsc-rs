@@ -4635,6 +4635,45 @@ impl Printer {
                     initializer_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                if data.initializer.is_none() && !initializer_context.nested_comments_suppressed() {
+                    // A hoisted declaration has no declaration range or `=`.
+                    // Its retained name still owns both trailing boundaries,
+                    // including an erased type, before any declaration syntax.
+                    let trailing = DeferredExpressionSourceComments::nested(
+                        initializer_context.comments(),
+                        DeferredSourceCommentExtent::LeadingAndTrailing,
+                    );
+                    self.emit_deferred_expression_trailing_comments(
+                        transformation,
+                        Some(&trailing),
+                        name_owner,
+                        writer,
+                    )?;
+                    if let Some(type_node) = transformation
+                        .arena()
+                        .metadata(name)
+                        .and_then(crate::EmitMetadata::type_node)
+                    {
+                        let type_record = transformation.arena().node(type_node)?;
+                        let type_source =
+                            transformation.arena().source(type_node.source())?.syntax();
+                        let type_owner = ExpressionCommentPhaseOwner {
+                            range: CommentRange::from_raw(
+                                type_node.source(),
+                                type_record.pos,
+                                type_record.end,
+                                type_source.positions(),
+                            )?,
+                            ..name_owner
+                        };
+                        self.emit_deferred_expression_trailing_comments(
+                            transformation,
+                            Some(&trailing),
+                            type_owner,
+                            writer,
+                        )?;
+                    }
+                }
                 if self.options.declaration_syntax {
                     self.emit_optional_declaration_token(
                         transformation,
@@ -4676,14 +4715,39 @@ impl Printer {
                     } else {
                         self.original_node_end_cursor(transformation, name)?
                     };
-                    let equals = self.emit_space_prefixed_token_with_comments(
-                        transformation,
-                        node,
-                        FixedToken::operator(SyntaxKind::EqualsToken),
-                        equal_cursor,
-                        false,
-                        writer,
-                    )?;
+                    // The equals lane supplies the name's trailing phase.
+                    // Honor the declaration/list end just as that phase does;
+                    // a lowered for-await binding keeps the original list end.
+                    let container_owns_equal_boundary = equal_cursor
+                        .source_position()
+                        .map(|(source, position)| {
+                            Self::comment_container_position(
+                                transformation,
+                                CommentCursor::new(source, position),
+                            )
+                        })
+                        .transpose()?
+                        .is_some_and(|end| initializer_context.comments().retains_end(end));
+                    let equals = if container_owns_equal_boundary {
+                        self.emit_source_leading_token_with_context(
+                            transformation,
+                            node,
+                            FixedToken::operator(SyntaxKind::EqualsToken),
+                            equal_cursor,
+                            TokenLeadingSpace::Required,
+                            initializer_context,
+                            writer,
+                        )?
+                    } else {
+                        self.emit_space_prefixed_token_with_comments(
+                            transformation,
+                            node,
+                            FixedToken::operator(SyntaxKind::EqualsToken),
+                            equal_cursor,
+                            false,
+                            writer,
+                        )?
+                    };
                     writer.write_space(" ");
                     let initializer_node = transformation
                         .arena()
@@ -14697,6 +14761,28 @@ impl Printer {
                                 owner,
                                 writer,
                             )?;
+                        // A source-ranged grammar parenthesis is a distinct
+                        // parent in tsc's pipeline. Its raw range is independent
+                        // of the child's map overrides and suppression flags.
+                        let paren_record = transformation.arena().node(substituted)?;
+                        let paren_source = transformation
+                            .arena()
+                            .source(substituted.source())?
+                            .syntax();
+                        let paren_map_range = SourceMapRange::new(
+                            substituted.source(),
+                            SourceRange::from_raw(
+                                paren_record.pos,
+                                paren_record.end,
+                                paren_source.positions(),
+                            )?,
+                        );
+                        self.record_map_range_side(
+                            transformation,
+                            MapBoundary::Before,
+                            paren_map_range,
+                            writer,
+                        )?;
                         writer.write_punctuation("(");
                         let inner_owner = self
                             .expression_comment_phase_owner_for_node(transformation, substituted)?;
@@ -14732,6 +14818,12 @@ impl Printer {
                             writer,
                         )?;
                         writer.write_punctuation(")");
+                        self.record_map_range_side(
+                            transformation,
+                            MapBoundary::After,
+                            paren_map_range,
+                            writer,
+                        )?;
                         self.emit_deferred_expression_trailing_comments(
                             transformation,
                             deferred_source_comments.as_ref(),
@@ -17716,7 +17808,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.comments_disabled() {
+        if self.comments_disabled() || !self.node_has_source_token_shape(transformation, node)? {
             return Ok(());
         }
         let original = transformation.arena().get_original_node(node);

@@ -1,0 +1,9 @@
+Read-only review of the implemented Recovery-next diff on 663da1938 (no builds or edits). Round104 guidance applied:
+- source-ranged virtual-paren Before/After maps use raw owner range (no child metadata/flags) and normal recording suppression depth;
+- emit_comment_after_open_brace uses node_has_source_token_shape;
+- ONLY VariableDeclaration = token call conditionally chooses SourceLeading when initializer_context.comments retains the UTF16 cursor end, otherwise original BoundaryUnion; no-initializer arm calls emit_trailing_comments_for_node_in_container(name, initializer_context.comments).
+- object-rest await prepass as reviewed, with source_for_of preserved for mark_enclosing_block_multi_line; no block-scope API added.
+Please check implemented diffs, including whether typed declarations without initializer could duplicate comments. Fresh TS complete observations fixture emitter-r104-rest-controls.json has eight cases: six temp/labeled/nested/rest controls ES2017, typed-no-initializer name comment ES5 and ES2017. No native qualification yet. Existing active_transform erased-parameter test will run with full emitter contracts and compiler boundaries.
+Possible bug to inspect: no-initializer trailing name path is after emit_type_annotation when declaration_syntax true; JS emitter is target scope but d.ts printing should retain position. Identify smallest faithful adjustment if needed.
+User explicitly wants cautious changes and future refactoring to reduce accidental coupling among emit text, comments, source maps and checker. We will record known dependencies for post-integration design; no architecture migration on current train.
+Unrelated lint-prep is running clippy --fix on checker/program inherited lints (one heavy job), do not edit that tree either. Source copies/diffs are /tmp/emitter-printer-r104.diff and /tmp/emitter-es2018-r104.diff, but read current Recovery files as authoritative.

@@ -424,3 +424,16 @@ fn await_flag_boundaries_match_complete_typescript_commands() {
         "Await flag commands failures: {failures:?}"
     );
 }
+
+#[test]
+fn r104_object_rest_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r104-rest-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 10);
+    assert_recovery_boundary_commands(cases);
+}

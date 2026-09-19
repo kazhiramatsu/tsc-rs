@@ -1357,12 +1357,113 @@ impl<'context> Es2018Visitor<'context> {
         })
     }
 
+    /// Prepare object-rest syntax before the await-loop plan visits any child.
+    /// The temporary is local to the new let head; print order owns its spelling.
+    /// tsc-port: transformForOfStatementWithObjectRest @6.0.3
+    /// tsc-span: _tsc.js:102196-102240
+    fn prepare_for_await_object_rest(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ForOfStatementData,
+    ) -> Result<(TransformNode, tsc_syntax::nodes::ForOfStatementData), TransformError> {
+        let Some(mut initializer) = data.initializer.map(|id| self.node(id)) else {
+            return Ok((original, data));
+        };
+        while let NodeData::ParenthesizedExpression(parenthesized) =
+            &self.context.arena().node(initializer)?.data
+        {
+            initializer = self.node(parenthesized.expression.ok_or(
+                TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ParenthesizedExpression,
+                    field: "expression",
+                },
+            )?);
+        }
+        let mut unwrapped = data.clone();
+        unwrapped.initializer = Some(initializer.node());
+        if !self.for_of_head_contains_object_rest(&unwrapped)? {
+            return Ok((original, data));
+        }
+        let initializer_location = self.node(data.initializer.ok_or(
+            TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ForOfStatement,
+                field: "initializer",
+            },
+        )?);
+        let temporary = self.allocate_local_temp_binding()?;
+        let name = self.create_planned_identifier(&temporary)?;
+        let value = self.create_planned_identifier(&temporary)?;
+        let binding = self.create_for_of_binding_statement(initializer, value)?;
+        let declaration = self.create_variable_declaration(name, None)?;
+        self.context
+            .factory()?
+            .set_text_range(declaration, initializer_location)?;
+        let list = self.create_variable_declaration_list(vec![declaration], NodeFlags::LET)?;
+        self.context
+            .factory()?
+            .set_text_range(list, initializer_location)?;
+
+        let body_location =
+            self.node(data.statement.ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ForOfStatement,
+                field: "statement",
+            })?);
+        let mut statements = vec![binding];
+        let statements_range =
+            if let NodeData::Block(block) = &self.context.arena().node(body_location)?.data {
+                let array = block.statements;
+                statements.extend(self.array_nodes(array)?);
+                array
+                    .map(|array| {
+                        let record = self.context.arena().node_array(self.array(array))?;
+                        Ok::<_, TransformError>((record.pos, record.end))
+                    })
+                    .transpose()?
+            } else {
+                statements.push(body_location);
+                let record = self.context.arena().node(body_location)?;
+                Some((record.pos, record.end))
+            };
+        let statement_array = self
+            .context
+            .factory()?
+            .create_node_array(self.source, statements)?;
+        if let Some((pos, end)) = statements_range {
+            self.context
+                .factory()?
+                .set_node_array_text_range(statement_array, pos, end)?;
+        }
+        let flags = self.context.arena().array_transform_flags(statement_array);
+        let block = self.context.factory()?.create_node(
+            self.source,
+            NodeData::Block(tsc_syntax::nodes::BlockData {
+                statements: Some(statement_array.array()),
+            }),
+            flags,
+        )?;
+        self.context.factory()?.set_multi_line(block, true)?;
+        self.context
+            .factory()?
+            .set_text_range(block, body_location)?;
+        data.initializer = Some(list.node());
+        data.statement = Some(block.node());
+        let updated_data = NodeData::ForOfStatement(data.clone());
+        let flags = flags_after_update(self.context.arena(), original, &updated_data)?;
+        let updated = self
+            .context
+            .factory()?
+            .update_node(original, updated_data, flags)?;
+        Ok((updated, data))
+    }
+
     fn visit_for_await_statement(
         &mut self,
         original: TransformNode,
         data: tsc_syntax::nodes::ForOfStatementData,
         labels: Vec<(TransformNode, TransformNode)>,
     ) -> Result<NodeId, TransformError> {
+        let source_for_of = original;
+        let (original, data) = self.prepare_for_await_object_rest(original, data)?;
         let expression_original = data
             .expression
             .map(|expression| self.node(expression))
@@ -1459,7 +1560,10 @@ impl<'context> Es2018Visitor<'context> {
             .metadata_mut(for_statement)
             .add_flags(EmitFlags::NO_TOKEN_TRAILING_SOURCE_MAPS);
 
-        let range_owner = labels.first().map(|(owner, _)| *owner).unwrap_or(original);
+        let range_owner = labels
+            .first()
+            .map(|(owner, _)| *owner)
+            .unwrap_or(source_for_of);
         self.mark_enclosing_block_multi_line(range_owner)?;
         let mut labeled = for_statement;
         for (label_owner, label) in labels.into_iter().rev() {
@@ -1625,6 +1729,20 @@ impl<'context> Es2018Visitor<'context> {
         initializer: TransformNode,
         value: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        let statement = self.create_for_of_binding_statement(initializer, value)?;
+        self.visit(statement.node())?
+            .map(|statement| self.node(statement))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ForOfStatement,
+                field: "binding statement",
+            })
+    }
+
+    fn create_for_of_binding_statement(
+        &mut self,
+        initializer: TransformNode,
+        value: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
         let statement = match self.context.arena().node(initializer)?.data.clone() {
             NodeData::VariableDeclarationList(mut list) => {
                 let declarations = self.array_nodes(list.declarations)?;
@@ -1638,6 +1756,8 @@ impl<'context> Es2018Visitor<'context> {
                             field: "declaration",
                         });
                     };
+                    data.exclamation_token = None;
+                    data.r#type = None;
                     data.initializer = Some(value.node());
                     let flags = flags_after_update(
                         self.context.arena(),
@@ -1678,12 +1798,7 @@ impl<'context> Es2018Visitor<'context> {
         self.context
             .factory()?
             .set_text_range(statement, initializer)?;
-        self.visit(statement.node())?
-            .map(|statement| self.node(statement))
-            .ok_or(TransformError::RequiredChildRemoved {
-                parent: SyntaxKind::ForOfStatement,
-                field: "binding statement",
-            })
+        Ok(statement)
     }
 
     fn create_for_await_catch_clause(
