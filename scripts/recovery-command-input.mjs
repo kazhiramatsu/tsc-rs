@@ -247,6 +247,7 @@ function projectOptions(input, descriptor, host, layout, noEmit) {
   const externalConfigOptionDiagnostics = parsed.options.configFile !== undefined;
   const options = {...parsed.options, noErrorTruncation: false, skipDefaultLibCheck: false,
     moduleResolution: ts.ModuleResolutionKind.Classic};
+  options.mapRoot = undefined; options.sourceRoot = undefined;
   // Project config conversion uses source locations, but createProgram gets
   // no config SourceFile: the embedding parser owns option diagnostics.
   delete options.configFile;
@@ -255,7 +256,7 @@ function projectOptions(input, descriptor, host, layout, noEmit) {
   assert.ok(["Commonjs", "Amd"].includes(input.module_variant));
   options.module = input.module_variant === "Commonjs" ? ts.ModuleKind.CommonJS : ts.ModuleKind.AMD;
   const ignored = new Set(["scenario", "projectRoot", "inputFiles", "baselineCheck", "runTest", "project"]);
-  const applied = new Set(["module", "moduleResolution", "declaration", "strict", "noResolve", "sourceMap", "sourceRoot", "mapRoot", "outDir", "outFile", "rootDir"]);
+  const applied = new Set(["module", "moduleResolution", "declaration", "declarationDir", "strict", "noResolve", "sourceMap", "sourceRoot", "mapRoot", "outDir", "outFile", "rootDir"]);
   for (const [name, value] of Object.entries(descriptor)) {
     if (ignored.has(name)) continue;
     if (noEmit && name === "declaration") { assert.equal(value, false); continue; }
@@ -264,6 +265,7 @@ function projectOptions(input, descriptor, host, layout, noEmit) {
         && !(typeof value === "object" && !Array.isArray(value) && !Object.keys(value).length);
       assert.equal(requested, false, `unsupported no-emit project option ${name}`); continue;
     }
+    if (!noEmit && ["emittedFiles", "resolveMapRoot", "resolveSourceRoot"].includes(name)) continue;
     assert.ok(!noEmit || name !== "rootDir", "no-emit project does not admit rootDir");
     assert.ok(applied.has(name), `unsupported project descriptor property ${name}`);
     if (["module", "moduleResolution"].includes(name) && typeof value === "string") {
@@ -271,6 +273,13 @@ function projectOptions(input, descriptor, host, layout, noEmit) {
       options[name] = ts.parseCustomTypeOption(optionsByName.get(name.toLowerCase()), value, errors);
       assert.deepEqual(errors, []);
     } else options[name] = value;
+  }
+  if (!noEmit) {
+    // Upstream projectsRunner.createCompilerOptions resolves descriptor roots
+    // against vfs.srcFolder, independently of project cwd and property order.
+    // Complete command observations use raw paths, before baseline sanitizing.
+    if (descriptor.resolveMapRoot && descriptor.mapRoot) options.mapRoot = absolute(descriptor.mapRoot, "/.src");
+    if (descriptor.resolveSourceRoot && descriptor.sourceRoot) options.sourceRoot = absolute(descriptor.sourceRoot, "/.src");
   }
   layout.roots = roots;
   return {options, errors: parsed.errors, decisions: [], externalConfigOptionDiagnostics};

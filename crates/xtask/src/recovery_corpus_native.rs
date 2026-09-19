@@ -28,6 +28,8 @@ use crate::utf16_literal_recovery_census::{
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 mod options;
+mod project;
+pub(crate) use project::run as run_project_supplement;
 
 fn string<'a>(value: &'a Value, field: &str) -> Result<&'a str> {
     value[field]

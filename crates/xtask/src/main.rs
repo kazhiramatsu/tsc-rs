@@ -79,6 +79,9 @@ fn main() {
         Some("jsdoc-ast-diff") => run_or_exit(jsdoc_ast_diff(args)),
         Some("recovery-census") => run_or_exit(recovery_census::run(args)),
         Some("recovery-corpus-native") => run_or_exit(recovery_corpus_native::run(args)),
+        Some("project-command-supplement") => {
+            run_or_exit(recovery_corpus_native::run_project_supplement(args))
+        }
         Some("utf16-literal-recovery-census") => {
             run_or_exit(utf16_literal_recovery_census::run(args))
         }

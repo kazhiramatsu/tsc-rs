@@ -87,6 +87,43 @@ test("project descriptor module overrides the matrix variant", () => {
   assert.equal(actual.host.getDefaultLibFileName({target: ts.ScriptTarget.ESNext}), library + "/lib.es5.d.ts");
 });
 
+test("project resolve roots use the source mount independently of key order", () => {
+  for (const reversed of [false, true]) {
+    const entries = Object.entries({inputFiles: ["main.ts"], mapRoot: "tests/maps", sourceRoot: "tests/src",
+      declarationDir: "declarations", emittedFiles: ["metadata.js"], resolveMapRoot: true, resolveSourceRoot: true});
+    const actual = project(Object.fromEntries(reversed ? entries.reverse() : entries));
+    assert.equal(actual.options.mapRoot, "/.src/tests/maps");
+    assert.equal(actual.options.sourceRoot, "/.src/tests/src");
+    assert.equal(actual.options.declarationDir, "declarations");
+    assert.equal(actual.options.listEmittedFiles, undefined);
+  }
+  for (const flag of [false, undefined]) {
+    const actual = project({inputFiles: ["main.ts"], mapRoot: "tests/maps", resolveMapRoot: flag});
+    assert.equal(actual.options.mapRoot, "tests/maps");
+  }
+  assert.equal(project({inputFiles: ["main.ts"], resolveMapRoot: true}).options.mapRoot, undefined);
+  assert.equal(project({inputFiles: ["main.ts"], resolveMapRoot: true, mapRoot: ""}).options.mapRoot, "");
+});
+
+test("project existing-options undefined roots override config roots", () => {
+  const config = '{"compilerOptions":{"mapRoot":"config/maps","sourceRoot":"config/src"},"files":["main.ts"]}';
+  for (const descriptor of [{}, {resolveMapRoot: true}, {resolveMapRoot: true, mapRoot: "tests/maps"}]) {
+    const input = {route: "recorded-project", floor: "established", current_directory: "/project",
+      descriptor_utf8: {content_sha256: doc(JSON.stringify(descriptor))}, module_variant: "Amd",
+      mount: {case_sensitive: true, read_only: true, files: [
+        {path: "/project/main.ts", content_sha256: doc("export const x=1;")},
+        {path: "/project/tsconfig.json", content_sha256: doc(config)}]}, prepared: {roots: ["/project/main.ts"]}};
+    const actual = prepare(row(input, "load_project_emit"), pool, library);
+    assert.equal(actual.options.mapRoot, descriptor.mapRoot ? "/.src/tests/maps" : undefined);
+    assert.equal(actual.options.sourceRoot, undefined);
+    if (!Object.keys(descriptor).length) {
+      const noEmit = prepare(row(input, "load_project_no_emit"), pool, library);
+      assert.equal(noEmit.options.mapRoot, undefined);
+      assert.equal(noEmit.options.sourceRoot, undefined);
+    }
+  }
+});
+
 test("NoEmit loaders retain their distinct option layers", () => {
   const input = compiler([unit(0, "main.ts", "")], {settings: [["noEmit", "false"]]});
   assert.equal(prepare(row(input, "load_compiler_no_emit"), pool, library).options.noEmit, true);
