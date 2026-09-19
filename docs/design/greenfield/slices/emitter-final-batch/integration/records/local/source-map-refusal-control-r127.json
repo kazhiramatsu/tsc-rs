@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r120-immutable/contracts",
+    "--exact",
+    "source_map_recording_witness_contract::parse_error_witness_is_typed_deferred_to_h2_9",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T09:32:02.552138+00:00",
+  "head": "d0edc1a74a6249318b19aa449ab2735983a8df46",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 5.181,
+  "log_sha256": "358ff0d129d3319aad13463f08b9f15515d63204700039c8eb80c24752bf377b",
+  "log_bytes": 211
+}
