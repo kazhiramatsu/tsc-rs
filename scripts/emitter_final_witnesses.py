@@ -43,7 +43,7 @@ COMMENT_TESTS = (
 )
 SYSTEM_FIXTURES = (("system-binding-publication", 1044), ("await-flag-commands", 690),
                    ("emitter-recovery-boundaries", 774), ("emitter-heritage-boundaries", 132),
-                   ("emitter-helper-probes", 122), ("emitter-nested-paren-recovery", 108), ("emitter-class-helper-gates", 320))
+                   ("emitter-helper-probes", 122), ("emitter-nested-paren-recovery", 108), ("emitter-class-helper-gates", 320), ("emitter-r95-neighbours", 288), ("emitter-r95-wrapper-rest", 88), ("emitter-r95-call-boundaries", 18))
 SYSTEM_TESTS = (
     "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
     "emitter_residual_audit::await_flag_boundaries_match_complete_typescript_commands",
@@ -53,6 +53,9 @@ SYSTEM_TESTS = (
     "emitter_residual_audit::helper_diagnostic_boundaries_match_complete_typescript_commands",
     "emitter_residual_audit::class_helper_gates_match_complete_typescript_commands",
     "emitter_residual_audit::nested_parenthesis_recovery_matches_complete_typescript_commands",
+    "emitter_residual_audit::r95_emitter_neighbours_match_complete_typescript_commands",
+    "emitter_residual_audit::r95_wrapper_and_rest_neighbours_match_complete_typescript_commands",
+    "emitter_residual_audit::r95_statement_callee_boundaries_match_complete_typescript_commands",
 )
 RECOVERY_FIXTURES = (
     ("emitter-missing-await", 60), ("emitter-missing-declaration", 72),

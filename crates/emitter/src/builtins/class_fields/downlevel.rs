@@ -3124,7 +3124,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 | NodeData::ArrowFunction(_) => {
                     return Ok(InlineSequencePlacement::ExistingListContext);
                 }
-                NodeData::PartiallyEmittedExpression(_) => current = parent,
+                // Preserve the erased wrapper's range: its enclosing factory
+                // must put any grammar parentheses around the whole wrapper,
+                // not around this synthetic comma sequence inside it.
+                NodeData::PartiallyEmittedExpression(_) => {
+                    return Ok(InlineSequencePlacement::ExistingListContext);
+                }
                 NodeData::BinaryExpression(data) => {
                     let operator = data
                         .operator_token

@@ -268,6 +268,42 @@ fn class_helper_gates_match_complete_typescript_commands() {
 }
 
 #[test]
+fn r95_emitter_neighbours_match_complete_typescript_commands() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-r95-neighbours.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 288);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r95_wrapper_and_rest_neighbours_match_complete_typescript_commands() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-r95-wrapper-rest.json"))
+            .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 88);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r95_statement_callee_boundaries_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r95-call-boundaries.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 18);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
 fn nested_parenthesis_recovery_matches_complete_typescript_commands() {
     let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
         "../fixtures/emitter-nested-paren-recovery.json"

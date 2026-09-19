@@ -619,6 +619,10 @@ enum ExpressionGrammarContext {
     #[default]
     Normal,
     ExpressionStatement,
+    /// A statement's left edge still has the ordinary call-callee grammar.
+    ExpressionStatementCallee {
+        optional_chain: bool,
+    },
     LeftSideOfAccess {
         optional_chain: bool,
     },
@@ -5091,13 +5095,13 @@ impl Printer {
                     false,
                     writer,
                 )?;
-                let operand_anchor = if data.asterisk_token.is_some() {
-                    self.emit_token_with_comments(
+                let operand_anchor = if let Some(asterisk) = data.asterisk_token {
+                    self.emit_ordinary_token_after(
                         transformation,
                         node,
-                        FixedToken::operator(SyntaxKind::AsteriskToken),
-                        yield_keyword,
-                        false,
+                        asterisk,
+                        TokenAnchor::new(yield_keyword.cursor(), yield_keyword.comment_resume()),
+                        expression_context,
                         writer,
                     )?
                 } else {
@@ -7174,10 +7178,14 @@ impl Printer {
                 let call_is_optional_chain = NodeFlags::from_bits(record.flags)
                     .contains(NodeFlags::OPTIONAL_CHAIN)
                     || data.question_dot_token.is_some();
-                let callee_grammar = if expression_context.grammar()
-                    == ExpressionGrammarContext::ExpressionStatement
-                {
+                let callee_grammar = if matches!(
+                    expression_context.grammar(),
                     ExpressionGrammarContext::ExpressionStatement
+                        | ExpressionGrammarContext::ExpressionStatementCallee { .. }
+                ) {
+                    ExpressionGrammarContext::ExpressionStatementCallee {
+                        optional_chain: call_is_optional_chain,
+                    }
                 } else {
                     ExpressionGrammarContext::LeftSideOfAccess {
                         optional_chain: call_is_optional_chain,
@@ -7505,7 +7513,7 @@ impl Printer {
                     writer.write_punctuation(".");
                 }
                 let token = if let Some(question_dot) = data.question_dot_token {
-                    self.emit_access_question_dot(
+                    self.emit_ordinary_token_after(
                         transformation,
                         node,
                         question_dot,
@@ -7599,7 +7607,7 @@ impl Printer {
                     })
                     .unwrap_or_else(|| TokenAnchor::from(open_cursor));
                 if let Some(question_dot) = data.question_dot_token {
-                    self.emit_access_question_dot(
+                    self.emit_ordinary_token_after(
                         transformation,
                         node,
                         question_dot,
@@ -12764,6 +12772,14 @@ impl Printer {
                         .then_some(GrammarParentheses::SourceRanged)
                 }
             }
+            ExpressionGrammarContext::ExpressionStatementCallee { optional_chain } => (self
+                .expression_statement_requires_parentheses(transformation, expression)?
+                || self.left_side_of_access_requires_parentheses(
+                    transformation,
+                    emitted,
+                    optional_chain,
+                )?)
+            .then_some(GrammarParentheses::SourceRanged),
             ExpressionGrammarContext::LeftSideOfAccess { optional_chain } => self
                 .left_side_of_access_requires_parentheses(transformation, emitted, optional_chain)?
                 .then_some(GrammarParentheses::SourceRanged),
@@ -14179,13 +14195,16 @@ impl Printer {
         Ok(())
     }
 
-    /// Unlike a fixed dot, `?.` is emitted as a node, with its own source
-    /// map boundaries and comment phase. Carry its trailing claim forward
-    /// to the property name without moving the token's source-map position.
+    /// Tokens passed to ordinary `emit`, including `?.` and the `yield*`
+    /// asterisk, retain their own source-map boundaries and comment phase.
+    /// Carry their trailing claim to the following child without moving
+    /// the token's source-map position. Synthesized tokens stay unpositioned.
     /// tsc-port: emitPropertyAccessExpression / emitElementAccessExpression @6.0.3
     /// tsc-span: _tsc.js:118223-118273
+    /// tsc-port: emitYieldExpression @6.0.3
+    /// tsc-span: _tsc.js:118523-118527
     #[allow(clippy::too_many_arguments)]
-    fn emit_access_question_dot(
+    fn emit_ordinary_token_after(
         &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
@@ -14636,6 +14655,7 @@ impl Printer {
         } else if matches!(
             grammar,
             ExpressionGrammarContext::LeftSideOfAccess { .. }
+                | ExpressionGrammarContext::ExpressionStatementCallee { .. }
                 | ExpressionGrammarContext::NewCallee
                 | ExpressionGrammarContext::PrefixUnaryOperand
                 | ExpressionGrammarContext::PostfixUnaryOperand

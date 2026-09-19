@@ -12,9 +12,9 @@ use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, No
 use tsc_types::{CompilerOptions, JsStr, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName, EmitFlags, LexicalEnvironment, SourceRange, TransformError,
-    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
-    TransformationContext, Transformer,
+    factory::EmitHelperName, EmitFlags, LexicalEnvironment, SourceMapRange, SourceRange,
+    TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformRoot,
+    TransformSourceId, TransformationContext, Transformer,
 };
 
 use super::{
@@ -1446,7 +1446,7 @@ impl<'context> Es2018Visitor<'context> {
         let non_user = self.create_planned_identifier(&plan.non_user_code)?;
         let true_value = self.create_boolean(true)?;
         let incrementor = self.create_assignment(non_user, true_value)?;
-        let body = self.create_for_await_body(original, &data, &plan)?;
+        let body = self.create_for_await_body(&data, &plan)?;
         let for_statement = self.create_for_statement(
             Some(loop_initializer),
             Some(condition),
@@ -1477,8 +1477,9 @@ impl<'context> Es2018Visitor<'context> {
         let finally_block = self.create_for_await_finally_block(&plan)?;
         let lowered =
             self.create_try_statement(try_block, Some(catch_clause), Some(finally_block))?;
-        self.set_original_and_range(lowered, range_owner)
-            .map(TransformNode::node)
+        // transformForAwaitOfStatement leaves its surrounding try synthetic;
+        // only the nested for statement owns the original iteration range.
+        Ok(lowered.node())
     }
 
     fn mark_enclosing_block_multi_line(
@@ -1519,7 +1520,6 @@ impl<'context> Es2018Visitor<'context> {
 
     fn create_for_await_body(
         &mut self,
-        original: TransformNode,
         data: &tsc_syntax::nodes::ForOfStatementData,
         plan: &ForAwaitLoweringPlan,
     ) -> Result<TransformNode, TransformError> {
@@ -1534,6 +1534,29 @@ impl<'context> Es2018Visitor<'context> {
         let false_value = self.create_boolean(false)?;
         let exit_non_user = self.create_assignment(non_user, false_value)?;
         let exit_statement = self.create_expression_statement(exit_non_user)?;
+        let expression = data.expression.map(|id| self.node(id)).ok_or(
+            TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ForOfStatement,
+                field: "expression",
+            },
+        )?;
+        let source_map_range = {
+            let record = self.context.arena().node(expression)?;
+            let source = self.context.arena().source(expression.source())?.syntax();
+            let range = SourceRange::from_raw(record.pos, record.end, source.positions()).map_err(
+                |error| TransformError::InvalidSourceRange {
+                    node: expression,
+                    error,
+                },
+            )?;
+            SourceMapRange::new(expression.source(), range)
+        };
+        for statement in [value_statement, exit_statement] {
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .set_source_map_range(source_map_range);
+        }
 
         let initializer = data
             .initializer
@@ -1559,13 +1582,41 @@ impl<'context> Es2018Visitor<'context> {
                 field: "statement",
             },
         )?;
-        if let NodeData::Block(block) = self.context.arena().node(visited_body)?.data.clone() {
-            statements.extend(self.array_nodes(block.statements)?);
-        } else {
-            statements.push(visited_body);
-        }
+        let body_location =
+            if let NodeData::Block(block) = self.context.arena().node(visited_body)?.data.clone() {
+                statements.extend(self.array_nodes(block.statements)?);
+                Some(block.statements)
+            } else {
+                statements.push(visited_body);
+                None
+            };
         let body = self.create_block(statements, true)?;
-        self.context.factory()?.set_text_range(body, original)?;
+        if let Some(statements_location) = body_location {
+            self.context.factory()?.set_text_range(body, visited_body)?;
+            if let Some(statements_location) = statements_location {
+                let original_array = self
+                    .context
+                    .arena()
+                    .node_array(self.array(statements_location))?;
+                let (pos, end) = (original_array.pos, original_array.end);
+                let body_record = self.context.arena().node(body)?;
+                let NodeData::Block(block) = &body_record.data else {
+                    return Err(TransformError::FactoryKindMismatch {
+                        expected: SyntaxKind::Block,
+                        actual: body_record.kind,
+                    });
+                };
+                let array = self.array(block.statements.ok_or(
+                    TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::Block,
+                        field: "statements",
+                    },
+                )?);
+                self.context
+                    .factory()?
+                    .set_node_array_text_range(array, pos, end)?;
+            }
+        }
         Ok(body)
     }
 
@@ -1578,7 +1629,7 @@ impl<'context> Es2018Visitor<'context> {
             NodeData::VariableDeclarationList(mut list) => {
                 let declarations = self.array_nodes(list.declarations)?;
                 let mut rebound = Vec::with_capacity(declarations.len());
-                for (index, declaration) in declarations.into_iter().enumerate() {
+                for declaration in declarations.into_iter().take(1) {
                     let NodeData::VariableDeclaration(mut data) =
                         self.context.arena().node(declaration)?.data.clone()
                     else {
@@ -1587,7 +1638,7 @@ impl<'context> Es2018Visitor<'context> {
                             field: "declaration",
                         });
                     };
-                    data.initializer = (index == 0).then_some(value.node());
+                    data.initializer = Some(value.node());
                     let flags = flags_after_update(
                         self.context.arena(),
                         declaration,
@@ -1618,9 +1669,15 @@ impl<'context> Es2018Visitor<'context> {
             }
             _ => {
                 let assignment = self.create_assignment(initializer, value)?;
+                self.context
+                    .factory()?
+                    .set_text_range(assignment, initializer)?;
                 self.create_expression_statement(assignment)?
             }
         };
+        self.context
+            .factory()?
+            .set_text_range(statement, initializer)?;
         self.visit(statement.node())?
             .map(|statement| self.node(statement))
             .ok_or(TransformError::RequiredChildRemoved {
@@ -1894,8 +1951,16 @@ impl<'context> Es2018Visitor<'context> {
             self.context
                 .factory()?
                 .set_text_range(delegated, expression)?;
-            let asterisk = data.asterisk_token.map(|asterisk| self.node(asterisk));
-            let delegated_yield = self.create_yield_expression(asterisk, Some(delegated))?;
+            let delegated_data =
+                NodeData::YieldExpression(tsc_syntax::nodes::YieldExpressionData {
+                    asterisk_token: data.asterisk_token,
+                    expression: Some(delegated.node()),
+                });
+            let flags = flags_after_update(self.context.arena(), original, &delegated_data)?;
+            let delegated_yield =
+                self.context
+                    .factory()?
+                    .update_node(original, delegated_data, flags)?;
             self.create_downlevel_await(FunctionMode::AsyncGenerator, delegated_yield)?
         } else {
             let expression = expression.unwrap_or(self.create_void_zero()?);

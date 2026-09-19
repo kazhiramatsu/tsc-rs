@@ -1274,7 +1274,13 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         // pass: transformTypeScript already named an anonymous default
         // declaration (`default_1`) and left that generated identifier as the
         // declaration's name on the intermediate node of the original chain.
-        if let Some(binding) = self.generated_declaration_name_binding_on_chain(requested) {
+        let earlier_class_reference = self
+            .context
+            .generated_class_reference_name(node)
+            .and_then(|name| self.generated_binding_of_identifier(name));
+        if let Some(binding) = earlier_class_reference
+            .or_else(|| self.generated_declaration_name_binding_on_chain(requested))
+        {
             self.print_state
                 .generated_names_for_nodes
                 .insert(key, binding.clone());

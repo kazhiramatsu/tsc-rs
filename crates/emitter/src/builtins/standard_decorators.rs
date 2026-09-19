@@ -5624,6 +5624,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             } => {
                 binding.write_generated_metadata(self.context.arena_mut()?, identifier);
                 self.set_original_only(identifier, *declaration_owner)?;
+                self.context
+                    .record_generated_class_reference_name(*declaration_owner, identifier);
             }
         }
         Ok(identifier)

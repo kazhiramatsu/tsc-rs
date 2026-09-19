@@ -1,0 +1,1300 @@
+{
+  "head": "c1e699ab57cf945641f86055249cb0835aa9ea1d",
+  "records": 841,
+  "cases": 442,
+  "capture_sha256": "ac90093c8ba593b440105cb603f98577bac03c51232a6cf1948f4c6c5c2ac3ab",
+  "case_repetitions": {
+    "emitter-class-helper-gates/decl-accessor-pair/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/es5/esnext/present": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-accessor-pair/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/es5/esnext/present": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-anonymous-default/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/es5/esnext/present": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-dynamic-accessor/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/decl-instance-method/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-instance-method/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-instance-method/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-instance-method/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/decl-instance-method/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-instance-method/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-instance-method/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-instance-method/es5/esnext/present": 2,
+    "emitter-class-helper-gates/decl-instance-method/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-instance-method/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-instance-method/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-instance-method/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/es5/esnext/present": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-malformed-accessor/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/decl-static-initializer-assignment-fields/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-static-initializer-assignment-fields/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-static-initializer-assignment-fields/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-static-initializer-assignment-fields/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es2021/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es2021/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es2021/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es2021/esnext/present": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-static-initializer/es5/esnext/present": 2,
+    "emitter-class-helper-gates/decl-static-initializer/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-static-initializer/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-static-initializer/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-static-initializer/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/decl-static-private-legacy/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-static-private-legacy/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-static-private-legacy/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-static-private-legacy/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/decl-static-private/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-static-private/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-static-private/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-static-private/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/decl-static-private/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-static-private/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-static-private/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-static-private/es5/esnext/present": 2,
+    "emitter-class-helper-gates/decl-static-private/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/decl-static-private/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/decl-static-private/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/decl-static-private/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-as/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-as/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-as/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-as/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-as/es5/commonjs/missing": 1,
+    "emitter-class-helper-gates/expr-as/es5/commonjs/present": 1,
+    "emitter-class-helper-gates/expr-as/es5/esnext/missing": 1,
+    "emitter-class-helper-gates/expr-as/es5/esnext/present": 1,
+    "emitter-class-helper-gates/expr-as/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-as/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-as/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-as/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-binding/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-binding/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-binding/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-binding/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-binding/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-binding/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-binding/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-binding/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-binding/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-binding/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-binding/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-binding/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-call-argument/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-call-argument/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-call-argument/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-call-argument/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-call-argument/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-call-argument/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-call-argument/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-call-argument/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-call-argument/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-call-argument/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-call-argument/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-call-argument/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-computed/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-computed/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-computed/es2022/commonjs/prop-key-only": 2,
+    "emitter-class-helper-gates/expr-computed/es2022/commonjs/set-only": 2,
+    "emitter-class-helper-gates/expr-computed/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-computed/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-computed/es2022/esnext/prop-key-only": 2,
+    "emitter-class-helper-gates/expr-computed/es2022/esnext/set-only": 2,
+    "emitter-class-helper-gates/expr-computed/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-computed/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-computed/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-computed/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-computed/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-computed/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-computed/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-computed/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-decorated/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-decorated/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-decorated/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-decorated/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-decorated/es5/commonjs/missing": 1,
+    "emitter-class-helper-gates/expr-decorated/es5/commonjs/present": 1,
+    "emitter-class-helper-gates/expr-decorated/es5/esnext/missing": 1,
+    "emitter-class-helper-gates/expr-decorated/es5/esnext/present": 1,
+    "emitter-class-helper-gates/expr-decorated/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-decorated/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-decorated/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-decorated/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-first-request/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-first-request/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-first-request/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-first-request/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-first-request/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-first-request/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-first-request/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-first-request/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-first-request/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-first-request/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-first-request/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-first-request/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-logical-assignment/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-named/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-named/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-named/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-named/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-named/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-named/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-named/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-named/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-named/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-named/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-named/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-named/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-non-null/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-non-null/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-non-null/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-non-null/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-non-null/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-non-null/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-non-null/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-non-null/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-non-null/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-non-null/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-non-null/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-non-null/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es2022/commonjs/prop-key-only": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es2022/commonjs/set-only": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es2022/esnext/prop-key-only": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es2022/esnext/set-only": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-proto-computed/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-proto-computed/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-proto-computed/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-proto-computed/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-proto-computed/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-proto-identifier/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-proto-string/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-proto-string/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-proto-string/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-proto-string/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-proto-string/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-proto-string/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-proto-string/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-proto-string/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-proto-string/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-proto-string/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-proto-string/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-proto-string/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-satisfies/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-satisfies/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-satisfies/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-satisfies/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-satisfies/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-satisfies/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-satisfies/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-satisfies/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-satisfies/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-satisfies/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-satisfies/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-satisfies/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-block-legacy/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-block-legacy/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-block-legacy/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-block-legacy/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-block/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-block/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-block/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-block/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-block/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-block/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-block/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-block/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-block/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-block/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-block/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-block/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-initializer-assignment-fields/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-initializer-assignment-fields/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-initializer-assignment-fields/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-initializer-assignment-fields/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es2021/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es2021/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es2021/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es2021/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-initializer/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-initializer/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-initializer/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-initializer/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-initializer/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-private/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-private/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-private/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-private/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-private/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-private/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-private/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-private/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-static-private/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-static-private/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-static-private/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-static-private/esnext/esnext/present": 2,
+    "emitter-class-helper-gates/expr-type-assertion/es2022/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-type-assertion/es2022/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-type-assertion/es2022/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-type-assertion/es2022/esnext/present": 2,
+    "emitter-class-helper-gates/expr-type-assertion/es5/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-type-assertion/es5/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-type-assertion/es5/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-type-assertion/es5/esnext/present": 2,
+    "emitter-class-helper-gates/expr-type-assertion/esnext/commonjs/missing": 2,
+    "emitter-class-helper-gates/expr-type-assertion/esnext/commonjs/present": 2,
+    "emitter-class-helper-gates/expr-type-assertion/esnext/esnext/missing": 2,
+    "emitter-class-helper-gates/expr-type-assertion/esnext/esnext/present": 2,
+    "emitter-helper-probes/ambient-class-metadata/es5/missing": 2,
+    "emitter-helper-probes/ambient-class-metadata/esnext/missing": 2,
+    "emitter-helper-probes/ambient-property-metadata/es5/missing": 2,
+    "emitter-helper-probes/ambient-property-metadata/esnext/missing": 2,
+    "emitter-helper-probes/async-yield-star-delegator/es2015/missing": 1,
+    "emitter-helper-probes/async-yield-star-delegator/es2015/present": 1,
+    "emitter-helper-probes/async-yield-star-delegator/es2022/missing": 1,
+    "emitter-helper-probes/async-yield-star-delegator/es2022/present": 1,
+    "emitter-helper-probes/async-yield-star-delegator/es5/downlevel-iteration-off": 1,
+    "emitter-helper-probes/async-yield-star-delegator/es5/import-helpers-off": 1,
+    "emitter-helper-probes/async-yield-star-delegator/es5/missing": 1,
+    "emitter-helper-probes/async-yield-star-delegator/es5/no-check": 1,
+    "emitter-helper-probes/async-yield-star-delegator/es5/present": 1,
+    "emitter-helper-probes/async-yield-star-delegator/esnext/missing": 1,
+    "emitter-helper-probes/async-yield-star-delegator/esnext/present": 1,
+    "emitter-helper-probes/async-yield-star-values/es2015/missing": 1,
+    "emitter-helper-probes/async-yield-star-values/es2015/present": 1,
+    "emitter-helper-probes/async-yield-star-values/es2022/missing": 1,
+    "emitter-helper-probes/async-yield-star-values/es2022/present": 1,
+    "emitter-helper-probes/async-yield-star-values/es5/downlevel-iteration-off": 1,
+    "emitter-helper-probes/async-yield-star-values/es5/import-helpers-off": 1,
+    "emitter-helper-probes/async-yield-star-values/es5/missing": 1,
+    "emitter-helper-probes/async-yield-star-values/es5/no-check": 1,
+    "emitter-helper-probes/async-yield-star-values/es5/present": 1,
+    "emitter-helper-probes/async-yield-star-values/esnext/missing": 1,
+    "emitter-helper-probes/async-yield-star-values/esnext/present": 1,
+    "emitter-helper-probes/for-await/es2015/missing": 1,
+    "emitter-helper-probes/for-await/es2015/present": 1,
+    "emitter-helper-probes/for-await/es2022/missing": 2,
+    "emitter-helper-probes/for-await/es2022/present": 2,
+    "emitter-helper-probes/for-await/es5/downlevel-iteration-off": 1,
+    "emitter-helper-probes/for-await/es5/import-helpers-off": 1,
+    "emitter-helper-probes/for-await/es5/missing": 1,
+    "emitter-helper-probes/for-await/es5/no-check": 1,
+    "emitter-helper-probes/for-await/es5/present": 1,
+    "emitter-helper-probes/for-await/esnext/missing": 2,
+    "emitter-helper-probes/for-await/esnext/present": 2,
+    "emitter-helper-probes/for-of/es2015/missing": 2,
+    "emitter-helper-probes/for-of/es2015/present": 2,
+    "emitter-helper-probes/for-of/es2022/missing": 2,
+    "emitter-helper-probes/for-of/es2022/present": 2,
+    "emitter-helper-probes/for-of/es5/downlevel-iteration-off": 2,
+    "emitter-helper-probes/for-of/es5/import-helpers-off": 2,
+    "emitter-helper-probes/for-of/es5/missing": 2,
+    "emitter-helper-probes/for-of/es5/no-check": 2,
+    "emitter-helper-probes/for-of/es5/present": 2,
+    "emitter-helper-probes/for-of/esnext/missing": 2,
+    "emitter-helper-probes/for-of/esnext/present": 2,
+    "emitter-helper-probes/legacy-metadata/es2015/missing": 2,
+    "emitter-helper-probes/legacy-metadata/es2015/present": 2,
+    "emitter-helper-probes/legacy-metadata/es2022/missing": 2,
+    "emitter-helper-probes/legacy-metadata/es2022/present": 2,
+    "emitter-helper-probes/legacy-metadata/es5/downlevel-iteration-off": 2,
+    "emitter-helper-probes/legacy-metadata/es5/import-helpers-off": 2,
+    "emitter-helper-probes/legacy-metadata/es5/metadata-off": 2,
+    "emitter-helper-probes/legacy-metadata/es5/missing": 2,
+    "emitter-helper-probes/legacy-metadata/es5/no-check": 2,
+    "emitter-helper-probes/legacy-metadata/es5/present": 2,
+    "emitter-helper-probes/legacy-metadata/es5/standard-decorators": 2,
+    "emitter-helper-probes/legacy-metadata/es5/verbatim-module-syntax": 2,
+    "emitter-helper-probes/legacy-metadata/esnext/metadata-off": 2,
+    "emitter-helper-probes/legacy-metadata/esnext/missing": 2,
+    "emitter-helper-probes/legacy-metadata/esnext/present": 2,
+    "emitter-helper-probes/legacy-metadata/esnext/standard-decorators": 2,
+    "emitter-helper-probes/legacy-metadata/esnext/verbatim-module-syntax": 2,
+    "emitter-helper-probes/legacy-param/es2015/missing": 2,
+    "emitter-helper-probes/legacy-param/es2015/present": 2,
+    "emitter-helper-probes/legacy-param/es2022/missing": 2,
+    "emitter-helper-probes/legacy-param/es2022/present": 2,
+    "emitter-helper-probes/legacy-param/es5/downlevel-iteration-off": 2,
+    "emitter-helper-probes/legacy-param/es5/import-helpers-off": 2,
+    "emitter-helper-probes/legacy-param/es5/missing": 2,
+    "emitter-helper-probes/legacy-param/es5/no-check": 2,
+    "emitter-helper-probes/legacy-param/es5/present": 2,
+    "emitter-helper-probes/legacy-param/es5/standard-decorators": 2,
+    "emitter-helper-probes/legacy-param/esnext/missing": 2,
+    "emitter-helper-probes/legacy-param/esnext/present": 2,
+    "emitter-helper-probes/legacy-param/esnext/standard-decorators": 2,
+    "emitter-helper-probes/private-destructuring-set/es2015/missing": 2,
+    "emitter-helper-probes/private-destructuring-set/es2015/present": 2,
+    "emitter-helper-probes/private-destructuring-set/es2022/missing": 2,
+    "emitter-helper-probes/private-destructuring-set/es2022/present": 2,
+    "emitter-helper-probes/private-destructuring-set/es5/downlevel-iteration-off": 2,
+    "emitter-helper-probes/private-destructuring-set/es5/import-helpers-off": 2,
+    "emitter-helper-probes/private-destructuring-set/es5/missing": 2,
+    "emitter-helper-probes/private-destructuring-set/es5/no-check": 2,
+    "emitter-helper-probes/private-destructuring-set/es5/present": 2,
+    "emitter-helper-probes/private-destructuring-set/esnext/missing": 2,
+    "emitter-helper-probes/private-destructuring-set/esnext/present": 2,
+    "emitter-helper-probes/private-in/es2015/missing": 2,
+    "emitter-helper-probes/private-in/es2015/present": 2,
+    "emitter-helper-probes/private-in/es2022/missing": 2,
+    "emitter-helper-probes/private-in/es2022/present": 2,
+    "emitter-helper-probes/private-in/es5/downlevel-iteration-off": 2,
+    "emitter-helper-probes/private-in/es5/import-helpers-off": 2,
+    "emitter-helper-probes/private-in/es5/missing": 2,
+    "emitter-helper-probes/private-in/es5/no-check": 2,
+    "emitter-helper-probes/private-in/es5/present": 2,
+    "emitter-helper-probes/private-in/esnext/missing": 2,
+    "emitter-helper-probes/private-in/esnext/present": 2,
+    "emitter-helper-probes/tagged-template/es2015/missing": 2,
+    "emitter-helper-probes/tagged-template/es2015/present": 2,
+    "emitter-helper-probes/tagged-template/es2022/missing": 2,
+    "emitter-helper-probes/tagged-template/es2022/present": 2,
+    "emitter-helper-probes/tagged-template/es5/downlevel-iteration-off": 2,
+    "emitter-helper-probes/tagged-template/es5/import-helpers-off": 2,
+    "emitter-helper-probes/tagged-template/es5/missing": 2,
+    "emitter-helper-probes/tagged-template/es5/no-check": 2,
+    "emitter-helper-probes/tagged-template/es5/present": 2,
+    "emitter-helper-probes/tagged-template/esnext/missing": 2,
+    "emitter-helper-probes/tagged-template/esnext/present": 2,
+    "emitter-helper-probes/yield-star/es2015/missing": 1,
+    "emitter-helper-probes/yield-star/es2015/present": 1,
+    "emitter-helper-probes/yield-star/es2022/missing": 1,
+    "emitter-helper-probes/yield-star/es2022/present": 1,
+    "emitter-helper-probes/yield-star/es5/downlevel-iteration-off": 2,
+    "emitter-helper-probes/yield-star/es5/import-helpers-off": 2,
+    "emitter-helper-probes/yield-star/es5/missing": 2,
+    "emitter-helper-probes/yield-star/es5/no-check": 2,
+    "emitter-helper-probes/yield-star/es5/present": 2,
+    "emitter-helper-probes/yield-star/esnext/missing": 1,
+    "emitter-helper-probes/yield-star/esnext/present": 1
+  },
+  "differences": [
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/es5/no-check",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/es2015/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/yield-star/esnext/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/yield-star/esnext/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/es5/import-helpers-off",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/es2022/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/es2022/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/es2015/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/es2022/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/esnext/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/for-await/es5/import-helpers-off",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/for-await/es5/no-check",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/es2015/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/es5/downlevel-iteration-off",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/es5/downlevel-iteration-off",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-class-helper-gates/expr-decorated/es5/esnext/missing",
+      "top_fields": [
+        "writes"
+      ],
+      "maps": [],
+      "other_writes": [
+        {
+          "path": "/project/out/main.js",
+          "fields": [
+            "callback_utf8_base64",
+            "materialized_utf8_base64"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/es2022/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/esnext/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/yield-star/es2022/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/es5/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/yield-star/es2015/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/for-await/es2015/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-class-helper-gates/expr-as/es5/esnext/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/es2015/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/es5/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-class-helper-gates/expr-decorated/es5/commonjs/missing",
+      "top_fields": [
+        "writes"
+      ],
+      "maps": [],
+      "other_writes": [
+        {
+          "path": "/project/out/main.js",
+          "fields": [
+            "callback_utf8_base64",
+            "materialized_utf8_base64"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "emitter-class-helper-gates/expr-as/es5/commonjs/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-class-helper-gates/expr-decorated/es5/commonjs/present",
+      "top_fields": [
+        "writes"
+      ],
+      "maps": [],
+      "other_writes": [
+        {
+          "path": "/project/out/main.js",
+          "fields": [
+            "callback_utf8_base64",
+            "materialized_utf8_base64"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/for-await/es5/downlevel-iteration-off",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/es5/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/es5/no-check",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/es5/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-class-helper-gates/expr-decorated/es5/esnext/present",
+      "top_fields": [
+        "writes"
+      ],
+      "maps": [],
+      "other_writes": [
+        {
+          "path": "/project/out/main.js",
+          "fields": [
+            "callback_utf8_base64",
+            "materialized_utf8_base64"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/for-await/es5/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/es5/import-helpers-off",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/yield-star/es2022/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-delegator/esnext/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/async-yield-star-values/esnext/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/yield-star/es2015/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/for-await/es5/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-class-helper-gates/expr-as/es5/esnext/missing",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-class-helper-gates/expr-as/es5/commonjs/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    },
+    {
+      "case_id": "emitter-helper-probes/for-await/es2015/present",
+      "top_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "maps": [
+        {
+          "path": "/project/out/main.js.map",
+          "fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ],
+      "other_writes": [],
+      "error": null
+    }
+  ]
+}

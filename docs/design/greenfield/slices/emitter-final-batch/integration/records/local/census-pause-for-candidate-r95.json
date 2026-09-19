@@ -1,0 +1,33 @@
+{
+  "head": "c1e699ab57cf945641f86055249cb0835aa9ea1d",
+  "census_manifest": {
+    "census_pid": 56011,
+    "head": "67df86615a45f9595025064bcc12fde93063fedf",
+    "original_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask",
+    "original_inode": 120896494,
+    "original_device": 16777234,
+    "sha256": "8bdfd58da50dd32576998c8604c14acca42ec64ae812ed4590aa3eba442ab47d",
+    "retained_copy": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-census-r78-immutable/xtask",
+    "recorded_at": "2026-09-19T03:52:26.570523+00:00",
+    "process_text_mappings": "p56011\nftxt\ni120896494\nn/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask\nftxt\ni1152921500312573277\nn/usr/lib/dyld\n"
+  },
+  "reason": "serialize syntax/emitter/compiler/checker qualification; these packages do not build xtask; elapsed times of census include the recorded pause",
+  "steps": [
+    {
+      "label": "recovery-syntax-lib-r95",
+      "exit": 0
+    },
+    {
+      "label": "recovery-emitter-lib-r95",
+      "exit": 0
+    },
+    {
+      "label": "recovery-complete-boundaries-r95",
+      "exit": 101
+    }
+  ],
+  "paused_at": "2026-09-19T04:08:31.717862+00:00",
+  "text_mapping_preserved": true,
+  "path_sha256": "8bdfd58da50dd32576998c8604c14acca42ec64ae812ed4590aa3eba442ab47d",
+  "resumed_at": "2026-09-19T04:37:03.940056+00:00"
+}
