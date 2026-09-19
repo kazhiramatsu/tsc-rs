@@ -437,3 +437,29 @@ fn r104_object_rest_controls_match_complete_typescript_commands() {
     assert_eq!(cases.len(), 10);
     assert_recovery_boundary_commands(cases);
 }
+
+#[test]
+fn r107_declaration_comment_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r107-declaration-comments.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 3);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r109_token_neighbours_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r109-token-neighbours.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 58);
+    assert_recovery_boundary_commands(cases);
+}

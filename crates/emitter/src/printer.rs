@@ -3866,12 +3866,17 @@ impl Printer {
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
+                    let from_anchor = self.emit_trailing_comments_for_node_as_token_anchor(
+                        transformation,
+                        clause,
+                        writer,
+                    )?;
                     writer.write_space(" ");
                     module_prefix = self.emit_space_prefixed_token_with_comments(
                         transformation,
                         node,
                         FixedToken::keyword(SyntaxKind::FromKeyword),
-                        self.original_node_end_cursor(transformation, clause)?,
+                        from_anchor,
                         false,
                         writer,
                     )?;
@@ -4187,7 +4192,16 @@ impl Printer {
                         writer,
                     )?;
                     semicolon_owner = Some(clause);
-                    TokenAnchor::from(self.original_node_end_cursor(transformation, clause)?)
+                    if data.module_specifier.is_some() {
+                        self.emit_trailing_comments_for_node_as_token_anchor(
+                            transformation,
+                            clause,
+                            writer,
+                        )?
+                    } else {
+                        self.original_node_end_cursor(transformation, clause)?
+                            .into()
+                    }
                 } else {
                     TokenAnchor::from(self.emit_token_with_comments(
                         transformation,
@@ -7077,16 +7091,23 @@ impl Printer {
                 // emit keeps a block and `while` on one line, while a
                 // non-block body ends before the while clause unless
                 // the DoStatement itself requests SingleLine.
-                if statement_is_block {
+                let while_anchor = if statement_is_block {
+                    let anchor = self.emit_trailing_comments_for_node_as_token_anchor(
+                        transformation,
+                        statement_node,
+                        writer,
+                    )?;
                     writer.write_space(" ");
+                    anchor
                 } else {
                     self.write_line_or_space(transformation, node, writer);
-                }
+                    self.original_node_end_cursor(transformation, statement_node)?
+                        .into()
+                };
                 self.emit_while_clause(
                     transformation,
                     node,
-                    self.original_node_end_cursor(transformation, statement_node)?
-                        .into(),
+                    while_anchor,
                     data.expression,
                     expression_context,
                     writer,
@@ -13259,12 +13280,17 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
+            let as_anchor = self.emit_trailing_comments_for_node_as_token_anchor(
+                transformation,
+                property,
+                writer,
+            )?;
             writer.write_space(" ");
             let as_keyword = self.emit_space_prefixed_token_with_comments(
                 transformation,
                 specifier,
                 FixedToken::keyword(SyntaxKind::AsKeyword),
-                self.original_node_end_cursor(transformation, property)?,
+                as_anchor,
                 false,
                 writer,
             )?;
@@ -14282,6 +14308,9 @@ impl Printer {
             .node_ref(parent.source(), id)
             .ok_or(PrinterError::UnknownStatement(id.0))?;
         let cursor = self.node_end_cursor(transformation, token)?;
+        // Ordinary token emission has no operand parenthesizer. Retain the
+        // comment scope, but do not inherit the enclosing expression's grammar.
+        let expression_context = expression_context.for_child(ExpressionSyntaxContext::NORMAL);
         if expression_context.nested_comments_suppressed() {
             self.emit_node_with_hint(
                 transformation,
