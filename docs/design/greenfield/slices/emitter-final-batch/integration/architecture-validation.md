@@ -1,7 +1,7 @@
 # Emitter-final architecture validation
 
 This record owns only the lifecycle and validation fields delegated by the
-14 rows below in the [current architecture map](../../../emitter-architecture.md).
+15 rows below in the [current architecture map](../../../emitter-architecture.md).
 The map retains their invariants, current Rust owners, evidence references and
 TypeScript owner mapping. Its qualification and delivery rules apply here
 without exception. This record is not a generator or profile input.
@@ -17,6 +17,22 @@ TypeScript owner identities for each entry, plus the profile-bound path/hash
 manifest. Record the actual merge ref separately, verify that it contains the
 validation ref and that every profile-bound input is byte-identical. If these
 checks fail, keep the affected lifecycle unqualified.
+
+The pre-walk inventory audit found 12 architecture rows added after the
+H2.5h disposition table's last update without corresponding table entries.
+The generator now accounts for those rows and the new `E-RECOVERY-FACTS` row,
+retaining all 45 prior entries. These dispositions describe applicability to
+the historical H2.5h target owner graph; they do not promote any current row
+or establish new runtime compatibility. The canonical walk must regenerate
+the affected lineage before final qualification.
+
+The checker return-type correction follows TypeScript's
+`getReturnTypeOfSignature` (`_tsc.js:59815`): a missing parsed function body
+infers `any`, while a real empty body still infers `void`. It uses the existing
+resolver/query boundary and changes no architecture owner or public method
+shape. Its evidence must include the declaration/map commands, strict
+no-false-2322 control, checker regressions and the final conformance gate.
+Those final gates are pending.
 
 ## E-ENTRY
 
@@ -158,3 +174,22 @@ The `E-OUTPUT-FUTURE` row of the architecture map owns this entry's Rust symbols
 invariants, TypeScript owner mapping and evidence boundary. Final scoped proof
 and delivery validation are pending.
 
+## E-RECOVERY-FACTS
+
+Lifecycle: `active-unqualified`.
+
+Final validation ref: pending. Candidate audit date: 2026-09-19.
+
+This entry covers the parser-owned event/action representation, checkpoint and
+reparse retention, structural-action partition and bounded emitter admission
+specified by `E-RECOVERY-FACTS` in the architecture map. The future persistent
+ES2015 token flags in `E-SYNTAX-FACTS` keep their separate planned lifecycle.
+The original parser census remains immutable; its prior AST, diagnostics,
+events and actions must match, while every newly admitted complete command
+must be compared with TypeScript. The terminator and class-member missing-body arrow-gap witnesses are
+classification evidence, not replacements for the command comparison. The
+class rule requires one retained report, one reachable class member-array gap,
+a preceding function-like member with a parsed zero-width block, and the next
+member or member-list boundary. It leaves unrelated actions to the existing
+context solver and does not widen the five predecessor profiles. Final scoped proof and
+delivery validation are pending.
