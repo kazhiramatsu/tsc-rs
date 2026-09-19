@@ -183,13 +183,17 @@ class SelectionTests(unittest.TestCase):
             self.select_successor(original)
 
     def test_successor_style_change_requires_the_exact_reviewed_pair(self):
-        path, pair = next(iter(selector.SUCCESSOR_STYLE_SOURCE_PAIRS.items()))
-        before, after = {path: pair[0]}, {path: pair[1]}
-        self.assertEqual(selector.successor_source_changes(before, after), [path])
-        for left, right in [(after, before), ({}, after), (before, {}),
-                            ({path: "0" * 64}, after), (before, {path: "0" * 64})]:
-            with self.assertRaisesRegex(AssertionError, "outside reviewed predicates"):
-                selector.successor_source_changes(left, right)
+        for path, pair in selector.SUCCESSOR_STYLE_SOURCE_PAIRS.items():
+            with self.subTest(path=path):
+                before, after = {path: pair[0]}, {path: pair[1]}
+                self.assertEqual(selector.successor_source_changes(before, after), [path])
+                for left, right in [(after, before), ({}, after), (before, {}),
+                                    ({path: "0" * 64}, after), (before, {path: "0" * 64})]:
+                    with self.assertRaisesRegex(AssertionError, "outside reviewed predicates"):
+                        selector.successor_source_changes(left, right)
+        before = {path: pair[0] for path, pair in selector.SUCCESSOR_STYLE_SOURCE_PAIRS.items()}
+        after = {path: pair[1] for path, pair in selector.SUCCESSOR_STYLE_SOURCE_PAIRS.items()}
+        self.assertEqual(selector.successor_source_changes(before, after), sorted(before))
 
     def test_successor_source_changes_are_limited_to_the_reviewed_predicate_and_test(self):
         original = self.successor()

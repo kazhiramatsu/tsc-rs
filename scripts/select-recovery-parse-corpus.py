@@ -10,12 +10,16 @@ PROFILE_KEYS = {"literal", "missing_await", "missing_declaration", "parameter_ga
 # The reviewed nested-parenthesis patch changes predicates and their tests.
 # Changes to event production or another parser owner need a separate proof.
 SUCCESSOR_SOURCE_PATHS = {"crates/syntax/src/recovery.rs", "crates/syntax/tests/unit/parser/recovery.rs"}
-# One reviewed Clippy-only predicate spelling change; this does not admit
-# arbitrary changes to context recovery. Both full file identities are fixed.
+# Reviewed Clippy-only context spelling and parser doc annotation repairs.
+# Each exception fixes both full file identities; neither admits arbitrary edits.
 SUCCESSOR_STYLE_SOURCE_PAIRS = {
     "crates/syntax/src/recovery/context.rs": (
         "780fbb2dba7ab8d686bb5e37792be81c32afce2943fdfc46e6fd32a5929ea30f",
         "b7e382ff51a2193fd23070b667473f41128d9aef32fec541a94a1e4c3a54724e",
+    ),
+    "crates/syntax/src/parser.rs": (
+        "ffe64e0cf029c96b3bc91239a71be2c918f2e6c7803c57f189c0a771ab8f6701",
+        "8b4be1f2a8c40f5a1088cf364ecfef53cf86ea3bedc1c8c30b4ab227c97c10fb",
     ),
 }
 
