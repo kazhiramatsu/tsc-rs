@@ -4609,8 +4609,13 @@ fn add_property_to_element_list(
     Ok(())
 }
 
-/// tsc-port: getTextOfJSDocComment / formatJSDocLink @6.0.3
-/// tsc-span: _tsc.js:11773-11781
+/// tsc-port: getTextOfJSDocComment @6.0.3
+/// tsc-hash: 3eb78aff72c7cc3b19e29dfdb7fbbde27867be7ffc615fee72cbd271189d3dbc
+/// tsc-span: _tsc.js:11773-11775
+/// tsc-port: formatJSDocLink @6.0.3
+/// tsc-hash: 222396e5db15d7d42395a93c66320065a86d8b9f48a01ddfa75d72d86ae98f64
+/// tsc-span: _tsc.js:11776-11781
+/// Reference detail: getTextOfJSDocComment / formatJSDocLink @6.0.3
 ///
 /// A parsed JSDoc comment is either one string or a list of text and link
 /// parts; every link part is re-spelled as `{@link name text}` (with tsc's

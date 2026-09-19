@@ -559,7 +559,10 @@ impl GeneratedBindingScopes {
         }
     }
 
-    /// tsc-port: makeUniqueName(baseName, isUniqueName, optimistic, scoped = false) @6.0.3
+    /// tsc-port: createPrinter.makeUniqueName @6.0.3
+    /// tsc-hash: 24cb46aa2ba811ebf24cee740aa8ca553970a6bd6f18b7b57ae10ea77cb55f03
+    /// tsc-span: _tsc.js:120741-120779
+    /// Reference detail: makeUniqueName(baseName, isUniqueName, optimistic, scoped = false) @6.0.3
     ///
     /// An optimistic name that is neither `FileLevel` nor
     /// `ReservedInNestedScopes` (`_outerThis`): tsc records it in the

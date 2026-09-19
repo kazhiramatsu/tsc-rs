@@ -1151,6 +1151,9 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsc-port: createTypeChecker.isMethodAccessForCall @6.0.3
+    /// tsc-hash: 9548723ba085419779c0d0e8fea4e739dfb92b3de3ad2a6d8003d5bc78a19988
+    /// tsc-span: _tsc.js:75081-75086
     pub(crate) fn is_method_access_for_call(&self, node: NodeId) -> bool {
         let mut node = node;
         while let Some(parent) = self.parent_of(node) {
@@ -1500,6 +1503,8 @@ impl<'a> CheckerState<'a> {
         self.related_info_for_node_js(node, message, &args)
     }
 
+    /// tsrs-native: JS-valued twin of related_info_for_node: RelatedInfo adapter over
+    /// createDiagnosticForNode span/message; same disposition as its sibling
     pub(crate) fn related_info_for_node_js(
         &self,
         node: NodeId,

@@ -1359,8 +1359,9 @@ impl<'context> Es2018Visitor<'context> {
 
     /// Prepare object-rest syntax before the await-loop plan visits any child.
     /// The temporary is local to the new let head; print order owns its spelling.
-    /// tsc-port: transformForOfStatementWithObjectRest @6.0.3
-    /// tsc-span: _tsc.js:102196-102240
+    /// tsc-port: transformES2018.transformForOfStatementWithObjectRest @6.0.3
+    /// tsc-hash: 646f8557108f52cee1161dea99ba6175f13d8d658c261ec02e6022a74f726626
+    /// tsc-span: _tsc.js:102197-102240
     fn prepare_for_await_object_rest(
         &mut self,
         original: TransformNode,

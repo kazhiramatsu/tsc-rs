@@ -2500,7 +2500,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         }))
     }
 
-    /// tsc-port: equateSerializedTypeNodes @6.0.3
+    /// tsc-port: createRuntimeTypeSerializer.equateSerializedTypeNodes @6.0.3
+    /// tsc-hash: ecef8fa4a36d5c6d7d5986593c0d8652f3d5d7afcfc1d2cf8f63f6657d7bbb0d
     /// tsc-span: _tsc.js:98304-98330
     fn equate_serialized_type_nodes(
         &self,

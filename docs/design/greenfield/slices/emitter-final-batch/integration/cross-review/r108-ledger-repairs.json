@@ -1,0 +1,3995 @@
+{
+  "base": "e80dfc18fc7822a73d83e20e900c7fafb1396740",
+  "vendor_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+  "annotation_blocks_repaired": 119,
+  "reference_count": 153,
+  "runtime_source_unchanged": true,
+  "plans": [
+    {
+      "index": 0,
+      "original": {
+        "path": "crates/checker/src/node_builder/type_nodes.rs",
+        "line": 4612,
+        "port": "getTextOfJSDocComment / formatJSDocLink @6.0.3",
+        "span": "_tsc.js:11773-11781",
+        "recorded": null,
+        "actual": "2b1d7bcaf519a2350111d6f7b91fcbb1fe1e3cd8615b781f05b9314b98413991",
+        "reasons": [
+          "malformed-port",
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "getTextOfJSDocComment",
+          "start": 11773,
+          "end": 11775,
+          "hash": "3eb78aff72c7cc3b19e29dfdb7fbbde27867be7ffc615fee72cbd271189d3dbc",
+          "owner": {
+            "name": "getTextOfJSDocComment",
+            "path": "getTextOfJSDocComment",
+            "start": 11773,
+            "end": 11775
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "formatJSDocLink",
+          "start": 11776,
+          "end": 11781,
+          "hash": "222396e5db15d7d42395a93c66320065a86d8b9f48a01ddfa75d72d86ae98f64",
+          "owner": {
+            "name": "formatJSDocLink",
+            "path": "formatJSDocLink",
+            "start": 11776,
+            "end": 11781
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "original": {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "line": 1063,
+        "port": "transformClassStaticBlockDeclaration @6.0.3 (the map write)",
+        "span": "_tsc.js:96649-96652",
+        "recorded": "4b66f4eb4ef89a401f6a18d7e3e86ea9eae2f9521b1200735b6253d1b6db7240",
+        "actual": "65df454f8d62d1dc06815da0d947398c245a40c97b84517096e9342916675333",
+        "reasons": [
+          "stale-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformClassFields.transformClassStaticBlockDeclaration",
+          "start": 96649,
+          "end": 96682,
+          "hash": "4b66f4eb4ef89a401f6a18d7e3e86ea9eae2f9521b1200735b6253d1b6db7240",
+          "owner": {
+            "name": "transformClassStaticBlockDeclaration",
+            "path": "transformClassFields.transformClassStaticBlockDeclaration",
+            "start": 96649,
+            "end": 96682
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "original": {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "line": 3154,
+        "port": "shouldTransformAutoAccessorsInCurrentClass @6.0.3 \u2014",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformClassFields.shouldTransformAutoAccessorsInCurrentClass",
+          "start": 96381,
+          "end": 96383,
+          "hash": "a57258954a0c70eb17a3d3cba200c5527b4239210c333d9f93d959cc04520ff5",
+          "owner": {
+            "name": "shouldTransformAutoAccessorsInCurrentClass",
+            "path": "transformClassFields.shouldTransformAutoAccessorsInCurrentClass",
+            "start": 96381,
+            "end": 96383
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "original": {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "line": 6543,
+        "port": "transformClassMembers @6.0.3 (_tsc.js:97218-97231) \u2014 when",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformClassFields.transformClassMembers",
+          "start": 97218,
+          "end": 97231,
+          "hash": "2b9f9c3a9380b0a3de9f55e932531ff1c04371ea58a91b393058299960fca111",
+          "owner": {
+            "name": "transformClassMembers",
+            "path": "transformClassFields.transformClassMembers",
+            "start": 97143,
+            "end": 97237
+          },
+          "is_subspan": true
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "original": {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "line": 6602,
+        "port": "transformClassMembers/visitClassExpressionInNewClassLexicalEnvironment @6.0.3",
+        "span": "_tsc.js:97049-97129,97143-97240",
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformClassFields.transformClassMembers",
+          "start": 97143,
+          "end": 97237,
+          "hash": "8f02dc71f423a197caae79451edbed69e643ef5b909248bf13a649c2c2491071",
+          "owner": {
+            "name": "transformClassMembers",
+            "path": "transformClassFields.transformClassMembers",
+            "start": 97143,
+            "end": 97237
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "transformClassFields.visitClassExpressionInNewClassLexicalEnvironment",
+          "start": 97049,
+          "end": 97129,
+          "hash": "5885e805a286e1451a1c60771127ff84a6c108f88522eb2f90901c2703763319",
+          "owner": {
+            "name": "visitClassExpressionInNewClassLexicalEnvironment",
+            "path": "transformClassFields.visitClassExpressionInNewClassLexicalEnvironment",
+            "start": 97049,
+            "end": 97129
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "original": {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "line": 7886,
+        "port": "createCopiableReceiverExpr @6.0.3",
+        "span": "_tsc.js:96567-96578",
+        "recorded": null,
+        "actual": "4e366a50034f7622b6496c16b631befe9559c33e38b453b94cdb0f7e2e1dc675",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformClassFields.createCopiableReceiverExpr",
+          "start": 96567,
+          "end": 96578,
+          "hash": "4e366a50034f7622b6496c16b631befe9559c33e38b453b94cdb0f7e2e1dc675",
+          "owner": {
+            "name": "createCopiableReceiverExpr",
+            "path": "transformClassFields.createCopiableReceiverExpr",
+            "start": 96567,
+            "end": 96578
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "original": {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "line": 8390,
+        "port": "mergeLexicalEnvironment @6.0.3 for the declarations this",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.mergeLexicalEnvironment",
+          "start": 24889,
+          "end": 24932,
+          "hash": "ac1f665ea3f8a127f7cb6dbd55b79a8e307e38359a9aef18a2f5dada71bcd2c2",
+          "owner": {
+            "name": "mergeLexicalEnvironment",
+            "path": "createNodeFactory.mergeLexicalEnvironment",
+            "start": 24889,
+            "end": 24932
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "original": {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "line": 8918,
+        "port": "isHoistedFunction @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isHoistedFunction",
+          "start": 14167,
+          "end": 14169,
+          "hash": "a43dffc56712a0f0a13148f4eca8cd05064849784894e44d65835c84e84b880a",
+          "owner": {
+            "name": "isHoistedFunction",
+            "path": "isHoistedFunction",
+            "start": 14167,
+            "end": 14169
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "original": {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "line": 8927,
+        "port": "isHoistedVariableStatement @6.0.3 \u2014 a custom-prologue",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isHoistedVariableStatement",
+          "start": 14173,
+          "end": 14175,
+          "hash": "be4121319d7decd5d3087cc7fd9d2eb5510b17ae67b08bc236fb082f77b141d8",
+          "owner": {
+            "name": "isHoistedVariableStatement",
+            "path": "isHoistedVariableStatement",
+            "start": 14173,
+            "end": 14175
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "original": {
+        "path": "crates/emitter/src/builtins/es2017.rs",
+        "line": 1905,
+        "port": "getPromiseConstructor @6.0.3",
+        "span": "_tsc.js:101432-101441",
+        "recorded": null,
+        "actual": "f8f905de796d21253885f25d72564811d0282f9a1b4a961f16c2aa3fbfc74c12",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformES2017.getPromiseConstructor",
+          "start": 101432,
+          "end": 101441,
+          "hash": "f8f905de796d21253885f25d72564811d0282f9a1b4a961f16c2aa3fbfc74c12",
+          "owner": {
+            "name": "getPromiseConstructor",
+            "path": "transformES2017.getPromiseConstructor",
+            "start": 101432,
+            "end": 101441
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "original": {
+        "path": "crates/emitter/src/builtins/es2017.rs",
+        "line": 1983,
+        "port": "createExpressionFromEntityName @6.0.3",
+        "span": "_tsc.js:27330-27338",
+        "recorded": null,
+        "actual": "34cf8b7efe2e9c9c1ccd4ad58799b25384d515f5daef7610cd243dcb78435527",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createExpressionFromEntityName",
+          "start": 27330,
+          "end": 27338,
+          "hash": "34cf8b7efe2e9c9c1ccd4ad58799b25384d515f5daef7610cd243dcb78435527",
+          "owner": {
+            "name": "createExpressionFromEntityName",
+            "path": "createExpressionFromEntityName",
+            "start": 27330,
+            "end": 27338
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "original": {
+        "path": "crates/emitter/src/builtins/es2018.rs",
+        "line": 1362,
+        "port": "transformForOfStatementWithObjectRest @6.0.3",
+        "span": "_tsc.js:102196-102240",
+        "recorded": null,
+        "actual": "6599139f31574c4460b97875d2eef0431056d522a09d20578bf1b5db56847ac3",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformES2018.transformForOfStatementWithObjectRest",
+          "start": 102197,
+          "end": 102240,
+          "hash": "646f8557108f52cee1161dea99ba6175f13d8d658c261ec02e6022a74f726626",
+          "owner": {
+            "name": "transformForOfStatementWithObjectRest",
+            "path": "transformES2018.transformForOfStatementWithObjectRest",
+            "start": 102197,
+            "end": 102240
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 12,
+      "original": {
+        "path": "crates/emitter/src/builtins/es_next.rs",
+        "line": 2331,
+        "port": "hoistInitializedVariable @6.0.3",
+        "span": "_tsc.js:103664-103677",
+        "recorded": null,
+        "actual": "08594bb37f221292f66937992f588370954834f78652cd954b6e60817cfa40a1",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESNext.hoistInitializedVariable",
+          "start": 103664,
+          "end": 103678,
+          "hash": "02c0244acd1128a8d83894d94caaa38023c9fe222701c58b9810afd14d2529b4",
+          "owner": {
+            "name": "hoistInitializedVariable",
+            "path": "transformESNext.hoistInitializedVariable",
+            "start": 103664,
+            "end": 103678
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 13,
+      "original": {
+        "path": "crates/emitter/src/builtins/generated_bindings.rs",
+        "line": 562,
+        "port": "makeUniqueName(baseName, isUniqueName, optimistic, scoped = false) @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.makeUniqueName",
+          "start": 120741,
+          "end": 120779,
+          "hash": "24cb46aa2ba811ebf24cee740aa8ca553970a6bd6f18b7b57ae10ea77cb55f03",
+          "owner": {
+            "name": "makeUniqueName",
+            "path": "createPrinter.makeUniqueName",
+            "start": 120741,
+            "end": 120779
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 14,
+      "original": {
+        "path": "crates/emitter/src/builtins/legacy_decorators.rs",
+        "line": 2503,
+        "port": "equateSerializedTypeNodes @6.0.3",
+        "span": "_tsc.js:98304-98330",
+        "recorded": null,
+        "actual": "ecef8fa4a36d5c6d7d5986593c0d8652f3d5d7afcfc1d2cf8f63f6657d7bbb0d",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createRuntimeTypeSerializer.equateSerializedTypeNodes",
+          "start": 98304,
+          "end": 98330,
+          "hash": "ecef8fa4a36d5c6d7d5986593c0d8652f3d5d7afcfc1d2cf8f63f6657d7bbb0d",
+          "owner": {
+            "name": "equateSerializedTypeNodes",
+            "path": "createRuntimeTypeSerializer.equateSerializedTypeNodes",
+            "start": 98304,
+            "end": 98330
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 15,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 1072,
+        "port": "isAnonymousFunctionDefinition(node, isAnonymousClassNeedingAssignedName)",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isAnonymousFunctionDefinition",
+          "start": 15917,
+          "end": 15936,
+          "hash": "649656d716fd35912a9f8a094bf6ef1d64a14ad7f6b991136bcb085ed467c5a1",
+          "owner": {
+            "name": "isAnonymousFunctionDefinition",
+            "path": "isAnonymousFunctionDefinition",
+            "start": 15917,
+            "end": 15936
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "transformESDecorators.canIgnoreEmptyStringLiteralInAssignedName",
+          "start": 100229,
+          "end": 100236,
+          "hash": "95881572c31a31c26d25bf81024de789ba00d2067f863c76854129ad2adea0f6",
+          "owner": {
+            "name": "canIgnoreEmptyStringLiteralInAssignedName",
+            "path": "transformESDecorators.canIgnoreEmptyStringLiteralInAssignedName",
+            "start": 100229,
+            "end": 100236
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 16,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 1289,
+        "port": "transformNamedEvaluationOfPropertyDeclaration @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformNamedEvaluationOfPropertyDeclaration",
+          "start": 93916,
+          "end": 93928,
+          "hash": "3c6b7295800d56e17f82df077debbb858c59b32c7c8fe09524aeaa2fe8c3cb34",
+          "owner": {
+            "name": "transformNamedEvaluationOfPropertyDeclaration",
+            "path": "transformNamedEvaluationOfPropertyDeclaration",
+            "start": 93916,
+            "end": 93928
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 17,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 2477,
+        "port": "classElementVisitor @6.0.3 \u2014 one member, under the",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.classElementVisitor",
+          "start": 99165,
+          "end": 99182,
+          "hash": "14f673baba360a14f279a4df8767be822c1fd7d835ba72e9077ba669e91f31aa",
+          "owner": {
+            "name": "classElementVisitor",
+            "path": "transformESDecorators.classElementVisitor",
+            "start": 99165,
+            "end": 99182
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 18,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 2638,
+        "port": "partialTransformClassElement @6.0.3 (decorated property)",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.partialTransformClassElement",
+          "start": 99831,
+          "end": 99944,
+          "hash": "46d06f1175b4bfd01fe5b4df1893f5f1164b80e7a9c94f3340604e4a6b06b912",
+          "owner": {
+            "name": "partialTransformClassElement",
+            "path": "transformESDecorators.partialTransformClassElement",
+            "start": 99831,
+            "end": 99944
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 19,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 2664,
+        "port": "partialTransformClassElement @6.0.3 (decorated method or",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.partialTransformClassElement",
+          "start": 99831,
+          "end": 99944,
+          "hash": "46d06f1175b4bfd01fe5b4df1893f5f1164b80e7a9c94f3340604e4a6b06b912",
+          "owner": {
+            "name": "partialTransformClassElement",
+            "path": "transformESDecorators.partialTransformClassElement",
+            "start": 99831,
+            "end": 99944
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 20,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 2699,
+        "port": "visitReferencedPropertyName @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitReferencedPropertyName",
+          "start": 100345,
+          "end": 100362,
+          "hash": "3fb9e54ea116ab06008f66099f1583768d9433c845c839b1d388b69913f2181b",
+          "owner": {
+            "name": "visitReferencedPropertyName",
+            "path": "transformESDecorators.visitReferencedPropertyName",
+            "start": 100345,
+            "end": 100362
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 21,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 2789,
+        "port": "injectPendingExpressions / injectPendingExpressionsCommon @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.injectPendingExpressions",
+          "start": 100527,
+          "end": 100534,
+          "hash": "cb0404d09c1d0ba611663d60d726809db8548fe0a2f656b7036a3ff0779faaab",
+          "owner": {
+            "name": "injectPendingExpressions",
+            "path": "transformESDecorators.injectPendingExpressions",
+            "start": 100527,
+            "end": 100534
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "transformESDecorators.injectPendingExpressionsCommon",
+          "start": 100511,
+          "end": 100526,
+          "hash": "0409cc30806f5998022df21eceb6369af27f21778e795597936eddc5350f379b",
+          "owner": {
+            "name": "injectPendingExpressionsCommon",
+            "path": "transformESDecorators.injectPendingExpressionsCommon",
+            "start": 100511,
+            "end": 100526
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 22,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 2832,
+        "port": "isSimpleInlineableExpression @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isSimpleInlineableExpression",
+          "start": 93030,
+          "end": 93032,
+          "hash": "75411b5859a6888595a6e090ab2d42fe4f904d7becfe81a855f1b6111fa27cee",
+          "owner": {
+            "name": "isSimpleInlineableExpression",
+            "path": "isSimpleInlineableExpression",
+            "start": 93030,
+            "end": 93032
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 23,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 2848,
+        "port": "skipOuterExpressions @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "skipOuterExpressions",
+          "start": 27582,
+          "end": 27587,
+          "hash": "8b1eff7c004dde6bbe6b5940ba064195f1aea6668ca5d8b1f4a69bf9cec4dec1",
+          "owner": {
+            "name": "skipOuterExpressions",
+            "path": "skipOuterExpressions",
+            "start": 27582,
+            "end": 27587
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 24,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 2869,
+        "port": "transformDecorator @6.0.3",
+        "span": "_tsc.js:100554-100569",
+        "recorded": null,
+        "actual": "d59f7ca48434d47359734b185ca41b870154ec401bea6c5336d7e0074b8ec622",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.transformDecorator",
+          "start": 100554,
+          "end": 100569,
+          "hash": "d59f7ca48434d47359734b185ca41b870154ec401bea6c5336d7e0074b8ec622",
+          "owner": {
+            "name": "transformDecorator",
+            "path": "transformESDecorators.transformDecorator",
+            "start": 100554,
+            "end": 100569
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 25,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 3863,
+        "port": "createStringLiteralFromNode @6.0.3 for a computed name's",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.createStringLiteralFromNode",
+          "start": 21535,
+          "end": 21543,
+          "hash": "a2fa6c4e9dd96af89655a0a7d44368bcdd05ad599a3ef7e898a2a64e3e5fe9ee",
+          "owner": {
+            "name": "createStringLiteralFromNode",
+            "path": "createNodeFactory.createStringLiteralFromNode",
+            "start": 21535,
+            "end": 21543
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 26,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 5668,
+        "port": "visitFunctionBody @6.0.3 \u2014 a function-like body (arrow,",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "visitFunctionBody",
+          "start": 91277,
+          "end": 91290,
+          "hash": "a0de20486c024854e4b8496a1878d177977d54127aee509f3de22d3b8ce5573e",
+          "owner": {
+            "name": "visitFunctionBody",
+            "path": "visitFunctionBody",
+            "start": 91277,
+            "end": 91290
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 27,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 5751,
+        "port": "visitParameterDeclaration @6.0.3 (_tsc.js:100202-100225) \u2014",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitParameterDeclaration",
+          "start": 100202,
+          "end": 100225,
+          "hash": "5168592b4e380cb4111d0b1f87714e296f661fefa7567a642d6608c3101a4fec",
+          "owner": {
+            "name": "visitParameterDeclaration",
+            "path": "transformESDecorators.visitParameterDeclaration",
+            "start": 100202,
+            "end": 100225
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 28,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 5823,
+        "port": "visitParameterList @6.0.3",
+        "span": "_tsc.js:91168-91181",
+        "recorded": null,
+        "actual": "75f4e96e0f53dac4523f71d86dc9a4216465c88b670afeb6202b7853fb27d8fa",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "visitParameterList",
+          "start": 91168,
+          "end": 91181,
+          "hash": "75f4e96e0f53dac4523f71d86dc9a4216465c88b670afeb6202b7853fb27d8fa",
+          "owner": {
+            "name": "visitParameterList",
+            "path": "visitParameterList",
+            "start": 91168,
+            "end": 91181
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 29,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 5861,
+        "port": "addDefaultValueAssignmentsIfNeeded @6.0.3",
+        "span": "_tsc.js:91182-91196",
+        "recorded": null,
+        "actual": "f62c102acaf7c9cd013ad79a0f1fccb35a9a9838dc6f77c262868c9b7a02030f",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "addDefaultValueAssignmentsIfNeeded",
+          "start": 91182,
+          "end": 91196,
+          "hash": "f62c102acaf7c9cd013ad79a0f1fccb35a9a9838dc6f77c262868c9b7a02030f",
+          "owner": {
+            "name": "addDefaultValueAssignmentsIfNeeded",
+            "path": "addDefaultValueAssignmentsIfNeeded",
+            "start": 91182,
+            "end": 91196
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 30,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 5887,
+        "port": "addDefaultValueAssignmentIfNeeded @6.0.3",
+        "span": "_tsc.js:91197-91199 \u2014 a rest parameter is untouched; a",
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "addDefaultValueAssignmentIfNeeded",
+          "start": 91197,
+          "end": 91199,
+          "hash": "689fb778284e04c6c093a5d6599b9c3ce585ef981dd855145b54d50009d04a6d",
+          "owner": {
+            "name": "addDefaultValueAssignmentIfNeeded",
+            "path": "addDefaultValueAssignmentIfNeeded",
+            "start": 91197,
+            "end": 91199
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 31,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 5918,
+        "port": "addDefaultValueAssignmentForInitializer @6.0.3",
+        "span": "_tsc.js:91239-91276",
+        "recorded": null,
+        "actual": "40b44ee01a36e04f01c1117674832a11a865d16bb40a5fc6c1da6395ad60d4a2",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "addDefaultValueAssignmentForInitializer",
+          "start": 91239,
+          "end": 91276,
+          "hash": "40b44ee01a36e04f01c1117674832a11a865d16bb40a5fc6c1da6395ad60d4a2",
+          "owner": {
+            "name": "addDefaultValueAssignmentForInitializer",
+            "path": "addDefaultValueAssignmentForInitializer",
+            "start": 91239,
+            "end": 91276
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 32,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 5972,
+        "port": "addDefaultValueAssignmentForBindingPattern @6.0.3",
+        "span": "_tsc.js:91200-91238",
+        "recorded": null,
+        "actual": "ef49f9b91aeb03ed890ae5b0d424c8e13035ca5e8248f1cef537ead145140cf6",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "addDefaultValueAssignmentForBindingPattern",
+          "start": 91200,
+          "end": 91238,
+          "hash": "ef49f9b91aeb03ed890ae5b0d424c8e13035ca5e8248f1cef537ead145140cf6",
+          "owner": {
+            "name": "addDefaultValueAssignmentForBindingPattern",
+            "path": "addDefaultValueAssignmentForBindingPattern",
+            "start": 91200,
+            "end": 91238
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 33,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6378,
+        "port": "addInitializationStatement @6.0.3 \u2014 the statement is marked",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformNodes.addInitializationStatement",
+          "start": 116127,
+          "end": 116136,
+          "hash": "846ab52e27dfed582aed585bdb9419fc085b1eabe83f492f4c42ea7ac8448236",
+          "owner": {
+            "name": "addInitializationStatement",
+            "path": "transformNodes.addInitializationStatement",
+            "start": 116127,
+            "end": 116136
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 34,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6408,
+        "port": "partialTransformClassElement @6.0.3 (member name flag)",
+        "span": "_tsc.js:99937-99942",
+        "recorded": null,
+        "actual": "7b0fb976a6112cc834adcd3cda8d8e7ae1e84de6e9e4e63f542b3c6af9b63bbf",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.partialTransformClassElement",
+          "start": 99937,
+          "end": 99942,
+          "hash": "7b0fb976a6112cc834adcd3cda8d8e7ae1e84de6e9e4e63f542b3c6af9b63bbf",
+          "owner": {
+            "name": "partialTransformClassElement",
+            "path": "transformESDecorators.partialTransformClassElement",
+            "start": 99831,
+            "end": 99944
+          },
+          "is_subspan": true
+        }
+      ]
+    },
+    {
+      "index": 35,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6434,
+        "port": "createTempVariable(hoistVariableDeclaration) @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.createTempVariable",
+          "start": 21626,
+          "end": 21634,
+          "hash": "49f8d8ca2f7c0415fc225d29a5854e02f95d9da0f9d7594747d46fffe7d0796c",
+          "owner": {
+            "name": "createTempVariable",
+            "path": "createNodeFactory.createTempVariable",
+            "start": 21626,
+            "end": 21634
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 36,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6519,
+        "port": "hoistVariableDeclaration / endLexicalEnvironment @6.0.3 \u2014",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformNodes.hoistVariableDeclaration",
+          "start": 116104,
+          "end": 116116,
+          "hash": "d55d5f7090dd3841600983f49f3998b701eabcbbc1c9328ee3d338ba3dece77e",
+          "owner": {
+            "name": "hoistVariableDeclaration",
+            "path": "transformNodes.hoistVariableDeclaration",
+            "start": 116104,
+            "end": 116116
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "transformNodes.endLexicalEnvironment",
+          "start": 116163,
+          "end": 116205,
+          "hash": "6a45e5a751c60d2c806705ca32270057f0da5ba47cfd28f4ceedfe55c2ceff08",
+          "owner": {
+            "name": "endLexicalEnvironment",
+            "path": "transformNodes.endLexicalEnvironment",
+            "start": 116163,
+            "end": 116205
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 37,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6553,
+        "port": "mergeLexicalEnvironment @6.0.3 for the source file: the",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.mergeLexicalEnvironment",
+          "start": 24889,
+          "end": 24932,
+          "hash": "ac1f665ea3f8a127f7cb6dbd55b79a8e307e38359a9aef18a2f5dada71bcd2c2",
+          "owner": {
+            "name": "mergeLexicalEnvironment",
+            "path": "createNodeFactory.mergeLexicalEnvironment",
+            "start": 24889,
+            "end": 24932
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 38,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6598,
+        "port": "mergeLexicalEnvironment @6.0.3 \u2014 `leftHoistedFunctionsEnd`:",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.mergeLexicalEnvironment",
+          "start": 24889,
+          "end": 24932,
+          "hash": "ac1f665ea3f8a127f7cb6dbd55b79a8e307e38359a9aef18a2f5dada71bcd2c2",
+          "owner": {
+            "name": "mergeLexicalEnvironment",
+            "path": "createNodeFactory.mergeLexicalEnvironment",
+            "start": 24889,
+            "end": 24932
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 39,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6621,
+        "port": "isPrologueDirective @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isPrologueDirective",
+          "start": 14161,
+          "end": 14163,
+          "hash": "6e1d5144bedd49611f36d09fb7bd28bd28fbf0d7ce6e83571753936eff6efbb4",
+          "owner": {
+            "name": "isPrologueDirective",
+            "path": "isPrologueDirective",
+            "start": 14161,
+            "end": 14163
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 40,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6635,
+        "port": "isHoistedFunction @6.0.3 (`isCustomPrologue(node) &&",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isHoistedFunction",
+          "start": 14167,
+          "end": 14169,
+          "hash": "a43dffc56712a0f0a13148f4eca8cd05064849784894e44d65835c84e84b880a",
+          "owner": {
+            "name": "isHoistedFunction",
+            "path": "isHoistedFunction",
+            "start": 14167,
+            "end": 14169
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 41,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6653,
+        "port": "isHoistedVariableStatement @6.0.3 \u2014 a custom-prologue `var`",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isHoistedVariableStatement",
+          "start": 14173,
+          "end": 14175,
+          "hash": "be4121319d7decd5d3087cc7fd9d2eb5510b17ae67b08bc236fb082f77b141d8",
+          "owner": {
+            "name": "isHoistedVariableStatement",
+            "path": "isHoistedVariableStatement",
+            "start": 14173,
+            "end": 14175
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 42,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6691,
+        "port": "visitFunctionBody / mergeLexicalEnvironment @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "visitFunctionBody",
+          "start": 91277,
+          "end": 91290,
+          "hash": "a0de20486c024854e4b8496a1878d177977d54127aee509f3de22d3b8ce5573e",
+          "owner": {
+            "name": "visitFunctionBody",
+            "path": "visitFunctionBody",
+            "start": 91277,
+            "end": 91290
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createNodeFactory.mergeLexicalEnvironment",
+          "start": 24889,
+          "end": 24932,
+          "hash": "ac1f665ea3f8a127f7cb6dbd55b79a8e307e38359a9aef18a2f5dada71bcd2c2",
+          "owner": {
+            "name": "mergeLexicalEnvironment",
+            "path": "createNodeFactory.mergeLexicalEnvironment",
+            "start": 24889,
+            "end": 24932
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 43,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 6746,
+        "port": "visitPropertyDeclaration @6.0.3 (the initializer's lexical",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitPropertyDeclaration",
+          "start": 100041,
+          "end": 100150,
+          "hash": "32896629db3e477cdb54934eeefadb12c80ac10d8909d811eb7a90e2de4b164d",
+          "owner": {
+            "name": "visitPropertyDeclaration",
+            "path": "transformESDecorators.visitPropertyDeclaration",
+            "start": 100041,
+            "end": 100150
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 44,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7404,
+        "port": "transformESDecorators.updateState @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.updateState",
+          "start": 98973,
+          "end": 98995,
+          "hash": "43884579281d628ed37ed5860425dc7194a9a2e6bd63fceb6d4d6599dffe4f12",
+          "owner": {
+            "name": "updateState",
+            "path": "transformESDecorators.updateState",
+            "start": 98973,
+            "end": 98995
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 45,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7430,
+        "port": "enterClass @6.0.3 (`classInfo.classThis` of the class)",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.enterClass",
+          "start": 98996,
+          "end": 99000,
+          "hash": "b4c3404bf758e51e69d069a580f1d9de3c34c753cfbf153ba9e7d7633dbea6cd",
+          "owner": {
+            "name": "enterClass",
+            "path": "transformESDecorators.enterClass",
+            "start": 98996,
+            "end": 99000
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 46,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7464,
+        "port": "exitClass @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.exitClass",
+          "start": 99001,
+          "end": 99006,
+          "hash": "fe3a7b094d480e73fef4329ed7eabe60eee97fed1f846e819d7b0ef3349d1309",
+          "owner": {
+            "name": "exitClass",
+            "path": "transformESDecorators.exitClass",
+            "start": 99001,
+            "end": 99006
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 47,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7487,
+        "port": "enterClassElement @6.0.3 \u2014 only a static block or a static",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.enterClassElement",
+          "start": 99007,
+          "end": 99016,
+          "hash": "79d5397bee4df100c7d80d6174cba45c1292c2bc1232187d5812eb0af4d44d78",
+          "owner": {
+            "name": "enterClassElement",
+            "path": "transformESDecorators.enterClassElement",
+            "start": 99007,
+            "end": 99016
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 48,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7521,
+        "port": "exitClassElement @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.exitClassElement",
+          "start": 99017,
+          "end": 99026,
+          "hash": "2a48803ab07ea1afdb2967bb4f97916a136b07628e679fca50faef148aaf3aa7",
+          "owner": {
+            "name": "exitClassElement",
+            "path": "transformESDecorators.exitClassElement",
+            "start": 99017,
+            "end": 99026
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 49,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7531,
+        "port": "enterName @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.enterName",
+          "start": 99027,
+          "end": 99031,
+          "hash": "e5304e441ab060194f053c160202192b13e8a95bbb05105062e3a67ef738c7ec",
+          "owner": {
+            "name": "enterName",
+            "path": "transformESDecorators.enterName",
+            "start": 99027,
+            "end": 99031
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 50,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7541,
+        "port": "exitName @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.exitName",
+          "start": 99032,
+          "end": 99036,
+          "hash": "d93030cd3a6c46f96d4a69627c776743683772c9fe6224be62b8a143231c1b72",
+          "owner": {
+            "name": "exitName",
+            "path": "transformESDecorators.exitName",
+            "start": 99032,
+            "end": 99036
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 51,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7551,
+        "port": "enterOther @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.enterOther",
+          "start": 99037,
+          "end": 99046,
+          "hash": "f25ffa851798f80bd8020303b1920171083e429e706944c56ba8c450e0654b96",
+          "owner": {
+            "name": "enterOther",
+            "path": "transformESDecorators.enterOther",
+            "start": 99037,
+            "end": 99046
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 52,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7566,
+        "port": "exitOther @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.exitOther",
+          "start": 99047,
+          "end": 99057,
+          "hash": "078eef0c834a174c3ef001a9c287230077770b221d2c4ebfe560305d27253c08",
+          "owner": {
+            "name": "exitOther",
+            "path": "transformESDecorators.exitOther",
+            "start": 99047,
+            "end": 99057
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 53,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7606,
+        "port": "makeUniqueName (Optimistic | FileLevel) @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.makeUniqueName",
+          "start": 120741,
+          "end": 120779,
+          "hash": "24cb46aa2ba811ebf24cee740aa8ca553970a6bd6f18b7b57ae10ea77cb55f03",
+          "owner": {
+            "name": "makeUniqueName",
+            "path": "createPrinter.makeUniqueName",
+            "start": 120741,
+            "end": 120779
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 54,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7629,
+        "port": "visitClassExpression (undecorated) @6.0.3 \u2014 heritage clauses",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitClassExpression",
+          "start": 99722,
+          "end": 99746,
+          "hash": "217d802b19d445f5615c2111d9e64fe8e805c3a27bc99e596d971999e44ede06",
+          "owner": {
+            "name": "visitClassExpression",
+            "path": "transformESDecorators.visitClassExpression",
+            "start": 99722,
+            "end": 99746
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 55,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7656,
+        "port": "visitClassDeclaration (undecorated) @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitClassDeclaration",
+          "start": 99628,
+          "end": 99721,
+          "hash": "b3eecec89dd565c30666f1bc40f33fb21bdf8f69054a07aa058d5977a22867f8",
+          "owner": {
+            "name": "visitClassDeclaration",
+            "path": "transformESDecorators.visitClassDeclaration",
+            "start": 99628,
+            "end": 99721
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 56,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7728,
+        "port": "partialTransformClassElement name handling @6.0.3 \u2014 the",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.partialTransformClassElement",
+          "start": 99831,
+          "end": 99944,
+          "hash": "46d06f1175b4bfd01fe5b4df1893f5f1164b80e7a9c94f3340604e4a6b06b912",
+          "owner": {
+            "name": "partialTransformClassElement",
+            "path": "transformESDecorators.partialTransformClassElement",
+            "start": 99831,
+            "end": 99944
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 57,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7745,
+        "port": "visitPropertyName @6.0.3 under the name frame. `name` is",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitPropertyName",
+          "start": 100363,
+          "end": 100368,
+          "hash": "37527fd0743d39120f6fefe54dc24b11c79b8dc433639de5538620b421ed89bf",
+          "owner": {
+            "name": "visitPropertyName",
+            "path": "transformESDecorators.visitPropertyName",
+            "start": 100363,
+            "end": 100368
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 58,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 7926,
+        "port": "isSuperProperty @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isSuperProperty",
+          "start": 14608,
+          "end": 14611,
+          "hash": "d71f4915c785ca5e6a0642e8c3e85529c28ea19447923c8a337ab6ffa5c4f262",
+          "owner": {
+            "name": "isSuperProperty",
+            "path": "isSuperProperty",
+            "start": 14608,
+            "end": 14611
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 59,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8028,
+        "port": "visitCallExpression @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitCallExpression",
+          "start": 100154,
+          "end": 100164,
+          "hash": "88da41c4f5574d75958e4b8384116c2be7300fbc1c221beee4620a94479d186c",
+          "owner": {
+            "name": "visitCallExpression",
+            "path": "transformESDecorators.visitCallExpression",
+            "start": 100154,
+            "end": 100164
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 60,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8053,
+        "port": "visitTaggedTemplateExpression @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitTaggedTemplateExpression",
+          "start": 100165,
+          "end": 100181,
+          "hash": "cc4aa7371464a6324ce3558aac715eb4474e5aa816c9930f4af54e1ac19941a5",
+          "owner": {
+            "name": "visitTaggedTemplateExpression",
+            "path": "transformESDecorators.visitTaggedTemplateExpression",
+            "start": 100165,
+            "end": 100181
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 61,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8078,
+        "port": "visitPropertyAccessExpression @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitPropertyAccessExpression",
+          "start": 100182,
+          "end": 100191,
+          "hash": "3eb04277af387a35b03be3e375a7bc48b59af8426327e5dfc79d22d3aca65caa",
+          "owner": {
+            "name": "visitPropertyAccessExpression",
+            "path": "transformESDecorators.visitPropertyAccessExpression",
+            "start": 100182,
+            "end": 100191
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 62,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8105,
+        "port": "visitElementAccessExpression @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitElementAccessExpression",
+          "start": 100192,
+          "end": 100201,
+          "hash": "145bcefc116cf6b12ea3674565e341c23e02b5db8e025e49243d6fd7d449284d",
+          "owner": {
+            "name": "visitElementAccessExpression",
+            "path": "transformESDecorators.visitElementAccessExpression",
+            "start": 100192,
+            "end": 100201
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 63,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8139,
+        "port": "isCompoundAssignment @6.0.3 (PlusEqualsToken ..= CaretEqualsToken)",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isCompoundAssignment",
+          "start": 93033,
+          "end": 93035,
+          "hash": "cf363727b517ac8079c5b9f484d3874e50114346987a6065d811ac34416fc940",
+          "owner": {
+            "name": "isCompoundAssignment",
+            "path": "isCompoundAssignment",
+            "start": 93033,
+            "end": 93035
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 64,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8145,
+        "port": "getNonAssignmentOperatorForCompoundAssignment @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "getNonAssignmentOperatorForCompoundAssignment",
+          "start": 93036,
+          "end": 93069,
+          "hash": "92244f9073469f47d35d385e7aac910055f3863bb6192feacb69a8c31d6272d7",
+          "owner": {
+            "name": "getNonAssignmentOperatorForCompoundAssignment",
+            "path": "getNonAssignmentOperatorForCompoundAssignment",
+            "start": 93036,
+            "end": 93069
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 65,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8171,
+        "port": "isLeftHandSideExpressionKind @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isLeftHandSideExpressionKind",
+          "start": 12210,
+          "end": 12249,
+          "hash": "56f309759af004536fb9191b69da44fd15f25ee73de8c73c357c3d9b3b7f0f68",
+          "owner": {
+            "name": "isLeftHandSideExpressionKind",
+            "path": "isLeftHandSideExpressionKind",
+            "start": 12210,
+            "end": 12249
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 66,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8215,
+        "port": "skipParentheses @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "skipParentheses",
+          "start": 15661,
+          "end": 15664,
+          "hash": "57477e009374b3ffadffee5b4db7695a3c33fc1710ed92ce3c06ab51d147e7f3",
+          "owner": {
+            "name": "skipParentheses",
+            "path": "skipParentheses",
+            "start": 15661,
+            "end": 15664
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 67,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8229,
+        "port": "visitBinaryExpression @6.0.3 (the caller records named",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitBinaryExpression",
+          "start": 100249,
+          "end": 100311,
+          "hash": "d8f256a944567d9610c2541627c0d6041bd0675df6c0e037672129b63d9653e1",
+          "owner": {
+            "name": "visitBinaryExpression",
+            "path": "transformESDecorators.visitBinaryExpression",
+            "start": 100249,
+            "end": 100311
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 68,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8298,
+        "port": "visitBinaryExpression @6.0.3 (super property assignment)",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitBinaryExpression",
+          "start": 100249,
+          "end": 100311,
+          "hash": "d8f256a944567d9610c2541627c0d6041bd0675df6c0e037672129b63d9653e1",
+          "owner": {
+            "name": "visitBinaryExpression",
+            "path": "transformESDecorators.visitBinaryExpression",
+            "start": 100249,
+            "end": 100311
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 69,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8357,
+        "port": "visitPreOrPostfixUnaryExpression @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitPreOrPostfixUnaryExpression",
+          "start": 100312,
+          "end": 100340,
+          "hash": "b8a5337e897890d87d0db464351dd628ef88d9d40a0f75805daedb99f4debe14",
+          "owner": {
+            "name": "visitPreOrPostfixUnaryExpression",
+            "path": "transformESDecorators.visitPreOrPostfixUnaryExpression",
+            "start": 100312,
+            "end": 100340
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 70,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8422,
+        "port": "expandPreOrPostfixIncrementOrDecrementExpression @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "expandPreOrPostfixIncrementOrDecrementExpression",
+          "start": 27499,
+          "end": 27518,
+          "hash": "3af38040dd39a12f42712ab327bb13a99be9f32d6dadf7b8e518fa3070af0846",
+          "owner": {
+            "name": "expandPreOrPostfixIncrementOrDecrementExpression",
+            "path": "expandPreOrPostfixIncrementOrDecrementExpression",
+            "start": 27499,
+            "end": 27518
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 71,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8482,
+        "port": "visitForStatement @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitForStatement",
+          "start": 100237,
+          "end": 100245,
+          "hash": "db62644242d6f7372ae2d9e6f178fb6b69892f6c87716a6545be7c20a34b87e9",
+          "owner": {
+            "name": "visitForStatement",
+            "path": "transformESDecorators.visitForStatement",
+            "start": 100237,
+            "end": 100245
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 72,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8504,
+        "port": "visitExpressionStatement @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitExpressionStatement",
+          "start": 100246,
+          "end": 100248,
+          "hash": "8ee2297fddd16086b0946d73aca9bea9be662ca465faa2945269ddfbac061ca9",
+          "owner": {
+            "name": "visitExpressionStatement",
+            "path": "transformESDecorators.visitExpressionStatement",
+            "start": 100246,
+            "end": 100248
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 73,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8520,
+        "port": "visitCommaListExpression @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitCommaListExpression",
+          "start": 100341,
+          "end": 100344,
+          "hash": "64f8697b1ab10f96b8e716b194805d0dd26d1ddd42e5a3b6ace820108bbeca70",
+          "owner": {
+            "name": "visitCommaListExpression",
+            "path": "transformESDecorators.visitCommaListExpression",
+            "start": 100341,
+            "end": 100344
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 74,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8560,
+        "port": "visitParenthesizedExpression @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitParenthesizedExpression",
+          "start": 100501,
+          "end": 100505,
+          "hash": "9f78b368460554d8fc9f6cc153ad854cad5d889151ba6c22e128a22ca7f106d4",
+          "owner": {
+            "name": "visitParenthesizedExpression",
+            "path": "transformESDecorators.visitParenthesizedExpression",
+            "start": 100501,
+            "end": 100505
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 75,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8589,
+        "port": "visitAssignmentPattern @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitAssignmentPattern",
+          "start": 100486,
+          "end": 100494,
+          "hash": "70664f75587a2810fee4db2378d50f8d7b8a45893643a77450fd4b7f1b781649",
+          "owner": {
+            "name": "visitAssignmentPattern",
+            "path": "transformESDecorators.visitAssignmentPattern",
+            "start": 100486,
+            "end": 100494
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 76,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8645,
+        "port": "visitArrayAssignmentElement @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitArrayAssignmentElement",
+          "start": 100444,
+          "end": 100449,
+          "hash": "20e38fa69dc79fa9f18aadbdd293a836e2b2b508153a7f6cba42893156d15018",
+          "owner": {
+            "name": "visitArrayAssignmentElement",
+            "path": "transformESDecorators.visitArrayAssignmentElement",
+            "start": 100444,
+            "end": 100449
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 77,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8661,
+        "port": "visitAssignmentElement @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitAssignmentElement",
+          "start": 100421,
+          "end": 100436,
+          "hash": "87d6028b699826917532b52778fa70d7d7eaa2e8416a3582164c8f9540f7fd66",
+          "owner": {
+            "name": "visitAssignmentElement",
+            "path": "transformESDecorators.visitAssignmentElement",
+            "start": 100421,
+            "end": 100436
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 78,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8687,
+        "port": "visitDestructuringAssignmentTarget @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitDestructuringAssignmentTarget",
+          "start": 100394,
+          "end": 100420,
+          "hash": "704eb7d0090c965acfbb2ec200d07aa434dc41f289c4e7b586be9f4d34586e13",
+          "owner": {
+            "name": "visitDestructuringAssignmentTarget",
+            "path": "transformESDecorators.visitDestructuringAssignmentTarget",
+            "start": 100394,
+            "end": 100420
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 79,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8718,
+        "port": "createAssignmentTargetWrapper @6.0.3 \u2014",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.createAssignmentTargetWrapper",
+          "start": 24754,
+          "end": 24784,
+          "hash": "3f68e9a4bf29fb6e3ddf77bb2cd029838b0db17d3277434b33893921fd7154f0",
+          "owner": {
+            "name": "createAssignmentTargetWrapper",
+            "path": "createNodeFactory.createAssignmentTargetWrapper",
+            "start": 24754,
+            "end": 24784
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 80,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8762,
+        "port": "visitAssignmentRestElement @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitAssignmentRestElement",
+          "start": 100437,
+          "end": 100443,
+          "hash": "9b3d4f021f3c97e9424504af60a50fbda24735bfc624bea5b10c227455817c82",
+          "owner": {
+            "name": "visitAssignmentRestElement",
+            "path": "transformESDecorators.visitAssignmentRestElement",
+            "start": 100437,
+            "end": 100443
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 81,
+      "original": {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "line": 8783,
+        "port": "visitObjectAssignmentElement @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformESDecorators.visitObjectAssignmentElement",
+          "start": 100479,
+          "end": 100485,
+          "hash": "5c9e173d89e18d080adfd10a68d5a82ee591cddb9416f366f269f2b9c70eb85d",
+          "owner": {
+            "name": "visitObjectAssignmentElement",
+            "path": "transformESDecorators.visitObjectAssignmentElement",
+            "start": 100479,
+            "end": 100485
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 82,
+      "original": {
+        "path": "crates/emitter/src/builtins/system.rs",
+        "line": 1846,
+        "port": "transformSystemModule.visitVariableStatement @6.0.3 (the",
+        "span": "_tsc.js:112639-112657",
+        "recorded": "6571fc0551b24284b57ab11c666dce1514bf542ed6e8b30fd0ee09e6c8471a0c",
+        "actual": "73f0a7bba06eaf0a1228b2b8fed0b32667d74b3c6dfcf6521681ecb30eff29fa",
+        "reasons": [
+          "stale-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformSystemModule.visitVariableStatement",
+          "start": 112634,
+          "end": 112683,
+          "hash": "6571fc0551b24284b57ab11c666dce1514bf542ed6e8b30fd0ee09e6c8471a0c",
+          "owner": {
+            "name": "visitVariableStatement",
+            "path": "transformSystemModule.visitVariableStatement",
+            "start": 112634,
+            "end": 112683
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 83,
+      "original": {
+        "path": "crates/emitter/src/builtins/system.rs",
+        "line": 3024,
+        "port": "hasExportedReferenceInDestructuringTarget @6.0.3",
+        "span": "_tsc.js:113120-113141",
+        "recorded": null,
+        "actual": "227bc8cbad14113ce75953b1ab8258f0ab4029c1cb66887ee74c66029034de79",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformSystemModule.hasExportedReferenceInDestructuringTarget",
+          "start": 113118,
+          "end": 113141,
+          "hash": "f4217cb097bf97e6b94c54558756d363de79824aba2e843fcc6f2a33495b982a",
+          "owner": {
+            "name": "hasExportedReferenceInDestructuringTarget",
+            "path": "transformSystemModule.hasExportedReferenceInDestructuringTarget",
+            "start": 113118,
+            "end": 113141
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 84,
+      "original": {
+        "path": "crates/emitter/src/builtins/tagged_template.rs",
+        "line": 322,
+        "port": "getRawLiteral/getTextOfNodeFromSourceText @6.0.3",
+        "span": "_tsc.js:94022-94032, 13017-13044",
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "getRawLiteral",
+          "start": 94022,
+          "end": 94032,
+          "hash": "d4e11c6faf9f995a3cafd841ab9f3aaabfcd7e1c3d56e530c21538f79f1bf2bf",
+          "owner": {
+            "name": "getRawLiteral",
+            "path": "getRawLiteral",
+            "start": 94022,
+            "end": 94032
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "getTextOfNodeFromSourceText",
+          "start": 13035,
+          "end": 13044,
+          "hash": "5b825e2135e14edb1067e8102962eebd2ffafe983ce3354ed46db1e39bf62c89",
+          "owner": {
+            "name": "getTextOfNodeFromSourceText",
+            "path": "getTextOfNodeFromSourceText",
+            "start": 13035,
+            "end": 13044
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 85,
+      "original": {
+        "path": "crates/emitter/src/builtins.rs",
+        "line": 12819,
+        "port": "getGeneratedNameForNode @6.0.3 (transformTypeScript's",
+        "span": "_tsc.js:21652-21666, 94455-94456, 120876-120942",
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.getGeneratedNameForNode",
+          "start": 21652,
+          "end": 21666,
+          "hash": "7aeec7c8966a869665e0b8f01a41cd52e75bc957006170fd446ea819be9a6ea0",
+          "owner": {
+            "name": "getGeneratedNameForNode",
+            "path": "createNodeFactory.getGeneratedNameForNode",
+            "start": 21652,
+            "end": 21666
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "transformTypeScript.visitClassDeclaration",
+          "start": 94456,
+          "end": 94457,
+          "hash": "5be1822c4abc91b83b3ec3152a6930371e8bb80ac337240758296cf3db81a2fc",
+          "owner": {
+            "name": "visitClassDeclaration",
+            "path": "transformTypeScript.visitClassDeclaration",
+            "start": 94434,
+            "end": 94548
+          },
+          "is_subspan": true
+        },
+        {
+          "name": "createPrinter.generateNameForNode",
+          "start": 120876,
+          "end": 120942,
+          "hash": "80b51fff38bdb471f7bacf14c7290fa5c0f8ab22521a261a84e3e110d21f5cdd",
+          "owner": {
+            "name": "generateNameForNode",
+            "path": "createPrinter.generateNameForNode",
+            "start": 120876,
+            "end": 120942
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 86,
+      "original": {
+        "path": "crates/emitter/src/declarations/bundle.rs",
+        "line": 17,
+        "port": "transformRoot bundle arm @6.0.3 (_tsc.js:114446-114513).",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "transformDeclarations.transformRoot",
+          "start": 114446,
+          "end": 114513,
+          "hash": "7b7303f6ac22d1ede26229dce3758b39a5e6ce5b6917be6f460fcc68360125f1",
+          "owner": {
+            "name": "transformRoot",
+            "path": "transformDeclarations.transformRoot",
+            "start": 114441,
+            "end": 114614
+          },
+          "is_subspan": true
+        }
+      ]
+    },
+    {
+      "index": 87,
+      "original": {
+        "path": "crates/emitter/src/declarations/bundle.rs",
+        "line": 231,
+        "port": "isExternalModuleAugmentation/isModuleAugmentationExternal",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "isExternalModuleAugmentation",
+          "start": 13737,
+          "end": 13739,
+          "hash": "b15f91bccd94d548f2b407ea34fdba17881ea41961748847b29b64f8edb264b6",
+          "owner": {
+            "name": "isExternalModuleAugmentation",
+            "path": "isExternalModuleAugmentation",
+            "start": 13737,
+            "end": 13739
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "isModuleAugmentationExternal",
+          "start": 13740,
+          "end": 13748,
+          "hash": "aaba1aaac0a2bbde6e1923580f5a67a0d947ee79784eba560143f321455d79ec",
+          "owner": {
+            "name": "isModuleAugmentationExternal",
+            "path": "isModuleAugmentationExternal",
+            "start": 13740,
+            "end": 13748
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 88,
+      "original": {
+        "path": "crates/emitter/src/declarations/ensure.rs",
+        "line": 528,
+        "port": "isInternalDeclaration @6.0.3",
+        "span": "_tsc.js:12601-12635",
+        "recorded": "7fdbd2e51d45123d55f9bb853fca15c01ed2e5617132b52c0123dec8185abf5a",
+        "actual": "3e1b98d86bb506e3f4872db0df95ea1ed6a01c7c1d96cb3efff95a6cd8a64324",
+        "reasons": [
+          "stale-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "isInternalDeclaration",
+          "start": 12601,
+          "end": 12635,
+          "hash": "3e1b98d86bb506e3f4872db0df95ea1ed6a01c7c1d96cb3efff95a6cd8a64324",
+          "owner": {
+            "name": "isInternalDeclaration",
+            "path": "isInternalDeclaration",
+            "start": 12601,
+            "end": 12635
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 89,
+      "original": {
+        "path": "crates/emitter/src/declarations/ensure.rs",
+        "line": 1040,
+        "port": "hasInternalAnnotation @6.0.3",
+        "span": "_tsc.js:12597-12600",
+        "recorded": "9a540f5672edcd18339325a49050200afe83301896d5fb40bad9c7aae7c88d46",
+        "actual": "10ecef0975520c3df35a68b6161e91ce323d5483020da105f0ea2c041e7a7a02",
+        "reasons": [
+          "stale-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "hasInternalAnnotation",
+          "start": 12597,
+          "end": 12600,
+          "hash": "10ecef0975520c3df35a68b6161e91ce323d5483020da105f0ea2c041e7a7a02",
+          "owner": {
+            "name": "hasInternalAnnotation",
+            "path": "hasInternalAnnotation",
+            "start": 12597,
+            "end": 12600
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 90,
+      "original": {
+        "path": "crates/emitter/src/factory.rs",
+        "line": 2220,
+        "port": "createTemplateLiteralLikeNode/update @6.0.3",
+        "span": "_tsc.js:22885-22890, 24995-25001",
+        "recorded": "4d36f6cd637eb6babb29850129ab9b8a3bfea4f9e238b375705907258faf9a2b",
+        "actual": null,
+        "reasons": [
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.createTemplateLiteralLikeNode",
+          "start": 22885,
+          "end": 22890,
+          "hash": "4d36f6cd637eb6babb29850129ab9b8a3bfea4f9e238b375705907258faf9a2b",
+          "owner": {
+            "name": "createTemplateLiteralLikeNode",
+            "path": "createNodeFactory.createTemplateLiteralLikeNode",
+            "start": 22885,
+            "end": 22890
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createNodeFactory.update",
+          "start": 24995,
+          "end": 25001,
+          "hash": "384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707",
+          "owner": {
+            "name": "update",
+            "path": "createNodeFactory.update",
+            "start": 24995,
+            "end": 25001
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 91,
+      "original": {
+        "path": "crates/emitter/src/factory.rs",
+        "line": 2305,
+        "port": "createStringLiteral/update @6.0.3",
+        "span": "_tsc.js:21529-21534, 24995-25001",
+        "recorded": "2bf21e80bf4e61e4e1af7273cc968a2d4423ba01535d7cedc31a7ed35ebc1c2e",
+        "actual": null,
+        "reasons": [
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.createStringLiteral",
+          "start": 21529,
+          "end": 21534,
+          "hash": "2bf21e80bf4e61e4e1af7273cc968a2d4423ba01535d7cedc31a7ed35ebc1c2e",
+          "owner": {
+            "name": "createStringLiteral",
+            "path": "createNodeFactory.createStringLiteral",
+            "start": 21529,
+            "end": 21534
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createNodeFactory.update",
+          "start": 24995,
+          "end": 25001,
+          "hash": "384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707",
+          "owner": {
+            "name": "update",
+            "path": "createNodeFactory.update",
+            "start": 24995,
+            "end": 25001
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 92,
+      "original": {
+        "path": "crates/emitter/src/factory.rs",
+        "line": 5938,
+        "port": "createExpressionWithTypeArguments @6.0.3",
+        "span": "_tsc.js:22944-22957",
+        "recorded": null,
+        "actual": "7947249a26542ec1b467d9b56c37d02d8449f8326de28f0a459b73cbc45cf999",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.createExpressionWithTypeArguments",
+          "start": 22944,
+          "end": 22954,
+          "hash": "9d82e84ce18b62e683344bdba7f4067959b02e3ba13c9303ea37889e54517ddf",
+          "owner": {
+            "name": "createExpressionWithTypeArguments",
+            "path": "createNodeFactory.createExpressionWithTypeArguments",
+            "start": 22944,
+            "end": 22954
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 93,
+      "original": {
+        "path": "crates/emitter/src/factory.rs",
+        "line": 5961,
+        "port": "parenthesizeExpressionOfExpressionStatement/parenthesizeOperandOfPrefixUnary/parenthesizeOperandOfPostfixUnary @6.0.3",
+        "span": "_tsc.js:20473-20511",
+        "recorded": null,
+        "actual": "453067d0f4a6b7508feb909e903e0a72265e0d792ff2884437cc4265b28e05a1",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createParenthesizerRules.parenthesizeExpressionOfExpressionStatement",
+          "start": 20489,
+          "end": 20513,
+          "hash": "85a4134f9ae228dbafc9e0b260335d1c2d0ea3e535d3d5c5f23324c830629997",
+          "owner": {
+            "name": "parenthesizeExpressionOfExpressionStatement",
+            "path": "createParenthesizerRules.parenthesizeExpressionOfExpressionStatement",
+            "start": 20489,
+            "end": 20513
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createParenthesizerRules.parenthesizeOperandOfPrefixUnary",
+          "start": 20476,
+          "end": 20478,
+          "hash": "c8dfd87e79435ff65b81974bd50d2f2b246c9ead564242f1eeabef05b7dbcd92",
+          "owner": {
+            "name": "parenthesizeOperandOfPrefixUnary",
+            "path": "createParenthesizerRules.parenthesizeOperandOfPrefixUnary",
+            "start": 20476,
+            "end": 20478
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createParenthesizerRules.parenthesizeOperandOfPostfixUnary",
+          "start": 20473,
+          "end": 20475,
+          "hash": "948146dd54f7eb1ab954df327c6b2a0cc50bb1b08e0cff8d102b492967450936",
+          "owner": {
+            "name": "parenthesizeOperandOfPostfixUnary",
+            "path": "createParenthesizerRules.parenthesizeOperandOfPostfixUnary",
+            "start": 20473,
+            "end": 20475
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 94,
+      "original": {
+        "path": "crates/emitter/src/factory.rs",
+        "line": 6099,
+        "port": "updateArrowFunction @6.0.3 (through createArrowFunction's",
+        "span": "_tsc.js:22701-22735",
+        "recorded": null,
+        "actual": "a1bbec048295cf9e910381fbebadd7970fd780bdd126f2edfcdcf22f2c8fb5f6",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.createArrowFunction",
+          "start": 22701,
+          "end": 22719,
+          "hash": "86ab9adbb9da5a28bf8a8dad687363b83f315bfa06def479590c1f305a367d72",
+          "owner": {
+            "name": "createArrowFunction",
+            "path": "createNodeFactory.createArrowFunction",
+            "start": 22701,
+            "end": 22719
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createNodeFactory.updateArrowFunction",
+          "start": 22720,
+          "end": 22722,
+          "hash": "343053e4822901d08cbe1a365a29a350c631a6e56d7687477601214d6821e4b1",
+          "owner": {
+            "name": "updateArrowFunction",
+            "path": "createNodeFactory.updateArrowFunction",
+            "start": 22720,
+            "end": 22722
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createParenthesizerRules.parenthesizeConciseBodyOfArrowFunction",
+          "start": 20514,
+          "end": 20523,
+          "hash": "d38bb2cada06ea034690ace7bfe3e842fb4e6e654b1c9198c18936ddb25a7b3c",
+          "owner": {
+            "name": "parenthesizeConciseBodyOfArrowFunction",
+            "path": "createParenthesizerRules.parenthesizeConciseBodyOfArrowFunction",
+            "start": 20514,
+            "end": 20523
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 95,
+      "original": {
+        "path": "crates/emitter/src/factory.rs",
+        "line": 6126,
+        "port": "parenthesizeExpressionsOfCommaDelimitedList @6.0.3",
+        "span": "_tsc.js:20479-20482",
+        "recorded": null,
+        "actual": "dd7a34a815f54aece481cb90741eec0df40f7f771dc1bbe54e14ff9d69817906",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createParenthesizerRules.parenthesizeExpressionsOfCommaDelimitedList",
+          "start": 20479,
+          "end": 20482,
+          "hash": "dd7a34a815f54aece481cb90741eec0df40f7f771dc1bbe54e14ff9d69817906",
+          "owner": {
+            "name": "parenthesizeExpressionsOfCommaDelimitedList",
+            "path": "createParenthesizerRules.parenthesizeExpressionsOfCommaDelimitedList",
+            "start": 20479,
+            "end": 20482
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 96,
+      "original": {
+        "path": "crates/emitter/src/factory.rs",
+        "line": 6128,
+        "port": "createArrayLiteralExpression/createCallExpression/createCallChain/createNewExpression @6.0.3",
+        "span": "_tsc.js:22441-22449,22579-22595,22602-22617,22621-22631",
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createNodeFactory.createArrayLiteralExpression",
+          "start": 22441,
+          "end": 22449,
+          "hash": "ae1104f0b6dff264352b07300fd3bf7e6ecac3a4e529fc177ae6a4c215642f8a",
+          "owner": {
+            "name": "createArrayLiteralExpression",
+            "path": "createNodeFactory.createArrayLiteralExpression",
+            "start": 22441,
+            "end": 22449
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createNodeFactory.createCallExpression",
+          "start": 22579,
+          "end": 22595,
+          "hash": "3682a7a912cb2341d1b1bbdb88f04d6da75b94cd21eee384fb701cdff903393a",
+          "owner": {
+            "name": "createCallExpression",
+            "path": "createNodeFactory.createCallExpression",
+            "start": 22579,
+            "end": 22595
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createNodeFactory.createCallChain",
+          "start": 22602,
+          "end": 22616,
+          "hash": "adffe3674c75bb64e358da301f023cd2aa5d34ab6fb4069e99ecd7545504f428",
+          "owner": {
+            "name": "createCallChain",
+            "path": "createNodeFactory.createCallChain",
+            "start": 22602,
+            "end": 22616
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createNodeFactory.createNewExpression",
+          "start": 22621,
+          "end": 22631,
+          "hash": "fcc2aeef44ddaa1aab91f03a9da4937e8cda98db119c9789d2c0adaa1e761a62",
+          "owner": {
+            "name": "createNewExpression",
+            "path": "createNodeFactory.createNewExpression",
+            "start": 22621,
+            "end": 22631
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 97,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 1343,
+        "port": "beginPrint @6.0.3",
+        "span": "_tsc.js:117082-117084",
+        "recorded": null,
+        "actual": "8d4878517542f8ed4628655d54044d5a3cd4eded115402c4b23de511fb3cdce4",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.beginPrint",
+          "start": 117082,
+          "end": 117084,
+          "hash": "8d4878517542f8ed4628655d54044d5a3cd4eded115402c4b23de511fb3cdce4",
+          "owner": {
+            "name": "beginPrint",
+            "path": "createPrinter.beginPrint",
+            "start": 117082,
+            "end": 117084
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 98,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 1354,
+        "port": "endPrint @6.0.3",
+        "span": "_tsc.js:117085-117089",
+        "recorded": null,
+        "actual": "b2a3b084843da506e687074d795a2d6a9fe874008c07295702dd1c41bbc434b3",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.endPrint",
+          "start": 117085,
+          "end": 117089,
+          "hash": "b2a3b084843da506e687074d795a2d6a9fe874008c07295702dd1c41bbc434b3",
+          "owner": {
+            "name": "endPrint",
+            "path": "createPrinter.endPrint",
+            "start": 117085,
+            "end": 117089
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 99,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 1447,
+        "port": "emitNodeListItems @6.0.3",
+        "span": "_tsc.js:120125-120126",
+        "recorded": null,
+        "actual": "07f06c93e94325294e236898fc36f8d68d0f4cdbd411738da24c4ec1f7b0b746",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitNodeListItems",
+          "start": 120125,
+          "end": 120126,
+          "hash": "07f06c93e94325294e236898fc36f8d68d0f4cdbd411738da24c4ec1f7b0b746",
+          "owner": {
+            "name": "emitNodeListItems",
+            "path": "createPrinter.emitNodeListItems",
+            "start": 120068,
+            "end": 120155
+          },
+          "is_subspan": true
+        }
+      ]
+    },
+    {
+      "index": 100,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 8795,
+        "port": "getSeparatingLineTerminatorCount @6.0.3",
+        "span": "_tsc.js:120299-120327",
+        "recorded": null,
+        "actual": "925fec4b084adf2f55d35d8b03d250184d8d3fc18b7164cd43a100222ad91647",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.getSeparatingLineTerminatorCount",
+          "start": 120301,
+          "end": 120329,
+          "hash": "78d63da04f114ae40f8ad9f012131e94a83000cf268d393c5608372aab734539",
+          "owner": {
+            "name": "getSeparatingLineTerminatorCount",
+            "path": "createPrinter.getSeparatingLineTerminatorCount",
+            "start": 120301,
+            "end": 120329
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 101,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 8867,
+        "port": "getLeadingLineTerminatorCount/getClosingLineTerminatorCount @6.0.3",
+        "span": "_tsc.js:120268-120298,120328-120358",
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.getLeadingLineTerminatorCount",
+          "start": 120268,
+          "end": 120300,
+          "hash": "893244ddd50971f9938c07f3bb0b10b520dfbf70880816b69aa4b00cc1384819",
+          "owner": {
+            "name": "getLeadingLineTerminatorCount",
+            "path": "createPrinter.getLeadingLineTerminatorCount",
+            "start": 120268,
+            "end": 120300
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.getClosingLineTerminatorCount",
+          "start": 120330,
+          "end": 120360,
+          "hash": "30b0be7e1586d76d08caeaa3f4605323147137e9c73a0bd825dd3c92881635dc",
+          "owner": {
+            "name": "getClosingLineTerminatorCount",
+            "path": "createPrinter.getClosingLineTerminatorCount",
+            "start": 120330,
+            "end": 120360
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 102,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 9287,
+        "port": "emitNodeListItems @6.0.3",
+        "span": "_tsc.js:120129-120150",
+        "recorded": null,
+        "actual": "78091971dfb5affdb9d8b4fdc007b09be500debcdd445df3aa3c77dda6b656c3",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitNodeListItems",
+          "start": 120129,
+          "end": 120150,
+          "hash": "78091971dfb5affdb9d8b4fdc007b09be500debcdd445df3aa3c77dda6b656c3",
+          "owner": {
+            "name": "emitNodeListItems",
+            "path": "createPrinter.emitNodeListItems",
+            "start": 120068,
+            "end": 120155
+          },
+          "is_subspan": true
+        }
+      ]
+    },
+    {
+      "index": 103,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 11912,
+        "port": "emitCommaList/emitExpressionList/emitNodeListItems @6.0.3",
+        "span": "_tsc.js:119780-119788,120026-120155",
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitCommaList",
+          "start": 119780,
+          "end": 119788,
+          "hash": "512622c4808b6b9d181e4f9e71492552050f98b7079df2f74436215902988b2b",
+          "owner": {
+            "name": "emitCommaList",
+            "path": "createPrinter.emitCommaList",
+            "start": 119780,
+            "end": 119788
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitExpressionList",
+          "start": 120026,
+          "end": 120028,
+          "hash": "e0b0f885c50ebdce792c1f0682bec5a4e9f84139ccd5e660de1f17e01d0efbe1",
+          "owner": {
+            "name": "emitExpressionList",
+            "path": "createPrinter.emitExpressionList",
+            "start": 120026,
+            "end": 120028
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitNodeListItems",
+          "start": 120068,
+          "end": 120155,
+          "hash": "ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40",
+          "owner": {
+            "name": "emitNodeListItems",
+            "path": "createPrinter.emitNodeListItems",
+            "start": 120068,
+            "end": 120155
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 104,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 14094,
+        "port": "pipelineEmitWithComments @6.0.3",
+        "span": "_tsc.js:120978-121046",
+        "recorded": null,
+        "actual": "96e8bb47720df27ce205adcde0bc18d136e503c74bb07cef27f519937f0665c6",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.pipelineEmitWithComments",
+          "start": 120978,
+          "end": 120986,
+          "hash": "263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34",
+          "owner": {
+            "name": "pipelineEmitWithComments",
+            "path": "createPrinter.pipelineEmitWithComments",
+            "start": 120978,
+            "end": 120986
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitLeadingCommentsOfNode",
+          "start": 121007,
+          "end": 121032,
+          "hash": "ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb",
+          "owner": {
+            "name": "emitLeadingCommentsOfNode",
+            "path": "createPrinter.emitLeadingCommentsOfNode",
+            "start": 121007,
+            "end": 121032
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitTrailingCommentsOfNode",
+          "start": 121033,
+          "end": 121046,
+          "hash": "e5c99d84eeab2c12d594ba56695a7a869c49720eb110f3715c0ea3f9271d1112",
+          "owner": {
+            "name": "emitTrailingCommentsOfNode",
+            "path": "createPrinter.emitTrailingCommentsOfNode",
+            "start": 121033,
+            "end": 121046
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 105,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 14096,
+        "port": "emitTokenWithComment @6.0.3",
+        "span": "_tsc.js:118731-118764",
+        "recorded": null,
+        "actual": "d7df39bba502705facedce379a636ae55b168b77701df5e72abf10ec444c2e50",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitTokenWithComment",
+          "start": 118731,
+          "end": 118764,
+          "hash": "d7df39bba502705facedce379a636ae55b168b77701df5e72abf10ec444c2e50",
+          "owner": {
+            "name": "emitTokenWithComment",
+            "path": "createPrinter.emitTokenWithComment",
+            "start": 118731,
+            "end": 118764
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 106,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 14204,
+        "port": "emit/emitExpression @6.0.3",
+        "span": "_tsc.js:117145-117161",
+        "recorded": null,
+        "actual": "eeb1559a3401d537fc25790b8eb38dcadea9355f3ddf4436264df8e61b3ddf09",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emit",
+          "start": 117145,
+          "end": 117148,
+          "hash": "f998a75ec5c7ebceb127e49ec7315b9e3b9aa90c15e4a5bd7d3b57cd324f5682",
+          "owner": {
+            "name": "emit",
+            "path": "createPrinter.emit",
+            "start": 117145,
+            "end": 117148
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitExpression",
+          "start": 117158,
+          "end": 117161,
+          "hash": "71793715793bfcd4946613824a562cee711318989a9b02e24d6cc8c2a7be3146",
+          "owner": {
+            "name": "emitExpression",
+            "path": "createPrinter.emitExpression",
+            "start": 117158,
+            "end": 117161
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 107,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 14206,
+        "port": "emitNodeWithWriter @6.0.3",
+        "span": "_tsc.js:119839-119845",
+        "recorded": null,
+        "actual": "ac88db15d31f74f81c507aec882699f3d2d9a483d3977861283f50cf58a1ea73",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitNodeWithWriter",
+          "start": 119839,
+          "end": 119845,
+          "hash": "ac88db15d31f74f81c507aec882699f3d2d9a483d3977861283f50cf58a1ea73",
+          "owner": {
+            "name": "emitNodeWithWriter",
+            "path": "createPrinter.emitNodeWithWriter",
+            "start": 119839,
+            "end": 119845
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 108,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 14266,
+        "port": "emitPropertyAccessExpression / emitElementAccessExpression @6.0.3",
+        "span": "_tsc.js:118223-118273",
+        "recorded": null,
+        "actual": "12e045be5de6c1687778d1a57596a69c8d123dc0251ba9510aff5d04d0f92789",
+        "reasons": [
+          "malformed-port",
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitPropertyAccessExpression",
+          "start": 118223,
+          "end": 118249,
+          "hash": "16bbe4828853fce221e4a5072079cd5bff4812a9424cb786b9e3b19e5accdc89",
+          "owner": {
+            "name": "emitPropertyAccessExpression",
+            "path": "createPrinter.emitPropertyAccessExpression",
+            "start": 118223,
+            "end": 118249
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitElementAccessExpression",
+          "start": 118268,
+          "end": 118274,
+          "hash": "19be0bb4ca3c146a16eb97f055fd1cee4c56489b79b47a23476f44a579a31465",
+          "owner": {
+            "name": "emitElementAccessExpression",
+            "path": "createPrinter.emitElementAccessExpression",
+            "start": 118268,
+            "end": 118274
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 109,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 14268,
+        "port": "emitYieldExpression @6.0.3",
+        "span": "_tsc.js:118523-118527",
+        "recorded": null,
+        "actual": "0be5a4d40fa703bd056ab479ff5c050f485cffe0cf28530cab27694da03ac79f",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitYieldExpression",
+          "start": 118523,
+          "end": 118527,
+          "hash": "0be5a4d40fa703bd056ab479ff5c050f485cffe0cf28530cab27694da03ac79f",
+          "owner": {
+            "name": "emitYieldExpression",
+            "path": "createPrinter.emitYieldExpression",
+            "start": 118523,
+            "end": 118527
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 110,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 14322,
+        "port": "emitMethodDeclaration / emitPropertyDeclaration / emitAccessorDeclaration @6.0.3",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "malformed-port",
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitMethodDeclaration",
+          "start": 117903,
+          "end": 117914,
+          "hash": "89a778e7fe25aecb9601b99b118ef6a16b7f9083b80365708c49788fdc91a9ff",
+          "owner": {
+            "name": "emitMethodDeclaration",
+            "path": "createPrinter.emitMethodDeclaration",
+            "start": 117903,
+            "end": 117914
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitPropertyDeclaration",
+          "start": 117883,
+          "end": 117896,
+          "hash": "3a8a77a1520e0f2514117112ee985ff76c5f002894a8e362c15b7c3d1d3f229e",
+          "owner": {
+            "name": "emitPropertyDeclaration",
+            "path": "createPrinter.emitPropertyDeclaration",
+            "start": 117883,
+            "end": 117896
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitAccessorDeclaration",
+          "start": 117931,
+          "end": 117943,
+          "hash": "b78bdd3026fb4a0a93d8226592ecf9a0b8167eb27c0747cac1a32ade5b8e643e",
+          "owner": {
+            "name": "emitAccessorDeclaration",
+            "path": "createPrinter.emitAccessorDeclaration",
+            "start": 117931,
+            "end": 117943
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 111,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 14323,
+        "port": "emitLeadingCommentsOfNode @6.0.3",
+        "span": "_tsc.js:121007-121032",
+        "recorded": null,
+        "actual": "ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitLeadingCommentsOfNode",
+          "start": 121007,
+          "end": 121032,
+          "hash": "ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb",
+          "owner": {
+            "name": "emitLeadingCommentsOfNode",
+            "path": "createPrinter.emitLeadingCommentsOfNode",
+            "start": 121007,
+            "end": 121032
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 112,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 14524,
+        "port": "emitPropertyAccessExpression / emitElementAccessExpression @6.0.3",
+        "span": "_tsc.js:118223-118273",
+        "recorded": null,
+        "actual": "12e045be5de6c1687778d1a57596a69c8d123dc0251ba9510aff5d04d0f92789",
+        "reasons": [
+          "malformed-port",
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitPropertyAccessExpression",
+          "start": 118223,
+          "end": 118249,
+          "hash": "16bbe4828853fce221e4a5072079cd5bff4812a9424cb786b9e3b19e5accdc89",
+          "owner": {
+            "name": "emitPropertyAccessExpression",
+            "path": "createPrinter.emitPropertyAccessExpression",
+            "start": 118223,
+            "end": 118249
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitElementAccessExpression",
+          "start": 118268,
+          "end": 118274,
+          "hash": "19be0bb4ca3c146a16eb97f055fd1cee4c56489b79b47a23476f44a579a31465",
+          "owner": {
+            "name": "emitElementAccessExpression",
+            "path": "createPrinter.emitElementAccessExpression",
+            "start": 118268,
+            "end": 118274
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 113,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 14526,
+        "port": "pipelineEmitWithComments @6.0.3",
+        "span": "_tsc.js:120978-121046",
+        "recorded": null,
+        "actual": "96e8bb47720df27ce205adcde0bc18d136e503c74bb07cef27f519937f0665c6",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.pipelineEmitWithComments",
+          "start": 120978,
+          "end": 120986,
+          "hash": "263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34",
+          "owner": {
+            "name": "pipelineEmitWithComments",
+            "path": "createPrinter.pipelineEmitWithComments",
+            "start": 120978,
+            "end": 120986
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitLeadingCommentsOfNode",
+          "start": 121007,
+          "end": 121032,
+          "hash": "ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb",
+          "owner": {
+            "name": "emitLeadingCommentsOfNode",
+            "path": "createPrinter.emitLeadingCommentsOfNode",
+            "start": 121007,
+            "end": 121032
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "createPrinter.emitTrailingCommentsOfNode",
+          "start": 121033,
+          "end": 121046,
+          "hash": "e5c99d84eeab2c12d594ba56695a7a869c49720eb110f3715c0ea3f9271d1112",
+          "owner": {
+            "name": "emitTrailingCommentsOfNode",
+            "path": "createPrinter.emitTrailingCommentsOfNode",
+            "start": 121033,
+            "end": 121046
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 114,
+      "original": {
+        "path": "crates/emitter/src/printer.rs",
+        "line": 18023,
+        "port": "emitNodeListItems @6.0.3",
+        "span": "_tsc.js:120068-120155",
+        "recorded": null,
+        "actual": "ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "createPrinter.emitNodeListItems",
+          "start": 120068,
+          "end": 120155,
+          "hash": "ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40",
+          "owner": {
+            "name": "emitNodeListItems",
+            "path": "createPrinter.emitNodeListItems",
+            "start": 120068,
+            "end": 120155
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 115,
+      "original": {
+        "path": "crates/emitter/src/source_map.rs",
+        "line": 623,
+        "port": "getDirectoryPath @6.0.3 (_tsc.js:5391-5397).",
+        "span": null,
+        "recorded": null,
+        "actual": null,
+        "reasons": [
+          "missing-hash",
+          "missing-or-malformed-span"
+        ]
+      },
+      "references": [
+        {
+          "name": "getDirectoryPath",
+          "start": 5391,
+          "end": 5397,
+          "hash": "7f2c6450b6b1c1bc4e1c65523c113201cd6cad6445d29d8c2d368913af418157",
+          "owner": {
+            "name": "getDirectoryPath",
+            "path": "getDirectoryPath",
+            "start": 5391,
+            "end": 5397
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 116,
+      "original": {
+        "path": "crates/emitter/src/transform.rs",
+        "line": 18,
+        "port": "visitEachChild @6.0.3",
+        "span": "_tsc.js:91318-91323",
+        "recorded": null,
+        "actual": "c471712528dd63b447964e29141188b90c2e195dc33f36746463fc3df95dcebe",
+        "reasons": [
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "visitEachChild",
+          "start": 91318,
+          "end": 91324,
+          "hash": "77052fb8845fc55cd604db6cb8fe5c3e22bfc7f435b2efc90dc0a57fc2adcc7c",
+          "owner": {
+            "name": "visitEachChild",
+            "path": "visitEachChild",
+            "start": 91318,
+            "end": 91324
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 117,
+      "original": {
+        "path": "crates/syntax/src/parser.rs",
+        "line": 9496,
+        "port": "propagateChildFlags / propagateNameFlags @6.0.3",
+        "span": "_tsc.js:25101-25192",
+        "recorded": null,
+        "actual": "aa626165ffe87f0541331790dbead305d376fcd6aada19b2d60c91f376a80125",
+        "reasons": [
+          "malformed-port",
+          "missing-hash"
+        ]
+      },
+      "references": [
+        {
+          "name": "propagateNameFlags",
+          "start": 25101,
+          "end": 25103,
+          "hash": "6ea1ef78cec08f7f1ad6603869b26c33b346051837bf89660ec62e436aa257ae",
+          "owner": {
+            "name": "propagateNameFlags",
+            "path": "propagateNameFlags",
+            "start": 25101,
+            "end": 25103
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "propagateIdentifierNameFlags",
+          "start": 25104,
+          "end": 25106,
+          "hash": "27391b1b26307bbb9bfa39beffd6561a928f0d3ca3ec9a6952a70f5e5fb5aeda",
+          "owner": {
+            "name": "propagateIdentifierNameFlags",
+            "path": "propagateIdentifierNameFlags",
+            "start": 25104,
+            "end": 25106
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "propagateChildFlags",
+          "start": 25110,
+          "end": 25114,
+          "hash": "8ddb64c96b023e53f3d136865d331f4ff32cc68182cf51faa166e2023be5abb0",
+          "owner": {
+            "name": "propagateChildFlags",
+            "path": "propagateChildFlags",
+            "start": 25110,
+            "end": 25114
+          },
+          "is_subspan": false
+        },
+        {
+          "name": "getTransformFlagsSubtreeExclusions",
+          "start": 25125,
+          "end": 25194,
+          "hash": "2d364dcf4298f054e648486f6e466f4b82d973fc80597df00ed06d9c612aa913",
+          "owner": {
+            "name": "getTransformFlagsSubtreeExclusions",
+            "path": "getTransformFlagsSubtreeExclusions",
+            "start": 25125,
+            "end": 25194
+          },
+          "is_subspan": false
+        }
+      ]
+    },
+    {
+      "index": 118,
+      "original": {
+        "path": "crates/syntax/src/parser.rs",
+        "line": 10206,
+        "port": "parseIsolatedEntityName2 (validity projection) @6.0.3",
+        "span": "_tsc.js:29042-29061",
+        "recorded": "92cfd18e0c60b7d06ba8360b03cbfd7259a3d463273461742c418c6861f6a9d0",
+        "actual": "92cfd18e0c60b7d06ba8360b03cbfd7259a3d463273461742c418c6861f6a9d0",
+        "reasons": [
+          "malformed-port"
+        ]
+      },
+      "references": [
+        {
+          "name": "parseIsolatedEntityName2",
+          "start": 29042,
+          "end": 29060,
+          "hash": "38241864551c9c11c2146069951211d38747175eeb21a3c2f780d2e2bd720c6e",
+          "owner": {
+            "name": "parseIsolatedEntityName2",
+            "path": "parseIsolatedEntityName2",
+            "start": 29042,
+            "end": 29060
+          },
+          "is_subspan": false
+        }
+      ]
+    }
+  ]
+}

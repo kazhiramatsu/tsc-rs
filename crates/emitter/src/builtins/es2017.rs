@@ -1902,7 +1902,8 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         self.context.factory()?.set_text_range(block, body)
     }
 
-    /// tsc-port: getPromiseConstructor @6.0.3
+    /// tsc-port: transformES2017.getPromiseConstructor @6.0.3
+    /// tsc-hash: f8f905de796d21253885f25d72564811d0282f9a1b4a961f16c2aa3fbfc74c12
     /// tsc-span: _tsc.js:101432-101441
     ///
     /// The entity name of the original return type annotation, when the
@@ -1981,6 +1982,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     }
 
     /// tsc-port: createExpressionFromEntityName @6.0.3
+    /// tsc-hash: 34cf8b7efe2e9c9c1ccd4ad58799b25384d515f5daef7610cd243dcb78435527
     /// tsc-span: _tsc.js:27330-27338
     fn create_expression_from_entity_name(
         &mut self,

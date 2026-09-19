@@ -1407,6 +1407,15 @@ impl<'a> CheckerState<'a> {
     /// `markLinkedReferences(location, ReferenceHint.AsyncFunction)`
     /// (_tsc.js:71662-71679): the front-door guards (verbatimModuleSyntax,
     /// ambient locations) followed by the async-function marker.
+    /// tsc-port: createTypeChecker.markLinkedReferences @6.0.3
+    /// tsc-hash: 5bfb1b06d6bbd776c9ef32b5d1aa3e0720db62113276dc9abe99b2a9a0558522
+    /// tsc-span: _tsc.js:71662-71668
+    /// Reference scope: front-door guards.
+    /// tsc-port: createTypeChecker.markLinkedReferences @6.0.3
+    /// tsc-hash: 808d14cedeff78d9fa5481de6203b976b60c89d4ecbb6b9b0a74cd59748e0780
+    /// tsc-span: _tsc.js:71678-71679
+    /// Reference scope: AsyncFunction arm; reject whole 71662-71732 (other hint arms not
+    /// mirrored).
     pub(crate) fn mark_linked_references_async_function(
         &mut self,
         location: NodeId,
@@ -6644,6 +6653,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// JS-valued program path normalization; scalar/native I/O is downstream.
+    /// tsrs-native: JS-valued lexical program-path normalization adapter over tsc_program
+    /// (empty→'.'/'/' defaults)
     pub(crate) fn normalize_js_program_path<'p, 'b>(
         path: impl Into<tsc_types::JsStr<'p>>,
         base: impl Into<tsc_types::JsStr<'b>>,

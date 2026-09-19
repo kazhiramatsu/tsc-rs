@@ -9493,8 +9493,19 @@ impl<'text> Parser<'text> {
     /// bit on outward propagation. Names and bodies have field-specific
     /// propagation, while type and erased declarations contribute nothing.
     ///
-    /// tsc-port: propagateChildFlags / propagateNameFlags @6.0.3
-    /// tsc-span: _tsc.js:25101-25192
+    /// tsc-port: propagateNameFlags @6.0.3
+    /// tsc-hash: 6ea1ef78cec08f7f1ad6603869b26c33b346051837bf89660ec62e436aa257ae
+    /// tsc-span: _tsc.js:25101-25103
+    /// tsc-port: propagateIdentifierNameFlags @6.0.3
+    /// tsc-hash: 27391b1b26307bbb9bfa39beffd6561a928f0d3ca3ec9a6952a70f5e5fb5aeda
+    /// tsc-span: _tsc.js:25104-25106
+    /// tsc-port: propagateChildFlags @6.0.3
+    /// tsc-hash: 8ddb64c96b023e53f3d136865d331f4ff32cc68182cf51faa166e2023be5abb0
+    /// tsc-span: _tsc.js:25110-25114
+    /// tsc-port: getTransformFlagsSubtreeExclusions @6.0.3
+    /// tsc-hash: 2d364dcf4298f054e648486f6e466f4b82d973fc80597df00ed06d9c612aa913
+    /// tsc-span: _tsc.js:25125-25194
+    /// Reference detail: propagateChildFlags / propagateNameFlags @6.0.3
     fn subtree_contains_possible_top_level_await(&self, root: NodeId) -> bool {
         // Explicit stack: deep trees overflow a recursive walk.
         let mut stack = vec![root];
@@ -10203,9 +10214,10 @@ fn parse_source_file(
 /// Validate the complete entity-name grammar with the normal JS scanner.
 /// Retaining parser errors rejects malformed escapes and unterminated comments.
 ///
-/// tsc-port: parseIsolatedEntityName2 (validity projection) @6.0.3
-/// tsc-hash: 92cfd18e0c60b7d06ba8360b03cbfd7259a3d463273461742c418c6861f6a9d0
-/// tsc-span: _tsc.js:29042-29061
+/// tsc-port: parseIsolatedEntityName2 @6.0.3
+/// tsc-hash: 38241864551c9c11c2146069951211d38747175eeb21a3c2f780d2e2bd720c6e
+/// tsc-span: _tsc.js:29042-29060
+/// Reference detail: parseIsolatedEntityName2 (validity projection) @6.0.3
 pub fn is_entity_name_text(text: &str, language_version: ScriptTarget) -> bool {
     parse_entity_name_components(text.into(), language_version).is_some()
 }

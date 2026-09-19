@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 /// Join JavaScript values without converting through a scalar display string.
+/// tsrs-native: JsString Array.join utility without scalar round-trip
 pub(crate) fn join_js_strings<'a>(
     parts: impl IntoIterator<Item = tsc_types::JsStr<'a>>,
     separator: &str,
@@ -62,6 +63,7 @@ macro_rules! numeric_text_part {
 }
 numeric_text_part!(usize, u32, i32, u64, i64, f64);
 
+/// tsrs-native: JsString concatenation utility (JS + on strings)
 pub(crate) fn concat_js(parts: &[&dyn JsTextPart]) -> tsc_types::JsString {
     let mut result = tsc_types::JsString::new();
     for part in parts {
@@ -70,6 +72,7 @@ pub(crate) fn concat_js(parts: &[&dyn JsTextPart]) -> tsc_types::JsString {
     result
 }
 
+/// tsrs-native: JsTextPart Array.join utility
 pub(crate) fn join_js_texts<T: JsTextPart>(parts: &[T], separator: &str) -> tsc_types::JsString {
     let mut result = tsc_types::JsString::new();
     for (index, part) in parts.iter().enumerate() {
@@ -201,6 +204,7 @@ impl InputFile {
 
     /// tsc `sourceFile.moduleName = transpileOptions.moduleName`
     /// (typescript.js:146099-146101).
+    /// tsrs-native: builder setter for transpile moduleName (typescript.js:146099-146101)
     pub fn with_module_name(mut self, module_name: Option<tsc_types::JsString>) -> Self {
         self.module_name = module_name;
         self
@@ -208,6 +212,7 @@ impl InputFile {
 
     /// tsc `sourceFile.renamedDependencies = new Map(...)`
     /// (typescript.js:146102-146104).
+    /// tsrs-native: builder setter for renamedDependencies (typescript.js:146102-146104)
     pub fn with_renamed_dependencies(
         mut self,
         renamed_dependencies: Vec<(tsc_types::JsString, tsc_types::JsString)>,
@@ -218,6 +223,8 @@ impl InputFile {
 
     /// tsc createSourceFile `jsDocParsingMode` for this file only
     /// (typescript.js:146097).
+    /// tsrs-native: builder setter for transpile jsDocParsingMode (typescript.js:146097 as
+    /// cited)
     pub fn with_js_doc_parsing_mode(mut self, mode: Option<JSDocParsingMode>) -> Self {
         self.js_doc_parsing_mode = mode;
         self
@@ -667,6 +674,9 @@ pub(crate) enum CheckDirective {
     NoCheck,
 }
 
+/// tsrs-native: lexical projection of leading-comment @ts-check/@ts-nocheck
+/// (processCommentPragmas 36215 + processPragmasIntoFields checkJsDirective ~36288, last
+/// wins); not a structural port
 pub(crate) fn check_directive(text: &str) -> Option<CheckDirective> {
     let mut rest = text;
     // getLeadingCommentRanges starts after a leading shebang. Keep
@@ -1620,6 +1630,8 @@ pub fn check_program_with_authoritative_modules_at_harness_cached<'cwd>(
 /// Semantic checking is scheduled by the scoped consumer; compiler options and
 /// the ordinary diagnostic/emit entrypoints retain their existing behavior.
 #[allow(clippy::too_many_arguments)]
+/// tsrs-native: Rust API entry configuring one authoritative checker for per-source
+/// declaration APIs
 pub fn with_authoritative_modules_at_for_declarations<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],

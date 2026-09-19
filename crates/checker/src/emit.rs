@@ -55,6 +55,7 @@ impl<'program> CheckerSession<'program> {
         }
     }
 
+    /// tsrs-native: builder setter storing program preparation/semantic diagnostic context
     pub(crate) fn with_program_diagnostics(
         self,
         preparation: DiagnosticList,
@@ -69,6 +70,9 @@ impl<'program> CheckerSession<'program> {
 
     /// Observe the initialized checker's current file-less diagnostic bucket.
     /// This does not schedule source checking or declaration transforms.
+    /// tsrs-native: observes the current file-less bucket with sort/dedupe WITHOUT tsc
+    /// checker.getGlobalDiagnostics' ensurePendingDiagnosticWorkComplete (87133-87136);
+    /// cite that difference
     pub fn get_global_diagnostics(&self) -> DiagnosticList {
         let mut diagnostics = self.state.borrow().visible_global_diagnostics.clone();
         tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);

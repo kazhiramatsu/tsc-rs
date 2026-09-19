@@ -876,6 +876,10 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsc-port: createTypeChecker.grammarErrorOnNode @6.0.3
+    /// tsc-hash: 7b4cfaed5d73c81a86f98ab2a735bed402c39439fcddf19cb213a07e01f7ef50
+    /// tsc-span: _tsc.js:90240-90247
+    /// JS-valued twin of `grammar_error_on_node`; keep their diagnostic behavior aligned.
     pub(crate) fn grammar_error_on_node_js(
         &mut self,
         node: NodeId,

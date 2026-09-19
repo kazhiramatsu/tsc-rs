@@ -2161,8 +2161,11 @@ impl LinksTables {
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
     }
 
-    /// `links.calculatedFlags |= bits` (calculateNodeCheckFlagWorker 88132).
+    /// `links.calculatedFlags |= bits` (calculateNodeCheckFlagWorker, e.g. 88170).
     /// Emit-time bookkeeping outside speculation; never reverted.
+    /// tsrs-native: links storage primitive for calculateNodeCheckFlagWorker's
+    /// `calculatedFlags |=` sites (88170/88179/88187/88199/88201/88213); current prose
+    /// cites 88132, which is the noCheck guard: fix it
     pub fn or_calculated_flags(&mut self, id: NodeId, bits: tsc_types::NodeCheckFlags) {
         let links = self.node.entry(id).or_default();
         links.calculated_flags =

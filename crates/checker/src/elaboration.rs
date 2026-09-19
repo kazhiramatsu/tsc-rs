@@ -1037,6 +1037,9 @@ impl<'a> CheckerState<'a> {
 
     /// Preserve a contextual source already checked by the JSX caller, as
     /// upstream elaborateError does after its contextual stack is restored.
+    /// tsrs-native: captured-diagnostic sink variant of
+    /// capture_literal_assignment_elaboration (same disposition as its sibling); drives
+    /// elaborate_assignment_relation
     pub(crate) fn capture_literal_assignment_elaboration_from_types(
         &mut self,
         expression: NodeId,

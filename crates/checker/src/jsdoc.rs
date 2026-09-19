@@ -13,6 +13,8 @@ impl<'a> CheckerState<'a> {
     /// Project direct `node.jsDoc` property presence. getJSDocTagsWorker
     /// creates an empty array when caching tags, including an empty result;
     /// our immutable syntax arena keeps that state in jsdoc_tag_cache.
+    /// tsrs-native: projects node.jsDoc presence from the immutable arena plus the
+    /// getJSDocTagsWorker cache side effect
     pub(crate) fn has_jsdoc_property(&self, node: NodeId) -> bool {
         self.binder
             .source_of_node(node)

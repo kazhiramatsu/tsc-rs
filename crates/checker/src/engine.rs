@@ -1614,6 +1614,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.report_error_js(message, args.into_iter().map(JsString::from).collect())
     }
 
+    /// tsc-port: createTypeChecker.checkTypeRelatedTo.reportError @6.0.3
+    /// tsc-hash: a871642f2e5fcb05497d98e85f5b73f64a73926c96c9b7b595b44ce86be6b5d9
+    /// tsc-span: _tsc.js:65042-65051
+    /// JS-valued twin of `report_error`; keep their diagnostic behavior aligned.
     pub(crate) fn report_error_js(
         &mut self,
         message: &'static DiagnosticMessage,
@@ -1858,6 +1862,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.report_incompatible_error_js(message, args.into_iter().map(JsString::from).collect());
     }
 
+    /// tsc-port: createTypeChecker.checkTypeRelatedTo.reportIncompatibleError @6.0.3
+    /// tsc-hash: ef22e98a04b5ee9d00cec528c64967a94f296599254a0b8a5539960de323b210
+    /// tsc-span: _tsc.js:64947-64951
+    /// JS-valued twin of `report_incompatible_error`; keep their diagnostic behavior aligned.
     pub(crate) fn report_incompatible_error_js(
         &mut self,
         message: &'static DiagnosticMessage,

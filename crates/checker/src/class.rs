@@ -508,6 +508,10 @@ impl<'a> CheckerState<'a> {
         self.get_type_of_symbol(symbol)
     }
 
+    /// tsc-port: createTypeChecker.getFirstTransformableStaticClassElement @6.0.3
+    /// tsc-hash: 0347591824e6fc73b7ea30fef6d58a29777ea5a89f8b2b20ab02633bb50c95dd
+    /// tsc-span: _tsc.js:84937-84937
+    /// Reference scope: firstOrUndefined(getDecorators(node)) projection.
     pub(crate) fn first_syntactic_decorator(&self, node: NodeId) -> Option<NodeId> {
         let modifiers = tsc_binder::node_util::modifiers_of(self.binder.source_of_node(node), node);
         self.nodes_of(modifiers)
@@ -558,6 +562,11 @@ impl<'a> CheckerState<'a> {
     // getFirstTransformableStaticClassElement, _tsc.js:84921-84948.
     // The standard-decorator branch cannot acquire constructor/element
     // parameter decorators, so those always-false utility arms are omitted.
+    /// tsc-port: createTypeChecker.getFirstTransformableStaticClassElement @6.0.3
+    /// tsc-hash: 2963f39a45b2e07f6581c2a3e95d26d288f775c5edeee85290d9dbcb71bce83a
+    /// tsc-span: _tsc.js:84921-84949
+    /// Under standard decorators, constructor parameters cannot be decorated, so class
+    /// decoration is the class-or-parameter predicate projection here.
     pub(crate) fn first_transformable_static_class_element(&self, node: NodeId) -> Option<NodeId> {
         let members = match self.data_of(node) {
             NodeData::ClassDeclaration(data) => data.members,

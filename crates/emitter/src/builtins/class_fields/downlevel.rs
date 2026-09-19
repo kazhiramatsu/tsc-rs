@@ -1060,9 +1060,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     /// tsc-hash: c4e9fbf0eb6953a64ba8257f83a5a79f3f8d904f06c12336d30b94ad5cdfd847
     /// tsc-span: _tsc.js:97488-97500
     ///
-    /// tsc-port: transformClassStaticBlockDeclaration @6.0.3 (the map write)
+    /// tsc-port: transformClassFields.transformClassStaticBlockDeclaration @6.0.3
     /// tsc-hash: 4b66f4eb4ef89a401f6a18d7e3e86ea9eae2f9521b1200735b6253d1b6db7240
-    /// tsc-span: _tsc.js:96649-96652
+    /// tsc-span: _tsc.js:96649-96682
+    /// Reference detail: transformClassStaticBlockDeclaration @6.0.3 (the map write)
     fn record_static_emit_environment(
         &mut self,
         statement: TransformNode,
@@ -3151,7 +3152,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(InlineSequencePlacement::RequiresParentheses)
     }
 
-    /// tsc-port: shouldTransformAutoAccessorsInCurrentClass @6.0.3 —
+    /// tsc-port: transformClassFields.shouldTransformAutoAccessorsInCurrentClass @6.0.3
+    /// tsc-hash: a57258954a0c70eb17a3d3cba200c5527b4239210c333d9f93d959cc04520ff5
+    /// tsc-span: _tsc.js:96381-96383
+    /// Reference detail: shouldTransformAutoAccessorsInCurrentClass @6.0.3 —
     /// `True` below ESNext; at ESNext only `Maybe` (set semantics) resolves to
     /// true when the class hoists its initializers to the constructor.
     fn should_transform_auto_accessors_in_class(&self, facts: &ClassFactsPlan) -> bool {
@@ -6540,7 +6544,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(synthetic.then_some(constructor))
     }
 
-    /// tsc-port: transformClassMembers @6.0.3 (_tsc.js:97218-97231) — when
+    /// tsc-port: transformClassFields.transformClassMembers @6.0.3
+    /// tsc-hash: 2b9f9c3a9380b0a3de9f55e932531ff1c04371ea58a91b393058299960fca111
+    /// tsc-span: _tsc.js:97218-97231
+    /// Reference scope: the documented projection within `transformClassFields.transformClassMembers`.
+    /// Reference detail: transformClassMembers @6.0.3 (_tsc.js:97218-97231) — when
     /// this pass synthesizes a constructor or the pending-expressions static
     /// block, the member list is rebuilt as the class-this assignment block,
     /// the named-evaluation helper block, the synthetic constructor, the
@@ -6599,8 +6607,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     /// constructor, with the class private environment still active. The
     /// selective native-block route already visits its in-class operands.
     ///
-    /// tsc-port: transformClassMembers/visitClassExpressionInNewClassLexicalEnvironment @6.0.3
-    /// tsc-span: _tsc.js:97049-97129,97143-97240
+    /// tsc-port: transformClassFields.transformClassMembers @6.0.3
+    /// tsc-hash: 8f02dc71f423a197caae79451edbed69e643ef5b909248bf13a649c2c2491071
+    /// tsc-span: _tsc.js:97143-97237
+    /// tsc-port: transformClassFields.visitClassExpressionInNewClassLexicalEnvironment @6.0.3
+    /// tsc-hash: 5885e805a286e1451a1c60771127ff84a6c108f88522eb2f90901c2703763319
+    /// tsc-span: _tsc.js:97049-97129
     fn visit_static_operations(
         &mut self,
         operations: &mut [StaticOperation],
@@ -7883,7 +7895,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         })
     }
 
-    /// tsc-port: createCopiableReceiverExpr @6.0.3
+    /// tsc-port: transformClassFields.createCopiableReceiverExpr @6.0.3
+    /// tsc-hash: 4e366a50034f7622b6496c16b631befe9559c33e38b453b94cdb0f7e2e1dc675
     /// tsc-span: _tsc.js:96567-96578
     ///
     /// The receiver is cloned first (`cloneNode`: a synthesized node with no
@@ -8387,7 +8400,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         self.prepend_function_prelude_to_block(block, bindings, Vec::new())
     }
 
-    /// tsc-port: mergeLexicalEnvironment @6.0.3 for the declarations this
+    /// tsc-port: createNodeFactory.mergeLexicalEnvironment @6.0.3
+    /// tsc-hash: ac1f665ea3f8a127f7cb6dbd55b79a8e307e38359a9aef18a2f5dada71bcd2c2
+    /// tsc-span: _tsc.js:24889-24932
+    /// Reference detail: mergeLexicalEnvironment @6.0.3 for the declarations this
     /// pass hoists into a block (visitFunctionBody, transformConstructorBody):
     /// the hoisted `var` statement splices at `leftHoistedFunctionsEnd`, after
     /// the standard prologue directives and the custom-prologue hoisted
@@ -8916,6 +8932,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     }
 
     /// tsc-port: isHoistedFunction @6.0.3
+    /// tsc-hash: a43dffc56712a0f0a13148f4eca8cd05064849784894e44d65835c84e84b880a
+    /// tsc-span: _tsc.js:14167-14169
     fn is_hoisted_function(&self, statement: TransformNode) -> Result<bool, TransformError> {
         Ok(self.is_custom_prologue(statement)
             && matches!(
@@ -8924,7 +8942,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             ))
     }
 
-    /// tsc-port: isHoistedVariableStatement @6.0.3 — a custom-prologue
+    /// tsc-port: isHoistedVariableStatement @6.0.3
+    /// tsc-hash: be4121319d7decd5d3087cc7fd9d2eb5510b17ae67b08bc236fb082f77b141d8
+    /// tsc-span: _tsc.js:14173-14175
+    /// Reference detail: isHoistedVariableStatement @6.0.3 — a custom-prologue
     /// `var` statement whose declarations are bare identifiers.
     fn is_hoisted_variable_statement(
         &self,

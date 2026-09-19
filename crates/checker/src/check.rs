@@ -6010,6 +6010,9 @@ impl<'a> CheckerState<'a> {
     /// getNameOfSymbolFromNameType (55523-55539): declarationless and
     /// early-bound computed symbols retain the literal/unique-symbol name
     /// that produced them instead of exposing their internal escaped key.
+    /// tsc-port: createTypeChecker.getNameOfSymbolFromNameType @6.0.3
+    /// tsc-hash: f499724c3f5c9e776aaed901cfc7531d0c6d73d9d048a13ea76880cacec9fc3c
+    /// tsc-span: _tsc.js:55523-55540
     pub(crate) fn symbol_name_from_name_type_slice(
         &self,
         symbol: SymbolId,
@@ -13989,6 +13992,13 @@ pub(crate) fn can_use_property_access_slice<'n>(
 
 /// createExpressionFromSymbolChain's stripQuotes + `/\\./g` unescape
 /// (53368-53371).
+/// tsc-port: stripQuotes @6.0.3
+/// tsc-hash: 4673cbaa5c93e9e8bab885c7105082659bff78533e932a123e9d4c5a51fe5e63
+/// tsc-span: _tsc.js:16340-16346
+/// tsc-port: createTypeChecker.createNodeBuilder.symbolToExpression.createExpressionFromSymbolChain @6.0.3
+/// tsc-hash: a1d9b416b5bf0ea54c37c3efe9002c65fa36dba915643ac6cb3477d84438ffd5
+/// tsc-span: _tsc.js:53368-53368
+/// Reference scope: stripQuotes(...).replace(/\\./g) literal; prose 53368-53371 overstated.
 pub(crate) fn strip_symbol_name_quotes_slice<'n>(
     name: impl Into<tsc_types::JsStr<'n>>,
 ) -> JsString {

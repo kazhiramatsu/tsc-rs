@@ -12816,9 +12816,18 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         Ok(statements)
     }
 
-    /// tsc-port: getGeneratedNameForNode @6.0.3 (transformTypeScript's
+    /// tsc-port: createNodeFactory.getGeneratedNameForNode @6.0.3
+    /// tsc-hash: 7aeec7c8966a869665e0b8f01a41cd52e75bc957006170fd446ea819be9a6ea0
+    /// tsc-span: _tsc.js:21652-21666
+    /// tsc-port: transformTypeScript.visitClassDeclaration @6.0.3
+    /// tsc-hash: 5be1822c4abc91b83b3ec3152a6930371e8bb80ac337240758296cf3db81a2fc
+    /// tsc-span: _tsc.js:94456-94457
+    /// Reference scope: the documented projection within `transformTypeScript.visitClassDeclaration`.
+    /// tsc-port: createPrinter.generateNameForNode @6.0.3
+    /// tsc-hash: 80b51fff38bdb471f7bacf14c7290fa5c0f8ab22521a261a84e3e110d21f5cdd
+    /// tsc-span: _tsc.js:120876-120942
+    /// Reference detail: getGeneratedNameForNode @6.0.3 (transformTypeScript's
     /// anonymous declaration name)
-    /// tsc-span: _tsc.js:21652-21666, 94455-94456, 120876-120942
     ///
     /// The provisional spelling avoids the parsed census; the returned name
     /// is also registered as a numbered `default` target binding so the

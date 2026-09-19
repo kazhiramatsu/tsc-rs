@@ -2217,9 +2217,12 @@ impl<'arena> NodeFactory<'arena> {
     /// parsed projection) and the same masked flags — returns the same node.
     /// A change creates a fresh node (never a clone), so no property of the
     /// original travels except through setOriginalNode's emit-metadata merge.
-    /// tsc-port: createTemplateLiteralLikeNode/update @6.0.3
+    /// tsc-port: createNodeFactory.createTemplateLiteralLikeNode @6.0.3
     /// tsc-hash: 4d36f6cd637eb6babb29850129ab9b8a3bfea4f9e238b375705907258faf9a2b
-    /// tsc-span: _tsc.js:22885-22890, 24995-25001
+    /// tsc-span: _tsc.js:22885-22890
+    /// tsc-port: createNodeFactory.update @6.0.3
+    /// tsc-hash: 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    /// tsc-span: _tsc.js:24995-25001
     pub fn update_template_literal_like_node(
         &mut self,
         original: TransformNode,
@@ -2302,9 +2305,12 @@ impl<'arena> NodeFactory<'arena> {
     /// (rewriteModuleSpecifier, 93242-93248, passes `node.singleQuote`). The
     /// same value, quote preference and escape marker return the same node; a
     /// change creates a fresh literal with no textSourceNode.
-    /// tsc-port: createStringLiteral/update @6.0.3
+    /// tsc-port: createNodeFactory.createStringLiteral @6.0.3
     /// tsc-hash: 2bf21e80bf4e61e4e1af7273cc968a2d4423ba01535d7cedc31a7ed35ebc1c2e
-    /// tsc-span: _tsc.js:21529-21534, 24995-25001
+    /// tsc-span: _tsc.js:21529-21534
+    /// tsc-port: createNodeFactory.update @6.0.3
+    /// tsc-hash: 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    /// tsc-span: _tsc.js:24995-25001
     pub fn update_string_literal(
         &mut self,
         original: TransformNode,
@@ -5935,8 +5941,9 @@ impl<'arena> NodeFactory<'arena> {
         self.parenthesize_updated_arrow_concise_body(source, data)
     }
 
-    /// tsc-port: createExpressionWithTypeArguments @6.0.3
-    /// tsc-span: _tsc.js:22944-22957
+    /// tsc-port: createNodeFactory.createExpressionWithTypeArguments @6.0.3
+    /// tsc-hash: 9d82e84ce18b62e683344bdba7f4067959b02e3ba13c9303ea37889e54517ddf
+    /// tsc-span: _tsc.js:22944-22954
     /// Factory parentheses survive the ES2015 class transform, which moves
     /// the base expression into the class IIFE's argument list.
     fn parenthesize_heritage_expression(
@@ -5958,8 +5965,15 @@ impl<'arena> NodeFactory<'arena> {
         Ok(())
     }
 
-    /// tsc-port: parenthesizeExpressionOfExpressionStatement/parenthesizeOperandOfPrefixUnary/parenthesizeOperandOfPostfixUnary @6.0.3
-    /// tsc-span: _tsc.js:20473-20511
+    /// tsc-port: createParenthesizerRules.parenthesizeExpressionOfExpressionStatement @6.0.3
+    /// tsc-hash: 85a4134f9ae228dbafc9e0b260335d1c2d0ea3e535d3d5c5f23324c830629997
+    /// tsc-span: _tsc.js:20489-20513
+    /// tsc-port: createParenthesizerRules.parenthesizeOperandOfPrefixUnary @6.0.3
+    /// tsc-hash: c8dfd87e79435ff65b81974bd50d2f2b246c9ead564242f1eeabef05b7dbcd92
+    /// tsc-span: _tsc.js:20476-20478
+    /// tsc-port: createParenthesizerRules.parenthesizeOperandOfPostfixUnary @6.0.3
+    /// tsc-hash: 948146dd54f7eb1ab954df327c6b2a0cc50bb1b08e0cff8d102b492967450936
+    /// tsc-span: _tsc.js:20473-20475
     /// Ranged factory parentheses survive subsequent transforms and own their
     /// source mappings; printer-only grammar parentheses cannot do either.
     fn parenthesize_statement_and_unary_expressions(
@@ -6096,9 +6110,17 @@ impl<'arena> NodeFactory<'arena> {
         }
     }
 
-    /// tsc-port: updateArrowFunction @6.0.3 (through createArrowFunction's
+    /// tsc-port: createNodeFactory.createArrowFunction @6.0.3
+    /// tsc-hash: 86ab9adbb9da5a28bf8a8dad687363b83f315bfa06def479590c1f305a367d72
+    /// tsc-span: _tsc.js:22701-22719
+    /// tsc-port: createNodeFactory.updateArrowFunction @6.0.3
+    /// tsc-hash: 343053e4822901d08cbe1a365a29a350c631a6e56d7687477601214d6821e4b1
+    /// tsc-span: _tsc.js:22720-22722
+    /// tsc-port: createParenthesizerRules.parenthesizeConciseBodyOfArrowFunction @6.0.3
+    /// tsc-hash: d38bb2cada06ea034690ace7bfe3e842fb4e6e654b1c9198c18936ddb25a7b3c
+    /// tsc-span: _tsc.js:20514-20523
+    /// Reference detail: updateArrowFunction @6.0.3 (through createArrowFunction's
     /// `parenthesizeConciseBodyOfArrowFunction`)
-    /// tsc-span: _tsc.js:22701-22735
     ///
     /// A transform that replaces an arrow's concise body (the TypeScript
     /// pass erasing `({ … } as T)[x]` into partially emitted expressions)
@@ -6123,10 +6145,21 @@ impl<'arena> NodeFactory<'arena> {
         Ok(())
     }
 
-    /// tsc-port: parenthesizeExpressionsOfCommaDelimitedList @6.0.3
+    /// tsc-port: createParenthesizerRules.parenthesizeExpressionsOfCommaDelimitedList @6.0.3
+    /// tsc-hash: dd7a34a815f54aece481cb90741eec0df40f7f771dc1bbe54e14ff9d69817906
     /// tsc-span: _tsc.js:20479-20482
-    /// tsc-port: createArrayLiteralExpression/createCallExpression/createCallChain/createNewExpression @6.0.3
-    /// tsc-span: _tsc.js:22441-22449,22579-22595,22602-22617,22621-22631
+    /// tsc-port: createNodeFactory.createArrayLiteralExpression @6.0.3
+    /// tsc-hash: ae1104f0b6dff264352b07300fd3bf7e6ecac3a4e529fc177ae6a4c215642f8a
+    /// tsc-span: _tsc.js:22441-22449
+    /// tsc-port: createNodeFactory.createCallExpression @6.0.3
+    /// tsc-hash: 3682a7a912cb2341d1b1bbdb88f04d6da75b94cd21eee384fb701cdff903393a
+    /// tsc-span: _tsc.js:22579-22595
+    /// tsc-port: createNodeFactory.createCallChain @6.0.3
+    /// tsc-hash: adffe3674c75bb64e358da301f023cd2aa5d34ab6fb4069e99ecd7545504f428
+    /// tsc-span: _tsc.js:22602-22616
+    /// tsc-port: createNodeFactory.createNewExpression @6.0.3
+    /// tsc-hash: fcc2aeef44ddaa1aab91f03a9da4937e8cda98db119c9789d2c0adaa1e761a62
+    /// tsc-span: _tsc.js:22621-22631
     fn parenthesize_comma_delimited_expression_children(
         &mut self,
         source: TransformSourceId,

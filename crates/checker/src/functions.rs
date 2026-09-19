@@ -2464,6 +2464,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// getEntityNameFromTypeNode (14623-14635).
+    /// tsc-port: getEntityNameFromTypeNode @6.0.3
+    /// tsc-hash: 18fbb4d47813f69cb1fc135ef8805253c782b926f276b3cd78f327f8c1c1efa1
+    /// tsc-span: _tsc.js:14623-14635
     pub(crate) fn get_entity_name_from_type_node(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::TypeReference(data) => data.type_name,
@@ -3146,6 +3149,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// isPrivateIdentifierClassElementDeclaration (11944-11946).
+    /// tsc-port: isPrivateIdentifierClassElementDeclaration @6.0.3
+    /// tsc-hash: 4d2410e4b12837c830e30a5cdf2c7dd2d7a5fd7223a3a19fe0a698e91a925795
+    /// tsc-span: _tsc.js:11944-11946
     pub(crate) fn is_private_identifier_class_element(&self, node: NodeId) -> bool {
         matches!(
             self.kind_of(node),

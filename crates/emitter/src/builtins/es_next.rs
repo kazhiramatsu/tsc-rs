@@ -2328,8 +2328,9 @@ impl<'context> EsNextVisitor<'context> {
         }
     }
 
-    /// tsc-port: hoistInitializedVariable @6.0.3
-    /// tsc-span: _tsc.js:103664-103677
+    /// tsc-port: transformESNext.hoistInitializedVariable @6.0.3
+    /// tsc-hash: 02c0244acd1128a8d83894d94caaa38023c9fe222701c58b9810afd14d2529b4
+    /// tsc-span: _tsc.js:103664-103678
     fn set_hoisted_initializer_range(
         &mut self,
         node: TransformNode,

@@ -16,7 +16,8 @@ use crate::{
 /// cloning still uses the syntax mapper so child arena identities are remapped.
 ///
 /// tsc-port: visitEachChild @6.0.3
-/// tsc-span: _tsc.js:91318-91323
+/// tsc-hash: 77052fb8845fc55cd604db6cb8fe5c3e22bfc7f435b2efc90dc0a57fc2adcc7c
+/// tsc-span: _tsc.js:91318-91324
 pub(crate) fn try_visit_transform_children<V>(
     data: &mut tsc_syntax::NodeData,
     visitor: &mut V,

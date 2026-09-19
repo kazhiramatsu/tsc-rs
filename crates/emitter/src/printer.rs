@@ -1340,7 +1340,8 @@ impl Printer {
         }
     }
 
-    /// tsc-port: beginPrint @6.0.3
+    /// tsc-port: createPrinter.beginPrint @6.0.3
+    /// tsc-hash: 8d4878517542f8ed4628655d54044d5a3cd4eded115402c4b23de511fb3cdce4
     /// tsc-span: _tsc.js:117082-117084
     ///
     /// The printer-owned writer is created on first use and retained: after
@@ -1351,7 +1352,8 @@ impl Printer {
             .unwrap_or_else(|| create_text_writer(self.options.new_line))
     }
 
-    /// tsc-port: endPrint @6.0.3
+    /// tsc-port: createPrinter.endPrint @6.0.3
+    /// tsc-hash: b2a3b084843da506e687074d795a2d6a9fe874008c07295702dd1c41bbc434b3
     /// tsc-span: _tsc.js:117085-117089
     ///
     /// A completed print returns the writer text and clears the writer. A
@@ -1444,8 +1446,10 @@ impl Printer {
 
     /// The assignment precedes item emission and is not restored by nested
     /// lists, source changes, successful prints, or a later item failure.
-    /// tsc-port: emitNodeListItems @6.0.3
+    /// tsc-port: createPrinter.emitNodeListItems @6.0.3
+    /// tsc-hash: 07f06c93e94325294e236898fc36f8d68d0f4cdbd411738da24c4ec1f7b0b746
     /// tsc-span: _tsc.js:120125-120126
+    /// Reference scope: the documented projection within `createPrinter.emitNodeListItems`.
     fn record_list_element_position(
         &mut self,
         transformation: &TransformationResult<'_>,
@@ -8825,8 +8829,9 @@ impl Printer {
         ))
     }
 
-    /// tsc-port: getSeparatingLineTerminatorCount @6.0.3
-    /// tsc-span: _tsc.js:120299-120327
+    /// tsc-port: createPrinter.getSeparatingLineTerminatorCount @6.0.3
+    /// tsc-hash: 78d63da04f114ae40f8ad9f012131e94a83000cf268d393c5608372aab734539
+    /// tsc-span: _tsc.js:120301-120329
     /// PreserveLines with preserveSourceNewlines=false compares the two
     /// current endpoints independently, even when siblings were reordered.
     /// Original nodes supply parent identity only, not the printed positions.
@@ -8897,8 +8902,12 @@ impl Printer {
     /// Source-owned raw boundary predicates for PreserveLines when the
     /// preserveSourceNewlines option is inactive. The leading suppression
     /// observes the last list item entered by this printer instance.
-    /// tsc-port: getLeadingLineTerminatorCount/getClosingLineTerminatorCount @6.0.3
-    /// tsc-span: _tsc.js:120268-120298,120328-120358
+    /// tsc-port: createPrinter.getLeadingLineTerminatorCount @6.0.3
+    /// tsc-hash: 893244ddd50971f9938c07f3bb0b10b520dfbf70880816b69aa4b00cc1384819
+    /// tsc-span: _tsc.js:120268-120300
+    /// tsc-port: createPrinter.getClosingLineTerminatorCount @6.0.3
+    /// tsc-hash: 30b0be7e1586d76d08caeaa3f4605323147137e9c73a0bd825dd3c92881635dc
+    /// tsc-span: _tsc.js:120330-120360
     fn preserved_list_boundary_needs_line_break(
         &self,
         transformation: &TransformationResult<'_>,
@@ -9317,8 +9326,10 @@ impl Printer {
 
     /// Ordinary item trailing comments have completed. The remaining token
     /// and list-leading phases use raw endpoints, not CommentRange or original.
-    /// tsc-port: emitNodeListItems @6.0.3
+    /// tsc-port: createPrinter.emitNodeListItems @6.0.3
+    /// tsc-hash: 78091971dfb5affdb9d8b4fdc007b09be500debcdd445df3aa3c77dda6b656c3
     /// tsc-span: _tsc.js:120129-120150
+    /// Reference scope: the documented projection within `createPrinter.emitNodeListItems`.
     #[allow(clippy::too_many_arguments)]
     fn emit_comma_delimited_list_tail(
         &self,
@@ -11954,8 +11965,15 @@ impl Printer {
         Ok(())
     }
 
-    /// tsc-port: emitCommaList/emitExpressionList/emitNodeListItems @6.0.3
-    /// tsc-span: _tsc.js:119780-119788,120026-120155
+    /// tsc-port: createPrinter.emitCommaList @6.0.3
+    /// tsc-hash: 512622c4808b6b9d181e4f9e71492552050f98b7079df2f74436215902988b2b
+    /// tsc-span: _tsc.js:119780-119788
+    /// tsc-port: createPrinter.emitExpressionList @6.0.3
+    /// tsc-hash: e0b0f885c50ebdce792c1f0682bec5a4e9f84139ccd5e660de1f17e01d0efbe1
+    /// tsc-span: _tsc.js:120026-120028
+    /// tsc-port: createPrinter.emitNodeListItems @6.0.3
+    /// tsc-hash: ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40
+    /// tsc-span: _tsc.js:120068-120155
     ///
     /// CommaListElements is 528: comma delimiters and sibling spaces, with
     /// Expression emission and no element parenthesizer. Its list phases
@@ -14147,9 +14165,17 @@ impl Printer {
     /// whose fixed tokens print no source comments at all, still emits the
     /// comment through the child's own phase.
     ///
-    /// tsc-port: pipelineEmitWithComments @6.0.3
-    /// tsc-span: _tsc.js:120978-121046
-    /// tsc-port: emitTokenWithComment @6.0.3
+    /// tsc-port: createPrinter.pipelineEmitWithComments @6.0.3
+    /// tsc-hash: 263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34
+    /// tsc-span: _tsc.js:120978-120986
+    /// tsc-port: createPrinter.emitLeadingCommentsOfNode @6.0.3
+    /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
+    /// tsc-span: _tsc.js:121007-121032
+    /// tsc-port: createPrinter.emitTrailingCommentsOfNode @6.0.3
+    /// tsc-hash: e5c99d84eeab2c12d594ba56695a7a869c49720eb110f3715c0ea3f9271d1112
+    /// tsc-span: _tsc.js:121033-121046
+    /// tsc-port: createPrinter.emitTokenWithComment @6.0.3
+    /// tsc-hash: d7df39bba502705facedce379a636ae55b168b77701df5e72abf10ec444c2e50
     /// tsc-span: _tsc.js:118731-118764
     fn emit_child_with_trailing_phase_before_token(
         &mut self,
@@ -14257,9 +14283,14 @@ impl Printer {
     /// The parent's NoNested extent suppresses child source phases; a child's
     /// own NoNested flag is applied later, inside its own leading/trailing pair.
     ///
-    /// tsc-port: emit/emitExpression @6.0.3
-    /// tsc-span: _tsc.js:117145-117161
-    /// tsc-port: emitNodeWithWriter @6.0.3
+    /// tsc-port: createPrinter.emit @6.0.3
+    /// tsc-hash: f998a75ec5c7ebceb127e49ec7315b9e3b9aa90c15e4a5bd7d3b57cd324f5682
+    /// tsc-span: _tsc.js:117145-117148
+    /// tsc-port: createPrinter.emitExpression @6.0.3
+    /// tsc-hash: 71793715793bfcd4946613824a562cee711318989a9b02e24d6cc8c2a7be3146
+    /// tsc-span: _tsc.js:117158-117161
+    /// tsc-port: createPrinter.emitNodeWithWriter @6.0.3
+    /// tsc-hash: ac88db15d31f74f81c507aec882699f3d2d9a483d3977861283f50cf58a1ea73
     /// tsc-span: _tsc.js:119839-119845
     #[allow(clippy::too_many_arguments)]
     fn emit_optional_ordinary_child(
@@ -14319,9 +14350,15 @@ impl Printer {
     /// asterisk, retain their own source-map boundaries and comment phase.
     /// Carry their trailing claim to the following child without moving
     /// the token's source-map position. Synthesized tokens stay unpositioned.
-    /// tsc-port: emitPropertyAccessExpression / emitElementAccessExpression @6.0.3
-    /// tsc-span: _tsc.js:118223-118273
-    /// tsc-port: emitYieldExpression @6.0.3
+    /// tsc-port: createPrinter.emitPropertyAccessExpression @6.0.3
+    /// tsc-hash: 16bbe4828853fce221e4a5072079cd5bff4812a9424cb786b9e3b19e5accdc89
+    /// tsc-span: _tsc.js:118223-118249
+    /// tsc-port: createPrinter.emitElementAccessExpression @6.0.3
+    /// tsc-hash: 19be0bb4ca3c146a16eb97f055fd1cee4c56489b79b47a23476f44a579a31465
+    /// tsc-span: _tsc.js:118268-118274
+    /// Reference detail: emitPropertyAccessExpression / emitElementAccessExpression @6.0.3
+    /// tsc-port: createPrinter.emitYieldExpression @6.0.3
+    /// tsc-hash: 0be5a4d40fa703bd056ab479ff5c050f485cffe0cf28530cab27694da03ac79f
     /// tsc-span: _tsc.js:118523-118527
     #[allow(clippy::too_many_arguments)]
     fn emit_ordinary_token_after(
@@ -14378,8 +14415,18 @@ impl Printer {
     /// phase (the container prefix), so only the own-line remainder is
     /// printed here.
     ///
-    /// tsc-port: emitMethodDeclaration / emitPropertyDeclaration / emitAccessorDeclaration @6.0.3
-    /// tsc-port: emitLeadingCommentsOfNode @6.0.3
+    /// tsc-port: createPrinter.emitMethodDeclaration @6.0.3
+    /// tsc-hash: 89a778e7fe25aecb9601b99b118ef6a16b7f9083b80365708c49788fdc91a9ff
+    /// tsc-span: _tsc.js:117903-117914
+    /// tsc-port: createPrinter.emitPropertyDeclaration @6.0.3
+    /// tsc-hash: 3a8a77a1520e0f2514117112ee985ff76c5f002894a8e362c15b7c3d1d3f229e
+    /// tsc-span: _tsc.js:117883-117896
+    /// tsc-port: createPrinter.emitAccessorDeclaration @6.0.3
+    /// tsc-hash: b78bdd3026fb4a0a93d8226592ecf9a0b8167eb27c0747cac1a32ade5b8e643e
+    /// tsc-span: _tsc.js:117931-117943
+    /// Reference detail: emitMethodDeclaration / emitPropertyDeclaration / emitAccessorDeclaration @6.0.3
+    /// tsc-port: createPrinter.emitLeadingCommentsOfNode @6.0.3
+    /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
     /// tsc-span: _tsc.js:121007-121032
     fn emit_member_name_leading_comments(
         &self,
@@ -14580,10 +14627,22 @@ impl Printer {
     /// A synthesized access parent (the `.bind` call built around a bound
     /// decorator target) has no parsed token and never claimed that end.
     ///
-    /// tsc-port: emitPropertyAccessExpression / emitElementAccessExpression @6.0.3
-    /// tsc-span: _tsc.js:118223-118273
-    /// tsc-port: pipelineEmitWithComments @6.0.3
-    /// tsc-span: _tsc.js:120978-121046
+    /// tsc-port: createPrinter.emitPropertyAccessExpression @6.0.3
+    /// tsc-hash: 16bbe4828853fce221e4a5072079cd5bff4812a9424cb786b9e3b19e5accdc89
+    /// tsc-span: _tsc.js:118223-118249
+    /// tsc-port: createPrinter.emitElementAccessExpression @6.0.3
+    /// tsc-hash: 19be0bb4ca3c146a16eb97f055fd1cee4c56489b79b47a23476f44a579a31465
+    /// tsc-span: _tsc.js:118268-118274
+    /// Reference detail: emitPropertyAccessExpression / emitElementAccessExpression @6.0.3
+    /// tsc-port: createPrinter.pipelineEmitWithComments @6.0.3
+    /// tsc-hash: 263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34
+    /// tsc-span: _tsc.js:120978-120986
+    /// tsc-port: createPrinter.emitLeadingCommentsOfNode @6.0.3
+    /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
+    /// tsc-span: _tsc.js:121007-121032
+    /// tsc-port: createPrinter.emitTrailingCommentsOfNode @6.0.3
+    /// tsc-hash: e5c99d84eeab2c12d594ba56695a7a869c49720eb110f3715c0ea3f9271d1112
+    /// tsc-span: _tsc.js:121033-121046
     #[allow(clippy::too_many_arguments)]
     fn emit_expression_child_with_source_comments(
         &mut self,
@@ -18079,7 +18138,8 @@ impl Printer {
         Ok(())
     }
 
-    /// tsc-port: emitNodeListItems @6.0.3
+    /// tsc-port: createPrinter.emitNodeListItems @6.0.3
+    /// tsc-hash: ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40
     /// tsc-span: _tsc.js:120068-120155
     fn emit_delimited_boundary_comments(
         &self,

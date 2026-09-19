@@ -1843,10 +1843,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     /// hoisted `var` receives the value and the exports follow as usual:
     /// `export using before = null` → `using before_1 = before = null;`.
     ///
-    /// tsc-port: transformSystemModule.visitVariableStatement @6.0.3 (the
-    /// isVarUsing / isVarAwaitUsing arm)
-    /// tsc-span: _tsc.js:112639-112657
+    /// tsc-port: transformSystemModule.visitVariableStatement @6.0.3
     /// tsc-hash: 6571fc0551b24284b57ab11c666dce1514bf542ed6e8b30fd0ee09e6c8471a0c
+    /// tsc-span: _tsc.js:112634-112683
+    /// Reference detail: transformSystemModule.visitVariableStatement @6.0.3 (the
+    /// isVarUsing / isVarAwaitUsing arm)
     fn transform_hoisted_using_statement(
         &mut self,
         original: TransformNode,
@@ -3021,8 +3022,9 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         self.create_property_access(context, "meta")
     }
 
-    /// tsc-port: hasExportedReferenceInDestructuringTarget @6.0.3
-    /// tsc-span: _tsc.js:113120-113141
+    /// tsc-port: transformSystemModule.hasExportedReferenceInDestructuringTarget @6.0.3
+    /// tsc-hash: f4217cb097bf97e6b94c54558756d363de79824aba2e843fcc6f2a33495b982a
+    /// tsc-span: _tsc.js:113118-113141
     fn has_exported_reference_in_destructuring_target(
         &self,
         node: TransformNode,

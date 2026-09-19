@@ -2058,6 +2058,8 @@ impl CheckerState<'_> {
     /// Compatibility entry for scalar serde callers. Arbitrary JS replay
     /// values use `with_declaration_emit_replay_js_observer_for_harness`.
     #[doc(hidden)]
+    /// tsrs-native: doc(hidden) harness-only scalar-serde compatibility wrapper over the JS
+    /// replay observer seam; no upstream counterpart
     pub fn with_declaration_emit_replay_observer_for_harness<T>(
         request: serde_json::Value,
         operation: impl FnOnce() -> T,

@@ -3343,6 +3343,9 @@ fn byte_path_slice<'p>(
         .map(|(head, _)| head)
 }
 
+/// tsc-port: normalizeSlashes @6.0.3
+/// tsc-hash: d53c3e92f0b97072b15fe2ed30c413ab7f33522619f88528f818eef207535163
+/// tsc-span: _tsc.js:5452-5454
 pub(crate) fn normalized_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
     let path = path.into();
     let mut result = JsString::with_capacity(path.as_bytes().len());
