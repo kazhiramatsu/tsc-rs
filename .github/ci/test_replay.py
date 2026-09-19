@@ -1013,7 +1013,7 @@ class WitnessTests(unittest.TestCase):
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,
             "class-header-token-metadata": 32, "comma-argument-factory": 519,
             "ellipsis-comment-metadata": 144, "import-type-attributes": 84,
-            "mapped-type-members": 328, "token-comment-phase-metadata": 96,
+            "mapped-type-members": 328, "token-comment-phase-metadata": 120,
             "utf16-identity-recovery": 79, "utf16-review-fix": 25, "utf16-tagged-template": 16,
             "utf16-literal-witnesses": 64, "utf16-original-commands": 4,
             "emitter-final": 1123, "emitter-comment-controls": 1503, "emitter-universe-oracle": 2015,

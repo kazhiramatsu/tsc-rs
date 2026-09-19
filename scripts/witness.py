@@ -94,8 +94,10 @@ EMITTER_DIRECT = {
     },
     "token-comment-phase-metadata": {
         "target": "token_comment_phase_metadata_contract",
-        "fixtures": (("crates/emitter/tests/fixtures/token-comment-phase-printer-metadata.json", 96, "case_id"),),
-        "observers": ("scripts/observe-token-comment-phase-printer-metadata.mjs",),
+        "fixtures": (("crates/emitter/tests/fixtures/token-comment-phase-printer-metadata.json", 96, "case_id"),
+                     ("crates/emitter/tests/fixtures/emitter-r112-post-child-metadata.json", 24, "case_id")),
+        "observers": ("scripts/observe-token-comment-phase-printer-metadata.mjs",
+                      "scripts/observe-emitter-r112-post-child-metadata.mjs"),
     },
     # A41-BINDING (C02): synthetic-census, global-oracle and lifecycle controls
     # of the generated-name domains (printed text only).
