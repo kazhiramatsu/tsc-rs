@@ -91,6 +91,9 @@ fn original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts() 
                     json!({"kind": "token-skipped", "token": token as u16, "start": start,
                         "length": length, "statement_start": statement_start, "site": format!("{site:?}")}),
                 ParseRecoveryAction::Reparsed { start, end } => json!({"kind": "reparsed", "start": start, "end": end}),
+                ParseRecoveryAction::EscapedKeywordConsumed { token, start, length, statement_start } =>
+                    json!({"kind": "escaped-keyword-consumed", "token": token as u16, "start": start,
+                        "length": length, "statement_start": statement_start}),
             }).collect();
             file_facts.push(json!({"path": path, "events": events, "actions": actions, "missing_nodes": missing}));
         }

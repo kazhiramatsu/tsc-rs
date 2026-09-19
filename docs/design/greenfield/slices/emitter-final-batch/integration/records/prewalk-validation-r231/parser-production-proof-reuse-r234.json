@@ -1,0 +1,11 @@
+{
+  "parser_proof_source": "3e28cb21344eae8980cfe66992913f2d8758ede2",
+  "production_and_dependency_diff_empty": true,
+  "changed_test_paths": [
+    "crates/syntax/tests/emitter_recovery.rs",
+    "crates/syntax/tests/unit/parser/recovery.rs"
+  ],
+  "serializer_change": "Explicit EscapedKeywordConsumed arm uses the same complete fields as the xtask census serializer; no wildcard omission. Existing TokenSkipped/Reparsed rows unchanged.",
+  "unit_change": "Equivalent filter predicate, already2PASS r231.",
+  "limits": "Entire syntax crate tree differs due2tests; production parse behavior and r185 proof inputs remain unchanged. Focused standalone emitter_recovery suite revalidated separately as r234."
+}

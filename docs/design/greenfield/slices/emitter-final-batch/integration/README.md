@@ -24,13 +24,16 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 | transpile r213 | 291件中289 exact・2 independent known。6件がexactへ変わったため、2 testsは退役要求assertionだけでexit101。新規不一致0 |
 | 退役 r222–r223 | live parse KNOWN36→0、transpile KNOWN8→2。過去のnative観測を比較器の改変検知testに残し、witness入力へ明示登録。planner全84 tests成功 |
 | 退役後 r224 | 元36行すべて各2回完全一致、比較器guard3 tests・transpile9 tests成功。workspace Clippyは構文回復testのunnecessary_filter_map指摘1件でexit101 |
-| 元census / parser proof r185 | 元16,994 parse inputsを保持。AST・診断・raw recovery factsはr177と一致、先行5 profiles不変、context admissionは単調。製品sourceと依存hashの同一性で証拠を再利用。r224後のClippy修正は構文回復testの同値なfilter置換のみで、元crate全体のtree hash不変とは主張しない |
+| 元census / parser proof r185 | 元16,994 parse inputsを保持。AST・診断・raw recovery factsはr177と一致、先行5 profiles不変、context admissionは単調。製品sourceと依存hashの同一性で証拠を再利用。r224/r231後の変更は構文回復testの同値なfilter置換と新actionの記録分岐追加のみで、元crate全体のtree hash不変とは主張しない |
 | corpus selection r185 | 元14,329 ID＝14,219 loaded＋110明示的load failureから48 commandsを選択。従来44件を保持。110 load failuresは成功に数えない。class-body gapの新動作は元入力0件・専用controlsで検証 |
 
 [全127 artifactsと観測archive](records/layout-controls-r211-r213-complete/manifest.json)、
 [退役差分とplanner記録](records/known-retirement-r222-r223/README.md)を保存した。
 [退役後の全記録](records/retirement-validation-r215-r224/manifest.json)も保存した。
-この記録時点で、r224のClippy指摘の再検証、最終chain walk、unsplit local CI、hosted確認、mergeは未完了。
+r231ではfilter修正のunit2 testsが成功し、全targetsのClippyが記録用testの新action分岐漏れを検出した。
+[失敗記録と製品sourceの同一性](records/prewalk-validation-r231/manifest.json)を保持し、
+記録用testには既存censusと同じ完全なaction項目を追加した。
+この記録時点で、記録用testのr234、最終Clippy・chain walk、unsplit local CI、hosted確認、mergeは未完了。
 r215はbuild成功後に通常binをtest artifactと誤認して停止した準備スクリプトの失敗であり、
 同じ固定sourceで対象testの選択を修正したr224で全runtime再比較が成功した。失敗記録も保存した。
 
