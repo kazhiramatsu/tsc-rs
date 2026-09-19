@@ -6,6 +6,50 @@ import json
 from pathlib import Path
 
 PROFILES = ["missing-await", "missing-declaration", "parameter-gaps", "statement-gaps", "context-recovery"]
+PROFILE_KEYS = {"literal", "missing_await", "missing_declaration", "parameter_gaps", "statement_gaps", "context_recovery"}
+# The reviewed nested-parenthesis patch changes predicates and their tests.
+# Changes to event production or another parser owner need a separate proof.
+SUCCESSOR_SOURCE_PATHS = {"crates/syntax/src/recovery.rs", "crates/syntax/tests/unit/parser/recovery.rs"}
+
+
+def successor_source_changes(before, after):
+    changed = {path for path in before.keys() | after.keys() if before.get(path) != after.get(path)}
+    assert changed <= SUCCESSOR_SOURCE_PATHS, f"successor source changed outside reviewed predicates: {sorted(changed - SUCCESSOR_SOURCE_PATHS)}"
+    return sorted(changed)
+
+
+def successor_changes(snapshot, snapshot_sha, current, successor):
+    ids = set(snapshot["inputs"])
+    assert successor["schema"] == 1 and successor["kind"] == "emitter-recovery-parse-replay"
+    assert successor["input_artifact_sha256"] == snapshot_sha, "successor snapshot identity differs"
+    assert successor["digest_code_sha256"] == snapshot["digest_code_sha256"]
+    assert set(successor["digests"]) == ids, "successor omitted/added parse inputs"
+    assert successor["build"]["baseline_kind"] == "successor"
+    assert current["build"]["parser_head"] == snapshot["head"], "current replay is not the frozen census head"
+    assert current["build"]["syntax_tree_hash"] == snapshot["syntax_tree_hash"], "current parser tree differs from census"
+    assert successor["build"]["reference_source_files_sha256"] == current["build"]["source_files_sha256"]
+    changed_sources = successor_source_changes(current["build"]["source_files_sha256"], successor["build"]["source_files_sha256"])
+    assert changed_sources == successor["build"]["changed_source_paths"]
+    assert current["build"]["probe_files_sha256"] == successor["build"]["probe_files_sha256"], "successor recovery digest producer differs"
+    assert current["recovery_facts_format"] == successor["recovery_facts_format"] == "rust-debug-ParseRecovery-v1"
+    for replay in [current, successor]:
+        assert set(replay["recovery_facts_sha256"]) == ids, "recovery facts omitted/added parse inputs"
+        assert all(isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
+                   for value in replay["recovery_facts_sha256"].values()), "invalid recovery facts digest"
+    assert current["recovery_facts_sha256"] == successor["recovery_facts_sha256"], "successor changed committed recovery facts"
+    changed = {}
+    for id in sorted(ids):
+        before, after = current["digests"][id], successor["digests"][id]
+        assert after["core"] == snapshot["digests"][id]["core"], f"successor changed parse core: {id}"
+        for flags in [before["profiles"], after["profiles"]]:
+            assert isinstance(flags, dict) and set(flags) == PROFILE_KEYS and all(type(value) is bool for value in flags.values()), "successor requires all six boolean profiles"
+        for key in PROFILE_KEYS:
+            if key not in {"statement_gaps", "context_recovery"}:
+                assert before["profiles"][key] == after["profiles"][key], f"successor spread to {key}: {id}"
+            assert not before["profiles"][key] or after["profiles"][key], f"successor removed admission: {id}/{key}"
+        if before["profiles"] != after["profiles"]:
+            changed[id] = {"before": before["profiles"], "after": after["profiles"]}
+    return changed
 
 
 def load(path):
@@ -22,7 +66,7 @@ def validate_input_numbers(value):
         assert isinstance(value, int) and abs(value) <= 9007199254740991, "command input numbers must be safe integers"
 
 
-def select(snapshot, snapshot_sha, current, baselines, reports):
+def select(snapshot, snapshot_sha, current, baselines, reports, successor=None):
     assert snapshot["schema"] == 1 and snapshot["kind"] == "emitter-recovery-parse-snapshot"
     ids = set(snapshot["inputs"])
     assert ids == set(snapshot["digests"])
@@ -71,6 +115,14 @@ def select(snapshot, snapshot_sha, current, baselines, reports):
                 assert id in rows and row["universe"] == rows[id]["universe"]
                 assert row["loader"] == rows[id]["loader"]
                 reasons[id].append({"profile": name, "verdict": verdict})
+    if successor is not None:
+        changes = successor_changes(snapshot, snapshot_sha, current, successor)
+        for id, row in rows.items():
+            for unit in row["units"]:
+                input_id = unit["input_id"]
+                if input_id in changes:
+                    reasons[id].append({"successor": successor["build"]["parser_head"],
+                        "input_id": input_id, "path": unit["path"], "role": unit["role"], **changes[input_id]})
     cases = []
     documents = {}
 
@@ -96,7 +148,7 @@ def select(snapshot, snapshot_sha, current, baselines, reports):
         validate_input_numbers(row["command_input"])
         collect_documents(row["command_input"])
         cases.append({**row, "reasons": reasons[id]})
-    return {"schema": 1, "kind": "emitter-recovery-corpus-selection", "head": snapshot["head"],
+    result = {"schema": 1, "kind": "emitter-recovery-corpus-selection", "head": snapshot["head"],
             "snapshot_sha256": snapshot_sha, "digest_code_sha256": snapshot["digest_code_sha256"],
             "syntax_tree_hash": snapshot["syntax_tree_hash"], "vendor_tree_hash": snapshot["vendor_tree_hash"],
             "plan_manifest_sha256": snapshot["plan_manifest_sha256"],
@@ -108,12 +160,18 @@ def select(snapshot, snapshot_sha, current, baselines, reports):
             # qualification until each failed load has a separate disposition.
             "load_failures": snapshot["load_failures"], "changed_inputs": changed_inputs,
             "documents": documents, "cases": cases}
+    if successor is not None:
+        result["summary"]["successor_changed_inputs"] = len(changes)
+        result["successor"] = {key: successor["build"][key] for key in
+            ["parser_head", "syntax_tree_hash", "source_files_sha256", "binary_sha256", "predicate_diff_sha256"]}
+    return result
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ["snapshot", "current", "projection", "merge-base", "profiles-dir", "out"]:
         p.add_argument("--" + name, type=Path, required=True)
+    p.add_argument("--successor", type=Path)
     args = p.parse_args()
     snapshot, snapshot_sha = load(args.snapshot)
     current, current_sha = load(args.current)
@@ -122,10 +180,13 @@ def main():
     reports, hashes = {}, {}
     for name in PROFILES:
         reports[name], hashes[name] = load(args.profiles_dir / (name + ".json"))
-    result = select(snapshot, snapshot_sha, current, {"projection": projection, "merge-base": merge}, reports)
+    successor, successor_sha = load(args.successor) if args.successor else (None, None)
+    result = select(snapshot, snapshot_sha, current, {"projection": projection, "merge-base": merge}, reports, successor)
     result["evidence"] = {"current_sha256": current_sha, "projection_sha256": projection_sha,
                           "merge_base_sha256": merge_sha, "profiles_sha256": hashes,
                           "selector_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+    if successor is not None:
+        result["evidence"]["successor_sha256"] = successor_sha
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("x") as file:
         json.dump(result, file, ensure_ascii=False, separators=(",", ":"))

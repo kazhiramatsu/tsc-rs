@@ -2,6 +2,8 @@
 """Guard against silently dropping changed commands from recovery qualification."""
 import copy
 import importlib.util
+import json
+import hashlib
 from pathlib import Path
 import unittest
 
@@ -103,6 +105,95 @@ class SelectionTests(unittest.TestCase):
         self.snapshot["rows"][0]["command_input"] = None
         with self.assertRaisesRegex(AssertionError, "no exact loader input"):
             self.select()
+
+    def test_without_successor_preserves_the_original_selection_bytes(self):
+        rendered = json.dumps(self.select(), ensure_ascii=False, separators=(",", ":")).encode()
+        self.assertEqual(hashlib.sha256(rendered).hexdigest(),
+                         "82a4c1e3d3d30bf198cd2dccdb1ff56d6af8cdd80fd12bd31dd402ca0d018089")
+
+    def successor(self):
+        for replay in [self.snapshot, self.current, *self.baselines.values()]:
+            for digest in replay["digests"].values():
+                digest["profiles"] = {key: key == "literal" for key in selector.PROFILE_KEYS}
+        self.current["build"].update(parser_head=self.snapshot["head"], syntax_tree_hash=self.snapshot["syntax_tree_hash"],
+            source_files_sha256={"Cargo.lock": "a" * 64,
+            "crates/syntax/src/parser.rs": "a" * 64, "crates/syntax/src/recovery.rs": "a" * 64},
+            probe_files_sha256={"probe.rs": "a" * 64})
+        self.current["recovery_facts_format"] = "rust-debug-ParseRecovery-v1"
+        self.current["recovery_facts_sha256"] = {id: "a" * 64 for id in self.snapshot["inputs"]}
+        successor = copy.deepcopy(self.current)
+        successor["build"].update(baseline_kind="successor", parser_head="b" * 40,
+            syntax_tree_hash="c" * 40, binary_sha256="d" * 64, predicate_diff_sha256="e" * 64,
+            reference_source_files_sha256=copy.deepcopy(self.current["build"]["source_files_sha256"]),
+            changed_source_paths=["crates/syntax/src/recovery.rs"])
+        successor["build"]["source_files_sha256"]["crates/syntax/src/recovery.rs"] = "f" * 64
+        return successor
+
+    def select_successor(self, successor):
+        return selector.select(self.snapshot, "snapshot", self.current, self.baselines, self.reports, successor)
+
+    def test_successor_module_profile_change_adds_rows_without_reclassifying_them(self):
+        successor = self.successor()
+        successor["digests"]["module"]["profiles"]["statement_gaps"] = True
+        successor["digests"]["module"]["profiles"]["context_recovery"] = True
+        result = self.select_successor(successor)
+        self.assertEqual(result["head"], self.snapshot["head"])
+        self.assertEqual(result["syntax_tree_hash"], self.snapshot["syntax_tree_hash"])
+        self.assertEqual(result["successor"]["syntax_tree_hash"], "c" * 40)
+        self.assertEqual(result["summary"]["successor_changed_inputs"], 1)
+        self.assertEqual(result["cases"][0]["reasons"][0]["role"], "module-request-parse")
+        self.assertFalse(result["cases"][0]["reasons"][0]["before"]["context_recovery"])
+        self.assertTrue(result["cases"][0]["reasons"][0]["after"]["context_recovery"])
+        self.assertNotIn("verdict", result["cases"][0]["reasons"][0])
+        self.assertEqual(result["load_failures"], self.snapshot["load_failures"])
+        self.baselines["merge-base"]["digests"]["emit"]["core"] = "old"
+        self.assertEqual(len(self.select_successor(successor)["cases"][0]["reasons"]), 2)
+
+    def test_successor_cannot_omit_inputs_drift_core_or_change_recovery_facts(self):
+        original = self.successor()
+        mutations = [
+            lambda s: s["digests"]["emit"].update(core="changed"),
+            lambda s: s["digests"].pop("emit"),
+            lambda s: s["digests"].update(extra=s["digests"]["emit"]),
+            lambda s: s.update(input_artifact_sha256="other"),
+            lambda s: s["recovery_facts_sha256"].update(emit="b" * 64),
+            lambda s: s["recovery_facts_sha256"].pop("emit"),
+        ]
+        for mutate in mutations:
+            successor = copy.deepcopy(original)
+            mutate(successor)
+            with self.assertRaises(AssertionError): self.select_successor(successor)
+        self.current["digests"]["emit"]["core"] = "changed"
+        with self.assertRaisesRegex(AssertionError, "differs from actual census"):
+            self.select_successor(original)
+
+    def test_successor_requires_all_boolean_profiles_and_only_monotonic_statement_changes(self):
+        original = self.successor()
+        for key, value in [("literal", False), ("parameter_gaps", True), ("missing_await", True),
+                           ("statement_gaps", None), ("context_recovery", 1), ("extra", True)]:
+            successor = copy.deepcopy(original)
+            successor["digests"]["emit"]["profiles"][key] = value
+            with self.assertRaises(AssertionError): self.select_successor(successor)
+        successor = copy.deepcopy(original)
+        del successor["digests"]["emit"]["profiles"]["context_recovery"]
+        with self.assertRaises(AssertionError): self.select_successor(successor)
+        self.snapshot["digests"]["emit"]["profiles"]["context_recovery"] = True
+        self.current["digests"]["emit"]["profiles"]["context_recovery"] = True
+        with self.assertRaisesRegex(AssertionError, "removed admission"):
+            self.select_successor(original)
+
+    def test_successor_source_changes_are_limited_to_the_reviewed_predicate_and_test(self):
+        original = self.successor()
+        for path in ["Cargo.lock", "rust-toolchain.toml", "crates/syntax/src/parser.rs",
+                     "crates/syntax/src/recovery/context.rs", "crates/types/src/lib.rs"]:
+            successor = copy.deepcopy(original)
+            successor["build"]["source_files_sha256"][path] = "9" * 64
+            with self.assertRaisesRegex(AssertionError, "outside reviewed predicates"):
+                self.select_successor(successor)
+        successor = copy.deepcopy(original)
+        successor["build"]["probe_files_sha256"]["probe.rs"] = "other"
+        with self.assertRaisesRegex(AssertionError, "digest producer differs"):
+            self.select_successor(successor)
 
 
 if __name__ == "__main__":

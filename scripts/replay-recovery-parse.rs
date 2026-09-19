@@ -18,19 +18,32 @@ fn main() {
     ));
     assert_eq!(artifact["digest_code_sha256"], digest_hash);
     let mut digests = BTreeMap::new();
+    let mut recovery_digests = BTreeMap::new();
     for (id, input) in artifact["inputs"].as_object().unwrap() {
         assert_eq!(id, input["input_id"].as_str().unwrap());
         let source = snapshot::replay(input);
+        recovery_digests.insert(id.clone(), recovery_digest(&source));
         assert!(digests
             .insert(id.clone(), json!({"core":snapshot::digest(&source),"profiles":profiles(&source)}))
             .is_none());
     }
     let result = json!({"schema":1,"kind":"emitter-recovery-parse-replay",
         "input_artifact_sha256":snapshot::sha256(bytes),"digest_code_sha256":digest_hash,
-        "digests":digests});
+        "digests":digests, "recovery_facts_format":"rust-debug-ParseRecovery-v1",
+        "recovery_facts_sha256":recovery_digests});
     serde_json::to_writer(std::io::stdout().lock(), &result).unwrap();
     std::io::stdout().write_all(b"\n").unwrap();
 }
+
+// This independent digest includes committed events, suppressed reports and
+// skip/reparse actions. It leaves the census's parse-graph digest unchanged.
+#[cfg(feature = "current-recovery-profiles")]
+fn recovery_digest(source: &tsc_syntax::SourceFile) -> Value {
+    json!(snapshot::sha256(format!("{:?}", source.parse_recovery())))
+}
+
+#[cfg(not(feature = "current-recovery-profiles"))]
+fn recovery_digest(_source: &tsc_syntax::SourceFile) -> Value { Value::Null }
 
 #[cfg(feature = "current-recovery-profiles")]
 fn profiles(source: &tsc_syntax::SourceFile) -> Value {

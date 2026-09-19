@@ -2,6 +2,7 @@
 """Build a pinned standalone parser and replay the census's exact parse inputs."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -39,7 +40,7 @@ def main():
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--label", required=True)
     parser.add_argument("--with-recovery-profiles", action="store_true")
-    parser.add_argument("--baseline-kind", choices=["candidate", "projection", "merge-base"], required=True)
+    parser.add_argument("--baseline-kind", choices=["candidate", "projection", "merge-base", "successor"], required=True)
     args = parser.parse_args()
     assert not args.out.exists(), f"refusing to overwrite replay evidence: {args.out}"
     source_tree = Path(__file__).resolve().parents[1]
@@ -47,6 +48,7 @@ def main():
     build = args.build_dir.resolve()
     build.mkdir(parents=True, exist_ok=True)
     source_hashes = source_identity(tree)
+    successor_proof = {}
     for relative in ["crates/syntax/src/nodes.rs", "crates/syntax/src/observable_fields.rs", "crates/syntax/src/for_each_child.rs"]:
         assert (tree / relative).read_bytes() == (source_tree / relative).read_bytes(), f"historical digest schema changed: {relative}"
     if args.baseline_kind == "projection":
@@ -63,10 +65,26 @@ def main():
         assert not args.with_recovery_profiles
         assert git(tree, "rev-parse", "HEAD").decode().strip() == "3b1f5fe87fd31e3b303bb44bd257342735452ed9"
         assert not git(tree, "diff", "HEAD", "--", "crates/syntax", "crates/types", "crates/diagnostics")
+    elif args.baseline_kind == "successor":
+        assert args.with_recovery_profiles
+        tracked = ["crates/syntax", "crates/types", "crates/diagnostics", "Cargo.toml", "Cargo.lock", "rust-toolchain.toml"]
+        assert not git(tree, "diff", "HEAD", "--", *tracked), "successor parser sources must be committed"
+        assert not git(tree, "ls-files", "--others", "--exclude-standard", "--", *tracked), "successor parser sources must be tracked"
+        module_spec = importlib.util.spec_from_file_location("recovery_selector", source_tree / "scripts/select-recovery-parse-corpus.py")
+        selector = importlib.util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(selector)
+        reference = source_identity(source_tree)
+        changed = selector.successor_source_changes(reference, source_hashes)
+        assert (tree / "Cargo.lock").read_bytes() == (source_tree / "Cargo.lock").read_bytes()
+        reference_head = git(source_tree, "rev-parse", "HEAD").decode().strip()
+        predicate_diff = git(tree, "diff", reference_head, "HEAD", "--", "crates/syntax/src/recovery.rs")
+        successor_proof = {"reference_source_files_sha256": reference, "changed_source_paths": changed,
+                           "predicate_diff_sha256": sha(predicate_diff)}
     else:
         assert args.with_recovery_profiles
         assert source_hashes == source_identity(source_tree)
-    probe_paths = [source_tree / "scripts/replay-recovery-parse.rs", source_tree / "crates/xtask/src/recovery_parse_snapshot.rs"]
+    probe_paths = [source_tree / "scripts/replay-recovery-parse.rs", source_tree / "crates/xtask/src/recovery_parse_snapshot.rs",
+                   Path(__file__).resolve(), source_tree / "scripts/select-recovery-parse-corpus.py"]
     probe_hashes = {str(path): sha(path.read_bytes()) for path in probe_paths}
     manifest = ['[package]', 'name = "recovery-parse-replay"', 'version = "0.0.0"', 'edition = "2021"', '', '[workspace]', '', '[[bin]]', 'name = "recovery-parse-replay"', f'path = {json.dumps(str(probe_paths[0]))}', '', '[dependencies]', 'base64 = "0.22"', 'serde_json = "1.0"', 'sha2 = "0.10"']
     for name in ["syntax", "types", "diagnostics"]:
@@ -98,6 +116,8 @@ def main():
         "parser_head": git(tree, "rev-parse", "HEAD").decode().strip(),
         "parser_diff_sha256": sha(git(tree, "diff", "HEAD", "--", "crates/syntax", "crates/types", "crates/diagnostics")),
         "source_files_sha256": source_hashes,
+        "syntax_tree_hash": git(tree, "rev-parse", "HEAD:crates/syntax").decode().strip(),
+        **successor_proof,
         "probe_files_sha256": probe_hashes,
         "binary_sha256": sha(binary.read_bytes()),
         "manifest_sha256": sha((build / "Cargo.toml").read_bytes()),

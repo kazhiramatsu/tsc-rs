@@ -69,6 +69,19 @@ class ComparisonTests(unittest.TestCase):
         values[1]["cases"][0]["input_sha256"] = "other"
         with self.assertRaises(AssertionError): self.compare(values)
 
+    def test_successor_comparison_requires_observations_from_its_parser_tree(self):
+        selection, native, oracle = self.inputs()
+        selection["successor"] = {"syntax_tree_hash": "final-syntax", "source_files_sha256": {"Cargo.lock": "pinned"}}
+        native["syntax_tree_hash"] = "census-syntax"
+        native["successor_source_files_sha256"] = {"Cargo.lock": "pinned"}
+        with self.assertRaisesRegex(AssertionError, "different successor parser"):
+            self.compare((selection, native, oracle))
+        native["syntax_tree_hash"] = "final-syntax"
+        self.assertEqual(self.compare((selection, native, oracle)), "complete-command-exact")
+        native["successor_source_files_sha256"]["Cargo.lock"] = "drift"
+        with self.assertRaisesRegex(AssertionError, "dependency pins differ"):
+            self.compare((selection, native, oracle))
+
 
 if __name__ == "__main__":
     unittest.main()

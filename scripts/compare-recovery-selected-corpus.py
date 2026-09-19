@@ -20,6 +20,9 @@ def compare(selection, selection_sha, native, oracle):
     assert native["library_root"] == oracle["library_root"]
     assert native["load_failures"] == oracle["load_failures"] == selection["load_failures"]
     assert native["repetitions"] == oracle["repetitions"] == 2
+    if "successor" in selection:
+        assert native["syntax_tree_hash"] == selection["successor"]["syntax_tree_hash"], "native observations used a different successor parser"
+        assert native["successor_source_files_sha256"] == selection["successor"]["source_files_sha256"], "native successor dependency pins differ"
     indices = []
     for artifact in [selection, native, oracle]:
         index = {row["case_id"]: row for row in artifact["cases"]}

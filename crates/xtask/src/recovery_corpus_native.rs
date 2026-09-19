@@ -464,19 +464,69 @@ fn validate_data_workspace(workspace: &Path, selection: &Value) -> Result<()> {
     Ok(())
 }
 
+fn selected_syntax_tree(selection: &Value) -> Result<&str> {
+    let authority = selection.get("successor").unwrap_or(selection);
+    let pin = string(authority, "syntax_tree_hash")?;
+    require(
+        pin.len() == 40 && pin.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "invalid selected syntax tree pin",
+    )?;
+    Ok(pin)
+}
+
 fn validate_selection(workspace: &Path, input_workspace: &Path, selection: &Value) -> Result<()> {
     require(
         selection["schema"] == 1 && selection["kind"] == "emitter-recovery-corpus-selection",
         "not a parser corpus selection",
     )?;
-    for (field, spec) in [
-        ("syntax_tree_hash", "HEAD:crates/syntax"),
-        ("vendor_tree_hash", "HEAD:vendor/typescript-6.0.3"),
-    ] {
-        require(
-            selection[field] == git(workspace, &["rev-parse", spec])?,
-            format!("{field} differs from census"),
+    require(
+        selected_syntax_tree(selection)? == git(workspace, &["rev-parse", "HEAD:crates/syntax"])?,
+        "syntax tree differs from selected parser proof",
+    )?;
+    require(
+        selection["vendor_tree_hash"]
+            == git(workspace, &["rev-parse", "HEAD:vendor/typescript-6.0.3"])?,
+        "vendor tree differs from census",
+    )?;
+    // The captured parser stays an input authority even when a separately
+    // proven successor is the code being qualified.
+    let census_syntax = format!("{}:crates/syntax", string(selection, "head")?);
+    require(
+        selection["syntax_tree_hash"] == git(input_workspace, &["rev-parse", &census_syntax])?,
+        "captured syntax tree differs from census authority",
+    )?;
+    if let Some(successor) = selection.get("successor") {
+        let pins = successor["source_files_sha256"]
+            .as_object()
+            .ok_or("missing successor source identities")?;
+        let tracked = git(
+            workspace,
+            &[
+                "ls-files",
+                "-z",
+                "--",
+                "crates/syntax",
+                "crates/types",
+                "crates/diagnostics",
+                "Cargo.toml",
+                "Cargo.lock",
+                "rust-toolchain.toml",
+            ],
         )?;
+        let paths = tracked
+            .split('\0')
+            .filter(|path| !path.is_empty())
+            .collect::<std::collections::BTreeSet<_>>();
+        require(
+            paths == pins.keys().map(String::as_str).collect(),
+            "successor source catalog differs from compiled workspace",
+        )?;
+        for path in paths {
+            require(
+                pins[path] == sha256(fs::read(workspace.join(path))?),
+                format!("successor source pin differs: {path}"),
+            )?;
+        }
     }
     require(
         selection["digest_code_sha256"] == sha256(include_bytes!("recovery_parse_snapshot.rs")),
@@ -628,6 +678,8 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<()> {
     )?;
     validate_data_workspace(&input_workspace, &selection)?;
     let result = json!({"schema":1,"kind":"emitter-recovery-native-observations","head":head,
+        "syntax_tree_hash":git(&workspace, &["rev-parse", "HEAD:crates/syntax"] )?,
+        "successor_source_files_sha256":selection["successor"]["source_files_sha256"],
         "input_workspace":input_workspace,"library_root":fs::canonicalize(input_workspace.join("vendor/typescript-6.0.3/lib"))?,
         "census_head":selection["head"],"selection_sha256":sha256(&bytes),
         "observer_sha256":sha256(include_bytes!("recovery_corpus_native.rs")),
@@ -651,6 +703,21 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn successor_syntax_pin_is_required_without_changing_census_authority() {
+        let original = "a".repeat(40);
+        let successor = "b".repeat(40);
+        let mut selection = json!({"syntax_tree_hash":original});
+        assert_eq!(selected_syntax_tree(&selection).unwrap(), original);
+        selection["successor"] = json!({"syntax_tree_hash":successor});
+        assert_eq!(selected_syntax_tree(&selection).unwrap(), successor);
+        assert_eq!(selection["syntax_tree_hash"], original);
+        for invalid in [Value::Null, json!({}), json!({"syntax_tree_hash":"wrong"})] {
+            selection["successor"] = invalid;
+            assert!(selected_syntax_tree(&selection).is_err());
+        }
+    }
 
     #[test]
     fn canonical_input_hash_ignores_nested_object_insertion_order() {
