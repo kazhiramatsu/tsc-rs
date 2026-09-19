@@ -1,0 +1,18 @@
+{
+  "source_head": "84ed2b9e4a2adbbfff5f62f60ec4c4db3e081821",
+  "syntax_tests": 201,
+  "complete_commands": {
+    "cases": 92,
+    "exact_twice": 89,
+    "failures": 3,
+    "capture_count": 181
+  },
+  "transpile": {
+    "cases": 291,
+    "exact_twice": 287,
+    "known_twice": 4,
+    "raw_exit": 101,
+    "reason": "four previously KNOWN entries became exact; guards deliberately retained"
+  },
+  "qualification": "failed, not integrated; original observations retained; Opus130 reviewed narrow emitter repair"
+}

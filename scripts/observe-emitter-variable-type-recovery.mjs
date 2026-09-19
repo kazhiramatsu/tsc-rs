@@ -30,6 +30,15 @@ const shapes = [
   ["definite", "export let x!: = 1;"],
   ["generator", "export function* g() { let x: = 1; yield x; }"],
   ["async", "export async function h() { let x: = 1; await 0; return x; }"],
+  ["newline-block-comment", "export let x:\n/*c*/ = 1;"],
+  ["newline-line-comment", "export let x:\n//c\n = 1;"],
+  ["mixed-type-comments", "export let x: /*a*/\n/*b*/ = 1;"],
+  ["initializer-comment", "export let x: = /*v*/ 1;"],
+  ["unicode-name-comment", "export let é /*n*/: /*t*/ = 1;"],
+  ["two-local-comments", "let x: /*c*/ = 1, y: /*d*/ = 2; export {};"],
+  ["valid-type-comment", "export let x: number /*c*/ = 1;"],
+  ["valid-type-newline-comment", "export let x: number\n/*c*/ = 1;"],
+  ["for-await-container-newline", "export async function f(xs: AsyncIterable<{ x: number }>) { for await (const {\n/*c*/ x\n} of xs) {} }"],
 ];
 const configurations = [
   ["es5", "commonjs", false],
@@ -37,7 +46,10 @@ const configurations = [
   ["es2022", "esnext", false],
   ["es2022", "commonjs", true],
 ];
-const commentShapes = new Set(["block-comment", "line-comment", "name-comment", "uninitialized-comment"]);
+const commentShapes = new Set(["block-comment", "line-comment", "name-comment", "uninitialized-comment",
+  "newline-block-comment", "newline-line-comment", "mixed-type-comments", "initializer-comment",
+  "unicode-name-comment", "two-local-comments", "valid-type-comment", "valid-type-newline-comment",
+  "for-await-container-newline"]);
 for (const [target, module, noCheck] of configurations)
   for (const [shape, text] of shapes)
     for (const removeComments of commentShapes.has(shape) ? [false, true] : [false]) {
@@ -58,7 +70,7 @@ for (const [target, module, noCheck] of configurations) {
       sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
       outDir: "/project/out"}, files: ["main.js"]})});
 }
-assert.equal(inputs.length, 92);
+assert.equal(inputs.length, 164);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

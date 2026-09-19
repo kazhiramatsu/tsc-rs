@@ -4758,6 +4758,10 @@ impl Printer {
                     } else {
                         self.original_node_end_cursor(transformation, name)?
                     };
+                    let erased_type_has_no_extent = erased_type
+                        .map(|r#type| transformation.arena().node(r#type))
+                        .transpose()?
+                        .is_some_and(|r#type| r#type.pos == r#type.end);
                     // The equals lane supplies the name's trailing phase.
                     // Honor the declaration/list end just as that phase does;
                     // a lowered for-await binding keeps the original list end.
@@ -4771,7 +4775,13 @@ impl Printer {
                         })
                         .transpose()?
                         .is_some_and(|end| initializer_context.comments().retains_end(end));
-                    let equals = if container_owns_equal_boundary {
+                    let equals = if container_owns_equal_boundary || erased_type_has_no_extent {
+                        if erased_type_has_no_extent {
+                            // A missing type has no trailing-comments phase.
+                            // emitInitializer writes its space before the `=`
+                            // leading phase, including a following line break.
+                            writer.write_space(" ");
+                        }
                         self.emit_source_leading_token_with_context(
                             transformation,
                             node,
