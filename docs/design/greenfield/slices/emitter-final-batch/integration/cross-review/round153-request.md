@@ -1,0 +1,11 @@
+# Round 153 — implementation review before frozen qualification
+
+Read-only review, no edits/builds/commits. Repair /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep tracked diff from4d09 contains A Token canonical spelling, B detached-only separator writer, C class_member_body_gap_actions exactly as discussed plus close boundary, with original controls preserved and 136 new complete-command controls (r168280 + r171232, r167176). TS mint r180/r182 succeeded, original cases byte-equivalent as parsed JSON. New class expression control was ALREADY admitted by statement profile (syntax test assertion found this; corrected expectation only, do not assume all class expressions exercise new claimer). All other 210 syntax tests passed on first run. First fmt encountered Rust2021 let-chain error, fixed to is_some_and, no production compile claimed from that failure.
+
+Please examine current diff for unintended broadening, Token fallback, detached map/whitespace phases incl non-file/U+2028 control, unique class owner and paired retained/suppressed report. Close brace shape is now explicitly TS-minted and syntax tested. Check negative controls are meaningful, unchanged earlier profiles remain proof requirement.
+
+KeywordProof /Users/hiramatsu/dev/tsc-rs-emitter-final-escaped-keyword-proof has 3 script diffs adding classification-only class body gap witnesses and third admission class. Exact context source hash will be set after fmt; no arbitrary source whitelist. 23 selector guard tests pass. Original raw snapshot/digest and legacy recovery bytes remain immutable; fresh16994 replay will compare before5profiles exactly, finalcontext monotone, stronger additional comparison vsr177 core/raw recovery facts/existing48 inclusion. Please review new classifier only as causal classification, not independent semantic proof (complete command oracle is required).
+
+Observer pin updated only exact census serialization hash; 4d09 delta from640 is 3line EscapedKeywordConsumed JSON arm. No loader/mirror changes. Architecture Root c813 E-RECOVERY-FACTS will gain bounded class-body clause before finalV. User stable-ID CST/AST future-refactor note remains separate.
+
+Report concrete concerns needing fix before frozen runtime controls+proof. Do not revisit unrelated future refactor.

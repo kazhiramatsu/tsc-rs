@@ -186,6 +186,10 @@ specified by `E-RECOVERY-FACTS` in the architecture map. The future persistent
 ES2015 token flags in `E-SYNTAX-FACTS` keep their separate planned lifecycle.
 The original parser census remains immutable; its prior AST, diagnostics,
 events and actions must match, while every newly admitted complete command
-must be compared with TypeScript. The terminator witness is classification
-evidence, not a replacement for the command comparison. Final scoped proof and
+must be compared with TypeScript. The terminator and class-member missing-body arrow-gap witnesses are
+classification evidence, not replacements for the command comparison. The
+class rule requires one retained report, one reachable class member-array gap,
+a preceding function-like member with a parsed zero-width block, and the next
+member or member-list boundary. It leaves unrelated actions to the existing
+context solver and does not widen the five predecessor profiles. Final scoped proof and
 delivery validation are pending.
