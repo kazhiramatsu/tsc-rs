@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "scripts/pin-index.py",
+    "--check"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-gate-prep",
+  "started_at": "2026-09-19T04:40:22.494357+00:00",
+  "head": "f0dd1893cf4f5177da2033733b70239ae2396176",
+  "tracked_clean": false,
+  "diff_sha256": "71ece4c8de9fa5cd7af2742552e4d3d300d4284dd8e5bf2507a5cc9d34dc7e20",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 4.652,
+  "log_sha256": "bbc627b65584eff76d2e95b99d292f7c5524582b53a8e9b10292e79ef8efa112",
+  "log_bytes": 58
+}
