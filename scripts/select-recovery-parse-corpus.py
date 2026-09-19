@@ -10,13 +10,13 @@ PROFILE_KEYS = {"literal", "missing_await", "missing_declaration", "parameter_ga
 # The reviewed nested-parenthesis patch changes predicates and their tests.
 # Changes to event production or another parser owner need a separate proof.
 SUCCESSOR_SOURCE_PATHS = {"crates/syntax/src/recovery.rs", "crates/syntax/tests/unit/parser/recovery.rs"}
-# Reviewed context spelling and additive consumed-keyword parser reporting.
+# Reviewed bounded class-body context predicate and additive consumed-keyword reporting.
 # The independent extension proof must preserve every prior recovery fact.
 # Each exception fixes both full file identities; neither admits arbitrary edits.
 SUCCESSOR_STYLE_SOURCE_PAIRS = {
     "crates/syntax/src/recovery/context.rs": (
         "780fbb2dba7ab8d686bb5e37792be81c32afce2943fdfc46e6fd32a5929ea30f",
-        "b7e382ff51a2193fd23070b667473f41128d9aef32fec541a94a1e4c3a54724e",
+        "aa36f68f2b04134703269d901416fab46c73949ed548fa9a5886d6d88fa400b2",
     ),
     "crates/syntax/src/parser.rs": (
         "ffe64e0cf029c96b3bc91239a71be2c918f2e6c7803c57f189c0a771ab8f6701",
@@ -230,7 +230,8 @@ def compare_previous_successor(previous, successor):
     assert previous["recovery_facts_sha256"] == successor["legacy_recovery_facts_sha256"]
     assert set(previous["digests"]) == set(successor["digests"])
     assert set(successor["retained_statement_terminator_reports"]) == set(previous["digests"])
-    groups = {"with_consumed_keyword_fact": [], "without_consumed_keyword_fact": []}
+    assert set(successor["class_member_body_gaps"]) == set(previous["digests"])
+    groups = {"with_consumed_keyword_fact": [], "without_consumed_keyword_fact": [], "class_member_body_gap": []}
     for id, before in previous["digests"].items():
         after = successor["digests"][id]
         assert before["core"] == after["core"], f"previous parse core changed: {id}"
@@ -243,9 +244,11 @@ def compare_previous_successor(previous, successor):
         if before["profiles"] != after["profiles"]:
             if successor["escaped_keyword_actions"][id]:
                 group = "with_consumed_keyword_fact"
-            else:
-                assert successor["retained_statement_terminator_reports"][id], f"unclassified new admission: {id}"
+            elif successor["retained_statement_terminator_reports"][id]:
                 group = "without_consumed_keyword_fact"
+            else:
+                assert successor["class_member_body_gaps"][id], f"unclassified new admission: {id}"
+                group = "class_member_body_gap"
             groups[group].append(id)
     return groups
 

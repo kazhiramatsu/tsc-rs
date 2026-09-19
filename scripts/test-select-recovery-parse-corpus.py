@@ -261,6 +261,7 @@ class PreviousKeywordSuccessorTests(unittest.TestCase):
         self.after["legacy_recovery_facts_sha256"] = self.before["recovery_facts_sha256"].copy()
         self.after["escaped_keyword_actions"] = {"one": []}
         self.after["retained_statement_terminator_reports"] = {"one": [{"start": 1}]}
+        self.after["class_member_body_gaps"] = {"one": []}
 
     def test_context_extension_is_classified_without_changing_other_profiles(self):
         self.after["digests"]["one"]["profiles"]["context_recovery"] = True
@@ -274,6 +275,14 @@ class PreviousKeywordSuccessorTests(unittest.TestCase):
         self.after["digests"]["one"]["profiles"]["context_recovery"] = True
         self.after["retained_statement_terminator_reports"]["one"] = []
         with self.assertRaisesRegex(AssertionError, "unclassified"): selector.compare_previous_successor(self.before, self.after)
+
+    def test_class_body_gap_extension_needs_a_witness_for_each_input(self):
+        self.after["digests"]["one"]["profiles"]["context_recovery"] = True
+        self.after["retained_statement_terminator_reports"]["one"] = []
+        self.after["class_member_body_gaps"]["one"] = [{"start": 1}]
+        self.assertEqual(selector.compare_previous_successor(self.before, self.after)["class_member_body_gap"], ["one"])
+        self.after["class_member_body_gaps"] = {}
+        with self.assertRaises(AssertionError): selector.compare_previous_successor(self.before, self.after)
 
     def test_prior_context_admission_cannot_be_lost(self):
         self.before["digests"]["one"]["profiles"]["context_recovery"] = True
