@@ -15099,12 +15099,20 @@ impl Printer {
                         source_leading_phase,
                         writer,
                     )?;
-                    self.emit_deferred_expression_trailing_comments(
+                    let trailing = self.emit_deferred_expression_trailing_comments(
                         transformation,
                         deferred_source_comments.as_ref(),
                         owner,
                         writer,
-                    )?
+                    )?;
+                    self.emit_parsed_variable_type_trailing_comments(
+                        transformation,
+                        substituted,
+                        deferred_source_comments.as_ref(),
+                        owner,
+                        writer,
+                    )?;
+                    trailing
                 }
             } else {
                 let owner =
@@ -15142,12 +15150,20 @@ impl Printer {
                     source_leading_phase,
                     writer,
                 )?;
-                self.emit_deferred_expression_trailing_comments(
+                let trailing = self.emit_deferred_expression_trailing_comments(
                     transformation,
                     deferred_source_comments.as_ref(),
                     owner,
                     writer,
-                )?
+                )?;
+                self.emit_parsed_variable_type_trailing_comments(
+                    transformation,
+                    substituted,
+                    deferred_source_comments.as_ref(),
+                    owner,
+                    writer,
+                )?;
+                trailing
             };
             let outcome = deferred_source_comments.as_ref().map_or(
                 ExpressionSourceCommentsOutcome::None,
@@ -15986,6 +16002,66 @@ impl Printer {
             Self::furthest_comment_resume(token_owned, container_owned)?,
             writer,
         )
+    }
+
+    /// tsrs-native: the ordinary parsed variable-name adapter for tsc's
+    /// erased-type trailing phase. Native clones can inherit type metadata,
+    /// so only the original identifier opts in; parameter metadata is separate.
+    fn emit_parsed_variable_type_trailing_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        deferred: Option<&DeferredExpressionSourceComments>,
+        owner: ExpressionCommentPhaseOwner,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let Some(deferred) = deferred.filter(|deferred| deferred.owns_trailing()) else {
+            return Ok(());
+        };
+        let Some(type_node) = transformation
+            .arena()
+            .metadata(node)
+            .and_then(crate::EmitMetadata::type_node)
+        else {
+            return Ok(());
+        };
+        if owner.kind != SyntaxKind::Identifier
+            || transformation.arena().get_original_node(node) != node
+        {
+            return Ok(());
+        }
+        let is_variable_name = transformation
+            .arena()
+            .node(node)?
+            .parent
+            .and_then(|parent| transformation.arena().node_ref(node.source(), parent))
+            .map(|parent| transformation.arena().node(parent))
+            .transpose()?
+            .is_some_and(|parent| parent.kind == SyntaxKind::VariableDeclaration);
+        if !is_variable_name {
+            return Ok(());
+        }
+        let type_record = transformation.arena().node(type_node)?;
+        let type_source = transformation.arena().source(type_node.source())?.syntax();
+        let type_owner = ExpressionCommentPhaseOwner {
+            range: CommentRange::from_raw(
+                type_node.source(),
+                type_record.pos,
+                type_record.end,
+                type_source.positions(),
+            )?,
+            ..owner
+        };
+        // Keep the name's own trailing anchor for its following token. This
+        // second phase only prints the erased type's comments, with the same
+        // flags and saved parent container as the name's first phase.
+        self.emit_deferred_expression_trailing_comments(
+            transformation,
+            Some(deferred),
+            type_owner,
+            writer,
+        )?;
+        Ok(())
     }
 
     fn emit_deferred_expression_trailing_comments(
