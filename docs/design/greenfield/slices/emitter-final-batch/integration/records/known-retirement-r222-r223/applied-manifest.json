@@ -1,0 +1,43 @@
+{
+  "head_before_retirement": "490e1dcf79c78a0736dcf38b3b9bf56b22ac1db0",
+  "qualified_runtime_source": "0336c56663ff243503a18987a2cf8021109e8295",
+  "files": [
+    {
+      "path": "crates/compiler/tests/fixtures/emitter-final-known-native.json",
+      "proposal_sha256": "14c877a108df95a9bd38b3073dc53a2f0a45c1717a5ecde69bd101d878d3e913",
+      "applied_sha256": "14c877a108df95a9bd38b3073dc53a2f0a45c1717a5ecde69bd101d878d3e913"
+    },
+    {
+      "path": "crates/compiler/tests/emitter_final_universe.rs",
+      "proposal_sha256": "ba2f97d2a5861364911b83aef83d44366b131dc5c65d7e0775fa4e921351843d",
+      "applied_sha256": "741a0ec79e4ed073b1c17f6d6077692cebc18dc2c88ee9ce9858b0dcae37a88e"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2_8c_transpile/known-open.v1.json",
+      "proposal_sha256": "343948517923c305ccd2253736ae2326e4609ec6841c08115a0e56dfa88d2f20",
+      "applied_sha256": "343948517923c305ccd2253736ae2326e4609ec6841c08115a0e56dfa88d2f20"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2_8c_transpile/known-native.v1.json",
+      "proposal_sha256": "d4d3a0548f0b2726a53edcbe91fb6726a9dc3590c1896b5375d6284d1b6b8093",
+      "applied_sha256": "d4d3a0548f0b2726a53edcbe91fb6726a9dc3590c1896b5375d6284d1b6b8093"
+    },
+    {
+      "path": "crates/compiler/tests/transpile_routes_contract.rs",
+      "proposal_sha256": "3ae23bf2d1dd54dec0c08d94d95e1ddffae32ada6eb57f7708cebbe99869755f",
+      "applied_sha256": "3ae23bf2d1dd54dec0c08d94d95e1ddffae32ada6eb57f7708cebbe99869755f"
+    },
+    {
+      "path": "scripts/emitter_final_witnesses.py",
+      "proposal_sha256": "d65f11018dbe41a8cc87194335ddd6a69f6ee6dd6ca33f9110893ae8323c6dc4",
+      "applied_sha256": "d65f11018dbe41a8cc87194335ddd6a69f6ee6dd6ca33f9110893ae8323c6dc4"
+    },
+    {
+      "path": "scripts/witness.py",
+      "proposal_sha256": "970870eedb181f340ccb560e50b312db5e0710bf8a9dafe4369d63624a63329f",
+      "applied_sha256": "970870eedb181f340ccb560e50b312db5e0710bf8a9dafe4369d63624a63329f"
+    }
+  ],
+  "changes_after_proposal": "cargo fmt --all and original PLAN-BASE wording; no semantic changes to the retirement proposal",
+  "validation": "r223 planner 84 tests pass; r215 runtime retirement replay pending at this record"
+}
