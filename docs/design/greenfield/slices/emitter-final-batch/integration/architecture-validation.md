@@ -1,7 +1,7 @@
 # Emitter-final architecture validation
 
 This record owns only the lifecycle and validation fields delegated by the
-15 rows below in the [current architecture map](../../../emitter-architecture.md).
+18 rows below in the [current architecture map](../../../emitter-architecture.md).
 The map retains their invariants, current Rust owners, evidence references and
 TypeScript owner mapping. Its qualification and delivery rules apply here
 without exception. This record is not a generator or profile input.
@@ -193,3 +193,42 @@ a preceding function-like member with a parsed zero-width block, and the next
 member or member-list boundary. It leaves unrelated actions to the existing
 context solver and does not widen the five predecessor profiles. Final scoped proof and
 delivery validation are pending.
+
+## E-COMMENTS-G
+
+Lifecycle: `active-unqualified`.
+
+Final validation ref: pending. Candidate audit date: 2026-09-20.
+
+Unicode comment collection, trailing writer/resume, and clause trailing ownership
+change this row's observable behavior. The obsolete private TokenCommentBoundary
+alternative was removed after its only two callers moved to clause-owned trailing
+emission; token cursor/resume APIs and source coordinate domains remain unchanged.
+Final proof includes the original comment topology and metadata contracts,
+`position_cursor_2727_statement_work_is_linear_and_scan_free`, complete Unicode
+and clause commands, source maps and the full gate. The previous qualified row
+is preserved in [the lifecycle audit](records/architecture-comments-before-r201.json).
+
+## E-COMMENT-PHASES-A36
+
+Lifecycle: `active-unqualified`.
+
+Final validation ref: pending. Candidate audit date: 2026-09-20.
+
+Decorator filtering in emit_modifiers precedes list indexing and spacing;
+positional comment collection now follows TypeScript's distinct CR/LF and
+U+2028/U+2029 rules. Requalify the A6-36 focused contracts and complete command
+controls on final bytes, plus the full gate. The former qualified row remains
+in [the lifecycle audit](records/architecture-comments-before-r201.json).
+
+## E-COMMENT-ELLIPSIS-A37
+
+Lifecycle: `active-unqualified`.
+
+Final validation ref: pending. Candidate audit date: 2026-09-20.
+
+The token trailing-comment worker uses the corrected Unicode collector. Removing
+its unused boundary alternative changes no surviving token policy. Requalify
+the A6-37 focused contracts and comment/map regressions on final bytes, plus the
+full gate. The former qualified row remains in
+[the lifecycle audit](records/architecture-comments-before-r201.json).
