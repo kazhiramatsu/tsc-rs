@@ -1,0 +1,31 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-xtask",
+    "--bin",
+    "xtask",
+    "--no-run",
+    "--message-format=json"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-project-projection-prep",
+  "started_at": "2026-09-19T11:18:51.664374+00:00",
+  "head": "d345e83c47444a216a7806344250e7e59ffeda27",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 139.363,
+  "log_sha256": "e67abe00ae2741fa2907b7ebd37712ab537a10887d5a5fb9c1e737a10a1e7920",
+  "log_bytes": 59593
+}

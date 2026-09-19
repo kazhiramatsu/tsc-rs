@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-project-supplement-r144/xtask-b59760cd7fe58a46",
+    "recovery_corpus_native::",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-project-projection-prep",
+  "started_at": "2026-09-19T11:21:12.153608+00:00",
+  "head": "d345e83c47444a216a7806344250e7e59ffeda27",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 0.032,
+  "log_sha256": "538ef38d4c2e9e4953a37b2240d2fd74c054f29b42f2d03d570346c0c6366f6e",
+  "log_bytes": 728
+}
