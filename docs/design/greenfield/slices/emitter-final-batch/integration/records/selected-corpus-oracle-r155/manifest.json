@@ -1,0 +1,30 @@
+{
+  "qualification": "TypeScript reference only; native complete-command comparison pending",
+  "files": [
+    {
+      "path": "selection.json.gz",
+      "sha256": "bcf09860273abd4f1253ac5a79adb0275ba43940f52647c44345368c72220ed5",
+      "bytes": 162212,
+      "raw_sha256": "641b5a8672391741a431825229e77676d720ad92a6e3250ed86dd241c72b9764",
+      "raw_bytes": 1075720
+    },
+    {
+      "path": "oracle-r155.json.gz",
+      "sha256": "5c0a49f51a0418a9e047165c2683d0baad2f61799173713b19ff66275168fdcd",
+      "bytes": 229490,
+      "raw_sha256": "681813b825e4295202960b18e62f62f9aeaf3732f323854eb05767f8d1771203",
+      "raw_bytes": 1852006
+    },
+    {
+      "path": "corpus-oracle-r155.json",
+      "sha256": "b75231a3caaeb2f6d34f6118b1e3904a03d07e64da317db0f85e4882c89455d6",
+      "bytes": 950
+    },
+    {
+      "path": "corpus-oracle-r155.log.gz",
+      "sha256": "589344209838cb69c8afda18338373d7993adb07372f0a829526ee80f67c9ba1",
+      "bytes": 998
+    }
+  ],
+  "rows": 44
+}
