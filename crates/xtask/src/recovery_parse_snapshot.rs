@@ -116,6 +116,9 @@ pub fn digest(source: &SourceFile) -> Value {
     let mut module_requests = Vec::new();
     let mut graph = CanonicalGraph::default();
     graph.node(source.root);
+    // This SourceFile reference is outside NodeData. Preserve both the target
+    // graph and the reference identity even if a future parser detaches it.
+    let module_indicator = source.external_module_indicator.map(|id| graph.node(id));
     let mut cursor = 0;
     while cursor < graph.entries.len() {
         let entry = graph.entries[cursor];
@@ -212,6 +215,7 @@ pub fn digest(source: &SourceFile) -> Value {
         .collect();
     json!({"diagnostics":diagnostic_digest(&source.parse_diagnostics),
     "jsdoc_diagnostics":diagnostic_digest(&source.js_doc_diagnostics),
+    "external_module_indicator_graph_index":module_indicator,
     "statements":statements,"ast_shape_sha256":format!("{:x}",shape.finalize()),
     "ast_context_sha256":format!("{:x}",contexts.finalize()),
     "module_requests":module_requests,
@@ -317,6 +321,9 @@ fn extra_fields(node: &tsc_syntax::nodes::Node, mut cb: impl FnMut(&'static str,
 /// Compile-time source snapshots close the private-field and generated-visitor
 /// gaps without changing the syntax crate's public API for a measurement tool.
 /// Called before both census and historical replay, not merely by optional tests.
+/// `parse_recovery` is deliberately excluded from the AST core: current and
+/// projection replays compare its six admission predicates separately, and the
+/// census asserts exact recovery-fact equality when reconstructing each input.
 pub fn validate_schema() {
     static CHECKED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
     CHECKED.get_or_init(|| {

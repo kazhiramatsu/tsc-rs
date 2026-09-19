@@ -79,13 +79,16 @@ def select(snapshot, snapshot_sha, current, baselines, reports):
     for id, row in rows.items():
         if not reasons[id]:
             continue
+        if row["loader"] in ["load_compiler_no_emit", "load_project_no_emit"]:
+            assert row["emit_load_error"] and row["emit_disposition"] == "parse-admission-only; emit-not-qualified", f"fallback row lost emit refusal: {id}"
         assert row["command_input"] is not None, f"selected row has no exact loader input: {id}"
         collect_documents(row["command_input"])
         cases.append({**row, "reasons": reasons[id]})
     return {"schema": 1, "kind": "emitter-recovery-corpus-selection", "head": snapshot["head"],
             "snapshot_sha256": snapshot_sha, "digest_code_sha256": snapshot["digest_code_sha256"],
             "summary": {"loaded_rows": len(rows), "selected_rows": len(cases), "unchanged_rows": len(rows) - len(cases),
-                        "load_failures": len(snapshot["load_failures"]), "changed_inputs": {k: len(v) for k, v in changed_inputs.items()}},
+                        "load_failures": len(snapshot["load_failures"]),
+                        "selected_no_emit_fallbacks": sum(row["loader"] in ["load_compiler_no_emit", "load_project_no_emit"] for row in cases), "changed_inputs": {k: len(v) for k, v in changed_inputs.items()}},
             # Failures remain explicit: this artifact never claims complete
             # qualification until each failed load has a separate disposition.
             "load_failures": snapshot["load_failures"], "changed_inputs": changed_inputs,

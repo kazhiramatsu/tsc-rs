@@ -20,10 +20,11 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use tsc_harness::upstream_suites::execution::{
     load_compiler_emit, load_compiler_no_emit, load_project_emit, load_project_no_emit,
-    load_qualified_compiler_emit_with_symlinks, load_recorded_execution_plans, EmitOptionFloor,
-    UpstreamExecutionInput,
+    load_qualified_compiler_emit_with_symlinks, load_recorded_execution_plans,
+    observable_input::{self, limits},
+    EmitOptionFloor, UpstreamExecutionInput,
 };
-use tsc_program::{PreparedProgram, ProgramLoadLimits};
+use tsc_program::PreparedProgram;
 use tsc_syntax::{ParseDiagnosticOrigin, ParseRecoveryAction, ParseRecoveryKind, SyntaxKind};
 
 use crate::codegen_common::find_workspace_root;
@@ -79,19 +80,6 @@ const TYPESCRIPT_FACT_ARTIFACTS: &[&str] = &[
     "ratchets/h2-7de-candidates.v1.json",
     "ratchets/h2-8a-candidates.v1.json",
 ];
-
-fn limits() -> ProgramLoadLimits {
-    ProgramLoadLimits::new(256, 2_048, 64, 16 * 1_024 * 1_024, 128 * 1_024 * 1_024)
-}
-
-fn limits_input() -> Value {
-    let limits = limits();
-    json!({"max_source_files":limits.max_source_files(),
-        "max_request_edges":limits.max_request_edges(),
-        "max_source_depth":limits.max_source_depth(),
-        "max_source_file_bytes":limits.max_source_file_bytes(),
-        "max_total_source_bytes":limits.max_total_source_bytes()})
-}
 
 #[derive(Clone, Debug)]
 struct UnitFacts {
@@ -259,21 +247,6 @@ fn program_facts(
     (facts, parse_units)
 }
 
-fn symlink_input(
-    operation: &tsc_harness::upstream_suites::execution::CompilerSymlinkOperation,
-) -> Value {
-    let tsc_harness::upstream_suites::execution::CompilerSymlinkOperation {
-        phase,
-        raw_target,
-        raw_link_path,
-        anchor,
-        normalized_target,
-        normalized_link_path,
-    } = operation;
-    json!({"phase":format!("{phase:?}"),"raw_target":raw_target.as_ref(),"raw_link_path":raw_link_path.as_ref(),
-        "anchor":anchor.as_ref(),"target":normalized_target.as_ref(),"link":normalized_link_path.as_ref()})
-}
-
 #[derive(Default)]
 struct ParseCapture {
     inputs: BTreeMap<String, Value>,
@@ -290,104 +263,8 @@ impl ParseCapture {
         id
     }
 
-    fn prepared_summary(program: &PreparedProgram) -> Value {
-        json!({
-            "current_directory":program.current_directory().display().to_string_lossy(),
-            "roots":program.roots().iter().map(|root| root.path().display().to_string_lossy().into_owned()).collect::<Vec<_>>(),
-            "source_files":program.source_files().iter().map(|source| json!({
-                "path":source.path().display().to_string_lossy(),
-                "sha256":parse_snapshot::sha256(source.snapshot().text()),
-                "may_be_emitted":source.may_be_emitted(),
-                "implied_node_format":format!("{:?}",source.implied_node_format())
-            })).collect::<Vec<_>>(),
-            // These are verification digests, not an alternative option decoder.
-            "compiler_options_debug_sha256":parse_snapshot::sha256(format!("{:?}",program.compiler_options())),
-            "program_options_debug_sha256":parse_snapshot::sha256(format!("{:?}",program.program_options()))
-        })
-    }
-
-    fn artifact_input(
-        &mut self,
-        route: &str,
-        input: &Value,
-        settings: &Value,
-        program: &PreparedProgram,
-    ) -> Value {
-        json!({"route":route,"input":input,"settings":settings,"limits":limits_input(),
-            "floor":"established","use_case_sensitive_file_names":program.path_context().use_case_sensitive_file_names(),
-            "prepared":Self::prepared_summary(program)})
-    }
-
     fn plan_input(&mut self, input: &UpstreamExecutionInput, program: &PreparedProgram) -> Value {
-        use tsc_harness::upstream_suites::execution::CompilerRootSelection;
-        let mut result = match input {
-            UpstreamExecutionInput::Compiler(plan) => {
-                let (vfs, roots) = match &plan.root_selection {
-                    CompilerRootSelection::Explicit {
-                        vfs_write_order,
-                        program_root_units,
-                        ..
-                    }
-                    | CompilerRootSelection::Config {
-                        vfs_write_order,
-                        program_root_units,
-                        ..
-                    } => (vfs_write_order, program_root_units),
-                };
-                let units = plan.fixture.units.iter().map(|unit| json!({
-                    "id":unit.id.0,"name":unit.name.as_ref(),
-                    "content_sha256":unit.content.as_ref().map(|text|self.document(text.as_bytes())),
-                    "file_options":unit.file_options.iter().map(|s| json!([s.name.as_str(),s.value.as_str()])).collect::<Vec<_>>(),
-                    "original_fixture_path":unit.original_fixture_path.as_ref(),
-                    "document_symlinks":unit.document_symlinks.iter().map(symlink_input).collect::<Vec<_>>()
-                })).collect::<Vec<_>>();
-                let symlinks = plan
-                    .fixture
-                    .global_symlinks
-                    .iter()
-                    .chain(
-                        plan.fixture
-                            .units
-                            .iter()
-                            .flat_map(|unit| unit.document_symlinks.iter()),
-                    )
-                    .map(symlink_input)
-                    .collect::<Vec<_>>();
-                json!({"route":"recorded-compiler","floor":"established",
-                    "fixture_path":plan.fixture.source.relative_path.as_ref(),"fixture_blob_sha1":plan.fixture.source.git_blob_sha1.as_ref(),
-                    "variant":{"configuration_index":plan.variant.configuration_index,"key":plan.variant.key.as_ref(),
-                        "description":plan.variant.description.as_ref(),"upstream_name":plan.variant.upstream_name.as_ref(),
-                        "overrides":plan.variant.overrides.iter().map(|s|json!([s.name.as_str(),s.value.as_str()])).collect::<Vec<_>>()},
-                    "current_directory":plan.current_directory.as_ref(),"use_case_sensitive_file_names":plan.use_case_sensitive_file_names,
-                    "settings":plan.effective_settings.iter().map(|s| json!([s.name.as_str(),s.value.as_str()])).collect::<Vec<_>>(),
-                    "units":units,"config_unit":plan.fixture.config_unit.map(|id|id.0),
-                    "vfs_write_order":vfs.iter().map(|id|id.0).collect::<Vec<_>>(),
-                    "program_root_units":roots.iter().map(|id|id.0).collect::<Vec<_>>(),"vfs_symlinks":symlinks,
-                    "global_symlink_directives":plan.fixture.global_symlink_directives.iter().map(symlink_input).collect::<Vec<_>>(),
-                    "global_symlinks":plan.fixture.global_symlinks.iter().map(symlink_input).collect::<Vec<_>>(),
-                    "root_selection_debug":format!("{:?}",plan.root_selection)})
-            }
-            UpstreamExecutionInput::Project(plan) => {
-                let files = plan.fixture.mount.files.iter().map(|file| json!({
-                    "path":file.virtual_path.as_ref(),"content_sha256":self.document(file.source.decoded.as_bytes()),
-                    "upstream_blob_sha1":file.source.git_blob_sha1.as_ref()
-                })).collect::<Vec<_>>();
-                json!({"route":"recorded-project","floor":"established",
-                    "descriptor_utf8_base64":base64::engine::general_purpose::STANDARD.encode(plan.fixture.descriptor_text.as_bytes()),
-                    "descriptor_raw_base64":base64::engine::general_purpose::STANDARD.encode(&plan.fixture.descriptor_raw),
-                    "descriptor_blob_sha1":plan.fixture.source.git_blob_sha1.as_ref(),
-                    "descriptor_path":plan.fixture.source.relative_path.as_ref(),
-                    "current_directory":plan.fixture.current_directory.as_ref(),"project_root":plan.fixture.project_root.as_ref(),
-                    "scenario":plan.fixture.scenario.as_ref(),"module_variant":format!("{:?}",plan.module_variant),
-                    "descriptor_module_override":plan.descriptor_module_override,
-                    "mount":{"virtual_path":plan.fixture.mount.virtual_path.as_ref(),"case_sensitive":plan.fixture.mount.case_sensitive,
-                        "read_only":plan.fixture.mount.read_only,"files":files},
-                    "root_selection_debug":format!("{:?}",plan.fixture.root_selection)})
-            }
-        };
-        result["limits"] = limits_input();
-        result["prepared"] = Self::prepared_summary(program);
-        result
+        observable_input::plan_input(input, program, &mut |bytes| self.document(bytes))
     }
 
     fn record(
@@ -512,6 +389,7 @@ struct Row {
     suite: String,
     universe: String,
     loader: String,
+    emit_load_error: Option<String>,
     units: Vec<UnitFacts>,
     parse_units: Vec<Value>,
     command_input: Option<Value>,
@@ -519,12 +397,22 @@ struct Row {
 }
 
 impl Row {
+    fn emit_disposition(&self) -> &'static str {
+        if self.emit_load_error.is_some() {
+            "parse-admission-only; emit-not-qualified"
+        } else {
+            "pending-complete-command-comparison"
+        }
+    }
+
     fn json(&self) -> Value {
         json!({
             "case_id": self.case_id,
             "suite": self.suite,
             "universe": self.universe,
             "loader": self.loader,
+            "emit_load_error": self.emit_load_error,
+            "emit_disposition": self.emit_disposition(),
             "verdict": self.verdict.label(),
             "units": self.units.iter().map(UnitFacts::json).collect::<Vec<_>>(),
         })
@@ -585,11 +473,13 @@ impl Census {
                 continue;
             }
             let suite = plan.provenance.suite.as_str().to_owned();
+            let mut emit_load_error = None;
             let (loader, loaded) = match &plan.input {
                 UpstreamExecutionInput::Compiler(compiler) => {
                     match load_compiler_emit(&self.workspace, compiler, limits()) {
                         Ok(program) => ("load_compiler_emit", Ok(program)),
                         Err(emit_error) => {
+                            emit_load_error = Some(emit_error.to_string());
                             match load_compiler_no_emit(&self.workspace, compiler, limits()) {
                                 Ok(program) => ("load_compiler_no_emit", Ok(program)),
                                 Err(no_emit_error) => (
@@ -604,6 +494,7 @@ impl Census {
                     match load_project_emit(&self.workspace, project, limits()) {
                         Ok(program) => ("load_project_emit", Ok(program.prepared_program)),
                         Err(emit_error) => {
+                            emit_load_error = Some(emit_error.to_string());
                             match load_project_no_emit(&self.workspace, project, limits()) {
                                 Ok(program) => {
                                     ("load_project_no_emit", Ok(program.prepared_program))
@@ -634,6 +525,7 @@ impl Census {
                         suite,
                         universe: "recorded-execution-plans".to_owned(),
                         loader: loader.to_owned(),
+                        emit_load_error,
                         units,
                         parse_units,
                         command_input: self
@@ -650,6 +542,8 @@ impl Census {
                     "universe": "recorded-execution-plans",
                     "loader": loader,
                     "error": error,
+                    "emit_load_error": emit_load_error,
+                    "emit_disposition": "not-loaded; emit-not-qualified",
                 })),
             }
             processed += 1;
@@ -699,10 +593,11 @@ impl Census {
                             suite,
                             universe: (*relative).to_owned(),
                             loader: "load_qualified_compiler_emit_with_symlinks".to_owned(),
+                            emit_load_error: None,
                             units,
                             parse_units,
-                            command_input: self.parse_capture.as_mut().map(|capture| {
-                                capture.artifact_input(
+                            command_input: self.parse_capture.as_mut().map(|_| {
+                                observable_input::artifact_input(
                                     "qualified",
                                     &case["input"],
                                     &Value::Null,
@@ -719,6 +614,7 @@ impl Census {
                         "universe": relative,
                         "loader": "load_qualified_compiler_emit_with_symlinks",
                         "error": error.to_string(),
+                        "emit_disposition": "not-loaded; emit-not-qualified",
                     })),
                 }
             }
@@ -780,10 +676,11 @@ impl Census {
                             suite,
                             universe: (*relative).to_owned(),
                             loader: "load_qualified_compiler_emit_with_symlinks".to_owned(),
+                            emit_load_error: None,
                             units,
                             parse_units,
-                            command_input: self.parse_capture.as_mut().map(|capture| {
-                                capture.artifact_input(
+                            command_input: self.parse_capture.as_mut().map(|_| {
+                                observable_input::artifact_input(
                                     "candidate",
                                     input,
                                     &case["settings"],
@@ -800,6 +697,7 @@ impl Census {
                         "universe": relative,
                         "loader": "load_qualified_compiler_emit_with_symlinks",
                         "error": error.to_string(),
+                        "emit_disposition": "not-loaded; emit-not-qualified",
                     })),
                 }
             }
@@ -1150,7 +1048,8 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             .iter()
             .map(|row| {
                 json!({"case_id":row.case_id,
-            "universe":row.universe,"loader":row.loader,"units":row.parse_units,"command_input":row.command_input})
+            "universe":row.universe,"loader":row.loader,"emit_load_error":row.emit_load_error,
+            "emit_disposition":row.emit_disposition(),"units":row.parse_units,"command_input":row.command_input})
             })
             .collect();
         let artifact = json!({"schema":1,"kind":"emitter-recovery-parse-snapshot",

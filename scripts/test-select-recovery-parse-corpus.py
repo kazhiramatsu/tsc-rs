@@ -72,6 +72,18 @@ class SelectionTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "differs from actual census"):
             self.select()
 
+    def test_no_emit_fallback_cannot_lose_its_refusal_disposition(self):
+        self.baselines["projection"]["digests"]["module"]["core"] = "before"
+        row = self.snapshot["rows"][0]
+        row["loader"] = "load_compiler_no_emit"
+        row["emit_load_error"] = None
+        row["emit_disposition"] = "pending-complete-command-comparison"
+        with self.assertRaisesRegex(AssertionError, "lost emit refusal"):
+            self.select()
+        row["emit_load_error"] = "unsupported emit option"
+        row["emit_disposition"] = "parse-admission-only; emit-not-qualified"
+        self.assertEqual(self.select()["summary"]["selected_no_emit_fallbacks"], 1)
+
     def test_selected_command_requires_exact_loader_input(self):
         self.baselines["projection"]["digests"]["emit"]["core"] = "before"
         self.snapshot["rows"][0]["command_input"] = None
