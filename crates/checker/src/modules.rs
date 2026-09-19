@@ -5630,7 +5630,7 @@ impl<'a> CheckerState<'a> {
             || module_reference.starts_with("/")
         {
             return UntypedModuleResolution {
-                resolved_file_name: resolved_file_name,
+                resolved_file_name,
                 package_name: None,
                 alternate_result: None,
                 types_package_exists: false,
@@ -5641,7 +5641,7 @@ impl<'a> CheckerState<'a> {
         let (package, subpath) = Self::bare_package_parts(module_reference);
         let Some(package_root) = self.nearest_visible_package_root(&importer, &package) else {
             return UntypedModuleResolution {
-                resolved_file_name: resolved_file_name,
+                resolved_file_name,
                 package_name: None,
                 alternate_result: None,
                 types_package_exists: false,
@@ -5696,7 +5696,7 @@ impl<'a> CheckerState<'a> {
             None
         };
         UntypedModuleResolution {
-            resolved_file_name: resolved_file_name,
+            resolved_file_name,
             package_name,
             alternate_result,
             types_package_exists,

@@ -1075,7 +1075,7 @@ pub(crate) fn compute_module_specifiers(
                 match provider.resolve_module(crate::AuthoritativeModuleRequest {
                     source_token: crate::AuthoritativeSourceToken(importing_node.source().raw()),
                     containing_file: (&state.binder.source(importing_index).file_name).into(),
-                    specifier: specifier,
+                    specifier,
                     mode,
                 }) {
                     Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => state

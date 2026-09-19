@@ -1202,7 +1202,7 @@ fn package_map_ts_targets_are_exact_but_js_targets_use_replacement_groups() {
     assert!(module.is_external_library_import());
     assert_eq!(
         module.package_id().map(PackageId::name),
-        (Some("pkg")).map(Into::into)
+        Some(Into::into("pkg"))
     );
 }
 
@@ -1945,11 +1945,11 @@ fn legacy_package_fields_and_types_versions_may_escape_the_package_root() {
     );
     assert_eq!(
         field.package_id().map(PackageId::name),
-        (Some("pkg")).map(Into::into)
+        Some(Into::into("pkg"))
     );
     assert_eq!(
         field.package_id().map(PackageId::submodule_name),
-        (Some("ed.d.ts")).map(Into::into)
+        Some(Into::into("ed.d.ts"))
     );
 
     let exact = resolved(
@@ -1974,7 +1974,7 @@ fn legacy_package_fields_and_types_versions_may_escape_the_package_root() {
     );
     assert_eq!(
         generic.package_id().map(PackageId::name),
-        (Some("mapped")).map(Into::into)
+        Some(Into::into("mapped"))
     );
 
     let trailing = resolved(
@@ -2647,7 +2647,7 @@ fn config_paths_use_their_declaring_base_while_base_url_fallback_stays_separate(
     );
     assert_eq!(
         config_paths.paths_base_path(),
-        (Some("/declared")).map(Into::into)
+        Some(Into::into("/declared"))
     );
 
     let without_base_url = CompilerOptions {
@@ -3259,7 +3259,7 @@ fn optional_external_files_use_the_package_root_and_follow_realpath() {
         module
             .package_metadata()
             .and_then(|metadata| metadata.name()),
-        (Some("pkg")).map(Into::into)
+        Some(Into::into("pkg"))
     );
 
     let exact = resolved(
@@ -4202,7 +4202,7 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
         );
         assert_eq!(
             package.package_id().map(PackageId::name),
-            (Some("custom-pkg")).map(Into::into)
+            Some(Into::into("custom-pkg"))
         );
         assert!(package.primary());
 
@@ -4259,7 +4259,7 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
         assert!(defaulted.is_external_library_import());
         assert_eq!(
             defaulted.package_id().map(PackageId::name),
-            (Some("@types/defaulted")).map(Into::into)
+            Some(Into::into("@types/defaulted"))
         );
 
         let ResolutionOutcome::Resolved(secondary) = resolver
@@ -4405,7 +4405,7 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
             assert_eq!(reference.extension(), &ModuleExtension::Dts);
             assert_eq!(
                 reference.package_id().map(PackageId::name),
-                (Some("conditional-types")).map(Into::into)
+                Some(Into::into("conditional-types"))
             );
             assert!(reference.primary());
         }
@@ -4444,7 +4444,7 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
             assert_eq!(reference.extension(), &extension);
             assert_eq!(
                 reference.package_id().map(PackageId::name),
-                (Some("secondary-conditional-types")).map(Into::into)
+                Some(Into::into("secondary-conditional-types"))
             );
             assert!(!reference.primary());
         }
@@ -4818,7 +4818,7 @@ fn legacy_secondary_subpaths_honor_nested_packages_for_ordinary_and_at_types_loo
         );
         assert_eq!(
             governed.package_id().map(PackageId::name),
-            (Some("governed-root")).map(Into::into)
+            Some(Into::into("governed-root"))
         );
         assert!(!governed.primary());
     }
@@ -4907,7 +4907,7 @@ fn nested_type_module_extensionless_entries_are_blocked_only_in_node_esm_modes()
                 );
                 assert_eq!(
                     reference.package_id().map(PackageId::name),
-                    (Some(package_name)).map(Into::into)
+                    Some(Into::into(package_name))
                 );
                 assert!(!reference.primary());
             } else {
@@ -5110,7 +5110,7 @@ fn legacy_external_custom_root_direct_hits_use_the_actual_package_root_before_re
         );
         assert_eq!(
             reference.package_id().map(PackageId::name),
-            (Some("actual-package")).map(Into::into)
+            Some(Into::into("actual-package"))
         );
         assert!(reference.primary());
         assert!(reference.is_external_library_import());
@@ -5192,7 +5192,7 @@ fn declaration_twins_and_external_provenance_hold_for_all_node_module_kinds() {
             let package_metadata = external
                 .package_metadata()
                 .expect("manifest-backed export retains package metadata");
-            assert_eq!(package_metadata.name(), (Some("inner")).map(Into::into));
+            assert_eq!(package_metadata.name(), Some(Into::into("inner")));
             assert_eq!(package_metadata.module_type(), PackageJsonType::Unspecified);
             let caller_spelling = ProgramPath::from_trusted_parts(
                 expected_path.trim_start_matches('/'),
@@ -5527,7 +5527,7 @@ fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
         assert!(!module.is_external_library_import());
         assert_eq!(
             module.package_id().map(PackageId::name),
-            (Some("root")).map(Into::into)
+            Some(Into::into("root"))
         );
     }
 
@@ -5546,7 +5546,7 @@ fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
     );
     assert_eq!(
         external.package_id().map(PackageId::name),
-        (Some("dep")).map(Into::into)
+        Some(Into::into("dep"))
     );
     assert!(
         !external.is_external_library_import(),
@@ -5671,7 +5671,7 @@ fn package_imports_deep_acyclic_bare_chain_has_no_artificial_depth_limit() {
     );
     assert_eq!(
         module.package_id().map(PackageId::name),
-        (Some("root")).map(Into::into)
+        Some(Into::into("root"))
     );
     assert!(!module.is_external_library_import());
 }
@@ -6487,7 +6487,7 @@ fn uri_like_names_run_optional_imports_and_self_name_before_the_node_uri_gate() 
         assert!(!module.is_external_library_import(), "{specifier}");
         assert_eq!(
             module.package_id().map(PackageId::name),
-            (Some("node:fs")).map(Into::into)
+            Some(Into::into("node:fs"))
         );
     }
     assert_eq!(
@@ -6554,7 +6554,7 @@ fn package_name_slicing_keeps_a_scope_without_a_package_component() {
         );
         assert_eq!(
             module.package_id().map(PackageId::name),
-            (Some("@scope")).map(Into::into)
+            Some(Into::into("@scope"))
         );
         assert_eq!(module.is_external_library_import(), specifier == "@scope");
     }
@@ -6624,7 +6624,7 @@ fn package_name_slicing_normalizes_unvalidated_rest_segments_like_typescript() {
         );
         assert_eq!(
             module.package_id().map(PackageId::name),
-            (Some("nested")).map(Into::into)
+            Some(Into::into("nested"))
         );
         assert_eq!(module.is_external_library_import(), specifier != "#x");
     }
@@ -6714,7 +6714,7 @@ fn bare_import_targets_search_preferred_extensions_across_all_ancestors_first() 
     );
     assert_eq!(
         module.package_id().map(PackageId::version),
-        (Some("2.0.0")).map(Into::into)
+        Some(Into::into("2.0.0"))
     );
     assert!(!module.is_external_library_import());
 }
@@ -7149,7 +7149,7 @@ fn untyped_exports_retain_the_esm_legacy_alternate_and_package_facts() {
     );
     assert_eq!(
         esm.package_id().map(PackageId::name),
-        (Some("pkg")).map(Into::into)
+        Some(Into::into("pkg"))
     );
 
     let commonjs = resolved(
@@ -7515,7 +7515,7 @@ fn at_types_fallback_preserves_declaration_only_conditions_and_scoped_names() {
         assert_eq!(module.extension(), &extension);
         assert_eq!(
             module.package_id().map(PackageId::name),
-            (Some("@types/inner")).map(Into::into)
+            Some(Into::into("@types/inner"))
         );
     }
 
@@ -7534,7 +7534,7 @@ fn at_types_fallback_preserves_declaration_only_conditions_and_scoped_names() {
     );
     assert_eq!(
         scoped.package_id().map(PackageId::name),
-        (Some("@types/scope__pkg")).map(Into::into)
+        Some(Into::into("@types/scope__pkg"))
     );
     assert!(scoped.is_external_library_import());
 }
@@ -7677,7 +7677,7 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
     assert!(versioned.primary());
     assert_eq!(
         versioned.package_id().map(PackageId::name),
-        (Some("versioned-types")).map(Into::into)
+        Some(Into::into("versioned-types"))
     );
     let bound_versioned = versioned
         .clone()
@@ -7690,7 +7690,7 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
     assert_eq!(bound_versioned.source(), SourceFileId::from_raw(7));
     assert_eq!(
         bound_versioned.package_id().map(PackageId::name),
-        (Some("versioned-types")).map(Into::into)
+        Some(Into::into("versioned-types"))
     );
 
     let ResolutionOutcome::Resolved(twinned) = resolver
@@ -7980,7 +7980,7 @@ fn type_reference_secondary_at_types_exports_preserve_import_and_require_modes()
         assert!(!reference.primary());
         assert_eq!(
             reference.package_id().map(PackageId::name),
-            (Some("@types/mode")).map(Into::into)
+            Some(Into::into("@types/mode"))
         );
     }
 }
@@ -8431,7 +8431,7 @@ fn types_versions_explicit_extensions_probe_exactly_before_loader_substitution()
     assert_eq!(fallback.extension(), &ModuleExtension::Dts);
     assert_eq!(
         fallback.package_id().map(PackageId::name),
-        (Some("pkg")).map(Into::into)
+        Some(Into::into("pkg"))
     );
 
     assert_eq!(
@@ -8626,7 +8626,7 @@ fn legacy_package_fields_preserve_priority_nonrecursive_main_and_node_esm_direct
     );
     assert_eq!(
         priority.package_id().map(PackageId::name),
-        (Some("priority")).map(Into::into)
+        Some(Into::into("priority"))
     );
     let first_field_miss = resolved(
         bundler
@@ -8808,7 +8808,7 @@ fn types_versions_root_back_references_unmapped_fallback_and_mapped_misses_are_d
         let expected_package = specifier.split('/').next().expect("package name");
         assert_eq!(
             module.package_id().map(PackageId::name),
-            (Some(expected_package)).map(Into::into)
+            Some(Into::into(expected_package))
         );
     }
 
@@ -8831,7 +8831,7 @@ fn types_versions_root_back_references_unmapped_fallback_and_mapped_misses_are_d
     );
     assert_eq!(
         self_back_reference.package_id().map(PackageId::name),
-        (Some("ext")).map(Into::into)
+        Some(Into::into("ext"))
     );
     let root_other = resolved(
         resolver
@@ -8852,7 +8852,7 @@ fn types_versions_root_back_references_unmapped_fallback_and_mapped_misses_are_d
     );
     assert_eq!(
         root_other.package_id().map(PackageId::name),
-        (Some("ext")).map(Into::into)
+        Some(Into::into("ext"))
     );
 
     for specifier in ["mapped-miss", "mapped-miss/foo"] {
@@ -8963,7 +8963,7 @@ fn relative_package_ids_follow_file_and_directory_manifest_boundaries() {
     );
     assert_eq!(
         directory_package.package_id().map(PackageId::name),
-        (Some("directory")).map(Into::into)
+        Some(Into::into("directory"))
     );
     assert!(!directory_package.is_external_library_import());
 
@@ -10150,7 +10150,7 @@ fn legacy_subpaths_honor_nested_packages_and_nested_types_versions_workers() {
         );
         assert_eq!(
             nested.package_id().map(PackageId::name),
-            (Some("nested")).map(Into::into)
+            Some(Into::into("nested"))
         );
     }
 
@@ -10249,11 +10249,11 @@ fn direct_legacy_files_use_actual_node_package_roots_without_local_scope_reads()
     );
     assert_eq!(
         nested.package_id().map(PackageId::name),
-        (Some("outer")).map(Into::into)
+        Some(Into::into("outer"))
     );
     assert_eq!(
         nested.package_id().map(PackageId::submodule_name),
-        (Some("nested/value.ts")).map(Into::into)
+        Some(Into::into("nested/value.ts"))
     );
 
     let sibling = resolved(
@@ -10267,7 +10267,7 @@ fn direct_legacy_files_use_actual_node_package_roots_without_local_scope_reads()
     );
     assert_eq!(
         sibling.package_id().map(PackageId::name),
-        (Some("direct")).map(Into::into)
+        Some(Into::into("direct"))
     );
 }
 
@@ -10520,7 +10520,7 @@ fn package_manifest_read_json_accepts_jsonc_fields_and_retains_exact_text() {
             .package_metadata()
             .expect("JSONC package retains its manifest observation");
         assert_eq!(metadata.text(), manifest);
-        assert_eq!(metadata.name(), (Some(name)).map(Into::into));
+        assert_eq!(metadata.name(), Some(Into::into(name)));
         assert_eq!(metadata.module_type(), module_type);
     }
 }
@@ -10886,6 +10886,4 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
     }
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;
