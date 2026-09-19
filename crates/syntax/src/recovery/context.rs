@@ -92,10 +92,16 @@ impl ParseRecovery {
             }
         }
         let heritage = self.heritage_gap_actions(source, &parents, &lists)?;
+        let class_bodies = self.class_member_body_gap_actions(source, &parents, &lists);
+        if !heritage.is_disjoint(&class_bodies) {
+            return None;
+        }
         let remaining: Vec<_> = lists
             .into_iter()
             .enumerate()
-            .filter_map(|(index, action)| (!heritage.contains(&index)).then_some(action))
+            .filter_map(|(index, action)| {
+                (!heritage.contains(&index) && !class_bodies.contains(&index)).then_some(action)
+            })
             .collect();
         if !remaining.is_empty() && !self.supports_array_gaps(source, true, &remaining) {
             return None;
@@ -292,6 +298,122 @@ impl ParseRecovery {
             NodeFlags::from_bits(source.arena.node(*id).flags).contains(NodeFlags::AWAIT_CONTEXT)
                 == covered.contains(&index)
         })
+    }
+
+    // A class member's missing parsed body can leave one skipped arrow in
+    // the member-array gap. This is not general class-list recovery and is
+    // deliberately separate from the predecessor statement-gap profile.
+    fn class_member_body_gap_actions(
+        &self,
+        source: &SourceFile,
+        parents: &BTreeMap<NodeId, Option<NodeId>>,
+        lists: &[ParseRecoveryAction],
+    ) -> BTreeSet<usize> {
+        let mut claimed = BTreeSet::new();
+        for (index, action) in lists.iter().enumerate() {
+            let ParseRecoveryAction::TokenSkipped {
+                token: SyntaxKind::EqualsGreaterThanToken,
+                start,
+                length,
+                site: ParseTokenSkipSite::ListAbort,
+                ..
+            } = *action
+            else {
+                continue;
+            };
+            let Some(end) = start.checked_add(length) else {
+                continue;
+            };
+            let (Some(start_byte), Some(end_byte)) = (
+                source.positions().utf16_to_byte(start),
+                source.positions().utf16_to_byte(end),
+            ) else {
+                continue;
+            };
+            if source.text().get(start_byte as usize..end_byte as usize) != Some("=>") {
+                continue;
+            }
+            let Some(event) = self.unique_skip_report(source, start, length) else {
+                continue;
+            };
+            if event.missing_node.is_some() {
+                continue;
+            }
+            let Some(boundary) = source.positions().utf16_to_byte(event.full_start) else {
+                continue;
+            };
+            let mut owners = Vec::new();
+            for &id in parents.keys() {
+                let members = match &source.arena.node(id).data {
+                    NodeData::ClassDeclaration(data) => data.members,
+                    NodeData::ClassExpression(data) => data.members,
+                    _ => None,
+                };
+                let Some(members) = members else {
+                    continue;
+                };
+                let members = source.arena.node_array(members);
+                if members.pos > start_byte
+                    || members.end < end_byte
+                    || members.nodes.iter().any(|member| {
+                        let member = source.arena.node(*member);
+                        member.pos < end_byte && start_byte < member.end
+                    })
+                {
+                    continue;
+                }
+                let preceding = members
+                    .nodes
+                    .iter()
+                    .rev()
+                    .map(|member| source.arena.node(*member))
+                    .find(|member| member.end <= start_byte);
+                let Some(preceding) = preceding else {
+                    continue;
+                };
+                let body = match &preceding.data {
+                    NodeData::MethodDeclaration(data) => data.body,
+                    NodeData::Constructor(data) => data.body,
+                    NodeData::GetAccessor(data) => data.body,
+                    NodeData::SetAccessor(data) => data.body,
+                    _ => None,
+                };
+                if preceding.end != boundary
+                    || body.is_none_or(|body| {
+                        let body = source.arena.node(body);
+                        body.kind != SyntaxKind::Block
+                            || body.pos != boundary
+                            || body.end != boundary
+                    })
+                {
+                    continue;
+                }
+                let following = members
+                    .nodes
+                    .iter()
+                    .map(|member| source.arena.node(*member))
+                    .find(|member| member.pos >= end_byte);
+                if following.map_or(members.end, |member| member.pos) != end_byte {
+                    continue;
+                }
+                let mut ancestors = BTreeSet::new();
+                let mut current = Some(id);
+                while let Some(ancestor) = current {
+                    ancestors.insert(ancestor);
+                    current = parents[&ancestor];
+                }
+                if parents.keys().all(|other| {
+                    let node = source.arena.node(*other);
+                    !(node.pos <= start_byte && end_byte <= node.end) || ancestors.contains(other)
+                }) {
+                    owners.push(id);
+                }
+            }
+            if owners.len() == 1 {
+                claimed.insert(index);
+            }
+        }
+        claimed
     }
 
     /// Only a nonempty HeritageClause.types array may own these leading and

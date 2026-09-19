@@ -1552,3 +1552,168 @@ fn escaped_keyword_fact_cannot_justify_two_retained_reports() {
     parsed.parse_recovery.events.push(event);
     assert!(!parsed.has_supported_emit_recovery());
 }
+
+#[test]
+fn class_member_missing_body_arrow_requires_its_own_gap() {
+    for text in [
+        "class C { m(x: number) => x; }",
+        "class C { constructor(x: number) => 1; }",
+        "class C { get g(): number => 1; }",
+        "class C { set g(x: number) => 1; }",
+        "abstract class C { abstract get g(): number => 1; }",
+        "abstract class C { abstract set g(x: number) => 1; }",
+        "class C { m(x: number) => x; n() {} }",
+        "class C { m(x: number) /*😀*/ => x; }",
+        "class C { m(x: number) => }",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(!parsed.has_only_statement_gap_emit_recovery(), "{text}");
+        let NodeData::SourceFile(file) = &parsed.arena.node(parsed.root).data else {
+            unreachable!()
+        };
+        let class = parsed.arena.node_array(file.statements.unwrap()).nodes[0];
+        let NodeData::ClassDeclaration(class) = &parsed.arena.node(class).data else {
+            unreachable!()
+        };
+        let members = parsed.arena.node_array(class.members.unwrap());
+        assert!(
+            parsed.parse_recovery.actions().iter().any(|action| {
+                let ParseRecoveryAction::TokenSkipped {
+                    token: SyntaxKind::EqualsGreaterThanToken,
+                    start,
+                    length,
+                    site: ParseTokenSkipSite::ListAbort,
+                    ..
+                } = *action
+                else {
+                    return false;
+                };
+                members.pos <= parsed.positions().utf16_to_byte(start).unwrap()
+                    && parsed.positions().utf16_to_byte(start + length).unwrap() <= members.end
+            }),
+            "{text}"
+        );
+
+        assert!(
+            parsed.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+    // This class expression already recovers at the statement boundary.
+    let expression = source("var D = class { m(x: number) => x; };");
+    assert!(expression.has_only_statement_gap_emit_recovery());
+    assert!(expression.has_supported_emit_recovery());
+    for (text, expected_token, expected_count) in [
+        ("class C { m(x: number) = x; }", SyntaxKind::EqualsToken, 1),
+        (
+            "class C { m(x: number) => => x; }",
+            SyntaxKind::EqualsGreaterThanToken,
+            2,
+        ),
+        (
+            "class C { x = 1 => 2 }",
+            SyntaxKind::EqualsGreaterThanToken,
+            1,
+        ),
+        (
+            "class C { m() {} => x; }",
+            SyntaxKind::EqualsGreaterThanToken,
+            1,
+        ),
+        (
+            "interface I { m(): void => x }",
+            SyntaxKind::EqualsGreaterThanToken,
+            1,
+        ),
+    ] {
+        let parsed = source(text);
+        let skips: Vec<_> = parsed
+            .parse_recovery
+            .actions()
+            .iter()
+            .filter_map(|action| {
+                let ParseRecoveryAction::TokenSkipped {
+                    token,
+                    start,
+                    length,
+                    site,
+                    ..
+                } = *action
+                else {
+                    return None;
+                };
+                let expected_site = if expected_token == SyntaxKind::EqualsToken {
+                    ParseTokenSkipSite::BlockTrailingEquals
+                } else {
+                    ParseTokenSkipSite::ListAbort
+                };
+                if token != expected_token || site != expected_site {
+                    return None;
+                }
+                let start = parsed.positions().utf16_to_byte(start).unwrap() as usize;
+                let end = start + length as usize;
+                assert_eq!(
+                    parsed.text().get(start..end),
+                    crate::tokens::token_to_string(token)
+                );
+                Some(action)
+            })
+            .collect();
+        assert_eq!(
+            skips.len(),
+            expected_count,
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+        assert!(
+            !parsed.has_supported_emit_recovery(),
+            "{text}: {:?}",
+            parsed.parse_recovery()
+        );
+    }
+}
+
+#[test]
+fn class_member_arrow_gap_refuses_unproven_report_and_token() {
+    let parsed = source("class C { m(x: number) /*c*/ => x; }");
+    assert!(parsed.has_supported_emit_recovery());
+    let check = |mutate: &dyn Fn(&mut ParseRecovery)| {
+        let mut changed = parsed.clone();
+        mutate(&mut changed.parse_recovery);
+        assert!(
+            !changed.has_supported_emit_recovery(),
+            "{:?}",
+            changed.parse_recovery()
+        );
+    };
+    check(&|r| {
+        for action in &mut r.actions {
+            if let ParseRecoveryAction::TokenSkipped { token, .. } = action {
+                *token = SyntaxKind::EqualsToken;
+            }
+        }
+    });
+    check(&|r| {
+        for event in &mut r.events {
+            event.full_start += 1;
+        }
+    });
+    check(&|r| {
+        for event in &mut r.events {
+            event.diagnostic_index = None;
+        }
+    });
+    check(&|r| {
+        r.actions.push(r.actions[0]);
+    });
+    check(&|r| {
+        let retained = *r
+            .events
+            .iter()
+            .find(|event| event.diagnostic_index.is_some())
+            .unwrap();
+        r.events.push(retained);
+    });
+}

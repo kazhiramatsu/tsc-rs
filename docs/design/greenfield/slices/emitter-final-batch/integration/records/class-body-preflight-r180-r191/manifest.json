@@ -1,0 +1,69 @@
+{
+  "files": [
+    {
+      "path": "corpus-controls-oracle-r180.json",
+      "sha256": "694130179e93b80f5932bbe7faa36a91e39086962f529404808955c37a4f4eb5"
+    },
+    {
+      "path": "corpus-controls-oracle-r180.log.gz",
+      "sha256": "5f229e1cdd70d54e9e8809cdd6ae69edfc47c9bffc49bde1f9c9ed1cb82868fb"
+    },
+    {
+      "path": "class-body-syntax-r181.json",
+      "sha256": "1dce069b3d6a1223391418ae56fa73786801af58ff5adfd55c56e0fa109ee206"
+    },
+    {
+      "path": "class-body-syntax-r181.log.gz",
+      "sha256": "4a82a579a944c632370ffbb8fc04af63ee8f272b814e1333b8d9ff8c8c01d2c5"
+    },
+    {
+      "path": "class-body-controls-oracle-r182.json",
+      "sha256": "049a1442893fa838ef79f15b7d889ad862dba02c152c7ef7c68afe23cb0c7d2b"
+    },
+    {
+      "path": "class-body-controls-oracle-r182.log.gz",
+      "sha256": "f08ba5b339cb9a39d6eb9c363bad4f15f5a241292d4b00ef53cbfe3fafe961e8"
+    },
+    {
+      "path": "class-body-syntax-r183.json",
+      "sha256": "4da2c86010dd50bf7078516b1d5ba9df7abc0aabeb93265448734393ec916fc0"
+    },
+    {
+      "path": "class-body-syntax-r183.log.gz",
+      "sha256": "2c22ce8a664abe83c5e38c35b5ffdf6c02ab4986e3d4182f6f96cf470cb044a0"
+    },
+    {
+      "path": "class-body-syntax-r187.json",
+      "sha256": "fbf621e38dcce0fc97b330a7451cd45716f0d6e496219c327b2523ceb067ed69"
+    },
+    {
+      "path": "class-body-syntax-r187.log.gz",
+      "sha256": "b7e239dc388748f7627e84e4f8b08fb4b0426a37a5836f3571410116c8d969c8"
+    },
+    {
+      "path": "witness-registration-r188.json",
+      "sha256": "77e2a1efba35dfc90a12365542d65da21c2cc3fb0f29a3c228e4fc396e4af455"
+    },
+    {
+      "path": "witness-registration-r188.log.gz",
+      "sha256": "c50ac43c25221806ed146a41bc6f7b3c3cfbd3ae3620e0e5706a597fdd8f30cf"
+    },
+    {
+      "path": "witness-registration-r189.json",
+      "sha256": "c8a5159e8382722d0909df5b1c202db0381e4c2ddee07ff281fdc0e27ef21760"
+    },
+    {
+      "path": "witness-registration-r189.log.gz",
+      "sha256": "852095dae08781176c74d2618ca16eea8c874a131ec6f238bf68ddb7a9904b01"
+    },
+    {
+      "path": "emitter-class-negative-r191.rs",
+      "sha256": "03dc60877b301da761ccd5c5aa3c06f20aab92e0479c82df78d80e99a21aa90a"
+    },
+    {
+      "path": "emitter-class-negative-r191.log",
+      "sha256": "580018a578b8ac8671fc1b219901e8a75cc087c170e54427c8dc4cd9d212d3da"
+    }
+  ],
+  "notes": "r181 newly added expectation failed: class expression already admitted; r183 class2PASS. r187 strengthened fact assertion expected ListAbort for equals but actual unchanged parser site is BlockTrailingEquals; corrected expectation from native dump r191, refusal assertion retained. r188 inventory drift fixed counts; r189 planner84PASS. Source candidate still requires frozen full qualification."
+}

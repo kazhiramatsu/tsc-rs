@@ -32,6 +32,19 @@ const shapes = [
   ["escaped-extended-await-yield", "var \\u{0061}wait = 12; async function main() { \\u{0061}wait 12; } var \\u{0079}ield = 12; function* gen() { \\u{0079}ield 12; } export {};"],
   ["invalid-export-variable-decorator", "declare function dec(...args: any[]): any; @dec export const x = 1;"],
   ["missing-body-export", "export function f(p: number) => p;"],
+  ["escaped-async-function", "\\u0061sync function f() {}"],
+  ["escaped-static", "class C { \\u0073tatic x = 1; }"],
+  ["escaped-export", "\\u0065xport const x = 1;"],
+  ["escaped-declare", "\\u0064eclare var y: number;"],
+  ["escaped-identifier-property", "var \\u0061sync = 1; var x: any; x.\\u0069f;"],
+  ["detached-two-blocks", "/* a */ /* b */\n\ndeclare var x: number;"],
+  ["detached-jsdoc-block", "/** a */ /* b */\n\ndeclare var x: number;"],
+  ["detached-single-block", "/* a */\n\ndeclare var x: number;"],
+  ["detached-lines", "// a\n// b\n\ndeclare var x: number;"],
+  ["detached-separated-reference", "/* a */\n///<reference path='./dep.d.ts'/>\n\ndeclare var x: Dep;", {"dependency": true}],
+  ["detached-jsdoc-reference", "/** a */ ///<reference path='./dep.d.ts'/>\n\ndeclare var x: Dep;", {"dependency": true}],
+  ["detached-namespace", "namespace N {\n/* a */ /* b */\n\nexport var x = 1;\n}"],
+  ["detached-unicode-lines", "/* a */\u2028/* b */\u2028\u2028declare var x: number;"],
 ];
 const inputs = [];
 for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015", "esnext", true], ["es5", "system", false], ["esnext", "commonjs", true]])
@@ -48,7 +61,7 @@ for (const [target, module, noCheck] of [["es2015", "commonjs", false], ["es2015
           sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
           outDir: "/project/out"}, files: ["main.ts"]})});
     }
-assert.equal(inputs.length, 176);
+assert.equal(inputs.length, 280);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

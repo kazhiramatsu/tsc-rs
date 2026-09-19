@@ -564,7 +564,7 @@ fn r168_corpus_controls_match_complete_typescript_commands() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 176);
+    assert_eq!(cases.len(), 280);
     assert_recovery_boundary_commands(cases);
 }
 
@@ -577,6 +577,6 @@ fn r171_corpus_controls_match_complete_typescript_commands() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 200);
+    assert_eq!(cases.len(), 232);
     assert_recovery_boundary_commands(cases);
 }

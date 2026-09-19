@@ -2887,15 +2887,20 @@ impl Printer {
             {
                 self.emit_keyword_type(node, record.kind, writer)
             }
-            NodeData::Token if changed => {
-                let text = tsc_syntax::tokens::token_to_string(record.kind).ok_or(
-                    PrinterError::UnsupportedTransformedSyntax {
+            NodeData::Token => {
+                if let Some(text) = tsc_syntax::tokens::token_to_string(record.kind) {
+                    // Token nodes always use their canonical spelling. Raw
+                    // escaped spelling belongs to identifiers, not keywords.
+                    writer.write(text);
+                    Ok(())
+                } else if !changed {
+                    self.write_original_without_leading_trivia(transformation, node, writer)
+                } else {
+                    Err(PrinterError::UnsupportedTransformedSyntax {
                         node,
                         kind: record.kind,
-                    },
-                )?;
-                writer.write(text);
-                Ok(())
+                    })
+                }
             }
             NodeData::Identifier(data) if changed => {
                 self.note_generated_identifier(transformation.arena(), node, &data.text);
@@ -16539,7 +16544,7 @@ impl Printer {
         let trivia = SourceTrivia::new(source.text(), start, end);
         match prefix.policy {
             DetachedSourceCommentPolicy::All => {
-                emit_leading_comments(trivia, writer, true, self.options.only_print_js_doc_style)
+                emit_detached_comments(trivia, writer, self.options.only_print_js_doc_style)
             }
             DetachedSourceCommentPolicy::PinnedOnly => emit_pinned_leading_comments(trivia, writer),
         }
@@ -19491,6 +19496,46 @@ fn emit_triple_slash_leading_comments(
             write_source_comment(source, comment.start, comment.end, writer);
             writer.write_line(false);
         }
+    }
+}
+
+// Detached comments use emitComments' separators even when the declaration
+// printer filters out a comment's text. Ordinary leading comments filter the
+// entire comment phase and must not share this separator protocol.
+fn emit_detached_comments(
+    trivia: SourceTrivia<'_>,
+    writer: &mut TextWriter,
+    only_print_js_doc_style: bool,
+) {
+    let comments = collect_source_comment_ranges(trivia.source, trivia.start, false);
+    let mut comments = comments
+        .iter()
+        .take_while(|comment| comment.end <= trivia.end)
+        .peekable();
+    if comments.peek().is_some_and(|first| {
+        trivia.source[trivia.start..first.start]
+            .chars()
+            .any(is_line_break)
+    }) {
+        writer.write_line(false);
+    }
+    let mut separator = false;
+    for comment in comments {
+        if separator {
+            writer.write_space(" ");
+        }
+        if !only_print_js_doc_style
+            || should_write_js_doc_style_comment(trivia.source, comment.start)
+        {
+            write_source_comment(trivia.source, comment.start, comment.end, writer);
+        }
+        separator = !comment.has_trailing_new_line;
+        if comment.has_trailing_new_line {
+            writer.write_line(false);
+        }
+    }
+    if separator {
+        writer.write_space(" ");
     }
 }
 

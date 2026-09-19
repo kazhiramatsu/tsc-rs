@@ -1,0 +1,434 @@
+{
+  "source_head": "4d09f353427cc631e006b74d0baeba5673e3629d",
+  "parser_proof_head": "b4bc6a809",
+  "files": [
+    {
+      "path": "local/corpus-candidate-pipeline-r178.json",
+      "sha256": "09bd9f1780a35c9391746b249f2723d5181a57a8f2c3b215dde412bfc40de8d3",
+      "bytes": 692,
+      "raw_sha256": "09bd9f1780a35c9391746b249f2723d5181a57a8f2c3b215dde412bfc40de8d3",
+      "raw_bytes": 692
+    },
+    {
+      "path": "local/corpus-candidate-pipeline-r178.log.gz",
+      "sha256": "75dc957df3077a9b754c576800344692db7c06b8e90e7584acdd076c08438c1b",
+      "bytes": 656,
+      "raw_sha256": "75dc957df3077a9b754c576800344692db7c06b8e90e7584acdd076c08438c1b",
+      "raw_bytes": 656
+    },
+    {
+      "path": "local/corpus-controls-167-native-r176.json",
+      "sha256": "f6114222c41a1ee26ff79c003c8cd927ffde9e1e5e84db7ee42d7ce1b0b9fc5e",
+      "bytes": 1005,
+      "raw_sha256": "f6114222c41a1ee26ff79c003c8cd927ffde9e1e5e84db7ee42d7ce1b0b9fc5e",
+      "raw_bytes": 1005
+    },
+    {
+      "path": "local/corpus-controls-167-native-r176.log.gz",
+      "sha256": "313b9bc71ade78c9ca6c3a9e834aac0713006e6a566c2b38197cf786ac5bf2ca",
+      "bytes": 1153,
+      "raw_sha256": "313b9bc71ade78c9ca6c3a9e834aac0713006e6a566c2b38197cf786ac5bf2ca",
+      "raw_bytes": 1153
+    },
+    {
+      "path": "local/corpus-controls-168-native-r176.json",
+      "sha256": "f17b58c3bb6e2956bd5f70b4c001943508af81526b42909a76b59c2234bdedcb",
+      "bytes": 1007,
+      "raw_sha256": "f17b58c3bb6e2956bd5f70b4c001943508af81526b42909a76b59c2234bdedcb",
+      "raw_bytes": 1007
+    },
+    {
+      "path": "local/corpus-controls-168-native-r176.log.gz",
+      "sha256": "562e8dc0d2cc5e37a7619cba6dd8722579696db7227d5021296fefe48d645f46",
+      "bytes": 1913,
+      "raw_sha256": "562e8dc0d2cc5e37a7619cba6dd8722579696db7227d5021296fefe48d645f46",
+      "raw_bytes": 1913
+    },
+    {
+      "path": "local/corpus-controls-171-native-r176.json",
+      "sha256": "46b6251f882f0f5325c91a0b429135b3c1f601402c7ff6a49c0fefaef4efa85f",
+      "bytes": 1007,
+      "raw_sha256": "46b6251f882f0f5325c91a0b429135b3c1f601402c7ff6a49c0fefaef4efa85f",
+      "raw_bytes": 1007
+    },
+    {
+      "path": "local/corpus-controls-171-native-r176.log.gz",
+      "sha256": "f6cdf915cb43820abfc8bf79b62452a1d5c9dbd9c929c523e105948a7e0c8143",
+      "bytes": 2440,
+      "raw_sha256": "f6cdf915cb43820abfc8bf79b62452a1d5c9dbd9c929c523e105948a7e0c8143",
+      "raw_bytes": 2440
+    },
+    {
+      "path": "local/corpus-controls-compiler-build-r176.json",
+      "sha256": "b0f47ba82567fbab1be860baf74bb4428839131db0fc15e07452640c6ad0d0c2",
+      "bytes": 784,
+      "raw_sha256": "b0f47ba82567fbab1be860baf74bb4428839131db0fc15e07452640c6ad0d0c2",
+      "raw_bytes": 784
+    },
+    {
+      "path": "local/corpus-controls-compiler-build-r176.log.gz",
+      "sha256": "b445f67526a6895966c3f48ea05e193661cb8dc941f643e0d7ef7675a55dfe3d",
+      "bytes": 4480,
+      "raw_sha256": "b445f67526a6895966c3f48ea05e193661cb8dc941f643e0d7ef7675a55dfe3d",
+      "raw_bytes": 4480
+    },
+    {
+      "path": "local/corpus-controls-oracle-r173b.json",
+      "sha256": "d2a4ba420a01d3b04589453973dabac51f73a68154a0e1a9ccfff9bfaab6b061",
+      "bytes": 713,
+      "raw_sha256": "d2a4ba420a01d3b04589453973dabac51f73a68154a0e1a9ccfff9bfaab6b061",
+      "raw_bytes": 713
+    },
+    {
+      "path": "local/corpus-controls-oracle-r173b.log.gz",
+      "sha256": "88141675a394e335b1f3822b1d03845eea24e0374fac322b4494248015ae03c2",
+      "bytes": 89,
+      "raw_sha256": "88141675a394e335b1f3822b1d03845eea24e0374fac322b4494248015ae03c2",
+      "raw_bytes": 89
+    },
+    {
+      "path": "local/corpus-controls-pipeline-r176.json",
+      "sha256": "df314160035f1b54def85b6518308dacc98731d64c607e1deb60908310e76ef3",
+      "bytes": 694,
+      "raw_sha256": "df314160035f1b54def85b6518308dacc98731d64c607e1deb60908310e76ef3",
+      "raw_bytes": 694
+    },
+    {
+      "path": "local/corpus-controls-pipeline-r176.log.gz",
+      "sha256": "39f66b524c18043b349f1e2f1ae032ff7ed1e806d68da1923e99d814c1bd4052",
+      "bytes": 3700,
+      "raw_sha256": "39f66b524c18043b349f1e2f1ae032ff7ed1e806d68da1923e99d814c1bd4052",
+      "raw_bytes": 3700
+    },
+    {
+      "path": "local/corpus-syntax-r176.json",
+      "sha256": "25e8eb5a4e858df4004ecbb4e4f42b3e5d9ae49c6bef33cbaf450c5e4b31e78c",
+      "bytes": 751,
+      "raw_sha256": "25e8eb5a4e858df4004ecbb4e4f42b3e5d9ae49c6bef33cbaf450c5e4b31e78c",
+      "raw_bytes": 751
+    },
+    {
+      "path": "local/corpus-syntax-r176.log.gz",
+      "sha256": "16c6ae3ac54f97915d6e548d33cc85e37b43b549272bf511f70783cddb4b0eb5",
+      "bytes": 4402,
+      "raw_sha256": "16c6ae3ac54f97915d6e548d33cc85e37b43b549272bf511f70783cddb4b0eb5",
+      "raw_bytes": 4402
+    },
+    {
+      "path": "local/keyword-corpus-selection-r177.json",
+      "sha256": "963228d5df4d9145c53d13c286e085aa0cdccddd8fe0bc3d0f84b3dcb87b0d50",
+      "bytes": 1741,
+      "raw_sha256": "963228d5df4d9145c53d13c286e085aa0cdccddd8fe0bc3d0f84b3dcb87b0d50",
+      "raw_bytes": 1741
+    },
+    {
+      "path": "local/keyword-corpus-selection-r177.log.gz",
+      "sha256": "a3305c1fcf8885439cdd353def013606f28b1d7bf0ec7d2f6757a4ed5afaccc5",
+      "bytes": 191,
+      "raw_sha256": "a3305c1fcf8885439cdd353def013606f28b1d7bf0ec7d2f6757a4ed5afaccc5",
+      "raw_bytes": 191
+    },
+    {
+      "path": "local/keyword-selected-oracle-r177.json",
+      "sha256": "cccbcba0fe2abb1634a69307382e20897cb648536a40f6afb540c58d22e6f29f",
+      "bytes": 951,
+      "raw_sha256": "cccbcba0fe2abb1634a69307382e20897cb648536a40f6afb540c58d22e6f29f",
+      "raw_bytes": 951
+    },
+    {
+      "path": "local/keyword-selected-oracle-r177.log.gz",
+      "sha256": "fa0a54a27f5e12626caf726ea0b377104dc30a77c96f65593b78ccc0c0d9efac",
+      "bytes": 609,
+      "raw_sha256": "fa0a54a27f5e12626caf726ea0b377104dc30a77c96f65593b78ccc0c0d9efac",
+      "raw_bytes": 609
+    },
+    {
+      "path": "local/keyword-selector-guards-r177.json",
+      "sha256": "35fb6a34707c4497343f8fdea43096ecf3a17fed09c93414aa2aad97bf8bb280",
+      "bytes": 760,
+      "raw_sha256": "35fb6a34707c4497343f8fdea43096ecf3a17fed09c93414aa2aad97bf8bb280",
+      "raw_bytes": 760
+    },
+    {
+      "path": "local/keyword-selector-guards-r177.log.gz",
+      "sha256": "2269baa8cfb5bca846535a4f9326a9ab0371e98259655cb45d3976a46a1898d4",
+      "bytes": 55,
+      "raw_sha256": "2269baa8cfb5bca846535a4f9326a9ab0371e98259655cb45d3976a46a1898d4",
+      "raw_bytes": 55
+    },
+    {
+      "path": "local/keyword-successor-pipeline-r177.json",
+      "sha256": "b3a604e84c451f3e0a5fda96f4adc09b27c8815aa7a4cb3e09ca0f79ef9c909d",
+      "bytes": 693,
+      "raw_sha256": "b3a604e84c451f3e0a5fda96f4adc09b27c8815aa7a4cb3e09ca0f79ef9c909d",
+      "raw_bytes": 693
+    },
+    {
+      "path": "local/keyword-successor-pipeline-r177.log.gz",
+      "sha256": "7b92fa809e7b249461e5d811af3e1c6694e3f3bfc611746d16e1f5d50463c4ee",
+      "bytes": 1067,
+      "raw_sha256": "7b92fa809e7b249461e5d811af3e1c6694e3f3bfc611746d16e1f5d50463c4ee",
+      "raw_bytes": 1067
+    },
+    {
+      "path": "local/keyword-successor-replay-r177.json",
+      "sha256": "d19aec65c04395872c2b6893c8883cf6bac80b7669f64a28f9a3881bed0c1090",
+      "bytes": 1306,
+      "raw_sha256": "d19aec65c04395872c2b6893c8883cf6bac80b7669f64a28f9a3881bed0c1090",
+      "raw_bytes": 1306
+    },
+    {
+      "path": "local/keyword-successor-replay-r177.log.gz",
+      "sha256": "aa746c2c7da286aaf9809c918fdc9c53b07c715fac60d153ea26bd13418539d1",
+      "bytes": 67,
+      "raw_sha256": "aa746c2c7da286aaf9809c918fdc9c53b07c715fac60d153ea26bd13418539d1",
+      "raw_bytes": 67
+    },
+    {
+      "path": "local/keyword-syntax-r170.json",
+      "sha256": "293e33de36e7ee8b0ef4b57ea153c99c8ee82cd8b72afebbc84c4bd8c34c9de1",
+      "bytes": 752,
+      "raw_sha256": "293e33de36e7ee8b0ef4b57ea153c99c8ee82cd8b72afebbc84c4bd8c34c9de1",
+      "raw_bytes": 752
+    },
+    {
+      "path": "local/keyword-syntax-r170.log.gz",
+      "sha256": "35f350caa5bef538883a119c0e8417366f4f8cb81049cf0d2c426af3022e587f",
+      "bytes": 4394,
+      "raw_sha256": "35f350caa5bef538883a119c0e8417366f4f8cb81049cf0d2c426af3022e587f",
+      "raw_bytes": 4394
+    },
+    {
+      "path": "local/keyword-syntax-r175.json",
+      "sha256": "fb698d4f9a899646976e5d2430ef935b469ec58d8cca800e8b1c2e46669e9eb4",
+      "bytes": 753,
+      "raw_sha256": "fb698d4f9a899646976e5d2430ef935b469ec58d8cca800e8b1c2e46669e9eb4",
+      "raw_bytes": 753
+    },
+    {
+      "path": "local/keyword-syntax-r175.log.gz",
+      "sha256": "018cff1e21d51a6839524e8118fc2e4c65f8ca168df3a3f4eab595c75b849e54",
+      "bytes": 4455,
+      "raw_sha256": "018cff1e21d51a6839524e8118fc2e4c65f8ca168df3a3f4eab595c75b849e54",
+      "raw_bytes": 4455
+    },
+    {
+      "path": "captures-167.json.gz",
+      "sha256": "c26a1aad40de7e10ae5495656ffc58e480175e59651b0bd5ebbbfa47c102abce",
+      "bytes": 159898,
+      "raw_sha256": "660fa47b2bc5691ee0dcb3b18dacaa0d34270a6266a20f1997f097f309921da4",
+      "raw_bytes": 4398844
+    },
+    {
+      "path": "captures-168.json.gz",
+      "sha256": "c6c345fb3e772192cbf57b25c447ae3f2953c29a4978da34c14870bbdf326674",
+      "bytes": 120732,
+      "raw_sha256": "f320b3aecc9090e4c311e726f297a2d2886b7f60469ed95a9062797491c1774f",
+      "raw_bytes": 3701924
+    },
+    {
+      "path": "captures-171.json.gz",
+      "sha256": "25b30355c7bb0757db5781f273d9fd287c48cdc78fac68cf57523ad4de7782d6",
+      "bytes": 121795,
+      "raw_sha256": "c5232db768542cd4b608f0bb260d26382293f6b0b4dc10f6b4629d31ecaf60d5",
+      "raw_bytes": 3395958
+    },
+    {
+      "path": "emitter-corpus-controls-r176/manifest.json.gz",
+      "sha256": "1df20581740080cf00a9e970e1b3a55926886792e2173086bafd0e92bb36eded",
+      "bytes": 310,
+      "raw_sha256": "c7be178d6372cfe99034f7d2acd66e891a0cafad842d467085c9119f05e7b006",
+      "raw_bytes": 708
+    },
+    {
+      "path": "emitter-keyword-successor-r177/manifest.json.gz",
+      "sha256": "6ec7d9bffa3e0fd38357575dd043fc26f77d95e01bae743cb9691579016d064d",
+      "bytes": 410,
+      "raw_sha256": "2a7a3f409f8821925b3336c9e8578467c05e5d72d7e2bcbc1b576b87eb099d4a",
+      "raw_bytes": 944
+    },
+    {
+      "path": "emitter-keyword-successor-r177/successor.json.gz",
+      "sha256": "1ff9f137cc23802ed3c948532a55c9c38f84a939b87bc8700ee50bbe7678102b",
+      "bytes": 7301431,
+      "raw_sha256": "d7b0a0142c93f0cf7357f5f7bcb0296456b9e84140198c5b490a87e7124571fb",
+      "raw_bytes": 37605685
+    },
+    {
+      "path": "emitter-keyword-successor-r177/selection.json.gz",
+      "sha256": "69c058832e19fabfea07e1a4383d6c78aa31e96d1116098c887e47629a61b641",
+      "bytes": 165422,
+      "raw_sha256": "b50990e6632b68ec565671987205c969ca7e13b97cfa26424725077e0073bbbf",
+      "raw_bytes": 1127862
+    },
+    {
+      "path": "emitter-keyword-successor-r177/resolved-dependencies.json.gz",
+      "sha256": "b3f0e31d88f4b219e05546ff9f2fca899435507af89fc12422218be95dec56be",
+      "bytes": 1614,
+      "raw_sha256": "8c5b9ea4163ee1a73607568e7220ba3373b9f98e151af1db5753d58ba2190096",
+      "raw_bytes": 6247
+    },
+    {
+      "path": "emitter-corpus-controls-r176.py",
+      "sha256": "73d5f01ee40e3caf0069d11c9b0bb6de951bd140bd09edafc52b2e43f6f4bd7c",
+      "bytes": 2577,
+      "raw_sha256": "73d5f01ee40e3caf0069d11c9b0bb6de951bd140bd09edafc52b2e43f6f4bd7c",
+      "raw_bytes": 2577
+    },
+    {
+      "path": "emitter-keyword-successor-r177.py",
+      "sha256": "3849673fcac2fc9ff7d5db8c75bbe1e13297227ca0e2886d4dc0fe4718931a0b",
+      "bytes": 3913,
+      "raw_sha256": "3849673fcac2fc9ff7d5db8c75bbe1e13297227ca0e2886d4dc0fe4718931a0b",
+      "raw_bytes": 3913
+    },
+    {
+      "path": "emitter-corpus-candidate-r178.py",
+      "sha256": "963a1f38bed211c4f8a4faef47a3b6befc2b5cbd845b0d20d195beff395d0362",
+      "bytes": 4198,
+      "raw_sha256": "963a1f38bed211c4f8a4faef47a3b6befc2b5cbd845b0d20d195beff395d0362",
+      "raw_bytes": 4198
+    },
+    {
+      "path": "emitter-class-recovery-r179.rs",
+      "sha256": "2ab912f0eb9727077a3546ba1a3a3267c153c15fbf6c1347eb1af0ae52d723a0",
+      "bytes": 764,
+      "raw_sha256": "2ab912f0eb9727077a3546ba1a3a3267c153c15fbf6c1347eb1af0ae52d723a0",
+      "raw_bytes": 764
+    },
+    {
+      "path": "emitter-class-recovery-r179.log",
+      "sha256": "f9b6a9438c71898f93822290d7a1b0cc1c0aaa8ee1aee7447d1cb3111e02b025",
+      "bytes": 10232,
+      "raw_sha256": "f9b6a9438c71898f93822290d7a1b0cc1c0aaa8ee1aee7447d1cb3111e02b025",
+      "raw_bytes": 10232
+    },
+    {
+      "path": "predecessor/emitter-r168-corpus-controls.json.gz",
+      "sha256": "7170c0285d231237b125b73577d38eec5349d8fab937b975e1ca48cf7d082430",
+      "bytes": 50654,
+      "raw_sha256": "ffd1ccf13011274a2db8248922ce39ffc801c7cddead0033a838e514456f3ed6",
+      "raw_bytes": 1048851
+    },
+    {
+      "path": "predecessor/observe-emitter-r168-corpus-controls.mjs.gz",
+      "sha256": "177a2dc38d10e11b3794263804074d5c41e8f3d6aae460d2d98a5578c2ce863f",
+      "bytes": 3208,
+      "raw_sha256": "c7a76839f9aae612390fd6c10a510b486585b9dd93d6e81ff5ce1c660388ac56",
+      "raw_bytes": 8894
+    },
+    {
+      "path": "proof/replay-recovery-parse.rs.gz",
+      "sha256": "af2abf7f1c58238982967a13fe0c656669e75745485245c6e883436b99c21eb8",
+      "bytes": 3179,
+      "raw_sha256": "da56e4379e787d3f17b4ce3d9c4c7ba67b570800fff81f9415a1dfc6dc65be0e",
+      "raw_bytes": 9691
+    },
+    {
+      "path": "proof/select-recovery-parse-corpus.py.gz",
+      "sha256": "6df50a3fa1d45ac7956fd06797253fbdaf2350e8258738e911f2715f4b582c91",
+      "bytes": 4777,
+      "raw_sha256": "50d45dff0e3104a0ca955a37a2169f96e37bc4b0fbb93cc10442681a76c8e5b8",
+      "raw_bytes": 17165
+    },
+    {
+      "path": "proof/test-select-recovery-parse-corpus.py.gz",
+      "sha256": "9854d92878ed7afbaa38645329a3e67162f20e8b5b7f8c2e7da809dafbf2b4da",
+      "bytes": 3984,
+      "raw_sha256": "35330d2216097dcd6e70e419b84cfddc001c68f045b81571d3e282669d96de18",
+      "raw_bytes": 17467
+    }
+  ],
+  "captures": {
+    "167": {
+      "records": 352,
+      "cases": 176,
+      "exact_twice": 176,
+      "failures": []
+    },
+    "168": {
+      "records": 346,
+      "cases": 176,
+      "exact_twice": 170,
+      "failures": [
+        "emitter-r168-corpus-controls/es2015/esnext/nocheck-true/remove-false/reference-same-line",
+        "emitter-r168-corpus-controls/esnext/commonjs/nocheck-true/remove-true/escaped-speculative-async",
+        "emitter-r168-corpus-controls/es5/system/nocheck-false/remove-false/reference-same-line",
+        "emitter-r168-corpus-controls/esnext/commonjs/nocheck-true/remove-false/escaped-speculative-async",
+        "emitter-r168-corpus-controls/es2015/commonjs/nocheck-false/remove-false/reference-same-line",
+        "emitter-r168-corpus-controls/esnext/commonjs/nocheck-true/remove-false/reference-same-line"
+      ]
+    },
+    "171": {
+      "records": 336,
+      "cases": 200,
+      "exact_twice": 136,
+      "failures": [
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-true/constructor-typed",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-false/constructor-typed",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-true/method-typed",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-true/constructor-untyped",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-true/constructor-untyped",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-true/method-typed",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-false/getter-abstract",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-true/setter-abstract",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-false/method-untyped",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-true/getter-abstract",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-true/setter-abstract",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-true/constructor-typed",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-false/setter-typed",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-false/method-typed",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-true/getter-abstract",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-true/constructor-untyped",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-true/method-typed",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-false/getter-abstract",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-true/setter-abstract",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-true/getter-typed",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-false/setter-abstract",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-false/setter-abstract",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-false/constructor-typed",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-false/constructor-untyped",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-false/getter-typed",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-false/constructor-untyped",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-false/method-typed",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-false/getter-abstract",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-true/getter-typed",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-true/setter-typed",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-true/constructor-untyped",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-false/getter-typed",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-false/method-typed",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-false/setter-typed",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-true/constructor-typed",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-true/method-typed",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-true/getter-abstract",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-false/constructor-untyped",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-false/constructor-untyped",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-false/constructor-typed",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-false/method-untyped",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-false/method-typed",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-true/getter-abstract",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-false/setter-abstract",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-true/setter-abstract",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-false/setter-typed",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-false/setter-typed",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-true/method-untyped",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-false/getter-typed",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-true/constructor-typed",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-true/setter-typed",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-false/setter-abstract",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-true/method-untyped",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-true/setter-typed",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-true/getter-typed",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-false/getter-abstract",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-true/method-untyped",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-false/method-untyped",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-false/constructor-typed",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-false/method-untyped",
+        "emitter-r171-corpus-controls/esnext/commonjs/nocheck-true/remove-true/getter-typed",
+        "emitter-r171-corpus-controls/es2015/esnext/nocheck-true/remove-true/method-untyped",
+        "emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-true/setter-typed",
+        "emitter-r171-corpus-controls/es5/system/nocheck-false/remove-false/getter-typed"
+      ]
+    }
+  }
+}

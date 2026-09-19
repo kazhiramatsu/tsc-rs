@@ -9,5 +9,5 @@
   "crates/program/src/library.rs": "8315ec4aa0ab762196ce49ff8be001e65b58243caab3dd6dc34885221a646fec",
   "crates/harness/src/upstream_suites.rs": "5712b5e1c33e92233429b3a93188da23f8a39ef041c415045f1f145840482425",
   "crates/harness/src/upstream_suites/execution/observable_input.rs": "202fc104eeceefafee48a98ec48fbc73a4bd23101f2f3d9dd407f580459235b5",
-  "crates/xtask/src/utf16_literal_recovery_census.rs": "41a2d489dfdc3dca5b849d08ed5730deb744e2d98ef700e029b4812cceac5c68"
+  "crates/xtask/src/utf16_literal_recovery_census.rs": "950b5e9d6d3363f57bbfcfe0a62bbba596aa587e08686e931e7cbf475d6e17b5"
 }
