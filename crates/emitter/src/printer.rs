@@ -3872,12 +3872,13 @@ impl Printer {
                         writer,
                     )?;
                     writer.write_space(" ");
-                    module_prefix = self.emit_space_prefixed_token_with_comments(
+                    module_prefix = self.emit_source_leading_token_with_context(
                         transformation,
                         node,
                         FixedToken::keyword(SyntaxKind::FromKeyword),
                         from_anchor,
-                        false,
+                        TokenLeadingSpace::Required,
+                        expression_context,
                         writer,
                     )?;
                 }
@@ -4043,6 +4044,16 @@ impl Printer {
                         node.source(),
                         bindings,
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
+                    let bindings = transformation
+                        .arena()
+                        .node_ref(node.source(), bindings)
+                        .ok_or(PrinterError::UnknownStatement(bindings.0))?;
+                    self.emit_trailing_comments_for_node_in_container(
+                        transformation,
+                        bindings,
+                        expression_context.comments(),
                         writer,
                     )?;
                 }
@@ -4214,12 +4225,13 @@ impl Printer {
                 };
                 if let Some(module_id) = data.module_specifier {
                     writer.write_space(" ");
-                    let from_keyword = self.emit_space_prefixed_token_with_comments(
+                    let from_keyword = self.emit_source_leading_token_with_context(
                         transformation,
                         node,
                         FixedToken::keyword(SyntaxKind::FromKeyword),
                         from_anchor,
-                        false,
+                        TokenLeadingSpace::Required,
+                        expression_context,
                         writer,
                     )?;
                     writer.write_space(" ");
@@ -7043,8 +7055,11 @@ impl Printer {
                 let close = self.emit_while_clause(
                     transformation,
                     node,
-                    self.original_node_start_cursor(transformation, node)?
-                        .into(),
+                    (
+                        self.original_node_start_cursor(transformation, node)?
+                            .into(),
+                        PositionCommentPhase::BoundaryUnion,
+                    ),
                     data.expression,
                     expression_context,
                     writer,
@@ -7091,23 +7106,20 @@ impl Printer {
                 // emit keeps a block and `while` on one line, while a
                 // non-block body ends before the while clause unless
                 // the DoStatement itself requests SingleLine.
-                let while_anchor = if statement_is_block {
-                    let anchor = self.emit_trailing_comments_for_node_as_token_anchor(
-                        transformation,
-                        statement_node,
-                        writer,
-                    )?;
+                let while_anchor = self.emit_trailing_comments_for_node_as_token_anchor(
+                    transformation,
+                    statement_node,
+                    writer,
+                )?;
+                if statement_is_block {
                     writer.write_space(" ");
-                    anchor
                 } else {
                     self.write_line_or_space(transformation, node, writer);
-                    self.original_node_end_cursor(transformation, statement_node)?
-                        .into()
-                };
+                }
                 self.emit_while_clause(
                     transformation,
                     node,
-                    while_anchor,
+                    (while_anchor, PositionCommentPhase::SourceLeading),
                     data.expression,
                     expression_context,
                     writer,
@@ -9542,12 +9554,13 @@ impl Printer {
     /// Emit the shared `while (expression)` token topology used by both a
     /// while statement and the trailing clause of a do statement. The caller
     /// supplies the source anchor because tsc starts the former at `node.pos`
-    /// and the latter at `node.statement.end`.
+    /// and the latter at `node.statement.end`. After a do body has completed
+    /// its trailing phase, the while token owns only source-leading comments.
     fn emit_while_clause(
         &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
-        start_anchor: TokenAnchor,
+        (start_anchor, leading_phase): (TokenAnchor, PositionCommentPhase),
         expression: Option<NodeId>,
         expression_context: EmitContext,
         writer: &mut TextWriter,
@@ -9559,14 +9572,25 @@ impl Printer {
                 parent: parent_kind,
                 field: "expression",
             })?;
-        let while_keyword = self.emit_space_prefixed_token_with_comments(
-            transformation,
-            node,
-            FixedToken::keyword(SyntaxKind::WhileKeyword),
-            start_anchor,
-            false,
-            writer,
-        )?;
+        let while_keyword = match leading_phase {
+            PositionCommentPhase::BoundaryUnion => self.emit_space_prefixed_token_with_comments(
+                transformation,
+                node,
+                FixedToken::keyword(SyntaxKind::WhileKeyword),
+                start_anchor,
+                false,
+                writer,
+            )?,
+            PositionCommentPhase::SourceLeading => self.emit_source_leading_token_with_context(
+                transformation,
+                node,
+                FixedToken::keyword(SyntaxKind::WhileKeyword),
+                start_anchor,
+                TokenLeadingSpace::Required,
+                expression_context,
+                writer,
+            )?,
+        };
         writer.write_space(" ");
         let open = self.emit_token_with_comments(
             transformation,
@@ -13230,7 +13254,12 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
-            self.emit_list_element_end_comments(transformation, child, writer)?;
+            self.emit_list_element_end_comments_in_container(
+                transformation,
+                child,
+                expression_context.comments(),
+                writer,
+            )?;
             if index + 1 < ids.len() || trailing_comma {
                 writer.write_punctuation(",");
                 pending_delimited_comment = self.emit_delimited_boundary_comments(
@@ -13286,12 +13315,13 @@ impl Printer {
                 writer,
             )?;
             writer.write_space(" ");
-            let as_keyword = self.emit_space_prefixed_token_with_comments(
+            let as_keyword = self.emit_source_leading_token_with_context(
                 transformation,
                 specifier,
                 FixedToken::keyword(SyntaxKind::AsKeyword),
                 as_anchor,
-                false,
+                TokenLeadingSpace::Required,
+                expression_context,
                 writer,
             )?;
             writer.write_space(" ");
