@@ -1,0 +1,37 @@
+{
+  "source_head": "0336c56663ff243503a18987a2cf8021109e8295",
+  "delegated_ids": [
+    "E-ENTRY",
+    "E-PLAN-SCRIPT",
+    "E-RESOLVER-IDENTITY-G",
+    "E-METADATA-BASE",
+    "E-METADATA-G-CLASS",
+    "E-CAPTURE-BASE",
+    "E-RECOVERY-FACTS",
+    "E-CHECKER-FACTS-BASE",
+    "E-NAMES-BASE",
+    "E-NAMES-CLASS-G",
+    "E-HELPERS-IMPORT-STATE",
+    "E-PRINTER-G",
+    "E-COMMENTS-G",
+    "E-COMMENT-SCOPE-H",
+    "E-COMMENT-ELLIPSIS-A37",
+    "E-COMMENT-PHASES-A36",
+    "E-MAPS",
+    "E-OUTPUT-FUTURE"
+  ],
+  "all_18_unqualified": true,
+  "direct_anchors_match": true,
+  "unpinned_literal_path_search": {
+    "roots": [
+      "crates/oracle",
+      "scripts",
+      ".github",
+      "crates/xtask/src",
+      "ratchets"
+    ],
+    "exit": 1
+  },
+  "record_sha256": "c470eed9442e0ce73eb645ec4b19600c6a742c8c95dc738b3117a3a43f02c6db",
+  "qualification": "not established; repeat input-scope audit at final V and postmerge D"
+}

@@ -19,10 +19,19 @@ fn main() {
     assert_eq!(artifact["digest_code_sha256"], digest_hash);
     let mut digests = BTreeMap::new();
     let mut recovery_digests = BTreeMap::new();
+    let mut legacy_digests = BTreeMap::new();
+    let mut keyword_actions = BTreeMap::new();
+    let mut terminator_reports = BTreeMap::new();
+    let mut class_body_gaps = BTreeMap::new();
     for (id, input) in artifact["inputs"].as_object().unwrap() {
         assert_eq!(id, input["input_id"].as_str().unwrap());
         let source = snapshot::replay(input);
         recovery_digests.insert(id.clone(), recovery_digest(&source));
+        let (legacy, actions) = keyword_extension(&source);
+        legacy_digests.insert(id.clone(), legacy);
+        keyword_actions.insert(id.clone(), actions);
+        terminator_reports.insert(id.clone(), retained_statement_terminators(&source));
+        class_body_gaps.insert(id.clone(), class_member_body_gaps(&source));
         assert!(digests
             .insert(id.clone(), json!({"core":snapshot::digest(&source),"profiles":profiles(&source)}))
             .is_none());
@@ -30,10 +39,156 @@ fn main() {
     let result = json!({"schema":1,"kind":"emitter-recovery-parse-replay",
         "input_artifact_sha256":snapshot::sha256(bytes),"digest_code_sha256":digest_hash,
         "digests":digests, "recovery_facts_format":"rust-debug-ParseRecovery-v1",
-        "recovery_facts_sha256":recovery_digests});
+        "recovery_facts_sha256":recovery_digests,
+        "recovery_extension_format":"escaped-keyword-consumed-v1",
+        "legacy_recovery_facts_sha256":legacy_digests,
+        "escaped_keyword_actions":keyword_actions, "retained_statement_terminator_reports":terminator_reports,
+        "class_member_body_gaps":class_body_gaps});
     serde_json::to_writer(std::io::stdout().lock(), &result).unwrap();
     std::io::stdout().write_all(b"\n").unwrap();
 }
+
+// The original digest schema and original observations remain untouched.
+// Reconstruct its exact Debug value after removing only the additive action.
+#[cfg(feature = "current-recovery-profiles")]
+fn keyword_extension(source: &tsc_syntax::SourceFile) -> (Value, Value) {
+    use tsc_syntax::{ParseRecoveryAction, ParseRecoveryKind, ParseDiagnosticOrigin};
+    let recovery = source.parse_recovery();
+    let mut structural = Vec::new();
+    let mut facts = Vec::new();
+    for action in recovery.actions() {
+        match *action {
+            ParseRecoveryAction::EscapedKeywordConsumed { token, start, length, statement_start } => {
+                assert!(length > 0 && statement_start <= start);
+                let end = start.checked_add(length).unwrap();
+                assert!(source.positions().utf16_to_byte(start).is_some());
+                assert!(source.positions().utf16_to_byte(end).is_some());
+                let matching = recovery.events().iter().filter(|event|
+                    event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                        && event.start == start && event.length == length
+                        && event.diagnostic_index.is_some_and(|index| source.parse_diagnostics[index].code() == 1260)).count();
+                assert_eq!(matching, 1, "consumed keyword must retain its own reporting event");
+                assert_eq!(recovery.events().iter().filter(|event|
+                    event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+                        && event.diagnostic_index.is_some() && event.start == start && event.length == length).count(),
+                    1, "keyword span must not justify another retained report");
+                facts.push(json!({"token":token as u16,"start":start,"length":length,
+                    "statement_start":statement_start,"matching_report_events":matching}));
+            }
+            ParseRecoveryAction::TokenSkipped { .. } | ParseRecoveryAction::Reparsed { .. } => structural.push(action),
+        }
+    }
+    assert_eq!(facts.len(), source.parse_diagnostics.iter().filter(|diagnostic| diagnostic.code() == 1260).count(),
+        "every retained escaped-keyword report has exactly one consumption fact");
+    let legacy = format!("ParseRecovery {{ diagnostic_origins: {:?}, events: {:?}, actions: {:?} }}",
+        recovery.diagnostic_origins(), recovery.events(), structural);
+    if facts.is_empty() { assert_eq!(legacy, format!("{recovery:?}")); }
+    (json!(snapshot::sha256(legacy)), json!(facts))
+}
+
+#[cfg(not(feature = "current-recovery-profiles"))]
+fn keyword_extension(_source: &tsc_syntax::SourceFile) -> (Value, Value) { (Value::Null, Value::Null) }
+
+// Independently identify the retained expression plus its own terminator.
+// This is evidence classification only; production admission remains in syntax.
+#[cfg(feature = "current-recovery-profiles")]
+fn retained_statement_terminators(source: &tsc_syntax::SourceFile) -> Value {
+    use tsc_syntax::{NodeData, ParseRecoveryKind, ParseDiagnosticOrigin};
+    use std::collections::BTreeSet;
+    if source.parse_recovery().events().is_empty() { return json!([]); }
+    let mut pending = vec![source.root];
+    let mut reachable = BTreeSet::new();
+    while let Some(id) = pending.pop() {
+        if reachable.insert(id) {
+            tsc_syntax::for_each_child(&source.arena, source.arena.node(id), |child| { pending.push(child); false });
+        }
+    }
+    let mut reports = Vec::new();
+    for event in source.parse_recovery().events() {
+        if event.kind != ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+            || event.diagnostic_index.is_none() || event.missing_node.is_some() || event.length == 0 { continue; }
+        let Some(start) = source.positions().utf16_to_byte(event.start) else { continue; };
+        let Some(end) = event.start.checked_add(event.length).and_then(|end| source.positions().utf16_to_byte(end)) else { continue; };
+        let owners: Vec<_> = reachable.iter().filter_map(|id| {
+            let node = source.arena.node(*id);
+            let NodeData::ExpressionStatement(data) = &node.data else { return None; };
+            let expression = source.arena.node(data.expression?);
+            let semicolon = node.end.checked_sub(1)?;
+            (expression.end == end && node.end != end
+                && tsc_syntax::skip_trivia(source.text(), node.pos as usize) == start as usize
+                && tsc_syntax::skip_trivia(source.text(), end as usize) == semicolon as usize
+                && source.text().as_bytes().get(semicolon as usize) == Some(&b';'))
+                .then(|| json!({"statement_pos":node.pos,"statement_end":node.end,"expression_end":expression.end}))
+        }).collect();
+        if owners.len() == 1 { reports.push(json!({"start":event.start,"length":event.length,"owner":owners[0]})); }
+    }
+    json!(reports)
+}
+
+#[cfg(not(feature = "current-recovery-profiles"))]
+fn retained_statement_terminators(_source: &tsc_syntax::SourceFile) -> Value { Value::Null }
+
+// Capture structural witnesses for class-body gap classification. Complete
+// command observations, not this classifier, qualify the newly admitted output.
+#[cfg(feature = "current-recovery-profiles")]
+fn class_member_body_gaps(source: &tsc_syntax::SourceFile) -> Value {
+    use tsc_syntax::{NodeData, ParseRecoveryAction, ParseTokenSkipSite, ParseRecoveryKind, ParseDiagnosticOrigin, SyntaxKind};
+    use std::collections::BTreeSet;
+    let mut result = Vec::new();
+    if !source.parse_recovery().actions().iter().any(|action| matches!(action,
+        ParseRecoveryAction::TokenSkipped { token: SyntaxKind::EqualsGreaterThanToken, site: ParseTokenSkipSite::ListAbort, .. })) { return json!(result); }
+    let mut pending = vec![source.root];
+    let mut reachable = BTreeSet::new();
+    while let Some(id) = pending.pop() {
+        if reachable.insert(id) {
+            tsc_syntax::for_each_child(&source.arena, source.arena.node(id), |child| { pending.push(child); false });
+        }
+    }
+    for action in source.parse_recovery().actions() {
+        let ParseRecoveryAction::TokenSkipped { token: SyntaxKind::EqualsGreaterThanToken, site: ParseTokenSkipSite::ListAbort, start, length, .. } = *action else { continue; };
+        let start_byte = source.positions().utf16_to_byte(start).unwrap();
+        let end_byte = source.positions().utf16_to_byte(start.checked_add(length).unwrap()).unwrap();
+        let reports: Vec<_> = source.parse_recovery().events().iter().filter(|event|
+            event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+            && event.diagnostic_index.is_some() && event.start == start && event.length == length && event.missing_node.is_none()).collect();
+        if reports.len() != 1 { continue; }
+        let boundary = source.positions().utf16_to_byte(reports[0].full_start).unwrap();
+        for id in &reachable {
+            let class = source.arena.node(*id);
+            let members = match &class.data {
+                NodeData::ClassDeclaration(data) => data.members,
+                NodeData::ClassExpression(data) => data.members,
+                _ => None,
+            };
+            let Some(members) = members else { continue; };
+            let members = source.arena.node_array(members);
+            if members.pos > start_byte || members.end < end_byte || members.nodes.iter().any(|id| {
+                let n = source.arena.node(*id); n.pos < end_byte && start_byte < n.end
+            }) { continue; }
+            let previous = members.nodes.iter().map(|id| source.arena.node(*id)).rev().find(|n| n.end <= start_byte);
+            let Some(previous) = previous else { continue; };
+            let body = match &previous.data {
+                NodeData::MethodDeclaration(data) => data.body,
+                NodeData::Constructor(data) => data.body,
+                NodeData::GetAccessor(data) => data.body,
+                NodeData::SetAccessor(data) => data.body,
+                _ => None,
+            };
+            let Some(body) = body else { continue; };
+            let body = source.arena.node(body);
+            let following = members.nodes.iter().map(|id| source.arena.node(*id)).find(|n| n.pos >= end_byte).map_or(members.end, |n| n.pos);
+            if body.kind == SyntaxKind::Block && body.pos == body.end && body.end == boundary && previous.end == boundary && following == end_byte {
+                result.push(json!({"start":start,"length":length,"full_start":reports[0].full_start,
+                    "class_pos":class.pos,"class_end":class.end,"member_kind":previous.kind as u16,
+                    "member_end":previous.end,"missing_body_pos":body.pos,"following_boundary":following}));
+            }
+        }
+    }
+    json!(result)
+}
+
+#[cfg(not(feature = "current-recovery-profiles"))]
+fn class_member_body_gaps(_source: &tsc_syntax::SourceFile) -> Value { Value::Null }
 
 // This independent digest includes committed events, suppressed reports and
 // skip/reparse actions. It leaves the census's parse-graph digest unchanged.

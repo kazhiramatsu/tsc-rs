@@ -1,0 +1,14 @@
+{
+  "candidate": "0336c56663ff243503a18987a2cf8021109e8295",
+  "files": [
+    {
+      "path": "emitter-architecture-preflight-r216.json",
+      "sha256": "5fbf16fcbae538b60753eb5b6369144365ba75367ed4a8dc53f06382021e42e1"
+    },
+    {
+      "path": "emitter-parser-proof-reuse-r216.json",
+      "sha256": "921f5c325af6586792071369b5bde262639b7c577329f87ca2465215d3a8ca2d"
+    }
+  ],
+  "scope": "Read-only parser proof reuse and architecture lifecycle audit. No runtime or final gate qualification claimed."
+}
