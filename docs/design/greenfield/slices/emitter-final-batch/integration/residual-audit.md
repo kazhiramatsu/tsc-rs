@@ -295,3 +295,39 @@ assertion／commaで切れるチェーン、混合closer、owner不在、捏造e
 Opus95が確認したheritage.typesのdelimiter前／list末尾のleading comment処理も、
 既存のcomma-list helperを使って補った。heritage clauseのspace listには適用しない。
 この次の固定候補でRust検証を再開する。H1参照検査4件と登録検査84件は成功した。
+
+
+## r106–r120 の追跡
+
+r106で1,930 commandsが各2回一致し、r101時点の39差分を解消した。完全captureを
+`records/r106-complete-captures.json.gz` とsummaryに保存した。program testsは558成功・5 ignored、
+checker libは1,739成功。一方emitter契約の3失敗は隠さず、optional-chain tokenの親文法継承と、
+import/export/doの子コメント・空白順序をr109で修復し、emitter全1,015 testsが成功した。
+
+r109の追加61 commandsは56 exact×2・5差分。24のcustom metadata controlsで
+NoTrailingCommentsとcomment-range overrideの重複を再現し、既存96を含む120 controlsを
+r112で各2回一致させた。通常のtoken隣接と変換後do-bodyのcontrolsも保持する。
+
+r116では74 commands中71 exact×2・3差分。前記5差分はすべて解消したが、Systemの変数名に付く
+型コメントと、クラス／parameter propertyのd.tsコメントに別の欠落を確認した。
+JS、d.ts、両map、write metadata、診断、exitを含む145の完全観測を保存し、
+[3つの差分](cross-review/recovery-new-controls-r116-differences.json)と修復前source/binaryを固定した。
+namespace経路についてのOpus115の推測は実際のcallerを調べて撤回し、nativeでも一致した。
+
+r117は元のVariableDeclaration識別子に限定して、通常の名前コメントの後に型コメントを出す。
+クローンとparameter名は対象外で、元のtoken anchorを維持する。r119はPropertyDeclarationの
+declaration-syntax経路でname、question token、typeの末尾処理を補い、初期値の`=`との重複を防ぐ。
+親のcomment rangeを使い、parsed propertyと合成parameter propertyのセミコロン前後の違いを保つ。
+上流への期待値採取はSystem12、property24が各2回一致し診断0。propertyの初回16 case objectは不変。
+これらはsource review／TS観測であり、r120のnative結果が出るまで修復完了を主張しない。
+
+ledgerの119不正reference blocksを153の正確な関数／包含subspan参照に訂正した。
+checkerの35未分類関数は17 ported・18 native adaptersとして実装を照合した。
+r110bの4,113 entriesはstale0・undispositioned0、旧D2の1,676 ported joinsを維持する。
+修正対象の非doc Rust bytesは変更していない。以前からの391 annotation候補は、
+composite表記を含むため391件の誤りとは断定せず、別の参照維持課題として記録した。
+最終xtaskと最終sourceでのledger gateは引き続き必要である。
+
+Clippy修復にはProgramLoadErrorの公開Host/Resolution variantのsourceをBoxへ変える型変更を含む。
+Error::sourceのcause chain／downcastは検証したが、公開fieldを直接構築する利用側には型変更がある。
+private checker errorのboxingと混同せず、最終PRにもこのAPI影響を記載する。

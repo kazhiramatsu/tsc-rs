@@ -8,6 +8,37 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
 提出時の検証と統合候補の検証は以下で区別する。hosted完了前に全体完了を主張しない。
 
+## r120 着手時点の状態（2026-09-19）
+
+統合は未完了。検証対象の Rust・fixture・HEAD を固定し、修復候補の準備は別 worktree で行う。
+次の成功はそれぞれ記載した候補の証拠であり、現在の最終候補の成功へ読み替えない。
+
+| 検証 | 確認済みの結果 |
+| --- | --- |
+| r106 recovery 境界 | 1,930 complete commands が各2回一致。直前の39差分を解消 |
+| r106 program / checker | program 558成功・5 ignored、checker lib 1,739成功 |
+| r109 emitter | 23 binaries、1,015 tests成功・ignored0 |
+| r112 post-child metadata | 既存96＋追加24の120 controlsが各2回一致 |
+| r116 追加境界 | 74 commands中71が各2回一致、3差分。以前のr109の5差分はすべて解消 |
+| r110b ledger | 固定済み旧xtask実行ファイルで4,113 entries、stale0・undispositioned0。最終toolによる再確認は未実施 |
+
+r116の3差分は、System変数名の型コメントと、クラス／引数プロパティの宣言コメント。
+[全tupleと結果](cross-review/r116-native-results.md)を保存した。
+Opus116–119と照合した限定修復、および追加12＋24 controlsを統合し、
+`b451489e4a18abbff42651d8eb814537f4c5f800` に対するr120検証を開始した。
+順序は110 complete commands、emitter全1,015 tests、境界1,930、元の4,088 commands。
+失敗時は後続を進めず、current bytesでの成功を要求する。
+
+全7,908 plansのcensus、4つのparser replay、選択された元commandのnative/TS比較、
+36 parse KNOWNの判断、最終chain walk・unsplit local CI・hosted確認・mergeは未完了。
+censusは別の固定sourceと実行ファイルで継続し、Cargo buildの間だけ停止する。
+停止を含む経過時間や、機能比較を併走させた時間を性能qualificationには使用しない。
+Fableはround54でlimitに達したため、以降は実際のClaude Opusを1 CLIずつ使用している。
+
+共通処理の変更が複数出力へ及ぶ設計は、[統合後の設計調査](cross-review/post-integration-dependency-boundaries.md)
+へ記録した。checkerの診断用symbol表示もprinterを呼ぶ実経路を確認している。
+このtrainでは互換差分の修復と検証を完了させ、境界の再設計は別の設計判断とする。
+
 ## 受領とレビュー
 
 [受領台帳](records/received.v1.json)はproducerの37 tracked filesと557 untracked files、
