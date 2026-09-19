@@ -1,0 +1,1738 @@
+[
+  {
+    "case_id": "typescript-6.0.3/project/declarationDir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "declarationDir: specify declarationDir only",
+      "projectRoot": "tests/cases/projects/declarationDir",
+      "inputFiles": [
+        "a.ts",
+        "subfolder/b.ts",
+        "subfolder/c.ts"
+      ],
+      "declaration": true,
+      "declarationDir": "declarations",
+      "baselineCheck": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/declarationDir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "declarationDir: specify declarationDir only",
+      "projectRoot": "tests/cases/projects/declarationDir",
+      "inputFiles": [
+        "a.ts",
+        "subfolder/b.ts",
+        "subfolder/c.ts"
+      ],
+      "declaration": true,
+      "declarationDir": "declarations",
+      "baselineCheck": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/declarationDir2.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "declarationDir: specify declarationDir with outDir",
+      "projectRoot": "tests/cases/projects/declarationDir",
+      "inputFiles": [
+        "a.ts",
+        "subfolder/b.ts",
+        "subfolder/c.ts"
+      ],
+      "outDir": "out",
+      "declaration": true,
+      "declarationDir": "declarations",
+      "baselineCheck": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/declarationDir2.json#module%3Damd",
+    "descriptor": {
+      "scenario": "declarationDir: specify declarationDir with outDir",
+      "projectRoot": "tests/cases/projects/declarationDir",
+      "inputFiles": [
+        "a.ts",
+        "subfolder/b.ts",
+        "subfolder/c.ts"
+      ],
+      "outDir": "out",
+      "declaration": true,
+      "declarationDir": "declarations",
+      "baselineCheck": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/declarationDir3.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "declarationDir: specify declarationDir with bundled output file",
+      "projectRoot": "tests/cases/projects/declarationDir",
+      "inputFiles": [
+        "a.ts",
+        "subfolder/b.ts",
+        "subfolder/c.ts"
+      ],
+      "outFile": "out.js",
+      "declaration": true,
+      "declarationDir": "declarations",
+      "baselineCheck": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/declarationDir3.json#module%3Damd",
+    "descriptor": {
+      "scenario": "declarationDir: specify declarationDir with bundled output file",
+      "projectRoot": "tests/cases/projects/declarationDir",
+      "inputFiles": [
+        "a.ts",
+        "subfolder/b.ts",
+        "subfolder/c.ts"
+      ],
+      "outFile": "out.js",
+      "declaration": true,
+      "declarationDir": "declarations",
+      "baselineCheck": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/declarationsExportNamespace.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "declarations_ExportNamespace",
+      "projectRoot": "tests/cases/projects/declarations_ExportNamespace",
+      "inputFiles": [
+        "decl.d.ts",
+        "useModule.ts"
+      ],
+      "declaration": true,
+      "baselineCheck": true,
+      "emittedFiles": [
+        "useModule.js",
+        "useModule.d.ts"
+      ]
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/declarationsExportNamespace.json#module%3Damd",
+    "descriptor": {
+      "scenario": "declarations_ExportNamespace",
+      "projectRoot": "tests/cases/projects/declarations_ExportNamespace",
+      "inputFiles": [
+        "decl.d.ts",
+        "useModule.ts"
+      ],
+      "declaration": true,
+      "baselineCheck": true,
+      "emittedFiles": [
+        "useModule.js",
+        "useModule.d.ts"
+      ]
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_mixed_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_mixed_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_mixed_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_mixed_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_mixed_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_mixed_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_mixed_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_mixed_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_mixed_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_mixed_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_mixed_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_mixed_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]:outputdir_mixed_subfolder: specify outputFile and outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/outAndOutDirFile.js",
+      "outDir": "outdir/outAndOutDirFolder",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_mixed_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]:outputdir_mixed_subfolder: specify outputFile and outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/outAndOutDirFile.js",
+      "outDir": "outdir/outAndOutDirFolder",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_mixed_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_multifolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_multifolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_multifolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_multifolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_multifolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_multifolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_multifolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_multifolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_simple/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_simple/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_simple: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_simple/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_simple: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_simple/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_simple/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_simple/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_subfolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_subfolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_subfolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_subfolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_subfolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_module_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_module_subfolder/mapFiles",
+      "resolveMapRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_multifolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_multifolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_multifolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_multifolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_multifolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_multifolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_multifolder: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_multifolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_multifolder: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_multifolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_simple/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_simple/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_simple: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_simple/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_simple: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_simple/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_simple: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_simple/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_simple: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_simple/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_singleFile: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_singleFile/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_singleFile: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_singleFile/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_singleFile: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_singleFile/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_singleFile: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_singleFile/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_singleFile: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_singleFile/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_singleFile: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_singleFile/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_subfolder: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Maproot-AbsolutePath]: outputdir_subfolder: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "mapRoot": "tests/cases/projects/outputdir_subfolder/mapFiles",
+      "resolveMapRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_mixed_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_mixed_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_mixed_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_mixed_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_mixed_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_mixed_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_mixed_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_mixed_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_mixed_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_mixed_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_mixed_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_mixed_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]:outputdir_mixed_subfolder: specify outputFile and outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/outAndOutDirFile.js",
+      "outDir": "outdir/outAndOutDirFolder",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_mixed_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]:outputdir_mixed_subfolder: specify outputFile and outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_mixed_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/outAndOutDirFile.js",
+      "outDir": "outdir/outAndOutDirFolder",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_mixed_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_multifolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_multifolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_multifolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_multifolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_multifolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_multifolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_multifolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_multifolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_simple/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_simple/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_simple: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_simple/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_simple: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_simple/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_simple/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_simple/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_subfolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_subfolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_subfolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_subfolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_subfolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_module_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_module_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_module_subfolder/src",
+      "resolveSourceRoot": true,
+      "strict": false
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_multifolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_multifolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_multifolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_multifolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_multifolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_multifolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_multifolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_multifolder: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_multifolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_multifolder: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_multifolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_multifolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_simple/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_simple: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_simple/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_simple: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_simple/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_simple: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_simple/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_simple: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_simple/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_simple: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_simple",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_simple/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_singleFile: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_singleFile/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_singleFile: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_singleFile/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_singleFile: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_singleFile/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_singleFile: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_singleFile/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_singleFile: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_singleFile/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_singleFile: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_singleFile",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_singleFile/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderNoOutdir.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderNoOutdir.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_subfolder: no outdir",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_subfolder: specify outputDirectory",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outDir": "outdir/simple",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_subfolder: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Damd",
+    "descriptor": {
+      "scenario": "[Sourcemap]/[Sourceroot-AbsolutePath]: outputdir_subfolder: specify outputFile",
+      "projectRoot": "tests/cases/projects/outputdir_subfolder",
+      "inputFiles": [
+        "test.ts"
+      ],
+      "outFile": "bin/test.js",
+      "sourceMap": true,
+      "declaration": true,
+      "baselineCheck": true,
+      "sourceRoot": "tests/cases/projects/outputdir_subfolder/src",
+      "resolveSourceRoot": true
+    }
+  }
+]

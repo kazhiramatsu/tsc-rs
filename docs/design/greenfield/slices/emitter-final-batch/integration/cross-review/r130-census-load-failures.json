@@ -1,0 +1,993 @@
+{
+  "snapshot_sha256": "1846fce26da956f515874486d43b9ac856fda31456e76a2925455a8488f76d75",
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/project/declarationDir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"declarationDir\" | project no-emit executor requires declaration=false",
+      "emit_load_error": "project descriptor contains unsupported property \"declarationDir\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/declarationDir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"declarationDir\" | project no-emit executor requires declaration=false",
+      "emit_load_error": "project descriptor contains unsupported property \"declarationDir\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/declarationDir2.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"declarationDir\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"declarationDir\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/declarationDir2.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"declarationDir\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"declarationDir\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/declarationDir3.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"declarationDir\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"declarationDir\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/declarationDir3.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"declarationDir\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"declarationDir\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/declarationsExportNamespace.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"emittedFiles\" | project no-emit executor requires declaration=false",
+      "emit_load_error": "project descriptor contains unsupported property \"emittedFiles\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/declarationsExportNamespace.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"emittedFiles\" | project no-emit executor requires declaration=false",
+      "emit_load_error": "project descriptor contains unsupported property \"emittedFiles\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveMapRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveMapRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderNoOutdir.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderNoOutdir.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"sourceMap\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outDir\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Damd",
+      "suite": "project",
+      "universe": "recorded-execution-plans",
+      "loader": "load_project_emit|load_project_no_emit",
+      "error": "project descriptor contains unsupported property \"resolveSourceRoot\" | project descriptor requests unsupported emit option \"outFile\"",
+      "emit_load_error": "project descriptor contains unsupported property \"resolveSourceRoot\"",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dfalse%2Cnoemit%3Dtrue",
+      "suite": "conformance",
+      "universe": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "loader": "load_qualified_compiler_emit_with_symlinks",
+      "error": "failed to load qualified compiler fixture: validate program loader options: emitting program rejects effective compilerOptions.noEmit=true",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dtrue%2Cnoemit%3Dtrue",
+      "suite": "conformance",
+      "universe": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "loader": "load_qualified_compiler_emit_with_symlinks",
+      "error": "failed to load qualified compiler fixture: validate program loader options: emitting program rejects effective compilerOptions.noEmit=true",
+      "emit_disposition": "not-loaded; emit-not-qualified"
+    }
+  ]
+}

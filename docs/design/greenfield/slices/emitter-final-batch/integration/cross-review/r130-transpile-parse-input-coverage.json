@@ -1,0 +1,41 @@
+{
+  "snapshot_sha256": "1846fce26da956f515874486d43b9ac856fda31456e76a2925455a8488f76d75",
+  "note": "Same UTF-8 source bytes are a necessary condition for exact file-name/text/options coverage; zero matches proves no exact input triple was captured. Distinct source shapes may still be represented.",
+  "cases": [
+    {
+      "case_id": "h2-8c/transpile-js/inventory/declarationSingleFileHasErrors.ts~default~module~declarationSingleFileHasErrors.ts",
+      "text_sha256": "b662f37ea675e92a533bc6327df4c99d10aa7e0d239e4fd6105850fffef5af8f",
+      "same_text_parse_inputs": []
+    },
+    {
+      "case_id": "h2-8c/transpile-js/inventory/declarationSingleFileHasErrorsReported.ts~default~module~declarationSingleFileHasErrorsReported.ts",
+      "text_sha256": "ae920ec964886e78abd4caca086e8d277aa6a494e7dff4f425fae24bea63c0c4",
+      "same_text_parse_inputs": []
+    },
+    {
+      "case_id": "h2-8c/transpile-js/diag/syntax-error-report-on",
+      "text_sha256": "3d29fca55f1c8d5f7cf4e822d90d77f966811221c70b688c399377fa9bdd4e80",
+      "same_text_parse_inputs": []
+    },
+    {
+      "case_id": "h2-8c/transpile-js/diag/syntax-error-report-off",
+      "text_sha256": "3d29fca55f1c8d5f7cf4e822d90d77f966811221c70b688c399377fa9bdd4e80",
+      "same_text_parse_inputs": []
+    },
+    {
+      "case_id": "h2-8c/transpile-js/diag/syntax-error-report-absent",
+      "text_sha256": "3d29fca55f1c8d5f7cf4e822d90d77f966811221c70b688c399377fa9bdd4e80",
+      "same_text_parse_inputs": []
+    },
+    {
+      "case_id": "h2-8c/transpile-js/text/unicode",
+      "text_sha256": "251c798de7778a109cf9e1d8f148d8c4aa95fe1890d6cb6aca6a36a784e33170",
+      "same_text_parse_inputs": []
+    },
+    {
+      "case_id": "h2-8c/program-no-check/syntax-error/still-emits",
+      "text_sha256": "3d29fca55f1c8d5f7cf4e822d90d77f966811221c70b688c399377fa9bdd4e80",
+      "same_text_parse_inputs": []
+    }
+  ]
+}

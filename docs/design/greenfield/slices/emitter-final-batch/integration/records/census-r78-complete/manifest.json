@@ -1,0 +1,193 @@
+{
+  "census_head": "67df86615a45f9595025064bcc12fde93063fedf",
+  "claimed_ids": 14329,
+  "loaded_rows": 14219,
+  "explicit_load_failures": 110,
+  "unique_parse_inputs": 16994,
+  "coverage_complete": true,
+  "emit_qualified_by_this_artifact": false,
+  "replay_r126": "failed before first parse: standalone serde_json omitted preserve_order; original snapshot not rewritten",
+  "variable_r129": "blocked before any build by failed original replay",
+  "artifacts": [
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/parse-snapshot.json",
+      "archive": "records/census-r78-complete/parse-snapshot.json.gz",
+      "original_sha256": "1846fce26da956f515874486d43b9ac856fda31456e76a2925455a8488f76d75",
+      "original_bytes": 337787304,
+      "archive_sha256": "a3af30d91689c3694b08d54f7dbc845286ddfb08eefc5e8dc2c9561d538efef3",
+      "archive_bytes": 43582074,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles/context-recovery.json",
+      "archive": "records/census-r78-complete/profiles/context-recovery.json.gz",
+      "original_sha256": "98eb4b86659c65bea43a1561b425b9903a127986ac828d23e9b6b34e3d390721",
+      "original_bytes": 2344790,
+      "archive_sha256": "804a28a564b60847b09277ed224257ede3a019a30e0a615e146fc520123bde7f",
+      "archive_bytes": 87908,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles/missing-await.json",
+      "archive": "records/census-r78-complete/profiles/missing-await.json.gz",
+      "original_sha256": "bcf52f264bbe763faff7e7f054227d6c0b877b75bccfa563a0764de7b00d1c12",
+      "original_bytes": 2201669,
+      "archive_sha256": "3608756d05bfd4d5933af9b78b390ab1ca7ca6218e158a63b37583ee08b2fbe6",
+      "archive_bytes": 85057,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles/missing-declaration.json",
+      "archive": "records/census-r78-complete/profiles/missing-declaration.json.gz",
+      "original_sha256": "b59bb716fe6ba2388089cae4f94848ff6eeb96ec5a743d346c083c7db4c4b3d4",
+      "original_bytes": 2236316,
+      "archive_sha256": "f004543f48e2a577769af480e9aab116c5e901f1cb45bf65c419f10c260129b7",
+      "archive_bytes": 85746,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles/parameter-gaps.json",
+      "archive": "records/census-r78-complete/profiles/parameter-gaps.json.gz",
+      "original_sha256": "030d5d5e4fe980fcc323d1452de98f9428c793346489613aad8fe18ac11cf07e",
+      "original_bytes": 2273919,
+      "archive_sha256": "2d6ae192871ca6bebef37de98d54146b8ee2c94c8c0da8dbfb01650e15b23b11",
+      "archive_bytes": 86169,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles/statement-gaps.json",
+      "archive": "records/census-r78-complete/profiles/statement-gaps.json.gz",
+      "original_sha256": "5f27478b4d2da3f99724a91e8f472be7819ad50a8527c6d9a9774ffe0ec226d5",
+      "original_bytes": 2311870,
+      "archive_sha256": "45fc10a7bb24ec78389e5e35479252659f987932b8dce14311345461d23efda6",
+      "archive_bytes": 86745,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-census-r78-immutable/manifest.json",
+      "archive": "records/census-r78-complete/original-binary-manifest.json",
+      "original_sha256": "98ea15a86740c4347ffa71733ac23d389d6c4ea80c523ecfd0d3845d5ac32af0",
+      "original_bytes": 634,
+      "archive_sha256": "98ea15a86740c4347ffa71733ac23d389d6c4ea80c523ecfd0d3845d5ac32af0",
+      "archive_bytes": 634,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/recovery-full-census-r78.json",
+      "archive": "records/census-r78-complete/recovery-full-census-r78.json",
+      "original_sha256": "42877644db80a963aa400787703c2c0d5a5841444ea95c47b4f8753c3e748557",
+      "original_bytes": 996,
+      "archive_sha256": "42877644db80a963aa400787703c2c0d5a5841444ea95c47b4f8753c3e748557",
+      "archive_bytes": 996,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/recovery-full-census-r78.log.gz",
+      "archive": "records/census-r78-complete/recovery-full-census-r78.log.gz",
+      "original_sha256": "d385049c4162539492803543704ecbc9c2731031ec67cc0bd9fb66cbbc2b70f9",
+      "original_bytes": 1035,
+      "archive_sha256": "d385049c4162539492803543704ecbc9c2731031ec67cc0bd9fb66cbbc2b70f9",
+      "archive_bytes": 1035,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/tmp/emitter-census-coverage-r126.json",
+      "archive": "records/census-r78-complete/coverage.json",
+      "original_sha256": "a9576b27efd75f3796d78ce5f172b5038cdb0244e5c56e0aa52af1e605ca214f",
+      "original_bytes": 474,
+      "archive_sha256": "a9576b27efd75f3796d78ce5f172b5038cdb0244e5c56e0aa52af1e605ca214f",
+      "archive_bytes": 474,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/corpus-replay-pipeline-r126.json",
+      "archive": "records/census-r78-complete/failed-replay-r126/corpus-replay-pipeline-r126.json",
+      "original_sha256": "ba948639c639e70c9bc08a2ec4414ee1e1e3e0cd4dfb9254f39f060b2411b07d",
+      "original_bytes": 690,
+      "archive_sha256": "ba948639c639e70c9bc08a2ec4414ee1e1e3e0cd4dfb9254f39f060b2411b07d",
+      "archive_bytes": 690,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/corpus-replay-pipeline-r126.log.gz",
+      "archive": "records/census-r78-complete/failed-replay-r126/corpus-replay-pipeline-r126.log.gz",
+      "original_sha256": "fb29085dd6febdee86ed52871ed04c5552c9c62c6c6bcc2e9dbeef0aa0955200",
+      "original_bytes": 1685,
+      "archive_sha256": "fb29085dd6febdee86ed52871ed04c5552c9c62c6c6bcc2e9dbeef0aa0955200",
+      "archive_bytes": 1685,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r107/current.build.log",
+      "archive": "records/census-r78-complete/failed-replay-r126/current.build.log",
+      "original_sha256": "483f90aa86bf16ebcd1f6e0460b3fcf6e52f068ccdda4bcb31e7e31e8506931f",
+      "original_bytes": 1861,
+      "archive_sha256": "483f90aa86bf16ebcd1f6e0460b3fcf6e52f068ccdda4bcb31e7e31e8506931f",
+      "archive_bytes": 1861,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r107/build-current/Cargo.toml",
+      "archive": "records/census-r78-complete/failed-replay-r126/build-current/Cargo.toml",
+      "original_sha256": "222e9bde96c93e87f7891d7d1e200242c156508a349712a2c9287524bade8fcb",
+      "original_bytes": 754,
+      "archive_sha256": "222e9bde96c93e87f7891d7d1e200242c156508a349712a2c9287524bade8fcb",
+      "archive_bytes": 754,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r107/build-current/Cargo.lock",
+      "archive": "records/census-r78-complete/failed-replay-r126/build-current/Cargo.lock",
+      "original_sha256": "e6ca2b2ce84d71178c40766304a9512214962e1d28ad9352e896e8573cb97ad2",
+      "original_bytes": 5400,
+      "archive_sha256": "e6ca2b2ce84d71178c40766304a9512214962e1d28ad9352e896e8573cb97ad2",
+      "archive_bytes": 5400,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/tmp/emitter-corpus-replay-pipeline-r126.py",
+      "archive": "records/census-r78-complete/failed-replay-r126/emitter-corpus-replay-pipeline-r126.py",
+      "original_sha256": "8f4635d133242bd24427b459857802aba0924b8cbd55f8dab90de2da1cf73e65",
+      "original_bytes": 4386,
+      "archive_sha256": "8f4635d133242bd24427b459857802aba0924b8cbd55f8dab90de2da1cf73e65",
+      "archive_bytes": 4386,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/tmp/emitter-parser-replays-after-census.py",
+      "archive": "records/census-r78-complete/failed-replay-r126/emitter-parser-replays-after-census.py",
+      "original_sha256": "a5e4f92163ff157ffb12905368e858362538f29ee5fb6d28df63f1dea1b36e0f",
+      "original_bytes": 1977,
+      "archive_sha256": "a5e4f92163ff157ffb12905368e858362538f29ee5fb6d28df63f1dea1b36e0f",
+      "archive_bytes": 1977,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/tmp/emitter-variable-type-native-r129.py",
+      "archive": "records/census-r78-complete/failed-replay-r126/emitter-variable-type-native-r129.py",
+      "original_sha256": "52b068b2286c027476dbf6d205bf9e340e064cad0ee07d404ac162964f919d0f",
+      "original_bytes": 5262,
+      "archive_sha256": "52b068b2286c027476dbf6d205bf9e340e064cad0ee07d404ac162964f919d0f",
+      "archive_bytes": 5262,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-recovery-prep/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/variable-type-pipeline-r129.json",
+      "archive": "records/census-r78-complete/failed-replay-r126/variable-type-pipeline-r129.json",
+      "original_sha256": "bbc703382d3b51fd1a3fa7d2480edf86a32c0cb9f9f7c771fb8ab0bd0a9a31ee",
+      "original_bytes": 695,
+      "archive_sha256": "bbc703382d3b51fd1a3fa7d2480edf86a32c0cb9f9f7c771fb8ab0bd0a9a31ee",
+      "archive_bytes": 695,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-recovery-prep/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/variable-type-pipeline-r129.log.gz",
+      "archive": "records/census-r78-complete/failed-replay-r126/variable-type-pipeline-r129.log.gz",
+      "original_sha256": "253d2cf9bc8b2f2ec68162ca536e68a16515c377bbccdddf4b1570d8f5f0fcc5",
+      "original_bytes": 256,
+      "archive_sha256": "253d2cf9bc8b2f2ec68162ca536e68a16515c377bbccdddf4b1570d8f5f0fcc5",
+      "archive_bytes": 256,
+      "lossless_gzip": false
+    }
+  ]
+}
