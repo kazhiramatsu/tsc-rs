@@ -106,6 +106,79 @@ fn missing_variable_type_events_keep_full_start_distinct_from_diagnostic_start()
 }
 
 #[test]
+fn missing_variable_delimiters_require_retained_named_statement_declarations() {
+    for text in [
+        "export const a number = \"missing colon\";",
+        "export const a string = \"missing colon\";",
+        "let a b = 1;",
+        "let a = 1 b = 2;",
+        "let a b c = 1;",
+        "let a, b c;",
+        "let a /*c*/ b = 1;",
+        "var a /*a*/ /*b*/ b = 1;",
+        "namespace N { export let a b = 1; }",
+        "declare let a b;",
+        "let a: = 1 b = 2;",
+        "let a: number b = 2;",
+        "let é 漢字 = 1;",
+        "using a b = f();",
+        "async function f() { await using a b = g(); }",
+        "using a = f() b = f();",
+        "async function f() { await using a = g() b = g(); }",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+        assert!(!parsed.has_only_statement_gap_emit_recovery(), "{text}");
+        assert!(parsed.has_supported_emit_recovery(), "{text}");
+    }
+    for text in [
+        "for (let a b = 0;;) {}",
+        "for (let a b of xs) {}",
+        "for (let a b in o) {}",
+        "let a {b} = o;",
+        "let {a} b = o;",
+        "let a [b] = o;",
+        "for (using a b of xs) {}",
+        "let a = f(x y);",
+        "let a = {x: 1 y: 2};",
+        "let a = [1 2];",
+        "function f(a b) {}",
+        "let a 1;",
+        "enum E { a b }",
+    ] {
+        let parsed = source(text);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(!parsed.has_supported_emit_recovery(), "{text}");
+    }
+    let asi = source("let a\nb = 1;");
+    assert!(asi.parse_diagnostics.is_empty());
+    assert!(asi.has_supported_emit_recovery());
+}
+
+#[test]
+fn missing_variable_delimiter_reports_keep_token_spans_and_diagnostic_ownership() {
+    let parsed = source("let a /*c*/ b = 1;");
+    assert!(parsed.has_supported_emit_recovery());
+    assert_eq!(parsed.parse_recovery.events.len(), 1);
+    let mut shifted = parsed.clone();
+    shifted.parse_recovery.events[0].full_start += 1;
+    assert!(!shifted.has_supported_emit_recovery());
+    let mut duplicated = parsed.clone();
+    duplicated
+        .parse_recovery
+        .events
+        .push(parsed.parse_recovery.events[0]);
+    assert!(!duplicated.has_supported_emit_recovery());
+    let mut unpaired = parsed.clone();
+    unpaired.parse_recovery.events[0].diagnostic_index = None;
+    assert!(!unpaired.has_supported_emit_recovery());
+    let mut wrong_message = parsed;
+    wrong_message.parse_diagnostics[0].message.text = "';' expected.".into();
+    assert!(!wrong_message.has_supported_emit_recovery());
+}
+
+#[test]
 fn literal_recovery_uses_token_kinds_and_keeps_every_retained_origin() {
     // These are grammar/token controls, independent of diagnostic codes.
     let admitted = [

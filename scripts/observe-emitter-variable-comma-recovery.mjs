@@ -1,4 +1,4 @@
-// Complete commands for the r129 direct variable type-recovery boundaries.
+// Complete commands for the r145 retained variable comma-recovery boundaries.
 // The host and tuple match the established import-helper command observer.
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
@@ -12,62 +12,40 @@ assert.equal(ts.version, "6.0.3");
 assert.ok(["--write", "--check"].includes(process.argv[2]));
 const inputs = [];
 const shapes = [
-  ["export-let-initialized", "export let x: = 1;"],
-  ["export-let-uninitialized", "export let x: ;"],
-  ["local-module", "let x: = 1; export {};"],
-  ["export-const", "export const x: = 1;"],
-  ["export-var", "export var x: ;"],
-  ["two-types", "export let a: , b: = 2;"],
-  ["block-comment", "export let x: /*c*/ = 1;"],
-  ["line-comment", "export let x: //c\n = 1;"],
-  ["name-comment", "export let x /*n*/: /*t*/ = 1; /*end*/"],
-  ["namespace", "export namespace N { export let x: = 1; }"],
-  ["script", "let x: = 1;"],
-  ["uninitialized-comment", "export let x: /*c*/ ;"],
-  ["using", "export {}; declare const f: () => Disposable; { using x: = f(); }"],
-  ["await-using", "declare const f: () => AsyncDisposable; export async function h() { await using x: = f(); }"],
-  ["ambient", "declare let d: ; export declare let e: ;"],
-  ["definite", "export let x!: = 1;"],
-  ["generator", "export function* g() { let x: = 1; yield x; }"],
-  ["async", "export async function h() { let x: = 1; await 0; return x; }"],
-  ["newline-block-comment", "export let x:\n/*c*/ = 1;"],
-  ["newline-line-comment", "export let x:\n//c\n = 1;"],
-  ["mixed-type-comments", "export let x: /*a*/\n/*b*/ = 1;"],
-  ["initializer-comment", "export let x: = /*v*/ 1;"],
-  ["unicode-name-comment", "export let é /*n*/: /*t*/ = 1;"],
-  ["two-local-comments", "let x: /*c*/ = 1, y: /*d*/ = 2; export {};"],
-  ["valid-type-comment", "export let x: number /*c*/ = 1;"],
-  ["valid-type-newline-comment", "export let x: number\n/*c*/ = 1;"],
-  ["for-await-container-newline", "export async function f(xs: AsyncIterable<{ x: number }>) { for await (const {\n/*c*/ x\n} of xs) {} }"],
-  ["valid-type-line-comment", "export let x: number //c\n = 1;"],
-  ["valid-type-mixed-comments", "export let x: number /*a*/\n/*b*/ = 1;"],
-  ["valid-type-several-comments", "export let x: number /*a*/ //b\n/*c*/ = 1;"],
-  ["untyped-newline-comment", "export let x\n/*c*/ = 1;"],
-  ["untyped-inline-comment", "export let x /*c*/ = 1;"],
-  ["untyped-line-comment", "export let x //c\n = 1;"],
-  ["untyped-mixed-comments", "export let x /*a*/\n/*b*/ = 1;"],
-  ["name-valid-type-newline", "export let x /*n*/: number\n/*c*/ = 1;"],
-  ["declaration-literal-comments", "export const z /** n */\n/** c */ = 1;"],
-  ["es5-block-rename", "let x = 1; { let x: number /*a*/\n/*c*/ = 2; (() => x)(); } export {};"],
-  ["es5-converted-loop", "export function f() { for (let x = 0; x < 2; x++) { let y\n/*c*/ = () => x; y(); } }"],
-  ["multiple-declaration-comments", "export let a /*x*/ = 1, b\n/*y*/ = 2;"],
-  ["for-of-binding-comments", "export function f(arr: number[]) { for (const x /*a*/\n/*b*/ of arr) { (() => x)(); } }"],
+  ["original-number", 'export const a number = "missing colon";'],
+  ["original-string", 'export const a string = "missing colon";'],
+  ["local", "let a b = 1; export {};"],
+  ["initialized", "export let a = 1 b = 2;"],
+  ["three", "export let a b c = 1;"],
+  ["prior-comma", "export let a, b c;"],
+  ["block-comment", "export let a /*c*/ b = 1;"],
+  ["mixed-comments", "export let a /*a*/ /*b*/ b = 1;"],
+  ["block-newline-asi", "export let a /*c\n*/ b = 1;"],
+  ["line-comment-asi", "export let a //c\n b = 1;"],
+  ["var", "export var a b = 1;"],
+  ["const", "export const a b = 1;"],
+  ["namespace", "export namespace N { export let a b = 1; }"],
+  ["ambient", "export declare let a b;"],
+  ["missing-type", "export let a: = 1 b = 2;"],
+  ["valid-type", "export let a: number b = 2;"],
+  ["newline-asi", "export let a\nb = 1;"],
+  ["unicode", "export let é 漢字 = 1;"],
+  ["generator", "export function* g() { let a b = 1; yield b; }"],
+  ["async", "export async function f() { let a b = 1; await 0; return b; }"],
 ];
 const configurations = [
   ["es5", "commonjs", false],
   ["es5", "system", true],
   ["es2022", "esnext", false],
   ["es2022", "commonjs", true],
+  ["es5", "amd", false],
 ];
-const commentShapes = new Set(["block-comment", "line-comment", "name-comment", "uninitialized-comment",
-  "newline-block-comment", "newline-line-comment", "mixed-type-comments", "initializer-comment",
-  "unicode-name-comment", "two-local-comments", "valid-type-comment", "valid-type-newline-comment",
-  "for-await-container-newline", "valid-type-line-comment", "valid-type-mixed-comments", "valid-type-several-comments", "untyped-newline-comment", "untyped-inline-comment", "untyped-line-comment", "untyped-mixed-comments", "name-valid-type-newline", "declaration-literal-comments", "es5-block-rename", "es5-converted-loop", "multiple-declaration-comments", "for-of-binding-comments"]);
+const commentShapes = new Set(["block-comment", "mixed-comments", "block-newline-asi", "line-comment-asi"]);
 for (const [target, module, noCheck] of configurations)
   for (const [shape, text] of shapes)
     for (const removeComments of commentShapes.has(shape) ? [false, true] : [false]) {
       const main = "/project/main.ts";
-      inputs.push({case_id: `emitter-r129-variable-type-controls/${target}/${module}/nocheck-${noCheck}/remove-${removeComments}/${shape}`,
+      inputs.push({case_id: `emitter-r145-variable-comma-controls/${target}/${module}/nocheck-${noCheck}/remove-${removeComments}/${shape}`,
         roots: [main], files: [{path: main, text: text + "\n"}], options: {},
         config: JSON.stringify({compilerOptions: {target, module, noCheck, removeComments,
           lib: ["esnext"], strict: false, skipDefaultLibCheck: true, noErrorTruncation: true,
@@ -76,14 +54,31 @@ for (const [target, module, noCheck] of configurations)
     }
 for (const [target, module, noCheck] of configurations) {
   const main = "/project/main.js";
-  inputs.push({case_id: `emitter-r129-variable-type-controls/${target}/${module}/nocheck-${noCheck}/javascript`,
-    roots: [main], files: [{path: main, text: "export let x: = 1;\n"}], options: {},
+  inputs.push({case_id: `emitter-r145-variable-comma-controls/${target}/${module}/nocheck-${noCheck}/javascript`,
+    roots: [main], files: [{path: main, text: "export let a b = 1;\n"}], options: {},
     config: JSON.stringify({compilerOptions: {target, module, noCheck, allowJs: true,
       lib: ["esnext"], strict: false, skipDefaultLibCheck: true, noErrorTruncation: true,
       sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
       outDir: "/project/out"}, files: ["main.js"]})});
 }
-assert.equal(inputs.length, 268);
+const disposableShapes = [
+  ["using-uninitialized", "export {}; declare const f: () => Disposable; { using a b = f(); }"],
+  ["await-using-uninitialized", "declare const f: () => AsyncDisposable; export async function h() { await using a b = f(); }"],
+  ["using-initialized", "export {}; declare const f: () => Disposable; { using a = f() b = f(); }"],
+  ["await-using-initialized", "declare const f: () => AsyncDisposable; export async function h() { await using a = f() b = f(); }"],
+  ["using-valid-syntax-control", "export {}; { using a; }"],
+];
+for (const target of ["es2022", "esnext"]) for (const noCheck of [false, true])
+  for (const [shape, text] of disposableShapes) {
+    const main = "/project/main.ts";
+    inputs.push({case_id: `emitter-r145-variable-comma-controls/${target}/esnext/nocheck-${noCheck}/${shape}`,
+      roots: [main], files: [{path: main, text: text + "\n"}], options: {},
+      config: JSON.stringify({compilerOptions: {target, module: "esnext", noCheck,
+        lib: ["esnext"], strict: false, skipDefaultLibCheck: true, noErrorTruncation: true,
+        sourceMap: true, declaration: true, declarationMap: true, ignoreDeprecations: "6.0",
+        outDir: "/project/out"}, files: ["main.ts"]})});
+  }
+assert.equal(inputs.length, 145);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
@@ -148,8 +143,8 @@ const cases = inputs.map(input => {
 const artifact = {version: 1, typescript: ts.version, repetitions: 2,
   compiler_sha256: sha256(fs.readFileSync(path.join(root, "vendor/typescript-6.0.3/lib/typescript.js"))),
   observer_sha256: sha256(fs.readFileSync(import.meta.filename)), cases};
-const destination = path.join(root, "crates/compiler/tests/fixtures/emitter-r129-variable-type-controls.json");
+const destination = path.join(root, "crates/compiler/tests/fixtures/emitter-r145-variable-comma-controls.json");
 const rendered = JSON.stringify(artifact, null, 2) + "\n";
 if (process.argv[2] === "--write") fs.writeFileSync(destination, rendered, {flag: "wx"});
 else assert.equal(fs.readFileSync(destination, "utf8"), rendered);
-console.log(`r129 variable-type controls: ${cases.length} cases, two identical complete observations each`);
+console.log(`r145 variable-comma controls: ${cases.length} cases, two identical complete observations each`);

@@ -525,6 +525,19 @@ fn variable_type_recovery_matches_complete_typescript_commands() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 164);
+    assert_eq!(cases.len(), 268);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn variable_comma_recovery_matches_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_str(include_str!(
+        "../fixtures/emitter-r145-variable-comma-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 145);
     assert_recovery_boundary_commands(cases);
 }

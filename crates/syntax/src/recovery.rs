@@ -254,6 +254,7 @@ impl ParseRecovery {
                             self.actions.iter().any(|action| matches!(action,
                                 ParseRecoveryAction::TokenSkipped { start, .. } if *start == event.start))
                             || self.report_has_retained_syntax_owner(source, parents.as_ref().unwrap(), event)
+                            || allow_context_recovery && self.report_has_retained_variable_delimiter(source, parents.as_ref().unwrap(), event)
                             || context_support.as_ref().is_some_and(|support| support.assertion_reports.contains(&event_index))
                         }
                         None => self.events.iter().any(|retained| {
@@ -649,6 +650,103 @@ impl ParseRecovery {
         };
         event.length > 0
             && crate::scanner::skip_trivia(source.text(), full_start as usize) == start as usize
+    }
+
+    // parseDelimitedList can report a missing comma without consuming a token.
+    // Only two adjacent, retained named declarations in an ordinary variable
+    // statement prove this report; the diagnostic code alone proves nothing.
+    fn report_has_retained_variable_delimiter(
+        &self,
+        source: &SourceFile,
+        parents: &BTreeMap<NodeId, Option<NodeId>>,
+        event: &ParseRecoveryEvent,
+    ) -> bool {
+        if event.kind != ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
+            || event.missing_node.is_some()
+            || !Self::is_current_token_report(source, event)
+        {
+            return false;
+        }
+        let Some(diagnostic) = event
+            .diagnostic_index
+            .and_then(|index| source.parse_diagnostics.get(index))
+        else {
+            return false;
+        };
+        if diagnostic.code() != 1005 || diagnostic.message_text().as_str() != Some("',' expected.")
+        {
+            return false;
+        }
+        let (Some(boundary), Some(start), Some(end)) = (
+            source.positions().utf16_to_byte(event.full_start),
+            source.positions().utf16_to_byte(event.start),
+            event
+                .start
+                .checked_add(event.length)
+                .and_then(|end| source.positions().utf16_to_byte(end)),
+        ) else {
+            return false;
+        };
+        let mut candidates = 0;
+        for (&id, &parent) in parents {
+            let list = source.arena.node(id);
+            let NodeData::VariableDeclarationList(data) = &list.data else {
+                continue;
+            };
+            let Some(statement) = parent else { continue };
+            if !matches!(&source.arena.node(statement).data,
+                NodeData::VariableStatement(data) if data.declaration_list == Some(id))
+            {
+                continue;
+            }
+            let Some(declarations) = data.declarations else {
+                continue;
+            };
+            let list_start = source.positions().byte_to_utf16(list.pos);
+            let list_end = source.positions().byte_to_utf16(list.end);
+            let (Some(list_start), Some(list_end)) = (list_start, list_end) else {
+                continue;
+            };
+            if self.actions.iter().any(|action| {
+                matches!(action,
+                ParseRecoveryAction::TokenSkipped { start, length, .. }
+                    if *start < list_end && start.saturating_add(*length) > list_start)
+            }) {
+                continue;
+            }
+            for pair in source.arena.node_array(declarations).nodes.windows(2) {
+                let previous = source.arena.node(pair[0]);
+                let next = source.arena.node(pair[1]);
+                if previous.end != boundary || next.pos != boundary {
+                    continue;
+                }
+                let (
+                    NodeData::VariableDeclaration(previous_data),
+                    NodeData::VariableDeclaration(next_data),
+                ) = (&previous.data, &next.data)
+                else {
+                    continue;
+                };
+                let (Some(previous_name), Some(next_name)) = (previous_data.name, next_data.name)
+                else {
+                    continue;
+                };
+                let previous_name = source.arena.node(previous_name);
+                let next_name = source.arena.node(next_name);
+                if previous_name.kind == SyntaxKind::Identifier
+                    && previous_name.pos < previous_name.end
+                    && next_name.kind == SyntaxKind::Identifier
+                    && next_name.pos < next_name.end
+                    && next_name.pos == boundary
+                    && next_name.end == end
+                    && crate::scanner::skip_trivia(source.text(), next_name.pos as usize)
+                        == start as usize
+                {
+                    candidates += 1;
+                }
+            }
+        }
+        candidates == 1
     }
 
     fn report_has_retained_syntax_owner(

@@ -3,7 +3,7 @@
   "typescript": "6.0.3",
   "repetitions": 2,
   "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "ec12b2ba030aa48e499718e3b706448c73c952b83c8306e03349c9cf0414a192",
+  "observer_sha256": "3ab23c3d9ddd07fff26c9bc36659d8cb9413318aa51bf903756eaa69905bf98b",
   "cases": [
     {
       "case_id": "call-inline/None/retained",
@@ -340,6 +340,699 @@
       "variant": "ParentNoNestedComments",
       "remove_comments": true,
       "output": "[\n    x,\n    y\n];\n"
+    },
+    {
+      "case_id": "variable-newline/None/retained",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "let x \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/None/removed",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/NoLeadingComments/retained",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "let x \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/NoLeadingComments/removed",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/NoTrailingComments/retained",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "let x \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/NoTrailingComments/removed",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/NoComments/retained",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "let x \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/NoComments/removed",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/NoNestedComments/retained",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "let x \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/NoNestedComments/removed",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/ParentNoNestedComments/retained",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/ParentNoNestedComments/removed",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/None/retained",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "let x /* TAIL */ = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/None/removed",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/NoLeadingComments/retained",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "let x /* TAIL */ = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/NoLeadingComments/removed",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/NoTrailingComments/retained",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/NoTrailingComments/removed",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/NoComments/retained",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/NoComments/removed",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/NoNestedComments/retained",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "let x /* TAIL */ = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/NoNestedComments/removed",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/ParentNoNestedComments/retained",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/ParentNoNestedComments/removed",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/None/retained",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "let x /* A */ \n/* B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/None/removed",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/NoLeadingComments/retained",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "let x /* A */ \n/* B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/NoLeadingComments/removed",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/NoTrailingComments/retained",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "let x \n/* B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/NoTrailingComments/removed",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/NoComments/retained",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "let x \n/* B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/NoComments/removed",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/NoNestedComments/retained",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "let x /* A */ \n/* B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/NoNestedComments/removed",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/ParentNoNestedComments/retained",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/ParentNoNestedComments/removed",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-line/None/retained",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "let x // A\n \n/* B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-line/None/removed",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-line/NoLeadingComments/retained",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "let x // A\n \n/* B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-line/NoLeadingComments/removed",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-line/NoTrailingComments/retained",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "let x \n/* B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-line/NoTrailingComments/removed",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-line/NoComments/retained",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "let x \n/* B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-line/NoComments/removed",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-line/NoNestedComments/retained",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "let x // A\n \n/* B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-line/NoNestedComments/removed",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-line/ParentNoNestedComments/retained",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-line/ParentNoNestedComments/removed",
+      "source": "let x // A\n/* B */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-list/None/retained",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "let x /* A */ = 1, y \n/* B */ = 2;\n"
+    },
+    {
+      "case_id": "variable-list/None/removed",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "let x = 1, y = 2;\n"
+    },
+    {
+      "case_id": "variable-list/NoLeadingComments/retained",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "let x /* A */ = 1, y \n/* B */ = 2;\n"
+    },
+    {
+      "case_id": "variable-list/NoLeadingComments/removed",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "let x = 1, y = 2;\n"
+    },
+    {
+      "case_id": "variable-list/NoTrailingComments/retained",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "let x = 1, y \n/* B */ = 2;\n"
+    },
+    {
+      "case_id": "variable-list/NoTrailingComments/removed",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "let x = 1, y = 2;\n"
+    },
+    {
+      "case_id": "variable-list/NoComments/retained",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "let x = 1, y \n/* B */ = 2;\n"
+    },
+    {
+      "case_id": "variable-list/NoComments/removed",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "let x = 1, y = 2;\n"
+    },
+    {
+      "case_id": "variable-list/NoNestedComments/retained",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "let x /* A */ = 1, y \n/* B */ = 2;\n"
+    },
+    {
+      "case_id": "variable-list/NoNestedComments/removed",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1, y = 2;\n"
+    },
+    {
+      "case_id": "variable-list/ParentNoNestedComments/retained",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "let x = 1, y = 2;\n"
+    },
+    {
+      "case_id": "variable-list/ParentNoNestedComments/removed",
+      "source": "let x /* A */ = 1, y\n/* B */ = 2;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1, y = 2;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/None/retained",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "let x /** A */ \n/** B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/None/removed",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/NoLeadingComments/retained",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "let x /** A */ \n/** B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/NoLeadingComments/removed",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/NoTrailingComments/retained",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "let x \n/** B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/NoTrailingComments/removed",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/NoComments/retained",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "let x \n/** B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/NoComments/removed",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/NoNestedComments/retained",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "let x /** A */ \n/** B */ = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/NoNestedComments/removed",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/ParentNoNestedComments/retained",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-jsdoc/ParentNoNestedComments/removed",
+      "source": "let x /** A */\n/** B */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/None/retained",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "let x /* NAME */ /* TYPE */ \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/None/removed",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/NoLeadingComments/retained",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "let x /* NAME */ /* TYPE */ \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/NoLeadingComments/removed",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/NoTrailingComments/retained",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "let x \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/NoTrailingComments/removed",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/NoComments/retained",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "let x \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/NoComments/removed",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/NoNestedComments/retained",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "let x /* NAME */ /* TYPE */ \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/NoNestedComments/removed",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/ParentNoNestedComments/retained",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-erased-type/ParentNoNestedComments/removed",
+      "source": "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/None/retained",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "let x /* NAME */ \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/None/removed",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/NoLeadingComments/retained",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "let x /* NAME */ \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/NoLeadingComments/removed",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/NoTrailingComments/retained",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "let x \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/NoTrailingComments/removed",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/NoComments/retained",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "let x \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/NoComments/removed",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/NoNestedComments/retained",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "let x /* NAME */ \n/* NEXT */ = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/NoNestedComments/removed",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/ParentNoNestedComments/retained",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-empty-type/ParentNoNestedComments/removed",
+      "source": "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-newline/CloneName/retained",
+      "source": "let x\n/* NEXT */ = 1;\n",
+      "variant": "CloneName",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-inline/CloneName/retained",
+      "source": "let x /* TAIL */ = 1;\n",
+      "variant": "CloneName",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "variable-mixed/CloneName/retained",
+      "source": "let x /* A */\n/* B */ = 1;\n",
+      "variant": "CloneName",
+      "remove_comments": false,
+      "output": "let x = 1;\n"
     }
   ]
 }

@@ -13,13 +13,32 @@ const sources = [
   ["call-newline", "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n"],
   ["array-inline", "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n"],
   ["array-newline", "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n"],
+  ["variable-newline", "let x\n/* NEXT */ = 1;\n"],
+  ["variable-inline", "let x /* TAIL */ = 1;\n"],
+  ["variable-mixed", "let x /* A */\n/* B */ = 1;\n"],
+  ["variable-line", "let x // A\n/* B */ = 1;\n"],
+  ["variable-list", "let x /* A */ = 1, y\n/* B */ = 2;\n"],
+  ["variable-jsdoc", "let x /** A */\n/** B */ = 1;\n"],
+  ["variable-erased-type", "let x /* NAME */: number /* TYPE */\n/* NEXT */ = 1;\n"],
+  ["variable-empty-type", "let x /* NAME */: /* TYPE */\n/* NEXT */ = 1;\n"],
 ];
 const variants = ["None", "NoLeadingComments", "NoTrailingComments", "NoComments", "NoNestedComments", "ParentNoNestedComments"];
 function observe(source, variant, removeComments) {
-  const file = ts.createSourceFile("list-comments.ts", source, ts.ScriptTarget.Latest, true);
-  const parent = file.statements[0].expression;
-  if (variant === "ParentNoNestedComments") ts.setEmitFlags(parent, ts.EmitFlags.NoNestedComments);
-  else for (const child of parent.arguments ?? parent.elements) ts.setEmitFlags(child, ts.EmitFlags[variant]);
+  let file = ts.createSourceFile("list-comments.ts", source, ts.ScriptTarget.Latest, true);
+  const statement = file.statements[0];
+  const parent = statement.expression ?? statement.declarationList;
+  if (parent.declarations) for (const declaration of parent.declarations) {
+    if (declaration.type) {
+      ts.setTypeNode(declaration.name, declaration.type);
+      declaration.type = undefined;
+    }
+  }
+  if (variant === "CloneName") {
+    const declarations = parent.declarations.map(d => ts.factory.updateVariableDeclaration(d, ts.factory.cloneNode(d.name), d.exclamationToken, d.type, d.initializer));
+    const list = ts.factory.updateVariableDeclarationList(parent, declarations);
+    file = ts.factory.updateSourceFile(file, [ts.factory.updateVariableStatement(statement, statement.modifiers, list)]);
+  } else if (variant === "ParentNoNestedComments") ts.setEmitFlags(parent, ts.EmitFlags.NoNestedComments);
+  else for (const child of parent.arguments ?? parent.elements ?? parent.declarations.map(d => d.name)) ts.setEmitFlags(child, ts.EmitFlags[variant]);
   return ts.createPrinter({newLine:ts.NewLineKind.LineFeed, removeComments}).printFile(file);
 }
 const cases = [];
@@ -27,6 +46,12 @@ for (const [shape, source] of sources) for (const variant of variants) for (cons
   const output = observe(source, variant, remove_comments);
   assert.equal(observe(source, variant, remove_comments), output);
   cases.push({case_id:`${shape}/${variant}/${remove_comments ? "removed" : "retained"}`, source, variant, remove_comments, output});
+}
+for (const [shape, source] of sources.filter(([shape]) => ["variable-newline", "variable-inline", "variable-mixed"].includes(shape))) {
+  const variant = "CloneName", remove_comments = false;
+  const output = observe(source, variant, remove_comments);
+  assert.equal(observe(source, variant, remove_comments), output);
+  cases.push({case_id:`${shape}/${variant}/retained`, source, variant, remove_comments, output});
 }
 const artifact = {version:1, typescript:ts.version, repetitions:2,
   compiler_sha256:sha256(fs.readFileSync(new URL("../vendor/typescript-6.0.3/lib/typescript.js", import.meta.url))),

@@ -4742,11 +4742,6 @@ impl Printer {
                                 .and_then(crate::EmitMetadata::type_node)
                         })
                         .flatten();
-                    if erased_type.is_some() {
-                        // setTypeNode makes the declaration name retain
-                        // comments before an erased annotation.
-                        self.emit_trailing_comments_at_node_position(transformation, name, writer)?;
-                    }
                     let declared_type = self
                         .options
                         .declaration_syntax
@@ -4758,49 +4753,60 @@ impl Printer {
                     } else {
                         self.original_node_end_cursor(transformation, name)?
                     };
-                    let erased_type_has_no_extent = erased_type
-                        .map(|r#type| transformation.arena().node(r#type))
-                        .transpose()?
-                        .is_some_and(|r#type| r#type.pos == r#type.end);
-                    // The equals lane supplies the name's trailing phase.
-                    // Honor the declaration/list end just as that phase does;
-                    // a lowered for-await binding keeps the original list end.
-                    let container_owns_equal_boundary = equal_cursor
-                        .source_position()
-                        .map(|(source, position)| {
-                            Self::comment_container_position(
+                    if !initializer_context.nested_comments_suppressed() && declared_type.is_none()
+                    {
+                        let trailing = DeferredExpressionSourceComments::nested(
+                            initializer_context.comments(),
+                            DeferredSourceCommentExtent::LeadingAndTrailing,
+                        );
+                        if erased_type.is_some() {
+                            self.emit_deferred_expression_trailing_comments(
                                 transformation,
-                                CommentCursor::new(source, position),
-                            )
-                        })
-                        .transpose()?
-                        .is_some_and(|end| initializer_context.comments().retains_end(end));
-                    let equals = if container_owns_equal_boundary || erased_type_has_no_extent {
-                        if erased_type_has_no_extent {
-                            // A missing type has no trailing-comments phase.
-                            // emitInitializer writes its space before the `=`
-                            // leading phase, including a following line break.
-                            writer.write_space(" ");
+                                Some(&trailing),
+                                name_owner,
+                                writer,
+                            )?;
                         }
-                        self.emit_source_leading_token_with_context(
+                        // emit(name) completes the name/type trailing phase
+                        // before emitInitializer writes its separating space.
+                        // The erased type shares the name's flags and active
+                        // container, but keeps its own raw source range.
+                        let trailing_owner = if let Some(type_node) = erased_type {
+                            let record = transformation.arena().node(type_node)?;
+                            let source =
+                                transformation.arena().source(type_node.source())?.syntax();
+                            ExpressionCommentPhaseOwner {
+                                range: CommentRange::from_raw(
+                                    type_node.source(),
+                                    record.pos,
+                                    record.end,
+                                    source.positions(),
+                                )?,
+                                ..name_owner
+                            }
+                        } else {
+                            name_owner
+                        };
+                        self.emit_deferred_expression_trailing_comments(
                             transformation,
-                            node,
-                            FixedToken::operator(SyntaxKind::EqualsToken),
-                            equal_cursor,
-                            TokenLeadingSpace::Required,
-                            initializer_context,
+                            Some(&trailing),
+                            trailing_owner,
                             writer,
-                        )?
-                    } else {
-                        self.emit_space_prefixed_token_with_comments(
-                            transformation,
-                            node,
-                            FixedToken::operator(SyntaxKind::EqualsToken),
-                            equal_cursor,
-                            false,
-                            writer,
-                        )?
-                    };
+                        )?;
+                    }
+                    // This space precedes token-leading comments, even when
+                    // they begin on a new line. The token retains its original
+                    // cursor independently of the trailing owner's range.
+                    writer.write_space(" ");
+                    let equals = self.emit_source_leading_token_with_context(
+                        transformation,
+                        node,
+                        FixedToken::operator(SyntaxKind::EqualsToken),
+                        equal_cursor,
+                        TokenLeadingSpace::Required,
+                        initializer_context,
+                        writer,
+                    )?;
                     writer.write_space(" ");
                     let initializer_node = transformation
                         .arena()
