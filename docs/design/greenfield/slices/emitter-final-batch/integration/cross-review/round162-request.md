@@ -1,0 +1,9 @@
+# Round 162: Unicode line layout after the comment repairs
+
+Read-only review. Do not edit or run Cargo. Repair is `/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep`, HEAD ed4a419830cc05b4c6d3063b22a8dc5813950bfd. r203 has now completed: 176/176 r167, 656/672 r168, 344/344 r171. r204 and r205 stopped on the failed prerequisite before building. All former switch/map, Unicode collector, BOM-host and constructor failures are resolved within those controls.
+
+The only 16 remaining failures are two new r168 shapes across eight options: `function f() { x; /* a */\u2028/* b */\u2028}` and U+2029. Native selects compact body; TS emits multiline. This also fails with removeComments=true, so ownership is no longer the cause. Captures: `/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-corpus-controls-r203/captures-168`.
+
+Root found `source_node_range_is_on_single_line` in printer.rs:8885 scans only CR/LF. Its two callers are function Block layout near 8217 and another near 3655. TS shouldEmitBlockFunctionBodyOnSingleLine uses rangeIsOnSingleLine, which uses the line map. Proposed bounded repair: use the existing source.positions().line_and_character_byte for the validated range endpoints in this helper, preserving original-node resolution and synthesized fallback. Inspect whether TS rangeIsOnSingleLine skips leading trivia or uses end vs end-1, and whether the second caller imposes a different contract. Root will examine related ASCII-only helpers separately; no wholesale predicate replacement or comment-collector change.
+
+Please give the smallest correct implementation recommendation, concrete nearby control shapes needed (including second caller and CR/LF/CRLF, leading-trivia boundaries), and any blocking architecture/lifecycle issue. Existing 18 affected rows are already active-unqualified. Do not infer qualification from source review; all controls plus full regressions will rerun.
