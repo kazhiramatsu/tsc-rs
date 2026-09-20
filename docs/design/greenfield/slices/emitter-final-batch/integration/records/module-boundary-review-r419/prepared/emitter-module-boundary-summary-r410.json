@@ -1,0 +1,110 @@
+[
+  {
+    "id": "module-boundary/import-export",
+    "input": "export /* a */ import /* b */ './dep';\n",
+    "native_js": "export /* a */  /* a */import /* b */ './dep';",
+    "ts_js": "export /* a */ import /* b */ './dep';",
+    "native_dts": "export import './dep';",
+    "ts_dts": "export import './dep';",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/import-declare",
+    "input": "declare /* a */ import /* b */ './dep';\n",
+    "native_js": "/* a */import /* b */ './dep';",
+    "ts_js": "declare /* a */ import /* b */ './dep';",
+    "native_dts": "declare import './dep';",
+    "ts_dts": "declare import './dep';",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/import-public",
+    "input": "public /* a */ import /* b */ './dep';\n",
+    "native_js": "/* a */import /* b */ './dep';",
+    "ts_js": "public /* a */ import /* b */ './dep';",
+    "native_dts": "public import './dep';",
+    "ts_dts": "public import './dep';",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/import-async",
+    "input": "async /* a */ import /* b */ './dep';\n",
+    "native_js": "async /* a */  /* a */import /* b */ './dep';",
+    "ts_js": "async /* a */ import /* b */ './dep';",
+    "native_dts": "async import './dep';",
+    "ts_dts": "async import './dep';",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/import-declare-export",
+    "input": "declare export /* a */ import /* b */ './dep';\n",
+    "native_js": "export /* a */  /* a */import /* b */ './dep';",
+    "ts_js": "declare export /* a */ import /* b */ './dep';",
+    "native_dts": "declare export import './dep';",
+    "ts_dts": "declare export import './dep';",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/export-star-export",
+    "input": "export /* a */ export /* b */ * /* c */ from /* d */ './dep';\n",
+    "native_js": "export /* a */  /* a */export /* b */ * /* c */ from /* d */ './dep';",
+    "ts_js": "export /* a */ export /* a */ * from './dep';",
+    "native_dts": "export export * from './dep';",
+    "ts_dts": "export export * from './dep';",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/export-star-declare",
+    "input": "declare /* a */ export /* b */ * /* c */ from /* d */ './dep';\n",
+    "native_js": "/* a */export /* b */ * /* c */ from /* d */ './dep';",
+    "ts_js": "declare /* a */ export * /* a */ from './dep';",
+    "native_dts": "declare export * from './dep';",
+    "ts_dts": "declare export * from './dep';",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/export-star-public",
+    "input": "public /* a */ export /* b */ * /* c */ from /* d */ './dep';\n",
+    "native_js": "/* a */export /* b */ * /* c */ from /* d */ './dep';",
+    "ts_js": "public /* a */ export /* a */ * from './dep';",
+    "native_dts": "public export * from './dep';",
+    "ts_dts": "public export * from './dep';",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/export-star-async",
+    "input": "async /* a */ export /* b */ * /* c */ from /* d */ './dep';\n",
+    "native_js": "async /* a */  /* a */export /* b */ * /* c */ from /* d */ './dep';",
+    "ts_js": "async /* a */ export /* a */ * from './dep';",
+    "native_dts": "async export * from './dep';",
+    "ts_dts": "async export * from './dep';",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/assignment-export",
+    "input": "export /* a */ export /* b */ default /* c */ 1;\n",
+    "native_js": "export /* a */ default /* b */ 1;",
+    "ts_js": "export /* a */ default /* b */ 1;",
+    "native_dts": "declare const _default: 1;\nexport export default _default;",
+    "ts_dts": "declare const _default: 1;\nexport default _default;",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/assignment-async",
+    "input": "async /* a */ export /* b */ default /* c */ 1;\n",
+    "native_js": "export /* a */ default /* b */ 1;",
+    "ts_js": "export /* a */ default /* b */ 1;",
+    "native_dts": "declare const _default: 1;\nasync export default _default;",
+    "ts_dts": "declare const _default: 1;\nexport default _default;",
+    "first_failure": "exact source-map result"
+  },
+  {
+    "id": "module-boundary/assignment-declare-export",
+    "input": "declare export /* a */ export /* b */ default /* c */ 1;\n",
+    "native_js": "export default 1;",
+    "ts_js": "export default 1;",
+    "native_dts": "declare const _default: 1;\ndeclare export export default _default;",
+    "ts_dts": "declare const _default: 1;\nexport default _default;",
+    "first_failure": "exact source-map result"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "files": [
+    {
+      "path": "scripts/observe-token-comment-phases.mjs",
+      "before": "a3954bcd0116c1cd4eb9755dc15af088fd6954a61ccd9a4d780131c4262d14cb",
+      "after": "2659f1fe304bf5d5060e11e8936bbaca5184c01394e597c94c473c5bce19cdfc"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_token_comment_phases.rs",
+      "before": "b2d36b9a1fa4223a2bb06dab2cb2766f4c3490ce342365c7df0e35d610c41f81",
+      "after": "47bf93451a07d1c0b99b289bfac1e0cb34ba7d77cc2d1ff6f0f6aa0b8006cbaa"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs",
+      "before": "f05e9f4df28ad44f52a580674e505207d1a98eaf90702309938a89f90e860d12",
+      "after": "d08a59d699b8fc982c7252064ef1d410d4e03466e9c2c8e4f615262f64afaebb"
+    }
+  ],
+  "prior_complete_commands": 245,
+  "added_complete_commands": 20,
+  "final_complete_commands": 265,
+  "token_suite": 429,
+  "ellipsis_suite": 534,
+  "qualified": false
+}

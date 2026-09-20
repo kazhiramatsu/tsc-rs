@@ -1,0 +1,126 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "candidate_diff_sha256": "49a4d91dce5a72a980479b23ce20e0a48d750e35b1004bcdd76cad3a43ed7043",
+  "qualified": false,
+  "scope": "Bounded 36 complete commands x2 using unmodified existing full comparator and separately captured complete command tuples; freshly built canonical libraries; strict resume owner guard remains required.",
+  "steps": [
+    {
+      "label": "export-clause-build-r440",
+      "exit": 0,
+      "seconds": 103.81177112506703
+    },
+    {
+      "label": "export-clause-resume-guard-r440",
+      "exit": 0,
+      "seconds": 33.60088450019248
+    }
+  ],
+  "canonical_test_binary": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/contracts-05a4948cfadf681b",
+    "sha256": "dae5f5afb9f9d00931820dbea4704d0ac5cb14bda8e8e599ef52d140917ac996",
+    "fingerprint": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/.fingerprint/tsc-rs-compiler-05a4948cfadf681b/test-integration-test-contracts.json",
+    "fingerprint_sha256": "3ac4e16efd593303d9441e879d7f394283ce64eaa6689c1926eaa4781ac60fdb"
+  },
+  "libraries": {
+    "tsc_compiler": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_compiler-b6c594b373b590f1.rlib",
+      "sha256": "3782f86962d0b4297466509d3a6a0cb0da34fc77bfd85d15f3456c3bce95041d",
+      "fingerprint": 5107751563941122261
+    },
+    "tsc_diagnostics": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib",
+      "sha256": "1e202f12760fc125e8d8ee11105182a02cb8f7cb093e49252c61f87ce32abcae",
+      "fingerprint": 3662875448620651183
+    },
+    "tsc_emitter": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_emitter-63ad03d85a501501.rlib",
+      "sha256": "3ff9cb985fe8d94f429e67c787bfad319f1097a3e760c9035082d0920e1d16a7",
+      "fingerprint": 15693238078111135963
+    },
+    "tsc_host": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_host-b40ac1fcbe4595ba.rlib",
+      "sha256": "09d0e5db5b9326d8bd4da4e3edf611cd0349fde5f8d9f86e899f8eefa73fce92",
+      "fingerprint": 15243165319693386114
+    },
+    "tsc_program": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-d551a6a48da91fa2.rlib",
+      "sha256": "1eb1eacbe7863979905f9f9f81bd9e8e322bd16a7fff8d8b89c86e4f29812226",
+      "fingerprint": 4425454659278275463
+    },
+    "serde_json": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libserde_json-a6f8a2e55c480a80.rlib",
+      "sha256": "f188f4d1a082e3641228200af2532000ed4b38bacb0c68fea6a1855fe0224241",
+      "fingerprint": 6829825325130802498
+    },
+    "sha2": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libsha2-f54cd65628f5bb9d.rlib",
+      "sha256": "c6b92a9b461068e5edee46ff5a8ce35197192b3d66f54514330150680fa36e57",
+      "fingerprint": 15342859552664442269
+    },
+    "base64": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libbase64-94d286f1018cc12f.rlib",
+      "sha256": "067eca0b5bc0085889cbd4d73e8e76215dae792f7aa9260c59127664cdeb4a68",
+      "fingerprint": 8576723375312483276
+    },
+    "tsc_syntax": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+      "sha256": "9e9b23d4e1fc2f9076244bdbad0234d6d2a41b5f9e6f69732fd4c209b5abe5d1",
+      "fingerprint": 15546780842092886918
+    },
+    "tsc_harness": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_harness-ba5430733484fc96.rlib",
+      "sha256": "761e28d479fe4536e8ea9d9bfda13c428aed5ccdcd1deb09e81699a97fd5452a",
+      "fingerprint": 1766366193623215212
+    }
+  },
+  "case_ids": [
+    "token-comment-phases/recovery-import-owner/side-effect/remove-false/all",
+    "token-comment-phases/recovery-import-owner/side-effect/remove-false/declaration-only",
+    "token-comment-phases/recovery-import-owner/side-effect/remove-true/all",
+    "token-comment-phases/recovery-import-owner/side-effect/remove-true/declaration-only",
+    "token-comment-phases/module-recovery-owner/export-star-export/remove-false/all",
+    "token-comment-phases/module-recovery-owner/export-star-export/remove-false/declaration-only",
+    "token-comment-phases/module-recovery-owner/export-star-export/remove-true/all",
+    "token-comment-phases/module-recovery-owner/export-star-export/remove-true/declaration-only",
+    "token-comment-phases/module-recovery-owner/namespace-export/remove-false/all",
+    "token-comment-phases/module-recovery-owner/namespace-export/remove-false/declaration-only",
+    "token-comment-phases/module-recovery-owner/namespace-export/remove-true/all",
+    "token-comment-phases/module-recovery-owner/namespace-export/remove-true/declaration-only",
+    "token-comment-phases/module-recovery-owner/namespace-declare/remove-false/all",
+    "token-comment-phases/module-recovery-owner/namespace-declare/remove-false/declaration-only",
+    "token-comment-phases/module-recovery-owner/namespace-declare/remove-true/all",
+    "token-comment-phases/module-recovery-owner/namespace-declare/remove-true/declaration-only",
+    "token-comment-phases/export-clause-owner/named-recovered/remove-false/all",
+    "token-comment-phases/export-clause-owner/named-recovered/remove-false/declaration-only",
+    "token-comment-phases/export-clause-owner/named-recovered/remove-true/all",
+    "token-comment-phases/export-clause-owner/named-recovered/remove-true/declaration-only",
+    "token-comment-phases/export-clause-owner/namespace-recovered-line/remove-false/all",
+    "token-comment-phases/export-clause-owner/namespace-recovered-line/remove-false/declaration-only",
+    "token-comment-phases/export-clause-owner/namespace-recovered-line/remove-true/all",
+    "token-comment-phases/export-clause-owner/namespace-recovered-line/remove-true/declaration-only",
+    "token-comment-phases/export-clause-owner/namespace-normal-inline/remove-false/all",
+    "token-comment-phases/export-clause-owner/namespace-normal-inline/remove-false/declaration-only",
+    "token-comment-phases/export-clause-owner/namespace-normal-inline/remove-true/all",
+    "token-comment-phases/export-clause-owner/namespace-normal-inline/remove-true/declaration-only",
+    "token-comment-phases/export-clause-owner/namespace-normal-line/remove-false/all",
+    "token-comment-phases/export-clause-owner/namespace-normal-line/remove-false/declaration-only",
+    "token-comment-phases/export-clause-owner/namespace-normal-line/remove-true/all",
+    "token-comment-phases/export-clause-owner/namespace-normal-line/remove-true/declaration-only",
+    "token-comment-phases/export-clause-owner/namespace-type-recovered/remove-false/all",
+    "token-comment-phases/export-clause-owner/namespace-type-recovered/remove-false/declaration-only",
+    "token-comment-phases/export-clause-owner/namespace-type-recovered/remove-true/all",
+    "token-comment-phases/export-clause-owner/namespace-type-recovered/remove-true/declaration-only"
+  ],
+  "fixture_sha256": "90976c52c79df69b81e9d22774c38e579bba642190f58f09a13f3e10e3911f5f",
+  "source_sha256": {
+    "main.rs": "b9572e9c6a0b9f0399ffc4b374fe893146f919cab3e86a6e4af30e651a489806",
+    "capture.rs": "a0ede070c75378601b0f77b87f10992447e2eb70e90abefcf26672e84422b65c",
+    "cases.json": "146d4a3fc473ea514ab312b8dae1be7aabe7e928c1cb02db65858bf82e5e87e4"
+  },
+  "probe_build_exit": 0,
+  "native_exit": 0,
+  "native_log_sha256": "04bebc0ec0f0cb4703bc8e847d786bde37955d7702b3d763fdb94d64c492ff4c",
+  "native_binary_sha256": "7bacc36c5c4a1adfcb4fd013286bf1ee3e6d1fb3e9e514efb393f9844ca59cda",
+  "capture_count": 72,
+  "captured_all_exact": true
+}

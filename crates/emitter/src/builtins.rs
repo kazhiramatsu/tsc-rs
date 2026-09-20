@@ -14891,9 +14891,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         mut data: tsc_syntax::nodes::ImportDeclarationData,
     ) -> Result<Option<NodeId>, TransformError> {
         let Some(clause_id) = data.import_clause else {
-            return Ok(Some(
-                self.update_generic(original, NodeData::ImportDeclaration(data))?,
-            ));
+            // tsc returns a side-effect import unchanged, including recovery
+            // modifiers. A generic child visit would erase type modifiers.
+            return Ok(Some(original.node()));
         };
         let clause_node = self.node(clause_id);
         let clause_data = match &self.context.arena().node(clause_node)?.data {
@@ -15163,12 +15163,33 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         if data.is_type_only {
             return Ok(None);
         }
-        let Some(clause) = data.export_clause else {
-            return Ok(Some(
-                self.update_generic(original, NodeData::ExportDeclaration(data))?,
-            ));
+        let clause_node = match data.export_clause.map(|clause| self.node(clause)) {
+            Some(clause)
+                if self.context.arena().node(clause)?.kind != SyntaxKind::NamespaceExport =>
+            {
+                clause
+            }
+            export_clause => {
+                // tsc's typed update preserves all current fields for star
+                // and namespace exports, including recovery modifiers.
+                let modifiers = data.modifiers.map(|modifiers| self.array(modifiers));
+                let module_specifier = data.module_specifier.map(|module| self.node(module));
+                let attributes = data.attributes.map(|attributes| self.node(attributes));
+                return Ok(Some(
+                    self.context
+                        .factory()?
+                        .update_export_declaration(
+                            original,
+                            modifiers,
+                            data.is_type_only,
+                            export_clause,
+                            module_specifier,
+                            attributes,
+                        )?
+                        .node(),
+                ));
+            }
         };
-        let clause_node = self.node(clause);
         let NodeData::NamedExports(mut named) =
             self.context.arena().node(clause_node)?.data.clone()
         else {

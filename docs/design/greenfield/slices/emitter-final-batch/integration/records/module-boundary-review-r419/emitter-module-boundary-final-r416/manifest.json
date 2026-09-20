@@ -1,0 +1,19 @@
+{
+  "scope": "Unapplied reviewed source proposal. Opus192 withdrew modifier API change after measured collector correction. Use typed ExportDeclaration factory update for an explicit producer boundary, preserving current fields; current original parameter already denotes the node being visited, not the parse-tree original. No claim that direct return would discard previous-pass children.",
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "files": [
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "before": "3fb8c8c488a423bf3a23c9b27c874a589ed09686e29bd96cd85761bbae69dabd",
+      "after": "e0a8976e8963a9897aba56be1df0d71e7ad2d0f7bf4f2c792ec3f59b27ab8f5a"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "before": "1d455ed6d8835de77f5cb21337c2f5cf7f2fb43f82e53a2d6267c4b3d1748db0",
+      "after": "1d6d6b7ec60542ea456f9de97b095f5372f1896fa119e6be0c6853e218e79ec3"
+    }
+  ],
+  "review": "/tmp/emitter-import-map-review-r412/response.json",
+  "native_qualified": false,
+  "scratch_rustfmt_exit": 0
+}

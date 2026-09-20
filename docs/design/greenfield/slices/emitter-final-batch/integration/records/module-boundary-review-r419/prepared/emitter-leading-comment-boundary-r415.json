@@ -1,0 +1,66 @@
+{
+  "typescript": "6.0.3",
+  "cases": [
+    {
+      "text": "export /* a */ import /* b */ './dep';\n",
+      "modifier": {
+        "pos": 0,
+        "end": 6,
+        "flags": 0
+      },
+      "listEnd": 6,
+      "leadingAtEnd": null,
+      "trailingAtEnd": [
+        {
+          "kind": 3,
+          "pos": 7,
+          "end": 14,
+          "hasTrailingNewLine": false
+        }
+      ]
+    },
+    {
+      "text": "export // a\nimport /* b */ './dep';\n",
+      "modifier": {
+        "pos": 0,
+        "end": 6,
+        "flags": 0
+      },
+      "listEnd": 6,
+      "leadingAtEnd": null,
+      "trailingAtEnd": [
+        {
+          "kind": 2,
+          "pos": 7,
+          "end": 11,
+          "hasTrailingNewLine": true
+        }
+      ]
+    },
+    {
+      "text": "export /* a */\n/* leading */ import './dep';\n",
+      "modifier": {
+        "pos": 0,
+        "end": 6,
+        "flags": 0
+      },
+      "listEnd": 6,
+      "leadingAtEnd": [
+        {
+          "kind": 3,
+          "pos": 15,
+          "end": 28,
+          "hasTrailingNewLine": false
+        }
+      ],
+      "trailingAtEnd": [
+        {
+          "kind": 3,
+          "pos": 7,
+          "end": 14,
+          "hasTrailingNewLine": false
+        }
+      ]
+    }
+  ]
+}

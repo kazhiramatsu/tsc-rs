@@ -1,0 +1,20 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "prior_failed_mint": "/tmp/emitter-utf16-retirement-apply-r425/manifest.json",
+  "reason": "Observer intentionally uses exclusive wx creation. Preserve existing bytes outside canonical output before re-observing; no observer semantics changed.",
+  "qualified_final": false,
+  "label": "utf16-retirement-oracle-r430",
+  "exit": 0,
+  "seconds": 31.676478624809533,
+  "type_script_observations_unchanged": true,
+  "retirement": [
+    [
+      "b3-b4-rejected/keyword-escape",
+      "typed-recovery-refusal",
+      "exact"
+    ]
+  ],
+  "fixture_sha256": "dfade08cef826a55c6d5f2ac2b4f240b5a8981768d0faab294ec11cedb6c3ede",
+  "test_sha256": "f164d2eedf50fbc265bbb17b58a4b7b2d7c76eafbc8da548ed262b0e61de2de4",
+  "observer_sha256": "c790867e709884ef59b273d5658bca73ccaca6efdfeda1442aa4413a289e2ed1"
+}

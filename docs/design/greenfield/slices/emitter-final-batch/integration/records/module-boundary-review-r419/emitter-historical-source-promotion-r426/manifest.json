@@ -1,0 +1,119 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "qualified": false,
+  "scope": "scratch copy of original full-observation comparator; only source promotion list extended provisionally for measurement; no repository change",
+  "candidates": 8,
+  "libraries": {
+    "base64": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libbase64-94d286f1018cc12f.rlib",
+      "sha256": "067eca0b5bc0085889cbd4d73e8e76215dae792f7aa9260c59127664cdeb4a68",
+      "expected_fingerprint": 8576723375312483276
+    },
+    "serde_json": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libserde_json-a6f8a2e55c480a80.rlib",
+      "sha256": "f188f4d1a082e3641228200af2532000ed4b38bacb0c68fea6a1855fe0224241",
+      "expected_fingerprint": 6829825325130802498
+    },
+    "sha2": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libsha2-e6d405148dede4cd.rlib",
+      "sha256": "927936b21b1d956022c561a02aa7dc39900379eac73ec411d26c081625528d32",
+      "expected_fingerprint": 2176646239485399302
+    },
+    "tsc_compiler": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_compiler-b6c594b373b590f1.rlib",
+      "sha256": "886769103ab48ad61d4a76513814859791b884ba25b4eb5517447174f8f68212",
+      "expected_fingerprint": 5107751563941122261
+    },
+    "tsc_diagnostics": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib",
+      "sha256": "1e202f12760fc125e8d8ee11105182a02cb8f7cb093e49252c61f87ce32abcae",
+      "expected_fingerprint": 3662875448620651183
+    },
+    "tsc_harness": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_harness-cd538c6365c1c92e.rlib",
+      "sha256": "b82ccb4bbeabf1b7c20c3d57f13db0cf8df090454fb436cde39f679fd6470939",
+      "expected_fingerprint": 5123576684318059397
+    },
+    "tsc_program": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-d551a6a48da91fa2.rlib",
+      "sha256": "1eb1eacbe7863979905f9f9f81bd9e8e322bd16a7fff8d8b89c86e4f29812226",
+      "expected_fingerprint": 4425454659278275463
+    }
+  },
+  "sources": {
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/xtask/src/h2_1a_acceptance.rs": "f4b0e0cbe6bc48c1acddf2e4b64287b138fe23ef5bcab1b74acedb06ca0c16e7",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/xtask/src/h2_2d_acceptance.rs": "e3e0b8bb474946eeccac554f75df270ec43dfd1291cbc8397be949286dc07237",
+    "/tmp/emitter-historical-source-promotion-r426/h2_1a_acceptance.rs": "00395e7637907b2748bcae48d8d84c0c253197fdea023748c905dea1c7b12bce",
+    "/tmp/emitter-historical-source-promotion-r426/h2_2d_acceptance.rs": "e3e0b8bb474946eeccac554f75df270ec43dfd1291cbc8397be949286dc07237"
+  },
+  "build_argv": [
+    "rustc",
+    "--edition=2021",
+    "/tmp/emitter-historical-source-promotion-r426/main.rs",
+    "-L",
+    "dependency=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps",
+    "-o",
+    "/tmp/emitter-historical-source-promotion-r426/probe",
+    "--extern",
+    "base64=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libbase64-94d286f1018cc12f.rlib",
+    "--extern",
+    "serde_json=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libserde_json-a6f8a2e55c480a80.rlib",
+    "--extern",
+    "sha2=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libsha2-e6d405148dede4cd.rlib",
+    "--extern",
+    "tsc_compiler=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_compiler-b6c594b373b590f1.rlib",
+    "--extern",
+    "tsc_diagnostics=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib",
+    "--extern",
+    "tsc_harness=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_harness-cd538c6365c1c92e.rlib",
+    "--extern",
+    "tsc_program=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-d551a6a48da91fa2.rlib"
+  ],
+  "build_exit": 0,
+  "native_exit": 0,
+  "seconds": 8.456899875076488,
+  "native_sha256": "6605503c5214bb3236882484b35a77c9826934b3a795866d6f03f64f74bf42a5",
+  "results": [
+    {
+      "case_id": "typescript-6.0.3/compiler/bigintArbirtraryIdentifier.ts#default",
+      "exact": false,
+      "error": "typescript-6.0.3/compiler/bigintArbirtraryIdentifier.ts#default: first Rust emit failed: emit recovery for 3 parse diagnostics (5 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/bigintPropertyName.ts#default",
+      "exact": false,
+      "error": "typescript-6.0.3/compiler/bigintPropertyName.ts#default: first Rust emit failed: emit recovery for 2 parse diagnostics (2 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/binderBinaryExpressionStress.ts#default",
+      "exact": false,
+      "error": "typescript-6.0.3/compiler/binderBinaryExpressionStress.ts#default: first Rust emit failed: emit transform AST depth above 256 is deferred to H2.9"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/parseBigInt.ts#default",
+      "exact": false,
+      "error": "typescript-6.0.3/compiler/parseBigInt.ts#default: first Rust emit failed: emit recovery for 10 parse diagnostics (10 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/reachabilityChecksNoCrash1.ts#default",
+      "exact": false,
+      "error": "typescript-6.0.3/compiler/reachabilityChecksNoCrash1.ts#default: first Rust emit failed: emit recovery for 19 parse diagnostics (35 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock26.ts#target%3Desnext",
+      "exact": false,
+      "error": "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock26.ts#target%3Desnext: first Rust emit failed: emit recovery for 10 parse diagnostics (17 recovery events) is deferred to H2.9"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/decorators/invalid/decoratorOnUsing.ts#default",
+      "exact": false,
+      "error": "typescript-6.0.3/conformance/decorators/invalid/decoratorOnUsing.ts#default: unadmitted H2.4b activity"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsInForOf.2.ts#default",
+      "exact": false,
+      "error": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsInForOf.2.ts#default: first Rust emit failed: emit recovery for 1 parse diagnostics (1 recovery events) is deferred to H2.9"
+    }
+  ],
+  "complete": true
+}

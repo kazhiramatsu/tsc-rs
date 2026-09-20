@@ -1,0 +1,7 @@
+{
+  "scope": "Unapplied one-line stale route assertion repair. Canonical396 running; do not edit until complete. No product behavior change. Actual current Declaration arm routes to recording-capable entry. M4 currently3pass1fail; all4must rerun after correction.",
+  "before_sha256": "c9602ab235544d226bb6c45c5e27148b379bd75ce45bd8d439ba5cb676477128",
+  "printer_sha256": "3fb8c8c488a423bf3a23c9b27c874a589ed09686e29bd96cd85761bbae69dabd",
+  "prepared_after_sha256": "74a51513e8c235e17c116672fb2edd7fa3fc810ddb89ccc63a0a049697fd5725",
+  "scratch_rustfmt_exit": 0
+}

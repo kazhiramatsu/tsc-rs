@@ -1,0 +1,67 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "source_qualified": false,
+  "scope": "Apply reviewed bounded module-declaration repair after fixed-source396 finishes; retain failures and require native rerun.",
+  "files": [
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "before": "3fb8c8c488a423bf3a23c9b27c874a589ed09686e29bd96cd85761bbae69dabd",
+      "after": "e0a8976e8963a9897aba56be1df0d71e7ad2d0f7bf4f2c792ec3f59b27ab8f5a",
+      "package": "emitter-module-boundary-final-r416"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "before": "1d455ed6d8835de77f5cb21337c2f5cf7f2fb43f82e53a2d6267c4b3d1748db0",
+      "after": "1d6d6b7ec60542ea456f9de97b095f5372f1896fa119e6be0c6853e218e79ec3",
+      "package": "emitter-module-boundary-final-r416"
+    },
+    {
+      "path": "scripts/observe-token-comment-phases.mjs",
+      "before": "3f64fb6c70182abe9cfb3d0319754f35a606cee26acb32fa9f8ff74f6f092136",
+      "after": "a3954bcd0116c1cd4eb9755dc15af088fd6954a61ccd9a4d780131c4262d14cb",
+      "package": "emitter-module-controls-r414"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_token_comment_phases.rs",
+      "before": "1bdf932c2bd49bbf8c7e4fa58332a132cd7a7ee8423d8bfea4a5597e9afb5c44",
+      "after": "b2d36b9a1fa4223a2bb06dab2cb2766f4c3490ce342365c7df0e35d610c41f81",
+      "package": "emitter-module-controls-r414"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs",
+      "before": "4754558935ba323e47696ba4d5ee545fe4a94bcb532a1561bca7c77256436278",
+      "after": "f05e9f4df28ad44f52a580674e505207d1a98eaf90702309938a89f90e860d12",
+      "package": "emitter-module-controls-r414"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7a_m4_controls.rs",
+      "before": "c9602ab235544d226bb6c45c5e27148b379bd75ce45bd8d439ba5cb676477128",
+      "after": "74a51513e8c235e17c116672fb2edd7fa3fc810ddb89ccc63a0a049697fd5725",
+      "package": "emitter-declaration-route-test-r401"
+    }
+  ],
+  "steps": [
+    {
+      "label": "module-boundary-oracle-r420",
+      "exit": 0,
+      "seconds": 134.66261262493208
+    },
+    {
+      "label": "module-boundary-format-r420",
+      "exit": 0,
+      "seconds": 12.220616374863312
+    }
+  ],
+  "original_observations_unchanged": true,
+  "added_complete_commands": 80,
+  "fixture_sha256": "3e5007190d0454b04e42ad67aafe186ceecba5435f8607363da99d4f2d5a6984",
+  "after_format_sha256": {
+    "crates/emitter/src/printer.rs": "e0a8976e8963a9897aba56be1df0d71e7ad2d0f7bf4f2c792ec3f59b27ab8f5a",
+    "crates/emitter/src/builtins.rs": "1d6d6b7ec60542ea456f9de97b095f5372f1896fa119e6be0c6853e218e79ec3",
+    "scripts/observe-token-comment-phases.mjs": "a3954bcd0116c1cd4eb9755dc15af088fd6954a61ccd9a4d780131c4262d14cb",
+    "crates/compiler/tests/integration/h2_8a_token_comment_phases.rs": "b2d36b9a1fa4223a2bb06dab2cb2766f4c3490ce342365c7df0e35d610c41f81",
+    "crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs": "f05e9f4df28ad44f52a580674e505207d1a98eaf90702309938a89f90e860d12",
+    "crates/compiler/tests/integration/h2_7a_m4_controls.rs": "74a51513e8c235e17c116672fb2edd7fa3fc810ddb89ccc63a0a049697fd5725"
+  },
+  "tracked_diff_sha256": "b8cc4d327d9aa4d5afd79452f7b1f9d610d97b211d235c5d267b121817a14758"
+}

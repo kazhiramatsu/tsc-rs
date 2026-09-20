@@ -8,6 +8,39 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
 提出時の検証と統合候補の検証は以下で区別する。hosted完了前に全体完了を主張しない。
 
+## canonical 再検証と残る境界修復（r396–r432）
+
+[固定候補 r396 の実行](records/canonical-focused-r398/manifest.json)では、emitter 全1,020 tests、
+helper551・MetaProperty228・export名80・context788・空ブロック72件の各2回比較、
+構文回復2 tests、関連xtask3 bands、workspace全targetsのClippyが成功した。
+全体は20段階中5段階が失敗したため未qualified。M4の古い関数名assertion、
+同一のimportコメント重複を検出したtoken/ellipsisの2段階、UTF-16の古い拒否1件、
+H2.1aの古い拒否1件を区別して記録した。
+
+[境界の追加観測](records/module-boundary-review-r419/manifest.json)に基づき、
+importのmodifier末尾とkeyword先頭のコメント所有、side-effect import/star/namespace exportの
+現在のmodifier保持、exportのkeyword位置、export assignmentのmodifier省略を限定修復した。
+TypeScript観測は既存165件を保持して80件追加し、計245件。共有parser/checker/map処理は変更していない。
+actual Opus191/192の議論で棄却した仮説も記録に残す。
+
+UTF-16 keyword-escapeは元の完全観測を各2回比較して一致したため、拒否期待値だけを更新した。
+残る8拒否境界は維持する。H2.1a decoratorOnUsingも元の出力・診断・結果tupleが各2回一致し、
+追加で構文木25 nodesの種類・位置・親をTypeScriptと照合した。両方のdecoratorが変数文に属し、
+class-fields経路のH2.4b活動1回が正しい。actual Opus193/194と確認し、現在の昇格記録に
+その正確な回数を持たせた。旧qualificationは変更せず、他の活動は引き続き0を要求する。
+[最初の再検証](records/module-boundary-validation-r433/manifest.json)はtoken407/409件が一致し、
+namespace exportの2件がコメント再開位置の所有者不一致で失敗した。後続9段階は未実行。
+actual Opus195と照合し、export clauseだけに既存の独立したコメント所有者の投影を用いた。
+共通CommentResume検証は維持し、追加20件を含むTypeScript計265件の観測を保持した。
+
+[修正後の固定差分による再検証](records/export-clause-validation-r442/manifest.json)は全13段階成功。
+先行する36 complete commandsは各2回一致し、全72補助実行の出力・診断・結果tupleを保存した。
+共通resume所有者guardも成功した。
+emitter全1,020 tests、token429・ellipsis534・helper551・export名80・context788件の各2回比較、
+source-map witnesses全8 tests、M4全4 tests、UTF-16全2 tests、H2.1a全4 tests、
+workspace全targetsのClippyが成功した。最終qualificationは元corpus再実行、walk、unsplit CI、
+hosted確認とmergeの完了後に記録する。
+
 ## 統合後の関数本体コメント検証（r349–r395）
 
 [統合後の全emitter実行](records/canonical-focused-r382/manifest.json)はunit515件を通過したが、

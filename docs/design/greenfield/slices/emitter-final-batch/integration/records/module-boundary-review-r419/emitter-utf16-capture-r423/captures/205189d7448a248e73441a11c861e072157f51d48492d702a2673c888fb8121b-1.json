@@ -1,0 +1,136 @@
+{
+  "case_id": "b2-noEmit-declaration",
+  "attempt": 1,
+  "actual": {
+    "writes": [],
+    "reported_diagnostics": [
+      {
+        "code": 1488,
+        "category": 1,
+        "file": "/project/main.ts",
+        "start": 16,
+        "length": 2,
+        "message": {
+          "utf16": [
+            69,
+            115,
+            99,
+            97,
+            112,
+            101,
+            32,
+            115,
+            101,
+            113,
+            117,
+            101,
+            110,
+            99,
+            101,
+            32,
+            39,
+            92,
+            56,
+            39,
+            32,
+            105,
+            115,
+            32,
+            110,
+            111,
+            116,
+            32,
+            97,
+            108,
+            108,
+            111,
+            119,
+            101,
+            100,
+            46
+          ],
+          "utf8_base64": "RXNjYXBlIHNlcXVlbmNlICdcOCcgaXMgbm90IGFsbG93ZWQu"
+        },
+        "related_information": null
+      }
+    ],
+    "status_writes": [],
+    "exit_code": 2,
+    "emit_result": {
+      "emit_skipped": false,
+      "diagnostics": [],
+      "emitted_files": null,
+      "source_maps": []
+    }
+  },
+  "error": null,
+  "no_emit_observation": {
+    "route": "NoEmit",
+    "all_activity_zero": true
+  },
+  "typed_recovery_refusal": false,
+  "native_contract": "exact",
+  "partial_writes": null,
+  "expected": {
+    "writes": [],
+    "reported_diagnostics": [
+      {
+        "code": 1488,
+        "category": 1,
+        "file": "/project/main.ts",
+        "start": 16,
+        "length": 2,
+        "message": {
+          "utf16": [
+            69,
+            115,
+            99,
+            97,
+            112,
+            101,
+            32,
+            115,
+            101,
+            113,
+            117,
+            101,
+            110,
+            99,
+            101,
+            32,
+            39,
+            92,
+            56,
+            39,
+            32,
+            105,
+            115,
+            32,
+            110,
+            111,
+            116,
+            32,
+            97,
+            108,
+            108,
+            111,
+            119,
+            101,
+            100,
+            46
+          ],
+          "utf8_base64": "RXNjYXBlIHNlcXVlbmNlICdcOCcgaXMgbm90IGFsbG93ZWQu"
+        },
+        "related_information": null
+      }
+    ],
+    "status_writes": [],
+    "exit_code": 2,
+    "emit_result": {
+      "emit_skipped": false,
+      "diagnostics": [],
+      "emitted_files": null,
+      "source_maps": []
+    }
+  }
+}

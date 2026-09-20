@@ -1,0 +1,25 @@
+{
+  "scope": "Unapplied controls proposal; observer must run from canonical after frozen396 finishes, old165 observations must stay exact; new80 rows require native complete command comparisons.",
+  "files": [
+    {
+      "path": "scripts/observe-token-comment-phases.mjs",
+      "before": "3f64fb6c70182abe9cfb3d0319754f35a606cee26acb32fa9f8ff74f6f092136",
+      "after": "a3954bcd0116c1cd4eb9755dc15af088fd6954a61ccd9a4d780131c4262d14cb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_token_comment_phases.rs",
+      "before": "1bdf932c2bd49bbf8c7e4fa58332a132cd7a7ee8423d8bfea4a5597e9afb5c44",
+      "after": "b2d36b9a1fa4223a2bb06dab2cb2766f4c3490ce342365c7df0e35d610c41f81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs",
+      "before": "4754558935ba323e47696ba4d5ee545fe4a94bcb532a1561bca7c77256436278",
+      "after": "f05e9f4df28ad44f52a580674e505207d1a98eaf90702309938a89f90e860d12"
+    }
+  ],
+  "base_token_rows": 165,
+  "new_rows": 80,
+  "final_token_rows": 245,
+  "token_suite": 409,
+  "ellipsis_suite": 514
+}

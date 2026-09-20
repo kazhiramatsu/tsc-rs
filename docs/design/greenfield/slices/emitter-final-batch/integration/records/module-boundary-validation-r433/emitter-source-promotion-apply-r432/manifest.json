@@ -1,0 +1,22 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "historical_qualification_sha256": "4b6b4699cd8c3ea20d340c8da5d741422a931608d6d2a9bc1807242b5b0d2d22",
+  "historical_qualification_unchanged": true,
+  "review": "actual Opus194; added its suggested guard exactly one promotion with extra activity",
+  "source_qualified": false,
+  "format_exit": 0,
+  "seconds": 13.009909624932334,
+  "files": [
+    {
+      "path": "crates/xtask/src/h2_1a_acceptance.rs",
+      "before": "f4b0e0cbe6bc48c1acddf2e4b64287b138fe23ef5bcab1b74acedb06ca0c16e7",
+      "after": "4883437d633c1d2f2b2a0e58b75002dc4e07322f1de288868f570fc927da9e3e"
+    },
+    {
+      "path": "crates/xtask/tests/unit/h2_1a_acceptance/tests.rs",
+      "before": "73f825a8509625c5e5a3beccf3507c226a3d8c1140f347b6252ac29acc920b0d",
+      "after": "897b6d3537c2025bb77ad8e206a840e3a4650ff4864f00df5427dde061e2bb93"
+    }
+  ],
+  "candidate_diff_sha256": "82910820655eefba83b1c578ef84eed1fa3452fef229a59d0d3d6c0955d03c9f"
+}

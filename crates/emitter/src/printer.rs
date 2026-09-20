@@ -3901,12 +3901,15 @@ impl Printer {
                 )? {
                     writer.write_space(" ");
                 }
-                let import_keyword = self.emit_token_with_comments(
+                // The modifier node already owns its trailing comments.
+                // The keyword visits only getLeadingCommentRanges at that end.
+                let import_keyword = self.emit_source_leading_token_with_context(
                     transformation,
                     node,
                     FixedToken::keyword(SyntaxKind::ImportKeyword),
                     import_anchor,
-                    false,
+                    TokenLeadingSpace::None,
+                    expression_context,
                     writer,
                 )?;
                 let mut module_prefix = import_keyword;
@@ -4222,8 +4225,8 @@ impl Printer {
                         kind: record.kind,
                     });
                 }
-                let export_anchor =
-                    self.token_after_modifiers_cursor(transformation, node, data.modifiers)?;
+                // Unlike import declarations, tsc starts this token at node.pos.
+                let export_anchor = self.node_start_cursor(transformation, node)?;
                 if self.emit_modifiers(
                     transformation,
                     node.source(),
@@ -4263,10 +4266,14 @@ impl Printer {
                         .arena()
                         .node_ref(node.source(), clause_id)
                         .ok_or(PrinterError::UnknownStatement(clause_id.0))?;
-                    let prefix = self.token_owned_child_prefix(
+                    // emit(exportClause) starts its own comment phase. A
+                    // recovered export keyword can end before that owner.
+                    let clause_owner =
+                        self.expression_comment_phase_owner_for_node(transformation, clause)?;
+                    let prefix = self.token_owned_comment_phase_prefix(
                         transformation,
                         export_item_anchor,
-                        Some(clause),
+                        clause_owner,
                     )?;
                     self.emit_leading_comments_for_node_worker(
                         transformation,
@@ -4504,18 +4511,9 @@ impl Printer {
                 )
             }
             NodeData::ExportAssignment(data) => {
-                let export_anchor =
-                    self.token_after_modifiers_cursor(transformation, node, data.modifiers)?;
-                if self.emit_modifiers(
-                    transformation,
-                    node.source(),
-                    data.modifiers,
-                    DecoratorPolicy::Omit,
-                    expression_context,
-                    writer,
-                )? {
-                    writer.write_space(" ");
-                }
+                // emitExportAssignment never prints its recovery modifiers,
+                // including when the declaration transform retains them.
+                let export_anchor = self.node_start_cursor(transformation, node)?;
                 let export_keyword = self.emit_token_with_comments(
                     transformation,
                     node,
