@@ -1,5 +1,25 @@
 # Emitter final r11 integration
 
+
+## walk事前検証の修復（r456–r485）
+
+[実行記録とactual Opus196–202のレビュー](records/walk-preflight-repair-r485/manifest.json)を保存した。
+D/Eの元325入力と323件×2回のTypeScript出力は、元generator・vendor・corpusをコピーし、
+固定された4親データを用いて全体一致を再現した。現在のgeneratorでも全325入力とcensusを比較し、
+4親のprovenance hash以外の変更は拒否する。bundle55件と出力先23件も各2回一致した。
+元3artifactの固定hashとRust側の検証は維持した。
+
+walkには独立したmap-optionのcanonical checkと、D/Eの固定参照検証を明示登録した。
+75段階の生成処理は実依存順に並べ、plannerと27件のschema登録表を同期した。
+複数出力とimportされた出力パスも検査し、未登録・欠落・重複や順序逆転は拒否する。
+登録表は3項目の順序だけを変更し、各label/schema/artifactの組は全て不変。
+更新後の構造検証50 testsは成功した。途中の失敗と棄却した提案も記録に残した。
+
+r478のdry runは登録・依存順序・現在の入力比較・pin・static checks・fmtを通過し、
+既存cfg(test) moduleの配置違反16箇所で停止した。Clippyと実walkは未実行。
+この修復ではcrates本体を変更していない。次にテストをtests/unitへ移し、内容の同一性、
+関連suiteとsource参照を検証する。実walk・最終unsplit CI・hosted・mergeは引き続き未完了。
+
 追加監査で通常emitの残差・回帰を確認した。提出REPORTの「emitter owner未解決0」を
 そのまま完了判定には採用しない。[追加監査と修復状況](residual-audit.md)を参照。
 

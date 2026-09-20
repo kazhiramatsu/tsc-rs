@@ -254,18 +254,6 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
         "ratchets/h2-5g-owner-controls.v1.json",
       ],
       [
-        ".github/ci/contracts/h2-7b-qualification.schema.json",
-        "ratchets/h2-7b-qualification.v1.json",
-      ],
-      [
-        ".github/ci/contracts/h2-7c-qualification.schema.json",
-        "ratchets/h2-7c-qualification.v1.json",
-      ],
-      [
-        ".github/ci/contracts/h2-7de-qualification.schema.json",
-        "ratchets/h2-7de-qualification.v1.json",
-      ],
-      [
         ".github/ci/contracts/h2-5g-profile.schema.json",
         "ratchets/h2-5g-profile.v1.json",
       ],
@@ -340,6 +328,18 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
       [
         ".github/ci/contracts/h2-7a-close.schema.json",
         "ratchets/h2-7a-close.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-7b-qualification.schema.json",
+        "ratchets/h2-7b-qualification.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-7c-qualification.schema.json",
+        "ratchets/h2-7c-qualification.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-7de-qualification.schema.json",
+        "ratchets/h2-7de-qualification.v1.json",
       ],
       [
         ".github/ci/contracts/h2-8a-candidates.schema.json",

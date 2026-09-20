@@ -135,10 +135,10 @@ fi
 ORDER=(
   l0-option-inventory
   h1-owner-inventory
-  h1-printer-foundation
-  h1-emit-oracle
-  h1-active-transform
   h1-rust-omission-inventory
+  h1-printer-foundation
+  h1-active-transform
+  h1-emit-oracle
   h1-emit-qualification
   h2-transition
   h2-1a-qualification h2-1a-profile
@@ -162,9 +162,7 @@ ORDER=(
   h2-5d-qualification h2-5d-profile
   h2-5e-qualification h2-5e-profile
   h2-5f-qualification h2-5f-profile
-  h2-5g-qualification
-  h2-7b-qualification h2-7c-qualification h2-7de-qualification
-  h2-5g-profile
+  h2-5g-qualification h2-5g-profile
   h2-5h-qualification
   h2-5h-a-foundation
   h2-5h-a-comment-scope-witnesses
@@ -182,7 +180,7 @@ ORDER=(
   h2-7a-witnesses
   h2-7a-probe-traces
   h2-7a-printer-reprint
-  h2-7a-close
+  h2-7a-close h2-7b-qualification h2-7c-qualification h2-7de-qualification
   h2-8a-candidates h2-8a-observations
 )
 # Every numbered H2 script must be registered exactly once. Three immutable

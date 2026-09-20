@@ -1,0 +1,26 @@
+{
+  "scope": "scratch current-parent metadata/semantic controls; no canonical mutation",
+  "results": [
+    {
+      "label": "four-parent-metadata-only",
+      "exit": 0,
+      "expected_success": true,
+      "seconds": 5.179082375019789,
+      "log_sha256": "a150aaca45685ec8c37fdd70edb2e93ce7adfa7e7be0e5954ddfd3318884fd16"
+    },
+    {
+      "label": "current-owner-change",
+      "exit": 1,
+      "expected_success": false,
+      "seconds": 29.66703245881945,
+      "log_sha256": "ceb39060c3aca1b267ec5e14c58b7eb74500bbe6d51c2d4d15b0460d826ca066"
+    },
+    {
+      "label": "restored-current-owner",
+      "exit": 0,
+      "expected_success": true,
+      "seconds": 27.10882320906967,
+      "log_sha256": "a150aaca45685ec8c37fdd70edb2e93ce7adfa7e7be0e5954ddfd3318884fd16"
+    }
+  ]
+}
