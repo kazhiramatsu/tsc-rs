@@ -1,0 +1,31 @@
+{
+  "head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "meta_readiness_exit": 1,
+  "scope": "Read-only readinesscheck; observed stale historical docs/design/README.md authority pin, no runtime claim. Original historicalauthorities not rewritten. Registration audit follows. Current5ggenerator+inherited5f membership coversall10candidatepaths; artifact323inputsstale(expectedprewalk), finalwalkrequired.",
+  "log_sha256": "020d5570c8a165037b24ec336db6c3553bfe0c019ae34c0c4843072c440c67f9",
+  "runtime_count": 323,
+  "stale_artifact_membership": {
+    "crates/emitter/src/printer.rs": true,
+    "crates/emitter/src/builtins/system.rs": true,
+    "crates/emitter/tests/list_comment_flags_contract.rs": false,
+    "crates/emitter/tests/printer_failure_contract.rs": false,
+    "crates/emitter/tests/fixtures/list-comment-flags.json": false,
+    "crates/emitter/tests/fixtures/printer-failure-review.json": false,
+    "crates/emitter/tests/fixtures/meta-property-token-map-invariants.json": false,
+    "crates/compiler/tests/fixtures/emitter-context-recovery.json": false,
+    "crates/compiler/tests/integration/h2_8a_import_helpers.rs": false,
+    "crates/syntax/tests/emitter_recovery.rs": false
+  },
+  "current_generator_registration": {
+    "crates/emitter/src/printer.rs": true,
+    "crates/emitter/src/builtins/system.rs": true,
+    "crates/emitter/tests/list_comment_flags_contract.rs": true,
+    "crates/emitter/tests/printer_failure_contract.rs": true,
+    "crates/emitter/tests/fixtures/list-comment-flags.json": true,
+    "crates/emitter/tests/fixtures/printer-failure-review.json": true,
+    "crates/emitter/tests/fixtures/meta-property-token-map-invariants.json": true,
+    "crates/compiler/tests/fixtures/emitter-context-recovery.json": true,
+    "crates/compiler/tests/integration/h2_8a_import_helpers.rs": true,
+    "crates/syntax/tests/emitter_recovery.rs": true
+  }
+}

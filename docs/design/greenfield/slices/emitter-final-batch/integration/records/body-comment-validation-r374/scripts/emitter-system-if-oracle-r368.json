@@ -1,0 +1,20 @@
+{
+  "scope": "Official pinned TS transpileModule JS probe twice; no whole compiler/checker/map/admission claim.",
+  "observations": [
+    {
+      "alwaysStrict": false,
+      "outputText": "// https://github.com/microsoft/TypeScript/issues/59373\nSystem.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var cssExports;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {// https://github.com/microsoft/TypeScript/issues/59373\n            if (true) { }\n            exports_1(\"default\", cssExports);\n        }\n    };\n});\n",
+      "diagnosticCodes": [
+        5107,
+        5107
+      ]
+    },
+    {
+      "alwaysStrict": true,
+      "outputText": "// https://github.com/microsoft/TypeScript/issues/59373\nSystem.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var cssExports;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {\n            if (true) { }\n            exports_1(\"default\", cssExports);\n        }\n    };\n});\n",
+      "diagnosticCodes": [
+        5107
+      ]
+    }
+  ]
+}

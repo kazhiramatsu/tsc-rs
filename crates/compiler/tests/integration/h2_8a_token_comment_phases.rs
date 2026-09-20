@@ -11,7 +11,7 @@ fn token_comment_phases_match_complete_typescript_observations() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let mut cases = artifact["cases"].as_array().unwrap().clone();
-    assert_eq!(cases.len(), 129);
+    assert_eq!(cases.len(), 165);
     for (bytes, count) in [
         (
             include_bytes!("../fixtures/class-header-token.json").as_slice(),
@@ -45,7 +45,7 @@ fn token_comment_phases_match_complete_typescript_observations() {
         .collect::<Vec<_>>();
     assert_eq!(getters.len(), 12);
     cases.extend(getters);
-    assert_eq!(cases.len(), 293);
+    assert_eq!(cases.len(), 329);
     let mut failures = Vec::new();
     for case in &cases {
         let case_id = case["case_id"].as_str().unwrap();

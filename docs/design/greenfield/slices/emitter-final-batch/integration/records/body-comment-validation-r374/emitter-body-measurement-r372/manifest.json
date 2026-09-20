@@ -1,0 +1,44 @@
+{
+  "head": "4aeb1640156f291f4b5189b8ad9ed370cf17cf9d",
+  "qualified": true,
+  "scope": "TESTADAPTERONLY: end_utf16 measured from returnedrawUTF16 string exactly asTSobserver computeLineStarts, notwriterpendingindent. Fulltext/events/error/state comparisons unchanged. Original21frozenrows unchanged; new22ndcase includes successx2thenfault/sharedrecoveryx2. No productionwriter/PrintedText/map change.",
+  "test_before_sha256": "d0574a45cad056ea0621d109f4bd65ed09a8c7917ed0204fbec9150f2db21f6a",
+  "test_after_sha256": "f23406aeacc620b833492e4da508bc5ba708eed9ecfe1c6eab1cc3865826dc5e",
+  "steps": [
+    {
+      "label": "fmt",
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 3.6290402091108263,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "failure",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-emitter",
+        "--test",
+        "printer_failure_contract",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 54.202410750091076,
+      "log_sha256": "45c7ccd1453b4fe196f3e6871c54142300eb0e987e1c7855badd643e27a04e2c"
+    }
+  ],
+  "diff_sha256": "e0e3d3b364dc10b5767f29ab1c70b71a695c4adba28a2c7ee45b88200fe571b6"
+}

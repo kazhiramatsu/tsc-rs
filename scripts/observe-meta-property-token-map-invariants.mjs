@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 assert.equal(ts.version, '6.0.3');
 assert.ok(['--write', '--check'].includes(process.argv[2]));
-const modes = ['baseline', 'no-token-maps', 'token-override', 'absent-name'];
+const modes = ['baseline', 'no-token-maps', 'token-override', 'absent-name', 'synthetic', 'synthetic-owner'];
 const shapes = [
   ['new-target', 'function Foo() { return 1_0, new.target; }\n'],
   ['import-meta', 'const Foo = [1_0, import.meta];\n'],
@@ -34,6 +34,11 @@ function observe(text, mode) {
           ts.setTokenSourceMapRange(node, node.keywordToken, { pos: 0, end: 1 });
         } else if (mode === 'absent-name') {
           return ts.factory.updateMetaProperty(node, undefined);
+        } else if (mode === 'synthetic') {
+          return ts.factory.createMetaProperty(node.keywordToken,
+            ts.factory.createIdentifier(node.name.text));
+        } else if (mode === 'synthetic-owner') {
+          return ts.factory.createMetaProperty(node.keywordToken, node.name);
         }
         return node;
       }
@@ -68,4 +73,4 @@ const bytes = JSON.stringify(artifact, null, 2) + '\n';
 const output = new URL('../crates/emitter/tests/fixtures/meta-property-token-map-invariants.json', import.meta.url);
 if (process.argv[2] === '--write') fs.writeFileSync(output, bytes);
 else assert.equal(fs.readFileSync(output, 'utf8'), bytes);
-console.log('MetaProperty internal printer invariants: eight rows observed twice');
+console.log('MetaProperty internal printer invariants: twelve rows observed twice');

@@ -994,6 +994,43 @@ enum MapBoundary {
     After,
 }
 
+/// Token continuations are map coordinates, not necessarily source slices.
+/// A generated token at real EOF can continue beyond the source's last
+/// UTF-16 column without making an AST position or comment cursor unbounded.
+#[derive(Clone, Copy)]
+enum TokenMapDefault {
+    Bounded(SourceMapRange),
+    EofContinuation {
+        source: TransformSourceId,
+        width: u32,
+    },
+}
+
+impl TokenMapDefault {
+    fn from_token(
+        source: TransformSourceId,
+        raw_anchor: SourceBytePosition,
+        token_start: usize,
+        spelling: &str,
+        positions: &PositionIndex,
+    ) -> Option<Self> {
+        // Source slice ends use bytes; map columns use UTF-16 units.
+        let end = token_start.checked_add(spelling.len())?;
+        if let Some(range) = u32::try_from(end)
+            .ok()
+            .and_then(|end| SourceRange::from_raw(raw_anchor.value(), end, positions).ok())
+        {
+            return Some(Self::Bounded(SourceMapRange::new(source, range)));
+        }
+        // Only EOF has a well-defined arithmetic continuation without
+        // consulting nonexistent source text. Other invalid ranges stay absent.
+        (token_start == positions.byte_len() as usize)
+            .then(|| u32::try_from(spelling.encode_utf16().count()).ok())
+            .flatten()
+            .map(|width| Self::EofContinuation { source, width })
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PrintedText {
     text: GeneratedText,
@@ -2678,8 +2715,14 @@ impl Printer {
             .map_or(EmitFlags::NONE, |metadata| metadata.flags());
         // emitCommentsBeforeNode sets tsc's commentsDisabled only when this
         // node's comments phase runs at all (_tsc.js:120987-120994).
-        let enters_nested_comment_suppression = node_flags
-            .intersects(EmitFlags::NO_NESTED_COMMENTS)
+        // Function bodies apply their own NoNestedComments inside
+        // emitBodyWithDetachedComments, after their detached head and before
+        // their tail. Keep inherited suppression and the map/notification
+        // pipeline intact.
+        let function_body_comments = transformation.arena().node(node)?.kind == SyntaxKind::Block
+            && self.is_function_body_block(transformation, node)?;
+        let enters_nested_comment_suppression = !function_body_comments
+            && node_flags.intersects(EmitFlags::NO_NESTED_COMMENTS)
             && !expression_context.nested_comments_suppressed()
             && !self.comments_disabled();
         if enters_nested_comment_suppression {
@@ -2689,11 +2732,12 @@ impl Printer {
             // both normal output and a retained failure prefix.
             self.comments_disabled_after_failure = true;
         }
-        let expression_context = if node_flags.intersects(EmitFlags::NO_NESTED_COMMENTS) {
-            expression_context.with_nested_comments_suppressed()
-        } else {
-            expression_context
-        };
+        let expression_context =
+            if !function_body_comments && node_flags.intersects(EmitFlags::NO_NESTED_COMMENTS) {
+                expression_context.with_nested_comments_suppressed()
+            } else {
+                expression_context
+            };
         // h2-6a-m-2 §4 node phase: Before after the leading comment
         // phases, After before the trailing ones (upstream
         // pipelineEmitWithSourceMaps nesting), with the
@@ -3216,7 +3260,7 @@ impl Printer {
                             transformation,
                             node.source(),
                             range.start().value(),
-                            "debugger".len(),
+                            "debugger",
                             writer,
                         )?,
                         _ => None,
@@ -3872,11 +3916,21 @@ impl Printer {
                         .node_ref(node.source(), clause_id)
                         .ok_or(PrinterError::UnknownStatement(clause_id.0))?;
                     writer.write_space(" ");
-                    let prefix = self.token_owned_child_prefix(
-                        transformation,
-                        import_keyword,
-                        Some(clause),
-                    )?;
+                    // After TypeScript erases import modifiers, the keyword's
+                    // arithmetic source end no longer abuts the clause. tsc
+                    // visits the clause's leading comments independently.
+                    let modifiers_erased = data.modifiers.is_none()
+                        && matches!(
+                            &transformation.arena().node(
+                                transformation.arena().get_original_node(node)
+                            )?.data,
+                            NodeData::ImportDeclaration(original) if original.modifiers.is_some()
+                        );
+                    let prefix = if modifiers_erased {
+                        None
+                    } else {
+                        self.token_owned_child_prefix(transformation, import_keyword, Some(clause))?
+                    };
                     self.emit_leading_comments_for_node_worker(
                         transformation,
                         clause,
@@ -6833,10 +6887,11 @@ impl Printer {
                 let colon_map_default =
                     if single_line_statement && writer.has_source_map_recording() {
                         match colon_cursor.source_position() {
-                            Some((cursor_source, position)) => self.token_map_range_at(
+                            Some((cursor_source, position)) => self.token_map_range_spanning(
                                 transformation,
                                 cursor_source,
                                 position.value(),
+                                ":",
                                 writer,
                             )?,
                             None => None,
@@ -6900,10 +6955,11 @@ impl Printer {
                 let colon_map_default =
                     if single_line_statement && writer.has_source_map_recording() {
                         match default_keyword.cursor().source_position() {
-                            Some((cursor_source, position)) => self.token_map_range_at(
+                            Some((cursor_source, position)) => self.token_map_range_spanning(
                                 transformation,
                                 cursor_source,
                                 position.value(),
+                                ":",
                                 writer,
                             )?,
                             None => None,
@@ -8108,9 +8164,13 @@ impl Printer {
                     writer.write_punctuation("{");
                 } else {
                     let open_default = match block_source_start {
-                        Some(start) => {
-                            self.token_map_range_at(transformation, node.source(), start, writer)?
-                        }
+                        Some(start) => self.token_map_range_spanning(
+                            transformation,
+                            node.source(),
+                            start,
+                            "{",
+                            writer,
+                        )?,
                         None => None,
                     };
                     self.record_brace_write(
@@ -8142,6 +8202,16 @@ impl Printer {
                 } else {
                     (Vec::new(), None)
                 };
+                let function_body_range = if let Some(array) = array.filter(|_| function_body) {
+                    let record = transformation.arena().node_array(array)?;
+                    let source = transformation.arena().source(array.source())?.syntax();
+                    match SourceRange::from_raw(record.pos, record.end, source.positions())? {
+                        SourceRange::Original(range) => Some(range),
+                        SourceRange::Synthesized => None,
+                    }
+                } else {
+                    None
+                };
                 let relocated_statement_list_comments = transformation
                     .arena()
                     .metadata(node)
@@ -8162,14 +8232,15 @@ impl Printer {
                             })
                     });
                 let detached_body_prefix = if function_body
-                    && !statements.is_empty()
                     && !transformation
                         .arena()
                         .metadata(node)
                         .is_some_and(|metadata| {
                             metadata.flags().contains(EmitFlags::NO_LEADING_COMMENTS)
                         }) {
-                    if let Some(relocated) = relocated_statement_list_comments {
+                    if let Some(relocated) =
+                        relocated_statement_list_comments.filter(|_| function_body_range.is_none())
+                    {
                         self.detached_source_file_prefix_for_relocated_statement_list(
                             transformation,
                             relocated.original(),
@@ -8185,13 +8256,16 @@ impl Printer {
                 } else {
                     None
                 };
-                // A relocated module body shares the original prefix boundary
-                // only as a resume seed. Its outer SourceFile list retained the
-                // parsed range and already emitted the prefix.
-                let body_owned_detached_prefix = relocated_statement_list_comments
-                    .is_none()
-                    .then_some(detached_body_prefix)
-                    .flatten();
+                // A ranged body owns its array's detached prefix even when
+                // the outer SourceFile already emitted the same comment.
+                // Only a synthesized relocated list uses that prefix solely
+                // as a resume seed for its retained statements.
+                let body_owned_detached_prefix = (function_body_range.is_some()
+                    || relocated_statement_list_comments.is_none())
+                .then_some(detached_body_prefix)
+                .flatten();
+                let mut pending_detached_comments =
+                    PendingDetachedComments::from_prefix(detached_body_prefix);
                 // PreserveLines checks the leading, separating and closing
                 // boundaries before selecting a compact function body. A
                 // synthesized statement with startsOnNewLine makes at least
@@ -8242,206 +8316,259 @@ impl Printer {
                 } else {
                     multi_line || !statements.is_empty()
                 }) || body_owned_detached_prefix.is_some();
-                if statements.is_empty() {
-                    let emitted_comments = self.emit_empty_block_comments(
-                        transformation,
-                        node,
-                        array,
-                        multi_line,
-                        function_body,
-                        writer,
-                    )?;
-                    if !emitted_comments && multi_line {
-                        writer.write_line(false);
-                    } else if !emitted_comments {
-                        writer.write_space(" ");
-                    }
-                } else if !multi_line {
-                    if !function_body {
-                        self.emit_comment_after_open_brace(transformation, node, writer)?;
-                    }
-                    writer.write_space(" ");
-                    let mut forced_line_indent = false;
-                    let mut in_function_prologue = function_body;
-                    for (index, statement) in statements.into_iter().enumerate() {
-                        let statement_node = transformation
-                            .arena()
-                            .node_ref(node.source(), statement)
-                            .ok_or(PrinterError::UnknownStatement(statement.0))?;
-                        let starts_on_new_line = transformation
-                            .arena()
-                            .metadata(statement_node)
-                            .and_then(crate::EmitMetadata::starts_on_new_line)
-                            == Some(true);
-                        // tsc applies `startsOnNewLine` as a separator between
-                        // synthesized siblings. It does not turn the first
-                        // statement of an otherwise single-line block into a
-                        // multi-line block.
-                        if index != 0 && starts_on_new_line {
-                            writer.write_line(false);
-                            if !forced_line_indent {
-                                writer.increase_indent();
-                                forced_line_indent = true;
-                            }
-                        } else if index != 0 {
-                            writer.write_space(" ");
-                        }
-                        // tsc's emitNodeListItems (_tsc.js:120068-120140)
-                        // visits each child's comment range, including a
-                        // retained statement after synthetic prefixes. A
-                        // separating line terminator skips this list phase.
-                        // The previous sibling's trailing phase is independent:
-                        // tsc can intentionally print the same comment twice.
-                        if function_body && (index == 0 || !starts_on_new_line) {
-                            self.emit_leading_comments_for_delimited_list_start(
-                                transformation,
-                                statement_node,
-                                writer,
-                            )?;
-                        }
-                        in_function_prologue = in_function_prologue
-                            && self.is_prologue_statement(transformation, statement_node);
-                        if !in_function_prologue {
-                            self.record_list_element_position(transformation, statement_node)?;
-                        }
-                        self.emit_node_id_with_context(
-                            transformation,
-                            node.source(),
-                            statement,
-                            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                            writer,
-                        )?;
-                        self.emit_trailing_comments_for_node(
-                            transformation,
-                            statement_node,
-                            writer,
-                        )?;
-                    }
-                    if forced_line_indent {
-                        writer.decrease_indent();
-                    }
-                    writer.write_space(" ");
-                } else {
-                    if !function_body {
-                        self.emit_comment_after_open_brace(transformation, node, writer)?;
-                    }
-                    writer.write_line(false);
+                if body_owned_detached_prefix.is_some() {
                     writer.increase_indent();
                     self.emit_detached_comment_prefix(
                         transformation,
                         body_owned_detached_prefix,
                         writer,
                     )?;
-                    let mut pending_detached_comments =
-                        PendingDetachedComments::from_prefix(detached_body_prefix);
-                    let mut has_previous_original_statement = false;
-                    let mut in_function_prologue = function_body;
-                    let mut pending_helpers = (!block_helpers.is_empty()).then_some(block_helpers);
-                    for statement in statements {
-                        let statement = transformation
-                            .arena()
-                            .node_ref(node.source(), statement)
-                            .ok_or(PrinterError::UnknownStatement(statement.0))?;
-                        in_function_prologue = in_function_prologue
-                            && self.is_prologue_statement(transformation, statement);
-                        if !in_function_prologue {
-                            if let Some(helpers) = pending_helpers.take() {
-                                self.emit_helpers(&helpers, writer)?;
-                            }
-                            self.record_list_element_position(transformation, statement)?;
-                        }
-                        let original = transformation.arena().get_original_node(statement);
-                        let original_source =
-                            transformation.arena().source(original.source())?.syntax();
-                        let original_record = transformation.arena().node(original)?;
-                        let has_original_range = matches!(
-                            SourceRange::from_raw(
-                                original_record.pos,
-                                original_record.end,
-                                original_source.positions(),
-                            )?,
-                            SourceRange::Original(_)
-                        );
-                        let detached_resume = self.take_detached_comment_resume_for_node(
-                            transformation,
-                            &mut pending_detached_comments,
-                            statement,
-                        )?;
-                        let container_resume = if !has_previous_original_statement
-                            && relocated_statement_list_comments.is_none()
-                        {
-                            // A relocated list inherits only its explicitly
-                            // retained detached-prefix resume. Its first runtime
-                            // statement owns ordinary leading comments at the
-                            // new location, after the wrapper's hoisted nodes.
-                            let owner = self.expression_comment_phase_owner_for_node(
+                    writer.decrease_indent();
+                }
+                // tsc's emitBodyWithDetachedComments suppresses only the
+                // list callback. A failed callback deliberately leaves the
+                // shared printer suppressed for the next print operation.
+                let enters_body_comment_suppression = function_body
+                    && transformation
+                        .arena()
+                        .metadata(node)
+                        .is_some_and(|metadata| {
+                            metadata.flags().intersects(EmitFlags::NO_NESTED_COMMENTS)
+                        })
+                    && !expression_context.nested_comments_suppressed()
+                    && !self.comments_disabled();
+                if enters_body_comment_suppression {
+                    self.comments_disabled_after_failure = true;
+                }
+                let body_result = (|| -> Result<(), PrinterError> {
+                    let expression_context = if enters_body_comment_suppression {
+                        expression_context.with_nested_comments_suppressed()
+                    } else {
+                        expression_context
+                    };
+                    if statements.is_empty() {
+                        let emitted_comments = if function_body_range.is_some() {
+                            // Function-body lists have no bracket comment lane.
+                            // Their range owns a separate detached head and tail.
+                            false
+                        } else {
+                            self.emit_empty_block_comments(
                                 transformation,
-                                statement,
-                            )?;
-                            self.parent_comment_container_owned_prefix_for_owner(
-                                transformation,
-                                expression_context.comments().container_pos(),
-                                owner,
+                                node,
+                                array,
+                                multi_line,
+                                function_body,
+                                writer,
                             )?
-                        } else {
-                            None
                         };
-                        let detached_resume =
-                            Self::furthest_comment_resume(detached_resume, container_resume)?;
-                        if expression_context.nested_comments_suppressed() {
-                            // shouldEmitComments is false for the whole
-                            // subtree of a NoNestedComments owner.
-                        } else if let Some(detached_resume) = detached_resume {
-                            self.emit_leading_comments_for_node_worker(
-                                transformation,
-                                statement,
-                                if has_previous_original_statement && has_original_range {
-                                    LeadingCommentContext::AfterSibling
-                                } else {
-                                    LeadingCommentContext::Normal
-                                },
-                                Some(detached_resume),
-                                writer,
-                            )?;
-                        } else if has_previous_original_statement && has_original_range {
-                            self.emit_leading_comments_for_node_after_sibling(
-                                transformation,
-                                statement,
-                                writer,
-                            )?;
-                        } else {
-                            // Synthetic wrappers retain the enclosing
-                            // container's prefix ownership. The first child's
-                            // scoped resume above prevents reclaiming it.
-                            self.emit_leading_comments_for_node(transformation, statement, writer)?;
+                        if !emitted_comments && multi_line {
+                            writer.write_line(false);
+                        } else if !emitted_comments {
+                            writer.write_space(" ");
                         }
-                        if has_original_range {
-                            has_previous_original_statement = true;
+                    } else if !multi_line {
+                        if !function_body {
+                            self.emit_comment_after_open_brace(transformation, node, writer)?;
                         }
-                        self.emit_node_id_with_context(
-                            transformation,
-                            node.source(),
-                            statement.node(),
-                            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                            writer,
-                        )?;
-                        if !expression_context.nested_comments_suppressed() {
-                            self.emit_trailing_comments_for_node_in_container(
+                        writer.write_space(" ");
+                        let mut forced_line_indent = false;
+                        let mut in_function_prologue = function_body;
+                        for (index, statement) in statements.into_iter().enumerate() {
+                            let statement_node = transformation
+                                .arena()
+                                .node_ref(node.source(), statement)
+                                .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                            let starts_on_new_line = transformation
+                                .arena()
+                                .metadata(statement_node)
+                                .and_then(crate::EmitMetadata::starts_on_new_line)
+                                == Some(true);
+                            // tsc applies `startsOnNewLine` as a separator between
+                            // synthesized siblings. It does not turn the first
+                            // statement of an otherwise single-line block into a
+                            // multi-line block.
+                            if index != 0 && starts_on_new_line {
+                                writer.write_line(false);
+                                if !forced_line_indent {
+                                    writer.increase_indent();
+                                    forced_line_indent = true;
+                                }
+                            } else if index != 0 {
+                                writer.write_space(" ");
+                            }
+                            // tsc's emitNodeListItems (_tsc.js:120068-120140)
+                            // visits each child's comment range, including a
+                            // retained statement after synthetic prefixes. A
+                            // separating line terminator skips this list phase.
+                            // The previous sibling's trailing phase is independent:
+                            // tsc can intentionally print the same comment twice.
+                            if function_body && (index == 0 || !starts_on_new_line) {
+                                self.emit_leading_comments_for_delimited_list_start(
+                                    transformation,
+                                    statement_node,
+                                    writer,
+                                )?;
+                            }
+                            in_function_prologue = in_function_prologue
+                                && self.is_prologue_statement(transformation, statement_node);
+                            if !in_function_prologue {
+                                self.record_list_element_position(transformation, statement_node)?;
+                            }
+                            self.emit_node_id_with_context(
                                 transformation,
+                                node.source(),
                                 statement,
-                                expression_context.comments(),
+                                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                                 writer,
                             )?;
+                            self.emit_trailing_comments_for_node(
+                                transformation,
+                                statement_node,
+                                writer,
+                            )?;
+                        }
+                        if forced_line_indent {
+                            writer.decrease_indent();
+                        }
+                        writer.write_space(" ");
+                    } else {
+                        if !function_body {
+                            self.emit_comment_after_open_brace(transformation, node, writer)?;
                         }
                         writer.write_line(false);
+                        writer.increase_indent();
+                        let mut has_previous_original_statement = false;
+                        let mut in_function_prologue = function_body;
+                        let mut pending_helpers =
+                            (!block_helpers.is_empty()).then_some(block_helpers);
+                        for statement in statements {
+                            let statement = transformation
+                                .arena()
+                                .node_ref(node.source(), statement)
+                                .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                            in_function_prologue = in_function_prologue
+                                && self.is_prologue_statement(transformation, statement);
+                            if !in_function_prologue {
+                                if let Some(helpers) = pending_helpers.take() {
+                                    self.emit_helpers(&helpers, writer)?;
+                                }
+                                self.record_list_element_position(transformation, statement)?;
+                            }
+                            let original = transformation.arena().get_original_node(statement);
+                            let original_source =
+                                transformation.arena().source(original.source())?.syntax();
+                            let original_record = transformation.arena().node(original)?;
+                            let has_original_range = matches!(
+                                SourceRange::from_raw(
+                                    original_record.pos,
+                                    original_record.end,
+                                    original_source.positions(),
+                                )?,
+                                SourceRange::Original(_)
+                            );
+                            let detached_resume = self.take_detached_comment_resume_for_node(
+                                transformation,
+                                &mut pending_detached_comments,
+                                statement,
+                            )?;
+                            let container_resume = if !has_previous_original_statement
+                                && relocated_statement_list_comments.is_none()
+                            {
+                                // A relocated list inherits only its explicitly
+                                // retained detached-prefix resume. Its first runtime
+                                // statement owns ordinary leading comments at the
+                                // new location, after the wrapper's hoisted nodes.
+                                let owner = self.expression_comment_phase_owner_for_node(
+                                    transformation,
+                                    statement,
+                                )?;
+                                self.parent_comment_container_owned_prefix_for_owner(
+                                    transformation,
+                                    expression_context.comments().container_pos(),
+                                    owner,
+                                )?
+                            } else {
+                                None
+                            };
+                            let detached_resume =
+                                Self::furthest_comment_resume(detached_resume, container_resume)?;
+                            if expression_context.nested_comments_suppressed() {
+                                // shouldEmitComments is false for the whole
+                                // subtree of a NoNestedComments owner.
+                            } else if let Some(detached_resume) = detached_resume {
+                                self.emit_leading_comments_for_node_worker(
+                                    transformation,
+                                    statement,
+                                    if has_previous_original_statement && has_original_range {
+                                        LeadingCommentContext::AfterSibling
+                                    } else {
+                                        LeadingCommentContext::Normal
+                                    },
+                                    Some(detached_resume),
+                                    writer,
+                                )?;
+                            } else if has_previous_original_statement && has_original_range {
+                                self.emit_leading_comments_for_node_after_sibling(
+                                    transformation,
+                                    statement,
+                                    writer,
+                                )?;
+                            } else {
+                                // Synthetic wrappers retain the enclosing
+                                // container's prefix ownership. The first child's
+                                // scoped resume above prevents reclaiming it.
+                                self.emit_leading_comments_for_node(
+                                    transformation,
+                                    statement,
+                                    writer,
+                                )?;
+                            }
+                            if has_original_range {
+                                has_previous_original_statement = true;
+                            }
+                            self.emit_node_id_with_context(
+                                transformation,
+                                node.source(),
+                                statement.node(),
+                                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                                writer,
+                            )?;
+                            if !expression_context.nested_comments_suppressed() {
+                                self.emit_trailing_comments_for_node_in_container(
+                                    transformation,
+                                    statement,
+                                    expression_context.comments(),
+                                    writer,
+                                )?;
+                            }
+                            writer.write_line(false);
+                        }
+                        if let Some(helpers) = pending_helpers {
+                            self.emit_helpers(&helpers, writer)?;
+                        }
+                        if !function_body {
+                            self.emit_comments_before_close_brace(
+                                transformation,
+                                node,
+                                statement_list_end,
+                                writer,
+                            )?;
+                        }
+                        writer.decrease_indent();
                     }
-                    if let Some(helpers) = pending_helpers {
-                        self.emit_helpers(&helpers, writer)?;
-                    }
-                    self.emit_comments_before_close_brace(
+                    Ok(())
+                })();
+                if body_result.is_ok() && enters_body_comment_suppression {
+                    self.comments_disabled_after_failure = false;
+                }
+                body_result?;
+                if let Some(range) = function_body_range {
+                    writer.increase_indent();
+                    self.emit_function_body_trailing_comments(
                         transformation,
                         node,
-                        statement_list_end,
+                        range.end(),
+                        &mut pending_detached_comments,
                         writer,
                     )?;
                     writer.decrease_indent();
@@ -8451,9 +8578,13 @@ impl Printer {
                 // writeToken 119030), anchored at the statement-list end.
                 let close_default = match statement_list_end {
                     Some(end) => match u32::try_from(end) {
-                        Ok(end) => {
-                            self.token_map_range_at(transformation, node.source(), end, writer)?
-                        }
+                        Ok(end) => self.token_map_range_spanning(
+                            transformation,
+                            node.source(),
+                            end,
+                            "}",
+                            writer,
+                        )?,
                         Err(_) => None,
                     },
                     None => None,
@@ -8508,17 +8639,17 @@ impl Printer {
             transformation,
             node.source(),
             raw_pos,
-            spelling.len(),
+            spelling,
             writer,
         )?;
         // writeToken has no contextNode here: neither the MetaProperty's
         // token-map flags nor its per-token range override owns this token.
         if let Some(range) = range {
-            self.record_map_range_side(transformation, MapBoundary::Before, range, writer)?;
+            self.record_token_map_default_side(transformation, MapBoundary::Before, range, writer)?;
         }
         writer.write_punctuation(spelling);
         if let Some(range) = range {
-            self.record_map_range_side(transformation, MapBoundary::After, range, writer)?;
+            self.record_token_map_default_side(transformation, MapBoundary::After, range, writer)?;
         }
         writer.write_punctuation(".");
         if let Some(name) = data.name {
@@ -8597,7 +8728,9 @@ impl Printer {
             }
         };
         let open_default = match case_block_start {
-            Some(start) => self.token_map_range_at(transformation, source, start, writer)?,
+            Some(start) => {
+                self.token_map_range_spanning(transformation, source, start, "{", writer)?
+            }
             None => None,
         };
         self.record_brace_write(
@@ -8673,7 +8806,7 @@ impl Printer {
             writer.decrease_indent();
         }
         let close_default = match clause_list_end.and_then(|end| u32::try_from(end).ok()) {
-            Some(end) => self.token_map_range_at(transformation, source, end, writer)?,
+            Some(end) => self.token_map_range_spanning(transformation, source, end, "}", writer)?,
             None => None,
         };
         self.record_brace_write(
@@ -16459,12 +16592,11 @@ impl Printer {
         self.detached_comment_prefix_at(transformation, array.source(), range.start())
     }
 
-    /// A relocated module body does not own an ordinary block statement-list
-    /// prefix. Its prefix was emitted by the outer SourceFile, whose detached
-    /// comment owner is the first parsed statement rather than the current
-    /// (possibly synthesized) NodeArray boundary. Recreate that exact owner so
-    /// `PendingDetachedComments` can resume the first retained statement and
-    /// cannot emit the SourceFile-owned prefix a second time.
+    /// A relocated module body whose current list is synthesized uses the
+    /// SourceFile-owned prefix only as a resume seed. Its owner is the first
+    /// parsed statement, rather than the synthetic array boundary. A current
+    /// list with a real range instead owns its own detached prefix, even when
+    /// upstream deliberately emits the SourceFile prefix a second time.
     fn detached_source_file_prefix_for_relocated_statement_list(
         &self,
         transformation: &TransformationResult<'_>,
@@ -17670,22 +17802,16 @@ impl Printer {
                     position: start_position.value(),
                     token: token.kind,
                 })?;
-        // The positioned brace default range spans the raw start (the
-        // record side re-skips trivia exactly as upstream
-        // emitTokenWithSourceMap does) to the arithmetic token end; a
-        // range that cannot be constructed on char boundaries records
-        // nothing (§8-A records the deviation from upstream's arithmetic
-        // continuation — unwitnessed corner).
+        // Token maps can represent an EOF continuation independently of
+        // the bounded cursor used below for comments and source spelling.
         let token_map_range = if record_braces && writer.has_source_map_recording() {
-            u32::try_from(token_end).ok().and_then(|end_raw| {
-                SourceRange::from_raw(
-                    u32::try_from(start).expect("token start exceeds u32"),
-                    end_raw,
-                    source.positions(),
-                )
-                .ok()
-                .map(|range| SourceMapRange::new(cursor_source, range))
-            })
+            TokenMapDefault::from_token(
+                cursor_source,
+                start_position,
+                token_start,
+                spelling,
+                source.positions(),
+            )
         } else {
             None
         };
@@ -18304,6 +18430,47 @@ impl Printer {
         ))
     }
 
+    /// The tail of `emitBodyWithDetachedComments`, separate from the
+    /// close-brace token's comment lane. Its owner is the function body's
+    /// statement-array end, including a real EOF with no source brace.
+    fn emit_function_body_trailing_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        body: TransformNode,
+        end: SourceBytePosition,
+        pending: &mut PendingDetachedComments,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.comments_disabled()
+            || transformation
+                .arena()
+                .metadata(body)
+                .is_some_and(|metadata| {
+                    metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
+                })
+        {
+            return Ok(());
+        }
+        // When an empty list's end equals its detached-head owner, upstream
+        // resumes at the last comment's end, not after its trailing whitespace.
+        let position = pending
+            .take_for(CommentCursor::new(body.source(), end))
+            .map_or(end, |resume| resume.next().position());
+        let source = transformation.arena().source(body.source())?.syntax();
+        let before = writer.text_position();
+        emit_source_leading_comments_of_position(
+            source.text(),
+            position.value() as usize,
+            &BTreeSet::new(),
+            self.options.only_print_js_doc_style,
+            writer,
+        );
+        if writer.text_position() != before && !writer.is_at_start_of_line() {
+            writer.write_line(false);
+        }
+        Ok(())
+    }
+
     /// Emits the leading comments owned by a close-brace token. `tsc` anchors
     /// this token at the source NodeArray's end, not at the final emitted
     /// child. That distinction prevents comments attached to a removed tail
@@ -18744,7 +18911,7 @@ impl Printer {
         boundary: MapBoundary,
         owner: TransformNode,
         token_kind: SyntaxKind,
-        default_range: Option<SourceMapRange>,
+        default_range: Option<TokenMapDefault>,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if !writer.has_source_map_recording() {
@@ -18763,50 +18930,75 @@ impl Printer {
         let range = metadata
             .and_then(|metadata| metadata.token_source_map_ranges().get(&token_kind))
             .copied()
+            .map(TokenMapDefault::Bounded)
             .or(default_range);
         let Some(range) = range else {
             return Ok(());
         };
-        self.record_map_range_side(transformation, boundary, range, writer)
+        self.record_token_map_default_side(transformation, boundary, range, writer)
     }
 
-    /// A one-token default range anchored at a raw source position: the
-    /// span from the raw anchor to one byte past its skip-trivia'd token
-    /// start (upstream `writeToken`'s returned continuation). `None` when
-    /// the anchor cannot form a valid range.
-    fn token_map_range_at(
+    fn record_token_map_default_side(
         &self,
         transformation: &TransformationResult<'_>,
-        source: TransformSourceId,
-        raw_anchor: u32,
-        writer: &TextWriter,
-    ) -> Result<Option<SourceMapRange>, PrinterError> {
-        self.token_map_range_spanning(transformation, source, raw_anchor, 1, writer)
+        boundary: MapBoundary,
+        range: TokenMapDefault,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        match range {
+            TokenMapDefault::Bounded(range) => {
+                self.record_map_range_side(transformation, boundary, range, writer)
+            }
+            TokenMapDefault::EofContinuation { source, width } => {
+                let syntax = transformation.arena().source(source)?.syntax();
+                let positions = syntax.positions();
+                let eof = SourceBytePosition::new(positions.byte_len(), positions)?;
+                let location = SourceUtf16Location::from_byte(eof, positions)?;
+                let column = match boundary {
+                    MapBoundary::Before => Some(location.column()),
+                    MapBoundary::After => location.column().checked_add(width),
+                };
+                if let Some(column) = column {
+                    writer.record_source_map_position_for(
+                        source,
+                        syntax.file_name.as_js(),
+                        location.line(),
+                        column,
+                    );
+                }
+                Ok(())
+            }
+        }
     }
 
-    /// As `token_map_range_at` for a token of a known spelling length
-    /// (upstream `writeToken`'s `pos + tokenString.length` continuation).
+    /// A token default anchored at a raw source position. The Before
+    /// side skips trivia; the After side follows the token's spelling.
+    /// At EOF that continuation is a map column, not a source byte range.
     fn token_map_range_spanning(
         &self,
         transformation: &TransformationResult<'_>,
         source: TransformSourceId,
         raw_anchor: u32,
-        spelling_len: usize,
+        spelling: &str,
         writer: &TextWriter,
-    ) -> Result<Option<SourceMapRange>, PrinterError> {
+    ) -> Result<Option<TokenMapDefault>, PrinterError> {
         if !writer.has_source_map_recording() {
             return Ok(None);
         }
         let syntax = transformation.arena().source(source)?.syntax();
-        let token_start = skip_trivia(syntax.text(), raw_anchor as usize);
-        let Ok(end_raw) = u32::try_from(token_start + spelling_len) else {
+        // Trivia scanning indexes real source text. Synthetic and invalid
+        // anchors have no default map, and must never reach that scanner.
+        let Ok(raw_anchor) = SourceBytePosition::new(raw_anchor, syntax.positions()) else {
             return Ok(None);
         };
-        Ok(
-            SourceRange::from_raw(raw_anchor, end_raw, syntax.positions())
-                .ok()
-                .map(|range| SourceMapRange::new(source, range)),
-        )
+        let token_start = skip_trivia(syntax.text(), raw_anchor.value() as usize);
+        Ok(TokenMapDefault::from_token(
+            source,
+            raw_anchor,
+            token_start,
+            spelling,
+            syntax.positions(),
+        ))
     }
 
     /// The Block/CaseBlock brace lane of the §4 route table: bracket one
@@ -18819,7 +19011,7 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         owner: TransformNode,
         token_kind: SyntaxKind,
-        default_range: Option<SourceMapRange>,
+        default_range: Option<TokenMapDefault>,
         spelling: &'static str,
         classify: fn(&mut TextWriter, &str),
         writer: &mut TextWriter,

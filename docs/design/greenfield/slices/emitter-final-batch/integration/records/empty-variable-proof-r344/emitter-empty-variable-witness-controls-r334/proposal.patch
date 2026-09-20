@@ -1,0 +1,153 @@
+--- a/crates/compiler/tests/integration/source_map_recording_witness_contract.rs
++++ b/crates/compiler/tests/integration/source_map_recording_witness_contract.rs
+@@ -286,13 +286,6 @@
+             let observation = &case["observation"];
+             let has_map = write_entry(observation, ".js.map").is_some();
+             if lane != "parity" || !has_map {
+-                continue;
+-            }
+-            if case_id == "edge-shapes--fault-parse-error" {
+-                // §8-A: files carrying parse diagnostics are typed-deferred
+-                // to H2.9 by the production transform path (the 5g/5h band
+-                // treatment); the frozen oracle bytes are that lane's
+-                // inheritance, not an m-2 replay target.
+                 continue;
+             }
+             let frozen_js = callback_text(write_entry(observation, ".js").expect("js write"));
+@@ -363,8 +356,8 @@
+     }
+     if std::env::var("M2_CASE").is_err() {
+         assert_eq!(
+-            replayed, 25,
+-            "parity replay census changed (parse-error is H2.9-deferred)"
++            replayed, 26,
++            "parity replay census changed (including the recovered empty variable list)"
+         );
+     }
+     let known: Vec<&str> = KNOWN_DIVERGENCES.to_vec();
+@@ -444,7 +437,7 @@
+ }
+ 
+ #[test]
+-fn parse_error_witness_is_typed_deferred_to_h2_9() {
++fn empty_variable_parse_error_witness_keeps_exact_recorded_output() {
+     let artifact: Value = serde_json::from_slice(WITNESSES).expect("witness artifact JSON");
+     let library_files = vendored_library_files();
+     let case = artifact["families"]
+@@ -454,41 +447,14 @@
+         .flat_map(|family| family["cases"].as_array().expect("cases"))
+         .find(|case| case["case_id"] == "edge-shapes--fault-parse-error")
+         .expect("parse-error case");
+-    let input = &case["input"];
+-    let mut builder = MemoryCompilerHost::builder("/project");
+-    for file in input["files"].as_array().expect("input files") {
+-        builder = builder.file(
+-            file["path"].as_str().expect("path"),
+-            decode_base64(file["utf8_base64"].as_str().expect("base64")),
+-        );
+-    }
+-    for (name, bytes) in &library_files {
+-        builder = builder.file(format!("{LIBRARY_HOST_DIRECTORY}/{name}"), bytes.clone());
+-    }
+-    let host = builder.build().expect("host");
+-    let catalog = LibraryCatalog::typescript_6_0_3(LIBRARY_HOST_DIRECTORY);
+-    let roots = input["roots"]
+-        .as_array()
+-        .expect("roots")
+-        .iter()
+-        .map(|root| PathBuf::from(root.as_str().expect("root")))
+-        .collect::<Vec<_>>();
+-    let prepared = load_emitting_program(
+-        &host,
+-        &roots,
+-        case_compiler_options(&input["compiler_options"]),
+-        ProgramOptions::default(),
+-        &catalog,
+-        ProgramLoadLimits::new(256, 2_048, 64, 16 * 1_024 * 1_024, 128 * 1_024 * 1_024),
+-    )
+-    .expect("load");
+-    let error = ProgramSession::new(prepared)
+-        .print_units_with_source_map_recording_for_harness(&|_| None)
+-        .expect_err("parse-diagnostic files are typed-deferred");
+-    let rendered = format!("{error:?}");
+-    assert!(
+-        rendered.contains("ParseDiagnosticsDeferred") && rendered.contains("H2.9"),
+-        "unexpected deferral shape: {rendered}"
++    let result = drive_case("edge-shapes--fault-parse-error", case, &library_files);
++    assert_eq!(
++        result.js,
++        callback_text(write_entry(&case["observation"], ".js").expect("js write"))
++    );
++    assert_eq!(
++        result.map_json,
++        callback_text(write_entry(&case["observation"], ".js.map").expect("map write"))
+     );
+ }
+ 
+@@ -501,8 +467,8 @@
+ // `inlineSources` content feed through `Printer::print` itself, and the
+ // URL reconstruction through `source_mapping_url`. Multi-unit cases are
+ // covered at the unit tier (per-unit plumbing is identical); the
+-// parse-error deferral rule of the 6a gate does not arise (no 6b case
+-// carries parse diagnostics).
++// recovered parse-error case of the 6a gate has no counterpart here
++// (no 6b case carries parse diagnostics).
+ 
+ const WITNESSES_6B: &[u8] = include_bytes!(concat!(
+     env!("CARGO_MANIFEST_DIR"),
+--- a/crates/compiler/tests/integration/source_map_emit_witness_contract.rs
++++ b/crates/compiler/tests/integration/source_map_emit_witness_contract.rs
+@@ -6,7 +6,7 @@
+ //! before js per mapped unit), `emitResult.sourceMaps`,
+ //! `emitted_files` (js before map), and `emitSkipped`. Historical
+ //! H2.6b boundary controls and outDir cases now require exact output;
+-//! the parse-error fault stays the typed H2.9 deferral.
++//! the recovered empty-variable parse fault also requires exact output.
+ 
+ use serde_json::Value;
+ use tsc_compiler::ProgramSession;
+@@ -22,7 +22,6 @@
+     let library_files = vendored_library_files();
+     let mut parity_cases = 0_usize;
+     let mut refusal_cases = 0_usize;
+-    let mut deferred_cases = 0_usize;
+     for family in artifact["families"].as_array().expect("families") {
+         for case in family["cases"].as_array().expect("cases") {
+             let case_id = case["case_id"].as_str().expect("case id");
+@@ -39,25 +38,6 @@
+                     refusal_cases += 1;
+                 }
+                 "parity" => {
+-                    if case_id == "edge-shapes--fault-parse-error" {
+-                        let prepared = prepare_case_program(case_id, case, &library_files);
+-                        let mut sink = MemoryOutputSink::new();
+-                        let error = ProgramSession::new(prepared)
+-                            .emit(&mut sink)
+-                            .expect_err("parse-diagnostic files are typed-deferred");
+-                        let rendered = format!("{error:?}");
+-                        assert!(
+-                            rendered.contains("ParseDiagnosticsDeferred")
+-                                && rendered.contains("H2.9"),
+-                            "{case_id}: unexpected deferral shape: {rendered}"
+-                        );
+-                        assert!(
+-                            sink.writes().is_empty(),
+-                            "{case_id}: deferral writes nothing"
+-                        );
+-                        deferred_cases += 1;
+-                        continue;
+-                    }
+                     assert_parity_case(case_id, case, &library_files);
+                     parity_cases += 1;
+                 }
+@@ -66,8 +46,8 @@
+         }
+     }
+     assert_eq!(
+-        (parity_cases, refusal_cases, deferred_cases),
+-        (30, 5, 1),
++        (parity_cases, refusal_cases),
++        (31, 5),
+         "witness emit census changed (the 5 boundary controls are parity since h2-6b-m-2)"
+     );
+ }

@@ -1,0 +1,204 @@
+--- a/crates/emitter/src/printer.rs
++++ b/crates/emitter/src/printer.rs
+@@ -8185,6 +8185,16 @@
+                 } else {
+                     (Vec::new(), None)
+                 };
++                let function_body_range = if let Some(array) = array.filter(|_| function_body) {
++                    let record = transformation.arena().node_array(array)?;
++                    let source = transformation.arena().source(array.source())?.syntax();
++                    match SourceRange::from_raw(record.pos, record.end, source.positions())? {
++                        SourceRange::Original(range) => Some(range),
++                        SourceRange::Synthesized => None,
++                    }
++                } else {
++                    None
++                };
+                 let relocated_statement_list_comments = transformation
+                     .arena()
+                     .metadata(node)
+@@ -8205,14 +8215,15 @@
+                             })
+                     });
+                 let detached_body_prefix = if function_body
+-                    && !statements.is_empty()
+                     && !transformation
+                         .arena()
+                         .metadata(node)
+                         .is_some_and(|metadata| {
+                             metadata.flags().contains(EmitFlags::NO_LEADING_COMMENTS)
+                         }) {
+-                    if let Some(relocated) = relocated_statement_list_comments {
++                    if let Some(relocated) =
++                        relocated_statement_list_comments.filter(|_| function_body_range.is_none())
++                    {
+                         self.detached_source_file_prefix_for_relocated_statement_list(
+                             transformation,
+                             relocated.original(),
+@@ -8228,13 +8239,16 @@
+                 } else {
+                     None
+                 };
+-                // A relocated module body shares the original prefix boundary
+-                // only as a resume seed. Its outer SourceFile list retained the
+-                // parsed range and already emitted the prefix.
+-                let body_owned_detached_prefix = relocated_statement_list_comments
+-                    .is_none()
+-                    .then_some(detached_body_prefix)
+-                    .flatten();
++                // A ranged body owns its array's detached prefix even when
++                // the outer SourceFile already emitted the same comment.
++                // Only a synthesized relocated list uses that prefix solely
++                // as a resume seed for its retained statements.
++                let body_owned_detached_prefix = (function_body_range.is_some()
++                    || relocated_statement_list_comments.is_none())
++                .then_some(detached_body_prefix)
++                .flatten();
++                let mut pending_detached_comments =
++                    PendingDetachedComments::from_prefix(detached_body_prefix);
+                 // PreserveLines checks the leading, separating and closing
+                 // boundaries before selecting a compact function body. A
+                 // synthesized statement with startsOnNewLine makes at least
+@@ -8285,15 +8299,30 @@
+                 } else {
+                     multi_line || !statements.is_empty()
+                 }) || body_owned_detached_prefix.is_some();
+-                if statements.is_empty() {
+-                    let emitted_comments = self.emit_empty_block_comments(
++                if body_owned_detached_prefix.is_some() {
++                    writer.increase_indent();
++                    self.emit_detached_comment_prefix(
+                         transformation,
+-                        node,
+-                        array,
+-                        multi_line,
+-                        function_body,
++                        body_owned_detached_prefix,
+                         writer,
+                     )?;
++                    writer.decrease_indent();
++                }
++                if statements.is_empty() {
++                    let emitted_comments = if function_body_range.is_some() {
++                        // Function-body lists have no bracket comment lane.
++                        // Their range owns a separate detached head and tail.
++                        false
++                    } else {
++                        self.emit_empty_block_comments(
++                            transformation,
++                            node,
++                            array,
++                            multi_line,
++                            function_body,
++                            writer,
++                        )?
++                    };
+                     if !emitted_comments && multi_line {
+                         writer.write_line(false);
+                     } else if !emitted_comments {
+@@ -8370,13 +8399,6 @@
+                     }
+                     writer.write_line(false);
+                     writer.increase_indent();
+-                    self.emit_detached_comment_prefix(
+-                        transformation,
+-                        body_owned_detached_prefix,
+-                        writer,
+-                    )?;
+-                    let mut pending_detached_comments =
+-                        PendingDetachedComments::from_prefix(detached_body_prefix);
+                     let mut has_previous_original_statement = false;
+                     let mut in_function_prologue = function_body;
+                     let mut pending_helpers = (!block_helpers.is_empty()).then_some(block_helpers);
+@@ -8481,10 +8503,23 @@
+                     if let Some(helpers) = pending_helpers {
+                         self.emit_helpers(&helpers, writer)?;
+                     }
+-                    self.emit_comments_before_close_brace(
++                    if !function_body {
++                        self.emit_comments_before_close_brace(
++                            transformation,
++                            node,
++                            statement_list_end,
++                            writer,
++                        )?;
++                    }
++                    writer.decrease_indent();
++                }
++                if let Some(range) = function_body_range {
++                    writer.increase_indent();
++                    self.emit_function_body_trailing_comments(
+                         transformation,
+                         node,
+-                        statement_list_end,
++                        range.end(),
++                        &mut pending_detached_comments,
+                         writer,
+                     )?;
+                     writer.decrease_indent();
+@@ -16508,12 +16543,11 @@
+         self.detached_comment_prefix_at(transformation, array.source(), range.start())
+     }
+ 
+-    /// A relocated module body does not own an ordinary block statement-list
+-    /// prefix. Its prefix was emitted by the outer SourceFile, whose detached
+-    /// comment owner is the first parsed statement rather than the current
+-    /// (possibly synthesized) NodeArray boundary. Recreate that exact owner so
+-    /// `PendingDetachedComments` can resume the first retained statement and
+-    /// cannot emit the SourceFile-owned prefix a second time.
++    /// A relocated module body whose current list is synthesized uses the
++    /// SourceFile-owned prefix only as a resume seed. Its owner is the first
++    /// parsed statement, rather than the synthetic array boundary. A current
++    /// list with a real range instead owns its own detached prefix, even when
++    /// upstream deliberately emits the SourceFile prefix a second time.
+     fn detached_source_file_prefix_for_relocated_statement_list(
+         &self,
+         transformation: &TransformationResult<'_>,
+@@ -18345,6 +18379,47 @@
+                 | SyntaxKind::Constructor
+                 | SyntaxKind::ClassStaticBlockDeclaration
+         ))
++    }
++
++    /// The tail of `emitBodyWithDetachedComments`, separate from the
++    /// close-brace token's comment lane. Its owner is the function body's
++    /// statement-array end, including a real EOF with no source brace.
++    fn emit_function_body_trailing_comments(
++        &self,
++        transformation: &TransformationResult<'_>,
++        body: TransformNode,
++        end: SourceBytePosition,
++        pending: &mut PendingDetachedComments,
++        writer: &mut TextWriter,
++    ) -> Result<(), PrinterError> {
++        if self.comments_disabled()
++            || transformation
++                .arena()
++                .metadata(body)
++                .is_some_and(|metadata| {
++                    metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
++                })
++        {
++            return Ok(());
++        }
++        // When an empty list's end equals its detached-head owner, upstream
++        // resumes at the last comment's end, not after its trailing whitespace.
++        let position = pending
++            .take_for(CommentCursor::new(body.source(), end))
++            .map_or(end, |resume| resume.next().position());
++        let source = transformation.arena().source(body.source())?.syntax();
++        let before = writer.text_position();
++        emit_source_leading_comments_of_position(
++            source.text(),
++            position.value() as usize,
++            &BTreeSet::new(),
++            self.options.only_print_js_doc_style,
++            writer,
++        );
++        if writer.text_position() != before && !writer.is_at_start_of_line() {
++            writer.write_line(false);
++        }
++        Ok(())
+     }
+ 
+     /// Emits the leading comments owned by a close-brace token. `tsc` anchors

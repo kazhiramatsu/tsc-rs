@@ -1,0 +1,241 @@
+{
+  "canonical_head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "scope": "Actual Opus181-183, initial EOF/System implementation unit verification (340compilefail,341513pass1testexpectationfail,343514pass), independent syntheticMetaProperty panic346, canonical internal TypeScript12controls347/350. 345/348/351/352 are PREPARATION ONLY, not applied/qualified. Original4Systemcomments remainfailed in342 fullcommands, and new64TScontrols353 are being observed; no final map/command/integration qualification claim. No AST or position constraints relaxed.",
+  "qualified": false,
+  "files": [
+    {
+      "path": "reviews/emitter-claude-review-round181-opus.json",
+      "source": "/tmp/emitter-claude-review-round181-opus.json",
+      "bytes": 8706,
+      "sha256": "536daa6894d1b8e6eb4fe7981675e148f0d37365c55bc0c45c19db2ed14f9bf8"
+    },
+    {
+      "path": "reviews/emitter-round181-request.md",
+      "source": "/tmp/emitter-round181-request.md",
+      "bytes": 2092,
+      "sha256": "75ed6fce70d8e5be6b20796b53aae9ec8c81ec852c4c7ad86e656a4ca25d6aba"
+    },
+    {
+      "path": "reviews/emitter-claude-review-round182-opus.json",
+      "source": "/tmp/emitter-claude-review-round182-opus.json",
+      "bytes": 7380,
+      "sha256": "0047420beda5ceb5d66843d51e1250b5f92b6540493a326b59f3ca128fc04277"
+    },
+    {
+      "path": "reviews/emitter-round182-request.md",
+      "source": "/tmp/emitter-round182-request.md",
+      "bytes": 4001,
+      "sha256": "f7c4f3bb52d1bc85e88ba75eeaa296c189267c11fc408613ccdf45f3cc028497"
+    },
+    {
+      "path": "reviews/emitter-claude-review-round183-opus.json",
+      "source": "/tmp/emitter-claude-review-round183-opus.json",
+      "bytes": 11630,
+      "sha256": "9d1d166ce0f3e7478b0fe77ac9dc8ceda3feb63ed010fdec26dfebc36c6fb3c6"
+    },
+    {
+      "path": "reviews/emitter-round183-request.md",
+      "source": "/tmp/emitter-round183-request.md",
+      "bytes": 4463,
+      "sha256": "4252ce7d1e42a1a8b95484cad254e1886a25b56c80f26e1ecc358708ecc8f073"
+    },
+    {
+      "path": "emitter-system-eof-review-r345/manifest.json",
+      "source": "/tmp/emitter-system-eof-review-r345/manifest.json",
+      "bytes": 480,
+      "sha256": "627bd16d3003deab261b6c490012b1d34a23b8a5a1e7f8523eaf81cd1f72a7cf"
+    },
+    {
+      "path": "emitter-system-eof-review-r345/printer.rs",
+      "source": "/tmp/emitter-system-eof-review-r345/printer.rs",
+      "bytes": 824351,
+      "sha256": "5fa17a5f15f69f53b545820bb8a5fbc5ad2becd9d9e02debeee17390dac6d400"
+    },
+    {
+      "path": "emitter-system-eof-review-r345/review-cleanup.patch",
+      "source": "/tmp/emitter-system-eof-review-r345/review-cleanup.patch",
+      "bytes": 4696,
+      "sha256": "4926421866f9399e43506d0ab21c3830e164a1acc5f5b6e6dfd8c6519dcaac88"
+    },
+    {
+      "path": "emitter-synthetic-meta-probe-r346/build.log.gz",
+      "source": "/tmp/emitter-synthetic-meta-probe-r346/build.log",
+      "bytes": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "emitter-synthetic-meta-probe-r346/main.rs",
+      "source": "/tmp/emitter-synthetic-meta-probe-r346/main.rs",
+      "bytes": 1658,
+      "sha256": "63c0ba595b0265d330a9153a3e1311d6867fd94bf0d98e928e7094b064f828d2"
+    },
+    {
+      "path": "emitter-synthetic-meta-probe-r346/manifest.json",
+      "source": "/tmp/emitter-synthetic-meta-probe-r346/manifest.json",
+      "bytes": 1168,
+      "sha256": "8da2cd574b2db8db46070e2b4c7dd6b23f473a94f1748b8b7db74da27f003554"
+    },
+    {
+      "path": "emitter-synthetic-meta-probe-r346/native.log.gz",
+      "source": "/tmp/emitter-synthetic-meta-probe-r346/native.log",
+      "bytes": 187,
+      "sha256": "7b03817ee0bc05fbd69f0366ec782b72a053b960bfdb091a9bd37038f6fb630f"
+    },
+    {
+      "path": "emitter-synthetic-meta-controls-mint-r347/manifest.json",
+      "source": "/tmp/emitter-synthetic-meta-controls-mint-r347/manifest.json",
+      "bytes": 526,
+      "sha256": "67b5d3cf7c2bebe9f27d8a3fd4b6c5efff306a9179f9e9c0707f438c8eafca95"
+    },
+    {
+      "path": "emitter-synthetic-meta-controls-mint-r347/original-fixture.json.gz",
+      "source": "/tmp/emitter-synthetic-meta-controls-mint-r347/original-fixture.json.gz",
+      "bytes": 1039,
+      "sha256": "e6d638992d578276f04f8ed2f79560b4b5bb4eee11c3c66e4697a1f9e7b3f87a"
+    },
+    {
+      "path": "emitter-synthetic-meta-controls-mint-r347/original-observer.mjs",
+      "source": "/tmp/emitter-synthetic-meta-controls-mint-r347/original-observer.mjs",
+      "bytes": 3714,
+      "sha256": "de6c9f6cdb66b631f32cabcacb426790e38a07b626b98b7a42349a8990300d2f"
+    },
+    {
+      "path": "emitter-synthetic-meta-tests-r348/manifest.json",
+      "source": "/tmp/emitter-synthetic-meta-tests-r348/manifest.json",
+      "bytes": 376,
+      "sha256": "4f8f3f47cf6abfe865a707364f60e2fa6e0508e8277d8a8c190c3de21a84d55a"
+    },
+    {
+      "path": "emitter-synthetic-meta-tests-r348/tests.patch",
+      "source": "/tmp/emitter-synthetic-meta-tests-r348/tests.patch",
+      "bytes": 1677,
+      "sha256": "f1b4e2cd7c0f06e10be1dc1f48222ba04c3ecf894687686c49e3ed5e989e915f"
+    },
+    {
+      "path": "emitter-synthetic-meta-tests-r348/tests.rs",
+      "source": "/tmp/emitter-synthetic-meta-tests-r348/tests.rs",
+      "bytes": 244415,
+      "sha256": "92d10addc2363e0e9ad145bd54af3fc13fc8abbe5334fce9fd817a4340488e1a"
+    },
+    {
+      "path": "emitter-synthetic-owner-controls-mint-r350/manifest.json",
+      "source": "/tmp/emitter-synthetic-owner-controls-mint-r350/manifest.json",
+      "bytes": 753,
+      "sha256": "e4ee5c80c988f76652892e5c27557ffe0a9dca982720ad5b5144aba6f4ee5159"
+    },
+    {
+      "path": "emitter-synthetic-owner-controls-mint-r350/original-fixture.json.gz",
+      "source": "/tmp/emitter-synthetic-owner-controls-mint-r350/original-fixture.json.gz",
+      "bytes": 1109,
+      "sha256": "8eeb25c9cf846ba8acc6867f297a4f6865309bccb24d311e3d226abf2d1da001"
+    },
+    {
+      "path": "emitter-synthetic-owner-controls-mint-r350/original-observer.mjs",
+      "source": "/tmp/emitter-synthetic-owner-controls-mint-r350/original-observer.mjs",
+      "bytes": 3892,
+      "sha256": "44e1804d15f8e117aafebd1c8008b9dabf31e0ea6939fffd5b9d62a295a14799"
+    },
+    {
+      "path": "emitter-synthetic-owner-controls-mint-r350/original-readiness.py",
+      "source": "/tmp/emitter-synthetic-owner-controls-mint-r350/original-readiness.py",
+      "bytes": 5470,
+      "sha256": "1950f24b2c86592d9edb43b2d787fbd464670ac18d5d15bdd9875c8d21b43730"
+    },
+    {
+      "path": "emitter-system-eof-final-r351/crates/emitter/src/printer.rs",
+      "source": "/tmp/emitter-system-eof-final-r351/crates/emitter/src/printer.rs",
+      "bytes": 824849,
+      "sha256": "e6f556f4101218764d7757bd846565b710750da3069e56e990d2785652beae4e"
+    },
+    {
+      "path": "emitter-system-eof-final-r351/crates/emitter/tests/unit/builtins/tests.rs",
+      "source": "/tmp/emitter-system-eof-final-r351/crates/emitter/tests/unit/builtins/tests.rs",
+      "bytes": 245674,
+      "sha256": "2ad3b580e6f0dbd60c7de1721ab4149b326d73e65f1bb27d26a0eb5f4305072e"
+    },
+    {
+      "path": "emitter-system-eof-final-r351/crates/emitter/tests/unit/source_map/tests.rs",
+      "source": "/tmp/emitter-system-eof-final-r351/crates/emitter/tests/unit/source_map/tests.rs",
+      "bytes": 56782,
+      "sha256": "52fb39cfafefbd971428b97f89817fd6add976698d063261a8e28ff20910c740"
+    },
+    {
+      "path": "emitter-system-eof-final-r351/initial-manifest.json",
+      "source": "/tmp/emitter-system-eof-final-r351/initial-manifest.json",
+      "bytes": 908,
+      "sha256": "df77fd21c44eb746abea95de863d5a87ff032de99c2dbe2c7e630a4abead1924"
+    },
+    {
+      "path": "emitter-system-eof-final-r351/manifest.json",
+      "source": "/tmp/emitter-system-eof-final-r351/manifest.json",
+      "bytes": 1090,
+      "sha256": "1182c3ca4bac5491af517fd1cecb724198e188bb447e5f33673582708e4eca00"
+    },
+    {
+      "path": "emitter-system-eof-final-r351/synthetic-empty-regression-append.rs",
+      "source": "/tmp/emitter-system-eof-final-r351/synthetic-empty-regression-append.rs",
+      "bytes": 1191,
+      "sha256": "ccce72640eb6436e3aab5371af83841a9519fb46b6e5931846fc07fc954eba59"
+    },
+    {
+      "path": "scripts/prepare-emitter-system-eof-review-r345.py",
+      "source": "/tmp/prepare-emitter-system-eof-review-r345.py",
+      "bytes": 2379,
+      "sha256": "0b70fc308b4b87273048ce4b7bbd421330be3cc59c02c42893fd1b6c49ba3bf0"
+    },
+    {
+      "path": "scripts/emitter-synthetic-meta-probe-r346.py",
+      "source": "/tmp/emitter-synthetic-meta-probe-r346.py",
+      "bytes": 2866,
+      "sha256": "e497113db00921deb6ffc2048bb470765427f7ea6b41105f1d15a53b5cd593e1"
+    },
+    {
+      "path": "scripts/emitter-synthetic-meta-controls-mint-r347.py",
+      "source": "/tmp/emitter-synthetic-meta-controls-mint-r347.py",
+      "bytes": 2418,
+      "sha256": "29e6264a316f4cd005e2736c001b5e8f1055f9a673cf6169c809be09f1a9fc04"
+    },
+    {
+      "path": "scripts/emitter-synthetic-owner-controls-mint-r350.py",
+      "source": "/tmp/emitter-synthetic-owner-controls-mint-r350.py",
+      "bytes": 3092,
+      "sha256": "b68be5e33f2c377e7b31a8eb50dc34f3b0604e8e62896a10e1b28c2247dff030"
+    },
+    {
+      "path": "scripts/prepare-emitter-system-eof-final-r351.py",
+      "source": "/tmp/prepare-emitter-system-eof-final-r351.py",
+      "bytes": 4441,
+      "sha256": "77d830c7e8ef69a974f54169eaf51d83173096ee6f5304206faf1fd6135763f9"
+    },
+    {
+      "path": "scripts/emitter-system-eof-final-validation-r352.py",
+      "source": "/tmp/emitter-system-eof-final-validation-r352.py",
+      "bytes": 2852,
+      "sha256": "fc9f09f5488f11fb098ba0f810f96f5644695efd8b29768e954a5cf88e04cfd9"
+    },
+    {
+      "path": "lib-tests/emitter-system-eof-lib-r340.log.gz",
+      "source": "/tmp/emitter-system-eof-lib-r340.log",
+      "bytes": 346,
+      "sha256": "56e83aacfad1377de26ec0f69e106770cc57ee802a77b61002d12d1684f44d1e"
+    },
+    {
+      "path": "lib-tests/emitter-system-eof-lib-r341.log.gz",
+      "source": "/tmp/emitter-system-eof-lib-r341.log",
+      "bytes": 8427,
+      "sha256": "3e06c57c9dfb370da12194f4705b698e7fbf704070d53e4ef64000467f376bab"
+    },
+    {
+      "path": "lib-tests/emitter-system-eof-lib-r343.log.gz",
+      "source": "/tmp/emitter-system-eof-lib-r343.log",
+      "bytes": 8158,
+      "sha256": "58b0f31e4edbf1e0573f0113f410cbb1dd74709a83f407232c2b5d763db6e851"
+    },
+    {
+      "path": "archive.py",
+      "source": "/tmp/archive-emitter-system-eof-review-r354.py",
+      "bytes": 2646,
+      "sha256": "f21e830ef4bc87bfc69fa5e0c9d140c3fb31d80181ac44baebecb3689e38e759"
+    }
+  ]
+}

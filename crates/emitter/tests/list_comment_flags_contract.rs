@@ -10,6 +10,7 @@ use tsc_syntax::{parse_source_file, NodeData};
 struct FlagTransformer {
     flags: EmitFlags,
     parent: bool,
+    parent_and_body: bool,
     clone_name: bool,
 }
 
@@ -37,6 +38,22 @@ impl Transformer for FlagTransformer {
         let statement = arena
             .node_ref(source, arena.node_array(statements)?.nodes[0])
             .unwrap();
+        if let NodeData::FunctionDeclaration(data) = &arena.node(statement)?.data {
+            let body = arena.node_ref(source, data.body.unwrap()).unwrap();
+            if self.parent || self.parent_and_body {
+                context
+                    .arena_mut()?
+                    .metadata_mut(statement)
+                    .add_flags(self.flags);
+            }
+            if !self.parent {
+                context
+                    .arena_mut()?
+                    .metadata_mut(body)
+                    .add_flags(self.flags);
+            }
+            return Ok(root);
+        }
         let parent = match &arena.node(statement)?.data {
             NodeData::ExpressionStatement(statement) => statement.expression.unwrap(),
             NodeData::VariableStatement(statement) => statement.declaration_list.unwrap(),
@@ -163,7 +180,7 @@ fn list_comment_flags_match_typescript_printer() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 147);
+    assert_eq!(cases.len(), 172);
     let mut failures = Vec::new();
     for case in cases {
         let id = case["case_id"].as_str().unwrap();
@@ -174,7 +191,9 @@ fn list_comment_flags_match_typescript_printer() {
                 "NoLeadingComments" => EmitFlags::NO_LEADING_COMMENTS,
                 "NoTrailingComments" => EmitFlags::NO_TRAILING_COMMENTS,
                 "NoComments" => EmitFlags::NO_COMMENTS,
-                "NoNestedComments" | "ParentNoNestedComments" => EmitFlags::NO_NESTED_COMMENTS,
+                "NoNestedComments" | "ParentNoNestedComments" | "ParentAndBodyNoNestedComments" => {
+                    EmitFlags::NO_NESTED_COMMENTS
+                }
                 _ => unreachable!(),
             };
             let parsed = parse_source_file(
@@ -191,6 +210,7 @@ fn list_comment_flags_match_typescript_printer() {
                 vec![Box::new(FlagTransformer {
                     flags,
                     parent: case["variant"] == "ParentNoNestedComments",
+                    parent_and_body: case["variant"] == "ParentAndBodyNoNestedComments",
                     clone_name: case["variant"] == "CloneName",
                 })],
                 false,

@@ -5262,7 +5262,7 @@ fn system_module_hoists_uninitialized_export_from_source_owned_if_statement() {
             "    var __moduleName = context_1 && context_1.id;\n",
             "    return {\n",
             "        setters: [],\n",
-            "        execute: function () {\n",
+            "        execute: function () {// https://github.com/microsoft/TypeScript/issues/59373\n",
             "            if (true) { }\n",
             "            exports_1(\"default\", cssExports);\n",
             "        }\n",
@@ -6537,6 +6537,40 @@ fn meta_property_token_maps_internal_invariants_match_typescript() {
                         );
                     }
                     "absent-name" => meta.name = None,
+                    "synthetic-owner" => {
+                        return self
+                            .arena
+                            .factory()
+                            .create_node(
+                                self.source,
+                                NodeData::MetaProperty(meta.clone()),
+                                crate::TransformFlags::NONE,
+                            )
+                            .map(|node| Some(node.node()));
+                    }
+                    "synthetic" => {
+                        let name = self
+                            .arena
+                            .node_ref(self.source, meta.name.unwrap())
+                            .unwrap();
+                        let NodeData::Identifier(name) = &self.arena.node(name)?.data else {
+                            panic!("MetaProperty name must be an identifier");
+                        };
+                        let text = name.text.clone();
+                        let name = self.arena.factory().create_identifier(self.source, &text)?;
+                        return self
+                            .arena
+                            .factory()
+                            .create_node(
+                                self.source,
+                                NodeData::MetaProperty(tsc_syntax::nodes::MetaPropertyData {
+                                    keyword_token: meta.keyword_token,
+                                    name: Some(name.node()),
+                                }),
+                                crate::TransformFlags::NONE,
+                            )
+                            .map(|node| Some(node.node()));
+                    }
                     other => panic!("unknown invariant mode {other}"),
                 }
             } else {
@@ -6577,7 +6611,7 @@ fn meta_property_token_maps_internal_invariants_match_typescript() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let rows = artifact["rows"].as_array().unwrap();
-    assert_eq!(rows.len(), 8);
+    assert_eq!(rows.len(), 12);
     let mut failures = Vec::new();
     for row in rows {
         let id = row["case_id"].as_str().unwrap();
@@ -6671,6 +6705,18 @@ fn meta_property_token_maps_internal_invariants_match_typescript() {
                         .unwrap(),
                     "{id}: complete internal map JSON"
                 );
+                let unrecorded = create_printer(
+                    PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
+                        .with_target(ScriptTarget::ES2015),
+                )
+                .print(&mut transformed, PrintRequest::SourceFile(source), None)
+                .unwrap();
+                assert_eq!(
+                    unrecorded.text(),
+                    expected_text,
+                    "{id}: unrecorded printer text"
+                );
+                assert!(unrecorded.source_map().is_none());
             });
             if result.is_err() {
                 failures.push((id, repetition));

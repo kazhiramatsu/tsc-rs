@@ -1,0 +1,21 @@
+{
+  "head": "4aeb1640156f291f4b5189b8ad9ed370cf17cf9d",
+  "scope": "Existing72completeempty-block commandcontrols x2 includinginline/multiline function/arrow/method/erasedmember; current376compiledbinary, read-only/noCargo/sourcechanges. Functional comparison only, overlap376notperformanceobservation.",
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/contracts-05a4948cfadf681b",
+    "emitter_residual_audit::empty_block_comments_match_complete_typescript_commands",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "binary_sha256": "bfe88423ce63379e3cd4c578d8ac392127d52541e933498d4ac70104de6231c8",
+  "exit": 0,
+  "seconds": 83.79167987499386,
+  "log_sha256": "93f7d84da0fd5072f3f94b4afc5aecb075cf18cb8c5e24eb6244f8a1a29e96c5",
+  "qualified": true
+}

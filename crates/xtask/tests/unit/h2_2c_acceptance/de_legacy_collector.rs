@@ -612,13 +612,35 @@ fn nonbundle_declaration_maps_dispose_javascript_parse_metadata() -> Result<(), 
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .canonicalize()?;
-    let qualification = pinned(
-        &workspace.join(H2_6C_QUALIFICATION_RELATIVE_PATH),
-        "af689ec23311d9cc733f2606e2acfd1d346edbc51bc512bb185c0c3111f1d8ec",
-    )?;
+    // The container is re-minted by the walk. Pin the three complete original
+    // cases below so unrelated provenance/host repairs cannot stale this test.
+    let qualification: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_6C_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    assert!(census_fingerprint_verifies(
+        &qualification,
+        "qualification_fingerprint_sha256"
+    ));
     let cases = validate_h2_6c_qualification(&qualification)?;
     let inputs = H2_6cExecutionInputs::load(&workspace)?;
-    for target in ["es2015", "es2022", "esnext"] {
+    let original_cases = [
+        (
+            "es2015",
+            "84b636e1585684eb9e395571fd1397318c38151cbb210a83b5cdf28f8e77e1e1",
+            "467eddfa4123b97e1e8c02fef9d493e7c221af956154a341ff25218ba849fa4a",
+        ),
+        (
+            "es2022",
+            "8bca37dde3922e62b2b6993a658fcb0677fc5b9d901993724d222dde89a74b3f",
+            "6872ae17d78b1f4859803f96602399b510eeb33fc5766043464a61538763c50b",
+        ),
+        (
+            "esnext",
+            "19c7413449ab46c8f0824bdc9d0d42b053dfba92899c6d08e781c1438232414f",
+            "06f7e59fd4c7714a1fa6ad2c3464f05b50cbdf16462f7dee9fe61b6ed31264b7",
+        ),
+    ];
+    for (target, fingerprint, input_sha) in original_cases {
         let id = format!(
             "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3D{target}"
         );
@@ -626,6 +648,13 @@ fn nonbundle_declaration_maps_dispose_javascript_parse_metadata() -> Result<(), 
             .iter()
             .find(|case| case["case_id"] == id)
             .ok_or_else(|| failure(format!("missing original {id}")))?;
+        if case["case_fingerprint_sha256"] != fingerprint
+            || case["observation_input_sha256"] != input_sha
+            || case["disposition"] != "admitted-for-execution"
+            || !census_fingerprint_verifies(case, "case_fingerprint_sha256")
+        {
+            return Err(failure(format!("{id}: original case identity changed")));
+        }
         let observed = collect_case(&workspace, case, &inputs)?;
         assert_eq!(
             observed["prepared"]["option_facets"]["outFile"],

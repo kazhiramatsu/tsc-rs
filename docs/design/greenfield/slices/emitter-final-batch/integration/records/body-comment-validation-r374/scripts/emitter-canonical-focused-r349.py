@@ -1,0 +1,23 @@
+from pathlib import Path
+import argparse,subprocess,json,time
+p=argparse.ArgumentParser();p.add_argument('--head',required=True);a=p.parse_args()
+R=Path('/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep');T=Path('/Users/hiramatsu/dev/tsc-rs-emitter-final/target');B=R/'docs/design/greenfield/slices/emitter-final-batch/integration';O=T/'emitter-canonical-focused-r349';O.mkdir(exist_ok=False)
+assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=R,text=True).strip()==a.head
+assert not subprocess.check_output(['git','diff','HEAD','--name-only','--','crates','scripts'],cwd=R).strip()
+steps=[('format',['cargo','fmt','--all','--','--check']),('emitter-lib',['cargo','test','--offline','-p','tsc-rs-emitter','--lib'])]
+compiler=['emitter_residual_audit::r77_recovery_regressions_match_complete_typescript_commands','h2_7a_m4_controls::','h2_7b_w3a_controls::w4_a0_reused_type_references_apply_factory_parenthesization','program_session_contract::programmatic_node_module_resolution_relationships_keep_exact_module_names','h2_8a_token_comment_phases::','h2_8a_ellipsis_comment_owners::','h2_8a_import_helpers::import_helpers_matches_complete_typescript_observations','h2_8a_meta_property_token_maps::']
+for i,f in enumerate(compiler):steps.append(('compiler-'+str(i),['cargo','test','--offline','-p','tsc-rs-compiler','--test','contracts',f,'--','--nocapture','--test-threads=1']))
+for name in ['list_comment_flags_contract','printer_failure_contract']:
+ steps.append(('emitter-'+name,['cargo','test','--offline','-p','tsc-rs-emitter','--test',name,'--','--nocapture','--test-threads=1']))
+steps.append(('utf16-boundaries',['cargo','test','--offline','-p','tsc-rs-compiler','--test','h2_8a_utf16_identity_recovery_controls','--','--nocapture','--test-threads=1']))
+xtask=['h2_1a_acceptance::','h2_2c_acceptance::h2_6c_de_legacy_collector::nonbundle_declaration_maps_dispose_javascript_parse_metadata','h2_2c_acceptance::h2_7b_tests::h2_6c_current_manifest_keeps_only_unclosed_historical_refusals','h2_3d_acceptance::tests::pinned_h2_3d_acceptance_is_exact']
+for i,f in enumerate(xtask):steps.append(('xtask-'+str(i),['cargo','test','--offline','-p','tsc-rs-xtask','--bin','xtask',f,'--','--nocapture','--test-threads=1']))
+steps.append(('clippy',['cargo','clippy','--offline','--workspace','--all-targets','--','-D','warnings']))
+report={'head':a.head,'scope':'Canonical integrated focused repair validation before pins/walk and mandatory final unsplit CI; not a replacement full gate.','qualified':False,'steps':[]}
+def save():(O/'manifest.json').write_text(json.dumps(report,indent=2)+'\n')
+save()
+for name,cmd in steps:
+ label='canonical-focused-'+name+'-r349';start=time.monotonic();code=subprocess.run(['python3',str(B/'run-local.py'),label,*cmd],cwd=R).returncode
+ report['steps'].append({'label':label,'exit':code,'seconds':time.monotonic()-start,'argv':cmd});save();print(json.dumps(report['steps'][-1]),flush=True)
+ if code and name in ['format','emitter-lib']:break
+report['qualified']=len(report['steps'])==len(steps) and all(s['exit']==0 for s in report['steps']);save();raise SystemExit(0 if report['qualified'] else 1)

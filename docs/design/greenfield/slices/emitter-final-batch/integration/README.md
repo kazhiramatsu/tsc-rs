@@ -8,6 +8,40 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
 提出時の検証と統合候補の検証は以下で区別する。hosted完了前に全体完了を主張しない。
 
+## 最終統合前の追加監査（r330–r369）
+
+提出時の68行のKNOWNは退役済みだが、追加監査で見つかった不具合の修復と最終統合は継続中。
+旧候補の成功を、変更後の候補の成功へ読み替えない。
+
+[構文回復の追加証拠](records/empty-variable-proof-r344/manifest.json)では、
+元16,994入力のAST・診断・raw recovery factsと先行5 profilesの不変を確認した。
+限定した空の変数宣言とUnicode bindingの回復を別worktreeで検証し、
+80件のbinding controlsと、従来432件＋空宣言156件のcomplete commandsは各2回一致した。
+110件のload failureは引き続き未検証として保持する。
+
+[System境界とコメントの記録](records/body-comment-review-r366/manifest.json)では、
+execute本体のstatement-array範囲とEOF token mapを修復した候補について、
+684件中680件が各2回一致、追加したコメント入力4件が不一致だった。
+旧8件のSystem map不一致は解消し、source-map witnesses、宣言map、関連APIなど
+残り9 bandsは成功した。この候補全体のqualificationは未成立。
+
+4件の不一致と、関数本体自身のNoNestedComments／NoTrailingCommentsを別途観測し、
+Opusとhead・body・tailの所有順序を照合した。関数本体に限ってコメント抑制の範囲を直し、
+成功時だけ復元し、失敗時はTypeScriptと同じプリンタ状態を保持する候補を検証している。
+共有ASTの位置制約や診断位置は緩めない。追加controlsは既存のTypeScript観測を保持し、
+748 complete commands、172 comment-flag rows、22 serialized failure rowsへ拡張した。
+[単体・プリンタ状態の検証](records/body-comment-validation-r374/manifest.json)では、
+emitter lib全515 tests、172 flag rowsと22 failure-review rowsの各2回比較が成功した。
+古いSystem unitの期待値1件はTypeScriptの直接観測で訂正し、失敗後の末尾座標1件は
+文字列を測るoracleと同じ定義へtest adapterを合わせた。共有writerは変更していない。
+[全コマンドとmapの再検証](records/body-comment-complete-r379/manifest.json)では、
+748 complete commands、空ブロックの既存72件、既存出力21行＋System結合出力2行が
+各2回一致し、記録・出力のsource-map witness全8 testsも成功した。
+一時的なテスト選択コードの所有権エラーで止まったr365も、実行0件の失敗として保持する。
+[canonicalへの反映](records/canonical-integration-r380/manifest.json)は完了した。
+既存のimportコメント修復を保持し、構文回復・System範囲・EOF map・関数本体の修復を統合した。
+canonicalでの対象テスト、chain walk、unsplit CI、hosted確認、mergeは未完了。
+
 ## r211–r224 の固定候補に対する検証記録（2026-09-20）
 
 この節はruntime source `0336c56663ff243503a18987a2cf8021109e8295` と、その検証後に

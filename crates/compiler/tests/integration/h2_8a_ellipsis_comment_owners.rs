@@ -15,7 +15,7 @@ fn ellipsis_comment_owners_match_complete_typescript_observations() {
     let prior: Value =
         serde_json::from_slice(include_bytes!("../fixtures/token-comment-phases.json")).unwrap();
     let prior = prior["cases"].as_array().unwrap();
-    assert_eq!(prior.len(), 129);
+    assert_eq!(prior.len(), 165);
     cases.extend(prior.iter().cloned());
     for (bytes, count) in [
         (
@@ -50,7 +50,7 @@ fn ellipsis_comment_owners_match_complete_typescript_observations() {
         .collect::<Vec<_>>();
     assert_eq!(getters.len(), 12);
     cases.extend(getters);
-    assert_eq!(cases.len(), 398);
+    assert_eq!(cases.len(), 434);
     let mut failures = Vec::new();
     for case in &cases {
         let case_id = case["case_id"].as_str().unwrap();

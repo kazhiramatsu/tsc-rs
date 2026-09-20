@@ -1717,3 +1717,256 @@ fn class_member_arrow_gap_refuses_unproven_report_and_token() {
         r.events.push(retained);
     });
 }
+
+// These admission tests accompany complete compiler commands; they do not
+// establish output compatibility by themselves.
+#[test]
+fn leading_invalid_binding_recovery_requires_the_composite_statement() {
+    let parse = |text: &str, target| {
+        parse_source_file(
+            "main.ts".into(),
+            text.into(),
+            ParseOptions {
+                script_target: target,
+                ..ParseOptions::default()
+            },
+            None,
+        )
+    };
+    for text in [
+        "export const \\u{10400} = 1;",
+        "export let \\u{10401} = 2;",
+        "var \\u{10400} = 1;",
+        "export const \\u{10400} = 1; export const \\u{10401} = 2;",
+        "/* 😀 */ export const \\u{10400} = 1;",
+    ] {
+        let parsed = parse(text, tsc_types::ScriptTarget::ES5);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+        assert!(!parsed.has_only_statement_gap_emit_recovery(), "{text}");
+        assert!(parsed.has_supported_emit_recovery(), "{text}");
+        let modern = parse(text, tsc_types::ScriptTarget::ES2015);
+        assert!(modern.parse_diagnostics.is_empty(), "{text}");
+        assert!(modern.has_supported_emit_recovery(), "{text}");
+    }
+    let declaration = parse_source_file(
+        "main.d.ts".into(),
+        "export const \\u{10400} = 1;".into(),
+        ParseOptions {
+            script_target: tsc_types::ScriptTarget::ES5,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    assert!(!declaration.has_supported_emit_recovery());
+    for text in [
+        "let \\u{10401} = 2;",
+        "const ¬u = 1;",
+        "const u {a} = 1;",
+        "const u, {10400} = 1;",
+        "const a, \\u{10400} = 1;",
+        "for (var \\u{10400} = 0;;) {}",
+        "declare const \\u{10400} = 1;",
+        "declare namespace N { const \\u{10400} = 1; }",
+        "export const \\u{10400} = f();",
+        "export const \\u{10400} = 'text';",
+        "const \\u{\"a\"} = 1;",
+        "const \\u{10400} = 1, z = 2;",
+        "const \\u{10400,10401} = 1;",
+        "using \\u{10400} = 1;",
+        "export const \\u{1F600}x = 1;",
+    ] {
+        let parsed = parse(text, tsc_types::ScriptTarget::ES5);
+        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+        assert!(!parsed.has_supported_emit_recovery(), "{text}");
+    }
+}
+
+#[test]
+fn leading_invalid_binding_recovery_refuses_a_single_declaration() {
+    // The compiler corpus includes a leading escape followed by one declaration,
+    // unlike the two-declaration shape owned by this recovery profile.
+    let text =
+        "var a\\u0031; // a1 is a valid identifier\nvar \\u0031a; // 1a is an invalid identifier";
+    for target in [
+        tsc_types::ScriptTarget::ES5,
+        tsc_types::ScriptTarget::ES2015,
+    ] {
+        let parsed = parse_source_file(
+            "invalidUnicodeEscapeSequance4.ts".into(),
+            text.into(),
+            ParseOptions {
+                script_target: target,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(!parsed.parse_diagnostics.is_empty());
+        assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+        assert!(!parsed.has_supported_emit_recovery());
+    }
+}
+
+#[test]
+fn leading_invalid_binding_recovery_refuses_unpaired_or_shifted_facts() {
+    let parsed = parse_source_file(
+        "main.ts".into(),
+        "export const \\u{10400} = 1;".into(),
+        ParseOptions {
+            script_target: tsc_types::ScriptTarget::ES5,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    assert!(parsed.has_supported_emit_recovery());
+    for index in 0..parsed.parse_recovery.events.len() {
+        let mut missing = parsed.clone();
+        missing.parse_recovery.events.remove(index);
+        assert!(
+            !missing.has_supported_emit_recovery(),
+            "removed event {index}"
+        );
+        let mut duplicated = parsed.clone();
+        duplicated
+            .parse_recovery
+            .events
+            .push(parsed.parse_recovery.events[index]);
+        assert!(
+            !duplicated.has_supported_emit_recovery(),
+            "duplicated event {index}"
+        );
+        let mut shifted = parsed.clone();
+        shifted.parse_recovery.events[index].full_start += 1;
+        assert!(
+            !shifted.has_supported_emit_recovery(),
+            "shifted event {index}"
+        );
+    }
+    let mut no_skip = parsed.clone();
+    no_skip.parse_recovery.actions.clear();
+    assert!(!no_skip.has_supported_emit_recovery());
+    let mut duplicate_skip = parsed.clone();
+    duplicate_skip
+        .parse_recovery
+        .actions
+        .push(parsed.parse_recovery.actions[0]);
+    assert!(!duplicate_skip.has_supported_emit_recovery());
+    let mut wrong_owner = parsed;
+    let ParseRecoveryAction::TokenSkipped {
+        statement_start, ..
+    } = &mut wrong_owner.parse_recovery.actions[0]
+    else {
+        unreachable!()
+    };
+    *statement_start += 1;
+    assert!(!wrong_owner.has_supported_emit_recovery());
+}
+
+#[test]
+fn empty_variable_list_recovery_requires_an_adjacent_numeric_statement() {
+    let parse = |name: &str, text: &str, target| {
+        parse_source_file(
+            name.into(),
+            text.into(),
+            ParseOptions {
+                script_target: target,
+                javascript_file: name.ends_with(".js"),
+                ..ParseOptions::default()
+            },
+            None,
+        )
+    };
+    for target in [
+        tsc_types::ScriptTarget::ES5,
+        tsc_types::ScriptTarget::ES2015,
+    ] {
+        for text in [
+            "declare function sink(value: unknown): void;\nconst = 5;\nsink(0);\n",
+            "const = 5;",
+            "var = 5;",
+            "/* 😀 */ const = 5;",
+            "const /*a*/ = /*b*/ 5;",
+            "const = 5; const = 6;",
+            "export {}; const = 5;",
+            "const = 5;\nexport const \\u{10400} = 1;",
+        ] {
+            let parsed = parse("main.ts", text, target);
+            assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+            assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
+            assert!(!parsed.has_only_statement_gap_emit_recovery(), "{text}");
+            assert!(parsed.has_supported_emit_recovery(), "{text}");
+        }
+        let javascript = parse("main.js", "/** @type {number} */ var /*c*/ = 1;", target);
+        assert!(!javascript.parse_diagnostics.is_empty());
+        assert!(javascript.has_supported_emit_recovery());
+        for text in [
+            "const = 5; const u {a} = 1;",
+            "const = 5; export const \\u{1F600}x = 1;",
+            "declare const = 5;",
+            "declare namespace N { const = 5; }",
+            "export const = 5;",
+            "export let = 5;",
+            "function f() { const = 5; }",
+            "for (var = 5;;) {}",
+            "const = ;",
+            "const =",
+            "const = 5",
+            "const = 'x';",
+            "const = 5 + 6;",
+            "const = f();",
+        ] {
+            let parsed = parse("main.ts", text, target);
+            assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
+            assert!(!parsed.has_supported_emit_recovery(), "{text}");
+        }
+        assert!(!parse("main.d.ts", "const = 5;", target).has_supported_emit_recovery());
+    }
+}
+
+#[test]
+fn empty_variable_list_recovery_keeps_flags_and_skip_ownership_exact() {
+    let parsed = source("const = 5;");
+    assert!(parsed.has_supported_emit_recovery());
+    let NodeData::SourceFile(data) = &parsed.arena.node(parsed.root).data else {
+        panic!("source file");
+    };
+    let statement = parsed.arena.node_array(data.statements.unwrap()).nodes[0];
+    let NodeData::VariableStatement(data) = &parsed.arena.node(statement).data else {
+        panic!("variable statement");
+    };
+    let list = data.declaration_list.unwrap();
+    for kind in [
+        tsc_types::NodeFlags::USING,
+        tsc_types::NodeFlags::AWAIT_USING,
+    ] {
+        let mut changed = parsed.clone();
+        let flags = &mut changed.arena.node_mut(list).flags;
+        *flags = (*flags & !tsc_types::NodeFlags::BLOCK_SCOPED.bits()) | kind.bits();
+        assert!(!changed.has_supported_emit_recovery());
+    }
+    for id in [statement, list] {
+        for excluded in [tsc_types::NodeFlags::AMBIENT, tsc_types::NodeFlags::JS_DOC] {
+            let mut changed = parsed.clone();
+            changed.arena.node_mut(id).flags |= excluded.bits();
+            assert!(!changed.has_supported_emit_recovery());
+        }
+    }
+    let mut shifted = parsed.clone();
+    shifted.parse_recovery.events[0].full_start += 1;
+    assert!(!shifted.has_supported_emit_recovery());
+    let mut duplicated = parsed.clone();
+    duplicated
+        .parse_recovery
+        .actions
+        .push(parsed.parse_recovery.actions[0]);
+    assert!(!duplicated.has_supported_emit_recovery());
+    let mut duplicated_report = parsed.clone();
+    duplicated_report
+        .parse_recovery
+        .events
+        .push(parsed.parse_recovery.events[0]);
+    assert!(!duplicated_report.has_supported_emit_recovery());
+    let mut unreported = parsed;
+    unreported.parse_diagnostics.clear();
+    assert!(!unreported.has_supported_emit_recovery());
+}

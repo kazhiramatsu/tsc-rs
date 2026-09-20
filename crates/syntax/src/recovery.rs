@@ -278,6 +278,15 @@ impl ParseRecovery {
             {
                 continue;
             }
+            // The scanner report and its deduplicated parser attempt are
+            // admitted only as part of a fully owned leading-binding unit.
+            if context_support
+                .as_ref()
+                .is_some_and(|support| support.leading_binding_reports.contains(&event_index))
+            {
+                report_only_count += 1;
+                continue;
+            }
             let Some(missing) = event.missing_node else {
                 if allow_statement_gaps
                     && event.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
@@ -296,7 +305,11 @@ impl ParseRecovery {
                                         && candidate.start == event.start && candidate.length == event.length
                                 }).count() == 1
                             || allow_context_recovery && self.report_has_retained_variable_delimiter(source, parents.as_ref().unwrap(), event)
-                            || context_support.as_ref().is_some_and(|support| support.assertion_reports.contains(&event_index))
+                            || context_support.as_ref().is_some_and(|support| {
+                                support.assertion_reports.contains(&event_index)
+                                    || support.binding_delimiter_reports.contains(&event_index)
+                                    || support.binding_name_reports.contains(&event_index)
+                            })
                         }
                         None => self.events.iter().any(|retained| {
                             retained.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
@@ -333,9 +346,10 @@ impl ParseRecovery {
                 || !(event
                     .diagnostic_index
                     .is_some_and(|index| index < source.parse_diagnostics.len())
-                    || context_support
-                        .as_ref()
-                        .is_some_and(|support| support.assertion_missing.contains(&event_index)))
+                    || context_support.as_ref().is_some_and(|support| {
+                        support.assertion_missing.contains(&event_index)
+                            || support.binding_name_missing.contains(&event_index)
+                    }))
                 || missing_positions
                     .insert(missing.position, missing.kind)
                     .is_some()

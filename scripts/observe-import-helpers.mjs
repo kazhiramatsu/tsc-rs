@@ -415,17 +415,8 @@ for (const target of ['es5', 'es2018'])
   ]) add('checker-audit/module-destructuring', `${target}/${shape}`, text + '\n',
          { module: 'commonjs', target, downlevelIteration: true, ignoreDeprecations: '6.0' });
 assert.equal(inputs.length, 468);
-// Preserve the original malformed inputs and their complete TypeScript recovery
-// output. Native refusal is a separate negative boundary, never an exact emit.
-for (const input of inputs) {
-  if (/^import-helpers\/comment-boundary\/[^/]+\/remove-(false|true)\/optional-(line-comment|own-line)$/.test(input.case_id)) {
-    input.rust_expected_parse_recovery = {
-      count: 3, recovery_events: 4, owner_slice: 'H2.9', partial_writes: [],
-      cause: 'newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform',
-    };
-  }
-}
-assert.equal(inputs.filter(input => input.rust_expected_parse_recovery).length, 12);
+// The malformed original inputs retain their complete TypeScript recovery
+// observations and now follow the ordinary exact-command comparator.
 for (const target of ['es2015', 'es2022', 'esnext'])
   for (const removeComments of [false, true])
     for (const [shape, expression] of [

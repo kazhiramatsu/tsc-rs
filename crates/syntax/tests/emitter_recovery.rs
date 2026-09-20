@@ -115,7 +115,7 @@ fn assert_context_control_admission() {
     .unwrap();
     assert_eq!(fixture["repetitions"], 2);
     assert_eq!(fixture["typescript"], "6.0.3");
-    for (key, admitted, count) in [("cases", true, 432), ("refused_cases", false, 72)] {
+    for (key, admitted, count) in [("cases", true, 748), ("refused_cases", false, 72)] {
         let cases = fixture[key].as_array().unwrap();
         assert_eq!(cases.len(), count);
         for case in cases {

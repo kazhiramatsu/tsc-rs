@@ -1,0 +1,12 @@
+{
+  "scope": "Actual Opus182 isolating control: synthetic MetaProperty owner keeps parsed identifier child.12internalrows twice, original8 and347new2 unchanged. Historical source_commit continues identifying original family origin; this receipt identifies supplemental observations at current head. Native pending; shared5g inputs requalify in mandatory final walk, no pin bypass.",
+  "head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "oracle_exit": 0,
+  "fixture_sha256": "2dd59b331426db941de78d42c5b88719965f42206697b5991015433e718d7d1f",
+  "observer_sha256": "4ef53749b16d0bbfb03d209a4c94e20a031784ab53719543db392bbabd2c2cc1",
+  "new_rows": [
+    "new-target/synthetic-owner",
+    "import-meta/synthetic-owner"
+  ],
+  "qualified_native": false
+}

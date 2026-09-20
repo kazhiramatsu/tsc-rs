@@ -70,9 +70,26 @@ static CURRENT_EXACT_DIAGNOSTIC_PROMOTIONS: &[CurrentExactDiagnosticPromotion] =
     },
 ];
 
-// H2.8a source repairs measured against the unchanged historical input and
+// Source repairs measured against the unchanged historical input and
 // both complete TypeScript observations. Keep the old qualification immutable.
 static CURRENT_EXACT_SOURCE_PROMOTIONS: &[(&str, &str, &str)] = &[
+    // Current recovery preserves these original H2.9 inputs and complete
+    // observations, including every diagnostic, on both executions.
+    (
+        "typescript-6.0.3/conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts#target%3Desnext",
+        "27799d7a310107bd3d668ea19c3e931e76a2455e1c1f1f5762b7a59c0ce45d56",
+        "H2.9",
+    ),
+    (
+        "typescript-6.0.3/conformance/scanner/ecmascript5/scannerUnicodeEscapeInKeyword2.ts#default",
+        "20387b00aaf32583c354f03d6ff35e5d9007fe037d6db963fd21a525f9cdafc4",
+        "H2.9",
+    ),
+    (
+        "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.4.ts#default",
+        "02a027145440c0a66ef62760ad419c818eda42a4e32a55a4e25c35b2696b1aea",
+        "H2.9",
+    ),
     // The text-based comment preflight was removed. These rows must now
     // match their frozen complete observations, including all diagnostics.
     (
@@ -850,7 +867,7 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
         "H2.1a emit acceptance: candidates=295 exact={admitted} diagnostic_controls={output_controls} source_deferred={source_deferred} exact_diagnostics={diagnostics} exact_writes={writes} control_writes={control_writes} repetitions=2"
     );
     println!(
-        "H2.1a current H2.8a source promotions: exact={source_promotions} writes={source_promotion_writes} diagnostics={source_promotion_diagnostics}; historical denominator unchanged; repetitions=2"
+        "H2.1a current exact source promotions: exact={source_promotions} writes={source_promotion_writes} diagnostics={source_promotion_diagnostics}; historical denominator unchanged; repetitions=2"
     );
     Ok(())
 }

@@ -1,0 +1,38 @@
+[
+  {
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "build",
+      "--offline",
+      "--manifest-path",
+      "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r330/build/Cargo.toml",
+      "--features",
+      "current-recovery-profiles"
+    ],
+    "exit": 0,
+    "log_sha256": "d3e5939804a82a81fe0b4f1a1948edfa946de084923dde6da0dc1c7e405f687c"
+  },
+  {
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r330/build/Cargo.toml",
+      "--features",
+      "current-recovery-profiles"
+    ],
+    "exit": 0,
+    "log_sha256": "6058c10039025577410c1e92b9747473a393351e79becddb8cb2647393f82964"
+  }
+]

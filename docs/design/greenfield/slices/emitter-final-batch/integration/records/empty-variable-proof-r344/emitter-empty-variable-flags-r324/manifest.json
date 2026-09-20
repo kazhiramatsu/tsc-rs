@@ -1,0 +1,32 @@
+{
+  "head": "32b6dca3a47b3e61f9d70eb912724eb09fcf1f1f",
+  "status": "parse replay and initialized flags completed; ordinary empty-list commands not yet qualified",
+  "steps": [
+    {
+      "label": "initialized-flags",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-emitter",
+        "--lib",
+        "empty_variable_list_keeps_recovery_and_has_no_binding_pattern_transform_flags",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 159.85736183309928,
+      "log_sha256": "411b7100ee169f77cec5a744f47e377cb727a642cc1295366562e2bdf3e18186"
+    }
+  ],
+  "qualified": true,
+  "probe_original_file_sha256": "f107283ab91ba1cce3395eda4a4b261858b5c5147a5228f1154e87df831a40b7",
+  "probe_restored": true
+}

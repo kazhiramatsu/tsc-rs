@@ -3,7 +3,7 @@
   "typescript": "6.0.3",
   "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
   "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "d65ba8223a2b49fb22c04f61924476e7629f52ad7915d0e8cb099ef46de4eb9d",
+  "observer_sha256": "d980ed4070d6b4ae8d94ab9355650b9c83cc25f9a1c27725cdb001c377acc7de",
   "repetitions": 2,
   "cases": [
     {
@@ -15698,13 +15698,6 @@
           "removeComments": false
         }
       },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
-      },
       "typescript_observation": {
         "writes": [
           {
@@ -15822,13 +15815,6 @@
           "target": "es2015",
           "removeComments": false
         }
-      },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
       },
       "typescript_observation": {
         "writes": [
@@ -17118,13 +17104,6 @@
           "removeComments": true
         }
       },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
-      },
       "typescript_observation": {
         "writes": [
           {
@@ -17242,13 +17221,6 @@
           "target": "es2015",
           "removeComments": true
         }
-      },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
       },
       "typescript_observation": {
         "writes": [
@@ -18538,13 +18510,6 @@
           "removeComments": false
         }
       },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
-      },
       "typescript_observation": {
         "writes": [
           {
@@ -18662,13 +18627,6 @@
           "target": "es2022",
           "removeComments": false
         }
-      },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
       },
       "typescript_observation": {
         "writes": [
@@ -19958,13 +19916,6 @@
           "removeComments": true
         }
       },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
-      },
       "typescript_observation": {
         "writes": [
           {
@@ -20082,13 +20033,6 @@
           "target": "es2022",
           "removeComments": true
         }
-      },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
       },
       "typescript_observation": {
         "writes": [
@@ -21378,13 +21322,6 @@
           "removeComments": false
         }
       },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
-      },
       "typescript_observation": {
         "writes": [
           {
@@ -21502,13 +21439,6 @@
           "target": "esnext",
           "removeComments": false
         }
-      },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
       },
       "typescript_observation": {
         "writes": [
@@ -22798,13 +22728,6 @@
           "removeComments": true
         }
       },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
-      },
       "typescript_observation": {
         "writes": [
           {
@@ -22922,13 +22845,6 @@
           "target": "esnext",
           "removeComments": true
         }
-      },
-      "rust_expected_parse_recovery": {
-        "count": 3,
-        "recovery_events": 4,
-        "owner_slice": "H2.9",
-        "partial_writes": [],
-        "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
       },
       "typescript_observation": {
         "writes": [

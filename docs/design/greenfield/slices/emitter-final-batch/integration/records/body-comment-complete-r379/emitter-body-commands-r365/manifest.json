@@ -1,0 +1,42 @@
+{
+  "head": "4aeb1640156f291f4b5189b8ad9ed370cf17cf9d",
+  "qualified": false,
+  "scope": "Private final bodycomments: focused160System then all748completecommands x2 plus72refusals, frozen2SystemoutFilecontrols and8mapwitnesses; temporaryharnessselector recorded and cleared forfullphase, alltestcopies restored.",
+  "product_diff_sha256": "e0e3d3b364dc10b5767f29ab1c70b71a695c4adba28a2c7ee45b88200fe571b6",
+  "test_sources": {
+    "crates/compiler/tests/fixtures/emitter-context-recovery.json": "acd027c5954de2aa0d39c5c236b98bb57c81b0d9e44a11685215e72d1b93e2f3",
+    "crates/compiler/tests/integration/h2_8a_import_helpers.rs": "fe1358b8bd359a047ad09d84a209c03a138bc0b987ad9f7132ff61c38530dd24",
+    "crates/syntax/tests/emitter_recovery.rs": "2987e1ef51004925813c9d09ed68d05a81a11ae44440f135f451b1f79f951d7f",
+    "crates/compiler/tests/integration/source_map_recording_witness_contract.rs": "d6bfdb81ac5b03d59c544891161fd378a05722387c4c85e64f0dc13702ffdd36",
+    "crates/compiler/tests/integration/source_map_emit_witness_contract.rs": "d85f28c550133c812ceee39eac2ce56afb7a37cc1d7c93a000ca68d2495d6618",
+    "crates/compiler/tests/emitter_final_rows.rs": "38b393764aa025e6de596eb554776074d09f6877b88fcb0db848ec2700150ad8"
+  },
+  "steps": [
+    {
+      "label": "system160",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8a_import_helpers::context_recovery_matches_complete_typescript_observations",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "focused160": true,
+      "exit": 101,
+      "seconds": 377.2508508749306,
+      "log_sha256": "014d189a4d7932b22f55f213da3522d32ba225918f2ac4e15dc3b5933b3b0632"
+    }
+  ],
+  "test_files_restored": true
+}

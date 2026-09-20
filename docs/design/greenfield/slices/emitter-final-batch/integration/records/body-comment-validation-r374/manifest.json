@@ -1,0 +1,223 @@
+{
+  "canonical_head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "qualified_final": false,
+  "scope": "Private515libPASS370,172flagsALLexactx2(364), full10failurecontractsPASS372incl22reviewrowsx2(success/fault/sharedreuse); actualOpus186187 reviews. 364firstfailures preserved:oneoldSystemunitliteral(TS368confirmsnewJS), oneadapterquantitymismatch(text/eventsidentical, physicalstringcolumn0vswriterpendingindent4). RepairsTESTONLY; no furtherproductionchange. 367historicalreadinessfail andcurrentgeneratorregistrationcoverage explicit. 371/375/349 are PREPARATION ONLY. 365completecompiler748/System160/witnesses stillrunning; no canonical/finalqualificationclaim.",
+  "files": [
+    {
+      "path": "reviews/emitter-claude-review-round186-opus.json",
+      "source": "/tmp/emitter-claude-review-round186-opus.json",
+      "bytes": 7652,
+      "sha256": "5f4b96780992c28c647af1446c11cefbe0ec509c5ee2483a4ca7790b66452912"
+    },
+    {
+      "path": "reviews/emitter-round186-request.md",
+      "source": "/tmp/emitter-round186-request.md",
+      "bytes": 1649,
+      "sha256": "4c8b4745173a5c77b9554bd2e23d1df298f8622043787c439107e1a54deecf4e"
+    },
+    {
+      "path": "reviews/emitter-claude-review-round187-opus.json",
+      "source": "/tmp/emitter-claude-review-round187-opus.json",
+      "bytes": 6401,
+      "sha256": "0d94b526046fcc59416294bec24bea4fb2a32f8a707b7d5138f5204e48838b60"
+    },
+    {
+      "path": "reviews/emitter-round187-request.md",
+      "source": "/tmp/emitter-round187-request.md",
+      "bytes": 1922,
+      "sha256": "6589e3fac44327759667a56de76c70c2cb95f81cc6a81c6bb819b035b4c71aef"
+    },
+    {
+      "path": "emitter-body-validation-r364/emitter-lib.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-validation-r364/emitter-lib.log.gz",
+      "bytes": 11076,
+      "sha256": "0e61a03cd82b83593979270c48c62ce02dfde0526472b6282a8b05571f313818"
+    },
+    {
+      "path": "emitter-body-validation-r364/failure-review-actual.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-validation-r364/failure-review-actual.json",
+      "bytes": 330561,
+      "sha256": "5557b55f91654a91d5d6fe8cd3806740abecf87fe6a87947981dfff1984b69ed"
+    },
+    {
+      "path": "emitter-body-validation-r364/failure.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-validation-r364/failure.log.gz",
+      "bytes": 2427,
+      "sha256": "c3810c2d7ebe4e45814f7a45b597d2e1e3b1a6ccf6cfaa1dd6ac20b09eb519ba"
+    },
+    {
+      "path": "emitter-body-validation-r364/flags.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-validation-r364/flags.log.gz",
+      "bytes": 965,
+      "sha256": "221949da0752c3b6a395084034220a9538c5c2ad146a14641d0a858bcdf0dbde"
+    },
+    {
+      "path": "emitter-body-validation-r364/fmt.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-validation-r364/fmt.log.gz",
+      "bytes": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "emitter-body-validation-r364/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-validation-r364/manifest.json",
+      "bytes": 3287,
+      "sha256": "16d79dfb1afde185a36886b545eae45ade6a54c884dc62059448f89dcc695b6b"
+    },
+    {
+      "path": "emitter-body-validation-r364/private.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-validation-r364/private.diff.gz",
+      "bytes": 15424,
+      "sha256": "6175fff0cc4f9a68080483b5f82e4f5593c75d6f780096e33c7415425330c49a"
+    },
+    {
+      "path": "emitter-body-tests-followup-r370/emitter-lib.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-tests-followup-r370/emitter-lib.log.gz",
+      "bytes": 10759,
+      "sha256": "1c96ca7a14fc06827e2a523de846d2dfbf228e16d8150d07b8625325706b9116"
+    },
+    {
+      "path": "emitter-body-tests-followup-r370/fmt.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-tests-followup-r370/fmt.log.gz",
+      "bytes": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "emitter-body-tests-followup-r370/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-tests-followup-r370/manifest.json",
+      "bytes": 1587,
+      "sha256": "dfd0eac8a39e6ed591afeac3f4a243a1c1cda5962b65a25e3388afa9a7ba1c96"
+    },
+    {
+      "path": "emitter-body-tests-followup-r370/previous-failure-fixture.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-tests-followup-r370/previous-failure-fixture.json.gz",
+      "bytes": 8584,
+      "sha256": "4b7b08dff1db94b1849dfb6e97ac47a79a03ac1aacbba002eff5e6e34ff8f951"
+    },
+    {
+      "path": "emitter-body-tests-followup-r370/private.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-tests-followup-r370/private.diff.gz",
+      "bytes": 15892,
+      "sha256": "f218926767555268a1fe54e9a65873ef800b1281b35f79915c94ee2abc095d34"
+    },
+    {
+      "path": "emitter-body-measurement-r372/failure-review-actual.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-measurement-r372/failure-review-actual.json",
+      "bytes": 340351,
+      "sha256": "b34a84816596f3a5723a42851a858814fedc4d36b3a3ba605f6ad87649e68b34"
+    },
+    {
+      "path": "emitter-body-measurement-r372/failure.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-measurement-r372/failure.log.gz",
+      "bytes": 2066,
+      "sha256": "ffc1b00eac6125b34468548558640009464f7dd186d9347f25d5d0526e0a2f2a"
+    },
+    {
+      "path": "emitter-body-measurement-r372/fmt.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-measurement-r372/fmt.log.gz",
+      "bytes": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "emitter-body-measurement-r372/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-measurement-r372/manifest.json",
+      "bytes": 1437,
+      "sha256": "955666b826e59f935feddee35b3b3a66f634918986935ce420149df38ad47bc8"
+    },
+    {
+      "path": "emitter-body-measurement-r372/private.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-measurement-r372/private.diff.gz",
+      "bytes": 16615,
+      "sha256": "e1c4a07032d6c3d2afc69a416f8c0b25bbbb5f04ddca0fbfcd135e0ac7c90d4e"
+    },
+    {
+      "path": "emitter-current-registration-r367/manifest.json",
+      "source": "/tmp/emitter-current-registration-r367/manifest.json",
+      "bytes": 1884,
+      "sha256": "d4f30acf88b4841ce090b6aca8366b849bf9f3d20b6939b387882b397437a819"
+    },
+    {
+      "path": "emitter-current-registration-r367/meta-readiness.log.gz",
+      "source": "/tmp/emitter-current-registration-r367/meta-readiness.log",
+      "bytes": 269,
+      "sha256": "13e54cdb237085fb251a369dd5afb64761b584bb74acb28cc056a829c47d3f93"
+    },
+    {
+      "path": "emitter-body-success-mint-r369/manifest.json",
+      "source": "/tmp/emitter-body-success-mint-r369/manifest.json",
+      "bytes": 592,
+      "sha256": "66831079b84fb4cf5353f964041c3190cf7a87f9d433650be4cd729d1e2f81b6"
+    },
+    {
+      "path": "emitter-body-success-mint-r369/original-fixture.json.gz",
+      "source": "/tmp/emitter-body-success-mint-r369/original-fixture.json.gz",
+      "bytes": 8584,
+      "sha256": "4b7b08dff1db94b1849dfb6e97ac47a79a03ac1aacbba002eff5e6e34ff8f951"
+    },
+    {
+      "path": "emitter-body-success-mint-r369/original-observer.mjs",
+      "source": "/tmp/emitter-body-success-mint-r369/original-observer.mjs",
+      "bytes": 7051,
+      "sha256": "759e17ec670f04ffc28aefb05098b62fab0493aaa4a8e5d1548ee4b2f685dd26"
+    },
+    {
+      "path": "scripts/emitter-body-validation-r364.py",
+      "source": "/tmp/emitter-body-validation-r364.py",
+      "bytes": 3194,
+      "sha256": "15b038f9963b0c1228febb03a1220d88e03ba7982829a38cfbdc0e46cdb7e075"
+    },
+    {
+      "path": "scripts/emitter-system-if-oracle-r368.mjs",
+      "source": "/tmp/emitter-system-if-oracle-r368.mjs",
+      "bytes": 1069,
+      "sha256": "a6e25e70398bbaf99f4efcb9953e5ffe9ade747067873ce88f9764cf07baf095"
+    },
+    {
+      "path": "scripts/emitter-system-if-oracle-r368.json",
+      "source": "/tmp/emitter-system-if-oracle-r368.json",
+      "bytes": 1181,
+      "sha256": "a24b6338c03d47f7cc09b7c6885a490b90a0acb1bcca0dd6ac087272d58e5a91"
+    },
+    {
+      "path": "scripts/emitter-body-success-mint-r369.py",
+      "source": "/tmp/emitter-body-success-mint-r369.py",
+      "bytes": 2114,
+      "sha256": "4d37e914dc91fdf2809d3be0774b1008c311056c161076a5dedd853cf2cc6fae"
+    },
+    {
+      "path": "scripts/emitter-body-tests-followup-r370.py",
+      "source": "/tmp/emitter-body-tests-followup-r370.py",
+      "bytes": 3868,
+      "sha256": "9137ce72c35967b4deef867a47c047a68140717362dad1d264fed5e0bac1cd3c"
+    },
+    {
+      "path": "scripts/emitter-body-measurement-r372.py",
+      "source": "/tmp/emitter-body-measurement-r372.py",
+      "bytes": 4081,
+      "sha256": "3546b7b43aa865a97da4e20833886076f6adc76b87180adaffd6e3dbf4388996"
+    },
+    {
+      "path": "scripts/emitter-integrate-final-r371.py",
+      "source": "/tmp/emitter-integrate-final-r371.py",
+      "bytes": 3065,
+      "sha256": "c85ff5178b0e5a626d49c84942e50de8d0427effda29afeacb56b2c33440a5e1"
+    },
+    {
+      "path": "scripts/emitter-canonical-corpus-r375.py",
+      "source": "/tmp/emitter-canonical-corpus-r375.py",
+      "bytes": 8037,
+      "sha256": "ddc00850d8503f8f8223fc989adf8528bd73bc63095dd60a7f073b62b7d8dd29"
+    },
+    {
+      "path": "scripts/emitter-canonical-focused-r349.py",
+      "source": "/tmp/emitter-canonical-focused-r349.py",
+      "bytes": 3156,
+      "sha256": "a9dae6b4ce2da5aa4e9461643b7203a1a56eed3054b2e72984866afdd1fdd468"
+    },
+    {
+      "path": "archive.py",
+      "source": "/tmp/archive-emitter-body-validation-r374.py",
+      "bytes": 2847,
+      "sha256": "184c70911b61eeb151e15867e117fc9747b01d9bbda7d32426fadb046e2583ec"
+    }
+  ]
+}

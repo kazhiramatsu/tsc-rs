@@ -81,7 +81,25 @@ const spread=[
 for(const [name,make] of spread)for(const [commentName,comment] of [["block","/* spread */ "],["line","// spread\n"],["newline","\n/* spread */\n"]])for(const [targetName,target] of targets)
  add(`spread/${name}/${commentName}/${targetName}`,make(comment),{target});
 for(const [name,make] of spread)add(`spread/${name}/downlevel`,make("/* spread */ "),{target:ts.ScriptTarget.ES5});
-assert.equal(inputs.length,129);
+// Import keyword arithmetic can retain a removed modifier's source position.
+// Keep both independent child phases and the adjacent-token path observable.
+const recoveredImports = [
+ ["original", "export /* export */ import value from './dep'; export { value };\n"],
+ ["no-comment", "export import value from './dep'; export { value };\n"],
+ ["adjacent", "import /* c */ value from './dep'; export { value };\n"],
+ ["both-boundaries", "export /* a */ import /* b */ value from './dep'; export { value };\n"],
+ ["separate-lines", "export /* a */\nimport /* b */\nvalue from './dep'; export { value };\n"],
+ ["named", "export /* a */ import /* b */ { value } from './dep'; export { value };\n"],
+ ["namespace", "export /* a */ import /* b */ * as ns from './dep'; export { ns };\n"],
+ ["side-effect", "export /* a */ import /* b */ './dep';\n"],
+ ["unicode-lines", "export /* 😀 a */ import // 😀 b\r\nvalue from './dep'; export { value };\r\n"],
+];
+for (const [name,text] of recoveredImports)
+ for (const removeComments of [false,true])
+  for (const emitDeclarationOnly of [false,true])
+   add(`recovery-import-owner/${name}/remove-${removeComments}/${emitDeclarationOnly?"declaration-only":"all"}`,
+    text,{removeComments,declaration:true,declarationMap:true,emitDeclarationOnly,sourceMap:!emitDeclarationOnly});
+assert.equal(inputs.length,165);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),

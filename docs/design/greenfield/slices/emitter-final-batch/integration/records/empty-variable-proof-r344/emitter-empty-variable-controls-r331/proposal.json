@@ -1,0 +1,9 @@
+{
+  "additional_to_original432": 156,
+  "additional_to_r328": 60,
+  "supported": 588,
+  "refused": 72,
+  "reason": "Actual Opus178 asks full commands at all four comment positions and JavaScript JSDoc empty-var input",
+  "observer_sha256": "0457fc2cf54ea74a6b8f275d0cda3621c5b5e0bcba36fac3ac95b2907ef64cd3",
+  "old528_plus72_must_remain_casewise_identical": true
+}

@@ -552,9 +552,28 @@ fn programmatic_node_module_resolution_relationships_keep_exact_module_names() {
                 options.ignore_deprecations = Some("6.0".to_owned().into());
             },
         )));
-        let [diagnostic] = outcome.options_diagnostics() else {
-            panic!("expected one module/moduleResolution relationship diagnostic");
+        let diagnostics = outcome.options_diagnostics();
+        let expected_codes: &[u32] = if matches!(module, 102 | 199) {
+            &[5070, 5109]
+        } else {
+            &[5109]
         };
+        assert_eq!(codes(diagnostics), expected_codes, "module {module}");
+        if matches!(module, 102 | 199) {
+            assert_eq!(
+                diagnostics[0]
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
+                "Option '--resolveJsonModule' cannot be specified when 'moduleResolution' is set to 'classic'."
+            );
+        }
+        for diagnostic in diagnostics {
+            assert!(diagnostic.file_name.is_none());
+            assert!(diagnostic.start.is_none());
+            assert!(diagnostic.length.is_none());
+        }
+        let diagnostic = diagnostics.last().expect("relationship diagnostic");
         assert_eq!(diagnostic.code(), 5109);
         assert_eq!(
             diagnostic.message_text().as_str().expect("scalar diagnostic observation"),

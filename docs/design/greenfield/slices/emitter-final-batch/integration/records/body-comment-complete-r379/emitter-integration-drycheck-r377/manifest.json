@@ -1,0 +1,14 @@
+{
+  "scope": "Read-onlygitapplycheck7paths; canonicalA279importcommenthunkretained; no sourceintegration/mutation, no fullvalidationclaim (376running).",
+  "exit": 0,
+  "patch_sha256": "a32ad8717aa3ab5111e96d6b37b6a0c1884d8032a43df2b2a87be1d7c4d89b20",
+  "paths": [
+    "crates/syntax/src/recovery.rs",
+    "crates/syntax/src/recovery/context.rs",
+    "crates/syntax/tests/unit/parser/recovery.rs",
+    "crates/emitter/src/printer.rs",
+    "crates/emitter/src/builtins/system.rs",
+    "crates/emitter/tests/unit/source_map/tests.rs",
+    "crates/emitter/tests/unit/builtins/tests.rs"
+  ]
+}

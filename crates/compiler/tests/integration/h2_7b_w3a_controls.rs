@@ -391,7 +391,6 @@ fn w4_a0_jsdoc_alias_reuse_is_byte_exact() {
 }
 
 #[test]
-#[ignore = "W4-A0 trace proved the remaining owner is emitter/declarations/subtree.rs (out of scope)"]
 fn w4_a0_reused_type_references_apply_factory_parenthesization() {
     for case_id in W4_A0_REUSED_TYPE_REFERENCE_CASES {
         assert_frozen_observation(case_id);

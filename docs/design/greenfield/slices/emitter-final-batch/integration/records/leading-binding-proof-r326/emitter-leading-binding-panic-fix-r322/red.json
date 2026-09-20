@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-syntax",
+    "--lib",
+    "--config",
+    "profile.dev.package.tsc-rs-syntax.opt-level=0",
+    "--config",
+    "profile.dev.package.tsc-rs-types.opt-level=0",
+    "--config",
+    "profile.dev.package.tsc-rs-diagnostics.opt-level=0",
+    "leading_invalid_binding_recovery_refuses_a_single_declaration",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "exit": 101,
+  "seconds": 4.309127166867256,
+  "expected_failure": "index out of bounds"
+}

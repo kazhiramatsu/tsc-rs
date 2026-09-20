@@ -1,0 +1,52 @@
+{
+  "scope": "Internal standalone printer body flags probe only; no compiler command, diagnostics, maps or admission qualification. Read-only frozen342 candidate library. TypeScript local canonical6.0.3 printFile baseline comparison.",
+  "libraries": {
+    "tsc_emitter": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_emitter-63ad03d85a501501.rlib",
+      "sha256": "7345725df65ce3eade5aed441fa9dbdeb867c06013b5c3056f6ef519c93b6ff9"
+    },
+    "tsc_syntax": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+      "sha256": "e84740eaef86b4e737fbb1d75ab76e308014561a6dc9c2e5737a23c3499e8110"
+    },
+    "serde_json": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libserde_json-8d4b5d6d0f817ece.rlib",
+      "sha256": "6896c9542f0b05876341cf685224e5d70bcf813a5de9f65b912b77e2f281f2c6"
+    }
+  },
+  "ts_exit": 0,
+  "build_exit": 0,
+  "native_exit": 0,
+  "rows": [
+    {
+      "name": "none",
+      "exact_text": false,
+      "typescript": "function f() {\n    // head\n    x();\n    // tail\n}\n",
+      "native": "function f() {\n// head\n\nx();\n// tail\n}\n"
+    },
+    {
+      "name": "no-leading",
+      "exact_text": false,
+      "typescript": "function f() {\n    // head\n    x();\n    // tail\n}\n",
+      "native": "function f() {\n// head\n\nx();\n// tail\n}\n"
+    },
+    {
+      "name": "no-trailing",
+      "exact_text": false,
+      "typescript": "function f() {\n    // head\n    x();\n}\n",
+      "native": "function f() {\n// head\n\nx();\n// tail\n}\n"
+    },
+    {
+      "name": "no-nested",
+      "exact_text": false,
+      "typescript": "function f() {\n    // head\n    x();\n    // tail\n}\n",
+      "native": "function f() {\n// head\n\nx();\n// tail\n}\n"
+    },
+    {
+      "name": "no-own",
+      "exact_text": false,
+      "typescript": "function f() {\n    // head\n    x();\n}\n",
+      "native": "function f() {\n// head\n\nx();\n// tail\n}\n"
+    }
+  ]
+}

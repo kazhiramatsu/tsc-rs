@@ -3,7 +3,7 @@
   "typescript": "6.0.3",
   "repetitions": 2,
   "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "3ab23c3d9ddd07fff26c9bc36659d8cb9413318aa51bf903756eaa69905bf98b",
+  "observer_sha256": "c25f2c711fc819f4122c61a726a6d4dc6bf23632a5bb1583974e14c17d3d0f98",
   "cases": [
     {
       "case_id": "call-inline/None/retained",
@@ -1033,6 +1033,181 @@
       "variant": "CloneName",
       "remove_comments": false,
       "output": "let x = 1;\n"
+    },
+    {
+      "case_id": "function-body/None/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n    // tail\n}\n"
+    },
+    {
+      "case_id": "function-body/None/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/NoLeadingComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n    // tail\n}\n"
+    },
+    {
+      "case_id": "function-body/NoLeadingComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/NoTrailingComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/NoTrailingComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/NoComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/NoComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/NoNestedComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x();\n    // tail\n}\n"
+    },
+    {
+      "case_id": "function-body/NoNestedComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/ParentNoNestedComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/ParentNoNestedComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/None/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    // tail\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/None/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/NoLeadingComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    // tail\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/NoLeadingComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/NoTrailingComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/NoTrailingComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/NoComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/NoComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/NoNestedComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    // tail\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/NoNestedComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/ParentNoNestedComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/ParentNoNestedComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "function-body/ParentAndBodyNoNestedComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "ParentAndBodyNoNestedComments",
+      "remove_comments": false,
+      "output": "function f() {\n    x();\n}\n"
     }
   ]
 }

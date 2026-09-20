@@ -1,0 +1,159 @@
+{
+  "canonical_head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "private_head": "4aeb1640156f291f4b5189b8ad9ed370cf17cf9d",
+  "qualified_private_scope": true,
+  "qualified_final": false,
+  "scope": "Final private System/currentarray + EOFmap/typedguard + functionbodycomments production:160focusedthenall748completecommandsx2,72refusalcontrols,21originalrows+2frozenSystemoutFile,8mapwitness testsALLPASS376. Existing72empty-block completecommandsx2PASS378. Original515lib/172flags/22failureproofs in374. 365temporaryselector compilefailureZEROcommands retained honestly. 371integration+349canonicalfocused+375freshcanonicalcorpus are DRAFTONLY, notrun; canonical/walk/unsplitCI/hosted/mergepending. No source/ASTbound relaxation.",
+  "files": [
+    {
+      "path": "emitter-body-commands-r365/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r365/manifest.json",
+      "bytes": 1882,
+      "sha256": "8cd1b9736523d8894e5ada2cf7db3a77f6890099a04a9cc46fdcd016ed91dbd8"
+    },
+    {
+      "path": "emitter-body-commands-r365/product.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r365/product.diff.gz",
+      "bytes": 16615,
+      "sha256": "e1c4a07032d6c3d2afc69a416f8c0b25bbbb5f04ddca0fbfcd135e0ac7c90d4e"
+    },
+    {
+      "path": "emitter-body-commands-r365/system160.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r365/system160.log.gz",
+      "bytes": 730,
+      "sha256": "85518fb3794488333fa5068315af6dbf1c66001f7c6738a6f95780d4d6bd1a07"
+    },
+    {
+      "path": "emitter-body-commands-r365/with-test-copies.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r365/with-test-copies.diff.gz",
+      "bytes": 89692,
+      "sha256": "74b62f692af89b0e0fa59801e77f6e668a470af5aee979c48eeac5786a5a2326"
+    },
+    {
+      "path": "emitter-body-commands-r376/context748.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r376/context748.log.gz",
+      "bytes": 3602,
+      "sha256": "f0e82c3954dd9ce7ce41b10fb870a3a09a6c0c7d71d2898fec037c736c0f00dd"
+    },
+    {
+      "path": "emitter-body-commands-r376/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r376/manifest.json",
+      "bytes": 4781,
+      "sha256": "53138174c7b896b4ecf1a26607c547b1cbc296f6ec4135b3c984163ccb498b5f"
+    },
+    {
+      "path": "emitter-body-commands-r376/product.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r376/product.diff.gz",
+      "bytes": 16615,
+      "sha256": "e1c4a07032d6c3d2afc69a416f8c0b25bbbb5f04ddca0fbfcd135e0ac7c90d4e"
+    },
+    {
+      "path": "emitter-body-commands-r376/production-witnesses.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r376/production-witnesses.log.gz",
+      "bytes": 341,
+      "sha256": "5634787722689182d28f6e7a6ca9981c3fe82609984de4329832ba3ff2dbad6c"
+    },
+    {
+      "path": "emitter-body-commands-r376/recording-witnesses.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r376/recording-witnesses.log.gz",
+      "bytes": 380,
+      "sha256": "a22a3741dd02e97f2d3c9472532f06a5245e956a5dac107712b04dd8c710371a"
+    },
+    {
+      "path": "emitter-body-commands-r376/rows-and-frozen-bundle.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r376/rows-and-frozen-bundle.log.gz",
+      "bytes": 892,
+      "sha256": "a62f44a755e0598bab021721a074eb113c82bf92ace674a13f5194548182d3db"
+    },
+    {
+      "path": "emitter-body-commands-r376/syntax-controls.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r376/syntax-controls.log.gz",
+      "bytes": 462,
+      "sha256": "77b59bb098cd170db75a43e4ca88efcb21bc42474f97db0a60d3a6aa3316ad59"
+    },
+    {
+      "path": "emitter-body-commands-r376/system160.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r376/system160.log.gz",
+      "bytes": 1206,
+      "sha256": "d3886615d0d296677fe253987e9185470e24b594d1d1fb9cd8a19fce3d349a90"
+    },
+    {
+      "path": "emitter-body-commands-r376/with-test-copies.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-body-commands-r376/with-test-copies.diff.gz",
+      "bytes": 89704,
+      "sha256": "25570830b727f2ee3f5ce7353d3da5185d0928e2403437197345c35d6ed3c9ad"
+    },
+    {
+      "path": "emitter-empty-body-check-r378/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-body-check-r378/manifest.json",
+      "bytes": 858,
+      "sha256": "5ef5741660a450aa34630eba464130f8ba27f90e276cf90572d99c320ab23708"
+    },
+    {
+      "path": "emitter-empty-body-check-r378/native.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-body-check-r378/native.log.gz",
+      "bytes": 550,
+      "sha256": "4ac533d848e7221304df43105908d9562fac76e8aa3e5e7859a2cc4d856103cd"
+    },
+    {
+      "path": "emitter-integration-drycheck-r377/check.log.gz",
+      "source": "/tmp/emitter-integration-drycheck-r377/check.log",
+      "bytes": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "emitter-integration-drycheck-r377/integration.patch.gz",
+      "source": "/tmp/emitter-integration-drycheck-r377/integration.patch.gz",
+      "bytes": 17818,
+      "sha256": "59be2804578fbb92ca3102ef011d1621f23fd6287862e457f4bdd0847b582e36"
+    },
+    {
+      "path": "emitter-integration-drycheck-r377/manifest.json",
+      "source": "/tmp/emitter-integration-drycheck-r377/manifest.json",
+      "bytes": 590,
+      "sha256": "d83fe7345f367cf7ee5602e19e9be1a1dfd1b236477bfd037b2d58d7fe6b05a6"
+    },
+    {
+      "path": "scripts/emitter-body-commands-r365.py",
+      "source": "/tmp/emitter-body-commands-r365.py",
+      "bytes": 5061,
+      "sha256": "23451d1df69251f4452026332a39506ab100abd419160734140cd67d2cd92c83"
+    },
+    {
+      "path": "scripts/emitter-body-commands-r376.py",
+      "source": "/tmp/emitter-body-commands-r376.py",
+      "bytes": 5215,
+      "sha256": "0f8a241a222eec8b0eaa9a8ae29a069691118068c1294395517effe7c535b2d6"
+    },
+    {
+      "path": "scripts/emitter-empty-body-check-r378.py",
+      "source": "/tmp/emitter-empty-body-check-r378.py",
+      "bytes": 1528,
+      "sha256": "2e90f54950e11f122793f870e5a87f45029b808a0eac0fed41609e9884946a5a"
+    },
+    {
+      "path": "scripts/emitter-integrate-final-r371.py",
+      "source": "/tmp/emitter-integrate-final-r371.py",
+      "bytes": 3065,
+      "sha256": "d99818669d4bae83dff5ec9dc7cc9b78985478a380779d6a7c92d93899bada0a"
+    },
+    {
+      "path": "scripts/emitter-canonical-focused-r349.py",
+      "source": "/tmp/emitter-canonical-focused-r349.py",
+      "bytes": 3457,
+      "sha256": "b66ccec532c281a6452b4636cef972ef4bad0ead27baeac3cbc8538edb867aad"
+    },
+    {
+      "path": "scripts/emitter-canonical-corpus-r375.py",
+      "source": "/tmp/emitter-canonical-corpus-r375.py",
+      "bytes": 9079,
+      "sha256": "abc39de08b6ec8c9335bbc2f6b77fe0bc990cb4d129333ecaa86001295968c9c"
+    },
+    {
+      "path": "archive.py",
+      "source": "/tmp/archive-emitter-body-complete-r379.py",
+      "bytes": 3420,
+      "sha256": "a0930a0161570a98c238fa3ff93c0dccb2adfa7d038eeb0cbf93cb13c82774b2"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "scope": "guard tests only; mutated observations are never saved as qualification",
+  "results": [
+    {
+      "case": "lost context admission",
+      "result": "rejected",
+      "reason": "('lost admission', '0000b94d3e3d22ccf57b0164a10a575183f316f79f9f0f039e0260941a85dfda')"
+    },
+    {
+      "case": "predecessor profile change",
+      "result": "rejected",
+      "reason": "('predecessor', '001757459725384480bb68801af9f085a42e81adb7df6a1c4f83e82eaa015abe', 'statement_gaps')"
+    },
+    {
+      "case": "null profiles",
+      "result": "rejected",
+      "reason": "('profiles', '001757459725384480bb68801af9f085a42e81adb7df6a1c4f83e82eaa015abe')"
+    },
+    {
+      "case": "nonboolean profile",
+      "result": "rejected",
+      "reason": "('profile types', '001757459725384480bb68801af9f085a42e81adb7df6a1c4f83e82eaa015abe')"
+    },
+    {
+      "case": "missing parse input",
+      "result": "rejected",
+      "reason": ""
+    },
+    {
+      "case": "core drift",
+      "result": "rejected",
+      "reason": "('core', '001757459725384480bb68801af9f085a42e81adb7df6a1c4f83e82eaa015abe')"
+    },
+    {
+      "case": "raw fact drift",
+      "result": "rejected",
+      "reason": "recovery_facts_sha256"
+    },
+    {
+      "case": "unexpected replay field",
+      "result": "rejected",
+      "reason": "non-context replay field changed"
+    },
+    {
+      "case": "context-only positive guard",
+      "result": "accepted synthetic context-only flip, not qualification"
+    },
+    {
+      "case": "unmapped new input",
+      "result": "rejected",
+      "reason": "('unmapped new inputs', ['unmapped-synthetic-input'])"
+    }
+  ],
+  "wrapper_sha256": "1f8ccaed9a48d6bc393c4b63f71d38b829dfffc84d44e8794264caf5e32cae44",
+  "test_sha256": "0707da2b9c2b60e818be034add3bfae5b7ba78ec4ac46aa1cd78f05d07d7c5c2"
+}

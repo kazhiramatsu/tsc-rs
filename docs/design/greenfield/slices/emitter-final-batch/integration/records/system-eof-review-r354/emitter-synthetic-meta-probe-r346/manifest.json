@@ -1,0 +1,28 @@
+{
+  "scope": "Internal synthetic-node printer panic probe only; not a source-language admission or full command. No tree mutations.",
+  "libraries": {
+    "tsc_emitter": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_emitter-63ad03d85a501501.rlib",
+      "sha256": "7345725df65ce3eade5aed441fa9dbdeb867c06013b5c3056f6ef519c93b6ff9"
+    },
+    "tsc_syntax": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+      "sha256": "e84740eaef86b4e737fbb1d75ab76e308014561a6dc9c2e5737a23c3499e8110"
+    }
+  },
+  "build_argv": [
+    "rustc",
+    "--edition=2021",
+    "/tmp/emitter-synthetic-meta-probe-r346/main.rs",
+    "-L",
+    "dependency=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps",
+    "-o",
+    "/tmp/emitter-synthetic-meta-probe-r346/probe",
+    "--extern",
+    "tsc_emitter=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_emitter-63ad03d85a501501.rlib",
+    "--extern",
+    "tsc_syntax=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib"
+  ],
+  "build_exit": 0,
+  "native_exit": 101
+}

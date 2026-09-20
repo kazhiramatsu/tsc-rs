@@ -809,6 +809,30 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
 
         let setters = self.create_setters_array()?;
         let execute_body = self.create_block(execute, true)?;
+        // createSystemModuleBody preserves the incoming statement-array
+        // range only when no prologue was sliced off. The execute Block
+        // itself stays synthetic; its closing token maps at the array end.
+        if offset == 0 {
+            if let Some(original) =
+                original_array.and_then(|id| self.context.arena().node_array_ref(self.source, id))
+            {
+                let original = self.context.arena().node_array(original)?;
+                let (pos, end) = (original.pos, original.end);
+                let statements = match &self.context.arena().node(execute_body)?.data {
+                    NodeData::Block(block) => block.statements,
+                    _ => None,
+                }
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::Block,
+                    field: "statements",
+                })?;
+                self.context.factory()?.set_node_array_text_range(
+                    TransformNodeArray::new(self.source, statements),
+                    pos,
+                    end,
+                )?;
+            }
+        }
         if let Some(relocated_execute_comments) = relocated_execute_comments {
             self.context
                 .arena_mut()?

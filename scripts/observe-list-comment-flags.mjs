@@ -26,6 +26,14 @@ const variants = ["None", "NoLeadingComments", "NoTrailingComments", "NoComments
 function observe(source, variant, removeComments) {
   let file = ts.createSourceFile("list-comments.ts", source, ts.ScriptTarget.Latest, true);
   const statement = file.statements[0];
+  if (ts.isFunctionDeclaration(statement)) {
+    if (variant === "ParentNoNestedComments" || variant === "ParentAndBodyNoNestedComments")
+      ts.setEmitFlags(statement, ts.EmitFlags.NoNestedComments);
+    if (variant !== "ParentNoNestedComments")
+      ts.setEmitFlags(statement.body, variant === "ParentAndBodyNoNestedComments"
+        ? ts.EmitFlags.NoNestedComments : ts.EmitFlags[variant]);
+    return ts.createPrinter({newLine:ts.NewLineKind.LineFeed, removeComments}).printFile(file);
+  }
   const parent = statement.expression ?? statement.declarationList;
   if (parent.declarations) for (const declaration of parent.declarations) {
     if (declaration.type) {
@@ -49,6 +57,22 @@ for (const [shape, source] of sources) for (const variant of variants) for (cons
 }
 for (const [shape, source] of sources.filter(([shape]) => ["variable-newline", "variable-inline", "variable-mixed"].includes(shape))) {
   const variant = "CloneName", remove_comments = false;
+  const output = observe(source, variant, remove_comments);
+  assert.equal(observe(source, variant, remove_comments), output);
+  cases.push({case_id:`${shape}/${variant}/retained`, source, variant, remove_comments, output});
+}
+const bodies = [
+  ["function-body", "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n"],
+  ["empty-function-body", "function f() {\n// head\n\n// tail\n}\n"],
+];
+for (const [shape, source] of bodies) for (const variant of variants) for (const remove_comments of [false, true]) {
+  const output = observe(source, variant, remove_comments);
+  assert.equal(observe(source, variant, remove_comments), output);
+  cases.push({case_id:`${shape}/${variant}/${remove_comments ? "removed" : "retained"}`, source, variant, remove_comments, output});
+}
+// Both extents must leave the parent's suppression active until its own exit.
+{
+  const [shape, source] = bodies[0], variant = "ParentAndBodyNoNestedComments", remove_comments = false;
   const output = observe(source, variant, remove_comments);
   assert.equal(observe(source, variant, remove_comments), output);
   cases.push({case_id:`${shape}/${variant}/retained`, source, variant, remove_comments, output});

@@ -1,4 +1,5 @@
-//! h2-7a-m-4 L3 dormancy and refusal-retention controls.
+//! Declaration activation, output-plan boundary, and production-root controls.
+//! H2.7d admits bundle roots; the dormant harness bridge remains unavailable.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -146,7 +147,7 @@ impl DeclarationPathResolver for NoDeclarationPaths {
 }
 
 #[test]
-fn declaration_bundle_root_remains_refused_at_the_transform_seam() {
+fn declaration_bundle_transform_requires_a_bundle_output_path() {
     let source = SourceFileId::from_raw(0);
     let host = ControlHost {
         options: CompilerOptions::default(),
@@ -163,22 +164,29 @@ fn declaration_bundle_root_remains_refused_at_the_transform_seam() {
     );
     assert!(matches!(
         result,
-        Err(TransformError::Unsupported(
-            UnsupportedEmitFeature::BundleRoot
-        ))
+        Err(TransformError::UnsupportedCompilerOption {
+            option: "declaration transformer contract",
+            detail: "bundle declaration output path is required",
+        })
     ));
 }
 
 #[test]
-fn declaration_plan_execute_and_printer_refusals_are_retained() {
+fn declaration_plan_admits_nonempty_bundles_and_retains_boundary_refusals() {
     let source = SourceFileId::from_raw(0);
     let bundle = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
         EmitRoot::Bundle(EmitBundle::new(vec![source])),
         EmitOutputPaths::javascript("/control/out.js"),
         EmitMode::Script,
     )]);
+    assert_eq!(bundle.validate_bootstrap_shape(), Ok(()));
+    let empty_bundle = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
+        EmitRoot::Bundle(EmitBundle::new(Vec::new())),
+        EmitOutputPaths::javascript("/control/out.js"),
+        EmitMode::Script,
+    )]);
     assert_eq!(
-        bundle.validate_bootstrap_shape(),
+        empty_bundle.validate_bootstrap_shape(),
         Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot))
     );
 
@@ -196,23 +204,18 @@ fn declaration_plan_execute_and_printer_refusals_are_retained() {
     );
     let execute = include_str!("../../../emitter/src/execute.rs");
     assert!(
-        execute.contains(
-            "let EmitRoot::SourceFile(source_id) = unit.root() else {\n            return Err(EmitFailure::Unsupported(\n                crate::UnsupportedEmitFeature::BundleRoot,\n            ));\n        };"
-        ),
-        "execute must retain the bundle-root refusal before unit execution"
-    );
-    assert!(
         !execute.contains("transform_declaration_unit_for_harness"),
         "the dormant declaration seam must not be activated from execute"
     );
 }
 
 #[test]
-fn production_declaration_transform_requires_exactly_one_source_root() {
+fn production_declaration_transform_requires_exactly_one_source_or_bundle_root() {
     let orchestration = include_str!("../../../emitter/src/declarations/orchestration.rs");
     assert!(orchestration.contains("if result.roots().len() != 1 {"));
     assert!(
         orchestration.contains("detail: \"declaration transform must produce exactly one root\"")
     );
-    assert!(orchestration.contains("detail: \"declaration transform root must be a source file\""));
+    assert!(orchestration.contains("TransformRoot::SourceFile(_) =>"));
+    assert!(orchestration.contains("TransformRoot::Bundle(_) =>"));
 }
