@@ -338,3 +338,7 @@ H2.5gのchanged-crates入力規則を再計算し、599未登録pathsと既に�
 元16,994入力のparser比較、選定済み48 commands各2回（出力46件・noEmit 2件）、
 別枠108 projects各2回が一致した。元の読み込み失敗110件は未検証のまま保持し、
 別枠projectsをその代替とは扱わない。正式walk・最終unsplit CI・hosted確認は継続中。
+
+[最終ソース参照の更新](records/final-pin-preparation-r455/manifest.json)：既存ソースhash 25件と、
+それに依存するdraft artifact hash 2件を更新した。draft状態・対象集合・判定条件・hosted登録は
+変更せず、正式walkと最終CIで検証する。

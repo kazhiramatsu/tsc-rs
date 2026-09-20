@@ -7,11 +7,11 @@ sha256 = "ad59d232144e8bd9543be9ebc1494d300addb7f4fb8990a492b88b096aaf232b"
 
 [[source_references]]
 path = "crates/xtask/src/m8_evidence.rs"
-sha256 = "56ff4cfdc08a4a2212ac095e344a20937046a66f70d6a02486967829d5482c1d"
+sha256 = "a72c4c128f51d6e7e2344206bfd82455ee773018fbb31d3458e9c0b30bf90c4a"
 
 [[source_references]]
 path = "crates/harness/src/lib.rs"
-sha256 = "48de8b606404c177d3a61882cb55baa61ec1a7e7a4b90e5fa8de6a2a1ffb54e8"
+sha256 = "8fdef35abefebbd5554f92aae33ba9b1de676feb8b5eaa3806c6538461a6efeb"
 
 [[source_references]]
 path = "ratchets/oracle-inputs.v1.json.zst"
