@@ -1,6 +1,6 @@
 {
   "crates/harness/src/upstream_suites/execution.rs": "9e8d7ecea830e281827d5dbd64b18170a14e594c43133557e98ded207dd64f7e",
-  "crates/harness/src/upstream_suites/execution/project.rs": "c03c49fb14243ea4a49984df4f4ae68134276558dac32f9c17ffbfd0bca398cf",
+  "crates/harness/src/upstream_suites/execution/project.rs": "42f04317f5fb348fb0e5ed69ec5d7276b688676c915e0a539fff5cdf1582b8ef",
   "crates/oracle/vfs-directory-overlay.mjs": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76",
   "crates/types/src/options.rs": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde",
   "crates/program/src/prepared.rs": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da",

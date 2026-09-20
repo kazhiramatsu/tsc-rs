@@ -4567,93 +4567,9 @@ fn display_path_contains_node_modules(path: JsStr<'_>) -> bool {
 }
 
 #[cfg(test)]
-mod node_modules_membership_tests {
-    use super::display_path_contains_node_modules;
-    use tsc_diagnostics::JsString;
-
-    #[test]
-    fn membership_matches_the_former_projection_on_every_separator() {
-        for (path, expected) in [
-            ("/work/node_modules/a/index.js", true),
-            ("C:\\work\\node_modules\\a\\index.js", true),
-            ("/work\\node_modules/a.js", true),
-            ("/work/node_modules", false),
-            ("/work/node_modules_x/a.js", false),
-            ("/work/xnode_modules/a.js", false),
-            ("node_modules/a.js", false),
-            ("/work/src/a.js", false),
-        ] {
-            assert_eq!(
-                display_path_contains_node_modules(path.into()),
-                expected,
-                "{path}"
-            );
-        }
-        let mut path = JsString::from("/work/");
-        path.push_code_unit(0xd800);
-        path.push_str("/node_modules/a.js");
-        assert!(display_path_contains_node_modules(path.as_js()));
-        let mut path = JsString::from("/work/node_modules");
-        path.push_code_unit(0xd800);
-        path.push_str("/a.js");
-        assert!(!display_path_contains_node_modules(path.as_js()));
-    }
-}
+#[path = "../tests/unit/loader/node_modules_membership_tests.rs"]
+mod node_modules_membership_tests;
 
 #[cfg(test)]
-mod typed_error_source_tests {
-    use super::{ProgramLoadError, ProgramLoadOperation};
-    use crate::{PreparationError, PreparationOperation, ResolutionError};
-    use std::error::Error;
-    use tsc_host::{HostError, HostErrorKind, HostOperation};
-
-    #[test]
-    fn boxed_causes_remain_downcastable_to_the_public_error_types() {
-        let host = HostError::new(
-            HostErrorKind::PermissionDenied,
-            HostOperation::ReadFile,
-            None,
-            "fixture read denied",
-        );
-        let load = ProgramLoadError::host(ProgramLoadOperation::ReadSource, None, host.clone());
-        assert_eq!(
-            load.source().unwrap().downcast_ref::<HostError>(),
-            Some(&host)
-        );
-
-        let resolution = ResolutionError::Host(host);
-        let load = ProgramLoadError::resolution(
-            ProgramLoadOperation::ResolveModule,
-            None,
-            Some("fixture".into()),
-            resolution.clone(),
-        );
-        assert_eq!(
-            load.source().unwrap().downcast_ref::<ResolutionError>(),
-            Some(&resolution),
-        );
-        assert!(load.source().unwrap().source().unwrap().is::<HostError>());
-
-        let preparation = PreparationError::from_resolution_js(
-            PreparationOperation::AddModuleResolution,
-            None,
-            resolution.clone(),
-        );
-        assert_eq!(preparation.resolution(), Some(&resolution));
-        assert_eq!(
-            preparation
-                .source()
-                .unwrap()
-                .downcast_ref::<ResolutionError>(),
-            Some(&resolution),
-        );
-        let load = ProgramLoadError::Preparation {
-            operation: ProgramLoadOperation::BuildPreparedProgram,
-            source: preparation.clone(),
-        };
-        assert_eq!(
-            load.source().unwrap().downcast_ref::<PreparationError>(),
-            Some(&preparation),
-        );
-    }
-}
+#[path = "../tests/unit/loader/typed_error_source_tests.rs"]
+mod typed_error_source_tests;

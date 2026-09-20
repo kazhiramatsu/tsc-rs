@@ -1,0 +1,7 @@
+Review205 decisions before finalsource freeze:
+- F1 accept zero-violation check before hash: an outlined module now reaches the explicit retirement refusal. Both successful paths still require exactfullhash. Existing real-file removal mutation tests the new failure; no synthetic detector-output mock needed.
+- F2 add realcatalog-drift fixture: frozenfile remains on disk, workspace members excludesxtask andincludesothercleanpackage; actualRust auditmustreport notscanned. Pythonliteralglob includesexactfrozenpath wheneverexists, so directhelper tests +missingfile case coverpracticalboundary; do notmockglobjustfortest.
+- F3 retain exact coupling expression instead of two independent substrings: weaker presencechecks couldmatchunrelatedfields. This guard intentionallyrequiresreview whenidentitycomparison changes; whitespace reflow isnotcurrent issue.
+- F4 preflight receipt currently hashescargomanifests/Rustfiles, but misses scanner implementation andnewincludedJSON. Add exactlybothfiles topreflight_tree_sha, plus whitespacecomment explainingcompiletimeJSON requires Cargo rebuild. Exercise actualextractedfingerprint function againstscript/descriptor mutations inexternalfixtures. Source.rs alreadybound soincludechangesinvalidateCargoaswell.
+- F5 nochange; independentfailureoutput alreadyretainsproblemnames.
+- Canonicalfmtproof initialmisstatement corrected:14 files lostsingleleadingnewline versusstandaloneformatter; actual tokenproof verifiesunchangedall15. Recordsretainfirstfailedhashassert.

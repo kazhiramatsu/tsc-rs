@@ -238,7 +238,7 @@ crate_tree_sha() {
   find crates -name '*.rs' -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | cut -d' ' -f1
 }
 preflight_tree_sha() {
-  { crate_tree_sha; find crates -name Cargo.toml -type f -print0 | sort -z | xargs -0 shasum -a 256; shasum -a 256 Cargo.toml Cargo.lock; rustc --version; printf 'PRE_SUITE=%s\n' "${PRE_SUITE:-}"; } | shasum -a 256 | cut -d' ' -f1
+  { crate_tree_sha; find crates -name Cargo.toml -type f -print0 | sort -z | xargs -0 shasum -a 256; shasum -a 256 Cargo.toml Cargo.lock scripts/inline-tests-scan.py scripts/frozen-test-layout.json scripts/workspace-test-targets.json; rustc --version; printf 'PRE_SUITE=%s\n' "${PRE_SUITE:-}"; } | shasum -a 256 | cut -d' ' -f1
 }
 PREFLIGHT_RECEIPT="target/chain-walk/preflight-receipt"
 preflight_receipt_hit() {
@@ -281,6 +281,16 @@ if [ "${SKIP_PREFLIGHT:-0}" != "1" ] && [ $preflight_receipt_used -eq 0 ]; then
     exit 2
   fi
   echo "preflight: clean"
+fi
+
+# The full audit also reads automation scripts and workflow manifests, outside
+# the Rust preflight receipt. Run it even when fmt/layout/Clippy can be reused.
+if [ "${SKIP_PREFLIGHT:-0}" != "1" ]; then
+  echo "preflight: cargo xtask workspace-audit"
+  if ! taskpolicy -b nice -n 15 cargo xtask workspace-audit >/tmp/chain-walk-workspace-audit.log 2>&1; then
+    echo "REFUSING TO WALK: workspace audit is red (see /tmp/chain-walk-workspace-audit.log)."
+    exit 2
+  fi
 fi
 
 # Red-suite-first (gate-tax 5-E): never converge unvalidated bytes. When a

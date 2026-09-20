@@ -1,0 +1,32 @@
+[
+  {
+    "path": "crates/xtask/src/workspace_maintenance.rs",
+    "before_sha256": "bc746d60203cf8430063549777d56a6ba1cf84dc0a510cf7fc33e5b12ddaa32b",
+    "after_sha256": "1ff153bf5fa1379e56af9ec0f257e1c7ea91f3a9b65a39594f6202b5c956ac0b"
+  },
+  {
+    "path": "scripts/inline-tests-scan.py",
+    "before_sha256": "5614792b018b1ce42174edad525b604905f4e2d2eef4a201394c2bf9617750b6",
+    "after_sha256": "7c4ff834f100e5ab507384b8bc1c57ea1c25be3f607ccb356892aeb018707aeb"
+  },
+  {
+    "path": "crates/xtask/tests/unit/workspace_maintenance/tests.rs",
+    "before_sha256": "9312306b641aac9e4f1f48c1615ab76e71daa0d51e2a97c678b07a06aada73f4",
+    "after_sha256": "4b6416e56765d2d7c2d41eeaa23c465b0fff1af6ba5b2173d84ad6072b61511a"
+  },
+  {
+    "path": "scripts/chain-walk.sh",
+    "before_sha256": "78a3c5e7633c9a79f7d934c9f328c3b48c1cb298234ee70ea44dcb5f4c80a56d",
+    "after_sha256": "7ea9f112486a2b8fb551dae7cde8296da019d5650837cd77262e4659897fbe8c"
+  },
+  {
+    "path": "scripts/frozen-test-layout.json",
+    "before_sha256": "7f095854bf302bb840584ec1a7bfea32c3b140327491e60a082bd86c86ef3a7c",
+    "after_sha256": "983620cbe6013733fcfa01d1999c9ccd218a24d19ec0ee6ee95af887a932451d"
+  },
+  {
+    "path": "scripts/recovery-command-pins.json",
+    "before_sha256": "216369428fc590b67f0389eb8d18111ec91365304256bf16fe83ecec5f734823",
+    "after_sha256": "9f798db57f686323e82281565d303053360ce14b686f3c1a681de66ec864dac7"
+  }
+]

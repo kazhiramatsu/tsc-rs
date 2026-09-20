@@ -1,0 +1,5 @@
+{
+  "qualified": false,
+  "scope": "Scratch-only proof instrumentation failure, no canonical edits",
+  "reason": "Post-rustfmt strict token comparison found only the optional trailing comma in a use group removed when indentation shrank. Successor verifies exact test tokens before invoking standard rustfmt, then binds resulting formatter output hashes; no production item is reformatted by the scratch step."
+}

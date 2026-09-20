@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "--test",
+    ".github/ci/qualification.test.mjs"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T09:59:12.556690+00:00",
+  "head": "4ccf822b8b14555d6c07339e39dfced95327df33",
+  "tracked_clean": false,
+  "diff_sha256": "b2acccbc2928d8c24545489180f28b206200c71ef6e625407a44d0139dc9de22",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 36.102,
+  "log_sha256": "f603642567938d0569f34b8294fc6ef456d91ac8b3e1ac0932f5834952525b56",
+  "log_bytes": 4342
+}

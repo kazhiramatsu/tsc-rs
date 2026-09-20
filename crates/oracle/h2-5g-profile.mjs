@@ -746,7 +746,6 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/conformance/tests/unit/h0_memory/tests.rs",
   "crates/conformance/tests/unit/rendered/tests.rs",
   "crates/diagnostics/src/js_string.rs",
-  "crates/diagnostics/src/js_string/tests.rs",
   "crates/diagnostics/src/lib.rs",
   "crates/diagnostics/src/render.rs",
   "crates/diagnostics/tests/unit/lib/tests.rs",
@@ -955,6 +954,22 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
 // shadow. They are not read by the fixed H2.5g acceptance command and must
 // not silently become H2 runtime evidence inputs.
 const NON_RUNTIME_SHADOW_INPUTS = new Set([
+  // Outlined unit-test modules retain their production modules and fixtures.
+  "crates/checker/tests/unit/declaration_emit/replay_json/tests.rs",
+  "crates/diagnostics/tests/unit/js_string/tests.rs",
+  "crates/emitter/tests/unit/factory/parsed_metadata/tests.rs",
+  "crates/harness/tests/unit/upstream_suites/execution/js_paths/tests.rs",
+  "crates/harness/tests/unit/upstream_suites/execution/project/descriptor_option_tests.rs",
+  "crates/program/tests/unit/config_host/tests.rs",
+  "crates/program/tests/unit/config_options/schema_oracle.rs",
+  "crates/program/tests/unit/js_path/tests.rs",
+  "crates/program/tests/unit/js_string_ops/tests.rs",
+  "crates/program/tests/unit/loader/node_modules_membership_tests.rs",
+  "crates/program/tests/unit/loader/typed_error_source_tests.rs",
+  "crates/program/tests/unit/resolution_cache/tests.rs",
+  "crates/types/tests/unit/escaped_name/tests.rs",
+  "crates/xtask/tests/unit/h2_7de_acceptance/tests.rs",
+  "crates/xtask/tests/unit/recovery_corpus_native/tests.rs",
   // h2-7b-w4: the lanes' and the integrator's frozen controls (tests only).
   "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
   "crates/compiler/tests/integration/h2_7b_w4b_controls.rs",
@@ -1362,8 +1377,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 921,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 921)`,
+    runtimeInputSet.size === 920,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 920)`,
   );
 
   return withFingerprint(
