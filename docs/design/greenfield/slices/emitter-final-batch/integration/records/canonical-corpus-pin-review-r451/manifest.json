@@ -1,0 +1,104 @@
+{
+  "head": "be8dfd697dec3b70405887b26fdbd5c5e4c3c7a4",
+  "qualified_parser_scope": true,
+  "qualified_commands_scope": false,
+  "qualified_final": false,
+  "scope": "Original 16994 replay passed. Command observer refused before observations because two source pins retained pre-Clippy file hashes. Exact source replacements reviewed and only two mirror hashes updated; next final-head full command replay remains required. No runtime, comparator, input roster, observer schema, or disposition changes.",
+  "files": [
+    {
+      "path": "failed-run/manifest.json",
+      "bytes": 11502,
+      "sha256": "e740f824a3f0ba3aec3ebde25264b8907ccf6361d0e324624f1af77bc80c9620"
+    },
+    {
+      "path": "failed-run/parser-build.log.gz",
+      "bytes": 445,
+      "sha256": "76637a6582fb880c8513276a5a072ae4531ba0aacfef2eb97365a3dd270d47de"
+    },
+    {
+      "path": "failed-run/parser-test.log.gz",
+      "bytes": 472,
+      "sha256": "695d2116d7f19337ebe7488539da8869410eb79239f6908e7652e3b25aa9db0d"
+    },
+    {
+      "path": "failed-run/raw-replay.json.gz",
+      "bytes": 7935146,
+      "sha256": "5f74794b0abe39675f600f2b01c86cddda9e4ccf6fc29e937fb1808bcee2ce1e"
+    },
+    {
+      "path": "failed-run/resolved-dependencies.json",
+      "bytes": 6247,
+      "sha256": "8c5b9ea4163ee1a73607568e7220ba3373b9f98e151af1db5753d58ba2190096"
+    },
+    {
+      "path": "failed-run/selected-ts.log.gz",
+      "bytes": 614,
+      "sha256": "e03f51d35ee11e06c49ab1d86db2a1b225ff809b4a39b2c31a618a12580626e2"
+    },
+    {
+      "path": "failed-run/selection.json.gz",
+      "bytes": 166735,
+      "sha256": "f01fcc78b668c6dc7e730b14ffeae243515fe8abcc0741e3489ccacead3e3257"
+    },
+    {
+      "path": "failed-run/successor.json.gz",
+      "bytes": 7939914,
+      "sha256": "082a45001c2163a457dc54a07542ee4e5c34abf657b20d0fb68bb83246c99e9b"
+    },
+    {
+      "path": "failed-run/xtask-build.log.gz",
+      "bytes": 4415,
+      "sha256": "e1fc75adf2dabada2e7e811111929d4f3a2b0fedd848aebe069684af05b4db89"
+    },
+    {
+      "path": "review/manifest.json",
+      "bytes": 1459,
+      "sha256": "d3f650eab481343965cd6dd68b142798addbed87a0743dd2e495f544144c07dd"
+    },
+    {
+      "path": "review/project.rs.diff",
+      "bytes": 2664,
+      "sha256": "370090f3d6642ac8d8b2816596ac3c6aa50e619126a5bc228362aa6fb4e66184"
+    },
+    {
+      "path": "review/recovery-command-pins.json",
+      "bytes": 1248,
+      "sha256": "216369428fc590b67f0389eb8d18111ec91365304256bf16fe83ecec5f734823"
+    },
+    {
+      "path": "review/utf16_literal_recovery_census.rs.diff",
+      "bytes": 620,
+      "sha256": "8d1e909759ec3acb3785ab22c769c4e0d20680fe4bc54fdb8a213bfd687b7cbb"
+    },
+    {
+      "path": "failed-run/build/Cargo.toml",
+      "bytes": 869,
+      "sha256": "88920ccb65664c13045b5bfc6cc3892fde3aaf2596687f0a78f4b8fdf96571c6"
+    },
+    {
+      "path": "failed-run/build/Cargo.lock",
+      "bytes": 6049,
+      "sha256": "9819cb3aa79896c95374012fc9cbe601e4982c067d51820dc842b9a5b1860b27"
+    },
+    {
+      "path": "scripts/emitter-canonical-corpus-r375.py",
+      "bytes": 10469,
+      "sha256": "97ba25ea0c74978f59ba9551e8a4e47ebac596e2a6b7692a46fd83d9c6349e79"
+    },
+    {
+      "path": "scripts/emitter-canonical-corpus-r452.py",
+      "bytes": 10580,
+      "sha256": "5037691505c23673607b4068a24df080d069012d73a68b2aeee6f827eb4c6f6a"
+    },
+    {
+      "path": "scripts/archive-emitter-canonical-corpus-r453.py",
+      "bytes": 2876,
+      "sha256": "f1cc1c5e7cce0171a5bf22adc78fb403d401def07836626002bd2e6b3971d408"
+    },
+    {
+      "path": "scripts/emitter-corpus-pin-commit-r451.py",
+      "bytes": 5100,
+      "sha256": "f79f49eb7587a60db5256e08e047665e683349a76cad9c90b75b723c0217c1bc"
+    }
+  ]
+}

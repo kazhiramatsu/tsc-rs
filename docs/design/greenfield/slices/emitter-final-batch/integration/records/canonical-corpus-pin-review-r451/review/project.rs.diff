@@ -1,0 +1,56 @@
+diff --git a/crates/harness/src/upstream_suites/execution/project.rs b/crates/harness/src/upstream_suites/execution/project.rs
+index 0d0dfdb21..1de92662d 100644
+--- a/crates/harness/src/upstream_suites/execution/project.rs
++++ b/crates/harness/src/upstream_suites/execution/project.rs
+@@ -117,11 +117,7 @@ pub fn load_project_no_emit(
+                     plan.fixture.source.relative_path
+                 ))
+             })?;
+-            let root_names = config_root_plan
+-                .file_names()
+-                .iter()
+-                .cloned()
+-                .collect::<Vec<_>>();
++            let root_names = config_root_plan.file_names().to_vec();
+             let compiler_options = config_root_plan
+                 .module_resolution_options()
+                 .compiler_options()
+@@ -150,11 +146,7 @@ pub fn load_project_no_emit(
+                         plan.fixture.source.relative_path
+                     ))
+                 })?;
+-            let root_names = config_root_plan
+-                .file_names()
+-                .iter()
+-                .cloned()
+-                .collect::<Vec<_>>();
++            let root_names = config_root_plan.file_names().to_vec();
+             let compiler_options = config_root_plan
+                 .module_resolution_options()
+                 .compiler_options()
+@@ -283,11 +275,7 @@ pub fn load_project_emit_with_option_floor(
+             // vendored `parseJsonSourceFileConfigFileContent`, which
+             // tolerates them. The emit lane's contract is the frozen
+             // observation (CA-4 packet §4 layer split).
+-            let root_names = config_root_plan
+-                .file_names()
+-                .iter()
+-                .cloned()
+-                .collect::<Vec<_>>();
++            let root_names = config_root_plan.file_names().to_vec();
+             let compiler_options = config_root_plan
+                 .module_resolution_options()
+                 .compiler_options()
+@@ -320,11 +308,7 @@ pub fn load_project_emit_with_option_floor(
+                 join_config_path(plan.fixture.current_directory.as_ref(), "tsconfig.json");
+             let config_root_plan = parse_project_config(&host, &config_path, plan)?;
+             // Same H0-scope tolerance as the named-config arm above.
+-            let root_names = config_root_plan
+-                .file_names()
+-                .iter()
+-                .cloned()
+-                .collect::<Vec<_>>();
++            let root_names = config_root_plan.file_names().to_vec();
+             let compiler_options = config_root_plan
+                 .module_resolution_options()
+                 .compiler_options()

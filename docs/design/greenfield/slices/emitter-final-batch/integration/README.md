@@ -329,3 +329,9 @@ H2.5gのchanged-crates入力規則を再計算し、599未登録pathsと既に�
 [Opus165の独立再計算](cross-review/round165-opus.md)と
 [提案・census](records/runtime-input-registration-r229/proposal.json)を保存した。
 最終の生成物は公式chain walkで更新し、入口台帳v36はwalk後の固定sourceから新規生成する。
+
+[元corpus再検証の途中記録](records/canonical-corpus-pin-review-r451/manifest.json)：
+16,994入力のparser再実行は一致した。実出力比較は、過去のClippy修正に伴う検証用ソースhash
+2件の更新漏れで採取前に停止した。配列コピー4箇所と不要な参照1箇所の差分だけであることを
+元ファイルからの完全一致で照合し、2件のhashを更新した。比較器・入力集合・期待値は維持し、
+確定HEADで全体再実行する。
