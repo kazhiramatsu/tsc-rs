@@ -1,0 +1,61 @@
+{
+  "scope": "Node deepStrictEqual and case JSON.stringify equality; complete old case payloads and every other field outside explicitly changed metadata/eight new cases",
+  "results": [
+    {
+      "fixture": "crates/compiler/tests/fixtures/emitter-final-universe.json",
+      "original_cases": 217,
+      "old_case_payloads_strictly_identical": true,
+      "permitted_changes": [
+        "inputs/1/sha256"
+      ],
+      "new_cases": 0
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst",
+      "original_cases": 1798,
+      "old_case_payloads_strictly_identical": true,
+      "permitted_changes": [
+        "inputs/1/sha256"
+      ],
+      "new_cases": 0
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/emitter-jsdoc-original-command.json",
+      "original_cases": 1,
+      "old_case_payloads_strictly_identical": true,
+      "permitted_changes": [
+        "selection/0/artifact_sha256"
+      ],
+      "new_cases": 0
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json",
+      "original_cases": 68,
+      "old_case_payloads_strictly_identical": true,
+      "permitted_changes": [
+        "selection_sha256",
+        "parents/0/sha256",
+        "parents/1/sha256"
+      ],
+      "new_cases": 0
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/utf16-original-rows-complete.json",
+      "original_cases": 4,
+      "old_case_payloads_strictly_identical": true,
+      "permitted_changes": [
+        "parent/sha256"
+      ],
+      "new_cases": 0
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/emitter-heritage-boundaries.json",
+      "original_cases": 132,
+      "old_case_payloads_strictly_identical": true,
+      "permitted_changes": [
+        "observer_sha256"
+      ],
+      "new_cases": 8
+    }
+  ]
+}

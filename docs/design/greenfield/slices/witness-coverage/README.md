@@ -2,7 +2,7 @@
 
 2026-09-17。統合担当：Codex。**最終emitter向けCI予算整備をPR #557で統合。全10 replay job・両gateを含む14 checks成功。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v37.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v38.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -35,7 +35,7 @@ C02 generated-binding はPR #549で統合済み。 direct 156入力と pipeline 
 
 [POST-T1統合](../h2-8a-post-t1-residuals/integration/README.md)で新101入力・2 exact-name testsをpipeline jobへ追加したv23。73 standaloneの入口を棚卸しし、元pipelineの必要値を767 exact /0 knownとする。PR #555の最終候補で全14 checksが成功し、pipeline767 exact、新対照96 exact/5 knownとpacket79 exactを確認。実時間と全logは統合記録に保存した。
 
-## 現在の入口（v37）
+## 現在の入口（v38）
 
 2026-09-21。emitter 最終統合の候補を棚卸しした。hosted の recovery 登録を
 既存 fixture の 788 ケースに同期し、グループ合計は 1,580 ケースとなる。

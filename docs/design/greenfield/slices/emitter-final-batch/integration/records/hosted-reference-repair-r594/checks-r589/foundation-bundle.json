@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "scripts/witness.py",
+    "program-bundle-facts",
+    "--all"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T20:34:44.609322+00:00",
+  "seconds": 63.904,
+  "exit": 0,
+  "log_sha256": "3f0602a1eb21ff57af8b358985fb1f05d202053c694a69c5e8ab3315f4dfba8f",
+  "log_bytes": 1276
+}

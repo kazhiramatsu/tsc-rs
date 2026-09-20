@@ -239,7 +239,7 @@ fn heritage_factory_boundaries_match_complete_typescript_commands() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 132);
+    assert_eq!(cases.len(), 140);
     assert_recovery_boundary_commands(cases);
 }
 

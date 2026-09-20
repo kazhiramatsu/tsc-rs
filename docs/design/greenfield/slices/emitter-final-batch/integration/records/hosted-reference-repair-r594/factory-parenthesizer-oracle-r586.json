@@ -1,0 +1,126 @@
+{
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "cases": [
+    {
+      "id": "import",
+      "input_kind": "ImportKeyword",
+      "output_kind": "ImportKeyword",
+      "wrapped": false,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "non-null",
+      "input_kind": "NonNullExpression",
+      "output_kind": "NonNullExpression",
+      "wrapped": false,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "instantiation",
+      "input_kind": "ExpressionWithTypeArguments",
+      "output_kind": "ExpressionWithTypeArguments",
+      "wrapped": false,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "missing-declaration",
+      "input_kind": "MissingDeclaration",
+      "output_kind": "MissingDeclaration",
+      "wrapped": false,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "arrow",
+      "input_kind": "ArrowFunction",
+      "output_kind": "ParenthesizedExpression",
+      "wrapped": true,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "omitted",
+      "input_kind": "OmittedExpression",
+      "output_kind": "ParenthesizedExpression",
+      "wrapped": true,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "new-no-args",
+      "input_kind": "NewExpression",
+      "output_kind": "ParenthesizedExpression",
+      "wrapped": true,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "new-empty-args",
+      "input_kind": "NewExpression",
+      "output_kind": "NewExpression",
+      "wrapped": false,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "optional",
+      "input_kind": "PropertyAccessExpression",
+      "output_kind": "ParenthesizedExpression",
+      "wrapped": true,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "identifier",
+      "input_kind": "Identifier",
+      "output_kind": "Identifier",
+      "wrapped": false,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "partial-import",
+      "input_kind": "PartiallyEmittedExpression",
+      "output_kind": "PartiallyEmittedExpression",
+      "wrapped": false,
+      "range": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": "partial-arrow",
+      "input_kind": "PartiallyEmittedExpression",
+      "output_kind": "ParenthesizedExpression",
+      "wrapped": true,
+      "range": [
+        5,
+        15
+      ]
+    }
+  ]
+}

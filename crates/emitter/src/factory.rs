@@ -4068,7 +4068,9 @@ impl<'arena> NodeFactory<'arena> {
         let emitted = self.skip_partially_emitted_expressions(expression)?;
         let record = self.arena.node(emitted)?;
         let optional = NodeFlags::from_bits(record.flags).contains(NodeFlags::OPTIONAL_CHAIN);
-        let left_hand_side = self.expression_precedence(emitted)? >= PRECEDENCE_LEFT_HAND_SIDE
+        // Access grammar uses the expression-kind table, not precedence:
+        // recovered `import` is a left-hand-side expression with invalid precedence.
+        let left_hand_side = is_left_hand_side_expression_kind(record.kind)
             && !(record.kind == SyntaxKind::NewExpression
                 && matches!(&record.data, NodeData::NewExpression(data) if data.arguments.is_none()));
         if left_hand_side && !optional {

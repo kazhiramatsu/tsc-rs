@@ -610,7 +610,7 @@ fn write(index: usize, artifact: &EmitArtifact) -> Value {
 
 fn observe(case: &Value, host: &dyn CompilerHost, libraries: &BTreeMap<String, Vec<u8>>) -> Value {
     let program =
-        prepared(case, host).unwrap_or_else(|error| panic!("load_emitting_program: {error:?}"));
+        prepared(case, host).unwrap_or_else(|error| panic!("prepare original command: {error:?}"));
     let mut sources = Vec::new();
     let mut standard_libraries = Vec::new();
     for source in program.source_files() {
@@ -821,7 +821,25 @@ fn assert_reference(
             if options["noEmit"] == true {
                 let host = memory_host(case, artifact, libraries);
                 for _ in 0..2 {
-                    let error = prepared(case, &host).unwrap_err();
+                    // This reference establishes the emit-only loader's refusal;
+                    // `prepared` separately models the CLI's checking-only route.
+                    let (options, program) = projected_options(case, &host);
+                    let roots = strings(&case["input"]["roots"])
+                        .into_iter()
+                        .map(PathBuf::from)
+                        .collect::<Vec<_>>();
+                    let catalog = LibraryCatalog::typescript_6_0_3("/lib");
+                    let limits =
+                        ProgramLoadLimits::new(256, 2048, 64, 16 * 1024 * 1024, 128 * 1024 * 1024);
+                    let error = match load_emitting_program(
+                        &host, &roots, options, program, &catalog, limits,
+                    ) {
+                        Err(error) => error,
+                        // Do not format the complete program on unexpected success.
+                        Ok(_) => {
+                            panic!("{}: emit-only loader accepted noEmit=true", row["case_id"])
+                        }
+                    };
                     assert!(
                         matches!(error, ProgramLoadError::InvalidInput {
                         operation: ProgramLoadOperation::ValidateOptions, path: None, js_path: None, ref detail,

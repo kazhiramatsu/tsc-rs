@@ -51,6 +51,15 @@ for (const target of ["es5", "es2022"])
   for (const [shape, text] of declarations)
    add("declaration", shape, text, target, "esnext", remove, {declaration: true, declarationMap: true});
 assert.equal(inputs.length, 132);
+// H2.5g importWithTypeArguments regression: compare complete diagnostics,
+// JavaScript, comments and source-map tuples around the recovered import token.
+for (const target of ["es2015", "esnext"])
+ for (const remove of [false, true])
+  for (const [shape, text] of [
+   ["import-type-arguments", "import<T>\nconst a = import<string, number>"],
+   ["import-type-comments", "import /*before*/<T> /*after*/;\nconst a = import /*before*/<string, number> /*after*/;"],
+  ]) add("access-recovery", shape, text, target, "esnext", remove);
+assert.equal(inputs.length, 140);
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,

@@ -1,0 +1,335 @@
+{
+  "version": 1,
+  "status": "Complete supplemental upstream commands; native evidence recorded separately",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "parent": {
+    "path": "ratchets/h2-5h-qualification.v1.json",
+    "sha256": "488e9940fcb8b6b359bad5fc9fa822eeae46af59b9aefd2bd5e3a20c37c396a3"
+  },
+  "observer_sha256": "cfcac9cb0fa71fde316e699c3ea10f0bc1d60aba2c6e0276b55eebc56877e72c",
+  "repetitions": 2,
+  "complete_program_executions": 8,
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings10.ts#target%3Des5",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/unicodeExtendedEscapesInStrings10.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es5"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/unicodeExtendedEscapesInStrings10.ts",
+            "utf8_base64": "Ly8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApCi8vICAyLiBMZXQgY3UxIGJlIGZsb29yKChjcCDigJMgNjU1MzYpIC8gMTAyNCkgKyAweEQ4MDAuCi8vIEFsdGhvdWdoIHdlIHNob3VsZCBqdXN0IGdldCBiYWNrIGEgc2luZ2xlIGNvZGUgcG9pbnQgdmFsdWUgb2YgMHhEODAwLAovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lgp2YXIgeCA9ICJcdXtEODAwfSI7Cg==",
+            "utf8_sha256": "a03ad9b56ece4fc507c328814ff5a1a261d3705eff4e408b9034136494a425ab",
+            "utf8_bytes": 244
+          }
+        ]
+      },
+      "options": {
+        "noResolve": false,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/unicodeExtendedEscapesInStrings10.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApDQovLyAgMi4gTGV0IGN1MSBiZSBmbG9vcigoY3Ag4oCTIDY1NTM2KSAvIDEwMjQpICsgMHhEODAwLg0KLy8gQWx0aG91Z2ggd2Ugc2hvdWxkIGp1c3QgZ2V0IGJhY2sgYSBzaW5nbGUgY29kZSBwb2ludCB2YWx1ZSBvZiAweEQ4MDAsDQovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lg0KdmFyIHggPSAiXHVEODAwIjsNCg==",
+            "callback_utf8_sha256": "1c6d9dfb4ee4d6be0bc59316376dbfa8a62deae6dd6e52b37cd1d4780b38f02b",
+            "callback_utf8_bytes": 262,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApDQovLyAgMi4gTGV0IGN1MSBiZSBmbG9vcigoY3Ag4oCTIDY1NTM2KSAvIDEwMjQpICsgMHhEODAwLg0KLy8gQWx0aG91Z2ggd2Ugc2hvdWxkIGp1c3QgZ2V0IGJhY2sgYSBzaW5nbGUgY29kZSBwb2ludCB2YWx1ZSBvZiAweEQ4MDAsDQovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lg0KdmFyIHggPSAiXHVEODAwIjsNCg==",
+            "materialized_utf8_sha256": "1c6d9dfb4ee4d6be0bc59316376dbfa8a62deae6dd6e52b37cd1d4780b38f02b",
+            "materialized_utf8_bytes": 262,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/unicodeExtendedEscapesInStrings10.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings11.ts#target%3Des5",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/unicodeExtendedEscapesInStrings11.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es5"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/unicodeExtendedEscapesInStrings11.ts",
+            "utf8_base64": "Ly8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApCi8vICAyLiBMZXQgY3UyIGJlICgoY3Ag4oCTIDY1NTM2KSBtb2R1bG8gMTAyNCkgKyAweERDMDAuCi8vIEFsdGhvdWdoIHdlIHNob3VsZCBqdXN0IGdldCBiYWNrIGEgc2luZ2xlIGNvZGUgcG9pbnQgdmFsdWUgb2YgMHhEQzAwLAovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lgp2YXIgeCA9ICJcdXtEQzAwfSI7Cg==",
+            "utf8_sha256": "0535eb78bb7b19bfc6f4ae250ea065199a929685713f81670c4cf7924fbda919",
+            "utf8_bytes": 244
+          }
+        ]
+      },
+      "options": {
+        "noResolve": false,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/unicodeExtendedEscapesInStrings11.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApDQovLyAgMi4gTGV0IGN1MiBiZSAoKGNwIOKAkyA2NTUzNikgbW9kdWxvIDEwMjQpICsgMHhEQzAwLg0KLy8gQWx0aG91Z2ggd2Ugc2hvdWxkIGp1c3QgZ2V0IGJhY2sgYSBzaW5nbGUgY29kZSBwb2ludCB2YWx1ZSBvZiAweERDMDAsDQovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lg0KdmFyIHggPSAiXHVEQzAwIjsNCg==",
+            "callback_utf8_sha256": "b2a36dd3089694369cbfde03fab039970b8bfdef153331afa70859778a6a61ac",
+            "callback_utf8_bytes": 262,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApDQovLyAgMi4gTGV0IGN1MiBiZSAoKGNwIOKAkyA2NTUzNikgbW9kdWxvIDEwMjQpICsgMHhEQzAwLg0KLy8gQWx0aG91Z2ggd2Ugc2hvdWxkIGp1c3QgZ2V0IGJhY2sgYSBzaW5nbGUgY29kZSBwb2ludCB2YWx1ZSBvZiAweERDMDAsDQovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lg0KdmFyIHggPSAiXHVEQzAwIjsNCg==",
+            "materialized_utf8_sha256": "b2a36dd3089694369cbfde03fab039970b8bfdef153331afa70859778a6a61ac",
+            "materialized_utf8_bytes": 262,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/unicodeExtendedEscapesInStrings11.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates10.ts#target%3Des5",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/unicodeExtendedEscapesInTemplates10.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es5"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/unicodeExtendedEscapesInTemplates10.ts",
+            "utf8_base64": "Ly8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApCi8vICAyLiBMZXQgY3UxIGJlIGZsb29yKChjcCDigJMgNjU1MzYpIC8gMTAyNCkgKyAweEQ4MDAuCi8vIEFsdGhvdWdoIHdlIHNob3VsZCBqdXN0IGdldCBiYWNrIGEgc2luZ2xlIGNvZGUgcG9pbnQgdmFsdWUgb2YgMHhEODAwLAovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lgp2YXIgeCA9IGBcdXtEODAwfWA7Cg==",
+            "utf8_sha256": "0ff1021e14b9982cacfe923ca2489c116c7a24b0340a58f44a89fa879f1fa705",
+            "utf8_bytes": 244
+          }
+        ]
+      },
+      "options": {
+        "noResolve": false,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/unicodeExtendedEscapesInTemplates10.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApDQovLyAgMi4gTGV0IGN1MSBiZSBmbG9vcigoY3Ag4oCTIDY1NTM2KSAvIDEwMjQpICsgMHhEODAwLg0KLy8gQWx0aG91Z2ggd2Ugc2hvdWxkIGp1c3QgZ2V0IGJhY2sgYSBzaW5nbGUgY29kZSBwb2ludCB2YWx1ZSBvZiAweEQ4MDAsDQovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lg0KdmFyIHggPSAiXHVEODAwIjsNCg==",
+            "callback_utf8_sha256": "1c6d9dfb4ee4d6be0bc59316376dbfa8a62deae6dd6e52b37cd1d4780b38f02b",
+            "callback_utf8_bytes": 262,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApDQovLyAgMi4gTGV0IGN1MSBiZSBmbG9vcigoY3Ag4oCTIDY1NTM2KSAvIDEwMjQpICsgMHhEODAwLg0KLy8gQWx0aG91Z2ggd2Ugc2hvdWxkIGp1c3QgZ2V0IGJhY2sgYSBzaW5nbGUgY29kZSBwb2ludCB2YWx1ZSBvZiAweEQ4MDAsDQovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lg0KdmFyIHggPSAiXHVEODAwIjsNCg==",
+            "materialized_utf8_sha256": "1c6d9dfb4ee4d6be0bc59316376dbfa8a62deae6dd6e52b37cd1d4780b38f02b",
+            "materialized_utf8_bytes": 262,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/unicodeExtendedEscapesInTemplates10.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates11.ts#target%3Des5",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/unicodeExtendedEscapesInTemplates11.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es5"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/unicodeExtendedEscapesInTemplates11.ts",
+            "utf8_base64": "Ly8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApCi8vICAyLiBMZXQgY3UyIGJlICgoY3Ag4oCTIDY1NTM2KSBtb2R1bG8gMTAyNCkgKyAweERDMDAuCi8vIEFsdGhvdWdoIHdlIHNob3VsZCBqdXN0IGdldCBiYWNrIGEgc2luZ2xlIGNvZGUgcG9pbnQgdmFsdWUgb2YgMHhEQzAwLAovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lgp2YXIgeCA9IGBcdXtEQzAwfWA7Cg==",
+            "utf8_sha256": "2595a9c36c291286025d85c3d7821fd373c13f6d9463c084138568b72abea787",
+            "utf8_bytes": 244
+          }
+        ]
+      },
+      "options": {
+        "noResolve": false,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/unicodeExtendedEscapesInTemplates11.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApDQovLyAgMi4gTGV0IGN1MiBiZSAoKGNwIOKAkyA2NTUzNikgbW9kdWxvIDEwMjQpICsgMHhEQzAwLg0KLy8gQWx0aG91Z2ggd2Ugc2hvdWxkIGp1c3QgZ2V0IGJhY2sgYSBzaW5nbGUgY29kZSBwb2ludCB2YWx1ZSBvZiAweERDMDAsDQovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lg0KdmFyIHggPSAiXHVEQzAwIjsNCg==",
+            "callback_utf8_sha256": "b2a36dd3089694369cbfde03fab039970b8bfdef153331afa70859778a6a61ac",
+            "callback_utf8_bytes": 262,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gRVM2IFNwZWMgLSAxMC4xLjEgU3RhdGljIFNlbWFudGljczogVVRGMTZFbmNvZGluZyAoY3ApDQovLyAgMi4gTGV0IGN1MiBiZSAoKGNwIOKAkyA2NTUzNikgbW9kdWxvIDEwMjQpICsgMHhEQzAwLg0KLy8gQWx0aG91Z2ggd2Ugc2hvdWxkIGp1c3QgZ2V0IGJhY2sgYSBzaW5nbGUgY29kZSBwb2ludCB2YWx1ZSBvZiAweERDMDAsDQovLyB0aGlzIGlzIGEgdXNlZnVsIGVkZ2UtY2FzZSB0ZXN0Lg0KdmFyIHggPSAiXHVEQzAwIjsNCg==",
+            "materialized_utf8_sha256": "b2a36dd3089694369cbfde03fab039970b8bfdef153331afa70859778a6a61ac",
+            "materialized_utf8_bytes": 262,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/unicodeExtendedEscapesInTemplates11.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    }
+  ]
+}

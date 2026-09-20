@@ -1,5 +1,37 @@
 # Emitter final r11 integration
 
+## hosted で検出した残件の修復（r578–r594）
+
+[失敗ログ・修復・検証の記録](records/hosted-reference-repair-r594/manifest.json)と
+[原因と修正範囲](records/hosted-reference-repair-r594/resolution.md)を保存した。
+候補 `277209358` の hosted 検証で、`importWithTypeArguments.ts` に余分な
+括弧を出す emitter の不具合を検出した。factory の左辺判定を TypeScript と
+同じ既存の式種別判定へ合わせ、元の失敗ケース、13 通りの形状・位置範囲、
+source map とコメントを含む 140 件の完全な command 比較で確認した。
+
+あわせて、frozen D/E の observer 経路、noEmit の emit-only loader 拒否検査、
+現行 fixture の親 hash、Program unit 件数、System の明示的な r77 登録を
+修正した。元の fixture の完全なケース内容は保持し、heritage に 8 件を追加した。
+既知差分への降格や比較条件の緩和は行っていない。実際の Opus レビュー
+225–232 と、レビュー内の誤認を訂正した経緯も記録している。
+
+関連 27 グループと System の通し検証も成功し、後者は 23 native tests と
+6,035 memberships 各 2 回を重複込みで照合した。
+
+生成チェーンの途中で親 hash が再び変わる依存関係も確認した。
+全段の処理後に、上記 5 fixture の古い参照だけを元の observer で更新し、
+次の通常巡回で profile を検査する限定処理を追加する。hash 以外の内容が
+変わる場合や生成に失敗する場合は、保存した 6 ファイルを復元して停止する。
+生成順序と拒否・復元のテスト、Opus の実装レビューを記録する。
+
+この修正は Rust 本体と profile の runtime inputs に及ぶため、以下の r561 の
+収束証明は過去の候補に対する記録である。今回の最終 bytes に対する正式な
+生成チェーン、全体ローカル CI、hosted checks、merge の完了を別途確認する。
+旧候補のローカル CI（r576）は途中で停止した記録であり、成功には数えない。
+
+CST/AST の分離と間接参照の関係表は、[統合後の設計課題](cross-review/post-integration-dependency-boundaries.md)に具体的な移行条件とともに保持する。今回の修復は既存の構造内で行っている。
+
+
 ## hosted 登録件数の同期（r570–r573）
 
 [失敗・修復・検証の記録](records/hosted-catalog-repair-r573/manifest.json)。

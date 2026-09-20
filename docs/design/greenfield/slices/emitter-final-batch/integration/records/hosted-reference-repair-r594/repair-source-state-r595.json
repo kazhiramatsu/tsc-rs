@@ -1,0 +1,121 @@
+{
+  "head": "27720935895d2ba06ce42e8d83ba4dfb5003923d",
+  "scope": "Reviewed final repair sources before archive and normal walk; tests recorded separately",
+  "files": [
+    {
+      "path": ".github/ci/qualification-policy.v2.json",
+      "sha256": "48fae68a173132cdf10015e60d672178988d70adab0ecb2628f75169140f3da2",
+      "bytes": 7525
+    },
+    {
+      "path": ".github/ci/test_replay.py",
+      "sha256": "c2cbb9ca8657b67584316a6b66aab308fa94be58d978346cdda18c35e59b5dfd",
+      "bytes": 91548
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst",
+      "sha256": "e275dbd160bbac93f442831fec0372fd6823e4581c86edfa0a272e5d40c92203",
+      "bytes": 441517
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/emitter-final-universe.json",
+      "sha256": "77f198b0e8bc846509702f01be75baf5a3afd831505f538e1350faefa8059a5f",
+      "bytes": 1729158
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/emitter-heritage-boundaries.json",
+      "sha256": "d1346e866292387254b1651b30b91a1f28711cad0f008cfb2b20bd8ed6b0019f",
+      "bytes": 618486
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/emitter-jsdoc-original-command.json",
+      "sha256": "ab3341dd4aefdae31b5d6cef4e7db6ab4c1233e14905c5d18a6d9213d36ce43b",
+      "bytes": 64288
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json",
+      "sha256": "3e89934e189dd15ea9061c69d3f3090bf517e84ff759f99a857881d325efa534",
+      "bytes": 233713
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/utf16-original-rows-complete.json",
+      "sha256": "02fef2a6e3d38f16f7935d43042f28b522d28073ae0977124ffb4a867c34271b",
+      "bytes": 15171
+    },
+    {
+      "path": "crates/compiler/tests/integration/emitter_residual_audit.rs",
+      "sha256": "8cc6c34f0d0d3f2ba12c25319b0b58386fcc13a14d563986d490af6806607e12",
+      "bytes": 20600
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "98875935738b7ee5f7f588e0d01a809d99eb1dc8209798153cf38f60cd07c4b1",
+      "bytes": 63237
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef",
+      "bytes": 335676
+    },
+    {
+      "path": "crates/emitter/tests/unit/factory_seams/tests.rs",
+      "sha256": "df43e7f65e648b46796210c8061a4e5666f7c51f89832cd200c2cb1a838052a9",
+      "bytes": 41686
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/integration/README.md",
+      "sha256": "01e80d0ee87c530ab3961491f513365f441b87e79ff9d907a97670856f13ad48",
+      "bytes": 47731
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-5h-parameter-temporaries-selection.v1.json",
+      "sha256": "37c05886da54e9f0aa67ea4bfe853eae605a88ef23b38443b3c8aeafc03f0e28",
+      "bytes": 28076
+    },
+    {
+      "path": "docs/design/greenfield/slices/witness-coverage/README.md",
+      "sha256": "45c768f045c4fa61970295f86e9f11e84ac9d39049d64b8239f615a88d5f41e0",
+      "bytes": 26531
+    },
+    {
+      "path": "docs/design/greenfield/slices/witness-coverage/inventory.py",
+      "sha256": "0515b1c1555363bc1d3bb492a402fede13eea1aab8d22319800305c89d3da9df",
+      "bytes": 14626
+    },
+    {
+      "path": "scripts/chain-walk.sh",
+      "sha256": "ae87a23e39bdbf69e8d1b3b8556d24602e05432b62e850051b006494ca07b142",
+      "bytes": 25168
+    },
+    {
+      "path": "scripts/command-fixture-parents.mjs",
+      "sha256": "59bfc06fa992cb822e962287f56cdecdb387a3029d83c645933e837b89db4610",
+      "bytes": 17973
+    },
+    {
+      "path": "scripts/command-fixture-parents.test.mjs",
+      "sha256": "8f1d688cee1ccb894accf4f87b1d3665dac377df9db8c6621e71ba18cadfbb12",
+      "bytes": 14907
+    },
+    {
+      "path": "scripts/emitter_final_witnesses.py",
+      "sha256": "3ac4ca2410c779acdb8e04f85bc64e77abcb548f7b5f0203c02cc20733568015",
+      "bytes": 21975
+    },
+    {
+      "path": "scripts/foundation_witnesses.py",
+      "sha256": "b24e940221829320482abf9ca86a354177fb69e746c8a1fe04868d498c71b17c",
+      "bytes": 9077
+    },
+    {
+      "path": "scripts/observe-emitter-heritage-boundaries.mjs",
+      "sha256": "91e5053073d9fd177bf84c7cfec5f191e7941f879b5801ef956364964b88ba8a",
+      "bytes": 9006
+    },
+    {
+      "path": "scripts/witness.py",
+      "sha256": "e98c704057beaa64f7b911952f4baa6e3451bad111977376fccfea6fb4be6a01",
+      "bytes": 54694
+    }
+  ]
+}

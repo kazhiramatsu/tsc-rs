@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-emitter-heritage-boundaries.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T20:28:41.557988+00:00",
+  "seconds": 22.786,
+  "exit": 0,
+  "log_sha256": "d87b8dfc55a64533619f66ff9254a79bc5cd41e6d100bc3fdf3d794d39962bb5",
+  "before_sha256": "5b68f04df18748d00cb80a39410c995760ef2dd3ffa406325c0115a2caec124e",
+  "after_sha256": "d1346e866292387254b1651b30b91a1f28711cad0f008cfb2b20bd8ed6b0019f"
+}

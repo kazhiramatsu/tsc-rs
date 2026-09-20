@@ -1,0 +1,160 @@
+{
+  "head": "27720935895d2ba06ce42e8d83ba4dfb5003923d",
+  "qualified": false,
+  "jobs": [
+    {
+      "run": 35533163389,
+      "job": 106137452244,
+      "name": "acceptance (wide)",
+      "conclusion": "failure",
+      "path": "106137452244.log.zst",
+      "bytes": 7449,
+      "sha256": "3d21935c2aaa8f3b72aab307fcd698865b1a62d490ae3aac9a9315b0b8de3ce6",
+      "raw_bytes": 31400,
+      "raw_sha256": "a394cd93499ad67c1bea33a479801e4d132a987532f57f7c861b1d299a9ff002"
+    },
+    {
+      "run": 35533163389,
+      "job": 106137452296,
+      "name": "acceptance (late)",
+      "conclusion": "failure",
+      "path": "106137452296.log.zst",
+      "bytes": 5151026,
+      "sha256": "e8496e431b815923fc16c6f9a2e9ff9ad532b4c62d2eaa3c83b5a944593b77fc",
+      "raw_bytes": 96571706,
+      "raw_sha256": "2468743834f4ab0c7ba1801beee20d87088237ff8755be7244b50f59cdda404f"
+    },
+    {
+      "run": 35533163389,
+      "job": 106141542085,
+      "name": "gates",
+      "conclusion": "failure",
+      "path": "106141542085.log.zst",
+      "bytes": 5028,
+      "sha256": "bd11200629c51b9d3d538bafeaa4d5f5781a97e984a75522a224b160ccbebd57",
+      "raw_bytes": 22500,
+      "raw_sha256": "38683cfc5645665d5432047e661b074faec002d066b7d436c23088b0d57c91ae"
+    },
+    {
+      "run": 35533163416,
+      "job": 106137477510,
+      "name": "witnesses (emitter-final)",
+      "conclusion": "failure",
+      "path": "106137477510.log.zst",
+      "bytes": 19745,
+      "sha256": "88e71921bd68d2da9d4b731fc50e3495d5ee3d0e672892eaa0c0e6dc5d902ac0",
+      "raw_bytes": 145501,
+      "raw_sha256": "62c62ce0bbb4ab14f1fa64a52750525821929d23d8010ed73d7706cbf302652e"
+    },
+    {
+      "run": 35533163416,
+      "job": 106137477512,
+      "name": "witnesses (controls)",
+      "conclusion": "failure",
+      "path": "106137477512.log.zst",
+      "bytes": 18863,
+      "sha256": "20fe1cd04ddf0b245614d57b7ac3e87abd962d342aff2d3a371c44f35dd72078",
+      "raw_bytes": 120272,
+      "raw_sha256": "d5669dfea5a253a17e2d68f9a8d361e0a588941538ae89f97dcca93a5a0cd923"
+    },
+    {
+      "run": 35533163416,
+      "job": 106137477524,
+      "name": "witnesses (emitter-plan-base-0)",
+      "conclusion": "failure",
+      "path": "106137477524.log.zst",
+      "bytes": 7267,
+      "sha256": "e46d85cad0a7046c085cbd2d5bffc60f2c8af1e38fb9be0a802f44360de10140",
+      "raw_bytes": 31326,
+      "raw_sha256": "ad373fab96f25f96a49fbd3038db46ddfb5293e3dd9878134dc92a60d00648ed"
+    },
+    {
+      "run": 35533163416,
+      "job": 106137477531,
+      "name": "witnesses (emitter-plan-base-2)",
+      "conclusion": "failure",
+      "path": "106137477531.log.zst",
+      "bytes": 7440,
+      "sha256": "916efa7437015012d1bae3369bbd8cc75d15cf726cbe4615f7e2516487f84169",
+      "raw_bytes": 31702,
+      "raw_sha256": "50b5d41d35a789473779587939bda8ba8bd9b9d40f5fbd150d87c58176fac3db"
+    },
+    {
+      "run": 35533163416,
+      "job": 106137477547,
+      "name": "witnesses (foundations)",
+      "conclusion": "failure",
+      "path": "106137477547.log.zst",
+      "bytes": 12883,
+      "sha256": "0a4350fb33f54e7408ddfd97999031239c4d00fb69b0896dabbcce1153a932db",
+      "raw_bytes": 76436,
+      "raw_sha256": "a2f6a0bba25c6afe2320aea848eec8e8ee4d3ccee87263fdf373a0ae869099b9"
+    },
+    {
+      "run": 35533163416,
+      "job": 106137477552,
+      "name": "witnesses (emitter-universe-oracle)",
+      "conclusion": "failure",
+      "path": "106137477552.log.zst",
+      "bytes": 16382,
+      "sha256": "145cd11966311d3cc6f67110f963f784630f5ae015599dcf7873714d5eeda104",
+      "raw_bytes": 106575,
+      "raw_sha256": "c6dadd9832bfc29d0ef06d141dd7ae2655f82eacc99cabbc12f1cd23465378b0"
+    },
+    {
+      "run": 35533163416,
+      "job": 106137477554,
+      "name": "witnesses (emitter-plan-base-3)",
+      "conclusion": "failure",
+      "path": "106137477554.log.zst",
+      "bytes": 7428,
+      "sha256": "0bdd168ad912d3557bbd3256d105dcca2e2bda5a3cc9087649a8137abd0a9e0e",
+      "raw_bytes": 31701,
+      "raw_sha256": "cdf12bd2ceff3ae00c0ae18bfeaf4d2ef4b9a04a917bb87d6205a72e7226a52c"
+    },
+    {
+      "run": 35533163416,
+      "job": 106137477575,
+      "name": "witnesses (emitter-plan-base-1)",
+      "conclusion": "failure",
+      "path": "106137477575.log.zst",
+      "bytes": 7435,
+      "sha256": "4b44ca3818e5ad653ee41422a4a7ac7db36993b4012b8368320d02aac5aa8f8a",
+      "raw_bytes": 31708,
+      "raw_sha256": "c3cdfdd5430681c6eaa49b81c75976c24a7ab85c5ea464a55f5b4a7e5d32a1d9"
+    },
+    {
+      "run": 35533163416,
+      "job": 106137477662,
+      "name": "witnesses (emitter-comment-controls)",
+      "conclusion": "failure",
+      "path": "106137477662.log.zst",
+      "bytes": 7448,
+      "sha256": "781829123f0b3bf662bf4fffb38f1322d79810154ba77f92f87bc1dfe6ffb37e",
+      "raw_bytes": 35005,
+      "raw_sha256": "b7a3abbc110bad3eae60c566b2d8bb62a668ff0a468e15ce585a346e7517c466"
+    },
+    {
+      "run": 35533163416,
+      "job": 106137477664,
+      "name": "witnesses (emitter-system-controls)",
+      "conclusion": "failure",
+      "path": "106137477664.log.zst",
+      "bytes": 56627,
+      "sha256": "91063fb33710714e9a3c3a243cc440194861f83e6d49083864fd33f708ea0f45",
+      "raw_bytes": 865552,
+      "raw_sha256": "9fa563caebcdefa4ec85cd7d729f354690aa22de25f5effb0d12ff0cf2fe74e4"
+    },
+    {
+      "run": 35533163416,
+      "job": 106142062794,
+      "name": "witness-gates",
+      "conclusion": "failure",
+      "path": "106142062794.log.zst",
+      "bytes": 5857,
+      "sha256": "3955ccf59765d1d3eaa295992f723d003acd1090fadb274e28fee552678de1b6",
+      "raw_bytes": 27854,
+      "raw_sha256": "95d815e120aa3b279f9485e9b349b89cacfd8693a05e0348be0919bcf417e4d0"
+    }
+  ]
+}

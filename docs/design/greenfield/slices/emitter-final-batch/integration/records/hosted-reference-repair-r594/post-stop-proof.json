@@ -1,0 +1,16 @@
+{
+  "tracked_clean": true,
+  "head": "27720935895d2ba06ce42e8d83ba4dfb5003923d",
+  "untracked_preserved": 88,
+  "owned_processes_gone": true,
+  "exit": -15,
+  "seconds": 265.954,
+  "recorded_phases": [
+    "workspace-audit",
+    "structural-preflight",
+    "clippy"
+  ],
+  "reused_phases": [
+    "rustfmt"
+  ]
+}

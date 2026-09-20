@@ -16,7 +16,7 @@
     },
     {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "673c9e935830dd73f52893f17dda374c5d551b47059a9fa620550f4183c6bca8"
+      "sha256": "6e838d0c4702ca360869040da41c3f2c875c6ad48c02d28cfba2d7e9e9538449"
     },
     {
       "path": "ratchets/h2-8a-candidate-inputs.v1.json",

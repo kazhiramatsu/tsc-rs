@@ -83,6 +83,27 @@ class EmitterFinalTests(unittest.TestCase):
                          ("emitter-comment-controls",))
         self.assertEqual(replay.WITNESS_GROUPS["emitter-global"], ("emitter-global",))
 
+    def test_system_group_includes_r77_replays_with_their_multiplicity(self):
+        final = witness.emitter_final_witnesses
+        suite = "emitter-system-controls"
+        ordinary = [row for name, count in final.SYSTEM_FIXTURES
+                    for row in final.ids(final.FIXTURES + name + ".json", count)]
+        roster = json.loads((ROOT / final.FIXTURES / "emitter-r77-regressions.json").read_text())["cases"]
+        self.assertEqual(len(roster), 70)
+        rows = ordinary + [row["case_id"] for row in roster]
+        self.assertEqual(len(rows), 6035)
+        self.assertGreater(len(rows), len(set(rows)))
+        self.assertCountEqual(final.case_ids(suite), rows)
+        command, count = final.commands(suite)[-1]
+        summary = f"test result: ok. {count} passed; 0 failed; 0 ignored;\n"
+        def output(memberships):
+            return summary + "".join(f"complete command EXACT x2 {row}\n" for row in memberships)
+        final.validate_output(suite, command, count, output(rows))
+        final.validate_output(suite, command, count, output(list(reversed(rows))))
+        for missing in (ordinary, sorted(set(rows)), rows[:-1]):
+            with self.subTest(rows=len(missing)), self.assertRaises(ValueError):
+                final.validate_output(suite, command, count, output(missing))
+
     def test_registered_exact_test_names_exist(self):
         source = "\n".join(path.read_text() for path in (ROOT / "crates/compiler/tests").rglob("*.rs"))
         for suite in witness.emitter_final_witnesses.SUITES:
@@ -266,6 +287,21 @@ class FoundationTests(unittest.TestCase):
         with patch.object(foundation.subprocess, "run", return_value=subprocess.CompletedProcess([], 101, "failure")), redirect_stdout(io.StringIO()):
             with self.assertRaises(subprocess.CalledProcessError):
                 foundation.run(["host-memory"], {})
+
+    def test_bundle_foundation_replays_frozen_reference_before_native(self):
+        foundation = witness.foundation_witnesses
+        suites = ["program-bundle-facts"]
+        oracle = ["node", "scripts/check-frozen-de-reference.mjs", "--check", "bundle-plan"]
+        self.assertIn(suites[0], replay.selection([oracle[1]])["witnesses"])
+        fake = subprocess.CompletedProcess([], 0, self.output(suites))
+        with patch.object(foundation.subprocess, "run", return_value=fake) as run, redirect_stdout(io.StringIO()):
+            foundation.run(suites, {})
+        self.assertEqual([call.args[0] for call in run.call_args_list], [oracle, foundation.command(suites)])
+        self.assertTrue(run.call_args_list[0].kwargs["check"])
+        with patch.object(foundation.subprocess, "run", side_effect=subprocess.CalledProcessError(1, oracle)) as run:
+            with self.assertRaises(subprocess.CalledProcessError):
+                foundation.run(suites, {})
+        self.assertEqual(run.call_count, 1)
 
     def test_foundation_unreviewed_attributes_and_empty_declarations_fail(self):
         for text in ("", "#[ignore]\n#[test]\nfn omitted() {}", "#[cfg(feature = \"hidden\")]\n#[test]\nfn hidden() {}"):
@@ -766,8 +802,9 @@ class SelectionTests(unittest.TestCase):
         command, env = witness.invocation("resolution-cache", [], {})
         self.assertIn("--lib", command)
         self.assertIn("resolution_cache_contract", command)
-        good = "\n".join(f"test result: ok. {n} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;" for n in (56, 11))
+        good = "\n".join(f"test result: ok. {n} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;" for n in (57, 11))
         for output in (good, good.split("\n")[0], good.replace("11 passed", "0 passed"),
+                       good.replace("57 passed", "56 passed"),
                        good.replace("0 ignored", "1 ignored", 1), good.replace("0 filtered", "1 filtered", 1)):
             with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output)) as run:
                 if output == good:
@@ -1017,7 +1054,7 @@ class WitnessTests(unittest.TestCase):
             "utf16-identity-recovery": 79, "utf16-review-fix": 25, "utf16-tagged-template": 16,
             "utf16-literal-witnesses": 64, "utf16-original-commands": 4,
             "emitter-final": 1125, "emitter-comment-controls": 1503, "emitter-universe-oracle": 2015,
-            "emitter-system-controls": 5957, "emitter-recovery-controls": 1580,
+            "emitter-system-controls": 6035, "emitter-recovery-controls": 1580,
             "emitter-plan-base-0": 450, "emitter-plan-base-1": 450,
             "emitter-plan-base-2": 449, "emitter-plan-base-3": 449,
             "emitter-global": 769, "emitter-class-0": 700, "emitter-class-1": 528,

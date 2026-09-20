@@ -30,7 +30,13 @@ SUITES = {
     "host-memory": {"crate": "host", "target": "compiler_host_contract"},
     "host-filesystem": {"crate": "host", "target": "filesystem_host_contract"},
     "program-bundle-facts": {"crate": "program", "target": "h2_7d_bundle_source_facts", "oracle": "bundle-plan",
-                             "fixture": "crates/emitter/tests/fixtures/bundle-plan.json"},
+                             "fixture": "crates/emitter/tests/fixtures/bundle-plan.json",
+                             "inputs": ("scripts/check-frozen-de-reference.mjs",
+                                        "scripts/frozen-de-reference/manifest.json",
+                                        "scripts/frozen-de-reference/h2-6c-qualification.v1.json.gz",
+                                        "scripts/frozen-de-reference/h2-7b-qualification.v1.json.gz",
+                                        "scripts/frozen-de-reference/h2-7c-qualification.v1.json.gz",
+                                        "scripts/frozen-de-reference/h2-candidate-dispositions.v1.json.gz")},
     "program-host-platform": {"crate": "program", "target": "host_platform_smoke_contract"},
     "program-config-paths": {"crate": "program", "target": "utf16_config_paths"},
     "program-module-paths": {"crate": "program", "target": "utf16_module_paths"},
@@ -137,7 +143,9 @@ def run(suites, env):
                 observers.append(observer)
     started = time.monotonic()
     for observer in observers:
-        subprocess.run(["node", f"scripts/observe-{observer}.mjs", "--check"], cwd=ROOT, env=env, check=True)
+        oracle = (["node", "scripts/check-frozen-de-reference.mjs", "--check", "bundle-plan"]
+                  if observer == "bundle-plan" else ["node", f"scripts/observe-{observer}.mjs", "--check"])
+        subprocess.run(oracle, cwd=ROOT, env=env, check=True)
     oracle_seconds = time.monotonic() - started
     started = time.monotonic()
     passed = 0

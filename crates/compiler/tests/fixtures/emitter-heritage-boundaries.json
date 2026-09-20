@@ -3,7 +3,7 @@
   "typescript": "6.0.3",
   "repetitions": 2,
   "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "68e41a6ccfe639c65957d8b8623e6bf7b4bcaef84e9493a83477a32b13027f1b",
+  "observer_sha256": "91e5053073d9fd177bf84c7cfec5f191e7941f879b5801ef956364964b88ba8a",
   "cases": [
     {
       "case_id": "emitter-heritage-boundaries/factory/es5/commonjs/remove-false/optional-parenthesized",
@@ -10791,6 +10791,782 @@
         },
         "status_writes": [],
         "exit_code": 0
+      }
+    },
+    {
+      "case_id": "emitter-heritage-boundaries/access-recovery/es2015/esnext/remove-false/import-type-arguments",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nimport<T>\nconst a = import<string, number>\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQVMsQ0FBQTtBQUNULE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBc0IsQ0FBQSxDQUFBIn0=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQVMsQ0FBQTtBQUNULE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBc0IsQ0FBQSxDQUFBIn0=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 74,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 74,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 42,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 61,
+            "length": 9,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 68,
+            "length": 1,
+            "message": "Cannot find name 'T'.",
+            "related_information": null
+          },
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 81,
+            "length": 22,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AACA,MAAS,CAAA;AACT,MAAM,CAAC,GAAG,CAAA,MAAsB,CAAA,CAAA\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "emitter-heritage-boundaries/access-recovery/es2015/esnext/remove-false/import-type-comments",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nimport /*before*/<T> /*after*/;\nconst a = import /*before*/<string, number> /*after*/;\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQU0sQ0FBQyxVQUFhLENBQUMsU0FBUyxDQUFDO0FBQy9CLE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBTSxDQUFDLFVBQTBCLENBQUEsQ0FBQyxTQUFTLENBQUMifQ==",
+            "callback_utf8_bytes": 193,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQU0sQ0FBQyxVQUFhLENBQUMsU0FBUyxDQUFDO0FBQy9CLE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBTSxDQUFDLFVBQTBCLENBQUEsQ0FBQyxTQUFTLENBQUMifQ==",
+            "materialized_utf8_bytes": 193,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQgLypiZWZvcmUqLyAvKmFmdGVyKi87CmNvbnN0IGEgPSAoaW1wb3J0IC8qYmVmb3JlKi8pIC8qYWZ0ZXIqLzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQgLypiZWZvcmUqLyAvKmFmdGVyKi87CmNvbnN0IGEgPSAoaW1wb3J0IC8qYmVmb3JlKi8pIC8qYWZ0ZXIqLzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 84,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 61,
+            "length": 20,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 79,
+            "length": 1,
+            "message": "Cannot find name 'T'.",
+            "related_information": null
+          },
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 103,
+            "length": 33,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AACA,MAAM,CAAC,UAAa,CAAC,SAAS,CAAC;AAC/B,MAAM,CAAC,GAAG,CAAA,MAAM,CAAC,UAA0B,CAAA,CAAC,SAAS,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "emitter-heritage-boundaries/access-recovery/es2015/esnext/remove-true/import-type-arguments",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nimport<T>\nconst a = import<string, number>\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQVMsQ0FBQTtBQUNULE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBc0IsQ0FBQSxDQUFBIn0=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQVMsQ0FBQTtBQUNULE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBc0IsQ0FBQSxDQUFBIn0=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 74,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 74,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 42,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 61,
+            "length": 9,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 68,
+            "length": 1,
+            "message": "Cannot find name 'T'.",
+            "related_information": null
+          },
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 81,
+            "length": 22,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AACA,MAAS,CAAA;AACT,MAAM,CAAC,GAAG,CAAA,MAAsB,CAAA,CAAA\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "emitter-heritage-boundaries/access-recovery/es2015/esnext/remove-true/import-type-comments",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nimport /*before*/<T> /*after*/;\nconst a = import /*before*/<string, number> /*after*/;\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQW9CLENBQVc7QUFDL0IsTUFBTSxDQUFDLEdBQUcsQ0FBQSxNQUFpQyxDQUFBLENBQVcifQ==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQW9CLENBQVc7QUFDL0IsTUFBTSxDQUFDLEdBQUcsQ0FBQSxNQUFpQyxDQUFBLENBQVcifQ==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 74,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 74,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 42,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 61,
+            "length": 20,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 79,
+            "length": 1,
+            "message": "Cannot find name 'T'.",
+            "related_information": null
+          },
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 103,
+            "length": 33,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AACA,MAAoB,CAAW;AAC/B,MAAM,CAAC,GAAG,CAAA,MAAiC,CAAA,CAAW\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "emitter-heritage-boundaries/access-recovery/esnext/esnext/remove-false/import-type-arguments",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nimport<T>\nconst a = import<string, number>\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQVMsQ0FBQTtBQUNULE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBc0IsQ0FBQSxDQUFBIn0=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQVMsQ0FBQTtBQUNULE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBc0IsQ0FBQSxDQUFBIn0=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 74,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 74,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 42,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 61,
+            "length": 9,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 68,
+            "length": 1,
+            "message": "Cannot find name 'T'.",
+            "related_information": null
+          },
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 81,
+            "length": 22,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AACA,MAAS,CAAA;AACT,MAAM,CAAC,GAAG,CAAA,MAAsB,CAAA,CAAA\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "emitter-heritage-boundaries/access-recovery/esnext/esnext/remove-false/import-type-comments",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nimport /*before*/<T> /*after*/;\nconst a = import /*before*/<string, number> /*after*/;\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"esnext\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQU0sQ0FBQyxVQUFhLENBQUMsU0FBUyxDQUFDO0FBQy9CLE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBTSxDQUFDLFVBQTBCLENBQUEsQ0FBQyxTQUFTLENBQUMifQ==",
+            "callback_utf8_bytes": 193,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQU0sQ0FBQyxVQUFhLENBQUMsU0FBUyxDQUFDO0FBQy9CLE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBTSxDQUFDLFVBQTBCLENBQUEsQ0FBQyxTQUFTLENBQUMifQ==",
+            "materialized_utf8_bytes": 193,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQgLypiZWZvcmUqLyAvKmFmdGVyKi87CmNvbnN0IGEgPSAoaW1wb3J0IC8qYmVmb3JlKi8pIC8qYWZ0ZXIqLzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQgLypiZWZvcmUqLyAvKmFmdGVyKi87CmNvbnN0IGEgPSAoaW1wb3J0IC8qYmVmb3JlKi8pIC8qYWZ0ZXIqLzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 84,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 61,
+            "length": 20,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 79,
+            "length": 1,
+            "message": "Cannot find name 'T'.",
+            "related_information": null
+          },
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 103,
+            "length": 33,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AACA,MAAM,CAAC,UAAa,CAAC,SAAS,CAAC;AAC/B,MAAM,CAAC,GAAG,CAAA,MAAM,CAAC,UAA0B,CAAA,CAAC,SAAS,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "emitter-heritage-boundaries/access-recovery/esnext/esnext/remove-true/import-type-arguments",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nimport<T>\nconst a = import<string, number>\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQVMsQ0FBQTtBQUNULE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBc0IsQ0FBQSxDQUFBIn0=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQVMsQ0FBQTtBQUNULE1BQU0sQ0FBQyxHQUFHLENBQUEsTUFBc0IsQ0FBQSxDQUFBIn0=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 74,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 74,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 42,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 61,
+            "length": 9,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 68,
+            "length": 1,
+            "message": "Cannot find name 'T'.",
+            "related_information": null
+          },
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 81,
+            "length": 22,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AACA,MAAS,CAAA;AACT,MAAM,CAAC,GAAG,CAAA,MAAsB,CAAA,CAAA\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "emitter-heritage-boundaries/access-recovery/esnext/esnext/remove-true/import-type-comments",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any, x: any, y: any, k: any, source: any;\nimport /*before*/<T> /*after*/;\nconst a = import /*before*/<string, number> /*after*/;\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"esnext\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQW9CLENBQVc7QUFDL0IsTUFBTSxDQUFDLEdBQUcsQ0FBQSxNQUFpQyxDQUFBLENBQVcifQ==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLE1BQW9CLENBQVc7QUFDL0IsTUFBTSxDQUFDLEdBQUcsQ0FBQSxNQUFpQyxDQUFBLENBQVcifQ==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 74,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwppbXBvcnQ7CmNvbnN0IGEgPSAoaW1wb3J0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 74,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 42,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 61,
+            "length": 20,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 79,
+            "length": 1,
+            "message": "Cannot find name 'T'.",
+            "related_information": null
+          },
+          {
+            "code": 1326,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 103,
+            "length": 33,
+            "message": "This use of 'import' is invalid. 'import()' calls can be written, but they must have parentheses and cannot have type arguments.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AACA,MAAoB,CAAW;AAC/B,MAAM,CAAC,GAAG,CAAA,MAAiC,CAAA,CAAW\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
       }
     }
   ]

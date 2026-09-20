@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "xtask",
+    "workspace-audit"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T22:04:50.174299+00:00",
+  "seconds": 3.488,
+  "exit": 0,
+  "log_sha256": "a6d0f73fd55782d34b7223fdc71cbdf226c267cd25a7fd8eb6ad5daa8addd00e",
+  "log_bytes": 340
+}

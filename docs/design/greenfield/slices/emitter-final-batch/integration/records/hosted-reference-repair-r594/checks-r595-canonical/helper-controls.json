@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "--test",
+    "scripts/command-fixture-parents.test.mjs"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T22:04:46.916094+00:00",
+  "seconds": 2.579,
+  "exit": 0,
+  "log_sha256": "c0bcf102416d25081475742457a8a594a93386b9937865b2fa9de70015ce023b",
+  "log_bytes": 1504
+}

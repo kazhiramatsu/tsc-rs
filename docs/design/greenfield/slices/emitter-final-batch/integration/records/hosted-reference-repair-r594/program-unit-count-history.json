@@ -1,0 +1,11 @@
+{
+  "scope": "Static function-name census of Program src and unit files, supported by actual hosted 57-pass lib and 11-pass contract outputs; not a replacement for native execution",
+  "old_count": 56,
+  "current_count": 57,
+  "added": [
+    "boxed_causes_remain_downcastable_to_the_public_error_types"
+  ],
+  "removed": [],
+  "old_ref": "7b32dafe08",
+  "current_ref": "27720935895d2ba06ce42e8d83ba4dfb5003923d"
+}

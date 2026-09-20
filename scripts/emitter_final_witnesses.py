@@ -42,7 +42,7 @@ COMMENT_TESTS = (
     "async_arrow_body_ranges::async_arrow_body_ranges_matches_complete_typescript_observations",
 )
 SYSTEM_FIXTURES = (("system-binding-publication", 1044), ("await-flag-commands", 690),
-                   ("emitter-recovery-boundaries", 774), ("emitter-heritage-boundaries", 132),
+                   ("emitter-recovery-boundaries", 774), ("emitter-heritage-boundaries", 140),
                    ("emitter-helper-probes", 122), ("emitter-nested-paren-recovery", 108), ("emitter-class-helper-gates", 320), ("emitter-r95-neighbours", 288), ("emitter-r95-wrapper-rest", 88), ("emitter-r95-call-boundaries", 18), ("emitter-r104-rest-controls", 10), ("emitter-r107-declaration-comments", 3), ("emitter-r109-token-neighbours", 58), ("emitter-r111-do-body-controls", 4), ("emitter-r113-type-comment-controls", 9), ("emitter-r117-type-comment-controls", 12), ("emitter-r119-type-comment-controls", 24),
                    ("emitter-r129-variable-type-controls", 508),
                    ("emitter-r145-variable-comma-controls", 145),
@@ -140,8 +140,13 @@ def case_ids(suite):
     if suite not in SUITES:
         raise ValueError("unknown emitter final suite")
     if suite in CONTROL_SUITES:
-        return [case for name, count in CONTROL_SUITES[suite][0]
-                for case in ids(FIXTURES + name + ".json", count)]
+        result = [case for name, count in CONTROL_SUITES[suite][0]
+                  for case in ids(FIXTURES + name + ".json", count)]
+        if suite == "emitter-system-controls":
+            # The r77 test separately replays this cross-fixture roster. Preserve
+            # repeated memberships when a row also runs in its complete fixture.
+            result += ids(FIXTURES + "emitter-r77-regressions.json", 70)
+        return result
     if suite.startswith("emitter-plan-base-"):
         part = int(suite.rsplit("-", 1)[1])
         return ids(FIXTURES + "emitter-final-universe-plan-base.json.zst", 1798)[part::SHARDS]
