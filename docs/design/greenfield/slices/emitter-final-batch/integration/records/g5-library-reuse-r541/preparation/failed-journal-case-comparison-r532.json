@@ -1,0 +1,1395 @@
+{
+  "compared": 9027,
+  "mismatching": 4,
+  "key_counts": {
+    "case_fingerprint_sha256": 4,
+    "typescript_run_fingerprints": 4,
+    "typescript_observation": 4
+  },
+  "differences": [
+    {
+      "case_id": "typescript-6.0.3/compiler/variableDeclarationInStrictMode1.ts#default",
+      "keys": [
+        "case_fingerprint_sha256",
+        "typescript_run_fingerprints",
+        "typescript_observation"
+      ],
+      "old": {
+        "suite": "compiler",
+        "case_id": "typescript-6.0.3/compiler/variableDeclarationInStrictMode1.ts#default",
+        "selection_origin": "global-h2-5g-candidate",
+        "execution_route": "recorded-compiler-plan",
+        "expansion_case": 7217,
+        "source": {
+          "path": "variableDeclarationInStrictMode1.ts",
+          "bytes": 76,
+          "sha256": "a388ff193630c91cc142664bf49e5731cd93cd6c024250a436046ea05d1d42eb",
+          "git_blob_sha1": "02e5096068b4fd5346496221be77430f90c3c937"
+        },
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/variableDeclarationInStrictMode1.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "skipDefaultLibCheck",
+              "value": "false"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/variableDeclarationInStrictMode1.ts",
+              "utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgZXZhbDs=",
+              "utf8_sha256": "3b0084e5ac696ac4f87b850669279af25cb5a57cd92e31eb5e0892ccdd8c8886",
+              "utf8_bytes": 23
+            }
+          ]
+        },
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/variableDeclarationInStrictMode1.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 5,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "3b0084e5ac696ac4f87b850669279af25cb5a57cd92e31eb5e0892ccdd8c8886"
+          }
+        ],
+        "owner_reachability": [
+          "transform-es2016"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/variableDeclarationInStrictMode1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGV2YWw7DQo=",
+              "callback_utf8_sha256": "8993bfcdef2f8b2b222ae998e7e626c392726e867e47bdf8f66bc0814293b642",
+              "callback_utf8_bytes": 26,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "8993bfcdef2f8b2b222ae998e7e626c392726e867e47bdf8f66bc0814293b642",
+              "materialized_utf8_bytes": 26,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/variableDeclarationInStrictMode1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1100,
+              "category": "Error",
+              "file": "/.src/variableDeclarationInStrictMode1.ts",
+              "start": 18,
+              "length": 4,
+              "message": "Invalid use of 'eval' in strict mode."
+            },
+            {
+              "code": 2300,
+              "category": "Error",
+              "file": "/.src/variableDeclarationInStrictMode1.ts",
+              "start": 18,
+              "length": 4,
+              "message": "Duplicate identifier 'eval'."
+            },
+            {
+              "code": 2300,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 1164,
+              "length": 4,
+              "message": "Duplicate identifier 'eval'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "51e94e4a55861e8c6e24d5b5153aaf893cf22620d8d2d14a6aa79ff4178a48d8"
+        },
+        "typescript_run_fingerprints": [
+          "51e94e4a55861e8c6e24d5b5153aaf893cf22620d8d2d14a6aa79ff4178a48d8",
+          "51e94e4a55861e8c6e24d5b5153aaf893cf22620d8d2d14a6aa79ff4178a48d8"
+        ],
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "139b405d4b9b7619e0b3f6710827bf93629d415d42fc6ff3260d969d012d9ad4"
+      },
+      "new": {
+        "suite": "compiler",
+        "case_id": "typescript-6.0.3/compiler/variableDeclarationInStrictMode1.ts#default",
+        "selection_origin": "global-h2-5g-candidate",
+        "execution_route": "recorded-compiler-plan",
+        "expansion_case": 7217,
+        "source": {
+          "path": "variableDeclarationInStrictMode1.ts",
+          "bytes": 76,
+          "sha256": "a388ff193630c91cc142664bf49e5731cd93cd6c024250a436046ea05d1d42eb",
+          "git_blob_sha1": "02e5096068b4fd5346496221be77430f90c3c937"
+        },
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/variableDeclarationInStrictMode1.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "skipDefaultLibCheck",
+              "value": "false"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/variableDeclarationInStrictMode1.ts",
+              "utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgZXZhbDs=",
+              "utf8_sha256": "3b0084e5ac696ac4f87b850669279af25cb5a57cd92e31eb5e0892ccdd8c8886",
+              "utf8_bytes": 23
+            }
+          ]
+        },
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/variableDeclarationInStrictMode1.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 5,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "3b0084e5ac696ac4f87b850669279af25cb5a57cd92e31eb5e0892ccdd8c8886"
+          }
+        ],
+        "owner_reachability": [
+          "transform-es2016"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/variableDeclarationInStrictMode1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGV2YWw7DQo=",
+              "callback_utf8_sha256": "8993bfcdef2f8b2b222ae998e7e626c392726e867e47bdf8f66bc0814293b642",
+              "callback_utf8_bytes": 26,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "8993bfcdef2f8b2b222ae998e7e626c392726e867e47bdf8f66bc0814293b642",
+              "materialized_utf8_bytes": 26,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/variableDeclarationInStrictMode1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1100,
+              "category": "Error",
+              "file": "/.src/variableDeclarationInStrictMode1.ts",
+              "start": 18,
+              "length": 4,
+              "message": "Invalid use of 'eval' in strict mode."
+            },
+            {
+              "code": 2300,
+              "category": "Error",
+              "file": "/.src/variableDeclarationInStrictMode1.ts",
+              "start": 18,
+              "length": 4,
+              "message": "Duplicate identifier 'eval'."
+            },
+            {
+              "code": 2300,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 1164,
+              "length": 4,
+              "message": "Duplicate identifier 'eval'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "8d87564eefa5e2cd3e84268e68aa773ecd20949df13e5527110555db5cb354af"
+        },
+        "typescript_run_fingerprints": [
+          "8d87564eefa5e2cd3e84268e68aa773ecd20949df13e5527110555db5cb354af",
+          "8d87564eefa5e2cd3e84268e68aa773ecd20949df13e5527110555db5cb354af"
+        ],
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "6a8f28b3629a2203f9fe6221c1252fdd9e95d94586f07baf445544a7aa890dfb"
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+      "keys": [
+        "case_fingerprint_sha256",
+        "typescript_run_fingerprints",
+        "typescript_observation"
+      ],
+      "old": {
+        "suite": "conformance",
+        "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+        "selection_origin": "global-h2-5g-candidate",
+        "execution_route": "qualified-vfs",
+        "expansion_case": 7001,
+        "source": {
+          "path": "types/members/objectTypeHidingMembersOfExtendedObject.ts",
+          "bytes": 964,
+          "sha256": "379e6f9631e8bd12421a2781a14d47e9433f99c1555acbeedd519fb3615523bf",
+          "git_blob_sha1": "dc73e5d693aafb6b57394a1ceaf37cc3259cf50b"
+        },
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/objectTypeHidingMembersOfExtendedObject.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "strict",
+              "value": "false"
+            },
+            {
+              "name": "skipDefaultLibCheck",
+              "value": "false"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/objectTypeHidingMembersOfExtendedObject.ts",
+              "utf8_base64": "Y2xhc3MgQSB7CiAgICBmb28hOiBzdHJpbmc7Cn0KCmNsYXNzIEIgZXh0ZW5kcyBBIHsKICAgIGJhciE6IHN0cmluZzsKfQoKaW50ZXJmYWNlIE9iamVjdCB7CiAgICBkYXRhOiBBOwogICAgW3g6IHN0cmluZ106IE9iamVjdDsKfQoKY2xhc3MgQyB7CiAgICB2YWx1ZU9mKCkgeyB9CiAgICBkYXRhITogQjsKICAgIFt4OiBzdHJpbmddOiBhbnk7Cn0KCmRlY2xhcmUgdmFyIGM6IEM7CnZhciByMTogdm9pZCA9IGMudmFsdWVPZigpOwp2YXIgcjFiOiBCID0gYy5kYXRhOwp2YXIgcjFjID0gcjFiWydobSddOyAvLyBzaG91bGQgYmUgJ09iamVjdCcKdmFyIHIxZCA9IGNbJ2htJ107IC8vIHNob3VsZCBiZSAnYW55JwoKaW50ZXJmYWNlIEkgewogICAgdmFsdWVPZigpOiB2b2lkOwogICAgZGF0YTogQjsKICAgIFt4OiBzdHJpbmddOiBhbnk7Cn0KCmRlY2xhcmUgdmFyIGk6IEk7CnZhciByMjogdm9pZCA9IGkudmFsdWVPZigpOwp2YXIgcjJiOiBCID0gaS5kYXRhOwp2YXIgcjJjID0gcjJiWydobSddOyAvLyBzaG91bGQgYmUgJ09iamVjdCcKdmFyIHIyZCA9IGlbJ2htJ107IC8vIHNob3VsZCBiZSAnYW55JwoKdmFyIGEgPSB7CiAgICB2YWx1ZU9mOiAoKSA9PiB7IH0sCiAgICBkYXRhOiBuZXcgQigpCn0KCnZhciByMzogdm9pZCA9IGEudmFsdWVPZigpOwp2YXIgcjNiOiBCID0gYS5kYXRhOwp2YXIgcjNjID0gcjNiWydobSddOyAvLyBzaG91bGQgYmUgJ09iamVjdCcKdmFyIHIzZCA9IGlbJ2htJ107CgpkZWNsYXJlIHZhciBiOiB7CiAgICB2YWx1ZU9mKCk6IHZvaWQ7CiAgICBkYXRhOiBCOwogICAgW3g6IHN0cmluZ106IGFueTsKfQoKdmFyIHI0OiB2b2lkID0gYi52YWx1ZU9mKCk7",
+              "utf8_sha256": "75e54e2dbce286d7b56d5e981e1bb99e9a55e75f7759f364a042fea86533d5e5",
+              "utf8_bytes": 840
+            }
+          ]
+        },
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/objectTypeHidingMembersOfExtendedObject.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 8,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "75e54e2dbce286d7b56d5e981e1bb99e9a55e75f7759f364a042fea86533d5e5"
+          }
+        ],
+        "owner_reachability": [
+          "transform-es2016"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/objectTypeHidingMembersOfExtendedObject.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQSB7DQp9DQpjbGFzcyBCIGV4dGVuZHMgQSB7DQp9DQpjbGFzcyBDIHsNCiAgICB2YWx1ZU9mKCkgeyB9DQp9DQp2YXIgcjEgPSBjLnZhbHVlT2YoKTsNCnZhciByMWIgPSBjLmRhdGE7DQp2YXIgcjFjID0gcjFiWydobSddOyAvLyBzaG91bGQgYmUgJ09iamVjdCcNCnZhciByMWQgPSBjWydobSddOyAvLyBzaG91bGQgYmUgJ2FueScNCnZhciByMiA9IGkudmFsdWVPZigpOw0KdmFyIHIyYiA9IGkuZGF0YTsNCnZhciByMmMgPSByMmJbJ2htJ107IC8vIHNob3VsZCBiZSAnT2JqZWN0Jw0KdmFyIHIyZCA9IGlbJ2htJ107IC8vIHNob3VsZCBiZSAnYW55Jw0KdmFyIGEgPSB7DQogICAgdmFsdWVPZjogKCkgPT4geyB9LA0KICAgIGRhdGE6IG5ldyBCKCkNCn07DQp2YXIgcjMgPSBhLnZhbHVlT2YoKTsNCnZhciByM2IgPSBhLmRhdGE7DQp2YXIgcjNjID0gcjNiWydobSddOyAvLyBzaG91bGQgYmUgJ09iamVjdCcNCnZhciByM2QgPSBpWydobSddOw0KdmFyIHI0ID0gYi52YWx1ZU9mKCk7DQo=",
+              "callback_utf8_sha256": "d405a7fb65ff69a97c4d769e6a43a5eb7b2cffcdb7a823b5e45d2cd3cfe40b96",
+              "callback_utf8_bytes": 524,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d405a7fb65ff69a97c4d769e6a43a5eb7b2cffcdb7a823b5e45d2cd3cfe40b96",
+              "materialized_utf8_bytes": 524,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/objectTypeHidingMembersOfExtendedObject.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/.src/objectTypeHidingMembersOfExtendedObject.ts",
+              "start": 95,
+              "length": 4,
+              "message": "Property 'data' of type 'A' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4133,
+              "length": 11,
+              "message": "Property 'constructor' of type 'Function' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4218,
+              "length": 19,
+              "message": "Property 'toString' of type '() => string' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4317,
+              "length": 25,
+              "message": "Property 'toLocaleString' of type '() => string' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4412,
+              "length": 18,
+              "message": "Property 'valueOf' of type '() => Object' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4561,
+              "length": 40,
+              "message": "Property 'hasOwnProperty' of type '(v: PropertyKey) => boolean' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4774,
+              "length": 34,
+              "message": "Property 'isPrototypeOf' of type '(v: Object) => boolean' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4925,
+              "length": 46,
+              "message": "Property 'propertyIsEnumerable' of type '(v: PropertyKey) => boolean' is not assignable to 'string' index type 'Object'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "3e62f1c69fa25fb3cfdb50722e0906c17b074e10e2cb66aa77575ba6026e4f43"
+        },
+        "typescript_run_fingerprints": [
+          "3e62f1c69fa25fb3cfdb50722e0906c17b074e10e2cb66aa77575ba6026e4f43",
+          "3e62f1c69fa25fb3cfdb50722e0906c17b074e10e2cb66aa77575ba6026e4f43"
+        ],
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "7af894f94df441871f29362a9d2251503d84e28dc878e67a2bec478d11a97d7f"
+      },
+      "new": {
+        "suite": "conformance",
+        "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+        "selection_origin": "global-h2-5g-candidate",
+        "execution_route": "qualified-vfs",
+        "expansion_case": 7001,
+        "source": {
+          "path": "types/members/objectTypeHidingMembersOfExtendedObject.ts",
+          "bytes": 964,
+          "sha256": "379e6f9631e8bd12421a2781a14d47e9433f99c1555acbeedd519fb3615523bf",
+          "git_blob_sha1": "dc73e5d693aafb6b57394a1ceaf37cc3259cf50b"
+        },
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/objectTypeHidingMembersOfExtendedObject.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "strict",
+              "value": "false"
+            },
+            {
+              "name": "skipDefaultLibCheck",
+              "value": "false"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/objectTypeHidingMembersOfExtendedObject.ts",
+              "utf8_base64": "Y2xhc3MgQSB7CiAgICBmb28hOiBzdHJpbmc7Cn0KCmNsYXNzIEIgZXh0ZW5kcyBBIHsKICAgIGJhciE6IHN0cmluZzsKfQoKaW50ZXJmYWNlIE9iamVjdCB7CiAgICBkYXRhOiBBOwogICAgW3g6IHN0cmluZ106IE9iamVjdDsKfQoKY2xhc3MgQyB7CiAgICB2YWx1ZU9mKCkgeyB9CiAgICBkYXRhITogQjsKICAgIFt4OiBzdHJpbmddOiBhbnk7Cn0KCmRlY2xhcmUgdmFyIGM6IEM7CnZhciByMTogdm9pZCA9IGMudmFsdWVPZigpOwp2YXIgcjFiOiBCID0gYy5kYXRhOwp2YXIgcjFjID0gcjFiWydobSddOyAvLyBzaG91bGQgYmUgJ09iamVjdCcKdmFyIHIxZCA9IGNbJ2htJ107IC8vIHNob3VsZCBiZSAnYW55JwoKaW50ZXJmYWNlIEkgewogICAgdmFsdWVPZigpOiB2b2lkOwogICAgZGF0YTogQjsKICAgIFt4OiBzdHJpbmddOiBhbnk7Cn0KCmRlY2xhcmUgdmFyIGk6IEk7CnZhciByMjogdm9pZCA9IGkudmFsdWVPZigpOwp2YXIgcjJiOiBCID0gaS5kYXRhOwp2YXIgcjJjID0gcjJiWydobSddOyAvLyBzaG91bGQgYmUgJ09iamVjdCcKdmFyIHIyZCA9IGlbJ2htJ107IC8vIHNob3VsZCBiZSAnYW55JwoKdmFyIGEgPSB7CiAgICB2YWx1ZU9mOiAoKSA9PiB7IH0sCiAgICBkYXRhOiBuZXcgQigpCn0KCnZhciByMzogdm9pZCA9IGEudmFsdWVPZigpOwp2YXIgcjNiOiBCID0gYS5kYXRhOwp2YXIgcjNjID0gcjNiWydobSddOyAvLyBzaG91bGQgYmUgJ09iamVjdCcKdmFyIHIzZCA9IGlbJ2htJ107CgpkZWNsYXJlIHZhciBiOiB7CiAgICB2YWx1ZU9mKCk6IHZvaWQ7CiAgICBkYXRhOiBCOwogICAgW3g6IHN0cmluZ106IGFueTsKfQoKdmFyIHI0OiB2b2lkID0gYi52YWx1ZU9mKCk7",
+              "utf8_sha256": "75e54e2dbce286d7b56d5e981e1bb99e9a55e75f7759f364a042fea86533d5e5",
+              "utf8_bytes": 840
+            }
+          ]
+        },
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/objectTypeHidingMembersOfExtendedObject.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 8,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "75e54e2dbce286d7b56d5e981e1bb99e9a55e75f7759f364a042fea86533d5e5"
+          }
+        ],
+        "owner_reachability": [
+          "transform-es2016"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/objectTypeHidingMembersOfExtendedObject.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQSB7DQp9DQpjbGFzcyBCIGV4dGVuZHMgQSB7DQp9DQpjbGFzcyBDIHsNCiAgICB2YWx1ZU9mKCkgeyB9DQp9DQp2YXIgcjEgPSBjLnZhbHVlT2YoKTsNCnZhciByMWIgPSBjLmRhdGE7DQp2YXIgcjFjID0gcjFiWydobSddOyAvLyBzaG91bGQgYmUgJ09iamVjdCcNCnZhciByMWQgPSBjWydobSddOyAvLyBzaG91bGQgYmUgJ2FueScNCnZhciByMiA9IGkudmFsdWVPZigpOw0KdmFyIHIyYiA9IGkuZGF0YTsNCnZhciByMmMgPSByMmJbJ2htJ107IC8vIHNob3VsZCBiZSAnT2JqZWN0Jw0KdmFyIHIyZCA9IGlbJ2htJ107IC8vIHNob3VsZCBiZSAnYW55Jw0KdmFyIGEgPSB7DQogICAgdmFsdWVPZjogKCkgPT4geyB9LA0KICAgIGRhdGE6IG5ldyBCKCkNCn07DQp2YXIgcjMgPSBhLnZhbHVlT2YoKTsNCnZhciByM2IgPSBhLmRhdGE7DQp2YXIgcjNjID0gcjNiWydobSddOyAvLyBzaG91bGQgYmUgJ09iamVjdCcNCnZhciByM2QgPSBpWydobSddOw0KdmFyIHI0ID0gYi52YWx1ZU9mKCk7DQo=",
+              "callback_utf8_sha256": "d405a7fb65ff69a97c4d769e6a43a5eb7b2cffcdb7a823b5e45d2cd3cfe40b96",
+              "callback_utf8_bytes": 524,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d405a7fb65ff69a97c4d769e6a43a5eb7b2cffcdb7a823b5e45d2cd3cfe40b96",
+              "materialized_utf8_bytes": 524,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/objectTypeHidingMembersOfExtendedObject.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/.src/objectTypeHidingMembersOfExtendedObject.ts",
+              "start": 95,
+              "length": 4,
+              "message": "Property 'data' of type 'A' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4133,
+              "length": 11,
+              "message": "Property 'constructor' of type 'Function' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4218,
+              "length": 19,
+              "message": "Property 'toString' of type '() => string' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4317,
+              "length": 25,
+              "message": "Property 'toLocaleString' of type '() => string' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4412,
+              "length": 18,
+              "message": "Property 'valueOf' of type '() => Object' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4561,
+              "length": 40,
+              "message": "Property 'hasOwnProperty' of type '(v: PropertyKey) => boolean' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4774,
+              "length": 34,
+              "message": "Property 'isPrototypeOf' of type '(v: Object) => boolean' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4925,
+              "length": 46,
+              "message": "Property 'propertyIsEnumerable' of type '(v: PropertyKey) => boolean' is not assignable to 'string' index type 'Object'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "651a9089d8d041fc07484a5af38adb7d276bb032c31bbc3d1d17e0eb71660ef6"
+        },
+        "typescript_run_fingerprints": [
+          "651a9089d8d041fc07484a5af38adb7d276bb032c31bbc3d1d17e0eb71660ef6",
+          "651a9089d8d041fc07484a5af38adb7d276bb032c31bbc3d1d17e0eb71660ef6"
+        ],
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "c7a21363703fe1a197c44a636edaf9a07a1c77b737fba88ec586109c61912d0f"
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+      "keys": [
+        "case_fingerprint_sha256",
+        "typescript_run_fingerprints",
+        "typescript_observation"
+      ],
+      "old": {
+        "suite": "conformance",
+        "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+        "selection_origin": "global-h2-5g-candidate",
+        "execution_route": "qualified-vfs",
+        "expansion_case": 7017,
+        "source": {
+          "path": "types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts",
+          "bytes": 625,
+          "sha256": "45761930c49137b9109e0cad3b4abf5d9e151ee5599fd9ee5c4bb940132d56b3",
+          "git_blob_sha1": "9086357fb8456fa224dd1f55731e925b0bd3ee86"
+        },
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/objectTypeWithStringIndexerHidingObjectIndexer.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "strict",
+              "value": "false"
+            },
+            {
+              "name": "skipDefaultLibCheck",
+              "value": "false"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/objectTypeWithStringIndexerHidingObjectIndexer.ts",
+              "utf8_base64": "Ly8gb2JqZWN0IHR5cGVzIGNhbiBkZWZpbmUgc3RyaW5nIGluZGV4ZXJzIHRoYXQgYXJlIG1vcmUgc3BlY2lmaWMgdGhhbiB0aGUgZGVmYXVsdCAnYW55JyB0aGF0IHdvdWxkIGJlIHJldHVybmVkCi8vIG5vIGVycm9ycyBleHBlY3RlZCBiZWxvdyAKCmludGVyZmFjZSBPYmplY3QgewogICAgW3g6IHN0cmluZ106IE9iamVjdDsKfQp2YXIgbyA9IHt9Owp2YXIgciA9IG9bJyddOyAvLyBzaG91bGQgYmUgT2JqZWN0CgpjbGFzcyBDIHsKICAgIGZvbyE6IHN0cmluZzsKICAgIFt4OiBzdHJpbmddOiBzdHJpbmc7Cn0KZGVjbGFyZSB2YXIgYzogQzsKdmFyIHIyOiBzdHJpbmcgPSBjWycnXTsKCmludGVyZmFjZSBJIHsKICAgIGJhcjogc3RyaW5nOwogICAgW3g6IHN0cmluZ106IHN0cmluZzsKfQpkZWNsYXJlIHZhciBpOiBJOwp2YXIgcjM6IHN0cmluZyA9IGlbJyddOwoKZGVjbGFyZSB2YXIgbzI6IHsKICAgIGJhejogc3RyaW5nOwogICAgW3g6IHN0cmluZ106IHN0cmluZzsKfQp2YXIgcjQ6IHN0cmluZyA9IG8yWycnXTsKCgo=",
+              "utf8_sha256": "dcab1b43d33438976f594bd84166de4509413509b01b57718015b9f613e39282",
+              "utf8_bytes": 524
+            }
+          ]
+        },
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/objectTypeWithStringIndexerHidingObjectIndexer.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 8,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "dcab1b43d33438976f594bd84166de4509413509b01b57718015b9f613e39282"
+          }
+        ],
+        "owner_reachability": [
+          "transform-es2016"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/objectTypeWithStringIndexerHidingObjectIndexer.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gb2JqZWN0IHR5cGVzIGNhbiBkZWZpbmUgc3RyaW5nIGluZGV4ZXJzIHRoYXQgYXJlIG1vcmUgc3BlY2lmaWMgdGhhbiB0aGUgZGVmYXVsdCAnYW55JyB0aGF0IHdvdWxkIGJlIHJldHVybmVkDQovLyBubyBlcnJvcnMgZXhwZWN0ZWQgYmVsb3cgDQp2YXIgbyA9IHt9Ow0KdmFyIHIgPSBvWycnXTsgLy8gc2hvdWxkIGJlIE9iamVjdA0KY2xhc3MgQyB7DQp9DQp2YXIgcjIgPSBjWycnXTsNCnZhciByMyA9IGlbJyddOw0KdmFyIHI0ID0gbzJbJyddOw0K",
+              "callback_utf8_sha256": "3196c49a6874942de307536a5d3d462d42e6b90b02ac0d09a107a18308ae6863",
+              "callback_utf8_bytes": 273,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "3196c49a6874942de307536a5d3d462d42e6b90b02ac0d09a107a18308ae6863",
+              "materialized_utf8_bytes": 273,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/objectTypeWithStringIndexerHidingObjectIndexer.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4133,
+              "length": 11,
+              "message": "Property 'constructor' of type 'Function' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4218,
+              "length": 19,
+              "message": "Property 'toString' of type '() => string' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4317,
+              "length": 25,
+              "message": "Property 'toLocaleString' of type '() => string' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4412,
+              "length": 18,
+              "message": "Property 'valueOf' of type '() => Object' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4561,
+              "length": 40,
+              "message": "Property 'hasOwnProperty' of type '(v: PropertyKey) => boolean' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4774,
+              "length": 34,
+              "message": "Property 'isPrototypeOf' of type '(v: Object) => boolean' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4925,
+              "length": 46,
+              "message": "Property 'propertyIsEnumerable' of type '(v: PropertyKey) => boolean' is not assignable to 'string' index type 'Object'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "c8e2c9ef61bba33bc8ea89e4de1e3c98f9c7f6f451a59ebbdfa80c77c63fe206"
+        },
+        "typescript_run_fingerprints": [
+          "c8e2c9ef61bba33bc8ea89e4de1e3c98f9c7f6f451a59ebbdfa80c77c63fe206",
+          "c8e2c9ef61bba33bc8ea89e4de1e3c98f9c7f6f451a59ebbdfa80c77c63fe206"
+        ],
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "323ee6a071993bda3dcc66e5fbafb595ce6f7997da2c155922c9ce0c022e0989"
+      },
+      "new": {
+        "suite": "conformance",
+        "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+        "selection_origin": "global-h2-5g-candidate",
+        "execution_route": "qualified-vfs",
+        "expansion_case": 7017,
+        "source": {
+          "path": "types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts",
+          "bytes": 625,
+          "sha256": "45761930c49137b9109e0cad3b4abf5d9e151ee5599fd9ee5c4bb940132d56b3",
+          "git_blob_sha1": "9086357fb8456fa224dd1f55731e925b0bd3ee86"
+        },
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/objectTypeWithStringIndexerHidingObjectIndexer.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "strict",
+              "value": "false"
+            },
+            {
+              "name": "skipDefaultLibCheck",
+              "value": "false"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/objectTypeWithStringIndexerHidingObjectIndexer.ts",
+              "utf8_base64": "Ly8gb2JqZWN0IHR5cGVzIGNhbiBkZWZpbmUgc3RyaW5nIGluZGV4ZXJzIHRoYXQgYXJlIG1vcmUgc3BlY2lmaWMgdGhhbiB0aGUgZGVmYXVsdCAnYW55JyB0aGF0IHdvdWxkIGJlIHJldHVybmVkCi8vIG5vIGVycm9ycyBleHBlY3RlZCBiZWxvdyAKCmludGVyZmFjZSBPYmplY3QgewogICAgW3g6IHN0cmluZ106IE9iamVjdDsKfQp2YXIgbyA9IHt9Owp2YXIgciA9IG9bJyddOyAvLyBzaG91bGQgYmUgT2JqZWN0CgpjbGFzcyBDIHsKICAgIGZvbyE6IHN0cmluZzsKICAgIFt4OiBzdHJpbmddOiBzdHJpbmc7Cn0KZGVjbGFyZSB2YXIgYzogQzsKdmFyIHIyOiBzdHJpbmcgPSBjWycnXTsKCmludGVyZmFjZSBJIHsKICAgIGJhcjogc3RyaW5nOwogICAgW3g6IHN0cmluZ106IHN0cmluZzsKfQpkZWNsYXJlIHZhciBpOiBJOwp2YXIgcjM6IHN0cmluZyA9IGlbJyddOwoKZGVjbGFyZSB2YXIgbzI6IHsKICAgIGJhejogc3RyaW5nOwogICAgW3g6IHN0cmluZ106IHN0cmluZzsKfQp2YXIgcjQ6IHN0cmluZyA9IG8yWycnXTsKCgo=",
+              "utf8_sha256": "dcab1b43d33438976f594bd84166de4509413509b01b57718015b9f613e39282",
+              "utf8_bytes": 524
+            }
+          ]
+        },
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/objectTypeWithStringIndexerHidingObjectIndexer.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 8,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "dcab1b43d33438976f594bd84166de4509413509b01b57718015b9f613e39282"
+          }
+        ],
+        "owner_reachability": [
+          "transform-es2016"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/objectTypeWithStringIndexerHidingObjectIndexer.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gb2JqZWN0IHR5cGVzIGNhbiBkZWZpbmUgc3RyaW5nIGluZGV4ZXJzIHRoYXQgYXJlIG1vcmUgc3BlY2lmaWMgdGhhbiB0aGUgZGVmYXVsdCAnYW55JyB0aGF0IHdvdWxkIGJlIHJldHVybmVkDQovLyBubyBlcnJvcnMgZXhwZWN0ZWQgYmVsb3cgDQp2YXIgbyA9IHt9Ow0KdmFyIHIgPSBvWycnXTsgLy8gc2hvdWxkIGJlIE9iamVjdA0KY2xhc3MgQyB7DQp9DQp2YXIgcjIgPSBjWycnXTsNCnZhciByMyA9IGlbJyddOw0KdmFyIHI0ID0gbzJbJyddOw0K",
+              "callback_utf8_sha256": "3196c49a6874942de307536a5d3d462d42e6b90b02ac0d09a107a18308ae6863",
+              "callback_utf8_bytes": 273,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "3196c49a6874942de307536a5d3d462d42e6b90b02ac0d09a107a18308ae6863",
+              "materialized_utf8_bytes": 273,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/objectTypeWithStringIndexerHidingObjectIndexer.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4133,
+              "length": 11,
+              "message": "Property 'constructor' of type 'Function' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4218,
+              "length": 19,
+              "message": "Property 'toString' of type '() => string' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4317,
+              "length": 25,
+              "message": "Property 'toLocaleString' of type '() => string' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4412,
+              "length": 18,
+              "message": "Property 'valueOf' of type '() => Object' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4561,
+              "length": 40,
+              "message": "Property 'hasOwnProperty' of type '(v: PropertyKey) => boolean' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4774,
+              "length": 34,
+              "message": "Property 'isPrototypeOf' of type '(v: Object) => boolean' is not assignable to 'string' index type 'Object'."
+            },
+            {
+              "code": 2411,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 4925,
+              "length": 46,
+              "message": "Property 'propertyIsEnumerable' of type '(v: PropertyKey) => boolean' is not assignable to 'string' index type 'Object'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "d603e9abf0c489e56779fabd289ee4e35a545f6eb75046d7d71c91f5c7a2c17e"
+        },
+        "typescript_run_fingerprints": [
+          "d603e9abf0c489e56779fabd289ee4e35a545f6eb75046d7d71c91f5c7a2c17e",
+          "d603e9abf0c489e56779fabd289ee4e35a545f6eb75046d7d71c91f5c7a2c17e"
+        ],
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "9d6d949970138dd2eb0c9445a35c3d73a0c148276719f79a907b56bf999c7678"
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/duplicateNumericIndexers.ts#default",
+      "keys": [
+        "case_fingerprint_sha256",
+        "typescript_run_fingerprints",
+        "typescript_observation"
+      ],
+      "old": {
+        "suite": "conformance",
+        "case_id": "typescript-6.0.3/conformance/types/members/duplicateNumericIndexers.ts#default",
+        "selection_origin": "global-h2-5g-candidate",
+        "execution_route": "qualified-vfs",
+        "expansion_case": 6997,
+        "source": {
+          "path": "types/members/duplicateNumericIndexers.ts",
+          "bytes": 565,
+          "sha256": "ad11279084acb8f1f7cee29f015d1b7e50b03b18b071a1dc539fd009bede95ba",
+          "git_blob_sha1": "75bc1e5d8521205cddec8b62ba8dd02fb0f96578"
+        },
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/duplicateNumericIndexers.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "skipDefaultLibCheck",
+              "value": "false"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/duplicateNumericIndexers.ts",
+              "utf8_base64": "Ly8gaXQgaXMgYW4gZXJyb3IgdG8gaGF2ZSBkdXBsaWNhdGUgaW5kZXggc2lnbmF0dXJlcyBvZiB0aGUgc2FtZSBraW5kIGluIGEgdHlwZQoKaW50ZXJmYWNlIE51bWJlciB7CiAgICBbeDogbnVtYmVyXTogc3RyaW5nOwogICAgW3g6IG51bWJlcl06IHN0cmluZzsKfQoKaW50ZXJmYWNlIFN0cmluZyB7CiAgICBbeDogbnVtYmVyXTogc3RyaW5nOwogICAgW3g6IG51bWJlcl06IHN0cmluZzsKfQoKaW50ZXJmYWNlIEFycmF5PFQ+IHsKICAgIFt4OiBudW1iZXJdOiBUOwogICAgW3g6IG51bWJlcl06IFQ7Cn0KCmNsYXNzIEMgewogICAgW3g6IG51bWJlcl06IHN0cmluZzsKICAgIFt4OiBudW1iZXJdOiBzdHJpbmc7Cn0KCmludGVyZmFjZSBJIHsKICAgIFt4OiBudW1iZXJdOiBzdHJpbmc7CiAgICBbeDogbnVtYmVyXTogc3RyaW5nOwp9Cgp2YXIgYTogewogICAgW3g6IG51bWJlcl06IHN0cmluZzsKICAgIFt4OiBudW1iZXJdOiBzdHJpbmc7Cn0KCg==",
+              "utf8_sha256": "b37dacc207cc40863c66246e558b681f62a29d1d2dc9392eb5f8db4c66e2de9a",
+              "utf8_bytes": 481
+            }
+          ]
+        },
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/duplicateNumericIndexers.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 8,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "b37dacc207cc40863c66246e558b681f62a29d1d2dc9392eb5f8db4c66e2de9a"
+          }
+        ],
+        "owner_reachability": [
+          "transform-es2016"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/duplicateNumericIndexers.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gaXQgaXMgYW4gZXJyb3IgdG8gaGF2ZSBkdXBsaWNhdGUgaW5kZXggc2lnbmF0dXJlcyBvZiB0aGUgc2FtZSBraW5kIGluIGEgdHlwZQ0KY2xhc3MgQyB7DQp9DQp2YXIgYTsNCg==",
+              "callback_utf8_sha256": "13e7beba4fbee99a6105cab9ba843ab22b1563d77598a33a4380460371ed51e6",
+              "callback_utf8_bytes": 118,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "13e7beba4fbee99a6105cab9ba843ab22b1563d77598a33a4380460371ed51e6",
+              "materialized_utf8_bytes": 118,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/duplicateNumericIndexers.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 104,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 129,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 176,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 201,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 250,
+              "length": 15,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 270,
+              "length": 15,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 303,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 328,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 370,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 395,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 432,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 457,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 21751,
+              "length": 33,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "message": "Duplicate index signature for type 'number'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "54498f53c7cac6b1bfe5a706d6fd35c067c009e79fc5408fd3eef961888255c3"
+        },
+        "typescript_run_fingerprints": [
+          "54498f53c7cac6b1bfe5a706d6fd35c067c009e79fc5408fd3eef961888255c3",
+          "54498f53c7cac6b1bfe5a706d6fd35c067c009e79fc5408fd3eef961888255c3"
+        ],
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "a01845bb063d858e9807ea9cbec95f20f3d8957333b991121908c1d3fef8d30a"
+      },
+      "new": {
+        "suite": "conformance",
+        "case_id": "typescript-6.0.3/conformance/types/members/duplicateNumericIndexers.ts#default",
+        "selection_origin": "global-h2-5g-candidate",
+        "execution_route": "qualified-vfs",
+        "expansion_case": 6997,
+        "source": {
+          "path": "types/members/duplicateNumericIndexers.ts",
+          "bytes": 565,
+          "sha256": "ad11279084acb8f1f7cee29f015d1b7e50b03b18b071a1dc539fd009bede95ba",
+          "git_blob_sha1": "75bc1e5d8521205cddec8b62ba8dd02fb0f96578"
+        },
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/duplicateNumericIndexers.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "skipDefaultLibCheck",
+              "value": "false"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/duplicateNumericIndexers.ts",
+              "utf8_base64": "Ly8gaXQgaXMgYW4gZXJyb3IgdG8gaGF2ZSBkdXBsaWNhdGUgaW5kZXggc2lnbmF0dXJlcyBvZiB0aGUgc2FtZSBraW5kIGluIGEgdHlwZQoKaW50ZXJmYWNlIE51bWJlciB7CiAgICBbeDogbnVtYmVyXTogc3RyaW5nOwogICAgW3g6IG51bWJlcl06IHN0cmluZzsKfQoKaW50ZXJmYWNlIFN0cmluZyB7CiAgICBbeDogbnVtYmVyXTogc3RyaW5nOwogICAgW3g6IG51bWJlcl06IHN0cmluZzsKfQoKaW50ZXJmYWNlIEFycmF5PFQ+IHsKICAgIFt4OiBudW1iZXJdOiBUOwogICAgW3g6IG51bWJlcl06IFQ7Cn0KCmNsYXNzIEMgewogICAgW3g6IG51bWJlcl06IHN0cmluZzsKICAgIFt4OiBudW1iZXJdOiBzdHJpbmc7Cn0KCmludGVyZmFjZSBJIHsKICAgIFt4OiBudW1iZXJdOiBzdHJpbmc7CiAgICBbeDogbnVtYmVyXTogc3RyaW5nOwp9Cgp2YXIgYTogewogICAgW3g6IG51bWJlcl06IHN0cmluZzsKICAgIFt4OiBudW1iZXJdOiBzdHJpbmc7Cn0KCg==",
+              "utf8_sha256": "b37dacc207cc40863c66246e558b681f62a29d1d2dc9392eb5f8db4c66e2de9a",
+              "utf8_bytes": 481
+            }
+          ]
+        },
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/duplicateNumericIndexers.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 8,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "b37dacc207cc40863c66246e558b681f62a29d1d2dc9392eb5f8db4c66e2de9a"
+          }
+        ],
+        "owner_reachability": [
+          "transform-es2016"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/duplicateNumericIndexers.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gaXQgaXMgYW4gZXJyb3IgdG8gaGF2ZSBkdXBsaWNhdGUgaW5kZXggc2lnbmF0dXJlcyBvZiB0aGUgc2FtZSBraW5kIGluIGEgdHlwZQ0KY2xhc3MgQyB7DQp9DQp2YXIgYTsNCg==",
+              "callback_utf8_sha256": "13e7beba4fbee99a6105cab9ba843ab22b1563d77598a33a4380460371ed51e6",
+              "callback_utf8_bytes": 118,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "13e7beba4fbee99a6105cab9ba843ab22b1563d77598a33a4380460371ed51e6",
+              "materialized_utf8_bytes": 118,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/duplicateNumericIndexers.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 104,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 129,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 176,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 201,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 250,
+              "length": 15,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 270,
+              "length": 15,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 303,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 328,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 370,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 395,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 432,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/.src/duplicateNumericIndexers.ts",
+              "start": 457,
+              "length": 20,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 21751,
+              "length": 33,
+              "message": "Duplicate index signature for type 'number'."
+            },
+            {
+              "code": 2374,
+              "category": "Error",
+              "file": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "message": "Duplicate index signature for type 'number'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "cb519c8de546e17475a3075faf01ed7d422f78ec4f4e434b4a051e6fb62cdfa7"
+        },
+        "typescript_run_fingerprints": [
+          "cb519c8de546e17475a3075faf01ed7d422f78ec4f4e434b4a051e6fb62cdfa7",
+          "cb519c8de546e17475a3075faf01ed7d422f78ec4f4e434b4a051e6fb62cdfa7"
+        ],
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "b8de235cec12cda4a2e2f2bff70fe3c66de9da935dfdedfdf04185598d35e7a8"
+      }
+    }
+  ]
+}

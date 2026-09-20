@@ -1,0 +1,32 @@
+{
+  "qualified": false,
+  "head": "bb01b86df0a2d266910d25124c4bfbade334c826",
+  "scratch_plan_sha256": "4a5aa5464f047d6b81fc006a05e279891e3437368655baa1130b98bf211ea81f",
+  "profile_roster_matches_all_22_current_h2_profiles_plus_historical_h1_and_transition": true,
+  "profiles": [
+    "ratchets/h1-emit-profile.v1.json",
+    "ratchets/h2-1a-profile.v1.json",
+    "ratchets/h2-1b-profile.v1.json",
+    "ratchets/h2-1c-profile.v1.json",
+    "ratchets/h2-1d-profile.v1.json",
+    "ratchets/h2-1e-profile.v1.json",
+    "ratchets/h2-2a-profile.v1.json",
+    "ratchets/h2-2b-profile.v1.json",
+    "ratchets/h2-2c-profile.v1.json",
+    "ratchets/h2-2d-profile.v1.json",
+    "ratchets/h2-3a-profile.v1.json",
+    "ratchets/h2-3b-profile.v1.json",
+    "ratchets/h2-3c-profile.v1.json",
+    "ratchets/h2-3d-profile.v1.json",
+    "ratchets/h2-4a-profile.v1.json",
+    "ratchets/h2-4b-profile.v1.json",
+    "ratchets/h2-5a-profile.v1.json",
+    "ratchets/h2-5b-profile.v1.json",
+    "ratchets/h2-5c-profile.v1.json",
+    "ratchets/h2-5d-profile.v1.json",
+    "ratchets/h2-5e-profile.v1.json",
+    "ratchets/h2-5f-profile.v1.json",
+    "ratchets/h2-5g-profile.v1.json",
+    "ratchets/h2-profile-transition.v1.json"
+  ]
+}

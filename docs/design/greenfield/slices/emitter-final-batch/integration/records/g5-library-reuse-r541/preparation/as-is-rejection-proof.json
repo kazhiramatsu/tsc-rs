@@ -1,0 +1,23 @@
+{
+  "qualified": false,
+  "artifact_sha256": "76d5af868138aeb1e4e9acc2e2890a643f92a44d737b321fe9343cabfd6b960a",
+  "meaning": "The four actual unchanged stored observations that caused r526 failure are rejected by the live repaired guard before the official writer runs.",
+  "results": [
+    {
+      "case_id": "typescript-6.0.3/compiler/variableDeclarationInStrictMode1.ts#default",
+      "reusable": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/duplicateNumericIndexers.ts#default",
+      "reusable": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+      "reusable": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+      "reusable": false
+    }
+  ]
+}

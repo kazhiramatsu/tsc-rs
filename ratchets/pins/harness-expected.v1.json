@@ -570,12 +570,12 @@
   {
    "test_file": "h2_1a_profile",
    "check_id": "ratchets/h2-1a-profile.v1.json",
-   "sha256": "2db71f9e65f7e5fa01d41e65fecbfb9fa48c951feb9bd388f013c1d0f14cffa8"
+   "sha256": "d2098a7f178dcf86ff79da3b7f0d99960935701c2c0f6c83d4d4ec4f532cbd9a"
   },
   {
    "test_file": "h2_1a_profile",
    "check_id": "ratchets/h2-profile-transition.v1.json",
-   "sha256": "c6fa61d6ac6ea70b138ef80c1a177b9a21db69597efa33207eb388b8505554aa"
+   "sha256": "af0ef502d102d44d9b0465ad7d3827f2effab74748669e38e7cc302d0942393c"
   },
   {
    "test_file": "h2_1a_profile",
@@ -590,27 +590,27 @@
   {
    "test_file": "h2_1b_profile",
    "check_id": "crates/oracle/h2-1b-profile.mjs",
-   "sha256": "5d930f92388b2e6c6b4abf038e52e6cf6a484d9c397da76e8244c8f553d3699d"
+   "sha256": "2f424bdb5070d0021a9d7e762dc92b157f7efbf1f455c530f46ffc87ea12854d"
   },
   {
    "test_file": "h2_1b_profile",
    "check_id": "ratchets/h2-1a-profile.v1.json",
-   "sha256": "2db71f9e65f7e5fa01d41e65fecbfb9fa48c951feb9bd388f013c1d0f14cffa8"
+   "sha256": "d2098a7f178dcf86ff79da3b7f0d99960935701c2c0f6c83d4d4ec4f532cbd9a"
   },
   {
    "test_file": "h2_1b_profile",
    "check_id": "ratchets/h2-1a-qualification.v1.json",
-   "sha256": "4b6b4699cd8c3ea20d340c8da5d741422a931608d6d2a9bc1807242b5b0d2d22"
+   "sha256": "fd2d06988c7f0ed18727f08f8232c55124c0f54a89017b98a6a5430c497796f9"
   },
   {
    "test_file": "h2_1b_profile",
    "check_id": "ratchets/h2-1b-profile.v1.json",
-   "sha256": "0d766e10405099e6ddcd6960d6f1b4c72a832aa4770b2147f49786a2d07d2fe1"
+   "sha256": "c15e620742c266070b33de1aaf683eb795f655a6338d1675c05bd9b971e197b5"
   },
   {
    "test_file": "h2_1b_profile",
    "check_id": "ratchets/h2-1b-qualification.v1.json",
-   "sha256": "4fdab0ef83b0b32de53e251d0717a62c436e0f3963e7637187297104b9cefd2c"
+   "sha256": "0cf42f247b9f973ee1af91d68b855362b6556a0462a5b07486859f601b25db55"
   },
   {
    "test_file": "h2_1c_profile",
@@ -630,17 +630,17 @@
   {
    "test_file": "h2_1c_profile",
    "check_id": "crates/oracle/h2-1c-profile.mjs",
-   "sha256": "ec7fd475335e51ad65e9e78bd144f15c5a3b093163ad5dd371ff5aa1110a762b"
+   "sha256": "f543f9137e3a0c18f87b10f6cbcedade8a9f1c9c651edda51b32a42565719b93"
   },
   {
    "test_file": "h2_1c_profile",
    "check_id": "ratchets/h2-1b-profile.v1.json",
-   "sha256": "0d766e10405099e6ddcd6960d6f1b4c72a832aa4770b2147f49786a2d07d2fe1"
+   "sha256": "c15e620742c266070b33de1aaf683eb795f655a6338d1675c05bd9b971e197b5"
   },
   {
    "test_file": "h2_1c_profile",
    "check_id": "ratchets/h2-1b-qualification.v1.json",
-   "sha256": "4fdab0ef83b0b32de53e251d0717a62c436e0f3963e7637187297104b9cefd2c"
+   "sha256": "0cf42f247b9f973ee1af91d68b855362b6556a0462a5b07486859f601b25db55"
   },
   {
    "test_file": "h2_1c_profile",
@@ -650,12 +650,12 @@
   {
    "test_file": "h2_1c_profile",
    "check_id": "ratchets/h2-1c-profile.v1.json",
-   "sha256": "c0225c311da38629daa75f693794f60cf66997f6ead2a0d845ac8df0b2f20ccf"
+   "sha256": "1cf76fb5c3e9df2011406381a94b847a54b64b9b74a69e236ce375483852bc9a"
   },
   {
    "test_file": "h2_1c_profile",
    "check_id": "ratchets/h2-1c-qualification.v1.json",
-   "sha256": "f93873ce31071384057da064c25e3dae8130c52e2244acc6884baa54f5af6741"
+   "sha256": "81f058a70fad2ed1c5da8e13df1ae50ed21e58c0fcf4151d1bb87f6322a8d1ba"
   },
   {
    "test_file": "h2_1d_profile",
@@ -675,17 +675,17 @@
   {
    "test_file": "h2_1d_profile",
    "check_id": "crates/oracle/h2-1d-profile.mjs",
-   "sha256": "ec53bc1962189aac35231b5b387851990597f5bfe5af4ca99d19280c0998665c"
+   "sha256": "33761c3777d43b93b4877db9f199070b7fc35b6adbc204a0e92c89aaef407328"
   },
   {
    "test_file": "h2_1d_profile",
    "check_id": "ratchets/h2-1c-profile.v1.json",
-   "sha256": "c0225c311da38629daa75f693794f60cf66997f6ead2a0d845ac8df0b2f20ccf"
+   "sha256": "1cf76fb5c3e9df2011406381a94b847a54b64b9b74a69e236ce375483852bc9a"
   },
   {
    "test_file": "h2_1d_profile",
    "check_id": "ratchets/h2-1c-qualification.v1.json",
-   "sha256": "f93873ce31071384057da064c25e3dae8130c52e2244acc6884baa54f5af6741"
+   "sha256": "81f058a70fad2ed1c5da8e13df1ae50ed21e58c0fcf4151d1bb87f6322a8d1ba"
   },
   {
    "test_file": "h2_1d_profile",
@@ -695,12 +695,12 @@
   {
    "test_file": "h2_1d_profile",
    "check_id": "ratchets/h2-1d-profile.v1.json",
-   "sha256": "636c7d5538b452ecb1cb7e2fdbfe85e76e8b0e18f4990eccc85d3b3222621d00"
+   "sha256": "a9e3cf2f5579d64a7a691c5c1fc1bef8c01dca447f91e70877ec1479b12df7ef"
   },
   {
    "test_file": "h2_1d_profile",
    "check_id": "ratchets/h2-1d-qualification.v1.json",
-   "sha256": "ae556ff50199e2e7fc5ab76700d1472d4554cd7a4c24208932789178fabf4c38"
+   "sha256": "e3dff665ee8448a084e2cd404abc50a710ffaa39d4f0a8a63b12ebaff4aaeae2"
   },
   {
    "test_file": "h2_1e_profile",
@@ -720,17 +720,17 @@
   {
    "test_file": "h2_1e_profile",
    "check_id": "crates/oracle/h2-1e-profile.mjs",
-   "sha256": "47658f8db1e262df1b203b8d9eaeacca5521eb0a351690ea915a6834007dbb23"
+   "sha256": "197ca77b71d2a293a60dbcb39c06c8737891aef0b9ce423f1691349fc7a6f590"
   },
   {
    "test_file": "h2_1e_profile",
    "check_id": "ratchets/h2-1d-profile.v1.json",
-   "sha256": "636c7d5538b452ecb1cb7e2fdbfe85e76e8b0e18f4990eccc85d3b3222621d00"
+   "sha256": "a9e3cf2f5579d64a7a691c5c1fc1bef8c01dca447f91e70877ec1479b12df7ef"
   },
   {
    "test_file": "h2_1e_profile",
    "check_id": "ratchets/h2-1d-qualification.v1.json",
-   "sha256": "ae556ff50199e2e7fc5ab76700d1472d4554cd7a4c24208932789178fabf4c38"
+   "sha256": "e3dff665ee8448a084e2cd404abc50a710ffaa39d4f0a8a63b12ebaff4aaeae2"
   },
   {
    "test_file": "h2_1e_profile",
@@ -740,12 +740,12 @@
   {
    "test_file": "h2_1e_profile",
    "check_id": "ratchets/h2-1e-profile.v1.json",
-   "sha256": "f1f37d6d63e61419e09759c53c46ff8a694befeab21fdad88a2d7f8e8ab36844"
+   "sha256": "6a215d3513e8bc67de87f26d32fbadc2b1c3368604cdc53de6283a8ba40646fd"
   },
   {
    "test_file": "h2_1e_profile",
    "check_id": "ratchets/h2-1e-qualification.v1.json",
-   "sha256": "8c865b0a8e551e88d0ec24d9d9dca79a9d07dd93f6014826e9f14c5ad9c45068"
+   "sha256": "b30fb0d33a2add77198a1cb169a05e6d3e6a876d72f7b159ac4cbeacbbd9f723"
   },
   {
    "test_file": "h2_2a_profile",
@@ -755,27 +755,27 @@
   {
    "test_file": "h2_2a_profile",
    "check_id": "crates/oracle/h2-2a-profile.mjs",
-   "sha256": "143ebf10fbeba54e034a81d6e98ff1c092b8b4f283a6bc6ddd946f85bb2dbaa1"
+   "sha256": "011297559d4126dd059337c963800a4804b666f43d41b72c02a0c1cc149e37dc"
   },
   {
    "test_file": "h2_2a_profile",
    "check_id": "ratchets/h2-1e-profile.v1.json",
-   "sha256": "f1f37d6d63e61419e09759c53c46ff8a694befeab21fdad88a2d7f8e8ab36844"
+   "sha256": "6a215d3513e8bc67de87f26d32fbadc2b1c3368604cdc53de6283a8ba40646fd"
   },
   {
    "test_file": "h2_2a_profile",
    "check_id": "ratchets/h2-1e-qualification.v1.json",
-   "sha256": "8c865b0a8e551e88d0ec24d9d9dca79a9d07dd93f6014826e9f14c5ad9c45068"
+   "sha256": "b30fb0d33a2add77198a1cb169a05e6d3e6a876d72f7b159ac4cbeacbbd9f723"
   },
   {
    "test_file": "h2_2a_profile",
    "check_id": "ratchets/h2-2a-profile.v1.json",
-   "sha256": "cf0dbeb2c138b4c9becde6056bcc14d9459983784bb70a690198926e47d6d84b"
+   "sha256": "461c6d1599a468a0c00d60ca5baf517f30983f74b2e49e8fc28cbd8b0d7c7ef6"
   },
   {
    "test_file": "h2_2a_profile",
    "check_id": "ratchets/h2-2a-qualification.v1.json",
-   "sha256": "daa8b1f5b89a9e0ffa0463997b220166845e5c9eac3e752b527e3f628c803d6a"
+   "sha256": "35f29b242a543710a4b9bb2dad4aa9f4b530c4d0a7e3885f685788d7936c6ad3"
   },
   {
    "test_file": "h2_2b_profile",
@@ -785,27 +785,27 @@
   {
    "test_file": "h2_2b_profile",
    "check_id": "crates/oracle/h2-2b-profile.mjs",
-   "sha256": "94a769f1e07078a4e0fcf9bd916f139b064cdb69609c499cdbc0aa30ff4d2833"
+   "sha256": "a997da8498643f285c0f7b2023911c165f8717e43347d0c6ecda2d8f66ed21b8"
   },
   {
    "test_file": "h2_2b_profile",
    "check_id": "ratchets/h2-2a-profile.v1.json",
-   "sha256": "cf0dbeb2c138b4c9becde6056bcc14d9459983784bb70a690198926e47d6d84b"
+   "sha256": "461c6d1599a468a0c00d60ca5baf517f30983f74b2e49e8fc28cbd8b0d7c7ef6"
   },
   {
    "test_file": "h2_2b_profile",
    "check_id": "ratchets/h2-2a-qualification.v1.json",
-   "sha256": "daa8b1f5b89a9e0ffa0463997b220166845e5c9eac3e752b527e3f628c803d6a"
+   "sha256": "35f29b242a543710a4b9bb2dad4aa9f4b530c4d0a7e3885f685788d7936c6ad3"
   },
   {
    "test_file": "h2_2b_profile",
    "check_id": "ratchets/h2-2b-profile.v1.json",
-   "sha256": "9213e5f3112dd2747c99c1bb6626482282f09a4e263868e824d3ff9a87748346"
+   "sha256": "3ad9ec48427a5f2f572e1d089351b796ffd44ce8ba82392bceb1e76c51033a7c"
   },
   {
    "test_file": "h2_2b_profile",
    "check_id": "ratchets/h2-2b-qualification.v1.json",
-   "sha256": "f49bf3d433d614c7c06c39a0defc749bad091557ae373f3aa278d2d9695b55fa"
+   "sha256": "e5f672c95c6a72d1089e410a5ffba560eb5da9be831162cfea33ef781ca84014"
   },
   {
    "test_file": "h2_2c_profile",
@@ -815,27 +815,27 @@
   {
    "test_file": "h2_2c_profile",
    "check_id": "crates/oracle/h2-2c-profile.mjs",
-   "sha256": "9b115d574c75608f11d67796da89007fb2cc0fbee30ee8977068b805673f80a9"
+   "sha256": "8ea8188ab922f70266172e0dd0e821fa92af8587ca8ef5daa40a650b5eac29b2"
   },
   {
    "test_file": "h2_2c_profile",
    "check_id": "ratchets/h2-2b-profile.v1.json",
-   "sha256": "9213e5f3112dd2747c99c1bb6626482282f09a4e263868e824d3ff9a87748346"
+   "sha256": "3ad9ec48427a5f2f572e1d089351b796ffd44ce8ba82392bceb1e76c51033a7c"
   },
   {
    "test_file": "h2_2c_profile",
    "check_id": "ratchets/h2-2b-qualification.v1.json",
-   "sha256": "f49bf3d433d614c7c06c39a0defc749bad091557ae373f3aa278d2d9695b55fa"
+   "sha256": "e5f672c95c6a72d1089e410a5ffba560eb5da9be831162cfea33ef781ca84014"
   },
   {
    "test_file": "h2_2c_profile",
    "check_id": "ratchets/h2-2c-profile.v1.json",
-   "sha256": "3db7a35c4d507df9abd7103a91a97a5cf3ad2a4cdd919fabc89bf094605d1a53"
+   "sha256": "983b3386d22eae67e907cc715f9fa16e730cb31028e35a896cbb4c6ad7bb5fd9"
   },
   {
    "test_file": "h2_2c_profile",
    "check_id": "ratchets/h2-2c-qualification.v1.json",
-   "sha256": "a4e997463127805faeffdc7e01cf999fe536c6fed7a5eae222db59e5005b2957"
+   "sha256": "94ffbecbc5097407b93e24d65aa734cdfe80e55d98a311e44cc2da36bae161c6"
   },
   {
    "test_file": "h2_2d_profile",
@@ -845,27 +845,27 @@
   {
    "test_file": "h2_2d_profile",
    "check_id": "crates/oracle/h2-2d-profile.mjs",
-   "sha256": "fdcc2592ee4c1532bfd3c2df313fa2f8ab4f0edbc2cd63df0501d0c0944f5af3"
+   "sha256": "1bf4ad18e893bed6495d925427d2ff2d7fb704aac1ff4e2b9c46e89bf22075b4"
   },
   {
    "test_file": "h2_2d_profile",
    "check_id": "ratchets/h2-2c-profile.v1.json",
-   "sha256": "3db7a35c4d507df9abd7103a91a97a5cf3ad2a4cdd919fabc89bf094605d1a53"
+   "sha256": "983b3386d22eae67e907cc715f9fa16e730cb31028e35a896cbb4c6ad7bb5fd9"
   },
   {
    "test_file": "h2_2d_profile",
    "check_id": "ratchets/h2-2c-qualification.v1.json",
-   "sha256": "a4e997463127805faeffdc7e01cf999fe536c6fed7a5eae222db59e5005b2957"
+   "sha256": "94ffbecbc5097407b93e24d65aa734cdfe80e55d98a311e44cc2da36bae161c6"
   },
   {
    "test_file": "h2_2d_profile",
    "check_id": "ratchets/h2-2d-profile.v1.json",
-   "sha256": "842846e1a2dfba33692dc3881cb4b428f1f19e2b65e40356f0f2487bffabbd14"
+   "sha256": "7610055e114b0a687a2f66f39389496e2d4e3d376ce533550bd167a14cf423b3"
   },
   {
    "test_file": "h2_2d_profile",
    "check_id": "ratchets/h2-2d-qualification.v1.json",
-   "sha256": "2a94a409efbb8e8a58adee80606d724ff17205efe6eaf32897f8a59760fb8b65"
+   "sha256": "9302319e0eebf5f37da63411b13d1d7a98a3242cd2b3f7b1a8d8cec9d38945a4"
   },
   {
    "test_file": "h2_3a_profile",
@@ -885,17 +885,17 @@
   {
    "test_file": "h2_3a_profile",
    "check_id": "crates/oracle/h2-3a-profile.mjs",
-   "sha256": "2c9425e0b1baab3557bf6c8573ed40530b4aa6a23a7de30fa6f6901468e9fdba"
+   "sha256": "fac4522fd884d08d9b6491415efcc79fa94e2f442ad7d46f13bcdec402d891f1"
   },
   {
    "test_file": "h2_3a_profile",
    "check_id": "ratchets/h2-2d-profile.v1.json",
-   "sha256": "842846e1a2dfba33692dc3881cb4b428f1f19e2b65e40356f0f2487bffabbd14"
+   "sha256": "7610055e114b0a687a2f66f39389496e2d4e3d376ce533550bd167a14cf423b3"
   },
   {
    "test_file": "h2_3a_profile",
    "check_id": "ratchets/h2-2d-qualification.v1.json",
-   "sha256": "2a94a409efbb8e8a58adee80606d724ff17205efe6eaf32897f8a59760fb8b65"
+   "sha256": "9302319e0eebf5f37da63411b13d1d7a98a3242cd2b3f7b1a8d8cec9d38945a4"
   },
   {
    "test_file": "h2_3a_profile",
@@ -905,12 +905,12 @@
   {
    "test_file": "h2_3a_profile",
    "check_id": "ratchets/h2-3a-profile.v1.json",
-   "sha256": "2f42354c0ffe58d3aace4e01cfb2ccd5a1fdabda6ab367437aafa1f5a34288e1"
+   "sha256": "9d3c36a29246fb1152145f959807499491ad865d087d8174e7331445ae45856c"
   },
   {
    "test_file": "h2_3a_profile",
    "check_id": "ratchets/h2-3a-qualification.v1.json",
-   "sha256": "b358304912309794d0d6703a49f843f5694cc0b625cfa749e4c3ef4a09771114"
+   "sha256": "57928dea849d95b33d4e3a98d7263a12220408ccf0883f0621ca54da6e3081c8"
   },
   {
    "test_file": "h2_3b_profile",
@@ -930,7 +930,7 @@
   {
    "test_file": "h2_3b_profile",
    "check_id": "crates/oracle/h2-3b-profile.mjs",
-   "sha256": "d4083b7c93148dbd989fe5cdb0f43bd86f699a69d2d56458cec016ef15f68399"
+   "sha256": "b8581ae2562ba9b5eb3dd4ac90e6c69d34fb6329000748bbb3dcc8a7b35b32d1"
   },
   {
    "test_file": "h2_3b_profile",
@@ -940,12 +940,12 @@
   {
    "test_file": "h2_3b_profile",
    "check_id": "ratchets/h2-3a-profile.v1.json",
-   "sha256": "2f42354c0ffe58d3aace4e01cfb2ccd5a1fdabda6ab367437aafa1f5a34288e1"
+   "sha256": "9d3c36a29246fb1152145f959807499491ad865d087d8174e7331445ae45856c"
   },
   {
    "test_file": "h2_3b_profile",
    "check_id": "ratchets/h2-3a-qualification.v1.json",
-   "sha256": "b358304912309794d0d6703a49f843f5694cc0b625cfa749e4c3ef4a09771114"
+   "sha256": "57928dea849d95b33d4e3a98d7263a12220408ccf0883f0621ca54da6e3081c8"
   },
   {
    "test_file": "h2_3b_profile",
@@ -955,12 +955,12 @@
   {
    "test_file": "h2_3b_profile",
    "check_id": "ratchets/h2-3b-profile.v1.json",
-   "sha256": "05ac2764462ffb3d68a96917b5f1a1d3d4461eda4dc398374822b23b5e24f05e"
+   "sha256": "b6f4a150177f023299009d6ca88824209987afae612932631a5b54c393b06c89"
   },
   {
    "test_file": "h2_3b_profile",
    "check_id": "ratchets/h2-3b-qualification.v1.json",
-   "sha256": "ee5463cf9023978e20a6b4933624ef9de5330568624788e4469f6f5efe9268fe"
+   "sha256": "2e8c2fe8361f37d474e3d40e38c72dac0ae8ddcd5ea862fd28fcc48bc2e55c28"
   },
   {
    "test_file": "h2_3c_profile",
@@ -980,7 +980,7 @@
   {
    "test_file": "h2_3c_profile",
    "check_id": "crates/oracle/h2-3c-profile.mjs",
-   "sha256": "fda473e73a21ba7ac9dc409614b6ef602a6b516dcf408c5b15e51257feed6045"
+   "sha256": "7cbdb051a8708d8700dc72a101038afbf17ad4bb9f8be111827fcb77a352ea95"
   },
   {
    "test_file": "h2_3c_profile",
@@ -990,12 +990,12 @@
   {
    "test_file": "h2_3c_profile",
    "check_id": "ratchets/h2-3b-profile.v1.json",
-   "sha256": "05ac2764462ffb3d68a96917b5f1a1d3d4461eda4dc398374822b23b5e24f05e"
+   "sha256": "b6f4a150177f023299009d6ca88824209987afae612932631a5b54c393b06c89"
   },
   {
    "test_file": "h2_3c_profile",
    "check_id": "ratchets/h2-3b-qualification.v1.json",
-   "sha256": "ee5463cf9023978e20a6b4933624ef9de5330568624788e4469f6f5efe9268fe"
+   "sha256": "2e8c2fe8361f37d474e3d40e38c72dac0ae8ddcd5ea862fd28fcc48bc2e55c28"
   },
   {
    "test_file": "h2_3c_profile",
@@ -1005,12 +1005,12 @@
   {
    "test_file": "h2_3c_profile",
    "check_id": "ratchets/h2-3c-profile.v1.json",
-   "sha256": "5bff87bf8bacac4e92cdd7fbbdb30e4a7ea0cf1abcc357a8d20a51f8a61087f4"
+   "sha256": "dbdd7a96a19fc2b0a1911440e14cb45223a73ecd965adbb4aa2496439469f30d"
   },
   {
    "test_file": "h2_3c_profile",
    "check_id": "ratchets/h2-3c-qualification.v1.json",
-   "sha256": "39497fbfef314251d7671fc04a4a809389873472aea7f6e95d113f2c3c9278fa"
+   "sha256": "dc877d8ec81f7b29a689be3cbe1a0811565906ee44090ed20dc905b29c8ba00d"
   },
   {
    "test_file": "h2_transition",
@@ -1025,7 +1025,7 @@
   {
    "test_file": "h2_transition",
    "check_id": "ratchets/h1-emit-qualification.v1.json",
-   "sha256": "83974e2ed692f8567c24d68b89c98d9fe1792448447cd3a181b2299bd5ddd093"
+   "sha256": "6bbfc47c499a01d32be8e97b42cd68d1919431a71f530112dfef6f5a0d89582b"
   },
   {
    "test_file": "h2_transition",
@@ -1035,7 +1035,7 @@
   {
    "test_file": "h2_transition",
    "check_id": "ratchets/h1-rust-omissions.v1.json",
-   "sha256": "bc56ec32634730ff33950396f5e654e9b35e8e4db22a1afb30d3a944a8fb1de7"
+   "sha256": "13428e8065ccc81df06e085d4618536ac29877caf9f9c263ba7a66569ae0a702"
   }
  ]
 }

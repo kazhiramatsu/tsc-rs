@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "kind": "h2-5g-check-outcome",
+  "fresh": false,
+  "check_shards": 4,
+  "receipt_attempt": "miss",
+  "miss_term": "absent",
+  "refusals": [],
+  "full_observation_started": true,
+  "completed": false,
+  "observed_cases": null,
+  "journal_adopted": null,
+  "receipt_reused": null,
+  "minted": null,
+  "outcome_fingerprint_sha256": "dfc77f45bba48597ba2d57c43e98a6d65cff47aebcf712442818e0ec5f5b8714"
+}

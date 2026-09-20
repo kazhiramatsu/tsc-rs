@@ -9,6 +9,7 @@ import "./gate-tax-5.test.mjs";
 import "./h2-8a-artifact-schemas.test.mjs";
 import "../../scripts/frozen-de-reference.test.mjs";
 import "../../scripts/h2-7a-stratum.test.mjs";
+import "../../scripts/h2-5g-library-paths.test.mjs";
 
 import {
   ARTIFACT_SCHEMA_CONTRACTS,
