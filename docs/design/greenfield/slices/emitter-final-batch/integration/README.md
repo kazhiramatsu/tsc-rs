@@ -1,5 +1,25 @@
 # Emitter final r11 integration
 
+## hosted 登録件数の同期（r570–r573）
+
+[失敗・修復・検証の記録](records/hosted-catalog-repair-r573/manifest.json)。
+候補 `7457cd558` の hosted plan は、recovery fixture の登録が 432 件のままで
+実際の 788 件に追従していないため失敗した。修正後の全 planner tests では、
+このエラーに隠れていた printer の旧期待値 142 件と現在の 143 件の差も検出した。
+元のケースは内容を保持しており、追加済みのケースを含む正しい件数へ同期した。
+比較対象・fixture・実行コマンド・欠落や重複を拒否する判定は変更しない。
+
+対応する実行 source の policy hash 3 件も更新した。Opus のレビューと履歴確認を
+保存し、最終修正後の planner 84 tests、検証器 66 tests、全 pin surfaces、
+27 artifact contracts と FCI（45 envelopes /42 ready）の検査が成功した。
+入口台帳は新しい v37 に記録し、v36 を保持する。
+
+旧候補のローカル CI（r569）は登録修正前に停止した。終了値 -15、完了したのは
+4 phases であり、成功した全体検証には数えない。停止時のログ・journal と、
+既存の未追跡記録 88 件が byte・mtime とも不変であることを保存した。
+Rust 本体・oracle・生成物は不変で、下記 r561 の証明はその範囲で有効である。
+更新した最終候補での unsplit CI、hosted checks、merge は引き続き必要。
+
 ## 正式生成チェーンの完了（r561）
 
 [収束証明](records/canonical-walk-r562/certificate.json)と

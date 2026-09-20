@@ -602,7 +602,7 @@ def invocation(suite, needles, environ=None):
         return emitter_command([suite]), env
     if suite == "printer":
         if needles:
-            raise ValueError("printer failure controls run together; use --all (143 small direct rows)")
+            raise ValueError("printer failure controls run together; use --all (142 small direct rows)")
         return ["cargo", "test", "--manifest-path", "crates/emitter/Cargo.toml",
                 "--test", "printer_failure_contract", "--", "--nocapture", "--test-threads=1"], env
     if suite in SUPER:

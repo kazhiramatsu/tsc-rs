@@ -79,7 +79,7 @@ RECOVERY_FIXTURES = (
     ("emitter-missing-declaration-effects", 144), ("emitter-missing-declaration-scripts", 150),
     ("emitter-missing-declaration-binding", 60), ("emitter-parameter-gap-recovery", 72),
     ("emitter-parameter-gap-module", 6),
-    ("emitter-statement-gap-recovery", 228), ("emitter-context-recovery", 788),
+    ("emitter-statement-gap-recovery", 228), ("emitter-context-recovery", 432),
 )
 RECOVERY_TESTS = tuple("h2_8a_import_helpers::" + name for name in (
     "missing_await_recovery_matches_complete_typescript_observations",

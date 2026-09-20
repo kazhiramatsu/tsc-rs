@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-20T19:27:42.797682+00:00",
+  "reason": "Obsolete candidate requires hosted catalog count repair; integrator stopped only owned CI tree before canonical edits. Await actual wrapper receipt, not a natural failure or success.",
+  "signals": [
+    "SIGSTOP",
+    "SIGTERM",
+    "SIGCONT"
+  ],
+  "owned_processes": [
+    {
+      "pid": 41115,
+      "ppid": 41102,
+      "command": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask ci --baseline 3b1f5fe87fd31e3b303bb44bd257342735452ed9"
+    },
+    {
+      "pid": 67174,
+      "ppid": 41115,
+      "command": "node /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/oracle/h2-1a-qualification.mjs --check"
+    }
+  ]
+}

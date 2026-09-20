@@ -1,0 +1,43 @@
+{
+  "comparison_base": "70696be10^",
+  "fixtures": [
+    {
+      "path": "crates/emitter/tests/fixtures/printer-failure-hooks.json",
+      "before": 25,
+      "current": 25,
+      "retained_unchanged": true,
+      "added": [],
+      "removed": [],
+      "sha256": "8b2d6b5aa7abcfa0fb29ee935db1c56107ce7649915b33b53381f094b265f0dc"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/printer-failure-review.json",
+      "before": 21,
+      "current": 22,
+      "retained_unchanged": true,
+      "added": [
+        "printer-failure/printNode/review/function-body-sticky-comments"
+      ],
+      "removed": [],
+      "sha256": "bfafaf5d2da6509587daa59b85bf965034600edd4a1ae708eef82ab721bdde6c"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/printer-comment-carry.json",
+      "before": 24,
+      "current": 24,
+      "retained_unchanged": true,
+      "added": [],
+      "removed": [],
+      "sha256": "828484275265dbc389df0e388b514766cf7e30a26a580539fa6e50b33f2f19e5"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/printer-hook-hints.json",
+      "before": 72,
+      "current": 72,
+      "retained_unchanged": true,
+      "added": [],
+      "removed": [],
+      "sha256": "40d33a2dce1b64959f79ae663f5a3c21a1fd65ed2dd44c31a86c78529310fb70"
+    }
+  ]
+}
