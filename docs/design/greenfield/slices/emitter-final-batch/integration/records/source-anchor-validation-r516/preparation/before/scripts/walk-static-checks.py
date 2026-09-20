@@ -10,11 +10,8 @@ walk reached the failing rung, although both are pure functions of the tree:
   2. the h2-7a owner-inventory / close curated `path:line` anchors whose
      ±3-line `tsc-port:` window moved after an emitter edit.
 
-The L0 source/options inventory also rejects missing or non-unique source
-fragments. Check those anchors before the Rust preflight and prospective plan.
-
 This preflight asks the GENERATORS themselves (their `--check` mode, bounded in
-time) and classifies the stderr: only the enumerated static-precondition error
+time) and classifies the stderr: only the two static-precondition error
 families refuse; a stale artifact, any other exit, or a timeout is the walk's
 own business and passes here.  No generator is modified (a generator edit
 would re-stale the ladder), so the check never changes what the walk mints.
@@ -29,12 +26,6 @@ import sys
 CHECKS = (
     # (label, command, timeout seconds, refusing stderr fragments)
     (
-        "l0-option-inventory source anchors",
-        ["node", "crates/oracle/l0-option-inventory.mjs", "--check"],
-        30,
-        ("missing audited source fragment", "audited source fragment is not unique"),
-    ),
-    (
         "h2-5g-profile runtime input closure",
         ["node", "crates/oracle/h2-5g-profile.mjs", "--check"],
         180,
@@ -44,16 +35,13 @@ CHECKS = (
         "h2-7a-owner-inventory curated anchors",
         ["node", "crates/oracle/h2-7a-owner-inventory.mjs", "--check"],
         300,
-        ("curated Rust anchor", "is not at a tsc-port header", "anchor header", "H2.7b Rust anchor"),
+        ("curated Rust anchor", "is not at a tsc-port header", "anchor header"),
     ),
     (
         "h2-7a-close retained arms / anchors",
         ["node", "crates/oracle/h2-7a-close.mjs", "--check"],
         300,
-        (
-            "curated Rust anchor", "is not at a tsc-port header", "retained_arms anchor",
-            "does not start", "no longer names retained arm", "retained arm ",
-        ),
+        ("curated Rust anchor", "is not at a tsc-port header", "retained_arms anchor"),
     ),
 )
 
@@ -86,8 +74,8 @@ def main() -> int:
     for label, command, timeout, fragments in CHECKS:
         worst = max(worst, run(label, command, timeout, fragments))
     if worst:
-        print("walk-static-checks: fix the preconditions above (repair exact source fragments;")
-        print("  register runtime inputs; re-point curated anchors within the ±3-line tsc-port window), then walk once.")
+        print("walk-static-checks: fix the preconditions above (register the new runtime inputs;")
+        print("  re-point the curated anchors with the ±3-line tsc-port window rule), then walk once.")
     return worst
 
 

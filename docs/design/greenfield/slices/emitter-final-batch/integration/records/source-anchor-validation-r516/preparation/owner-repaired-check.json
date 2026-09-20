@@ -1,0 +1,5 @@
+{
+  "exit": 1,
+  "source_sha256": "27f618cd92bf07173bd7e6f5ca60207f6799e893b9eb871f6728e1647e86a1e8",
+  "scope": "Existing generator check after all numeric anchor updates; may still reject stale generated artifact, not a mint."
+}

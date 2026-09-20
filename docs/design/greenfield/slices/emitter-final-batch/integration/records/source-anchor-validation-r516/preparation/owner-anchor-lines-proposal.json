@@ -1,0 +1,3261 @@
+{
+  "source_before_sha256": "3962cf3a1b804f63f6356b97b04e8f66f3bb27476aeb45268433c265be060052",
+  "candidate_sha256": "27f618cd92bf07173bd7e6f5ca60207f6799e893b9eb871f6728e1647e86a1e8",
+  "unchanged_headered": 20,
+  "unchanged_unheadered_range_only": 96,
+  "headered_changes": [
+    {
+      "path": "crates/emitter/src/declarations/mod.rs",
+      "header": "transformDeclarations",
+      "old_line": 91,
+      "new_line": 103,
+      "script_line": 186,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "reportExpandoFunctionErrors",
+      "old_line": 207,
+      "new_line": 213,
+      "script_line": 187,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "reportInferenceFallback",
+      "old_line": 296,
+      "new_line": 413,
+      "script_line": 188,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "handleSymbolAccessibilityError",
+      "old_line": 149,
+      "new_line": 155,
+      "script_line": 189,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "trackSymbol",
+      "old_line": 273,
+      "new_line": 390,
+      "script_line": 190,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "reportPrivateInBaseOfClassExpression",
+      "old_line": 321,
+      "new_line": 496,
+      "script_line": 191,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "errorDeclarationNameWithFallback",
+      "old_line": 216,
+      "new_line": 333,
+      "script_line": 192,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "reportInaccessibleUniqueSymbolError",
+      "old_line": 346,
+      "new_line": 521,
+      "script_line": 193,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "reportCyclicStructureError",
+      "old_line": 356,
+      "new_line": 531,
+      "script_line": 194,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "reportInaccessibleThisError",
+      "old_line": 366,
+      "new_line": 541,
+      "script_line": 195,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "reportLikelyUnsafeImportRequiredError",
+      "old_line": 376,
+      "new_line": 551,
+      "script_line": 196,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "reportTruncationError",
+      "old_line": 400,
+      "new_line": 575,
+      "script_line": 197,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "reportNonlocalAugmentation",
+      "old_line": 416,
+      "new_line": 591,
+      "script_line": 198,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "header": "reportNonSerializableProperty",
+      "old_line": 443,
+      "new_line": 618,
+      "script_line": 199,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/root.rs",
+      "header": "transformDeclarationsForJS",
+      "old_line": 202,
+      "new_line": 195,
+      "script_line": 200,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/root.rs",
+      "header": "getReferencedFiles",
+      "old_line": 233,
+      "new_line": 226,
+      "script_line": 206,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/subtree.rs",
+      "header": "isDeclarationAndNotVisible",
+      "old_line": 682,
+      "new_line": 704,
+      "script_line": 213,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "shouldEmitFunctionProperties",
+      "old_line": 1780,
+      "new_line": 1868,
+      "script_line": 214,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/subtree.rs",
+      "header": "getBindingNameVisible",
+      "old_line": 713,
+      "new_line": 735,
+      "script_line": 215,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/subtree.rs",
+      "header": "isEnclosingDeclaration",
+      "old_line": 753,
+      "new_line": 775,
+      "script_line": 219,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/subtree.rs",
+      "header": "checkEntityNameVisibility",
+      "old_line": 774,
+      "new_line": 796,
+      "script_line": 220,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/subtree.rs",
+      "header": "preserveJsDoc",
+      "old_line": 932,
+      "new_line": 954,
+      "script_line": 221,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "rewriteModuleSpecifier2",
+      "old_line": 1751,
+      "new_line": 1821,
+      "script_line": 222,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "transformImportEqualsDeclaration",
+      "old_line": 1439,
+      "new_line": 1501,
+      "script_line": 223,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "transformImportDeclaration",
+      "old_line": 1512,
+      "new_line": 1574,
+      "script_line": 224,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "tryGetResolutionModeOverride",
+      "old_line": 1708,
+      "new_line": 1778,
+      "script_line": 225,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "transformAndReplaceLatePaintedStatements",
+      "old_line": 775,
+      "new_line": 815,
+      "script_line": 226,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "visitLateVisibilityMarkedStatements",
+      "old_line": 823,
+      "new_line": 870,
+      "script_line": 227,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "cleanup",
+      "old_line": 725,
+      "new_line": 765,
+      "script_line": 229,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/subtree.rs",
+      "header": "isPrivateMethodTypeParameter",
+      "old_line": 834,
+      "new_line": 856,
+      "script_line": 230,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "stripExportModifiers",
+      "old_line": 1170,
+      "new_line": 1232,
+      "script_line": 232,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "updateModuleDeclarationAndKeyword",
+      "old_line": 1194,
+      "new_line": 1256,
+      "script_line": 233,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "walkBindingPattern",
+      "old_line": 1060,
+      "new_line": 1122,
+      "script_line": 235,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/subtree.rs",
+      "header": "cleanup",
+      "old_line": 649,
+      "new_line": 671,
+      "script_line": 236,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "transformVariableStatement",
+      "old_line": 875,
+      "new_line": 922,
+      "script_line": 237,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "recreateBindingPattern",
+      "old_line": 1112,
+      "new_line": 1174,
+      "script_line": 238,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "recreateBindingElement",
+      "old_line": 1136,
+      "new_line": 1198,
+      "script_line": 239,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/subtree.rs",
+      "header": "checkName",
+      "old_line": 792,
+      "new_line": 814,
+      "script_line": 240,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/ensure.rs",
+      "header": "shouldStripInternal",
+      "old_line": 505,
+      "new_line": 511,
+      "script_line": 241,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "isScopeMarker2",
+      "old_line": 1234,
+      "new_line": 1296,
+      "script_line": 242,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "hasScopeMarker2",
+      "old_line": 1244,
+      "new_line": 1306,
+      "script_line": 243,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "transformHeritageClauses",
+      "old_line": 1258,
+      "new_line": 1320,
+      "script_line": 246,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/ensure.rs",
+      "header": "isAlwaysType",
+      "old_line": 650,
+      "new_line": 730,
+      "script_line": 247,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/ensure.rs",
+      "header": "maskModifiers",
+      "old_line": 615,
+      "new_line": 695,
+      "script_line": 248,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/ensure.rs",
+      "header": "maskModifierFlags",
+      "old_line": 629,
+      "new_line": 709,
+      "script_line": 249,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/ensure.rs",
+      "header": "canHaveLiteralInitializer",
+      "old_line": 660,
+      "new_line": 740,
+      "script_line": 250,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "header": "isPreservedDeclarationStatement",
+      "old_line": 1798,
+      "new_line": 1886,
+      "script_line": 251,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/declarations/subtree.rs",
+      "header": "isProcessedComponent",
+      "old_line": 953,
+      "new_line": 975,
+      "script_line": 252,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "createPrinter",
+      "old_line": 911,
+      "new_line": 1162,
+      "script_line": 318,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createPrinter",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 318,
+        "old_line": 911,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "create_printer",
+          "line": 917,
+          "distance": 7
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 1162,
+            "name": "create_printer",
+            "line": 1167,
+            "distance": 6
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 1162,
+            "name": "create_printer",
+            "line": 1167,
+            "distance": 6
+          },
+          {
+            "header_line": 1391,
+            "name": "begin_print",
+            "line": 1397,
+            "distance": 7
+          },
+          {
+            "header_line": 1403,
+            "name": "end_print",
+            "line": 1411,
+            "distance": 9
+          },
+          {
+            "header_line": 1497,
+            "name": "record_list_element_position",
+            "line": 1501,
+            "distance": 5
+          },
+          {
+            "header_line": 9138,
+            "name": "preserved_list_siblings_need_line_break",
+            "line": 9144,
+            "distance": 7
+          },
+          {
+            "header_line": 9211,
+            "name": "preserved_list_boundary_needs_line_break",
+            "line": 9217,
+            "distance": 7
+          },
+          {
+            "header_line": 9214,
+            "name": "preserved_list_boundary_needs_line_break",
+            "line": 9217,
+            "distance": 4
+          },
+          {
+            "header_line": 9634,
+            "name": "emit_comma_delimited_list_tail",
+            "line": 9639,
+            "distance": 6
+          },
+          {
+            "header_line": 12285,
+            "name": "emit_comma_expression_list",
+            "line": 12298,
+            "distance": 14
+          },
+          {
+            "header_line": 12288,
+            "name": "emit_comma_expression_list",
+            "line": 12298,
+            "distance": 11
+          },
+          {
+            "header_line": 12291,
+            "name": "emit_comma_expression_list",
+            "line": 12298,
+            "distance": 8
+          },
+          {
+            "header_line": 14499,
+            "name": "emit_child_with_trailing_phase_before_token",
+            "line": 14511,
+            "distance": 13
+          },
+          {
+            "header_line": 14502,
+            "name": "emit_child_with_trailing_phase_before_token",
+            "line": 14511,
+            "distance": 10
+          },
+          {
+            "header_line": 14505,
+            "name": "emit_child_with_trailing_phase_before_token",
+            "line": 14511,
+            "distance": 7
+          },
+          {
+            "header_line": 14508,
+            "name": "emit_child_with_trailing_phase_before_token",
+            "line": 14511,
+            "distance": 4
+          },
+          {
+            "header_line": 14617,
+            "name": "emit_optional_ordinary_child",
+            "line": 14627,
+            "distance": 11
+          },
+          {
+            "header_line": 14620,
+            "name": "emit_optional_ordinary_child",
+            "line": 14627,
+            "distance": 8
+          },
+          {
+            "header_line": 14623,
+            "name": "emit_optional_ordinary_child",
+            "line": 14627,
+            "distance": 5
+          },
+          {
+            "header_line": 14684,
+            "name": "emit_ordinary_token_after",
+            "line": 14695,
+            "distance": 12
+          },
+          {
+            "header_line": 14687,
+            "name": "emit_ordinary_token_after",
+            "line": 14695,
+            "distance": 9
+          },
+          {
+            "header_line": 14691,
+            "name": "emit_ordinary_token_after",
+            "line": 14695,
+            "distance": 5
+          },
+          {
+            "header_line": 14749,
+            "name": "emit_member_name_leading_comments",
+            "line": 14762,
+            "distance": 14
+          },
+          {
+            "header_line": 14752,
+            "name": "emit_member_name_leading_comments",
+            "line": 14762,
+            "distance": 11
+          },
+          {
+            "header_line": 14755,
+            "name": "emit_member_name_leading_comments",
+            "line": 14762,
+            "distance": 8
+          },
+          {
+            "header_line": 14759,
+            "name": "emit_member_name_leading_comments",
+            "line": 14762,
+            "distance": 4
+          },
+          {
+            "header_line": 14961,
+            "name": "emit_expression_child_with_source_comments",
+            "line": 14978,
+            "distance": 18
+          },
+          {
+            "header_line": 14964,
+            "name": "emit_expression_child_with_source_comments",
+            "line": 14978,
+            "distance": 15
+          },
+          {
+            "header_line": 14968,
+            "name": "emit_expression_child_with_source_comments",
+            "line": 14978,
+            "distance": 11
+          },
+          {
+            "header_line": 14971,
+            "name": "emit_expression_child_with_source_comments",
+            "line": 14978,
+            "distance": 8
+          },
+          {
+            "header_line": 14974,
+            "name": "emit_expression_child_with_source_comments",
+            "line": 14978,
+            "distance": 5
+          },
+          {
+            "header_line": 18556,
+            "name": "emit_delimited_boundary_comments",
+            "line": 18559,
+            "distance": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "beforeEmitNode",
+      "old_line": 1932,
+      "new_line": 2798,
+      "script_line": 326,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "afterEmitNode",
+      "old_line": 1942,
+      "new_line": 2808,
+      "script_line": 327,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "pipelineEmitWithHintWorker",
+      "old_line": 1947,
+      "new_line": 2813,
+      "script_line": 337,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTypeParameter",
+      "old_line": 8518,
+      "new_line": 10463,
+      "script_line": 345,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitParameter",
+      "old_line": 1950,
+      "new_line": 2816,
+      "script_line": 346,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitPropertySignature",
+      "old_line": 8575,
+      "new_line": 10521,
+      "script_line": 348,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitPropertyDeclaration",
+      "old_line": 1953,
+      "new_line": 2819,
+      "script_line": 349,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "emitPropertyDeclaration",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 349,
+        "old_line": 1953,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_transformed_node_worker",
+          "line": 1980,
+          "distance": 28
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 2819,
+            "name": "emit_transformed_node_worker",
+            "line": 2842,
+            "distance": 24
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 2819,
+            "name": "emit_transformed_node_worker",
+            "line": 2842,
+            "distance": 24
+          },
+          {
+            "header_line": 14752,
+            "name": "emit_member_name_leading_comments",
+            "line": 14762,
+            "distance": 11
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitMethodSignature",
+      "old_line": 8642,
+      "new_line": 10593,
+      "script_line": 350,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitMethodDeclaration",
+      "old_line": 1956,
+      "new_line": 2822,
+      "script_line": 351,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "emitMethodDeclaration",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 351,
+        "old_line": 1956,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_transformed_node_worker",
+          "line": 1980,
+          "distance": 25
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 2822,
+            "name": "emit_transformed_node_worker",
+            "line": 2842,
+            "distance": 21
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 2822,
+            "name": "emit_transformed_node_worker",
+            "line": 2842,
+            "distance": 21
+          },
+          {
+            "header_line": 14749,
+            "name": "emit_member_name_leading_comments",
+            "line": 14762,
+            "distance": 14
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitConstructor",
+      "old_line": 1959,
+      "new_line": 2825,
+      "script_line": 352,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitAccessorDeclaration",
+      "old_line": 1962,
+      "new_line": 2828,
+      "script_line": 353,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "emitAccessorDeclaration",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 353,
+        "old_line": 1962,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_transformed_node_worker",
+          "line": 1980,
+          "distance": 19
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 2828,
+            "name": "emit_transformed_node_worker",
+            "line": 2842,
+            "distance": 15
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 2828,
+            "name": "emit_transformed_node_worker",
+            "line": 2842,
+            "distance": 15
+          },
+          {
+            "header_line": 14755,
+            "name": "emit_member_name_leading_comments",
+            "line": 14762,
+            "distance": 8
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitCallSignature",
+      "old_line": 8692,
+      "new_line": 10648,
+      "script_line": 354,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitConstructSignature",
+      "old_line": 8717,
+      "new_line": 10673,
+      "script_line": 355,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitIndexSignature",
+      "old_line": 8744,
+      "new_line": 10700,
+      "script_line": 356,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTemplateTypeSpan",
+      "old_line": 9662,
+      "new_line": 11665,
+      "script_line": 357,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTypePredicate",
+      "old_line": 8785,
+      "new_line": 10742,
+      "script_line": 358,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTypeReference",
+      "old_line": 8831,
+      "new_line": 10788,
+      "script_line": 359,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitFunctionType",
+      "old_line": 8861,
+      "new_line": 10818,
+      "script_line": 360,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitFunctionTypeHead",
+      "old_line": 8890,
+      "new_line": 10847,
+      "script_line": 361,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitFunctionTypeBody",
+      "old_line": 8921,
+      "new_line": 10878,
+      "script_line": 362,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitJSDocFunctionType",
+      "old_line": 8944,
+      "new_line": 10901,
+      "script_line": 363,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitConstructorType",
+      "old_line": 8977,
+      "new_line": 10934,
+      "script_line": 367,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTypeQuery",
+      "old_line": 9017,
+      "new_line": 10975,
+      "script_line": 368,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTypeLiteral",
+      "old_line": 9049,
+      "new_line": 11007,
+      "script_line": 369,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitArrayType",
+      "old_line": 9074,
+      "new_line": 11032,
+      "script_line": 370,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitRestOrJSDocVariadicType",
+      "old_line": 9099,
+      "new_line": 11057,
+      "script_line": 373,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTupleType",
+      "old_line": 9123,
+      "new_line": 11085,
+      "script_line": 374,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitNamedTupleMember",
+      "old_line": 9161,
+      "new_line": 11123,
+      "script_line": 375,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitOptionalType",
+      "old_line": 9209,
+      "new_line": 11194,
+      "script_line": 376,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitUnionType",
+      "old_line": 9234,
+      "new_line": 11219,
+      "script_line": 377,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitIntersectionType",
+      "old_line": 9256,
+      "new_line": 11241,
+      "script_line": 378,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitConditionalType",
+      "old_line": 9278,
+      "new_line": 11263,
+      "script_line": 379,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitInferType",
+      "old_line": 9338,
+      "new_line": 11323,
+      "script_line": 380,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitParenthesizedType",
+      "old_line": 9363,
+      "new_line": 11348,
+      "script_line": 381,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitThisType",
+      "old_line": 8432,
+      "new_line": 10377,
+      "script_line": 382,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTypeOperator",
+      "old_line": 9389,
+      "new_line": 11374,
+      "script_line": 383,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitIndexedAccessType",
+      "old_line": 9420,
+      "new_line": 11405,
+      "script_line": 384,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitMappedType",
+      "old_line": 9455,
+      "new_line": 11440,
+      "script_line": 385,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitLiteralType",
+      "old_line": 9608,
+      "new_line": 11611,
+      "script_line": 386,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTemplateType",
+      "old_line": 9631,
+      "new_line": 11634,
+      "script_line": 387,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitImportTypeNode",
+      "old_line": 9694,
+      "new_line": 11697,
+      "script_line": 388,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTokenWithComment",
+      "old_line": 14540,
+      "new_line": 17568,
+      "script_line": 393,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "emitTokenWithComment",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 393,
+        "old_line": 14540,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_token_with_comments",
+          "line": 14543,
+          "distance": 4
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 17568,
+            "name": "emit_token_with_comments",
+            "line": 17571,
+            "distance": 4
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 14508,
+            "name": "emit_child_with_trailing_phase_before_token",
+            "line": 14511,
+            "distance": 4
+          },
+          {
+            "header_line": 17568,
+            "name": "emit_token_with_comments",
+            "line": 17571,
+            "distance": 4
+          },
+          {
+            "header_line": 17690,
+            "name": "emit_token_with_comments_at_boundary",
+            "line": 17694,
+            "distance": 5
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitFunctionDeclaration",
+      "old_line": 1965,
+      "new_line": 2831,
+      "script_line": 394,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitFunctionDeclarationOrExpression",
+      "old_line": 1968,
+      "new_line": 2834,
+      "script_line": 395,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitSignatureAndBody",
+      "old_line": 1971,
+      "new_line": 2864,
+      "script_line": 396,
+      "reason": "original worker body now delegated by emit_transformed_node_worker to emit_transformed_node_worker_unscoped; preserve primary full-body header, not the Indented sub-branch",
+      "lineage": {
+        "header": "emitSignatureAndBody",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 396,
+        "old_line": 1971,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_transformed_node_worker",
+          "line": 1980,
+          "distance": 10
+        },
+        "same_fn_candidates": [],
+        "all_candidates": [
+          {
+            "header_line": 2864,
+            "name": "emit_transformed_node_worker_unscoped",
+            "line": 2873,
+            "distance": 10
+          },
+          {
+            "header_line": 5726,
+            "name": "emit_meta_property",
+            "line": 8626,
+            "distance": 2901
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitFunctionBody",
+      "old_line": 1974,
+      "new_line": 2867,
+      "script_line": 397,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitEmptyFunctionBody",
+      "old_line": 1977,
+      "new_line": 2870,
+      "script_line": 398,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitClassDeclaration",
+      "old_line": 8168,
+      "new_line": 10067,
+      "script_line": 406,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitClassDeclarationOrExpression",
+      "old_line": 8171,
+      "new_line": 10070,
+      "script_line": 407,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitInterfaceDeclaration",
+      "old_line": 9795,
+      "new_line": 11805,
+      "script_line": 408,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTypeAliasDeclaration",
+      "old_line": 9856,
+      "new_line": 11867,
+      "script_line": 409,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitEnumDeclaration",
+      "old_line": 9909,
+      "new_line": 11921,
+      "script_line": 410,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitModuleDeclaration",
+      "old_line": 9988,
+      "new_line": 12001,
+      "script_line": 411,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitModuleBlock",
+      "old_line": 10066,
+      "new_line": 12080,
+      "script_line": 412,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitDecoratorsAndModifiers",
+      "old_line": 11465,
+      "new_line": 13693,
+      "script_line": 418,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTypeArguments",
+      "old_line": 10594,
+      "new_line": 12796,
+      "script_line": 425,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTypeParameters",
+      "old_line": 10268,
+      "new_line": 12260,
+      "script_line": 426,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitParametersForIndexSignature",
+      "old_line": 10694,
+      "new_line": 12897,
+      "script_line": 430,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "writeDelimiter",
+      "old_line": 10311,
+      "new_line": 12508,
+      "script_line": 434,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitList",
+      "old_line": 10314,
+      "new_line": 12511,
+      "script_line": 435,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitNodeList",
+      "old_line": 10519,
+      "new_line": 12720,
+      "script_line": 436,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "emitNodeList",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 436,
+        "old_line": 10519,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_declaration_members",
+          "line": 10537,
+          "distance": 19
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 12720,
+            "name": "emit_declaration_members",
+            "line": 12738,
+            "distance": 19
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 12720,
+            "name": "emit_declaration_members",
+            "line": 12738,
+            "distance": 19
+          },
+          {
+            "header_line": 19053,
+            "name": "emit_empty_node_array_boundary_comments",
+            "line": 19056,
+            "distance": 4
+          },
+          {
+            "header_line": 19103,
+            "name": "emit_empty_block_boundary_comments",
+            "line": 19106,
+            "distance": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitNodeListItems",
+      "old_line": 7844,
+      "new_line": 9711,
+      "script_line": 437,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "emitNodeListItems",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 437,
+        "old_line": 7844,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_json_delimited_expression_list",
+          "line": 7853,
+          "distance": 10
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 9711,
+            "name": "emit_json_delimited_expression_list",
+            "line": 9720,
+            "distance": 10
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 1497,
+            "name": "record_list_element_position",
+            "line": 1501,
+            "distance": 5
+          },
+          {
+            "header_line": 9495,
+            "name": "emit_comma_delimited_list_tail",
+            "line": 9639,
+            "distance": 145
+          },
+          {
+            "header_line": 9634,
+            "name": "emit_comma_delimited_list_tail",
+            "line": 9639,
+            "distance": 6
+          },
+          {
+            "header_line": 9711,
+            "name": "emit_json_delimited_expression_list",
+            "line": 9720,
+            "distance": 10
+          },
+          {
+            "header_line": 12291,
+            "name": "emit_comma_expression_list",
+            "line": 12298,
+            "distance": 8
+          },
+          {
+            "header_line": 12723,
+            "name": "emit_declaration_members",
+            "line": 12738,
+            "distance": 16
+          },
+          {
+            "header_line": 16072,
+            "name": "emit_intervening_comments_before_node_with_policy",
+            "line": 16078,
+            "distance": 7
+          },
+          {
+            "header_line": 18556,
+            "name": "emit_delimited_boundary_comments",
+            "line": 18559,
+            "distance": 4
+          },
+          {
+            "header_line": 18706,
+            "name": "emit_delimited_list_end_comments_in_container",
+            "line": 18740,
+            "distance": 35
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "getLeadingLineTerminatorCount",
+      "old_line": 10525,
+      "new_line": 12726,
+      "script_line": 455,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "getLeadingLineTerminatorCount",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 455,
+        "old_line": 10525,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_declaration_members",
+          "line": 10537,
+          "distance": 13
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 12726,
+            "name": "emit_declaration_members",
+            "line": 12738,
+            "distance": 13
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 9211,
+            "name": "preserved_list_boundary_needs_line_break",
+            "line": 9217,
+            "distance": 7
+          },
+          {
+            "header_line": 12726,
+            "name": "emit_declaration_members",
+            "line": 12738,
+            "distance": 13
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "getSeparatingLineTerminatorCount",
+      "old_line": 10528,
+      "new_line": 12729,
+      "script_line": 456,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "getSeparatingLineTerminatorCount",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 456,
+        "old_line": 10528,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_declaration_members",
+          "line": 10537,
+          "distance": 10
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 12729,
+            "name": "emit_declaration_members",
+            "line": 12738,
+            "distance": 10
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 9138,
+            "name": "preserved_list_siblings_need_line_break",
+            "line": 9144,
+            "distance": 7
+          },
+          {
+            "header_line": 12729,
+            "name": "emit_declaration_members",
+            "line": 12738,
+            "distance": 10
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "getClosingLineTerminatorCount",
+      "old_line": 10531,
+      "new_line": 12732,
+      "script_line": 457,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "getClosingLineTerminatorCount",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 457,
+        "old_line": 10531,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_declaration_members",
+          "line": 10537,
+          "distance": 7
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 12732,
+            "name": "emit_declaration_members",
+            "line": 12738,
+            "distance": 7
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 9214,
+            "name": "preserved_list_boundary_needs_line_break",
+            "line": 9217,
+            "distance": 4
+          },
+          {
+            "header_line": 12732,
+            "name": "emit_declaration_members",
+            "line": 12738,
+            "distance": 7
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "getEffectiveLines",
+      "old_line": 10534,
+      "new_line": 12735,
+      "script_line": 458,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitLeadingComments",
+      "old_line": 16520,
+      "new_line": 19704,
+      "script_line": 535,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitNonTripleSlashLeadingComment",
+      "old_line": 16523,
+      "new_line": 19707,
+      "script_line": 537,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "shouldWriteComment",
+      "old_line": 16376,
+      "new_line": 19536,
+      "script_line": 538,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitLeadingComment",
+      "old_line": 15962,
+      "new_line": 19172,
+      "script_line": 539,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitTrailingComment",
+      "old_line": 16156,
+      "new_line": 19392,
+      "script_line": 542,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "emitTrailingComment",
+        "path": "crates/emitter/src/printer.rs",
+        "script_line": 542,
+        "old_line": 16156,
+        "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+        "old_fn": {
+          "name": "emit_same_line_trailing_comments",
+          "line": 16159,
+          "distance": 4
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 19392,
+            "name": "emit_same_line_trailing_comments",
+            "line": 19395,
+            "distance": 4
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 19214,
+            "name": "emit_source_trailing_comments_of_position_with_filter",
+            "line": 19217,
+            "distance": 4
+          },
+          {
+            "header_line": 19392,
+            "name": "emit_same_line_trailing_comments",
+            "line": 19395,
+            "distance": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "header": "emitComment",
+      "old_line": 16649,
+      "new_line": 19836,
+      "script_line": 557,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createComputedPropertyName",
+      "old_line": 2105,
+      "new_line": 2508,
+      "script_line": 575,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createComputedPropertyName",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 575,
+        "old_line": 2105,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "create_computed_property_name",
+          "line": 2108,
+          "distance": 4
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 2508,
+            "name": "create_computed_property_name",
+            "line": 2511,
+            "distance": 4
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 2508,
+            "name": "create_computed_property_name",
+            "line": 2511,
+            "distance": 4
+          },
+          {
+            "header_line": 6338,
+            "name": "parenthesize_computed_property_name_expression",
+            "line": 6341,
+            "distance": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateClassDeclaration",
+      "old_line": 3946,
+      "new_line": 4349,
+      "script_line": 576,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "replaceModifiers",
+      "old_line": 4614,
+      "new_line": 5017,
+      "script_line": 577,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createKeywordTypeNode",
+      "old_line": 2146,
+      "new_line": 2549,
+      "script_line": 578,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTypeReferenceNode",
+      "old_line": 2209,
+      "new_line": 2612,
+      "script_line": 579,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createIndexedAccessTypeNode",
+      "old_line": 2734,
+      "new_line": 3137,
+      "script_line": 580,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createLiteralTypeNode",
+      "old_line": 2806,
+      "new_line": 3209,
+      "script_line": 581,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createStringLiteral",
+      "old_line": 1891,
+      "new_line": 2132,
+      "script_line": 582,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createStringLiteral",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 582,
+        "old_line": 1891,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "create_string_literal",
+          "line": 1894,
+          "distance": 4
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 2132,
+            "name": "create_string_literal",
+            "line": 2135,
+            "distance": 4
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 2132,
+            "name": "create_string_literal",
+            "line": 2135,
+            "distance": 4
+          },
+          {
+            "header_line": 2156,
+            "name": "create_string_literal_from_code_units",
+            "line": 2159,
+            "distance": 4
+          },
+          {
+            "header_line": 2294,
+            "name": "create_string_literal_node",
+            "line": 2297,
+            "distance": 4
+          },
+          {
+            "header_line": 2330,
+            "name": "update_string_literal",
+            "line": 2336,
+            "distance": 7
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTypeQueryNode",
+      "old_line": 2300,
+      "new_line": 2703,
+      "script_line": 583,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createNumericLiteral",
+      "old_line": 1847,
+      "new_line": 2088,
+      "script_line": 584,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createPrefixUnaryExpression",
+      "old_line": 3628,
+      "new_line": 4031,
+      "script_line": 585,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createBigIntLiteral",
+      "old_line": 1876,
+      "new_line": 2117,
+      "script_line": 586,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createFalse",
+      "old_line": 2005,
+      "new_line": 2408,
+      "script_line": 587,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTrue",
+      "old_line": 1995,
+      "new_line": 2398,
+      "script_line": 588,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTypeOperatorNode",
+      "old_line": 2688,
+      "new_line": 3091,
+      "script_line": 589,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createNull",
+      "old_line": 1985,
+      "new_line": 2388,
+      "script_line": 590,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createThisTypeNode",
+      "old_line": 2674,
+      "new_line": 3077,
+      "script_line": 591,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createIdentifier",
+      "old_line": 744,
+      "new_line": 963,
+      "script_line": 592,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createIdentifier",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 592,
+        "old_line": 744,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "classify_created_node_flags",
+          "line": 784,
+          "distance": 41
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 963,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 41
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 963,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 41
+          },
+          {
+            "header_line": 1988,
+            "name": "create_identifier",
+            "line": 1991,
+            "distance": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createArrayTypeNode",
+      "old_line": 2362,
+      "new_line": 2765,
+      "script_line": 593,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createInferTypeNode",
+      "old_line": 2555,
+      "new_line": 2958,
+      "script_line": 594,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createIntersectionTypeNode",
+      "old_line": 2475,
+      "new_line": 2878,
+      "script_line": 595,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createUnionTypeNode",
+      "old_line": 2457,
+      "new_line": 2860,
+      "script_line": 596,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTemplateHead",
+      "old_line": 1966,
+      "new_line": 2369,
+      "script_line": 597,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTemplateLiteralTypeSpan",
+      "old_line": 2823,
+      "new_line": 3226,
+      "script_line": 599,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTemplateLiteralType",
+      "old_line": 2572,
+      "new_line": 2975,
+      "script_line": 600,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createConditionalTypeNode",
+      "old_line": 2494,
+      "new_line": 2897,
+      "script_line": 601,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTypeParameterDeclaration",
+      "old_line": 2866,
+      "new_line": 3269,
+      "script_line": 602,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createMappedTypeNode",
+      "old_line": 2778,
+      "new_line": 3181,
+      "script_line": 604,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTypeLiteralNode",
+      "old_line": 2345,
+      "new_line": 2748,
+      "script_line": 605,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createNamedTupleMember",
+      "old_line": 2399,
+      "new_line": 2802,
+      "script_line": 606,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createOptionalTypeNode",
+      "old_line": 2422,
+      "new_line": 2825,
+      "script_line": 607,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createRestTypeNode",
+      "old_line": 2440,
+      "new_line": 2843,
+      "script_line": 608,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTupleTypeNode",
+      "old_line": 2381,
+      "new_line": 2784,
+      "script_line": 609,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateQualifiedName",
+      "old_line": 2083,
+      "new_line": 2486,
+      "script_line": 610,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createQualifiedName",
+      "old_line": 2063,
+      "new_line": 2466,
+      "script_line": 611,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateImportTypeNode",
+      "old_line": 2619,
+      "new_line": 3022,
+      "script_line": 612,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateTypeReferenceNode",
+      "old_line": 2230,
+      "new_line": 2633,
+      "script_line": 613,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createPropertySignature",
+      "old_line": 3017,
+      "new_line": 3420,
+      "script_line": 614,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createModifier",
+      "old_line": 2015,
+      "new_line": 2418,
+      "script_line": 615,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createNotEmittedTypeElement",
+      "old_line": 5042,
+      "new_line": 5445,
+      "script_line": 616,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createParameterDeclaration",
+      "old_line": 780,
+      "new_line": 999,
+      "script_line": 617,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createParameterDeclaration",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 617,
+        "old_line": 780,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "classify_created_node_flags",
+          "line": 784,
+          "distance": 5
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 999,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 5
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 999,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 5
+          },
+          {
+            "header_line": 3327,
+            "name": "create_parameter_declaration",
+            "line": 3331,
+            "distance": 5
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createIndexSignature",
+      "old_line": 3370,
+      "new_line": 3773,
+      "script_line": 618,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createModifiersFromModifierFlags",
+      "old_line": 2026,
+      "new_line": 2429,
+      "script_line": 619,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createCallSignature",
+      "old_line": 3328,
+      "new_line": 3731,
+      "script_line": 620,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createConstructSignature",
+      "old_line": 3349,
+      "new_line": 3752,
+      "script_line": 621,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createMethodDeclaration",
+      "old_line": 774,
+      "new_line": 993,
+      "script_line": 622,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createMethodDeclaration",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 622,
+        "old_line": 774,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "classify_created_node_flags",
+          "line": 784,
+          "distance": 11
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 993,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 11
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 993,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 11
+          },
+          {
+            "header_line": 3575,
+            "name": "create_method_declaration",
+            "line": 3579,
+            "distance": 5
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createMethodSignature",
+      "old_line": 3094,
+      "new_line": 3497,
+      "script_line": 623,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createConstructorDeclaration",
+      "old_line": 777,
+      "new_line": 996,
+      "script_line": 624,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createConstructorDeclaration",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 624,
+        "old_line": 777,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "classify_created_node_flags",
+          "line": 784,
+          "distance": 8
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 996,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 8
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 996,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 8
+          },
+          {
+            "header_line": 3623,
+            "name": "create_constructor_declaration",
+            "line": 3626,
+            "distance": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createGetAccessorDeclaration",
+      "old_line": 3253,
+      "new_line": 3656,
+      "script_line": 625,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createSetAccessorDeclaration",
+      "old_line": 3294,
+      "new_line": 3697,
+      "script_line": 626,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createConstructorTypeNode",
+      "old_line": 2277,
+      "new_line": 2680,
+      "script_line": 627,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createFunctionDeclaration",
+      "old_line": 3392,
+      "new_line": 3795,
+      "script_line": 628,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createFunctionTypeNode",
+      "old_line": 2255,
+      "new_line": 2658,
+      "script_line": 629,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createJSDocFunctionType",
+      "old_line": 3564,
+      "new_line": 3967,
+      "script_line": 630,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createFunctionExpression",
+      "old_line": 753,
+      "new_line": 972,
+      "script_line": 631,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createFunctionExpression",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 631,
+        "old_line": 753,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "classify_created_node_flags",
+          "line": 784,
+          "distance": 32
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 972,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 32
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 972,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 32
+          },
+          {
+            "header_line": 3843,
+            "name": "create_function_expression",
+            "line": 3847,
+            "distance": 5
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createBlock",
+      "old_line": 3589,
+      "new_line": 3992,
+      "script_line": 632,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createArrowFunction",
+      "old_line": 756,
+      "new_line": 975,
+      "script_line": 633,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createArrowFunction",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 633,
+        "old_line": 756,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "classify_created_node_flags",
+          "line": 784,
+          "distance": 29
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 975,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 29
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 975,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 29
+          },
+          {
+            "header_line": 3914,
+            "name": "create_arrow_function",
+            "line": 3918,
+            "distance": 5
+          },
+          {
+            "header_line": 6135,
+            "name": "parenthesize_updated_arrow_concise_body",
+            "line": 6151,
+            "distance": 17
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTypePredicateNode",
+      "old_line": 2157,
+      "new_line": 2560,
+      "script_line": 634,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateBindingElement",
+      "old_line": 3743,
+      "new_line": 4146,
+      "script_line": 635,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createImportAttributes",
+      "old_line": 4271,
+      "new_line": 4674,
+      "script_line": 636,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createImportAttribute",
+      "old_line": 4292,
+      "new_line": 4695,
+      "script_line": 637,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createImportTypeNode",
+      "old_line": 2591,
+      "new_line": 2994,
+      "script_line": 638,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createParenthesizedType",
+      "old_line": 2657,
+      "new_line": 3060,
+      "script_line": 639,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createPropertyAccessExpression",
+      "old_line": 3685,
+      "new_line": 4088,
+      "script_line": 640,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createElementAccessExpression",
+      "old_line": 3717,
+      "new_line": 4120,
+      "script_line": 641,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateModuleDeclaration",
+      "old_line": 4097,
+      "new_line": 4500,
+      "script_line": 642,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateModuleBlock",
+      "old_line": 4148,
+      "new_line": 4551,
+      "script_line": 643,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createExportDeclaration",
+      "old_line": 4414,
+      "new_line": 4817,
+      "script_line": 644,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createExportSpecifier",
+      "old_line": 4520,
+      "new_line": 4923,
+      "script_line": 645,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createNamedExports",
+      "old_line": 4480,
+      "new_line": 4883,
+      "script_line": 646,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateExportDeclaration",
+      "old_line": 4443,
+      "new_line": 4846,
+      "script_line": 647,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateNamedExports",
+      "old_line": 4499,
+      "new_line": 4902,
+      "script_line": 648,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createVariableStatement",
+      "old_line": 3843,
+      "new_line": 4246,
+      "script_line": 649,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createVariableDeclarationList",
+      "old_line": 750,
+      "new_line": 969,
+      "script_line": 650,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createVariableDeclarationList",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 650,
+        "old_line": 750,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "classify_created_node_flags",
+          "line": 784,
+          "distance": 35
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 969,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 35
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 969,
+            "name": "classify_created_node_flags",
+            "line": 1003,
+            "distance": 35
+          },
+          {
+            "header_line": 4218,
+            "name": "create_variable_declaration_list",
+            "line": 4221,
+            "distance": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createVariableDeclaration",
+      "old_line": 3788,
+      "new_line": 4191,
+      "script_line": 651,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createExportAssignment",
+      "old_line": 4391,
+      "new_line": 4794,
+      "script_line": 652,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createExportAssignment",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 652,
+        "old_line": 4391,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "create_export_assignment",
+          "line": 4394,
+          "distance": 4
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 4794,
+            "name": "create_export_assignment",
+            "line": 4797,
+            "distance": 4
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 4794,
+            "name": "create_export_assignment",
+            "line": 4797,
+            "distance": 4
+          },
+          {
+            "header_line": 6463,
+            "name": "parenthesize_export_assignment_expression",
+            "line": 6466,
+            "distance": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createTypeAliasDeclaration",
+      "old_line": 4008,
+      "new_line": 4411,
+      "script_line": 653,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createHeritageClause",
+      "old_line": 4562,
+      "new_line": 4965,
+      "script_line": 654,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createInterfaceDeclaration",
+      "old_line": 3983,
+      "new_line": 4386,
+      "script_line": 655,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createPropertyDeclaration",
+      "old_line": 3041,
+      "new_line": 3444,
+      "script_line": 656,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createModuleBlock",
+      "old_line": 4130,
+      "new_line": 4533,
+      "script_line": 657,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createModuleDeclaration",
+      "old_line": 4057,
+      "new_line": 4460,
+      "script_line": 658,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createEnumMember",
+      "old_line": 4592,
+      "new_line": 4995,
+      "script_line": 659,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createEnumDeclaration",
+      "old_line": 4031,
+      "new_line": 4434,
+      "script_line": 660,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createEmptyStatement",
+      "old_line": 3870,
+      "new_line": 4273,
+      "script_line": 661,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createExpressionStatement",
+      "old_line": 3884,
+      "new_line": 4287,
+      "script_line": 662,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createExpressionWithTypeArguments",
+      "old_line": 2842,
+      "new_line": 3245,
+      "script_line": 663,
+      "reason": "same original Rust owner, recovered from the commit introducing this recorded anchor",
+      "lineage": {
+        "header": "createExpressionWithTypeArguments",
+        "path": "crates/emitter/src/factory.rs",
+        "script_line": 663,
+        "old_line": 2842,
+        "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+        "old_fn": {
+          "name": "create_expression_with_type_arguments",
+          "line": 2845,
+          "distance": 4
+        },
+        "same_fn_candidates": [
+          {
+            "header_line": 3245,
+            "name": "create_expression_with_type_arguments",
+            "line": 3248,
+            "distance": 4
+          }
+        ],
+        "all_candidates": [
+          {
+            "header_line": 3245,
+            "name": "create_expression_with_type_arguments",
+            "line": 3248,
+            "distance": 4
+          },
+          {
+            "header_line": 5966,
+            "name": "parenthesize_heritage_expression",
+            "line": 5971,
+            "distance": 6
+          }
+        ]
+      }
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createPrivateIdentifier",
+      "old_line": 1791,
+      "new_line": 2032,
+      "script_line": 664,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createClassDeclaration",
+      "old_line": 3902,
+      "new_line": 4305,
+      "script_line": 665,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createImportDeclaration",
+      "old_line": 4218,
+      "new_line": 4621,
+      "script_line": 666,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createImportClause",
+      "old_line": 4244,
+      "new_line": 4647,
+      "script_line": 667,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createImportSpecifier",
+      "old_line": 4368,
+      "new_line": 4771,
+      "script_line": 668,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createNamedImports",
+      "old_line": 4349,
+      "new_line": 4752,
+      "script_line": 669,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createUniqueName",
+      "old_line": 1814,
+      "new_line": 2055,
+      "script_line": 670,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createImportEqualsDeclaration",
+      "old_line": 4188,
+      "new_line": 4591,
+      "script_line": 671,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createExternalModuleReference",
+      "old_line": 4543,
+      "new_line": 4946,
+      "script_line": 672,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createNamespaceExportDeclaration",
+      "old_line": 4169,
+      "new_line": 4572,
+      "script_line": 673,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createNamespaceImport",
+      "old_line": 4311,
+      "new_line": 4714,
+      "script_line": 674,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "createNamespaceExport",
+      "old_line": 4330,
+      "new_line": 4733,
+      "script_line": 675,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "parenthesizeLeadingTypeArgument",
+      "old_line": 1490,
+      "new_line": 1711,
+      "script_line": 679,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "parenthesizeNonArrayTypeOfPostfixType",
+      "old_line": 1410,
+      "new_line": 1631,
+      "script_line": 686,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "parenthesizeElementTypeOfTupleType",
+      "old_line": 1462,
+      "new_line": 1683,
+      "script_line": 687,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "parenthesizeTypeOfOptionalType",
+      "old_line": 1476,
+      "new_line": 1697,
+      "script_line": 688,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "parenthesizeConstituentTypeOfUnionType",
+      "old_line": 1348,
+      "new_line": 1569,
+      "script_line": 689,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "parenthesizeConstituentTypeOfIntersectionType",
+      "old_line": 1365,
+      "new_line": 1586,
+      "script_line": 690,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "parenthesizeCheckTypeOfConditionalType",
+      "old_line": 1317,
+      "new_line": 1538,
+      "script_line": 691,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "parenthesizeExtendsTypeOfConditionalType",
+      "old_line": 1334,
+      "new_line": 1555,
+      "script_line": 692,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "parenthesizeOperandOfReadonlyTypeOperator",
+      "old_line": 1396,
+      "new_line": 1617,
+      "script_line": 693,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "parenthesizeOperandOfTypeOperator",
+      "old_line": 1382,
+      "new_line": 1603,
+      "script_line": 694,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateIndexedAccessTypeNode",
+      "old_line": 2755,
+      "new_line": 3158,
+      "script_line": 696,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateTypeOperatorNode",
+      "old_line": 2712,
+      "new_line": 3115,
+      "script_line": 697,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateTypeQueryNode",
+      "old_line": 2321,
+      "new_line": 2724,
+      "script_line": 698,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateTypeParameterDeclaration",
+      "old_line": 2890,
+      "new_line": 3293,
+      "script_line": 699,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateComputedPropertyName",
+      "old_line": 2125,
+      "new_line": 2528,
+      "script_line": 700,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateTypePredicateNode",
+      "old_line": 2178,
+      "new_line": 2581,
+      "script_line": 701,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateConditionalTypeNode",
+      "old_line": 2521,
+      "new_line": 2924,
+      "script_line": 702,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "header": "updateParameterDeclaration",
+      "old_line": 2976,
+      "new_line": 3379,
+      "script_line": 703,
+      "reason": "sole matching upstream header in the named Rust source",
+      "lineage": null
+    }
+  ],
+  "named_changes": [
+    {
+      "path": "crates/emitter/src/plan.rs",
+      "name": "get_output_paths_for",
+      "old_line": 332,
+      "new_line": 402
+    },
+    {
+      "path": "crates/emitter/src/declarations/orchestration.rs",
+      "name": "emit_declaration_unit",
+      "old_line": 79,
+      "new_line": 120
+    },
+    {
+      "path": "crates/emitter/src/plan.rs",
+      "name": "validate_bootstrap_shape",
+      "old_line": 206,
+      "new_line": 220
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "name": "validate_bootstrap_emit_options",
+      "old_line": 72,
+      "new_line": 88
+    },
+    {
+      "path": "crates/emitter/src/builtins/target_bindings.rs",
+      "name": "file_level_unique_name",
+      "old_line": 750,
+      "new_line": 1235
+    },
+    {
+      "path": "crates/emitter/src/declarations/orchestration.rs",
+      "name": "collect_linked_aliases_for_declaration",
+      "old_line": 203,
+      "new_line": 334
+    },
+    {
+      "path": "crates/emitter/src/declarations/orchestration.rs",
+      "name": "collect_linked_aliases_for_declaration",
+      "old_line": 203,
+      "new_line": 334
+    }
+  ],
+  "total_numeric_leaf_changes": 245,
+  "current_rust_inputs": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "1d6d6b7ec60542ea456f9de97b095f5372f1896fa119e6be0c6853e218e79ec3"
+    },
+    {
+      "path": "crates/emitter/src/builtins/generated_bindings.rs",
+      "sha256": "aedfaffa10e9b254cc9b714f7c0c9ef3381b9d63e83b74177184e179b96e702c"
+    },
+    {
+      "path": "crates/emitter/src/builtins/target_bindings.rs",
+      "sha256": "0eac14d9d0e70b7593f59371d4da8222c7deb0d70705533b61a01ddd71cde56e"
+    },
+    {
+      "path": "crates/emitter/src/declarations/ensure.rs",
+      "sha256": "1093dacd036784a2af821c65b87d15b4af45b1a1511059df0d46c900b0dd0f62"
+    },
+    {
+      "path": "crates/emitter/src/declarations/mod.rs",
+      "sha256": "3fe20ca3fd23a52e7e00a010b965fb4bab547512c79e3116ea08df3ebad0ef50"
+    },
+    {
+      "path": "crates/emitter/src/declarations/orchestration.rs",
+      "sha256": "838045a75034fd8157ed2f4268b4f051be6f2168cb2fbad2cf9bb691e29a5905"
+    },
+    {
+      "path": "crates/emitter/src/declarations/root.rs",
+      "sha256": "b4e53f6e202ea0eed6b93c89f4dccdb70551f84159607ea72938595cc1cd938e"
+    },
+    {
+      "path": "crates/emitter/src/declarations/selection.rs",
+      "sha256": "17c73c0882dc9909b00ff681fbd22ed73585c16ee0afd199d0e57080bb700ff8"
+    },
+    {
+      "path": "crates/emitter/src/declarations/statements.rs",
+      "sha256": "7aa769df948161d16a2d4637b066c2ea33096a4ff50891bc0898063f99b460e6"
+    },
+    {
+      "path": "crates/emitter/src/declarations/subtree.rs",
+      "sha256": "99c1debe06ae8392c0c221001bde418b09bd79d6386047a512899040e1b2434d"
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "sha256": "d0cc52afd17ee60eeae5af6f98357e5a9178a135a01a611a7a36e2f7012a4739"
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256": "a45bb61cf080f235655a4f68e78c50119aa06824eb36a372e5e64b147e48ca3c"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "df74bfd5a316f8b890785e9d4e0ad6cc8a1a2673dd4106a7724bd9b436744af9"
+    },
+    {
+      "path": "crates/emitter/src/plan.rs",
+      "sha256": "c0270680f15d1a72292b01b23b5c5fdd97483bf9becc70fa9fe9ed5018e98baf"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "41fbdf31c3fed2329818b3a316a35844831b897353405561032d774b623ca027"
+    },
+    {
+      "path": "crates/emitter/src/writer.rs",
+      "sha256": "b05cec77ad1cf1e93ee931c989e1a46141b7e8da8f93f764240fbd0f9159dfc9"
+    }
+  ],
+  "qualification": false,
+  "scope": "Prepared line references only; no product or generator execution and no artifact mint. Original owner lineage retained for multi-header cases."
+}

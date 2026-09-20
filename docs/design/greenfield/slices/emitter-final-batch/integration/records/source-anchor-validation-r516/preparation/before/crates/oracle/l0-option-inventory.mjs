@@ -178,7 +178,7 @@ const inventory = {
         to: "InputFile.snapshot",
         ...owner(
           "crates/compiler/src/lib.rs",
-          "    let mut input = InputFile::from_snapshot(name, Arc::clone(source.snapshot()));",
+          "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),",
         ),
       },
       {
@@ -196,7 +196,7 @@ const inventory = {
         branch: "ordinary",
         ...owner(
           "crates/checker/src/lib.rs",
-          "        let mut source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(",
+          "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(",
         ),
       },
       {
@@ -225,7 +225,7 @@ const inventory = {
         to: "CLI diagnostic snapshot map",
         ...owner(
           "crates/compiler/src/cli.rs",
-          "    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts);",
+          "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);",
         ),
       },
     ],
@@ -265,7 +265,7 @@ const inventory = {
       },
       generated_syntax_relocation: {
         source: "nodes.schema.json field model",
-        ...owner("crates/xtask/src/node_codegen.rs", "fn render_relocate_rs(schemas: &[NodeSchema])"),
+        ...owner("crates/xtask/src/main.rs", "fn render_relocate_rs(schemas: &[NodeSchema])"),
       },
       bind_owner: {
         storage: "BinderWorker publication moves symbol/private-name leases into owned BindData",

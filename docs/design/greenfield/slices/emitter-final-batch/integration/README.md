@@ -1,5 +1,32 @@
 # Emitter final r11 integration
 
+## 正式 walk の停止と監査参照の修復（r509–r515）
+
+[初回の正式実行と参照修復の全記録](records/source-anchor-validation-r516/manifest.json)。
+r509 の dry run は成功した。r510 の正式実行も整形、workspace 全 targets の Clippy、
+構成監査とコメント処理 429 ケースの各 2 回完全比較を通過したが、最初の L0 生成器が
+古い Rust の参照文字列で停止した。成功した生成・収束証明はなく、失敗として保存する。
+
+L0 の 27 参照中 4 件を、現在の呼び出し元・関数移動先へ対応させた。
+H2.7a close の参照行番号 10 箇所と、owner inventory の 245 箇所も更新した。
+後者は header 付き 238 件と名前付き関数 7 件で、既に有効な header 付き 20 件と
+従来の範囲検査のみの 96 件は維持する。複数の同名 header は参照導入時の Git 履歴から
+元の Rust 所有者を追跡した。factory の 7 件は元の `classify_created_node_flags` を保ち、
+既に分離されたプリンタ本体は対応する `emit_transformed_node_worker_unscoped` を指す。
+識別子・状態・header・判定ロジックは不変で、行番号だけの差分であることを検証した。
+
+Opus 208–211 の実際のレビューと訂正も保存した。データ表の追加検査では、gap matrix
+13 行の 60 参照と close の 4 surfaces・9 arms を元の検証処理で確認した。
+従来の前段チェックには H2 のエラー文言の分類漏れがあったため、r512 の終了 0 は
+その参照が正しかった証明にならない。新しい実行モードを作らず、既存 `--check` が出す
+欠落・重複・header 不一致を分類する。元の生成器を用いた子プロセス内の改変対照を追加し、
+r515 で 4 tests・6 対照、前段チェック全体、実際の workspace audit が成功した。
+テスト補助の文字列・Buffer の扱いで失敗した途中の記録も残す。
+
+この修復では Rust 本体と生成済み artifact を変更していない。L0 の次回棚卸しでは、
+既に存在する設定項目 `allow_non_ts_extensions` と `no_emit_for_js_files` も反映される。
+正常終了する正式 walk、最終候補での unsplit CI、hosted checks、merge は引き続き必要。
+
 
 ## テスト配置と census 固定の整合性修復（r488–r506）
 

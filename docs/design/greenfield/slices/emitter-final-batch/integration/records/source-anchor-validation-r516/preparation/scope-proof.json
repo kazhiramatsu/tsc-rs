@@ -1,0 +1,10 @@
+{
+  "new_option_fields": [
+    "allow_non_ts_extensions",
+    "no_emit_for_js_files"
+  ],
+  "removed_option_fields": [],
+  "other_inventory_semantics_unchanged": true,
+  "rust_sources_unchanged": true,
+  "artifact_unchanged_before_walk": true
+}

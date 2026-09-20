@@ -1,0 +1,84 @@
+{
+  "scope": "Read-only extraction of original constant tables and original close anchor functions, not a generator run or a mint.",
+  "sources": [
+    {
+      "path": "crates/oracle/h2-5h-a-gap-matrix.mjs",
+      "sha256": "7ac0c142902e2bd0e3bd13d3a0b73fee5a9d07a152ead311501ca64c5e20ada5"
+    },
+    {
+      "path": "crates/oracle/h2-7a-close.mjs",
+      "sha256": "9fd65ada95c7316b97eb43cbb6886aea5271ed32c1f0141044227e59fafea2e1"
+    }
+  ],
+  "matrix_rows": 13,
+  "matrix_positive_anchors": 60,
+  "matrix_absences": 0,
+  "close_surfaces": [
+    {
+      "path": "crates/emitter/src/plan.rs",
+      "arms": [
+        {
+          "name": "DeclarationOnly",
+          "line": 232,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
+        },
+        {
+          "name": "BuilderSignature",
+          "line": 237,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
+        },
+        {
+          "name": "DeclarationMap",
+          "line": 252,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
+        },
+        {
+          "name": "BuildInfo",
+          "line": 256,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
+        },
+        {
+          "name": "ScriptOutputMissingJavaScriptPath",
+          "line": 262,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
+        }
+      ]
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "arms": [
+        {
+          "name": "composite",
+          "line": 165,
+          "span_sha256": "973bdb11aea8caca4c03f89bd4678717df3cc55da2646f82e7857c158892f805"
+        }
+      ]
+    },
+    {
+      "path": "crates/emitter/src/activity.rs",
+      "arms": [
+        {
+          "name": "H2RuntimeSlice",
+          "line": 10,
+          "span_sha256": "afd760bd4c2d515329ed1fce50074484da008c3c10e7d2e1a43b875aa8b3cae7"
+        },
+        {
+          "name": "h2_7b_profile",
+          "line": 488,
+          "span_sha256": "258a973e2d9dff329967ef59d97ac8eb8d4d3f8d2f8ede1eb08911d15e69f445"
+        }
+      ]
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "arms": [
+        {
+          "name": "BundleDispatch",
+          "line": 1628,
+          "span_sha256": "c7d7ad51c32eb24ea88af506d6dfb34b03ab5e6ad47b99e92687c6a8fb6912fa"
+        }
+      ]
+    }
+  ],
+  "failures": []
+}
