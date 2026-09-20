@@ -234,16 +234,16 @@
         "owner": "PreparedSourceFile.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
-        "line": 92,
-        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+        "line": 91,
+        "source_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da",
         "evidence": "pub struct PreparedSourceFile {"
       },
       {
         "owner": "InputFile.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/checker/src/lib.rs",
-        "line": 76,
-        "source_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
+        "line": 161,
+        "source_sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516",
         "evidence": "pub struct InputFile {"
       },
       {
@@ -251,40 +251,40 @@
         "storage": "Arc<TextSnapshot>",
         "authority": "parsed-document-single-snapshot-authority",
         "path": "crates/syntax/src/lib.rs",
-        "line": 111,
-        "source_sha256": "66caef32f161ab1c108be327f0d1e6b91bfbc4984d9c44ea40672d514926f1d7",
+        "line": 117,
+        "source_sha256": "52c63cc77eda0e9b30872bc9a608a03f63e008def4bef175afb0af9abdaf0f0d",
         "evidence": "pub struct SourceFile {"
       },
       {
         "owner": "ConfigSourceText.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/config.rs",
-        "line": 268,
-        "source_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c",
+        "line": 274,
+        "source_sha256": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c",
         "evidence": "pub struct ConfigSourceText {"
       },
       {
         "owner": "ProgramConfigFile.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
-        "line": 798,
-        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+        "line": 849,
+        "source_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da",
         "evidence": "pub struct ProgramConfigFile {"
       },
       {
         "owner": "PreparedAuxiliaryFile.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
-        "line": 296,
-        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+        "line": 329,
+        "source_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da",
         "evidence": "pub struct PreparedAuxiliaryFile {"
       },
       {
         "owner": "PackageMetadata.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
-        "line": 418,
-        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+        "line": 452,
+        "source_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da",
         "evidence": "pub struct PackageMetadata {"
       }
     ],
@@ -293,17 +293,17 @@
         "from": "PreparedSourceFile.snapshot",
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
-        "line": 1508,
-        "source_sha256": "4ad9dc557d89d3cdb3953ea7e6a573c6055b80c154f85b6d5567f9c1fd956125",
-        "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
+        "line": 2041,
+        "source_sha256": "cfa9c07e7b0e084b8267b5bc9b381bc6f8c1aec1abbfd3d418c53f7e03f365ae",
+        "evidence": "    let mut input = InputFile::from_snapshot(name, Arc::clone(source.snapshot()));"
       },
       {
         "from": "InputFile.snapshot",
         "to": "SourceFile.snapshot",
         "branch": "json",
         "path": "crates/checker/src/lib.rs",
-        "line": 1688,
-        "source_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
+        "line": 1915,
+        "source_sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516",
         "evidence": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain("
       },
       {
@@ -311,48 +311,48 @@
         "to": "SourceFile.snapshot",
         "branch": "ordinary",
         "path": "crates/checker/src/lib.rs",
-        "line": 1772,
-        "source_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
-        "evidence": "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain("
+        "line": 2001,
+        "source_sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516",
+        "evidence": "        let mut source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain("
       },
       {
         "from": "PreparedSourceFile.snapshot",
         "to": "module-request SourceFile.snapshot",
         "path": "crates/program/src/module_requests.rs",
-        "line": 315,
-        "source_sha256": "d307824c1f5b2bb08b23300108a6b04162bdd8c639604c73fc21407116aa1bff",
+        "line": 343,
+        "source_sha256": "d72fd81d18e0e7ea486453d9a2e96be3fbb392654b86afd70ad462d30a896f2f",
         "evidence": "    let parsed = parse_source_file_from_snapshot("
       },
       {
         "from": "ConfigSourceText.snapshot",
         "to": "ProgramConfigFile.snapshot",
         "path": "crates/program/src/config.rs",
-        "line": 4955,
-        "source_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c",
+        "line": 5247,
+        "source_sha256": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c",
         "evidence": "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()))"
       },
       {
         "from": "package-json ingress snapshot",
         "to": "JSON SourceFile.snapshot and PackageMetadata.snapshot",
         "path": "crates/program/src/json.rs",
-        "line": 57,
-        "source_sha256": "276fdb51d175d61fbabb1e84e9aa655158ed73d0fe06b8de314873213422a47f",
+        "line": 62,
+        "source_sha256": "dffb50fafe9a73d5745a19849a5ab2aa718b7b406343dae1ff78cfbb9776c9cf",
         "evidence": "    let source = parse_json_text_from_snapshot("
       },
       {
         "from": "prepared/config/auxiliary snapshots",
         "to": "CLI diagnostic snapshot map",
         "path": "crates/compiler/src/cli.rs",
-        "line": 1114,
-        "source_sha256": "b05a748416462f5852224cb473c3cb6db71b74223efc5b59655ea404b2ac042a",
-        "evidence": "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);"
+        "line": 1219,
+        "source_sha256": "e63efeba593dd865a8bc2b46748059b370c5b8520a63728005adaac492c9912e",
+        "evidence": "    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts);"
       }
     ],
     "full_text_copy_edges": [],
     "zero_copy_counter_contract": {
       "path": "crates/compiler/tests/integration/program_session_contract.rs",
       "line": 229,
-      "source_sha256": "b1be18716e19e1d1a9175fb9ac1d058670510e8170e3e077ba654881f2478192",
+      "source_sha256": "ec8836216fea44c1c13f6b85f57ca4e18d485066a405888bd6e856bdaa1ef8ed",
       "evidence": "fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {"
     },
     "position_index": {
@@ -411,35 +411,35 @@
         "storage": "NodeArena node/array leases",
         "path": "crates/syntax/src/arena.rs",
         "line": 18,
-        "source_sha256": "f0768edda52c5cc2037786b004de52a71a89e5d233475096d374028c2fbeffbf",
+        "source_sha256": "4dd12150f54033937092efefe731cb30e6daff8099c5c71a2c6d8c8e73704252",
         "evidence": "    node_lease: Option<IdentityLease>,"
       },
       "generated_syntax_relocation": {
         "source": "nodes.schema.json field model",
-        "path": "crates/xtask/src/main.rs",
-        "line": 12688,
-        "source_sha256": "393b2443b6bc1b28fa7d47a1782939a59b20066296df76c3e6b374bc0a9d322c",
+        "path": "crates/xtask/src/node_codegen.rs",
+        "line": 1846,
+        "source_sha256": "6d776a616d04c549690a218f6bde63bab8c8f58a7855334d8a0113e7ac31d264",
         "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
       },
       "bind_owner": {
         "storage": "BinderWorker publication moves symbol/private-name leases into owned BindData",
         "path": "crates/binder/src/declare.rs",
-        "line": 69,
-        "source_sha256": "eb5a88b86c2a2553dbb0231f84d3ef4d9702435f5d7fff56c515f9d31f5198d5",
+        "line": 70,
+        "source_sha256": "b45c641183e85b91288bd228bacbd4252d487081eef9b15afa861bbcbb9e5420",
         "evidence": "    private_name_serial_lease: Option<IdentityLease>,"
       },
       "program_snapshot_owner": {
         "storage": "Arc-owned ParsedDocument/BoundDocument handles ordered by ProgramSnapshot",
         "path": "crates/checker/src/program.rs",
-        "line": 714,
-        "source_sha256": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653",
+        "line": 715,
+        "source_sha256": "e079db6a0d8d85d9cb56d5effa29e1f06d8c67c67f867304e34797e27e4f0dc3",
         "evidence": "pub struct ProgramSnapshot {"
       },
       "program_owner_intervals": {
         "contract": "base-sorted non-contiguous and non-overlapping",
         "path": "crates/checker/src/program.rs",
-        "line": 940,
-        "source_sha256": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653",
+        "line": 941,
+        "source_sha256": "e079db6a0d8d85d9cb56d5effa29e1f06d8c67c67f867304e34797e27e4f0dc3",
         "evidence": "    symbol_owners: Vec<ArenaOwner>,"
       },
       "checker_transient_partition": {
@@ -452,11 +452,12 @@
     },
     "compiler_options_owner": {
       "path": "crates/types/src/options.rs",
-      "source_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee",
+      "source_sha256": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde",
       "fields": [
         "allow_arbitrary_extensions",
         "allow_importing_ts_extensions",
         "allow_js",
+        "allow_non_ts_extensions",
         "allow_synthetic_default_imports",
         "allow_umd_global_access",
         "allow_unreachable_code",
@@ -506,6 +507,7 @@
         "no_check",
         "no_dts_resolution",
         "no_emit",
+        "no_emit_for_js_files",
         "no_emit_helpers",
         "no_emit_on_error",
         "no_error_truncation",

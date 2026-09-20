@@ -1,5 +1,25 @@
 # Emitter final r11 integration
 
+## W5 の現在値検査と過去の固定記録の分離（r519–r523）
+
+[正式実行の失敗と修復・検証の記録](records/w5-stratum-validation-r524/manifest.json)。
+2 回目の正式 walk（r519）は H2.7a witnesses で停止した。新規実行した Rust の
+172 行 census では選択済み 67 行の出力欠落が解消していたが、旧判定が「宣言出力の
+欠落が残ること」を要求していた。途中の成功した生成物と exit 1 の記録を保存し、
+この実行には収束成功を認めない。
+
+検証器は過去の stratum 全体を元の M1 固定 hash で検証して保持する。選択する
+67 行、元の観測、M1/S2 の hash は不変。現在値には出力欠落・差分・余剰を認めず、
+期待件数・診断件数・emitSkipped・map 件数を検査する。毎回 native census を
+再実行し、古い出力や環境変数で指定した census の採用を拒否する。
+比較は出力パスごとの byte/BOM と件数であり、完全な command parity の証明ではない。
+
+修正後の実 census は 172 行を生成し、対象 67 行が通過、過去の M1/S2 記録も一致した。
+異常系を含む登録済み Node 55 tests と、宣言 resolver/transformer 関連 3 tests が成功した。
+後者の transformer は 116 cases・199 declaration writes で差分 0。Opus 212–214 の
+実際のレビューと判断理由も保存した。Rust 本体は変更していない。
+正式 walk の再実行、最終候補の unsplit CI、hosted checks、merge は引き続き必要。
+
 ## 正式 walk の停止と監査参照の修復（r509–r515）
 
 [初回の正式実行と参照修復の全記録](records/source-anchor-validation-r516/manifest.json)。
