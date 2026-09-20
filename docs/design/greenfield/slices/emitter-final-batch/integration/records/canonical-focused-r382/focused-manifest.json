@@ -1,0 +1,72 @@
+{
+  "head": "70696be105e0c1f8009e2ac0a57236ace99c798d",
+  "scope": "Canonical integrated focused repair validation before pins/walk and mandatory final unsplit CI; not a replacement full gate.",
+  "qualified": false,
+  "steps": [
+    {
+      "label": "canonical-focused-format-r349",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 57.86095262481831,
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "passed_tests": null,
+      "ignored_tests": null,
+      "test_summaries": []
+    },
+    {
+      "label": "canonical-focused-emitter-all-r349",
+      "exit": 101,
+      "checks_passed": false,
+      "seconds": 823.0734320830088,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-emitter",
+        "--",
+        "--test-threads=1"
+      ],
+      "passed_tests": 969,
+      "ignored_tests": 0,
+      "test_summaries": [
+        [
+          515,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          449,
+          3,
+          0
+        ]
+      ]
+    }
+  ]
+}

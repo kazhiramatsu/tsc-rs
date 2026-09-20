@@ -8,6 +8,24 @@ main `3b1f5fe87fd31e3b303bb44bd257342735452ed9` に基づく
 `work/emitter-final-integration` へ受領した。提出worktreeのsourceと元workspaceの未commit作業は変更していない。
 提出時の検証と統合候補の検証は以下で区別する。hosted完了前に全体完了を主張しない。
 
+## 統合後の関数本体コメント検証（r349–r395）
+
+[統合後の全emitter実行](records/canonical-focused-r382/manifest.json)はunit515件を通過したが、
+contractsで449成功・3失敗となった。ドット区切りnamespaceの2件は、片側だけ実位置を持つ
+statement arrayをSourceRangeとして検証した回帰だった。Systemの1件は、明示alwaysStrict:false
+で残る末尾コメントを一律に消す古い期待値だった。後続のcompiler/xtask段階は実行していない。
+
+[修復と追加対照](records/comment-range-repair-r395/manifest.json)では既存CommentSourceRangeを
+関数本体のコメント端点に用い、先頭・末尾を独立に扱う。AST/mapのSourceRange検証は変更しない。
+合成された空関数から元のコメントを再取得する別の不具合もAPI probeで再現した。
+関数本体には空リストの括弧コメント経路を使わず、独立した先頭・末尾の経路だけを用いる。
+actual Opus189/190と上流経路を照合した。通常の非関数ブロック経路は維持する。
+
+公式TypeScript観測はprinter340件、通常command788件＋拒否境界72件。
+元172/244件と元748＋72件の観測は不変。片側端点・合成配列・隣接行/空行・抑制flags、
+namespace/SystemのJS/map/declaration/declarationMapを含む。StartOnlyはfactory APIの対照であり、
+通常producerの存在を主張しない。修正後のnative再検証・最終gateは未完了。
+
 ## 最終統合前の追加監査（r330–r369）
 
 提出時の68行のKNOWNは退役済みだが、追加監査で見つかった不具合の修復と最終統合は継続中。

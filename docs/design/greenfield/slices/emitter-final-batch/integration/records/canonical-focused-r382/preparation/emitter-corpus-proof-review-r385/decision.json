@@ -1,0 +1,16 @@
+{
+  "review": "/tmp/emitter-claude-review-round188-opus.json",
+  "scope": "Preparation only; no compiler changes and no fresh qualification yet.",
+  "changes": [
+    "Measure parser diff, predicate diff, probe hashes, original lock and rustc for the new build; assert prior immutable identities where relevant.",
+    "Bind the old Cargo manifest and resolved dependency catalog before use.",
+    "Retain full immutable cases/load_failure equality and add count/head invariants.",
+    "State the existing project supplement candidate-input scope explicitly."
+  ],
+  "observed_before_correction": {
+    "old_manifest_hash_matches": true,
+    "current_rustc_equals_old_record": true
+  },
+  "before_sha256": "abc39de08b6ec8c9335bbc2f6b77fe0bc990cb4d129333ecaa86001295968c9c",
+  "after_sha256": "6adc9b5d31b986f6090ed0bcb68d95e0bfef54df94cfd8832bf254d6054316fd"
+}

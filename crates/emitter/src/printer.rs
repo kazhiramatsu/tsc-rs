@@ -17,12 +17,12 @@ use crate::token_cursor::{
     FixedToken, TokenAnchor, TokenCursor, TokenEmission, TokenLeadingSpace, TokenWriteKind,
 };
 use crate::{
-    create_text_writer, CommentRange, DeclarationPrintHandlers, EmitFlags, EmitHelper, EmitHint,
-    EmitResolverError, EmitResolverMethod, GeneratedUtf16Location, GlobalNameOracle, NewLineKind,
-    SourceBytePosition, SourceByteRange, SourceMapRange, SourcePositionError, SourceRange,
-    SourceUtf16Location, SourceUtf16Position, SyntheticComment, SyntheticCommentKind, TextWriter,
-    TransformBundle, TransformError, TransformNode, TransformNodeArray, TransformSourceId,
-    TransformationResult, UnsupportedEmitFeature,
+    create_text_writer, CommentRange, CommentSourceRange, DeclarationPrintHandlers, EmitFlags,
+    EmitHelper, EmitHint, EmitResolverError, EmitResolverMethod, GeneratedUtf16Location,
+    GlobalNameOracle, NewLineKind, SourceBytePosition, SourceByteRange, SourceMapRange,
+    SourcePositionError, SourceRange, SourceUtf16Location, SourceUtf16Position, SyntheticComment,
+    SyntheticCommentKind, TextWriter, TransformBundle, TransformError, TransformNode,
+    TransformNodeArray, TransformSourceId, TransformationResult, UnsupportedEmitFeature,
 };
 
 use crate::transform::{CarriedBindingKey, CarriedGeneratedNames, CarriedNodeKey};
@@ -8202,16 +8202,25 @@ impl Printer {
                 } else {
                     (Vec::new(), None)
                 };
-                let function_body_range = if let Some(array) = array.filter(|_| function_body) {
+                let function_body_comment_range = if let Some(array) =
+                    array.filter(|_| function_body)
+                {
                     let record = transformation.arena().node_array(array)?;
                     let source = transformation.arena().source(array.source())?.syntax();
-                    match SourceRange::from_raw(record.pos, record.end, source.positions())? {
-                        SourceRange::Original(range) => Some(range),
-                        SourceRange::Synthesized => None,
+                    // Detached comments own the array endpoints independently.
+                    // Dotted namespace wrappers deliberately retain only the end.
+                    match CommentSourceRange::from_raw(record.pos, record.end, source.positions())?
+                    {
+                        CommentSourceRange::Synthesized => None,
+                        range => Some(range),
                     }
                 } else {
                     None
                 };
+                let function_body_comment_start =
+                    function_body_comment_range.and_then(CommentSourceRange::start);
+                let function_body_comment_end =
+                    function_body_comment_range.and_then(CommentSourceRange::end);
                 let relocated_statement_list_comments = transformation
                     .arena()
                     .metadata(node)
@@ -8238,8 +8247,8 @@ impl Printer {
                         .is_some_and(|metadata| {
                             metadata.flags().contains(EmitFlags::NO_LEADING_COMMENTS)
                         }) {
-                    if let Some(relocated) =
-                        relocated_statement_list_comments.filter(|_| function_body_range.is_none())
+                    if let Some(relocated) = relocated_statement_list_comments
+                        .filter(|_| function_body_comment_start.is_none())
                     {
                         self.detached_source_file_prefix_for_relocated_statement_list(
                             transformation,
@@ -8256,11 +8265,11 @@ impl Printer {
                 } else {
                     None
                 };
-                // A ranged body owns its array's detached prefix even when
+                // A body with a real array start owns its detached prefix even when
                 // the outer SourceFile already emitted the same comment.
-                // Only a synthesized relocated list uses that prefix solely
+                // A relocated list without a real start uses that prefix solely
                 // as a resume seed for its retained statements.
-                let body_owned_detached_prefix = (function_body_range.is_some()
+                let body_owned_detached_prefix = (function_body_comment_start.is_some()
                     || relocated_statement_list_comments.is_none())
                 .then_some(detached_body_prefix)
                 .flatten();
@@ -8347,9 +8356,9 @@ impl Printer {
                         expression_context
                     };
                     if statements.is_empty() {
-                        let emitted_comments = if function_body_range.is_some() {
+                        let emitted_comments = if function_body {
                             // Function-body lists have no bracket comment lane.
-                            // Their range owns a separate detached head and tail.
+                            // Only present array endpoints own a detached head or tail.
                             false
                         } else {
                             self.emit_empty_block_comments(
@@ -8562,12 +8571,12 @@ impl Printer {
                     self.comments_disabled_after_failure = false;
                 }
                 body_result?;
-                if let Some(range) = function_body_range {
+                if let Some(end) = function_body_comment_end {
                     writer.increase_indent();
                     self.emit_function_body_trailing_comments(
                         transformation,
                         node,
-                        range.end(),
+                        end,
                         &mut pending_detached_comments,
                         writer,
                     )?;
@@ -16584,18 +16593,17 @@ impl Printer {
     ) -> Result<Option<DetachedCommentPrefix>, PrinterError> {
         let source = transformation.arena().source(array.source())?.syntax();
         let record = transformation.arena().node_array(array)?;
-        let SourceRange::Original(range) =
-            SourceRange::from_raw(record.pos, record.end, source.positions())?
-        else {
+        let range = CommentSourceRange::from_raw(record.pos, record.end, source.positions())?;
+        let Some(start) = range.start() else {
             return Ok(None);
         };
-        self.detached_comment_prefix_at(transformation, array.source(), range.start())
+        self.detached_comment_prefix_at(transformation, array.source(), start)
     }
 
     /// A relocated module body whose current list is synthesized uses the
     /// SourceFile-owned prefix only as a resume seed. Its owner is the first
     /// parsed statement, rather than the synthetic array boundary. A current
-    /// list with a real range instead owns its own detached prefix, even when
+    /// list with a real start instead owns its own detached prefix, even when
     /// upstream deliberately emits the SourceFile prefix a second time.
     fn detached_source_file_prefix_for_relocated_statement_list(
         &self,

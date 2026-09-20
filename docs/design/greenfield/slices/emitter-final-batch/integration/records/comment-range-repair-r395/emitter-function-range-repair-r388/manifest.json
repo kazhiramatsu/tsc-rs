@@ -1,0 +1,6 @@
+{
+  "head": "70696be105e0c1f8009e2ac0a57236ace99c798d",
+  "scope": "Draft only, not applied or validated; CommentSourceRange for detached body endpoints, no SourceRange/map changes. Unit expected from official387 probe.",
+  "setup_note": "First scratch rustfmt could not resolve module bundle; reformatted with skip_children=true. Canonical Cargo fmt still required.",
+  "before_printer_sha256": "0c12f27830d84ed3a35235f8ad095ea9b82f76280db67888d7b4871eb11a03a2"
+}

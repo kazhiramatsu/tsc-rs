@@ -3,7 +3,7 @@
   "typescript": "6.0.3",
   "repetitions": 2,
   "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "c25f2c711fc819f4122c61a726a6d4dc6bf23632a5bb1583974e14c17d3d0f98",
+  "observer_sha256": "cad3f2a41796c5d10a556223a7ad3d416fb4fe12daf630db803c3d84b7447ac3",
   "cases": [
     {
       "case_id": "call-inline/None/retained",
@@ -1208,6 +1208,1326 @@
       "variant": "ParentAndBodyNoNestedComments",
       "remove_comments": false,
       "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/None/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/None/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/NoLeadingComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/NoLeadingComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/NoTrailingComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/NoTrailingComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/NoComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/NoComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/NoNestedComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/NoNestedComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/ParentNoNestedComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/StartOnly/ParentNoNestedComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/None/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n    // tail\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/None/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/NoLeadingComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n    // tail\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/NoLeadingComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/NoTrailingComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/NoTrailingComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/NoComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/NoComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/NoNestedComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    x();\n    // tail\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/NoNestedComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/ParentNoNestedComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/EndOnly/ParentNoNestedComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/None/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/None/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/NoLeadingComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/NoLeadingComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/NoTrailingComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/NoTrailingComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/NoComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    x( /* inner */);\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/NoComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/NoNestedComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/NoNestedComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/ParentNoNestedComments/retained",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "function-body/Synthesized/ParentNoNestedComments/removed",
+      "source": "function f() {\n// head\n\nx(/* inner */);\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n    x();\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/None/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/None/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/NoLeadingComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/NoLeadingComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/NoTrailingComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/NoTrailingComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/NoComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/NoComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/NoNestedComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/NoNestedComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/ParentNoNestedComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/StartOnly/ParentNoNestedComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/None/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    // tail\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/None/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/NoLeadingComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    // tail\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/NoLeadingComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/NoTrailingComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/NoTrailingComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/NoComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/NoComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/NoNestedComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // head\n    // tail\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/NoNestedComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/ParentNoNestedComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/EndOnly/ParentNoNestedComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/None/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/None/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "None",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/NoLeadingComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/NoLeadingComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/NoTrailingComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/NoTrailingComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/NoComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/NoComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/NoNestedComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/NoNestedComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/ParentNoNestedComments/retained",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-function-body/Synthesized/ParentNoNestedComments/removed",
+      "source": "function f() {\n// head\n\n// tail\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/None/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/None/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/NoLeadingComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/NoLeadingComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/NoTrailingComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/NoTrailingComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/NoComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/NoComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/NoNestedComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/NoNestedComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/ParentNoNestedComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Original/ParentNoNestedComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/None/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "None",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/None/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "None",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/NoLeadingComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/NoLeadingComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/NoTrailingComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/NoTrailingComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/NoComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/NoComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/NoNestedComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/NoNestedComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/ParentNoNestedComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/StartOnly/ParentNoNestedComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/None/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "None",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/None/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "None",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/NoLeadingComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/NoLeadingComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/NoTrailingComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/NoTrailingComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/NoComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/NoComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/NoNestedComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/NoNestedComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/ParentNoNestedComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/EndOnly/ParentNoNestedComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/None/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "None",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/None/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "None",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/NoLeadingComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/NoLeadingComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/NoTrailingComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/NoTrailingComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/NoComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/NoComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/NoNestedComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/NoNestedComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/ParentNoNestedComments/retained",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-adjacent-line/Synthesized/ParentNoNestedComments/removed",
+      "source": "function f() {\n// c\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/None/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/None/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/NoLeadingComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/NoLeadingComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/NoTrailingComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/NoTrailingComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/NoComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/NoComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/NoNestedComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/NoNestedComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/ParentNoNestedComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Original/ParentNoNestedComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/None/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "None",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/None/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "None",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/NoLeadingComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/NoLeadingComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/NoTrailingComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/NoTrailingComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/NoComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/NoComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/NoNestedComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/NoNestedComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/ParentNoNestedComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/StartOnly/ParentNoNestedComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "StartOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/None/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "None",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/None/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "None",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/NoLeadingComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/NoLeadingComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/NoTrailingComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/NoTrailingComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/NoComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/NoComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/NoNestedComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n    // c\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/NoNestedComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/ParentNoNestedComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/EndOnly/ParentNoNestedComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "EndOnly",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/None/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "None",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/None/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "None",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/NoLeadingComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/NoLeadingComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoLeadingComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/NoTrailingComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/NoTrailingComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoTrailingComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/NoComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/NoComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/NoNestedComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/NoNestedComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "NoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/ParentNoNestedComments/retained",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": false,
+      "output": "function f() {\n}\n"
+    },
+    {
+      "case_id": "empty-body-detached-line/Synthesized/ParentNoNestedComments/removed",
+      "source": "function f() {\n// c\n\n}\n",
+      "variant": "ParentNoNestedComments",
+      "body_range": "Synthesized",
+      "remove_comments": true,
+      "output": "function f() {\n}\n"
     }
   ]
 }

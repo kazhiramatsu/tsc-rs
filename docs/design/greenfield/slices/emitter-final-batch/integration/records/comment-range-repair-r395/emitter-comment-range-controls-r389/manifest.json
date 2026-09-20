@@ -1,0 +1,17 @@
+{
+  "scope": "Unapplied controls; TypeScript observations and native comparisons pending. Original172+72 new factory flags; original748+40 ordinary commands, original72 refusals unchanged.",
+  "files": {
+    "scripts/observe-list-comment-flags.mjs": {
+      "before": "c25f2c711fc819f4122c61a726a6d4dc6bf23632a5bb1583974e14c17d3d0f98",
+      "after": "6f48813585eff5b8e4c5ea227ea0d864e669943503ddeb28670db7a6342bfa0c"
+    },
+    "crates/emitter/tests/list_comment_flags_contract.rs": {
+      "before": "a6f64f49adb58dc5a266dbeba14b8f30951ca6eeaa39c893faa0e76f2f358a51",
+      "after": "8b0c2661d53f7659cfe4c414ccc44010b1ccf88fafbc100148198419ecf4fecc"
+    },
+    "scripts/observe-emitter-context-recovery.mjs": {
+      "before": "1205bde4325f7364277165bfcf5e2050c7cec8828675dd1642ef7872a331ee2c",
+      "after": "fb7261daac0d3dc238a20ce95e5f442183dc1f1aca2041183e05e50ff3cc4b36"
+    }
+  }
+}

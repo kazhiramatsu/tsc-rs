@@ -1,0 +1,31 @@
+{
+  "source_head": "70696be105e0c1f8009e2ac0a57236ace99c798d",
+  "oracle_qualified": true,
+  "native_qualified": false,
+  "scope": "Official TypeScript fixture extension plus reviewed comment endpoint repair; native comparisons pending.",
+  "steps": [
+    {
+      "label": "body-endpoint-flags",
+      "exit": 0,
+      "seconds": 2.8664794580545276,
+      "old_cases_preserved": 172,
+      "new_total": 244,
+      "fixture_sha256": "415621d3be015f9a7ba8826a99ca7746d2043dfe4371b7403d2df31cf2726abc"
+    },
+    {
+      "label": "body-endpoint-commands",
+      "exit": 0,
+      "seconds": 519.439710207982,
+      "old_cases_preserved": 748,
+      "new_total": 788,
+      "fixture_sha256": "750105747a9666ca19ac098ac16b67a82c04b6d41f299129cca06f3185a233df"
+    }
+  ],
+  "before": {
+    "crates/emitter/src/printer.rs": "0c12f27830d84ed3a35235f8ad095ea9b82f76280db67888d7b4871eb11a03a2",
+    "crates/emitter/tests/integration/active_transform_contract.rs": "82e9d2b4ce71155c08c3968711c66a21d2383d07e5b2a563c142c2228bc190dd",
+    "scripts/observe-list-comment-flags.mjs": "c25f2c711fc819f4122c61a726a6d4dc6bf23632a5bb1583974e14c17d3d0f98",
+    "crates/emitter/tests/list_comment_flags_contract.rs": "a6f64f49adb58dc5a266dbeba14b8f30951ca6eeaa39c893faa0e76f2f358a51",
+    "scripts/observe-emitter-context-recovery.mjs": "1205bde4325f7364277165bfcf5e2050c7cec8828675dd1642ef7872a331ee2c"
+  }
+}

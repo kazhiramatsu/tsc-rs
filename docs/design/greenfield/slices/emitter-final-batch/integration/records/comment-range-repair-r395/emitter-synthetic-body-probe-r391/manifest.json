@@ -1,0 +1,33 @@
+{
+  "scope": "Read-only direct factory/printer probe using existing canonical70696 compiled libraries; no source edits or full-command claim.",
+  "libraries": {
+    "tsc_emitter": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_emitter-6c20e52794b4bfc4.rlib",
+      "sha256": "fa6744d082f7b1a8adcb66a333abe75981b8b1fdad8252fc5c59d806e841602c"
+    },
+    "tsc_syntax": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+      "sha256": "9e9b23d4e1fc2f9076244bdbad0234d6d2a41b5f9e6f69732fd4c209b5abe5d1"
+    }
+  },
+  "build_argv": [
+    "rustc",
+    "--edition=2021",
+    "/tmp/emitter-synthetic-body-probe-r391/main.rs",
+    "-L",
+    "dependency=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps",
+    "-o",
+    "/tmp/emitter-synthetic-body-probe-r391/probe",
+    "--extern",
+    "tsc_emitter=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_emitter-6c20e52794b4bfc4.rlib",
+    "--extern",
+    "tsc_syntax=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib"
+  ],
+  "build_receipt_sha256": "ff33397788b92168b01ff85599149368b786716b4b8e1a9d807a6b4f0db68e85",
+  "setup_note": "Initial source-path check refused because Cargo dep-info uses relative paths. Bound rlibs by their mtimes inside the exclusive canonical349 build window, its clean-head receipt, and hashes instead.",
+  "build_exit": 0,
+  "native_exit": 0,
+  "actual": "function f() {\n    // head\n    // tail\n}\n",
+  "expected": "function f() {\n}\n",
+  "exact": false
+}
