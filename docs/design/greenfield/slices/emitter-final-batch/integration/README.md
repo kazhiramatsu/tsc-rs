@@ -1,5 +1,23 @@
 # Emitter final r11 integration
 
+## 正式生成チェーンの完了（r561）
+
+[収束証明](records/canonical-walk-r562/certificate.json)と
+[全実行記録](records/canonical-walk-r562/manifest.json)を保存した。
+最終 Rust bytes を固定した正式 walk は終了 0、所要 5,595.36 秒。
+1 巡目で H2.8a の親記録ハッシュ 2 箇所を更新し、2 巡目は全 75 段が成功、
+追加更新は 0 件だった。809 ケースの診断・出力・件数と、その他の全フィールドは不変。
+1 巡目の更新ログも、次の巡回で上書きされる前に保存した。
+
+H2.5g は両巡とも有効な検証記録を確認し、再採取 0。Rust の出力一覧は毎巡採取し直し、
+172 行中の対象 67 行すべてで path・byte・BOM・件数・skip の検査が成功した。
+16 owner-control scripts、source map の 31 ケース各 2 回、固定 D/E の 323 ケース各 2 回と
+現在の 325 入力の照合、全 pin surfaces、66 tests、全 27 contracts と FCI 検査も成功した。
+過去の固定観測と、別に区分した未検証範囲は維持する。
+
+正式 walk は完了した。最終候補の unsplit CI、hosted checks、merge は引き続き必要。
+以下は各時点の修復・検証記録である。
+
 ## 最終スキーマ検査の限定修復（r543–r558）
 
 [正式 walk の失敗と修復・検証の全記録](records/schema-contract-repair-r559/manifest.json)。

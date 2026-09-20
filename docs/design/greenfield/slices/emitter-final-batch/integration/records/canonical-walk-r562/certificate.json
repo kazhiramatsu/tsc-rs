@@ -1,0 +1,16 @@
+{
+  "qualified": true,
+  "qualification_scope": "One sanctioned canonical walk and exact unchanged Rust bytes; not final unsplit CI or delivery qualification.",
+  "exit": 0,
+  "source_head_before_walk": "11d1971dd31a68e05fe18bedb26b6fdef4e9d170",
+  "run_id": "20260921-024343-28510",
+  "green_tail": "chain walk: converged and green",
+  "finished_at": "2026-09-20T19:16:57.406606+00:00",
+  "converged_crates_sha256": "e0660f072a4df08353cc5cacd420f078d745d7b0cd870f70d1235ef295a13e0d",
+  "rust_file_count": 784,
+  "five_g_summary": [
+    "round 1 5g: verdict=ok observed=0 attempt=hit term=None :: receipt hit \u2014 adoption pass, zero observations",
+    "round 2 5g: verdict=ok observed=0 attempt=hit term=None :: receipt hit \u2014 adoption pass, zero observations"
+  ],
+  "overrides": []
+}

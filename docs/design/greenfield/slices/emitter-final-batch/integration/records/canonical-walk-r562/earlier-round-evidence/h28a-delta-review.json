@@ -1,0 +1,26 @@
+{
+  "qualified_walk": false,
+  "scope": "Read-only first-round delta review; actual walk still must finish",
+  "source_head": "11d1971dd31a68e05fe18bedb26b6fdef4e9d170",
+  "run_id": "20260921-024343-28510",
+  "changes": [
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "parent_path": "ratchets/h2-7c-qualification.v1.json",
+      "before_sha256": "5483709bad753f74b04bda1e00d5dad2791458b5822a8fccd6eadef4d726893b",
+      "after_sha256": "906b5d7af52f91118a0ac029c52277986d687305609ddf1dafe16b2920815d38",
+      "cases_identical": true,
+      "case_count": 809,
+      "all_other_fields_identical": true
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "parent_path": "ratchets/h2-8a-candidates.v1.json",
+      "before_sha256": "35443a394bf8365aca8a0ef609c5763becb0661a963d280eef375b1aae7766f4",
+      "after_sha256": "eb65ac21c10095934a40ed850dc2d84b546c41335a30a88471e84ed5777c6869",
+      "cases_identical": true,
+      "case_count": 809,
+      "all_other_fields_identical": true
+    }
+  ]
+}

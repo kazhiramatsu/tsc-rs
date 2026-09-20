@@ -1,0 +1,33 @@
+{
+  "walk_source_head": "11d1971dd31a68e05fe18bedb26b6fdef4e9d170",
+  "walk_receipt_success": true,
+  "scope": "Read-only generated diff classification; manual review and final local/hosted gates remain required",
+  "changes": [
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "before_sha256": "35443a394bf8365aca8a0ef609c5763becb0661a963d280eef375b1aae7766f4",
+      "after_sha256": "eb65ac21c10095934a40ed850dc2d84b546c41335a30a88471e84ed5777c6869",
+      "changed_top_level": [
+        "inputs"
+      ],
+      "content_checks": {
+        "cases": true,
+        "summary": true,
+        "selection_contract": true
+      }
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "before_sha256": "dfa459a1fb6e0b6f60d1045d08e0033ff6dcd92139917029a4ffca78b4ef120a",
+      "after_sha256": "4e081542dd5daf335252ae1cd1d806b2bf81e0b46771e2a767a3cef73f6bc8a3",
+      "changed_top_level": [
+        "inputs"
+      ],
+      "content_checks": {
+        "cases": true,
+        "summary": true,
+        "execution_contract": true
+      }
+    }
+  ]
+}
