@@ -11,7 +11,7 @@
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7c-qualification.schema.json",
-    "sha256": "39736f78db517bf408ab1ce233e2d95c6b37b49013b2da083831ad961d5400ac"
+    "sha256": "ab12bc2d73ebb394505630ecb350669fb6752cddd4387f5e8b193152538e8605"
   },
   "inputs": [
     {
@@ -11714,5 +11714,5 @@
     "adjacent_ordinary_api_references": 37,
     "adjacent_ordinary_api_owner": "H2.8d"
   },
-  "qualification_fingerprint_sha256": "06ddbb2f1045e44147bd4bd14fd2f0ebe24ba3eef49db52d6845d366099eaf93"
+  "qualification_fingerprint_sha256": "8165bf51877557a60766e91fce9068de81ecfa1003a019b9dc96b91ef947a0bf"
 }

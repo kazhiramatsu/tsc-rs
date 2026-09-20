@@ -22,7 +22,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-witnesses.mjs",
-    "sha256": "859ffafc585a3b21f883c55cf75e57121f8e00423d49db82d5f3eada3a493dd2"
+    "sha256": "1964b5f8570017a69ed57e8398d96ec0d37b0c9e3144fc67db2baf7921ec38ef"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-witnesses.schema.json",
@@ -67,7 +67,7 @@
     },
     "h2_6c_qualification": {
       "path": "ratchets/h2-6c-qualification.v1.json",
-      "sha256": "af689ec23311d9cc733f2606e2acfd1d346edbc51bc512bb185c0c3111f1d8ec"
+      "sha256": "94dcd0b8f1e85471df244c6721987d6648ab06186ac9410bab22856a1e91d057"
     },
     "w5_stratum_pool": {
       "path": "ratchets/h2-7a-w5-stratum-pool.v1.json",
@@ -16788,5 +16788,5 @@
     "rust_runs": 0
   },
   "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad",
-  "witnesses_fingerprint_sha256": "cb9f4f3e816c2fcae6fc08eaef400fe0c5c8ed9190237df2169b73779fd045be"
+  "witnesses_fingerprint_sha256": "d289377b06600748555c9f759750321609cec84833cd310ce6a9b66b92adaae0"
 }

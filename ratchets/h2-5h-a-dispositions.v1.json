@@ -11,19 +11,19 @@
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
-    "sha256": "97c45c81accdf78dbde16a2b7208b689a23e7859638b4fa3012d6aa5bce0b2a8"
+    "sha256": "0363922646da0ae51d81949fab155520f92910f112fdeb24477797f81a4e9641"
   },
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "5ffcf03c82c259e36e07f457f8a8ca26022f5c9541d161dc4b9fd1b6a6c6b862"
+      "sha256": "80b9f7fefff764c260cf7f7c32f8efcbc6ccffd813ce7741f926b6a581e4f405"
     },
-    "owner_graph_fingerprint_sha256": "2173fd549da67bd5dbf41adb0e9282d8d4e81370257e68869fc522b9332504c5",
+    "owner_graph_fingerprint_sha256": "ab164f9d796574bac368ba5b9c48979ac1777486d73706f42a76cc2c10632e2d",
     "gap_matrix": {
       "path": "ratchets/h2-5h-a-gap-matrix.v1.json",
-      "sha256": "76541728185d28dc9d503fb40cc674f95407ee88a75c91de0fb12248658bb24f"
+      "sha256": "67f1bb5e105d860d56f0da7c84eef7df36a9f91f66b8318fa3c680b5829eec78"
     },
-    "gap_matrix_fingerprint_sha256": "19e1b1a1932f4d7a26e9dc57d0389031ee614fb346f336f8e9dce77b37b3332a",
+    "gap_matrix_fingerprint_sha256": "a8e3c004c3981e5c4a33e3a837023e8ad0401680eb31c149bf8424adab4adcaa",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "6d0a6bf4924f3064efb39e64fdf2c01522f17faa54a904945ea5897bca3e9028"
@@ -684,5 +684,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "dispositions_fingerprint_sha256": "22b4960c48b2ed671665a03c4d7152856cb230c096fb72e7a9702fcea35848bb"
+  "dispositions_fingerprint_sha256": "6bb6f348e2a06c4ea3f518045e84e18581c26bed5bab0e98d113c45808077dbe"
 }
