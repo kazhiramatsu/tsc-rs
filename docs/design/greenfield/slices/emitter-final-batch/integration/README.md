@@ -334,4 +334,7 @@ H2.5gのchanged-crates入力規則を再計算し、599未登録pathsと既に�
 16,994入力のparser再実行は一致した。実出力比較は、過去のClippy修正に伴う検証用ソースhash
 2件の更新漏れで採取前に停止した。配列コピー4箇所と不要な参照1箇所の差分だけであることを
 元ファイルからの完全一致で照合し、2件のhashを更新した。比較器・入力集合・期待値は維持し、
-確定HEADで全体再実行する。
+[確定HEADでの再実行](records/canonical-corpus-r453/manifest.json)は全9段階が成功した。
+元16,994入力のparser比較、選定済み48 commands各2回（出力46件・noEmit 2件）、
+別枠108 projects各2回が一致した。元の読み込み失敗110件は未検証のまま保持し、
+別枠projectsをその代替とは扱わない。正式walk・最終unsplit CI・hosted確認は継続中。
