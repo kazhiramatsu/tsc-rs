@@ -1,0 +1,43 @@
+{
+  "inspected_at": "2026-09-21",
+  "status": "preparation_only_no_real_compiler_measurements",
+  "rust_baseline_merge": "8e63b77a676311fe660a32a3ce18227e8c0f2ad5",
+  "rust_typescript_version": "6.0.3",
+  "native": {
+    "repository": "https://github.com/microsoft/TypeScript.git",
+    "commit": "1f70213d4922b434345f639b441681e470c7cfc1",
+    "go_toolchain": "go1.26.0",
+    "package": "./tsc/cmd/tsc",
+    "libraries": "tsc/internal/bundled/libs",
+    "checker_defaults_source": "tsc/internal/compiler/checkerpool.go",
+    "cli_options_source": "tsc/internal/tsoptions/declscompiler.go"
+  },
+  "official_benchmark_reference": {
+    "repository": "https://github.com/microsoft/typescript-benchmarking.git",
+    "commit": "ab43240fa9389fc66827502a0532591ac9502c06",
+    "note": "Scenario setup scripts use moving external clones; modern scenarios declare Linux. Do not execute unchanged for a pinned macOS comparison."
+  },
+  "projects": [
+    {
+      "name": "xstate",
+      "repository": "https://github.com/statelyai/xstate.git",
+      "commit": "fbee62e7c1586315ed478c2fedf530d7e0ff5a3e",
+      "config": "tsconfig.json",
+      "first_mode": "noEmit",
+      "package_manager": "pnpm@10.34.5+sha512.a4ee05f2f73658255bd6a89859c065a45c28a57daefae2c893a168ee2b73168c37b91e83e57ea67654ad03f03031746430e8bce38e362e042605fb8abc80192e",
+      "lockfile": "pnpm-lock.yaml",
+      "lockfile_git_blob": "9314fec20378a177d3f91c119bf66c47fd795a2a",
+      "status": "source_configuration_inspected_dependencies_compatibility_and_timings_not_run"
+    },
+    {
+      "name": "vscode",
+      "repository": "https://github.com/microsoft/vscode.git",
+      "commit": "94a39f4cb65288f75dfeeb9a4aa0e7146244e33c",
+      "config": "src/tsconfig.json",
+      "first_mode": "noEmit",
+      "lockfile": "package-lock.json",
+      "lockfile_git_blob": "0a609fad0838e5f891ea1add0a4636b187ce6437",
+      "status": "source_configuration_inspected_dependencies_compatibility_and_timings_not_run"
+    }
+  ]
+}
