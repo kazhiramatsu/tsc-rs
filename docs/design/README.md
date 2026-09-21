@@ -11,6 +11,8 @@ Machine-readable verification settings and milestone artifacts live under
 [ratchets/](../../ratchets/README.md), including the former root TOML/JSON/text
 files. Historical M5/M6 test selections are preserved in
 [archive/milestone-canaries/](archive/milestone-canaries/README.md).
+The retired standalone CI prototype's documents and report are preserved in
+[archive/new-ci/](archive/new-ci/README.md).
 
 ## Document roles and precedence
 

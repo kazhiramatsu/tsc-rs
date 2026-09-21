@@ -13,9 +13,8 @@
 # gate-tax 5 (docs/design/greenfield/gate-tax-5.md): one walk per converge,
 # inside a locked transaction — PRE_SUITE red-suite hook, ALL pin surfaces
 # preflighted at once (walk-preflight.py), mechanical ORDER-topology audit,
-# prospective stale-cone plan (new-ci, report-only), repin BEFORE the write
-# attempt, per-round 5g receipt-outcome enforcement, run-ID'd log
-# directories, and a per-workspace lock.
+# repin BEFORE the write attempt, per-round 5g receipt-outcome enforcement,
+# run-ID'd log directories, and a per-workspace lock.
 #
 # Usage: bash scripts/chain-walk.sh [readiness-slice-id]
 #   [readiness-slice-id]  optional .github/ci/slice-readiness.mjs --check arg
@@ -25,7 +24,6 @@
 #                         (use to verify an ORDER edit without walking)
 #   PRE_SUITE="<cmd>"     red-suite-first: run this suite before any re-mint;
 #                         nonzero exit refuses the walk (gate-tax 5-E)
-#   WALK_PLAN=0           skip the prospective-plan report (default: run it)
 #   WALK_PREFLIGHT_RECEIPT=0  force fmt/clippy/PRE_SUITE even when the receipt
 #                         says these crate bytes were validated (gate-tax 9-C)
 #   WALK_EXPECT_OBS=0|1   5g enforcement override: 0 = strict (any
@@ -194,11 +192,6 @@ ORDER=(
 # libraries, and the approved-runner h2-baseline does not match the glob.
 node scripts/check-frozen-de-reference.mjs --registry "${ORDER[@]}" || exit 2
 
-# Planner coverage self-check (gate-tax 8, S4): the prospective plan's
-# LADDER_ORDER must equal ORDER exactly — a lagging planner reports an
-# incomplete stale cone (measured 63/65 on the 2026-08-30 W4 runs).
-python3 scripts/walk-planner-coverage.py "${ORDER[@]}" || exit 2
-
 # ORDER-topology audit (gate-tax 5-D): a producer appearing after its
 # consumer costs a third full round every converge; refuse like drift.
 python3 scripts/walk-topology-audit.py "${ORDER[@]}" || exit 2
@@ -334,28 +327,8 @@ if [ "${WALK_DRY:-0}" = "1" ]; then
   exit 0
 fi
 
-# Prospective stale-cone plan (gate-tax 5-F, report-only): predict the
-# post-walk re-mint cone and every pin surface that will go stale AFTER
-# the re-mint (e.g. schema consts pinning a re-minted artifact), so the
-# operator expects the post-walk repairs instead of discovering them at
-# the gate. Best-effort: new-ci is a zero-dependency out-of-workspace
-# crate; if it cannot build or the tree state defeats it, say so and walk.
-if [ "${WALK_PLAN:-1}" = "1" ]; then
-  if taskpolicy -b nice -n 15 cargo build --manifest-path new-ci/Cargo.toml --release --bin plan >"$RUN_DIR/plan-build.log" 2>&1; then
-    plan_base=$(git merge-base HEAD origin/main 2>/dev/null || git rev-parse HEAD)
-    plan_head=$(git stash create 2>/dev/null || true)
-    if [ -z "$plan_head" ]; then plan_head=HEAD; else
-      summary "plan: dirty tree snapshot via git stash create (untracked files are invisible to the plan)"
-    fi
-    if taskpolicy -b nice -n 15 new-ci/target/release/plan "$plan_base" "$plan_head" >"$RUN_DIR/plan.log" 2>&1; then
-      summary "prospective plan: $(tail -1 "$RUN_DIR/plan.log") (report: new-ci/plan-report.md)"
-    else
-      summary "prospective plan: unavailable (report-only; see $RUN_DIR/plan.log)"
-    fi
-  else
-    summary "prospective plan: new-ci build failed (report-only; see $RUN_DIR/plan-build.log)"
-  fi
-fi
+# The optional prospective planner was retired with the standalone prototype.
+# Its design and historical reports live under docs/design/archive/new-ci/.
 
 if [ -n "${WALK_EXPECT_OBS:-}" ]; then
   summary "RECORDED OVERRIDE: WALK_EXPECT_OBS=${WALK_EXPECT_OBS} (5g enforcement $( [ "$WALK_EXPECT_OBS" = "1" ] && echo disabled — deliberate re-anchor || echo strict ))"

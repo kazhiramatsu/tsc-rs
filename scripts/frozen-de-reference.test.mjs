@@ -82,7 +82,6 @@ test("walk registry rejects unknown, duplicate, missing and overlapping scripts"
   assert.ok(source.includes('--walk-checks >"$RUN_DIR/check-only.log"'));
   execFileSync("python3", ["scripts/walk-topology-audit.py", "--self-test"], { cwd: ROOT });
   execFileSync("python3", ["scripts/walk-topology-audit.py", ...realOrder], { cwd: ROOT });
-  execFileSync("python3", ["scripts/walk-planner-coverage.py", ...realOrder], { cwd: ROOT });
 });
 
 test("reference copies reject links, mutation, deletion, extra files and path escape", () => {
