@@ -1,5 +1,17 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
+2026-09-21 emitter integration: [PR #561](https://github.com/kazhiramatsu/tsc-rs/pull/561)
+landed as `8e63b77a676311fe660a32a3ce18227e8c0f2ad5` after all 26 selected checks
+passed at candidate `f712e97728b81a1d223af70c6cfd456277c6f626`. The
+[delivery record](slices/emitter-final-batch/integration/delivery.md) owns the final
+results and limits: original KNOWN 68 retired, universe 217 and PLAN-BASE 1,798
+exact, with separate transpile/load-failure and later product scope retained.
+The 18 delegated architecture entries remain active-unqualified; current hosted
+integration completion is not a re-freeze of historical profile inputs. The
+retired local full CI/hash-chain workflow was not restarted for completion.
+Performance comparison preparation is next; no speed result is claimed.
+
+
 2026-09-15 PLAN-BASE checkpoint: the [dated residual/evidence inventory](slices/plan-base/README.md)
 is complete at main `f9ef828a5`. All 15,642 frozen corpus IDs have a disposition;
 the crosswalk contains 6,045 IDs / 9,004 memberships, not a defect count.

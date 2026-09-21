@@ -6,6 +6,11 @@ The map retains their invariants, current Rust owners, evidence references and
 TypeScript owner mapping. Its qualification and delivery rules apply here
 without exception. This record is not a generator or profile input.
 
+Integration delivery completed at merge `8e63b77a676311fe660a32a3ce18227e8c0f2ad5`,
+with all 26 selected hosted checks passing at candidate
+`f712e97728b81a1d223af70c6cfd456277c6f626`. See [the delivery record](delivery.md).
+This is integration lineage, not a profile qualification ref.
+
 All entries remain `active-unqualified`. Candidate audits, focused results and
 current integration status are recorded in the [integration report](README.md)
 and [residual audit](residual-audit.md). The current execution policy uses

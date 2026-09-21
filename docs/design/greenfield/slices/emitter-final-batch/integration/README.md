@@ -1,5 +1,14 @@
 # Emitter final r11 integration
 
+## 統合完了（2026-09-21）
+
+[PR #561](https://github.com/kazhiramatsu/tsc-rs/pull/561) は最終候補 `f712e9772` の全26 checks成功後、
+main `8e63b77a6` にマージした。候補との tree 一致を確認済み。
+[最終結果と完了範囲](delivery.md)に実際の candidate/merge、hosted run、
+217・1,798件の一致、残る別範囲を記録する。18行の歴史的profile資格付けは
+`active-unqualified` のままであり、今回の統合成功とは区別する。
+以下の「新候補のhosted・merge待ち」は各時点の履歴である。
+
 ## 現在の統合手順（2026-09-21、r621）
 
 現在の方針は [PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) と
