@@ -155,7 +155,7 @@ fn ratchet_collection_retains_full_state_only_for_selected_view() {
         &ratchet::FIXED_VIEWS,
         SetGate::Collect,
         DiagnosticBand::All,
-        &workspace.join("ratchet.toml"),
+        &workspace.join("ratchets/ratchet.toml"),
         ReportIdentityMode::AllViews,
     );
 

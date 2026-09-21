@@ -31,7 +31,7 @@ fn ledger_reads_every_port_block_on_one_rust_function() {
 fn committed_schema_two_inventory_has_exact_graph_and_ledger_join() {
     let workspace = find_workspace_root().expect("workspace");
     let inventory: M8EmitterInventory =
-        read_json(&workspace.join("m8-emitter-inventory.json")).expect("inventory");
+        read_json(&workspace.join("ratchets/m8/m8-emitter-inventory.json")).expect("inventory");
     validate_d2_inventory(&inventory).expect("schema-2 graph");
     let declaration = inventory
         .functions

@@ -71,10 +71,10 @@ fn scaffold_controlled_workspace(workspace: &Path) {
         ".node-version",
         "crates/oracle/host-resolution-requests.mjs",
         "crates/oracle/program-host.mjs",
-        "ratchet.toml",
-        "m8-scope.json",
-        "diag-families.json",
-        "STAGE",
+        "ratchets/ratchet.toml",
+        "ratchets/m8/m8-scope.json",
+        "ratchets/diag-families.json",
+        "ratchets/STAGE",
     ] {
         let path = workspace.join(file);
         fs::create_dir_all(path.parent().unwrap()).unwrap();

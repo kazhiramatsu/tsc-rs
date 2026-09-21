@@ -448,7 +448,7 @@ fn codegen_band_inventory(args: impl Iterator<Item = String>) -> Result<(), Box<
     validate_d2_inventory(&generated)?;
     let target = out.unwrap_or_else(|| {
         if band == "all" {
-            workspace.join("m8-emitter-inventory.json")
+            workspace.join("ratchets/m8/m8-emitter-inventory.json")
         } else {
             workspace.join("target/codegen/2xxx-emitter-inventory.json")
         }
@@ -795,7 +795,7 @@ fn port_plan(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     }
 
     let workspace = find_workspace_root()?;
-    let inventory_path = workspace.join("m8-emitter-inventory.json");
+    let inventory_path = workspace.join("ratchets/m8/m8-emitter-inventory.json");
     let inventory: M8EmitterInventory = read_json(&inventory_path)?;
     validate_d2_inventory(&inventory)?;
     let expected_source_hash = sha256_file(&workspace.join("vendor/typescript-6.0.3/lib/_tsc.js"))?;
@@ -848,9 +848,9 @@ fn port_plan(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
 
     let ledger_entries = collect_ledger_entries(&workspace)?;
     let dispositions: M8EmitterDispositions =
-        read_json(&workspace.join("m8-emitter-dispositions.json"))?;
+        read_json(&workspace.join("ratchets/m8/m8-emitter-dispositions.json"))?;
     if dispositions.schema != 2 {
-        return Err("m8-emitter-dispositions.json must be schema 2".into());
+        return Err("ratchets/m8/m8-emitter-dispositions.json must be schema 2".into());
     }
     let disposition_by_id = dispositions
         .entries
@@ -867,7 +867,9 @@ fn port_plan(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             )
         })
         .collect::<BTreeMap<_, _>>();
-    let manifest = parse_escape_manifest(&fs::read_to_string(workspace.join("escapes.toml"))?)?;
+    let manifest = parse_escape_manifest(&fs::read_to_string(
+        workspace.join("ratchets/escapes.toml"),
+    )?)?;
 
     let mut codes = BTreeSet::new();
     for id in &selected {
@@ -1124,7 +1126,7 @@ fn mechanical_family_rows(
     code: u32,
     pass: Option<&str>,
 ) -> Result<serde_json::Value, Box<dyn Error>> {
-    let file: serde_json::Value = read_json(&workspace.join("diag-families.json"))?;
+    let file: serde_json::Value = read_json(&workspace.join("ratchets/diag-families.json"))?;
     if (2000..3000).contains(&code) {
         let partition = &file["band_partition"];
         return Ok(serde_json::json!({
@@ -1234,7 +1236,7 @@ fn codegen_emitter_dispositions(args: impl Iterator<Item = String>) -> Result<()
     }
 
     let workspace = find_workspace_root()?;
-    let inventory_path = workspace.join("m8-emitter-inventory.json");
+    let inventory_path = workspace.join("ratchets/m8/m8-emitter-inventory.json");
     let inventory: M8EmitterInventory = read_json(&inventory_path)?;
     validate_d2_inventory(&inventory)?;
     let inventory_hash = sha256_file(&inventory_path)?;
@@ -1255,7 +1257,7 @@ fn codegen_emitter_dispositions(args: impl Iterator<Item = String>) -> Result<()
         .into());
     }
 
-    let target = workspace.join("m8-emitter-dispositions.json");
+    let target = workspace.join("ratchets/m8/m8-emitter-dispositions.json");
     let mut generated =
         build_m8_emitter_dispositions(&workspace, &inventory, &inventory_hash, &ledger_entries)?;
     if check {
@@ -1476,7 +1478,8 @@ fn build_m8_emitter_dispositions(
 }
 
 fn m8_disposition_runtime_artifact_path(workspace: &Path) -> Result<PathBuf, Box<dyn Error>> {
-    let config: M8DispositionEvidenceConfig = read_json(&workspace.join("m8-evidence.json"))?;
+    let config: M8DispositionEvidenceConfig =
+        read_json(&workspace.join("ratchets/m8/m8-evidence.json"))?;
     let artifact_dir = Path::new(&config.artifact_dir);
     let artifact = Path::new(&config.runtime_coverage.artifact);
     if artifact_dir.is_absolute()
@@ -1512,7 +1515,7 @@ fn validate_m8_emitter_dispositions(
     dispositions: &M8EmitterDispositions,
 ) -> Result<M8EmitterDispositionStats, Box<dyn Error>> {
     if dispositions.schema != 2 {
-        return Err("m8-emitter-dispositions.json must be schema 2".into());
+        return Err("ratchets/m8/m8-emitter-dispositions.json must be schema 2".into());
     }
     if !matches!(dispositions.status.as_str(), "draft" | "frozen") {
         return Err("M8 emitter dispositions status must be draft or frozen".into());
@@ -1661,7 +1664,7 @@ fn audit_m8_emitter_dispositions(
     ledger_entries: &[LedgerEntry],
     runtime_verified: bool,
 ) -> Result<M8EmitterDispositionStats, Box<dyn Error>> {
-    let path = workspace.join("m8-emitter-dispositions.json");
+    let path = workspace.join("ratchets/m8/m8-emitter-dispositions.json");
     let current: M8EmitterDispositions = read_json(&path)?;
     let stats = validate_m8_emitter_dispositions(
         workspace,
@@ -1853,7 +1856,7 @@ fn m8_emitter_dispositions_at(
             root.display()
         )
     })?;
-    let relative = relative_workspace.join("m8-emitter-dispositions.json");
+    let relative = relative_workspace.join("ratchets/m8/m8-emitter-dispositions.json");
     let relative = relative.to_string_lossy().replace('\\', "/");
     let bytes = tsc_conformance::ratchet::git_blob_optional(&root, commit, &relative)?
         .ok_or_else(|| format!("cannot read M8 emitter dispositions at {commit}"))?;
@@ -1949,11 +1952,12 @@ fn m8_readiness_inner(
         return Err("families readiness report must be schema 1".into());
     }
 
-    let inventory_path = workspace.join("m8-emitter-inventory.json");
+    let inventory_path = workspace.join("ratchets/m8/m8-emitter-inventory.json");
     let inventory: M8EmitterInventory = read_json(&inventory_path)?;
     if inventory.schema != 2 || inventory.status != "draft/report-only" || inventory.band != "all" {
         return Err(
-            "m8-emitter-inventory.json must be schema 2, draft/report-only, band all".into(),
+            "ratchets/m8/m8-emitter-inventory.json must be schema 2, draft/report-only, band all"
+                .into(),
         );
     }
     let bundle_hash = sha256_file(&workspace.join("vendor/typescript-6.0.3/lib/_tsc.js"))?;
@@ -1978,11 +1982,12 @@ fn m8_readiness_inner(
         produced_evidence.runtime_ready,
     )?;
     let dispositions: M8EmitterDispositions =
-        read_json(&workspace.join("m8-emitter-dispositions.json"))?;
+        read_json(&workspace.join("ratchets/m8/m8-emitter-dispositions.json"))?;
     let emitter_closure_ready =
         dispositions.status == "frozen" && inventory_fresh && produced_evidence.runtime_ready;
 
-    let t1_active = ratchet_section_has_exact_counts(&workspace.join("ratchet.toml"), "t1")?;
+    let t1_active =
+        ratchet_section_has_exact_counts(&workspace.join("ratchets/ratchet.toml"), "t1")?;
     let undispositioned = collect_undispositioned_checker_fns(&workspace)?.len();
     let mut gates = Vec::new();
     add_m8_gate(
@@ -5965,14 +5970,14 @@ fn ledger_check() -> Result<(), Box<dyn Error>> {
     }
 
     // The disposition BACKLOG gate (review round 2): equality against
-    // fn-dispositions.toml — a NEW undispositioned identity is
+    // ratchets/fn-dispositions.toml — a NEW undispositioned identity is
     // rejected outright (a same-commit annotate+add swap cannot slip
     // through a count ceiling), and burn-down must land as a
     // shrinking, reviewable diff.
-    let backlog_path = workspace.join("fn-dispositions.toml");
+    let backlog_path = workspace.join("ratchets/fn-dispositions.toml");
     if !backlog_path.exists() {
         return Err(
-            "fn-dispositions.toml is missing — run `cargo xtask ledger write-backlog`, \
+            "ratchets/fn-dispositions.toml is missing — run `cargo xtask ledger write-backlog`, \
              review, and commit it"
                 .into(),
         );
@@ -6030,11 +6035,11 @@ fn ledger_write_backlog() -> Result<(), Box<dyn Error>> {
     let undispositioned = collect_undispositioned_checker_fns(&workspace)?;
     let map = backlog_map(&undispositioned, &workspace);
     fs::write(
-        workspace.join("fn-dispositions.toml"),
+        workspace.join("ratchets/fn-dispositions.toml"),
         render_fn_backlog(&map),
     )?;
     println!(
-        "fn-dispositions.toml written: {} identities ({} fns) — review the diff",
+        "ratchets/fn-dispositions.toml written: {} identities ({} fns) — review the diff",
         map.len(),
         undispositioned.len()
     );
@@ -6539,11 +6544,11 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     if write_manifest {
         let entries = escape_manifest_from_sites(&workspace, &sites)?;
         fs::write(
-            workspace.join("escapes.toml"),
+            workspace.join("ratchets/escapes.toml"),
             render_escape_manifest(&entries),
         )?;
         println!(
-            "escapes.toml written: {} entries ({} sites) — review the diff",
+            "ratchets/escapes.toml written: {} entries ({} sites) — review the diff",
             entries.len(),
             sites.len()
         );
@@ -6624,7 +6629,7 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             if untagged > ceiling {
                 return Err(format!(
                     "untagged escape ratchet regression: {untagged} > recorded ceiling {ceiling} \
-                     (tag the new reasons or bump [escapes].max_untagged in ratchet.toml)"
+                     (tag the new reasons or bump [escapes].max_untagged in ratchets/ratchet.toml)"
                 )
                 .into());
             }
@@ -6635,7 +6640,7 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
                     "recovery escape ratchet regression: {recovery} > recorded ceiling {ceiling} \
                      (a new `(parse recovery)`-marked guard needs review — real containment \
                      escapes must carry an owner stage instead; bump [escapes].max_recovery \
-                     in ratchet.toml only for genuine malformed-tree guards)"
+                     in ratchets/ratchet.toml only for genuine malformed-tree guards)"
                 )
                 .into());
             }
@@ -6653,14 +6658,14 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// An integer ceiling from a ratchet.toml section — an absent
+/// An integer ceiling from a ratchets/ratchet.toml section — an absent
 /// section/key means that ratchet is not armed.
 fn read_ratchet_ceiling(
     workspace: &Path,
     section: &str,
     ceiling_key: &str,
 ) -> Result<Option<usize>, Box<dyn Error>> {
-    let text = fs::read_to_string(workspace.join("ratchet.toml"))?;
+    let text = fs::read_to_string(workspace.join("ratchets/ratchet.toml"))?;
     let mut in_section = false;
     for raw_line in text.lines() {
         let line = raw_line.split('#').next().unwrap_or("").trim();
@@ -6833,7 +6838,7 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
         let inner = value
             .strip_prefix('"')
             .and_then(|rest| rest.strip_suffix('"'))
-            .ok_or_else(|| format!("escapes.toml:{line_no}: expected a quoted string"))?;
+            .ok_or_else(|| format!("ratchets/escapes.toml:{line_no}: expected a quoted string"))?;
         let mut out = String::new();
         let mut chars = inner.chars();
         while let Some(ch) = chars.next() {
@@ -6842,9 +6847,10 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
                     Some('\\') => out.push('\\'),
                     Some('"') => out.push('"'),
                     other => {
-                        return Err(
-                            format!("escapes.toml:{line_no}: unsupported escape {other:?}").into(),
+                        return Err(format!(
+                            "ratchets/escapes.toml:{line_no}: unsupported escape {other:?}"
                         )
+                        .into())
                     }
                 }
             } else {
@@ -6866,7 +6872,7 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
                 || entry.class.is_empty()
             {
                 return Err(format!(
-                    "escapes.toml: incomplete [[site]] entry (file/reason/class required): \
+                    "ratchets/escapes.toml: incomplete [[site]] entry (file/reason/class required): \
                      {entry:?}"
                 )
                 .into());
@@ -6877,14 +6883,14 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
                 "recovery" | "untagged" if entry.owner.is_none() && entry.canary.is_none() => {}
                 "stage" | "dormant-assumption" | "recovery" | "untagged" => {
                     return Err(format!(
-                        "escapes.toml: invalid owner/canary fields for class {}: {entry:?}",
-                        entry.class
-                    )
+                    "ratchets/escapes.toml: invalid owner/canary fields for class {}: {entry:?}",
+                    entry.class
+                )
                     .into())
                 }
                 _ => {
                     return Err(format!(
-                        "escapes.toml: unknown escape class {}: {entry:?}",
+                        "ratchets/escapes.toml: unknown escape class {}: {entry:?}",
                         entry.class
                     )
                     .into())
@@ -6914,11 +6920,13 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
             continue;
         }
         let Some((key, value)) = line.split_once('=') else {
-            return Err(format!("escapes.toml:{line_no}: unrecognized line: {line}").into());
+            return Err(
+                format!("ratchets/escapes.toml:{line_no}: unrecognized line: {line}").into(),
+            );
         };
-        let entry = current
-            .as_mut()
-            .ok_or_else(|| format!("escapes.toml:{line_no}: key outside a [[site]] entry"))?;
+        let entry = current.as_mut().ok_or_else(|| {
+            format!("ratchets/escapes.toml:{line_no}: key outside a [[site]] entry")
+        })?;
         match key.trim() {
             "file" => entry.file = parse_string(value, line_no)?,
             "in" => entry.containing_fn = parse_string(value, line_no)?,
@@ -6928,7 +6936,7 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
             "canary" => entry.canary = Some(parse_string(value, line_no)?),
             "count" => entry.count = value.trim().parse::<usize>()?,
             other => {
-                return Err(format!("escapes.toml:{line_no}: unknown key {other}").into());
+                return Err(format!("ratchets/escapes.toml:{line_no}: unknown key {other}").into());
             }
         }
     }
@@ -6936,13 +6944,13 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
     Ok(entries)
 }
 
-/// The manifest gate: the scan and escapes.toml must agree EXACTLY.
+/// The manifest gate: the scan and ratchets/escapes.toml must agree EXACTLY.
 /// Every divergence is printed with its remedy; any divergence fails.
 fn check_escape_manifest(workspace: &Path, sites: &[EscapeSite]) -> Result<(), Box<dyn Error>> {
-    let manifest_path = workspace.join("escapes.toml");
+    let manifest_path = workspace.join("ratchets/escapes.toml");
     if !manifest_path.exists() {
         return Err(
-            "escapes.toml is missing — run `cargo xtask escapes --write-manifest`, \
+            "ratchets/escapes.toml is missing — run `cargo xtask escapes --write-manifest`, \
                     review the generated file, and commit it"
                 .into(),
         );
@@ -7216,7 +7224,7 @@ fn ledger_source_path(workspace: &Path, span_file: &str) -> Result<PathBuf, Box<
 /// reason (LSP-only/emit-only surfaces). Rust-side accountability
 /// only: the "missing tsc function" direction is the M8
 /// emitter-inventory + dependency closure. The backlog is the
-/// fn-dispositions.toml EQUALITY allowlist (deletions only; empties
+/// ratchets/fn-dispositions.toml EQUALITY allowlist (deletions only; empties
 /// before M8 starts per definition-of-done.md).
 fn fn_disposition_markers() -> [&'static str; 4] {
     // concat! keeps the contiguous marker tokens out of THIS file's
@@ -7342,7 +7350,7 @@ fn collect_undispositioned_checker_fns(
     Ok(functions)
 }
 
-/// The disposition BACKLOG allowlist (fn-dispositions.toml): the
+/// The disposition BACKLOG allowlist (ratchets/fn-dispositions.toml): the
 /// pre-existing undispositioned fns, keyed (file, name) with a count
 /// for same-named impl-block collisions. The gate is EQUALITY: a
 /// scanned undispositioned fn absent from the file is a NEW
@@ -7402,7 +7410,7 @@ fn parse_fn_backlog(text: &str) -> Result<BTreeMap<(String, String), usize>, Box
      -> Result<(), Box<dyn Error>> {
         if *open {
             if file.is_empty() || name.is_empty() {
-                return Err("fn-dispositions.toml: incomplete [[fn]] entry".into());
+                return Err("ratchets/fn-dispositions.toml: incomplete [[fn]] entry".into());
             }
             map.insert((std::mem::take(file), std::mem::take(name)), *count);
             *count = 1;
@@ -7420,7 +7428,7 @@ fn parse_fn_backlog(text: &str) -> Result<BTreeMap<(String, String), usize>, Box
             continue;
         }
         let Some((key, value)) = line.split_once('=') else {
-            return Err(format!("fn-dispositions.toml: unrecognized line: {line}").into());
+            return Err(format!("ratchets/fn-dispositions.toml: unrecognized line: {line}").into());
         };
         let value = value
             .trim()
@@ -7431,12 +7439,14 @@ fn parse_fn_backlog(text: &str) -> Result<BTreeMap<(String, String), usize>, Box
             "file" => file = value,
             "name" => name = value,
             "count" => count = value.parse()?,
-            other => return Err(format!("fn-dispositions.toml: unknown key {other}").into()),
+            other => {
+                return Err(format!("ratchets/fn-dispositions.toml: unknown key {other}").into())
+            }
         }
     }
     if open {
         if file.is_empty() || name.is_empty() {
-            return Err("fn-dispositions.toml: incomplete [[fn]] entry".into());
+            return Err("ratchets/fn-dispositions.toml: incomplete [[fn]] entry".into());
         }
         map.insert((file, name), count);
     }
@@ -7956,7 +7966,7 @@ fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dy
         m8_plan::check(
             [
                 "--plan".to_owned(),
-                "m8-owner-plan.json".to_owned(),
+                "ratchets/m8/m8-owner-plan.json".to_owned(),
                 "--baseline".to_owned(),
                 baseline.to_owned(),
             ]
@@ -7964,7 +7974,7 @@ fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dy
         )?;
     }
     ledger_check()?;
-    let stage = fs::read_to_string(workspace.join("STAGE"))?;
+    let stage = fs::read_to_string(workspace.join("ratchets/STAGE"))?;
     escapes(["--stale", stage.trim()].into_iter().map(str::to_owned))?;
     println!(
         "hosted CI lane ok: elapsed={:.3}s",
@@ -8312,19 +8322,20 @@ fn cargo_package_name(package_id: &str) -> Option<&str> {
 const CONFORMANCE_WORKERS_ENV: &str = "TSRS_CONFORMANCE_WORKERS";
 
 /// Resolve the conformance checker-worker count: the reviewed
-/// `m8-evidence.json` ceiling, clamped down by `TSRS_CONFORMANCE_WORKERS`
+/// `ratchets/m8/m8-evidence.json` ceiling, clamped down by `TSRS_CONFORMANCE_WORKERS`
 /// and by available parallelism.
 fn conformance_checker_workers(workspace: &Path) -> Result<usize, Box<dyn Error>> {
     // Read the reviewed ceiling with a local parse instead of calling into
     // m8_evidence: this helper is reachable from the hosted acceptance
     // entry, whose bounded call-graph grammar closes over main.rs only.
-    let manifest: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(workspace.join("m8-evidence.json"))?)?;
+    let manifest: serde_json::Value = serde_json::from_str(&fs::read_to_string(
+        workspace.join("ratchets/m8/m8-evidence.json"),
+    )?)?;
     let reviewed_ceiling = manifest
         .get("conformance_runner")
         .and_then(|section| section.get("max_workers"))
         .and_then(serde_json::Value::as_u64)
-        .ok_or("m8-evidence.json conformance_runner.max_workers must be a positive integer")?
+        .ok_or("ratchets/m8/m8-evidence.json conformance_runner.max_workers must be a positive integer")?
         as usize;
     let available = std::thread::available_parallelism()
         .map(std::num::NonZeroUsize::get)
@@ -8353,7 +8364,7 @@ fn ci_test_worker_count(workspace: &Path) -> Result<usize, Box<dyn Error>> {
         .unwrap_or(1);
     let configured = std::env::var(CI_TEST_WORKERS_ENV).ok();
     // The worker ceiling is reviewed CPU policy, not a hardcoded constant:
-    // m8-evidence.json `workspace_tests.max_workers` is tracked and gated, so
+    // ratchets/m8/m8-evidence.json `workspace_tests.max_workers` is tracked and gated, so
     // raising local parallelism is a reviewed change. The env knob only
     // clamps DOWN, and available parallelism always bounds the result.
     let reviewed_ceiling = m8_evidence::workspace_test_worker_ceiling(workspace)?;
@@ -9194,7 +9205,7 @@ fn ci_semantic_preflight(workspace: &Path, baseline: &str) -> Result<(), Box<dyn
     // Fail on cheap source-ledger and escape expiry drift before allocating
     // any history or full-corpus evidence workers.
     ledger_check()?;
-    let stage = fs::read_to_string(workspace.join("STAGE"))?;
+    let stage = fs::read_to_string(workspace.join("ratchets/STAGE"))?;
     escapes(["--stale", stage.trim()].into_iter().map(str::to_owned))?;
     // Keep the reusable checker/conformance phases in-process. The
     // history-heavy trusted audits below use this already-built binary
@@ -9208,7 +9219,7 @@ fn ci_semantic_preflight(workspace: &Path, baseline: &str) -> Result<(), Box<dyn
     // Generated node schema: committed files match the generator, and
     // the schema matches typescript.d.ts as parsed by the vendored
     // TypeScript itself (ghost/mismatched fields fail; absent tsc
-    // fields must be listed in nodes-missing-fields.txt).
+    // fields must be listed in ratchets/nodes-missing-fields.txt).
     codegen_nodes(true)?;
     schema_audit(std::iter::empty())?;
     relpin::run(std::iter::empty())?;
@@ -9232,7 +9243,7 @@ fn ci_semantic_preflight(workspace: &Path, baseline: &str) -> Result<(), Box<dyn
     m8_plan::check(
         [
             "--plan".to_owned(),
-            "m8-owner-plan.json".to_owned(),
+            "ratchets/m8/m8-owner-plan.json".to_owned(),
             "--baseline".to_owned(),
             baseline.to_owned(),
         ]
@@ -9317,7 +9328,7 @@ struct ReadmeStatusFamily {
 /// `cargo xtask readme-status [--check]`: regenerate (or, with
 /// `--check`, verify) the top-level README's generated status block.
 /// E2 contract: README numbers are never hand-written — they render
-/// from the checked-in accepted state (`ratchet.toml` summaries,
+/// from the checked-in accepted state (`ratchets/ratchet.toml` summaries,
 /// which `ratchet check` verifies against the artifacts on every
 /// gate run), the STAGE marker, the frozen family map, and the
 /// readiness report produced in this workspace by `m8 readiness`.
@@ -9352,29 +9363,9 @@ fn readme_path_for_workspace(workspace: &Path) -> Result<PathBuf, Box<dyn Error>
     Ok(git_repository_root(workspace)?.join("README.md"))
 }
 
-fn repository_relative_display_path(
-    workspace: &Path,
-    path: &Path,
-) -> Result<String, Box<dyn Error>> {
-    let root = git_repository_root(workspace)?;
-    let canonical_workspace = fs::canonicalize(workspace)?;
-    let normalized_path = path
-        .strip_prefix(workspace)
-        .map(|relative| canonical_workspace.join(relative))
-        .unwrap_or_else(|_| path.to_owned());
-    let relative = normalized_path.strip_prefix(&root).map_err(|_| {
-        format!(
-            "path {} is outside git root {}",
-            path.display(),
-            root.display()
-        )
-    })?;
-    Ok(relative.to_string_lossy().replace('\\', "/"))
-}
-
 fn read_ratchet_count(workspace: &Path, section: &str, key: &str) -> Result<usize, Box<dyn Error>> {
     read_ratchet_ceiling(workspace, section, key)?
-        .ok_or_else(|| format!("ratchet.toml is missing [{section}] {key}").into())
+        .ok_or_else(|| format!("ratchets/ratchet.toml is missing [{section}] {key}").into())
 }
 
 fn group_thousands(value: usize) -> String {
@@ -9390,11 +9381,13 @@ fn group_thousands(value: usize) -> String {
 }
 
 fn render_readme_status(workspace: &Path) -> Result<String, Box<dyn Error>> {
-    let stage = fs::read_to_string(workspace.join("STAGE"))?
+    let stage = fs::read_to_string(workspace.join("ratchets/STAGE"))?
         .trim()
         .to_owned();
-    let ratchet_display =
-        repository_relative_display_path(workspace, &workspace.join("ratchet.toml"))?;
+    // Keep the generated historical summary's record name stable across a
+    // physical relocation; the location guide lives outside the STATUS block.
+    let (ratchet_display, _) = tsc_conformance::artifact_paths::relocation("ratchets/ratchet.toml")
+        .ok_or("missing ratchet artifact location")?;
 
     let view_row = |label: &str, section: &str| -> Result<String, Box<dyn Error>> {
         let matched = read_ratchet_count(workspace, section, "matched")?;
@@ -9409,7 +9402,7 @@ fn render_readme_status(workspace: &Path) -> Result<String, Box<dyn Error>> {
     let max_untagged = read_ratchet_count(workspace, "escapes", "max_untagged")?;
     let max_recovery = read_ratchet_count(workspace, "escapes", "max_recovery")?;
 
-    let families: ReadmeStatusFamilies = read_json(&workspace.join("diag-families.json"))?;
+    let families: ReadmeStatusFamilies = read_json(&workspace.join("ratchets/diag-families.json"))?;
     let family_rows: usize = families
         .families
         .iter()

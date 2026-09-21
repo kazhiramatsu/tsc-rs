@@ -4,22 +4,22 @@
   "source_references": [
     {
       "path": "ratchets/fuzz-domain.v1.toml",
-      "sha256": "c9826c61a2b7554b4b125f2a84917366975e15cecfd01c859ed92c3d792759b5"
+      "sha256": "5495baadd2d847e79a89800c0937ecc17509df626f00f5a411d5eea7479658c2"
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
       "sha256": "aad7661afcd209f10a04461ad090286bba8ceb0abc2106c975b89aa6f5d3006c"
     },
     {
-      "path": "ratchets/m8/m8-evidence.json",
+      "path": "m8-evidence.json",
       "sha256": "ad59d232144e8bd9543be9ebc1494d300addb7f4fb8990a492b88b096aaf232b"
     },
     {
-      "path": "ratchets/m8/m8-emitter-inventory.json",
+      "path": "m8-emitter-inventory.json",
       "sha256": "77a1ab1dea3367cb6d913f158ee97932d8c256f5c907f7a3846a1a2fc99f6f38"
     },
     {
-      "path": "ratchets/m8/m8-emitter-dispositions.json",
+      "path": "m8-emitter-dispositions.json",
       "sha256": "b0647092e86d77f7e75ef3cf04181e9fb8805a377bdca2eac93c6399436489e1"
     },
     {
@@ -36,7 +36,7 @@
     },
     {
       "path": "crates/xtask/src/m8_evidence.rs",
-      "sha256": "f38a48f45d859a6c636fb00c8aeecac35ae6580e4f52cf6204b16e9656b7f771"
+      "sha256": "56ff4cfdc08a4a2212ac095e344a20937046a66f70d6a02486967829d5482c1d"
     },
     {
       "path": "crates/checker/src/lib.rs",
@@ -56,11 +56,11 @@
     },
     {
       "path": "crates/conformance/src/lib.rs",
-      "sha256": "b7fe30a3b99cc9d766f634adda4b7cff46af678b58931901ec10355e78d538cd"
+      "sha256": "fae9585de339db87412447241aa6a3453043f2537cc56b4157360b8b1393f9f0"
     },
     {
       "path": "crates/conformance/src/rendered.rs",
-      "sha256": "4da0db69e999a6f8d5d776b0d7ceabd9ea29ec4748488ba470d0345c55fc43ef"
+      "sha256": "ba69a380022c6f11f0df5183185dbe8430184bd164e07c5ec5b2ba340f7ece9d"
     },
     {
       "path": "crates/oracle/render-driver.mjs",

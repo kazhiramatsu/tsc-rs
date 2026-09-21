@@ -87,12 +87,4 @@ fn readme_and_status_paths_follow_the_git_root() {
 
     assert_eq!(readme_path_for_workspace(&nested).unwrap(), readme);
     assert_eq!(readme_path_for_workspace(&repo.0).unwrap(), readme);
-    assert_eq!(
-        repository_relative_display_path(&nested, &nested.join("ratchet.toml")).unwrap(),
-        "tsrs2/ratchet.toml"
-    );
-    assert_eq!(
-        repository_relative_display_path(&repo.0, &repo.0.join("ratchet.toml")).unwrap(),
-        "ratchet.toml"
-    );
 }

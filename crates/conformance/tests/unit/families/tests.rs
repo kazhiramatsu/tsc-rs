@@ -288,7 +288,7 @@ fn freeze_anchor_round_trip_and_post_freeze_tampers() {
 #[test]
 fn legacy_workspace_family_anchor_and_baseline_survive_root_promotion() {
     let root = init_repo("legacy-families-promotion");
-    let legacy_rel = format!("tsrs2/{FAMILIES_REL_PATH}");
+    let legacy_rel = "tsrs2/diag-families.json".to_owned();
     let draft = draft_file(vec![
         family("a", "M5", &[(7027, "semantic")]),
         family("b", "M6", &[(7034, "semantic")]),
@@ -297,6 +297,7 @@ fn legacy_workspace_family_anchor_and_baseline_survive_root_promotion() {
     let frozen = frozen_from(&draft, &adjudication);
     let legacy_baseline = commit_families_at(&root, &legacy_rel, &frozen, "legacy frozen families");
 
+    fs::create_dir_all(root.join("ratchets")).unwrap();
     git_test(&root, &["mv", &legacy_rel, FAMILIES_REL_PATH]);
     git_test(&root, &["commit", "-q", "-m", "promote families to root"]);
     let head = resolve_commit(&root, "HEAD").unwrap();
@@ -823,10 +824,10 @@ fn duplicate_canary_requires_multiplicity_complete_output() {
 #[test]
 fn stale_report_fingerprints_and_totals_fail() {
     let workspace = temp_dir("report");
-    fs::create_dir_all(workspace.join("ratchets")).unwrap();
+    fs::create_dir_all(workspace.join("ratchets/m8")).unwrap();
     fs::create_dir_all(workspace.join("vendor/typescript-6.0.3/lib")).unwrap();
     fs::write(workspace.join(FAMILIES_REL_PATH), b"map").unwrap();
-    fs::write(workspace.join("m8-scope.json"), b"scope").unwrap();
+    fs::write(workspace.join("ratchets/m8/m8-scope.json"), b"scope").unwrap();
     fs::write(
         workspace.join(crate::ratchet::ORACLE_INPUTS_REL_PATH),
         b"inputs",
@@ -857,15 +858,15 @@ fn stale_report_fingerprints_and_totals_fail() {
     verify_report_freshness(&workspace, &report_path).unwrap();
 
     // Any input moving under the stored rollup is a stale report.
-    fs::write(workspace.join("m8-scope.json"), b"scope-v2").unwrap();
+    fs::write(workspace.join("ratchets/m8/m8-scope.json"), b"scope-v2").unwrap();
     let message = verify_report_freshness(&workspace, &report_path)
         .unwrap_err()
         .to_string();
     assert!(
-        message.contains("stale families report: m8-scope.json"),
+        message.contains("stale families report: ratchets/m8/m8-scope.json"),
         "{message}"
     );
-    fs::write(workspace.join("m8-scope.json"), b"scope").unwrap();
+    fs::write(workspace.join("ratchets/m8/m8-scope.json"), b"scope").unwrap();
 
     // Doctored per-family counts cannot pass as a rollup.
     let mut doctored = report.clone();
@@ -1039,6 +1040,7 @@ fn extension_anchor_with_divergent_recorded_history_fails() {
 #[test]
 fn malformed_frozen_base_is_an_error_not_a_panic() {
     let root = init_repo("bad-base");
+    fs::create_dir_all(root.join("ratchets")).unwrap();
     // A frozen map WITHOUT a freeze record can only exist as an
     // unvalidated historical blob; hand-craft and commit it.
     let draft = draft_file(vec![family("a", "M5", &[(7027, "semantic")])]);
@@ -1180,7 +1182,7 @@ fn prepare_report_rejects_working_tree_tampering_of_a_frozen_map() {
     // Canonicalize: prepare_report resolves the git toplevel,
     // which canonicalizes macOS /var -> /private/var temp paths.
     let root = init_repo("prepare").canonicalize().unwrap();
-    fs::create_dir_all(root.join("ratchets")).unwrap();
+    fs::create_dir_all(root.join("ratchets/m8")).unwrap();
     fs::create_dir_all(root.join("vendor/typescript-6.0.3/lib")).unwrap();
     fs::write(root.join(SCOPE_REL_PATH), b"scope").unwrap();
     fs::write(root.join(ORACLE_INPUTS_REL_PATH), b"inputs").unwrap();

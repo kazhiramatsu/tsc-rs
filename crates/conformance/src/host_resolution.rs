@@ -33,7 +33,8 @@ use crate::{read_golden, ConformanceResult, ExactIdentity};
 pub const HOST_RESOLUTION_REL_PATH: &str = "ratchets/host-resolution.v1.json";
 const HOST_RESOLUTION_SCHEMA: u32 = 1;
 const TYPESCRIPT_VERSION: &str = "6.0.3";
-const D2_INVENTORY_REL_PATH: &str = "m8-emitter-inventory.json";
+const SCOPE_RECORD_PATH: &str = "m8-scope.json";
+const D2_INVENTORY_REL_PATH: &str = "ratchets/m8/m8-emitter-inventory.json";
 const D2_SOURCE_REL_PATH: &str = "vendor/typescript-6.0.3/lib/_tsc.js";
 const REQUEST_PRODUCER_REL_PATH: &str = "crates/oracle/host-resolution-requests.mjs";
 const REQUEST_HOST_REL_PATH: &str = "crates/oracle/program-host.mjs";
@@ -631,7 +632,7 @@ pub fn draft_host_resolution_registry(workspace: &Path, out: &Path) -> Conforman
         status: RegistryStatus::Frozen,
         typescript_version: TYPESCRIPT_VERSION.to_owned(),
         source: SourcePin {
-            manifest: SCOPE_REL_PATH.to_owned(),
+            manifest: SCOPE_RECORD_PATH.to_owned(),
             reason: "host-resolution".to_owned(),
             identity_encoder: ENCODER_VERSION,
             initial_scope_commit,
@@ -1088,7 +1089,7 @@ fn validate_source_pin(
     source: &SourcePin,
     rows: &[RegistryRow],
 ) -> ConformanceResult<()> {
-    if source.manifest != SCOPE_REL_PATH
+    if source.manifest != SCOPE_RECORD_PATH
         || source.reason != "host-resolution"
         || source.identity_encoder != ENCODER_VERSION
         || source.initial_identity_count != EXPECTED_ROWS

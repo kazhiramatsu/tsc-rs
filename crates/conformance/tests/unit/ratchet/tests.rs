@@ -1616,6 +1616,55 @@ fn workspace_bridge_rejects_dual_location_even_when_bytes_match() {
 }
 
 #[test]
+fn relocated_artifact_reads_all_three_historical_layouts() {
+    let repo = init_repo("artifact-layout-history");
+    let old = "m8-scope.json";
+    let current = "ratchets/m8/m8-scope.json";
+    let legacy = legacy_rel(old);
+    let first = commit_bytes(&repo, &legacy, b"frozen bytes", "nested workspace");
+    git_test(&repo, &["mv", &legacy, old]);
+    let second = commit_all(&repo, "root workspace");
+    fs::create_dir_all(repo.join("ratchets/m8")).unwrap();
+    git_test(&repo, &["mv", old, current]);
+    let third = commit_all(&repo, "artifact directory");
+    for commit in [&first, &second, &third] {
+        for path in [old, current, &legacy] {
+            assert_eq!(
+                git_blob_optional(&repo, commit, path).unwrap(),
+                Some(b"frozen bytes".to_vec()),
+                "{commit}:{path}"
+            );
+        }
+    }
+    assert!(git_blob_optional(&repo, &third, "other/m8-scope.json")
+        .unwrap()
+        .is_none());
+}
+
+#[test]
+fn relocated_artifact_rejects_duplicate_and_non_blob_locations() {
+    let repo = init_repo("artifact-layout-ambiguous");
+    let old = "diag-families.json";
+    let current = "ratchets/diag-families.json";
+    commit_bytes(&repo, old, b"same", "old artifact");
+    let duplicate = commit_bytes(&repo, current, b"same", "duplicate artifact");
+    let error = git_blob_optional(&repo, &duplicate, current)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("ambiguous"), "{error}");
+    git_test(&repo, &["rm", current]);
+    fs::create_dir_all(repo.join(current)).unwrap();
+    let malformed = commit_bytes(
+        &repo,
+        &format!("{current}/child"),
+        b"child",
+        "directory instead of blob",
+    );
+    assert!(git_blob_optional(&repo, &malformed, old).is_err());
+    assert!(git_blob_optional(&repo, "not-a-commit", current).is_err());
+}
+
+#[test]
 fn lineage_pair_and_baseline_survive_atomic_workspace_promotion() {
     let repo = init_repo("history-workspace-promotion");
     let legacy_matches = legacy_rel(MATCHES_REL_PATH);
@@ -2992,7 +3041,7 @@ fn write_tier_activation_state(
             canonical_summary_rate(matched, total),
         ));
     }
-    fs::write(dir.join("ratchet.toml"), text).unwrap();
+    fs::write(dir.join("ratchets/ratchet.toml"), text).unwrap();
 }
 
 #[test]

@@ -281,16 +281,16 @@ pub(crate) fn controlled_input_fingerprints(
             &[
                 "ratchets/oracle-inputs.v1.json.zst",
                 "ratchets/conformance-matches.v1.json.zst",
-                "ratchet.toml",
+                "ratchets/ratchet.toml",
             ],
         ),
         (
             "scope-and-family-state",
             &[
-                "m8-scope.json",
-                "diag-families.json",
+                "ratchets/m8/m8-scope.json",
+                "ratchets/diag-families.json",
                 "ratchets/host-resolution.v1.json",
-                "STAGE",
+                "ratchets/STAGE",
             ],
         ),
     ];
