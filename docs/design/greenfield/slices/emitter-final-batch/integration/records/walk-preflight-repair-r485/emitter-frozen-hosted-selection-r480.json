@@ -1,0 +1,32 @@
+[
+  {
+    "path": "scripts/check-frozen-de-reference.mjs",
+    "reason": "shared or unknown input: scripts/check-frozen-de-reference.mjs",
+    "acceptance": 3,
+    "witnesses": 78
+  },
+  {
+    "path": "scripts/frozen-de-reference/manifest.json",
+    "reason": "shared or unknown input: scripts/frozen-de-reference/manifest.json",
+    "acceptance": 3,
+    "witnesses": 78
+  },
+  {
+    "path": "scripts/frozen-de-reference/h2-7b-qualification.v1.json.gz",
+    "reason": "shared or unknown input: scripts/frozen-de-reference/h2-7b-qualification.v1.json.gz",
+    "acceptance": 3,
+    "witnesses": 78
+  },
+  {
+    "path": "scripts/walk-topology-audit.py",
+    "reason": "shared or unknown input: scripts/walk-topology-audit.py",
+    "acceptance": 3,
+    "witnesses": 78
+  },
+  {
+    "path": ".github/ci/qualification.test.mjs",
+    "reason": "shared or unknown input: .github/ci/qualification.test.mjs",
+    "acceptance": 3,
+    "witnesses": 78
+  }
+]

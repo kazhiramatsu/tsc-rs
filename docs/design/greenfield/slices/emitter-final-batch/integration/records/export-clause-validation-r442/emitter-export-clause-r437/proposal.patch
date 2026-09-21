@@ -1,0 +1,19 @@
+--- a/crates/emitter/src/printer.rs
++++ b/crates/emitter/src/printer.rs
+@@ -4266,10 +4266,14 @@
+                         .arena()
+                         .node_ref(node.source(), clause_id)
+                         .ok_or(PrinterError::UnknownStatement(clause_id.0))?;
+-                    let prefix = self.token_owned_child_prefix(
++                    // emit(exportClause) starts its own comment phase. A
++                    // recovered export keyword can end before that owner.
++                    let clause_owner =
++                        self.expression_comment_phase_owner_for_node(transformation, clause)?;
++                    let prefix = self.token_owned_comment_phase_prefix(
+                         transformation,
+                         export_item_anchor,
+-                        Some(clause),
++                        clause_owner,
+                     )?;
+                     self.emit_leading_comments_for_node_worker(
+                         transformation,

@@ -142,6 +142,169 @@ fn committed_registry_passes_full_owner_and_canary_validation() {
 }
 
 #[test]
+fn live_anchor_successors_are_complete_and_keep_the_reviewed_declarations() {
+    let registry = committed_registry(&workspace());
+    validate_live_anchor_successors(&registry.rows, LIVE_ANCHOR_SUCCESSORS).unwrap();
+    let text = fs::read_to_string(workspace().join(LIVE_ANCHOR_PATH)).unwrap();
+    for &(frozen, live) in LIVE_ANCHOR_SUCCESSORS {
+        let anchor = RustBoundaryAnchor {
+            role: RustBoundaryRole::Producer,
+            crate_name: "tsc-program".to_owned(),
+            path: LIVE_ANCHOR_PATH.to_owned(),
+            symbol: frozen.to_owned(),
+        };
+        assert_eq!(live_declaration_count(&text, live), 1, "{frozen}");
+        assert!(
+            live_rust_anchor_present(&text, &anchor).unwrap(),
+            "{frozen}"
+        );
+    }
+}
+
+#[test]
+fn live_anchor_successors_reject_missing_ambiguous_and_quoted_declarations() {
+    for &(frozen, live) in LIVE_ANCHOR_SUCCESSORS {
+        let anchor = RustBoundaryAnchor {
+            role: RustBoundaryRole::Producer,
+            crate_name: "tsc-program".to_owned(),
+            path: LIVE_ANCHOR_PATH.to_owned(),
+            symbol: frozen.to_owned(),
+        };
+        let declaration = format!("    {live}\n        &mut self,\n    ) {{}}\n");
+        assert!(live_rust_anchor_present(&declaration, &anchor).unwrap());
+        for text in [
+            String::new(),
+            declaration.repeat(2),
+            format!("// {live}\n"),
+            format!("/* nested /* comment */\n{declaration} */"),
+            format!("const DOC: &str = \"\n{declaration}\";"),
+            format!("const DOC: &str = r###\"\n{declaration}\"###;"),
+            format!("const DOC: &[u8] = br##\"\n{declaration}\"##;"),
+            declaration.replace("pub fn", "pub(crate) fn"),
+            declaration.replace("pub fn", "fn"),
+            declaration.replace("'j1", "'other"),
+            declaration.replace("resolve", "resolve_other"),
+            declaration.replace(live, &format!("{live} // trailing comment")),
+        ] {
+            assert!(
+                !live_rust_anchor_present(&text, &anchor).unwrap(),
+                "{frozen}: {text}"
+            );
+        }
+        let quoted_then_live = format!(
+            "/* /* nested */ {live} */\nconst DOC: &str = r##\"/* // \\\"\"##;\n\
+             const QUOTE: char = '\"';\n{declaration}"
+        );
+        assert!(live_rust_anchor_present(&quoted_then_live, &anchor).unwrap());
+        let unicode_then_live = format!(
+            "const TEXT: &str = \"日本語😀\";\nconst CHAR: char = 'é';\n\
+             const ESCAPE: char = '\\u{{1F600}}';\n{declaration}"
+        );
+        assert!(live_rust_anchor_present(&unicode_then_live, &anchor).unwrap());
+        for text in [frozen.to_owned(), format!("{frozen}\n{declaration}")] {
+            let error = live_rust_anchor_present(&text, &anchor)
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains("must retire"), "{error}");
+        }
+    }
+}
+
+#[test]
+fn live_anchor_successors_preserve_exact_path_role_crate_and_unmapped_checks() {
+    let (frozen, live) = LIVE_ANCHOR_SUCCESSORS[0];
+    let anchor = RustBoundaryAnchor {
+        role: RustBoundaryRole::Producer,
+        crate_name: "tsc-program".to_owned(),
+        path: LIVE_ANCHOR_PATH.to_owned(),
+        symbol: frozen.to_owned(),
+    };
+    for changed in [
+        RustBoundaryAnchor {
+            path: "crates/checker/src/modules.rs".to_owned(),
+            ..anchor.clone()
+        },
+        RustBoundaryAnchor {
+            crate_name: "tsc-checker".to_owned(),
+            ..anchor.clone()
+        },
+        RustBoundaryAnchor {
+            role: RustBoundaryRole::DiagnosticConsumer,
+            ..anchor.clone()
+        },
+        RustBoundaryAnchor {
+            symbol: "pub fn unrelated(".to_owned(),
+            ..anchor.clone()
+        },
+    ] {
+        assert!(!live_rust_anchor_present(live, &changed).unwrap());
+        assert!(live_rust_anchor_present(&changed.symbol, &changed).unwrap());
+    }
+}
+
+#[test]
+fn live_anchor_successor_table_rejects_orphans_duplicates_and_unrelated_names() {
+    let registry = committed_registry(&workspace());
+    let (frozen, live) = LIVE_ANCHOR_SUCCESSORS[0];
+    for successors in [
+        vec![(frozen, "pub fn resolve_other<'j0, 'j1>(")],
+        vec![(frozen, "pub fn resolve<T>(")],
+        vec![(frozen, live), (frozen, live)],
+    ] {
+        let error = validate_live_anchor_successors(&registry.rows, &successors)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("unique reviewed lifetime extension"),
+            "{error}"
+        );
+    }
+    let mut orphaned = registry.rows.clone();
+    for row in &mut orphaned {
+        row.rust_boundary
+            .authoritative_anchors
+            .retain(|anchor| anchor.symbol != frozen);
+    }
+    let error = validate_live_anchor_successors(&orphaned, LIVE_ANCHOR_SUCCESSORS)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("has no registry anchor"), "{error}");
+}
+
+#[test]
+fn live_anchor_successors_do_not_change_closing_commit_or_frozen_transition_checks() {
+    let mut row = committed_registry(&workspace()).rows[0].clone();
+    row.rust_boundary.authoritative_anchors.truncate(1);
+    let anchor = &row.rust_boundary.authoritative_anchors[0];
+    assert_eq!(anchor.symbol, LIVE_ANCHOR_SUCCESSORS[0].0);
+    let repo = init_repo("h0-live-successor-history");
+    let closing = commit_bytes(
+        &repo,
+        &anchor.path,
+        anchor.symbol.as_bytes(),
+        "closing anchor",
+    );
+    let live = LIVE_ANCHOR_SUCCESSORS[0].1;
+    let later = commit_bytes(&repo, &anchor.path, live.as_bytes(), "later declaration");
+    assert!(live_rust_anchor_present(live, anchor).unwrap());
+    validate_authoritative_anchors_at_commit(&repo, &row, &closing).unwrap();
+    let error = validate_authoritative_anchors_at_commit(&repo, &row, &later)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("is absent at closing commit"), "{error}");
+
+    let mut changed = row.clone();
+    changed.rust_boundary.authoritative_anchors[0].symbol = live.to_owned();
+    let error = validate_row_transition(&row, &changed)
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("changed frozen authoritative Rust anchors"),
+        "{error}"
+    );
+}
+
+#[test]
 fn strict_schema_rejects_unreviewed_fields() {
     let workspace = workspace();
     let bytes = fs::read(workspace.join(HOST_RESOLUTION_REL_PATH)).unwrap();

@@ -1,0 +1,43 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "source_qualified": false,
+  "review": "actual Opus195 endorses caller-local owner-aware prefix. Proposal uses export_item_anchor (not review snippet export_keyword) to preserve isTypeOnly. Review explanation of passing namespace-declare was inaccurate: source is declare+export, arithmetic export token end6 lies inside declare; no trailing comment resume, not coincident clause start.",
+  "files": [
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "before": "e0a8976e8963a9897aba56be1df0d71e7ad2d0f7bf4f2c792ec3f59b27ab8f5a",
+      "after": "41fbdf31c3fed2329818b3a316a35844831b897353405561032d774b623ca027"
+    },
+    {
+      "path": "scripts/observe-token-comment-phases.mjs",
+      "before": "a3954bcd0116c1cd4eb9755dc15af088fd6954a61ccd9a4d780131c4262d14cb",
+      "after": "2659f1fe304bf5d5060e11e8936bbaca5184c01394e597c94c473c5bce19cdfc"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_token_comment_phases.rs",
+      "before": "b2d36b9a1fa4223a2bb06dab2cb2766f4c3490ce342365c7df0e35d610c41f81",
+      "after": "47bf93451a07d1c0b99b289bfac1e0cb34ba7d77cc2d1ff6f0f6aa0b8006cbaa"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs",
+      "before": "f05e9f4df28ad44f52a580674e505207d1a98eaf90702309938a89f90e860d12",
+      "after": "d08a59d699b8fc982c7252064ef1d410d4e03466e9c2c8e4f615262f64afaebb"
+    }
+  ],
+  "steps": [
+    {
+      "label": "export-clause-oracle-r439",
+      "exit": 0,
+      "seconds": 148.23905374994501
+    },
+    {
+      "label": "export-clause-format-r439",
+      "exit": 0,
+      "seconds": 11.955709957983345
+    }
+  ],
+  "original_observations_unchanged": true,
+  "added_complete_commands": 20,
+  "fixture_sha256": "90976c52c79df69b81e9d22774c38e579bba642190f58f09a13f3e10e3911f5f",
+  "candidate_diff_sha256": "49a4d91dce5a72a980479b23ce20e0a48d750e35b1004bcdd76cad3a43ed7043"
+}

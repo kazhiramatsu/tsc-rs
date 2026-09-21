@@ -1,0 +1,29 @@
+{
+  "head": "b451489e4a18abbff42651d8eb814537f4c5f800",
+  "binary": {
+    "original": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/emitter_final_universe-4eb576a1e57ecfc2",
+    "immutable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r122-known-immutable/emitter_final_universe",
+    "sha256": "43ecbf5dbefa5a852d69e2356356863b86fa3e6eec8dea5860ebb2d1c23f46c6"
+  },
+  "performance_qualification": false,
+  "stale_known_retirement": "pending corpus proof",
+  "steps": [
+    {
+      "label": "universe-217-r124",
+      "raw_test_exit": 101,
+      "exact_x2": 217,
+      "expected_cases": 217,
+      "new_divergences": 0,
+      "stale_guard_rows": 1
+    },
+    {
+      "label": "plan-base-1798-r124",
+      "raw_test_exit": 101,
+      "exact_x2": 1798,
+      "expected_cases": 1798,
+      "new_divergences": 0,
+      "stale_guard_rows": 35
+    }
+  ],
+  "finished": "Both full comparison sets exact twice; Rust tests remain red only for stale KNOWN. Corpus proof and retirement still required."
+}

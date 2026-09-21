@@ -1,0 +1,33 @@
+{
+  "proof_source": "3e28cb21344eae8980cfe66992913f2d8758ede2",
+  "candidate": "0336c56663ff243503a18987a2cf8021109e8295",
+  "checked_paths": [
+    "crates/syntax",
+    "crates/diagnostics",
+    "crates/types",
+    "Cargo.toml",
+    "Cargo.lock",
+    ".cargo"
+  ],
+  "changed_paths": [],
+  "selection_sha256": "592598404a21aeae8a756e6a7ca2573931095344acf3b24b82cb54e6b9e00345",
+  "dependency_record_sha256": "8c5b9ea4163ee1a73607568e7220ba3373b9f98e151af1db5753d58ba2190096",
+  "syntax_tree_hash": "b6065f34c2893b188c33577ca9c6e7bc95a04366",
+  "summary": {
+    "loaded_rows": 14219,
+    "selected_rows": 48,
+    "unchanged_rows": 14171,
+    "load_failures": 110,
+    "selected_no_emit_fallbacks": 2,
+    "changed_inputs": {
+      "projection": 8,
+      "merge-base": 9
+    },
+    "successor_changed_inputs": 8,
+    "keyword_extension_changed_inputs": {
+      "with_consumed_keyword_fact": 4,
+      "without_consumed_keyword_fact": 2,
+      "class_member_body_gap": 0
+    }
+  }
+}

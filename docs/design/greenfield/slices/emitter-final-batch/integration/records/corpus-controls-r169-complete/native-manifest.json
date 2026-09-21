@@ -1,0 +1,24 @@
+{
+  "head": "000716e3b7219000fd241b8c3b707789eb02c662",
+  "qualified": false,
+  "steps": [
+    {
+      "label": "corpus-controls-compiler-build-r169",
+      "exit": 0
+    },
+    {
+      "label": "corpus-controls-167-native-r169",
+      "exit": 101
+    },
+    {
+      "label": "corpus-controls-168-native-r169",
+      "exit": 101
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-corpus-controls-r169/contracts",
+      "sha256": "e10a60f8196f191a4b5930b7265e40daff2efe17e6651239959a2635c4b7219a"
+    }
+  ]
+}

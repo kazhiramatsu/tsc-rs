@@ -116,13 +116,11 @@ impl EmitFileSystem for InjectedFileSystem {
         path: tsc_diagnostics::JsStr<'_>,
     ) -> Result<(), tsc_diagnostics::JsString> {
         let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
-        (|| -> Result<(), String> {
-            Err(format!(
-                "unexpected parent-directory construction for {}",
-                path.display()
-            ))
-        })()
-        .map_err(Into::into)
+        Err(format!(
+            "unexpected parent-directory construction for {}",
+            path.display()
+        )
+        .into())
     }
 
     fn directory_exists(&mut self, path: tsc_diagnostics::JsStr<'_>) -> bool {

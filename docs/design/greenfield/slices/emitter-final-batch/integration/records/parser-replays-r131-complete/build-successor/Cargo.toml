@@ -1,0 +1,26 @@
+[package]
+name = "recovery-parse-replay"
+version = "0.0.0"
+edition = "2021"
+
+[workspace]
+
+[[bin]]
+name = "recovery-parse-replay"
+path = "/Users/hiramatsu/dev/tsc-rs-emitter-final-corpus-replay/scripts/replay-recovery-parse.rs"
+
+[dependencies]
+base64 = "0.22"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sha2 = "0.10"
+tsc-syntax = { package = "tsc-rs-syntax", path = "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/crates/syntax" }
+tsc-types = { package = "tsc-rs-types", path = "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/crates/types" }
+tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/crates/diagnostics" }
+
+[features]
+current-recovery-profiles = []
+
+[profile.dev]
+opt-level = 3
+debug = 0
+incremental = false

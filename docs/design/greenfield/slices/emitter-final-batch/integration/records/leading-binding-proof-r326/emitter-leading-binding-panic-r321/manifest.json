@@ -1,0 +1,104 @@
+{
+  "scope": "read-only isolation using subsetinputs through unchanged frozenreplaybinary; this is failure reproduction, notcorpusqualification",
+  "prototype_head": "2df8d1cd0bae5a26efd1d4268bab4cc7cfd9cc12",
+  "input_id": "216fc70a40de5bed3b82fa5fa782e03cc667f6bf9ad805015507babb622aeaa6",
+  "original_rows": [
+    {
+      "case_id": "typescript-6.0.3/compiler/invalidUnicodeEscapeSequance4.ts#default",
+      "loader": "load_compiler_emit",
+      "units": [
+        {
+          "path": "/.src/invalidUnicodeEscapeSequance4.ts",
+          "input_id": "216fc70a40de5bed3b82fa5fa782e03cc667f6bf9ad805015507babb622aeaa6",
+          "role": "module-request-parse",
+          "emit_eligible": false
+        },
+        {
+          "path": "/.src/invalidUnicodeEscapeSequance4.ts",
+          "input_id": "216fc70a40de5bed3b82fa5fa782e03cc667f6bf9ad805015507babb622aeaa6",
+          "role": "emit-preflight",
+          "emit_eligible": true
+        }
+      ]
+    }
+  ],
+  "binary_sha256": "aadb8c54cc6084955ce92cb03d0c35d7f69e08bf11e81357b2809942ea846b70",
+  "steps": [
+    {
+      "count": 8497,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23335453) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "count": 4248,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23335524) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "count": 2124,
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "count": 1062,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23335650) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "count": 531,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23335683) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "count": 265,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23335710) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "count": 132,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23335749) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "count": 66,
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "count": 33,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23335925) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "count": 16,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23335946) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "count": 8,
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "count": 4,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23335999) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "count": 2,
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "count": 1,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23336039) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "count": 1,
+      "exit": 101,
+      "stderr": "\nthread 'main' (23336059) panicked at /Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/syntax/src/recovery/context.rs:132:75:\nindex out of bounds: the len is 1 but the index is 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    }
+  ],
+  "seconds": 21.13710141601041
+}

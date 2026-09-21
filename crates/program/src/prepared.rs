@@ -2280,7 +2280,7 @@ impl PreparedProgramBuilder {
         Err(PreparationError::new_js(
             PreparationErrorKind::InvalidReference,
             PreparationOperation::BuildPreparedProgram,
-            Some(file_name.into()),
+            Some(file_name),
             "located diagnostic has no owned source text for rendering",
         ))
     }

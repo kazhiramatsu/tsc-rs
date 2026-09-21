@@ -1,0 +1,79 @@
+{
+  "head": "d0edc1a74a6249318b19aa449ab2735983a8df46",
+  "rust_bytes_same_as": "b451489e4a18abbff42651d8eb814537f4c5f800",
+  "binary": {
+    "head": "d0edc1a74a6249318b19aa449ab2735983a8df46",
+    "binary": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-transpile-r127/transpile_routes_contract",
+    "sha256": "e2c0e98d8e1030caa0d7108acf8ea158e1025161bc802392f6411586bc9f9bc6",
+    "test_names": [
+      "comparator_rejects_rust_refusals_and_panics_as_source_exceptions",
+      "known_open_rejects_changed_output_refusal_and_panic",
+      "manifest_rejects_missing_duplicate_ids_and_changed_hash",
+      "no_check_routes_run_no_source_checking",
+      "program_no_check_commands_match_typescript",
+      "repeated_calls_keep_state_separate",
+      "review_api_facts_match_typescript",
+      "transpile_declaration_matches_typescript",
+      "transpile_module_matches_typescript"
+    ]
+  },
+  "routes": {
+    "program-no-check": {
+      "rows": 51,
+      "exact_twice": 50,
+      "known_twice": 1
+    },
+    "transpile-js": {
+      "rows": 153,
+      "exact_twice": 146,
+      "known_twice": 7
+    },
+    "transpile-dts": {
+      "rows": 87,
+      "exact_twice": 87,
+      "known_twice": 0
+    }
+  },
+  "new_divergences": 0,
+  "stale_known": 0,
+  "known_ids": [
+    "h2-8c/program-no-check/syntax-error/still-emits",
+    "h2-8c/transpile-js/inventory/declarationSingleFileHasErrors.ts~default~module~declarationSingleFileHasErrors.ts",
+    "h2-8c/transpile-js/inventory/declarationSingleFileHasErrorsReported.ts~default~module~declarationSingleFileHasErrorsReported.ts",
+    "h2-8c/transpile-js/diag/syntax-error-report-on",
+    "h2-8c/transpile-js/diag/syntax-error-report-off",
+    "h2-8c/transpile-js/diag/syntax-error-report-absent",
+    "h2-8c/transpile-js/text/unicode",
+    "h2-8c/transpile-js/numeric-target/transform-100"
+  ],
+  "reference_fixture_sha256": {
+    "inputs.v1.json": "cfae93399067b33cdde53668218c5730dac7c6d3cdf336ac06235775e65939d0",
+    "review-inputs.v1.json": "0d7939d44396f120234b2abeb3407cd7f76a86b5647b03c731510e262440a833",
+    "known-native.v1.json": "2db42d4b7a51adb6fe9e87f517bf02b9e799777186c705ab712b0ff803592d10",
+    "known-open.v1.json": "709f6c95d424c75cfb123ab48611f54d7bac241aae76c8a9fb12da55cf7216fc",
+    "review-expected.v1.json": "89691b93efb288febeae42872592da1193a0d60a6b9ef20a696c29f39d305df2",
+    "expected.v1.json": "e935b81b9024dca02f02f7c27183b9e943fdf3dd38d28e44b50a71ef359e6d3c"
+  },
+  "performance_qualification": false,
+  "report_payload_note": "One actual payload per case; the test independently repeats every command and asserts equal observations.",
+  "archive": {
+    "path": "records/transpile-r127-native-observations.json.gz",
+    "bytes": 75267,
+    "sha256": "ceaa431a1602f1e0b6b4fa50e4d89f8ebc5babba85b166f1907b0ca144bc5c93"
+  },
+  "transpile-route-build-r127": {
+    "exit": 0,
+    "seconds": 4.664,
+    "log_sha256": "ccc7ccf8fab5f0118afcf1041a62a1003394753605405f1554396c631e8ea17b"
+  },
+  "transpile-routes-native-r127": {
+    "exit": 0,
+    "seconds": 189.976,
+    "log_sha256": "a36b7d3e26056ec532ba6a5c48f313cb7f65ddff3ab2ced8f995e0e51fc3e525"
+  },
+  "source-map-refusal-control-r127": {
+    "exit": 0,
+    "seconds": 5.181,
+    "log_sha256": "358ff0d129d3319aad13463f08b9f15515d63204700039c8eb80c24752bf377b"
+  }
+}

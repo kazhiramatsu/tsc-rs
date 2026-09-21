@@ -28,21 +28,21 @@
   "lineage": {
     "foundation": {
       "path": "ratchets/h2-5h-a-foundation.v1.json",
-      "sha256": "dff44899a3a79459c8e15133ea1405a1d8d858a9257f4d2d44c79b8e4ba3f18f"
+      "sha256": "ea1bc229e59730a12f808a05e8e4dca52f4aa0dcd8b9ba5aaf1a8323b3e3885d"
     },
-    "foundation_fingerprint_sha256": "15c3609f33f62df29c1df06b8b2f5bf7254d7477d6ed15d2354d45040c3e41cc",
+    "foundation_fingerprint_sha256": "41dfd79d5176b44d47d6038d1b56f60432d52139e9369193d7566af288a50bdb",
     "comment_scope_witnesses": {
       "path": "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
-      "sha256": "de69a448807936b7acfab77a6338931846b67c39520b2b32979995bccca44969"
+      "sha256": "efef5fbbc2d2978cd12bb8c69a0c42c24bbf3c75478b87078aeaeff52d9a27d3"
     },
-    "witnesses_fingerprint_sha256": "cf48c42127db88e2f04092e947c1cf1ae57494aa1040c003274a1c0776d528d8",
+    "witnesses_fingerprint_sha256": "f620a404ed71d51a1e34c5c146ddd47f31dfc79765f69dd259c45321e6fb5bd2",
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "dfe9c03d279b283f3d99f678a54a23b1cdba1008b9b1f6bc798f1830c06ef7c8"
+      "sha256": "e9df8117bc2179f3e5c1c24f3b53abaf9ef5c01e3836cdb8a63c99ddc2387906"
     },
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
+      "sha256": "6d0a6bf4924f3064efb39e64fdf2c01522f17faa54a904945ea5897bca3e9028"
     },
     "interpretation": "prerequisite-transition step 2 freezes the complete pinned owner reference closure; it assigns architecture rows but dispositions nothing, authorizes no production edit, and activates nothing"
   },
@@ -3817,5 +3817,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "owner_graph_fingerprint_sha256": "a1a02edd303eaba271b4fa02bbadaab0ab024552434515562e5513bf93400310"
+  "owner_graph_fingerprint_sha256": "0257a647d894abdcf04ebe79c49928a547574121f863035d6df5f2166791e654"
 }

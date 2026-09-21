@@ -1,0 +1,18 @@
+{
+  "head": "5bc9fc0fd60710667efee8d4abeccccae3faa5bd",
+  "qualified": false,
+  "steps": [
+    {
+      "label": "final-format-r231",
+      "exit": 0
+    },
+    {
+      "label": "class-arrow-recovery-test-r231",
+      "exit": 0
+    },
+    {
+      "label": "final-workspace-clippy-r231",
+      "exit": 101
+    }
+  ]
+}

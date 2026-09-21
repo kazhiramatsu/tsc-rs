@@ -1075,7 +1075,7 @@ pub(crate) fn compute_module_specifiers(
                 match provider.resolve_module(crate::AuthoritativeModuleRequest {
                     source_token: crate::AuthoritativeSourceToken(importing_node.source().raw()),
                     containing_file: (&state.binder.source(importing_index).file_name).into(),
-                    specifier: specifier.into(),
+                    specifier,
                     mode,
                 }) {
                     Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => state
@@ -1515,8 +1515,7 @@ pub(crate) fn get_nearest_ancestor_directory_with_package_json<'path>(
     file_name: impl Into<JsStr<'path>>,
 ) -> Option<JsString> {
     let file_name = file_name.into();
-    if let Some(directory) = host.get_nearest_ancestor_directory_with_package_json(file_name.into())
-    {
+    if let Some(directory) = host.get_nearest_ancestor_directory_with_package_json(file_name) {
         return Some(directory);
     }
     let global_cache = host.get_global_typings_cache_location();
@@ -1546,21 +1545,21 @@ pub(crate) fn for_each_file_name_of_module<'path, T>(
     let cwd = host.get_current_directory();
     let case_sensitive = host.use_case_sensitive_file_names();
     let reference_redirect = host
-        .is_source_of_project_reference_redirect(imported_file_name.into())
-        .then(|| host.get_redirect_from_source_file(imported_file_name.into()))
+        .is_source_of_project_reference_redirect(imported_file_name)
+        .then(|| host.get_redirect_from_source_file(imported_file_name))
         .flatten();
     let imported_path = canonical_host_path(imported_file_name, host);
     let mut imported_file_names = Vec::new();
     if let Some(reference_redirect) = &reference_redirect {
         imported_file_names.push(reference_redirect.clone());
     }
-    imported_file_names.push(imported_file_name.to_owned().into());
+    imported_file_names.push(imported_file_name.to_owned());
     imported_file_names.extend(host.redirect_targets((&imported_path).into()));
     let targets: Vec<JsString> = imported_file_names
         .iter()
         .map(|file| normalized_absolute_path(file, &cwd))
         .collect();
-    let mut should_filter_ignored_paths = !targets.iter().all(|path| contains_ignored_path(path));
+    let mut should_filter_ignored_paths = !targets.iter().all(contains_ignored_path);
 
     if !prefer_symlinks {
         for target in &targets {
@@ -3344,6 +3343,9 @@ fn byte_path_slice<'p>(
         .map(|(head, _)| head)
 }
 
+/// tsc-port: normalizeSlashes @6.0.3
+/// tsc-hash: d53c3e92f0b97072b15fe2ed30c413ab7f33522619f88528f818eef207535163
+/// tsc-span: _tsc.js:5452-5454
 pub(crate) fn normalized_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
     let path = path.into();
     let mut result = JsString::with_capacity(path.as_bytes().len());

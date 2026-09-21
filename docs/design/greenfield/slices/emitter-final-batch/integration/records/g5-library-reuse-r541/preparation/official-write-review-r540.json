@@ -1,0 +1,159 @@
+{
+  "qualified": false,
+  "meaning": "Actual official --write freshly observed four cases and reused 9023; only 17 raw lib diagnostic path leaves and derived hashes changed. Full new-key 9027 double observation remains required. Agreement with old-key failed-run journals is comparison evidence only, never new-key adoption.",
+  "source_head": "bb01b86df0a2d266910d25124c4bfbade334c826",
+  "writer_receipt": {
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "node",
+      "crates/oracle/h2-5g-qualification.mjs",
+      "--write"
+    ],
+    "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+    "started_at": "2026-09-20T14:20:23.429018+00:00",
+    "head": "bb01b86df0a2d266910d25124c4bfbade334c826",
+    "tracked_clean": false,
+    "diff_sha256": "33bbca1a475c78e9e5c67ca9a63ede315bbc85348ef249876f9318192dc02411",
+    "env": {
+      "CARGO_BUILD_JOBS": "2",
+      "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+    },
+    "exit": 0,
+    "seconds": 19.969,
+    "log_sha256": "f1c658a8f1e10502df3d0515a6f85ee6691e0004fa00d1dc23e9f069f1a6d4e4",
+    "log_bytes": 4428
+  },
+  "old_artifact_sha256": "76d5af868138aeb1e4e9acc2e2890a643f92a44d737b321fe9343cabfd6b960a",
+  "new_artifact_sha256": "f395a35558bf02b189a25f09642dfb35d93cc1a9f6061583bcd2758d91bf34c1",
+  "generator_sha256": "a20787a8955f3c2f80f1aa6c21d143316b6f0fa5f6d3c178b791a711beb7dad6",
+  "compared_cases": 9027,
+  "unchanged_cases": 9023,
+  "changed_cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/variableDeclarationInStrictMode1.ts#default",
+      "differing_leaves": 5
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/duplicateNumericIndexers.ts#default",
+      "differing_leaves": 6
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+      "differing_leaves": 11
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+      "differing_leaves": 11
+    }
+  ],
+  "path_leaves": [
+    {
+      "case_id": "typescript-6.0.3/compiler/variableDeclarationInStrictMode1.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/2/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/duplicateNumericIndexers.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/12/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/duplicateNumericIndexers.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/13/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/1/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/2/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/3/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/4/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/5/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/6/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeHidingMembersOfExtendedObject.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/7/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/0/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/1/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/2/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/3/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/4/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/5/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/members/objectTypeWithStringIndexerHidingObjectIndexer.ts#default",
+      "path": "/typescript_observation/reported_diagnostics/6/file",
+      "before": "/Users/hiramatsu/dev/tsc-rs/vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "after": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    }
+  ],
+  "summary_unchanged": true,
+  "execution_contract_unchanged": true
+}

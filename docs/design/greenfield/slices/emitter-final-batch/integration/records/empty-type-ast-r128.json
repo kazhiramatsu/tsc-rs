@@ -1,0 +1,207 @@
+{
+  "typescript": "6.0.3",
+  "typescript_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "file_name": "/project/a.ts",
+  "target": "ES2020",
+  "set_parent_nodes": true,
+  "records": [
+    {
+      "text": "export let x: = 1;",
+      "nodes": [
+        {
+          "kind": "VariableDeclaration",
+          "pos": 10,
+          "end": 17,
+          "text": null,
+          "parent": "VariableDeclarationList"
+        },
+        {
+          "kind": "Identifier",
+          "pos": 10,
+          "end": 12,
+          "text": "x",
+          "parent": "VariableDeclaration"
+        },
+        {
+          "kind": "TypeReference",
+          "pos": 13,
+          "end": 13,
+          "text": null,
+          "parent": "VariableDeclaration"
+        },
+        {
+          "kind": "Identifier",
+          "pos": 13,
+          "end": 13,
+          "text": "",
+          "parent": "TypeReference"
+        }
+      ],
+      "diagnostics": [
+        {
+          "code": 1110,
+          "start": 14,
+          "length": 1,
+          "message": "Type expected."
+        }
+      ]
+    },
+    {
+      "text": "export let x: /*c*/ = 1;",
+      "nodes": [
+        {
+          "kind": "VariableDeclaration",
+          "pos": 10,
+          "end": 23,
+          "text": null,
+          "parent": "VariableDeclarationList"
+        },
+        {
+          "kind": "Identifier",
+          "pos": 10,
+          "end": 12,
+          "text": "x",
+          "parent": "VariableDeclaration"
+        },
+        {
+          "kind": "TypeReference",
+          "pos": 13,
+          "end": 13,
+          "text": null,
+          "parent": "VariableDeclaration"
+        },
+        {
+          "kind": "Identifier",
+          "pos": 13,
+          "end": 13,
+          "text": "",
+          "parent": "TypeReference"
+        }
+      ],
+      "diagnostics": [
+        {
+          "code": 1110,
+          "start": 20,
+          "length": 1,
+          "message": "Type expected."
+        }
+      ]
+    },
+    {
+      "text": "export let a: , b: = 2;",
+      "nodes": [
+        {
+          "kind": "VariableDeclaration",
+          "pos": 10,
+          "end": 13,
+          "text": null,
+          "parent": "VariableDeclarationList"
+        },
+        {
+          "kind": "Identifier",
+          "pos": 10,
+          "end": 12,
+          "text": "a",
+          "parent": "VariableDeclaration"
+        },
+        {
+          "kind": "TypeReference",
+          "pos": 13,
+          "end": 13,
+          "text": null,
+          "parent": "VariableDeclaration"
+        },
+        {
+          "kind": "Identifier",
+          "pos": 13,
+          "end": 13,
+          "text": "",
+          "parent": "TypeReference"
+        },
+        {
+          "kind": "VariableDeclaration",
+          "pos": 15,
+          "end": 22,
+          "text": null,
+          "parent": "VariableDeclarationList"
+        },
+        {
+          "kind": "Identifier",
+          "pos": 15,
+          "end": 17,
+          "text": "b",
+          "parent": "VariableDeclaration"
+        },
+        {
+          "kind": "TypeReference",
+          "pos": 18,
+          "end": 18,
+          "text": null,
+          "parent": "VariableDeclaration"
+        },
+        {
+          "kind": "Identifier",
+          "pos": 18,
+          "end": 18,
+          "text": "",
+          "parent": "TypeReference"
+        }
+      ],
+      "diagnostics": [
+        {
+          "code": 1110,
+          "start": 14,
+          "length": 1,
+          "message": "Type expected."
+        },
+        {
+          "code": 1110,
+          "start": 19,
+          "length": 1,
+          "message": "Type expected."
+        }
+      ]
+    },
+    {
+      "text": "export const a number = \"missing colon\";",
+      "nodes": [
+        {
+          "kind": "VariableDeclaration",
+          "pos": 12,
+          "end": 14,
+          "text": null,
+          "parent": "VariableDeclarationList"
+        },
+        {
+          "kind": "Identifier",
+          "pos": 12,
+          "end": 14,
+          "text": "a",
+          "parent": "VariableDeclaration"
+        },
+        {
+          "kind": "VariableDeclaration",
+          "pos": 14,
+          "end": 39,
+          "text": null,
+          "parent": "VariableDeclarationList"
+        },
+        {
+          "kind": "Identifier",
+          "pos": 14,
+          "end": 21,
+          "text": "number",
+          "parent": "VariableDeclaration"
+        }
+      ],
+      "diagnostics": [
+        {
+          "code": 1005,
+          "start": 15,
+          "length": 6,
+          "message": "',' expected."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "qualified": false,
+  "reason": "59 harness hash rows from the failed partial walk await the official driver recovery; no bypass or manual artifact mint",
+  "checks": [
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/pin-audit.py"
+      ],
+      "exit": 0,
+      "stdout": "pin audit: clean (6 current-tracking files, 8 frozen files)\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/walk-preflight.py"
+      ],
+      "exit": 1,
+      "stdout": "walk-preflight: 1 stale pin surface(s) \u2014 fix ALL, then walk ONCE:\n  [harness-manifest] exit 1\nharness-pins STALE (59 rows):\n  h2_1a_profile:ratchets/h2-1a-profile.v1.json pinned 2db71f9e65f7.. current d2098a7f178d..\n  h2_1a_profile:ratchets/h2-profile-transition.v1.json pinned c6fa61d6ac6e.. current af0ef502d102..\n  h2_1b_profile:crates/oracle/h2-1b-profile.mjs pinned 5d930f92388b.. current 2f424bdb5070..\n  h2_1b_profile:ratchets/h2-1a-profile.v1.json pinned 2db71f9e65f7.. current d2098a7f178d..\n  h2_1b_profile:ratchets/h2-1a-qualification.v1.json pinned 4b6b4699cd8c.. current fd2d06988c7f..\n  h2_1b_profile:ratchets/h2-1b-profile.v1.json pinned 0d766e104050.. current c15e620742c2..\n  h2_1b_profile:ratchets/h2-1b-qualification.v1.json pinned 4fdab0ef83b0.. current 0cf42f247b9f..\n  h2_1c_profile:crates/oracle/h2-1c-profile.mjs pinned ec7fd475335e.. current f543f9137e3a..\n  h2_1c_profile:ratchets/h2-1b-profile.v1.json pinned 0d766e104050.. current c15e620742c2..\n  h2_1c_profile:ratchets/h2-1b-qualification.v1.json pinned 4fdab0ef83b0.. current 0cf42f247b9f..\n  h2_1c_profile:ratchets/h2-1c-profile.v1.json pinned c0225c311da3.. current 1cf76fb5c3e9..\n  h2_1c_profile:ratchets/h2-1c-qualification.v1.json pinned f93873ce3107.. current 81f058a70fad..\n  h2_1d_profile:crates/oracle/h2-1d-profile.mjs pinned ec53bc196218.. current 33761c3777d4..\n  h2_1d_profile:ratchets/h2-1c-profile.v1.json pinned c0225c311da3.. current 1cf76fb5c3e9..\n  h2_1d_profile:ratchets/h2-1c-qualification.v1.json pinned f93873ce3107.. current 81f058a70fad..\n  h2_1d_profile:ratchets/h2-1d-profile.v1.json pinned 636c7d5538b4.. current a9e3cf2f5579..\n  h2_1d_profile:ratchets/h2-1d-qualification.v1.json pinned ae556ff50199.. current e3dff665ee84..\n  h2_1e_profile:crates/oracle/h2-1e-profile.mjs pinned 47658f8db1e2.. current 197ca77b71d2..\n  h2_1e_profile:ratchets/h2-1d-profile.v1.json pinned 636c7d5538b4.. current a9e3cf2f5579..\n  h2_1e_profile:ratchets/h2-1d-qualification.v1.json pinned ae556ff50199.. current e3dff665ee84..\n  h2_1e_profile:ratchets/h2-1e-profile.v1.json pinned f1f37d6d63e6.. current 6a215d3513e8..\n  h2_1e_profile:ratchets/h2-1e-qualification.v1.json pinned 8c865b0a8e55.. current b30fb0d33a2a..\n  h2_2a_profile:crates/oracle/h2-2a-profile.mjs pinned 143ebf10fbeb.. current 011297559d41..\n  h2_2a_profile:ratchets/h2-1e-profile.v1.json pinned f1f37d6d63e6.. current 6a215d3513e8..\n  h2_2a_profile:ratchets/h2-1e-qualification.v1.json pinned 8c865b0a8e55.. current b30fb0d33a2a..\n  h2_2a_profile:ratchets/h2-2a-profile.v1.json pinned cf0dbeb2c138.. current 461c6d1599a4..\n  h2_2a_profile:ratchets/h2-2a-qualification.v1.json pinned daa8b1f5b89a.. current 35f29b242a54..\n  h2_2b_profile:crates/oracle/h2-2b-profile.mjs pinned 94a769f1e070.. current a997da849864..\n  h2_2b_profile:ratchets/h2-2a-profile.v1.json pinned cf0dbeb2c138.. current 461c6d1599a4..\n  h2_2b_profile:ratchets/h2-2a-qualification.v1.json pinned daa8b1f5b89a.. current 35f29b242a54..\n  h2_2b_profile:ratchets/h2-2b-profile.v1.json pinned 9213e5f3112d.. current 3ad9ec48427a..\n  h2_2b_profile:ratchets/h2-2b-qualification.v1.json pinned f49bf3d433d6.. current e5f672c95c6a..\n  h2_2c_profile:crates/oracle/h2-2c-profile.mjs pinned 9b115d574c75.. current 8ea8188ab922..\n  h2_2c_profile:ratchets/h2-2b-profile.v1.json pinned 9213e5f3112d.. current 3ad9ec48427a..\n  h2_2c_profile:ratchets/h2-2b-qualification.v1.json pinned f49bf3d433d6.. current e5f672c95c6a..\n  h2_2c_profile:ratchets/h2-2c-profile.v1.json pinned 3db7a35c4d50.. current 983b3386d22e..\n  h2_2c_profile:ratchets/h2-2c-qualification.v1.json pinned a4e997463127.. current 94ffbecbc509..\n  h2_2d_profile:crates/oracle/h2-2d-profile.mjs pinned fdcc2592ee4c.. current 1bf4ad18e893..\n  h2_2d_profile:ratchets/h2-2c-profile.v1.json pinned 3db7a35c4d50.. current 983b3386d22e..\n  h2_2d_profile:ratchets/h2-2c-qualification.v1.json pinned a4e997463127.. current 94ffbecbc509..\n  h2_2d_profile:ratchets/h2-2d-profile.v1.json pinned 842846e1a2df.. current 7610055e114b..\n  h2_2d_profile:ratchets/h2-2d-qualification.v1.json pinned 2a94a409efbb.. current 9302319e0eeb..\n  h2_3a_profile:crates/oracle/h2-3a-profile.mjs pinned 2c9425e0b1ba.. current fac4522fd884..\n  h2_3a_profile:ratchets/h2-2d-profile.v1.json pinned 842846e1a2df.. current 7610055e114b..\n  h2_3a_profile:ratchets/h2-2d-qualification.v1.json pinned 2a94a409efbb.. current 9302319e0eeb..\n  h2_3a_profile:ratchets/h2-3a-profile.v1.json pinned 2f42354c0ffe.. current 9d3c36a29246..\n  h2_3a_profile:ratchets/h2-3a-qualification.v1.json pinned b35830491230.. current 57928dea849d..\n  h2_3b_profile:crates/oracle/h2-3b-profile.mjs pinned d4083b7c9314.. current b8581ae2562b..\n  h2_3b_profile:ratchets/h2-3a-profile.v1.json pinned 2f42354c0ffe.. current 9d3c36a29246..\n  h2_3b_profile:ratchets/h2-3a-qualification.v1.json pinned b35830491230.. current 57928dea849d..\n  h2_3b_profile:ratchets/h2-3b-profile.v1.json pinned 05ac2764462f.. current b6f4a150177f..\n  h2_3b_profile:ratchets/h2-3b-qualification.v1.json pinned ee5463cf9023.. current 2e8c2fe8361f..\n  h2_3c_profile:crates/oracle/h2-3c-profile.mjs pinned fda473e73a21.. current 7cbdb051a870..\n  h2_3c_profile:ratchets/h2-3b-profile.v1.json pinned 05ac2764462f.. current b6f4a150177f..\n  h2_3c_profile:ratchets/h2-3b-qualification.v1.json pinned ee5463cf9023.. current 2e8c2fe8361f..\n  h2_3c_profile:ratchets/h2-3c-profile.v1.json pinned 5bff87bf8bac.. current dbdd7a96a19f..\n  h2_3c_profile:ratchets/h2-3c-qualification.v1.json pinned 39497fbfef31.. current dc877d8ec81f..\n  h2_transition:ratchets/h1-emit-qualification.v1.json pinned 83974e2ed692.. current 6bbfc47c499a..\n  h2_transition:ratchets/h1-rust-omissions.v1.json pinned bc56ec326347.. current 13428e8065cc..\n",
+      "stderr": ""
+    }
+  ]
+}

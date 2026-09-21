@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "crates/syntax/Cargo.toml",
+    "--test",
+    "entity_names",
+    "--test",
+    "new_meta_property_name",
+    "--test",
+    "owned_literal_values",
+    "--test",
+    "recovery_provenance",
+    "--test",
+    "emitter_recovery",
+    "--test",
+    "scanner_escape_diagnostics",
+    "--test",
+    "template_escape_flags",
+    "--test",
+    "template_flags",
+    "--",
+    "--show-output",
+    "--test-threads=1"
+  ],
+  "native_exit": 0,
+  "verified_tests": 14,
+  "seconds": 0.36288354196585715,
+  "log_sha256": "dfbd5a3f09b8153aa3baa773486fafb1092ac73e3eb58a57da440b3536fe7e96",
+  "old_raw_hosted_and_native_refused": true,
+  "injected_status_refused": true
+}

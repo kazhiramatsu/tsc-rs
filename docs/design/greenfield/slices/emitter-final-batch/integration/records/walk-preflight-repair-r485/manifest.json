@@ -1,0 +1,374 @@
+{
+  "schema": 1,
+  "scope": "Integration preflight repair only; no product/crate change, no sanctioned real walk, no final qualification.",
+  "base_head": "2ee2bd6a96f0e8bd0605ffa4f6e59ffc9dbcad69",
+  "created_at": "2026-09-20T08:28:26.140404+00:00",
+  "retained_failures": {
+    "r456": "unregistered three reference generators",
+    "r464": "symlinked vendor changes TypeScript default library root; isolated prototype only",
+    "r474": "existing ORDER inversion exposed before any mint",
+    "r479": "schema registration order not yet synchronized; repaired r481 and all50 pass r482",
+    "r478": "registry/planner/topology/current projection/pins/static checks/fmt green; test-module layout16 locations refuses before Clippy/mint"
+  },
+  "success": {
+    "r465": "copy-only original325 and323x2 reference checks",
+    "r467": "five mutation test groups green",
+    "r469": "candidate325, original observations323x2, bundle55x2, outputdirectory23x2; pre/postcurrentprojection green",
+    "r470": "current four-parent metadata-only drift passes; current owner drift refuses; restore passes",
+    "r480": "all five new CI/input path classes select full hosted3groups+78witnesses",
+    "r482": "all50 structural qualification tests green; 27schema mappings preserved with3entryreorder"
+  },
+  "outstanding": "Move16 existing cfg(test) modules to tests/unit and verify content equivalence, affected suites, source mirrors; then one real walk, full unsplit final CI, hosted gates, merge and final qualification.",
+  "files": [
+    {
+      "path": "emitter-walk-order-review-r457/request.md",
+      "sha256": "f684b0c70feb63cfcec916b0b60a8a910960d13424260a8a537751d7920dc6f8",
+      "bytes": 1665
+    },
+    {
+      "path": "emitter-walk-order-review-r457/response.json",
+      "sha256": "0fdd00e923a96f8c1cc3ee8c1e51a334d04662027ddcddbfb23e9dfe54e14a35",
+      "bytes": 8005
+    },
+    {
+      "path": "emitter-walk-order-review-r457/stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "emitter-walk-order-followup-r459/request.md",
+      "sha256": "14ba6c8bbf678e0a9564e7a5c746d40b7de28f7b825e4a0a21becd64632b0dad",
+      "bytes": 2088
+    },
+    {
+      "path": "emitter-walk-order-followup-r459/response.json",
+      "sha256": "38f1447ae955f0bda83c6670e0082a7b8bf8dcf8012c4b76a4dee2139f4cc20c",
+      "bytes": 8541
+    },
+    {
+      "path": "emitter-walk-order-followup-r459/stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "emitter-walk-frozen-plan-r461/request.md",
+      "sha256": "e41416c2a89415aab34625e38d47dfc4574c4dab9a632b30fe93b16aef8909e2",
+      "bytes": 2611
+    },
+    {
+      "path": "emitter-walk-frozen-plan-r461/response.json",
+      "sha256": "ebb82110c5cca8fcfb0949424fb492b4888faadb6774677a632fd1abea1efb95",
+      "bytes": 8225
+    },
+    {
+      "path": "emitter-walk-frozen-plan-r461/stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "emitter-frozen-reference-review-r463/request.md",
+      "sha256": "a3eed42d73ab68c2b761ffc73cc557767354b81a97f8530900c337fdb3ba3f94",
+      "bytes": 2476
+    },
+    {
+      "path": "emitter-frozen-reference-review-r463/response.json",
+      "sha256": "929e545be2b8b98b00107c639c31de4183f579ff4299f09f5773573322b8551e",
+      "bytes": 8685
+    },
+    {
+      "path": "emitter-frozen-reference-review-r463/stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "emitter-frozen-reference-prototype-r464/candidate.log.gz",
+      "sha256": "0c7173cf070283dd1350e4b044e2c39dbb5ebd4d062030c54242c2ddd8915b01",
+      "bytes": 272
+    },
+    {
+      "path": "emitter-frozen-reference-prototype-r464/manifest.json",
+      "sha256": "f25b2a8c8254ff171bb4f01647ce9a8de9d7a19b6185ea582ee1ceac57b6d6d9",
+      "bytes": 3377
+    },
+    {
+      "path": "emitter-frozen-reference-prototype-r464/observations.log.gz",
+      "sha256": "ecb44ddb2450ac29862540fe48305b87d7c7baaa0397fc5b28824ebd147942fc",
+      "bytes": 7344
+    },
+    {
+      "path": "emitter-frozen-reference-prototype-r465/candidates.log.gz",
+      "sha256": "0c7173cf070283dd1350e4b044e2c39dbb5ebd4d062030c54242c2ddd8915b01",
+      "bytes": 272
+    },
+    {
+      "path": "emitter-frozen-reference-prototype-r465/manifest.json",
+      "sha256": "df68d7b110c1a1ba52c2090c93edaaec3438b3afe67abe04c8af91fdc812b765",
+      "bytes": 119058
+    },
+    {
+      "path": "emitter-frozen-reference-prototype-r465/observations.log.gz",
+      "sha256": "c79772d01ee6f6db383b0438c0f2eb20b056b3e64554e692d55a6470c774a926",
+      "bytes": 3333
+    },
+    {
+      "path": "emitter-frozen-reference-code-review-r468/request.md",
+      "sha256": "0dfce670b7c9dc1538904535aff746a6b03dd344225cc1816b69029ec55b9f13",
+      "bytes": 2538
+    },
+    {
+      "path": "emitter-frozen-reference-code-review-r468/response.json",
+      "sha256": "2a56d5eae459c57462f142588b735a8990857972228f160cb610a213332e89ff",
+      "bytes": 7603
+    },
+    {
+      "path": "emitter-frozen-reference-code-review-r468/stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "emitter-frozen-current-projection-r470/current-owner-change.log.gz",
+      "sha256": "9208f230e7a8ca18dd9127e503db270d9c5986e54b13f85076f17c3030ebcbd4",
+      "bytes": 367
+    },
+    {
+      "path": "emitter-frozen-current-projection-r470/four-parent-metadata-only.log.gz",
+      "sha256": "f0b96313d6f80702a0f037863ee6cc6e79a269fb51e75d34002075faa08f5f36",
+      "bytes": 108
+    },
+    {
+      "path": "emitter-frozen-current-projection-r470/manifest.json",
+      "sha256": "fe896afb6508aee94b24a29a9ff47431798eeb68c28ff9cbd05b53e9aca61454",
+      "bytes": 789
+    },
+    {
+      "path": "emitter-frozen-current-projection-r470/restored-current-owner.log.gz",
+      "sha256": "f0b96313d6f80702a0f037863ee6cc6e79a269fb51e75d34002075faa08f5f36",
+      "bytes": 108
+    },
+    {
+      "path": "emitter-walk-topology-review-r475/request.md",
+      "sha256": "b6f0bcb1158dfdf86881d8d0525048b73453f9834c09485fd5c11d56e000534c",
+      "bytes": 1920
+    },
+    {
+      "path": "emitter-walk-topology-review-r475/response.json",
+      "sha256": "b98cafaf1e1b98c4d3a59c07ac60e4ee732984c6aa245f3b386b9a749d615d7c",
+      "bytes": 14191
+    },
+    {
+      "path": "emitter-walk-topology-review-r475/stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "emitter-walk-topology-projection-r476/manifest.json",
+      "sha256": "d1041b09f4716dc735fa86789376595aaf192f007ce08551483e7412247f22f9",
+      "bytes": 32569
+    },
+    {
+      "path": "emitter-walk-complete-topology-review-r477/request.md",
+      "sha256": "8389ca6a1355bb92d2315bcee1baaa474d07d7ae5f18aac25354d70ca15f17b0",
+      "bytes": 2649
+    },
+    {
+      "path": "emitter-walk-complete-topology-review-r477/response.json",
+      "sha256": "4fc49c7fede29049c102138bf5448e9c182fca23eba89c32d48c5292de6f61e7",
+      "bytes": 8103
+    },
+    {
+      "path": "emitter-walk-complete-topology-review-r477/stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "emitter-schema-order-repair-r481/after.json",
+      "sha256": "8a511715279ead551e2e9a47de7ae49b0bad6448934a53446857c63bb9bf4d27",
+      "bytes": 4629
+    },
+    {
+      "path": "emitter-schema-order-repair-r481/before.json",
+      "sha256": "9d1ef735e58edd7fafd1abb8f18720bd732157a9757fd4a0f37cc7644cc1f04f",
+      "bytes": 4629
+    },
+    {
+      "path": "emitter-frozen-preflight-r466.log.gz",
+      "sha256": "5ec39488d152c70f99b8fd57bc21c0ca5072646c04a544618e9ac9312b8d93c5",
+      "bytes": 150
+    },
+    {
+      "path": "emitter-frozen-tests-r467.log.gz",
+      "sha256": "fe9c22c5ec9227ba7cadc673696cb7a14353d7c7c01cc39f0164432004aeb87f",
+      "bytes": 384
+    },
+    {
+      "path": "emitter-frozen-replay-r469.log.gz",
+      "sha256": "a97abc9634430a5c3cfd7335aabe28b923b0efd690a1c088a95636308de5cd93",
+      "bytes": 4003
+    },
+    {
+      "path": "emitter-frozen-pin-preflight-r471.log.gz",
+      "sha256": "00f0196440d5a4d3cc78c13d2e923370dbd2905a9a484fda82800100feaa52b2",
+      "bytes": 118
+    },
+    {
+      "path": "emitter-frozen-qualification-tests-r473.log.gz",
+      "sha256": "3dee04cb412f332ac916dde0cc0b3e6fd258a5b56f444bfbe5a5dc38e1b7490f",
+      "bytes": 1983
+    },
+    {
+      "path": "emitter-frozen-qualification-tests-r479.log.gz",
+      "sha256": "86347163888bd26c037bbcbf1dd097064622664756268cbe81a9b897fa3498dd",
+      "bytes": 2630
+    },
+    {
+      "path": "emitter-frozen-hosted-selection-r480.json",
+      "sha256": "c923358c560e7a44615888967bada4fb674e4e8f353d9e480ed94fc517fbe090",
+      "bytes": 946
+    },
+    {
+      "path": "emitter-frozen-qualification-tests-r482.log.gz",
+      "sha256": "312a5b05d6666ca655f389e17c3385e45d5af5544db9102acc2c3459e7e5ff83",
+      "bytes": 1992
+    },
+    {
+      "path": "chain-walk-fmt.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "chain-walk-inline-tests.log.gz",
+      "sha256": "744b2f106c45bfc1f3e710372fcbc0b1bc615abf5d042112f160bb4e55a6b4b6",
+      "bytes": 429
+    },
+    {
+      "path": "first-replay-code-r472/.github/ci/qualification.test.mjs",
+      "sha256": "d8baae06a5abe9bcf130912c1801aa857a8058682bd7b7409452a054cdf98d0b",
+      "bytes": 46365
+    },
+    {
+      "path": "first-replay-code-r472/manifest.json",
+      "sha256": "ca39e18c6ede78f5c1de9ccaf65e3e0a5e8da582140f2d31c093d420e2dac674",
+      "bytes": 1168
+    },
+    {
+      "path": "first-replay-code-r472/new-ci/src/bin/plan.rs",
+      "sha256": "0e2b26bc6488b696f251c10796be165194715946d96f067134ee0b00a7d65603",
+      "bytes": 60666
+    },
+    {
+      "path": "first-replay-code-r472/scripts/chain-walk.sh",
+      "sha256": "fea90adf7f5967d6b4b378028f697bc294568db6bf3128e9c797ea3dc0ebe11e",
+      "bytes": 23507
+    },
+    {
+      "path": "first-replay-code-r472/scripts/check-frozen-de-reference.mjs",
+      "sha256": "9d194ed42b4035639d8b6d80509907ca4d428dd13d679e5b7b74e28878500bb4",
+      "bytes": 9650
+    },
+    {
+      "path": "first-replay-code-r472/scripts/frozen-de-reference/manifest.json",
+      "sha256": "68d91a4a1d33cf8b17146e9b586c64dee7ccd8f758bbd7965b9d1248b0d85bfd",
+      "bytes": 119745
+    },
+    {
+      "path": "first-replay-code-r472/scripts/frozen-de-reference.test.mjs",
+      "sha256": "c787dec850492675099a95643eba4a7b3a2e887607f950345da9cbd68639d398",
+      "bytes": 7657
+    },
+    {
+      "path": "local/final-walk-pin-preflight-r456.json",
+      "sha256": "20c12bf91f7a555ce9cdb91ad57ec9ff24e93cc8bb1eb940893ffcea11981fa5",
+      "bytes": 677
+    },
+    {
+      "path": "local/final-walk-pin-preflight-r456.log.gz",
+      "sha256": "00f0196440d5a4d3cc78c13d2e923370dbd2905a9a484fda82800100feaa52b2",
+      "bytes": 118
+    },
+    {
+      "path": "local/final-walk-dry-r456.json",
+      "sha256": "3d4b30fefa8a041a6816f39977a92fe2de759ac024246a715ea161c254ac55e5",
+      "bytes": 670
+    },
+    {
+      "path": "local/final-walk-dry-r456.log.gz",
+      "sha256": "cb4322faaceecb2fce087eee5346870472d08510b694d257ec49b80662ba1ac5",
+      "bytes": 292
+    },
+    {
+      "path": "local/walk-candidate-reference-check-r458.json",
+      "sha256": "69c97826843dfaf824461fb3455eb1e4c6df8bf8d7eba07b6c8995e169fd5c54",
+      "bytes": 699
+    },
+    {
+      "path": "local/walk-candidate-reference-check-r458.log.gz",
+      "sha256": "0c7173cf070283dd1350e4b044e2c39dbb5ebd4d062030c54242c2ddd8915b01",
+      "bytes": 272
+    },
+    {
+      "path": "local/final-walk-dry-r474.json",
+      "sha256": "1ea542f85f1442088723ae9c3e81f6a97cc6d28146fc997d7e25f2e146865d76",
+      "bytes": 671
+    },
+    {
+      "path": "local/final-walk-dry-r474.log.gz",
+      "sha256": "247741ed807ca51212efdd73cd9394afb9e150e9175f2cbd509ab8eb008fcc34",
+      "bytes": 342
+    },
+    {
+      "path": "local/final-walk-dry-r478.json",
+      "sha256": "bd56dc0421a8845a51197e8e27ee7619ba94f554902ace89b5a38296b60100ba",
+      "bytes": 674
+    },
+    {
+      "path": "local/final-walk-dry-r478.log.gz",
+      "sha256": "fdffa2d5e35e64518b1a96a659c81eb1093b337ad22efeaa10e9d7a897769b5b",
+      "bytes": 719
+    },
+    {
+      "path": "final-source/scripts/check-frozen-de-reference.mjs",
+      "sha256": "a18f692419471667296d81a7d35bcdfcd3bad43dee116098aa319488011246d8",
+      "bytes": 9707
+    },
+    {
+      "path": "final-source/scripts/frozen-de-reference.test.mjs",
+      "sha256": "63f07b4bac3b776341f28f489a649f3e05a1a32d63779ba526fe81b2d63d2031",
+      "bytes": 7987
+    },
+    {
+      "path": "final-source/scripts/chain-walk.sh",
+      "sha256": "78a3c5e7633c9a79f7d934c9f328c3b48c1cb298234ee70ea44dcb5f4c80a56d",
+      "bytes": 23511
+    },
+    {
+      "path": "final-source/scripts/walk-topology-audit.py",
+      "sha256": "2fb9d615b0b8199a0c54e3be5d58ae355d1a69114758cb24799a201219f30e68",
+      "bytes": 8668
+    },
+    {
+      "path": "final-source/new-ci/src/bin/plan.rs",
+      "sha256": "ea65e3861dd532c5e5f9701b331df23a49fec1cd386100985951517838ecb570",
+      "bytes": 60666
+    },
+    {
+      "path": "final-source/.github/ci/qualification.mjs",
+      "sha256": "646e74b525ceec24af96d3388935add7a6c912c612fcc88786a64976830951d2",
+      "bytes": 94379
+    },
+    {
+      "path": "final-source/.github/ci/qualification.test.mjs",
+      "sha256": "dbc8166f8e6010515f40b11065713d39393978c2f34f1de0d23dc466c9477222",
+      "bytes": 46365
+    },
+    {
+      "path": "ci-only.patch.gz",
+      "sha256": "346571dcaf4e17eb92216ee641efcf72ffa07bed2e629e14012152f3bb175e6f",
+      "bytes": 5008
+    },
+    {
+      "path": "archive-emitter-walk-preflight-repair-r485.py",
+      "sha256": "0eb0a98167997c8c69cdc7124f8985d5e72ac68b15aa13df605ec75a4a6baaf1",
+      "bytes": 5089
+    }
+  ]
+}

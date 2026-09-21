@@ -1,0 +1,15 @@
+diff --git a/crates/oracle/h2-5g-profile.mjs b/crates/oracle/h2-5g-profile.mjs
+index 693f2d246c1618cf60eb27e6a942c0887f94b62b..51b5a0b5c9a398235d4a9812042e83e06a343c1a 100644
+--- a/crates/oracle/h2-5g-profile.mjs
++++ b/crates/oracle/h2-5g-profile.mjs
+@@ -1057,6 +1057,10 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
+   "crates/conformance/src/ratchet.rs",
+   "crates/conformance/tests/unit/bounded_pipeline/tests.rs",
+   "crates/conformance/tests/unit/lib/tests.rs",
++  // H0 registry validation belongs to the semantic CI phase; the fixed H2.5g
++  // acceptance command does not call it or compile its outlined unit tests.
++  "crates/conformance/src/host_resolution.rs",
++  "crates/conformance/tests/unit/host_resolution/tests.rs",
+   // Recovery-census gate infrastructure over the diagnostic corpus.
+   "crates/xtask/src/recovery_census.rs",
+   // Workspace-audit maintenance rules (the CS-6 permanent

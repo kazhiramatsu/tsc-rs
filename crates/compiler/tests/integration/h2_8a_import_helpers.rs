@@ -11,12 +11,24 @@ fn import_helpers_matches_complete_typescript_observations() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 111);
+    assert_eq!(cases.len(), 551);
+    let filter = std::env::var("TSC_RS_IMPORT_HELPERS_CASE_FILTER").ok();
+    let cases: Vec<_> = cases
+        .iter()
+        .filter(|case| {
+            filter
+                .as_ref()
+                .is_none_or(|filter| case["case_id"].as_str().unwrap().contains(filter))
+        })
+        .collect();
+    assert!(!cases.is_empty(), "empty import helpers selection");
+    let selected = cases.len();
     let mut failures = Vec::new();
+    let mut known = 0;
     for case in cases {
         let case_id = case["case_id"].as_str().unwrap();
         let result = std::panic::catch_unwind(|| {
-            super::h2_7c_declaration_blocking::assert_cases_with_inspection(
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
                 &serde_json::json!({"cases":[case]}),
                 true,
                 capture_complete_command,
@@ -24,22 +36,269 @@ fn import_helpers_matches_complete_typescript_observations() {
         });
         if result.is_err() {
             failures.push(case_id);
+        } else if case.get("rust_expected_parse_recovery").is_some() {
+            known += 1;
+            eprintln!(
+                "external helper imports KNOWN x2 {case_id}: {}",
+                case["rust_expected_parse_recovery"]["cause"]
+            );
         } else {
             eprintln!("external helper imports EXACT x2 {case_id}");
         }
     }
+    eprintln!(
+        "external helper imports SUMMARY exact={} known={known} failed={} selected={selected}",
+        selected - failures.len() - known,
+        failures.len()
+    );
     assert!(
         failures.is_empty(),
         "complete external helper imports failures: {failures:?}"
     );
 }
 
+#[test]
+fn missing_await_recovery_matches_complete_typescript_observations() {
+    let artifact: Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-missing-await.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 60);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("missing-await recovery EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "missing-await recovery SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete missing-await command failures: {failures:?}"
+    );
+}
+
+#[test]
+fn missing_declaration_recovery_matches_complete_typescript_observations() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-missing-declaration.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 72);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("missing-declaration recovery EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "missing-declaration recovery SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete missing-declaration command failures: {failures:?}"
+    );
+}
+
+#[test]
+fn missing_declaration_effects_match_complete_typescript_observations() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-missing-declaration-effects.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 144);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("missing-declaration effects EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "missing-declaration effects SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete missing-declaration effect failures: {failures:?}"
+    );
+}
+
+#[test]
+fn missing_declaration_scripts_match_complete_typescript_observations() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-missing-declaration-scripts.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 150);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("missing-declaration scripts EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "missing-declaration scripts SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete missing-declaration script failures: {failures:?}"
+    );
+}
+
+#[test]
+fn missing_declaration_binding_matches_complete_typescript_observations() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-missing-declaration-binding.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 60);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("missing-declaration binding EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "missing-declaration binding SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete missing-declaration binding failures: {failures:?}"
+    );
+}
+
+#[test]
+fn parameter_gap_recovery_matches_complete_typescript_observations() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-parameter-gap-recovery.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 72);
+    let modules: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-parameter-gap-module.json"
+    ))
+    .unwrap();
+    assert_eq!(modules["typescript"], "6.0.3");
+    assert_eq!(modules["repetitions"], 2);
+    let module_cases = modules["cases"].as_array().unwrap();
+    assert_eq!(module_cases.len(), 6);
+    let cases = cases.iter().chain(module_cases).collect::<Vec<_>>();
+    let mut failures = Vec::new();
+    for case in &cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("parameter-gap recovery EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "parameter-gap recovery SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete parameter-gap recovery failures: {failures:?}"
+    );
+}
+
 // Supplemental executions retain the whole command, including fields after
 // the comparator's first failure. They are counted separately in evidence.
-fn capture_complete_command(
+pub(super) fn capture_complete_command(
     case_id: &str,
     prepared: &tsc_program::PreparedProgram,
     expected: &Value,
+    additional_options_diagnostics: &[Diagnostic],
 ) {
     use sha2::Digest;
     let Some(directory) = std::env::var_os("TSC_RS_H2_8A_CAPTURE_WRITES_DIR") else {
@@ -53,8 +312,11 @@ fn capture_complete_command(
         .find(|index| !directory.join(format!("{key}-{index}.json")).exists())
         .unwrap();
     let mut sink = tsc_compiler::MemoryOutputSink::new();
-    let command =
-        tsc_compiler::ProgramSession::new(prepared.clone()).emit_command_for_harness(&mut sink);
+    let command = tsc_compiler::ProgramSession::new(prepared.clone())
+        .emit_command_for_harness_with_options_diagnostics(
+            &mut sink,
+            additional_options_diagnostics,
+        );
     let writes = sink
         .writes()
         .iter()
@@ -159,6 +421,79 @@ fn captured_write(index: usize, artifact: &EmitArtifact) -> Value {
         "data_source_map_url_pos":position,"data_diagnostics":data_diagnostics,"data_build_info":null})
 }
 
-#[path = "../../../program/tests/support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use crate::utf16_scalar_json::observe as scalar_json;
+
+#[test]
+fn statement_gap_recovery_matches_complete_typescript_observations() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-statement-gap-recovery.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 228);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("statement-gap recovery EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "statement-gap recovery SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete statement-gap recovery failures: {failures:?}"
+    );
+}
+
+#[test]
+fn context_recovery_matches_complete_typescript_observations() {
+    let artifact: Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-context-recovery.json"))
+            .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 788);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("context recovery EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "context recovery SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete context recovery failures: {failures:?}"
+    );
+}

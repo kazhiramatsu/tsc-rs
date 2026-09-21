@@ -1,0 +1,229 @@
+{
+  "head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "prototype_head": "32b6dca3a47b3e61f9d70eb912724eb09fcf1f1f",
+  "scope": "B panic reproduced before fix;214 syntax units pass after lazy tuple fix;16994 original inputs preserve every core/raw fact and every profile, zero new admissions. Original40 commands passed on previous B head; new40 official oracle controls minted, native80 and current-head selected commands pending. All110 original loader failures remain unqualified. Empty variable repair not covered.",
+  "files": [
+    {
+      "path": "emitter-leading-binding-panic-r321/input.json",
+      "source": "/tmp/emitter-leading-binding-panic-r321/input.json",
+      "bytes": 673,
+      "sha256": "3a890c03f41bfd10b939708c2dec774d1f4aa099fa54aa4a1c99288f15deecdb"
+    },
+    {
+      "path": "emitter-leading-binding-panic-r321/manifest.json",
+      "source": "/tmp/emitter-leading-binding-panic-r321/manifest.json",
+      "bytes": 5306,
+      "sha256": "550db23aada8badeae6d27cca6107f17097bfde86cf9a26c027eb6568e73ba33"
+    },
+    {
+      "path": "emitter-leading-binding-panic-fix-r322/committed.json",
+      "source": "/tmp/emitter-leading-binding-panic-fix-r322/committed.json",
+      "bytes": 736,
+      "sha256": "46a104b05d65b670f7ecd256d8f66846c250a40176e7daf083582dce28d4fb18"
+    },
+    {
+      "path": "emitter-leading-binding-panic-fix-r322/fix.diff.gz",
+      "source": "/tmp/emitter-leading-binding-panic-fix-r322/fix.diff.gz",
+      "bytes": 840,
+      "sha256": "4036c69ba542e462386ade463b0fb6ed6933436aa2670a04ca00013c38707ccf"
+    },
+    {
+      "path": "emitter-leading-binding-panic-fix-r322/green.json",
+      "source": "/tmp/emitter-leading-binding-panic-fix-r322/green.json",
+      "bytes": 540,
+      "sha256": "7ccfc3208f08cf00bf73bddf4f8077e2bc2a9493c3a61b14b677ca6fe56a823a"
+    },
+    {
+      "path": "emitter-leading-binding-panic-fix-r322/green.log.gz",
+      "source": "/tmp/emitter-leading-binding-panic-fix-r322/green.log",
+      "bytes": 4549,
+      "sha256": "3e4827251db00c23853f9e45f75a4afc499006b16e91971031f67f3a6ee85105"
+    },
+    {
+      "path": "emitter-leading-binding-panic-fix-r322/red.json",
+      "source": "/tmp/emitter-leading-binding-panic-fix-r322/red.json",
+      "bytes": 590,
+      "sha256": "a4a3da21f6b6d4955bac24e6b8aa88df0fd33d60eeb527e0f01fb6639e0acf94"
+    },
+    {
+      "path": "emitter-leading-binding-panic-fix-r322/red.log.gz",
+      "source": "/tmp/emitter-leading-binding-panic-fix-r322/red.log",
+      "bytes": 533,
+      "sha256": "fdaece8a71e65ac5e8804f62396dea4316e1056587609d1cf2c2701f5222677a"
+    },
+    {
+      "path": "emitter-leading-binding-proof-r323/guard-results.json",
+      "source": "/tmp/emitter-leading-binding-proof-r323/guard-results.json",
+      "bytes": 1812,
+      "sha256": "162abf02679056f58e5e4eca63fe48f2f3533c776c9616b90d8bc280afda80c2"
+    },
+    {
+      "path": "emitter-leading-binding-proof-r323/pins.json",
+      "source": "/tmp/emitter-leading-binding-proof-r323/pins.json",
+      "bytes": 4032,
+      "sha256": "23855b00ca2c4dd27cf2b0d2d065c477a3da344ec42483d6ce4281f1a4359e01"
+    },
+    {
+      "path": "emitter-leading-binding-proof-r323/replay.py",
+      "source": "/tmp/emitter-leading-binding-proof-r323/replay.py",
+      "bytes": 14577,
+      "sha256": "1f8ccaed9a48d6bc393c4b63f71d38b829dfffc84d44e8794264caf5e32cae44"
+    },
+    {
+      "path": "emitter-leading-binding-proof-r323/revision.json",
+      "source": "/tmp/emitter-leading-binding-proof-r323/revision.json",
+      "bytes": 549,
+      "sha256": "f58570f2273a9e61c8a56f8c1ae7b94721eebe1a437dba92e8d27bdbcf2985de"
+    },
+    {
+      "path": "emitter-leading-binding-proof-r323/run.log.gz",
+      "source": "/tmp/emitter-leading-binding-proof-r323/run.log",
+      "bytes": 265,
+      "sha256": "219b72aaa99ca6cd8ab2dddd00fc5c106e4f13f8aa191260b481301da388b526"
+    },
+    {
+      "path": "emitter-leading-binding-proof-r323/scope.json",
+      "source": "/tmp/emitter-leading-binding-proof-r323/scope.json",
+      "bytes": 3156,
+      "sha256": "3a94f126022b3df2d23e47ad35de10dcae4064de3db7fddf8cc88c3936335406"
+    },
+    {
+      "path": "emitter-leading-binding-proof-r323/test_guards.py",
+      "source": "/tmp/emitter-leading-binding-proof-r323/test_guards.py",
+      "bytes": 3105,
+      "sha256": "0707da2b9c2b60e818be034add3bfae5b7ba78ec4ac46aa1cd78f05d07d7c5c2"
+    },
+    {
+      "path": "emitter-leading-binding-full-command-r309/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-full-command-r309/manifest.json",
+      "bytes": 784,
+      "sha256": "a3249f4bf58d4c6a358718318dd317e91b55b115eb9291cc726cf82d78e5bd53"
+    },
+    {
+      "path": "emitter-leading-binding-full-command-r309/original40.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-full-command-r309/original40.log.gz",
+      "bytes": 639,
+      "sha256": "d7f902824205be6d10f075a1f05c5a00da698559bf3f520573ddda3c255a2d73"
+    },
+    {
+      "path": "emitter-leading-binding-next-proofs-r314/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-next-proofs-r314/manifest.json",
+      "bytes": 559,
+      "sha256": "731a8baa096cff28b50ebfffa107ac624960227b1cf033de7b35a70424e57700"
+    },
+    {
+      "path": "emitter-leading-binding-next-proofs-r314/original16994.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-next-proofs-r314/original16994.log.gz",
+      "bytes": 474,
+      "sha256": "1815798e42145b5b3f16d3bb85f142e3d90737824205c7768be9a62c4cd74f05"
+    },
+    {
+      "path": "emitter-leading-binding-controls-mint-r320/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-controls-mint-r320/manifest.json",
+      "bytes": 2688,
+      "sha256": "e3cdd84fe24bba6454d6a7ea9ca6599ee937a1273d8250d5a0e64ab34f411a62"
+    },
+    {
+      "path": "emitter-leading-binding-controls-mint-r320/original40.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-controls-mint-r320/original40.json.gz",
+      "bytes": 9531,
+      "sha256": "381adadd0b1023885b414f9e6c85caaa67c304651e73d071ca947958434b5cad"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r314/steps.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r314/steps.json",
+      "bytes": 886,
+      "sha256": "adbfbae631a4e46a7b5c25c48dfdaefe6161d4b8ae45f3cfbb098b9d6b5b4e23"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r314/resolved-dependencies.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r314/resolved-dependencies.json",
+      "bytes": 6247,
+      "sha256": "8c5b9ea4163ee1a73607568e7220ba3373b9f98e151af1db5753d58ba2190096"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r314/build.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r314/build.log",
+      "bytes": 435,
+      "sha256": "73c5edefcf02106903549376fa1e2a157abe23b367c5e7d0ea84af4cf80982b6"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r314/test.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r314/test.log",
+      "bytes": 477,
+      "sha256": "632cff6b7656c1bc6c100f45c32796ead89baf9dcd79b50ba2fd90f222369173"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r314/replay.stderr.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r314/replay.stderr.log",
+      "bytes": 236,
+      "sha256": "cfd00b5b3d556934fb0747e219d91af7d147068851c8401076058c891fd7c4ae"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r323/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r323/manifest.json",
+      "bytes": 10068,
+      "sha256": "60ed8e71f1208a0670c1ef1160f5ec00b669b01f07b202893d25bbaaa52e4757"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r323/steps.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r323/steps.json",
+      "bytes": 886,
+      "sha256": "d71cf564e8b460f0e514e795f8552c6cfe3dc334e83a2fb6d547d95ce627beaf"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r323/resolved-dependencies.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r323/resolved-dependencies.json",
+      "bytes": 6247,
+      "sha256": "8c5b9ea4163ee1a73607568e7220ba3373b9f98e151af1db5753d58ba2190096"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r323/build.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r323/build.log",
+      "bytes": 436,
+      "sha256": "1d3808ad9847cca6cd30d338d58cc4e8563560426e536222d0a8e41d29bd4382"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r323/test.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r323/test.log",
+      "bytes": 476,
+      "sha256": "c1083eb2f2a0b1f59712da6b525bdf85f8603a97f1e7e711941feed5b38a56b5"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r323/replay.stderr.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r323/replay.stderr.log",
+      "bytes": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r323/successor.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r323/successor.json",
+      "bytes": 7939870,
+      "sha256": "2decb8f4b7b184514db117a0dd8bea06844e3c5aaf2a1f3363530bee22aaa58c"
+    },
+    {
+      "path": "emitter-leading-binding-successor-r323/selection.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r323/selection.json",
+      "bytes": 166686,
+      "sha256": "6314904fcfe423dc123ac7fcea81460c0b6cea3df281dd8e0ffcc007ae303151"
+    },
+    {
+      "path": "tmp/emitter-leading-binding-panic-r321.py",
+      "source": "/tmp/emitter-leading-binding-panic-r321.py",
+      "bytes": 1894,
+      "sha256": "357f79cee4c82e61929788de28457d26028f5d4cb2356324b280371496224560"
+    },
+    {
+      "path": "tmp/emitter-leading-binding-controls-mint-r320.py",
+      "source": "/tmp/emitter-leading-binding-controls-mint-r320.py",
+      "bytes": 1788,
+      "sha256": "0c89e5b0120b8f466d4e7a6172d1f5096238eae92d01a975bf3086b45da413b9"
+    },
+    {
+      "path": "archive.py",
+      "source": "/tmp/archive-emitter-leading-binding-proof-r326.py",
+      "bytes": 2623,
+      "sha256": "b274dc88b7d864a07d75f4bbb4e1583c7e3329516d94569bd9460e66ad030036"
+    }
+  ]
+}

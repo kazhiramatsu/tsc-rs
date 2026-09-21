@@ -168,6 +168,10 @@ fn prepare(case: &Value, libraries: &[(String, Vec<u8>)]) -> PreparedProgram {
             "listEmittedFiles" => options.list_emitted_files = value.as_bool(),
             "skipDefaultLibCheck" => options.skip_default_lib_check = value.as_bool(),
             "noErrorTruncation" => options.no_error_truncation = value.as_bool(),
+            // EF8 P8 (output-matrix-filesystem.json): multi-product write sequences.
+            "declaration" => options.declaration = value.as_bool(),
+            "sourceMap" => options.source_map = value.as_bool(),
+            "declarationMap" => options.declaration_map = value.as_bool(),
             other => panic!("unprojected filesystem option {other}"),
         }
     }
@@ -188,8 +192,16 @@ fn output_filesystem_matches_complete_typescript_observations() {
         serde_json::from_slice(include_bytes!("../fixtures/output-filesystem.json")).unwrap();
     assert_eq!(fixture["typescript"], "6.0.3");
     assert_eq!(fixture["repetitions"], 2);
+    assert_eq!(fixture["cases"].as_array().unwrap().len(), 24);
+    assert_filesystem_cases(&fixture);
+}
+
+/// Replay every fault-injection case of a fixture in the `output-filesystem`
+/// shape through the production `FsOutputSink` protocol (twice each), and the
+/// fault-free rows additionally through the memory sink for callback
+/// equivalence.
+pub(super) fn assert_filesystem_cases(fixture: &Value) {
     let cases = fixture["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 24);
     let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vendor/typescript-6.0.3/lib");
     let libraries = std::fs::read_dir(directory)
         .unwrap()

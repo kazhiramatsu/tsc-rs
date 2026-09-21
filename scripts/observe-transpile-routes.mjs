@@ -841,6 +841,14 @@ function extraCases() {
   cases.push(pn("no-check/namespace-source-map", { "/project/src/namespace.ts": "export namespace ns {\n    namespace internal {\n        export class Foo {}\n    }\n    export namespace nested {\n        export import inner = internal;\n    }\n}\n" }, { target: "es2015", sourceMap: true }));
   cases.push(pn("text/crlf-unicode", { "/project/src/a.ts": "export const s = 'é😀漢字';\r\nexport const t: number = 1;\r\n" }, { target: "es5", newLine: "crlf" }));
   cases.push(pn("multi/three-files-mixed", { "/project/src/a.ts": "export const a: number = 'x' as any;\n", "/project/src/b.ts": "import { a } from './a';\nexport const b = a + 1;\n", "/project/src/c.ts": "import type { b } from './b';\nexport {};\n" }, { module: "commonjs", declaration: true }));
+  const numericSource = "export class C { #value = 1; value: number = this.#value; }\nexport const read = async (value?: C) => value?.value ?? 0;\n";
+  for (const target of [99, 100, 1234])
+    cases.push(tj(`numeric-target/transform-${target}`,
+      target === 100 ? `declare const dec: any;\n${numericSource.replace('export class', '@dec export class')}` : numericSource,
+      { reportDiagnostics: true, compilerOptions: { target, module: "esnext", sourceMap: true,
+        ...(target === 100 ? { useDefineForClassFields: false } : {}) } }));
+  cases.push(td("numeric-target/declaration-1234", "export const value: number = 1;\nexport class C { value: number = 1; }\n",
+    { reportDiagnostics: true, compilerOptions: { target: 1234, declarationMap: true } }));
   return cases;
 }
 
@@ -914,7 +922,7 @@ function main(argv) {
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }
-    console.log("transpile routes: 287 original + 14 review cases matched twice");
+    console.log("transpile routes: 291 original + 14 review cases matched twice");
     return;
   }
   const args = new Map();
@@ -959,6 +967,9 @@ function main(argv) {
     case_count: results.length,
     repeat_state_separation: repeatMatches,
     cases: results,
+    ...(inputs.cases.some(entry => entry.id.includes('/numeric-target/')) ? {
+      numeric_target_default_libraries: [99, 100, 1234].map(target => ({ target, name: ts.getDefaultLibFileName({ target }) }))
+    } : {}),
   };
   requireCondition(repeatMatches.every((entry) => entry.matches), "repeat state separation failed");
   requireCondition(results.every((entry) => entry.internal.replica_public_result_matches !== false), "replica/public mismatch");

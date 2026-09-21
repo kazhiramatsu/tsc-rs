@@ -1960,8 +1960,27 @@ static OUTPUT_DIRECTORIES: &[Promotion] = &[
     },
 ];
 
+// The original harness directive requested a case-insensitive host. The old
+// oracle ignored that directive; the corrected H2.6c input/tuple and both prior
+// records are pinned in integration/records/oracle-host-correction.v1.json.
+// The D/E input remains independently pinned rather than replacing that input.
+static HOST_CASE_SENSITIVITY: &[Promotion] = &[Promotion {
+    case_id: "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts#default",
+    old_case_sha256: "e60e5e9c1728bb601e52ee2cfe47d80b86c0b06bf5f8feafc6f61d8bb6f4ce2f",
+    old_input_sha256: "48e558483f4925746cab0c3e0f7bdc62cb04d0663222b58e68ba1240e7ed54d0",
+    new_input_sha256: "a7b13d679a286ca29f6c7513cb15d5e53e877be7e124b12c4652a35204b6f3e5",
+    old_refused_option: "outFile",
+    declaration_members: 0,
+    c_requests: 0,
+    d_requests: 1,
+    e_requests: 0,
+}];
+
 fn all_promotions() -> impl Iterator<Item = &'static Promotion> {
-    CURRENT.iter().chain(OUTPUT_DIRECTORIES)
+    CURRENT
+        .iter()
+        .chain(OUTPUT_DIRECTORIES)
+        .chain(HOST_CASE_SENSITIVITY)
 }
 
 pub(super) fn find(case_id: &str) -> Option<&'static Promotion> {
@@ -1987,7 +2006,7 @@ pub(super) fn validate(
     let census = frozen(
         workspace,
         "ratchets/h2-7de-candidates.v1.json",
-        "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d",
+        "956514a27a7c9d4504f2bd364f07492b758660c4c6d525201ba62d1389a04db2",
     )?;
     let inputs = frozen(
         workspace,
@@ -1997,7 +2016,7 @@ pub(super) fn validate(
     let oracle = frozen(
         workspace,
         "ratchets/h2-7de-observations.v1.json",
-        "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+        "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9",
     )?;
     let mut ids = BTreeSet::new();
     for row in all_promotions() {
@@ -2034,6 +2053,15 @@ pub(super) fn validate(
                 .as_array_mut()
                 .expect("owner array")
                 .push(json!("H2.8a"));
+        }
+        if HOST_CASE_SENSITIVITY
+            .iter()
+            .any(|host| host.case_id == row.case_id)
+        {
+            owners
+                .as_array_mut()
+                .expect("owner array")
+                .push(json!("H2.8b"));
         }
         if !ids.insert(row.case_id)
             || row.d_requests > 1
@@ -2096,7 +2124,7 @@ pub(super) fn declaration_members_total() -> u64 {
 }
 
 pub(super) fn promoted_count() -> usize {
-    CURRENT.len() + OUTPUT_DIRECTORIES.len()
+    CURRENT.len() + OUTPUT_DIRECTORIES.len() + HOST_CASE_SENSITIVITY.len()
 }
 
 pub(super) fn adjusted_refusals(

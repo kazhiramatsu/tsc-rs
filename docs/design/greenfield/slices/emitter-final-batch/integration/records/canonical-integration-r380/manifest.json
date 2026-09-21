@@ -1,0 +1,25 @@
+{
+  "canonical_head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "private_head": "4aeb1640156f291f4b5189b8ad9ed370cf17cf9d",
+  "scope": "Integrated bounded syntax4commits (330 original16994 proof), validated System/currentarray EOFmap + typednegativeguard + functionbodyhead/tail/NoNested extents. CanonicalA279 importmodifiercomment fix preserved. Witness334 retired onlyafterfullactual8witnessPASS376. Productintegrationpendingcanonicalfocused/fullgates.",
+  "patch_sha256": "a32ad8717aa3ab5111e96d6b37b6a0c1884d8032a43df2b2a87be1d7c4d89b20",
+  "before": {
+    "crates/syntax/src/recovery.rs": "2057b4a631a0a9aa48faa168cc7fa5ef391cd6a5091933d1bcfb4f9be7686e17",
+    "crates/syntax/src/recovery/context.rs": "c1e18d476453ff4ce90172b009310d0c160771190509583d3436d1e6f8e9aaa4",
+    "crates/syntax/tests/unit/parser/recovery.rs": "b33aec7a9270d1563c3b4667cf053ad9469333869fe92335694fd64ef8b4f92e",
+    "crates/emitter/src/printer.rs": "9a494e786f3538594d87fefc7a244829e13eb3d71516275a2f1e877d0ea203d5",
+    "crates/emitter/src/builtins/system.rs": "2c5c0739f529f4890c6e060468272ba8e13ebdd355dad880037ec5f7547f4367",
+    "crates/emitter/tests/unit/source_map/tests.rs": "af4a53d4ee32f028fbcfc302e3844edf4e42199b3ee3e9658b274696b4462a59",
+    "crates/emitter/tests/unit/builtins/tests.rs": "f107283ab91ba1cce3395eda4a4b261858b5c5147a5228f1154e87df831a40b7"
+  },
+  "after": {
+    "crates/syntax/src/recovery.rs": "27eb7dbc0d144d72c5ceffe58ad7fd701b72c4e8e8f83038c06d757eaaa36085",
+    "crates/syntax/src/recovery/context.rs": "12d94fb64733858d0a9384bf091791ee1c5f2665f58d6962c930fa2cb3b9eae4",
+    "crates/syntax/tests/unit/parser/recovery.rs": "ed42151d7b5bd7a82bfdb82002c7bc50bf5ce5fff52b1732d262bc13e0d9577c",
+    "crates/emitter/src/printer.rs": "0c12f27830d84ed3a35235f8ad095ea9b82f76280db67888d7b4871eb11a03a2",
+    "crates/emitter/src/builtins/system.rs": "bceab1c261394c358890818b309faa43fffed8f997aaca0aa78ee59cbdbd7aa3",
+    "crates/emitter/tests/unit/source_map/tests.rs": "52fb39cfafefbd971428b97f89817fd6add976698d063261a8e28ff20910c740",
+    "crates/emitter/tests/unit/builtins/tests.rs": "3a755abc69140f8c769a154e80008009cbe87f6a84869e61f4fdc319752668e2"
+  },
+  "canonical_qualified": false
+}

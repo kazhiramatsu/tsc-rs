@@ -1,0 +1,18 @@
+{
+  "input_id": "216fc70a40de5bed3b82fa5fa782e03cc667f6bf9ad805015507babb622aeaa6",
+  "file_name": "/.src/invalidUnicodeEscapeSequance4.ts",
+  "text_utf8_base64": "dmFyIGFcdTAwMzE7IC8vIGExIGlzIGEgdmFsaWQgaWRlbnRpZmllcgp2YXIgXHUwMDMxYTsgLy8gMWEgaXMgYW4gaW52YWxpZCBpZGVudGlmaWVy",
+  "text_sha256": "4920369fa241b6b0a2b9ca96cae4140773ea087989e883af9dd2e90b41d20e22",
+  "text_utf8_bytes": 84,
+  "utf16_len": 84,
+  "options": {
+    "script_target": 2,
+    "language_variant": 0,
+    "javascript_file": false,
+    "js_doc_parsing_mode": 0,
+    "force_external_module": false,
+    "detect_external_module_from_jsx": false,
+    "node_id_base": 0,
+    "node_array_id_base": 0
+  }
+}

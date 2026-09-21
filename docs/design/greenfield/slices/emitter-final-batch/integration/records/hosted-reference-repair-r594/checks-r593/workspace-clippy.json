@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "clippy",
+    "--workspace",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T20:39:21.407279+00:00",
+  "seconds": 56.871,
+  "exit": 0,
+  "log_sha256": "1cbf7c25dbaf1f4a4a2a992155943858ed154b411a63a6ef18f0e35ec3a940de",
+  "log_bytes": 892
+}

@@ -1,0 +1,6 @@
+現在の実装を最終の独立レビューとしてお願いします。repo編集・Rust/cargo実行・別agent委譲は禁止。今回は上流とRustの読み取り比較のみ、TS scratchは必要最小限。
+1. round9/10/11で合意したchecker修正をrootが独立照合して現在のaudit treeへ適用済み。annotate.rs CJS合成のduplicate value報告と既存late memberの再統合、calls.rs JSX specific/fallback、conditional.rs error identity、instantiate.rs intersection gate、engine.rs union origin/cached overflow/InstantiatedMapped recursionのdiffを見て、上流との意味差や広範な副作用のある箇所だけ指摘してください。特に CJS diagnostic の declaration/related info と cached overflow は診断数・位置を変えないか。
+2. 深さガードはあなたと同じfallible方針ですがreverse mapped stackはcloneを使用しました。mem::takeで空にするとmodifiers解決から再入した場合の持続stateが変わるためです。engineはpushとchecksをclosureに包み、depth snapshotの復元と既存Err resetを必ず通します。InferenceContextは既存のwalker破棄を維持して?だけ。これらの正しさを確認してください。
+3. module flattenはround11の5箇所を適用済み。module option downlevelIterationをvisitorへ渡し、getExportsのdirect-storageとexplicit export wrappersのrangeを区別。追加16 controlsを含むTypeScript oracle作成中。既存direct+alias複数exportの場合のwrapper順/rangeに見落としがないかを読んでください。
+4. 別途残る H2.9 parse-recovery typed refusal36行とJSON target100は現在の契約として据え置き候補ですが、単にownerが違うから放置せず根拠を確かめたい。parse refusalの代表的なエントリとproduction gate・不足factsを調べ、局所修正で安全に対応可能な分類があるか、境界を開けるのに必要な設計と影響を具体的に整理してください。無条件にguardを除く提案は不可。広範なら統合の今回範囲と後続で分ける根拠を返してください。
+変更/テスト中なので指摘優先、全面再調査や大規模probeは不要。実装の正当性と残boundaryの具体的分類を短く返してください。

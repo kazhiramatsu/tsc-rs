@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-noemit-r153/emitter-final-batch",
+    "--exact",
+    "no_emit_census_rows_match_complete_production_commands",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T11:50:42.539579+00:00",
+  "head": "42f9ccefc3d8f28be9cda08930a0e4bf331f6132",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target",
+    "TSC_RS_EMITTER_FINAL_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-noemit-r153/captures"
+  },
+  "exit": 0,
+  "seconds": 12.243,
+  "log_sha256": "36c64bcba598cb381da6210a031e258e4137c67be5cb076059a03df72a2d849f",
+  "log_bytes": 510
+}

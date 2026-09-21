@@ -1,0 +1,15 @@
+{
+  "name": "build-cli-r8-debug2",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 29,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "cargo build -p tsc-rs-compiler --bin tsc-rs",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T11:57:54Z",
+  "seconds": 389,
+  "exit": 0,
+  "log_sha256": "9ccafe6a8490616d1e9170eacb8454b472d4a0ad6783e118764fda537e57e8cc",
+  "log_bytes": 357
+}

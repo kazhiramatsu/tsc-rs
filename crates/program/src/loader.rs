@@ -241,7 +241,7 @@ pub enum ProgramLoadError {
         operation: ProgramLoadOperation,
         path: Option<PathBuf>,
         js_path: Option<JsString>,
-        source: HostError,
+        source: Box<HostError>,
     },
     Decode {
         operation: ProgramLoadOperation,
@@ -254,7 +254,7 @@ pub enum ProgramLoadError {
         path: Option<PathBuf>,
         js_path: Option<JsString>,
         specifier: Option<JsString>,
-        source: ResolutionError,
+        source: Box<ResolutionError>,
     },
     Preparation {
         operation: ProgramLoadOperation,
@@ -367,7 +367,7 @@ impl ProgramLoadError {
                 .and_then(|path| path.to_str())
                 .map(JsString::from),
             path,
-            source,
+            source: Box::new(source),
         }
     }
 
@@ -385,7 +385,7 @@ impl ProgramLoadError {
                 .map(JsString::from),
             path,
             specifier,
-            source,
+            source: Box::new(source),
         }
     }
 
@@ -545,9 +545,9 @@ impl fmt::Display for ProgramLoadError {
 impl Error for ProgramLoadError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            Self::Host { source, .. } => Some(source),
+            Self::Host { source, .. } => Some(source.as_ref()),
             Self::Decode { source, .. } => Some(source),
-            Self::Resolution { source, .. } => Some(source),
+            Self::Resolution { source, .. } => Some(source.as_ref()),
             Self::Preparation { source, .. } => Some(source),
             Self::InvalidInput { .. }
             | Self::Unsupported { .. }
@@ -927,7 +927,7 @@ fn resolve_runtime_dependency_symlinks(
                     ProgramLoadError::resolution_js(
                         ProgramLoadOperation::ResolveModule,
                         Some(package.package_json().display().to_owned()),
-                        Some((name.clone()).into()),
+                        Some(name.clone()),
                         error,
                     )
                 })?;
@@ -960,7 +960,7 @@ fn runtime_dependency_names(package_json: &ProgramPath, text: &str) -> Vec<JsStr
             names.extend(
                 dependencies
                     .keys()
-                    .filter_map(|key| crate::json::decode_user_object_key(key))
+                    .filter_map(crate::json::decode_user_object_key)
                     .map(JsStr::to_owned),
             );
         }
@@ -1671,7 +1671,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         ProgramLoadError::resolution_js(
                             ProgramLoadOperation::ResolveTypeReference,
                             Some(containing_file.display().to_owned()),
-                            Some((name.clone()).into()),
+                            Some(name.clone()),
                             error,
                         )
                     })?;
@@ -1754,11 +1754,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             return Ok((configured, false));
         }
 
-        let wildcard_matches: Vec<JsString> = self
-            .discover_wildcard_type_directives()?
-            .into_iter()
-            .map(JsString::from)
-            .collect();
+        let wildcard_matches: Vec<JsString> = self.discover_wildcard_type_directives()?;
         let mut seen = HashSet::new();
         let mut names = Vec::new();
         for configured_name in configured {
@@ -1810,7 +1806,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     fn automatic_types_containing_file(&self) -> Result<ProgramPath, ProgramLoadError> {
         let normalized = crate::module_resolution::normalize_absolute_js_path(
             INFERRED_TYPES_CONTAINING_FILE.into(),
-            Some(self.resolver.type_root_base_directory().into()),
+            Some(self.resolver.type_root_base_directory()),
             true,
         )
         .map_err(|error| {
@@ -2858,7 +2854,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             base.clone()
         } else {
             crate::module_resolution::normalize_absolute_js_path(
-                reference.file_name().into(),
+                reference.file_name(),
                 Some(base.as_js()),
                 true,
             )
@@ -2866,7 +2862,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 ProgramLoadError::resolution_js(
                     ProgramLoadOperation::NormalizeReference,
                     Some(source_path.display().to_owned()),
-                    Some((reference.file_name().to_owned()).into()),
+                    Some(reference.file_name().to_owned()),
                     error,
                 )
             })?
@@ -2887,7 +2883,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 ProgramLoadError::resolution_js(
                     ProgramLoadOperation::NormalizeReference,
                     Some(source_path.display().to_owned()),
-                    Some((reference.file_name().to_owned()).into()),
+                    Some(reference.file_name().to_owned()),
                     error,
                 )
             })?;
@@ -2965,7 +2961,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 ProgramLoadError::resolution_js(
                     ProgramLoadOperation::NormalizeReference,
                     Some(source_path.display().to_owned()),
-                    Some((reference.file_name().to_owned()).into()),
+                    Some(reference.file_name().to_owned()),
                     error,
                 )
             })?;
@@ -3037,7 +3033,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         ProgramLoadError::resolution_js(
                             ProgramLoadOperation::ResolveTypeReference,
                             Some(containing_source.display().to_owned()),
-                            Some((key.specifier().to_owned()).into()),
+                            Some(key.specifier().to_owned()),
                             error,
                         )
                     })?;
@@ -3166,7 +3162,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         ProgramLoadError::resolution_js(
                             ProgramLoadOperation::ResolveModule,
                             Some(containing_file.clone()),
-                            Some((key.specifier().to_owned()).into()),
+                            Some(key.specifier().to_owned()),
                             error,
                         )
                     })?;
@@ -3492,7 +3488,7 @@ fn publish_program(
             ProgramLoadError::resolution_js(
                 ProgramLoadOperation::BindResolutions,
                 Some(key_path),
-                Some((specifier).into()),
+                Some(specifier),
                 error,
             )
         })?;
@@ -3511,7 +3507,7 @@ fn publish_program(
                 ProgramLoadError::resolution_js(
                     ProgramLoadOperation::BindResolutions,
                     Some(key_path),
-                    Some((specifier).into()),
+                    Some(specifier),
                     error,
                 )
             })?;
@@ -4455,7 +4451,7 @@ fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<Mes
             parent, specifier, ..
         } => Some(MessageChain::new_js(
             &gen::Referenced_via_0_from_file_1,
-            &[specifier.clone().into(), parent.clone()],
+            &[specifier.clone(), parent.clone()],
         )),
         SourceInclusionReason::TypeReference {
             parent, specifier, ..
@@ -4571,35 +4567,9 @@ fn display_path_contains_node_modules(path: JsStr<'_>) -> bool {
 }
 
 #[cfg(test)]
-mod node_modules_membership_tests {
-    use super::display_path_contains_node_modules;
-    use tsc_diagnostics::JsString;
+#[path = "../tests/unit/loader/node_modules_membership_tests.rs"]
+mod node_modules_membership_tests;
 
-    #[test]
-    fn membership_matches_the_former_projection_on_every_separator() {
-        for (path, expected) in [
-            ("/work/node_modules/a/index.js", true),
-            ("C:\\work\\node_modules\\a\\index.js", true),
-            ("/work\\node_modules/a.js", true),
-            ("/work/node_modules", false),
-            ("/work/node_modules_x/a.js", false),
-            ("/work/xnode_modules/a.js", false),
-            ("node_modules/a.js", false),
-            ("/work/src/a.js", false),
-        ] {
-            assert_eq!(
-                display_path_contains_node_modules(path.into()),
-                expected,
-                "{path}"
-            );
-        }
-        let mut path = JsString::from("/work/");
-        path.push_code_unit(0xd800);
-        path.push_str("/node_modules/a.js");
-        assert!(display_path_contains_node_modules(path.as_js()));
-        let mut path = JsString::from("/work/node_modules");
-        path.push_code_unit(0xd800);
-        path.push_str("/a.js");
-        assert!(!display_path_contains_node_modules(path.as_js()));
-    }
-}
+#[cfg(test)]
+#[path = "../tests/unit/loader/typed_error_source_tests.rs"]
+mod typed_error_source_tests;

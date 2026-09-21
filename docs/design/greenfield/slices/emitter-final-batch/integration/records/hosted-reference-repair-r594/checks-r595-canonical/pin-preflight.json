@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "scripts/walk-preflight.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T22:05:03.910795+00:00",
+  "seconds": 3.882,
+  "exit": 0,
+  "log_sha256": "e6ada28c38961b2c61d8ec145b567950413d7992d45813d6f451ec06c84f50ad",
+  "log_bytes": 127
+}

@@ -1,0 +1,1023 @@
+[
+  {
+    "header": "createPrinter",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 318,
+    "old_line": 911,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "create_printer",
+      "line": 917,
+      "distance": 7
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 1162,
+        "name": "create_printer",
+        "line": 1167,
+        "distance": 6
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 1162,
+        "name": "create_printer",
+        "line": 1167,
+        "distance": 6
+      },
+      {
+        "header_line": 1391,
+        "name": "begin_print",
+        "line": 1397,
+        "distance": 7
+      },
+      {
+        "header_line": 1403,
+        "name": "end_print",
+        "line": 1411,
+        "distance": 9
+      },
+      {
+        "header_line": 1497,
+        "name": "record_list_element_position",
+        "line": 1501,
+        "distance": 5
+      },
+      {
+        "header_line": 9138,
+        "name": "preserved_list_siblings_need_line_break",
+        "line": 9144,
+        "distance": 7
+      },
+      {
+        "header_line": 9211,
+        "name": "preserved_list_boundary_needs_line_break",
+        "line": 9217,
+        "distance": 7
+      },
+      {
+        "header_line": 9214,
+        "name": "preserved_list_boundary_needs_line_break",
+        "line": 9217,
+        "distance": 4
+      },
+      {
+        "header_line": 9634,
+        "name": "emit_comma_delimited_list_tail",
+        "line": 9639,
+        "distance": 6
+      },
+      {
+        "header_line": 12285,
+        "name": "emit_comma_expression_list",
+        "line": 12298,
+        "distance": 14
+      },
+      {
+        "header_line": 12288,
+        "name": "emit_comma_expression_list",
+        "line": 12298,
+        "distance": 11
+      },
+      {
+        "header_line": 12291,
+        "name": "emit_comma_expression_list",
+        "line": 12298,
+        "distance": 8
+      },
+      {
+        "header_line": 14499,
+        "name": "emit_child_with_trailing_phase_before_token",
+        "line": 14511,
+        "distance": 13
+      },
+      {
+        "header_line": 14502,
+        "name": "emit_child_with_trailing_phase_before_token",
+        "line": 14511,
+        "distance": 10
+      },
+      {
+        "header_line": 14505,
+        "name": "emit_child_with_trailing_phase_before_token",
+        "line": 14511,
+        "distance": 7
+      },
+      {
+        "header_line": 14508,
+        "name": "emit_child_with_trailing_phase_before_token",
+        "line": 14511,
+        "distance": 4
+      },
+      {
+        "header_line": 14617,
+        "name": "emit_optional_ordinary_child",
+        "line": 14627,
+        "distance": 11
+      },
+      {
+        "header_line": 14620,
+        "name": "emit_optional_ordinary_child",
+        "line": 14627,
+        "distance": 8
+      },
+      {
+        "header_line": 14623,
+        "name": "emit_optional_ordinary_child",
+        "line": 14627,
+        "distance": 5
+      },
+      {
+        "header_line": 14684,
+        "name": "emit_ordinary_token_after",
+        "line": 14695,
+        "distance": 12
+      },
+      {
+        "header_line": 14687,
+        "name": "emit_ordinary_token_after",
+        "line": 14695,
+        "distance": 9
+      },
+      {
+        "header_line": 14691,
+        "name": "emit_ordinary_token_after",
+        "line": 14695,
+        "distance": 5
+      },
+      {
+        "header_line": 14749,
+        "name": "emit_member_name_leading_comments",
+        "line": 14762,
+        "distance": 14
+      },
+      {
+        "header_line": 14752,
+        "name": "emit_member_name_leading_comments",
+        "line": 14762,
+        "distance": 11
+      },
+      {
+        "header_line": 14755,
+        "name": "emit_member_name_leading_comments",
+        "line": 14762,
+        "distance": 8
+      },
+      {
+        "header_line": 14759,
+        "name": "emit_member_name_leading_comments",
+        "line": 14762,
+        "distance": 4
+      },
+      {
+        "header_line": 14961,
+        "name": "emit_expression_child_with_source_comments",
+        "line": 14978,
+        "distance": 18
+      },
+      {
+        "header_line": 14964,
+        "name": "emit_expression_child_with_source_comments",
+        "line": 14978,
+        "distance": 15
+      },
+      {
+        "header_line": 14968,
+        "name": "emit_expression_child_with_source_comments",
+        "line": 14978,
+        "distance": 11
+      },
+      {
+        "header_line": 14971,
+        "name": "emit_expression_child_with_source_comments",
+        "line": 14978,
+        "distance": 8
+      },
+      {
+        "header_line": 14974,
+        "name": "emit_expression_child_with_source_comments",
+        "line": 14978,
+        "distance": 5
+      },
+      {
+        "header_line": 18556,
+        "name": "emit_delimited_boundary_comments",
+        "line": 18559,
+        "distance": 4
+      }
+    ]
+  },
+  {
+    "header": "emitPropertyDeclaration",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 349,
+    "old_line": 1953,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_transformed_node_worker",
+      "line": 1980,
+      "distance": 28
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 2819,
+        "name": "emit_transformed_node_worker",
+        "line": 2842,
+        "distance": 24
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 2819,
+        "name": "emit_transformed_node_worker",
+        "line": 2842,
+        "distance": 24
+      },
+      {
+        "header_line": 14752,
+        "name": "emit_member_name_leading_comments",
+        "line": 14762,
+        "distance": 11
+      }
+    ]
+  },
+  {
+    "header": "emitMethodDeclaration",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 351,
+    "old_line": 1956,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_transformed_node_worker",
+      "line": 1980,
+      "distance": 25
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 2822,
+        "name": "emit_transformed_node_worker",
+        "line": 2842,
+        "distance": 21
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 2822,
+        "name": "emit_transformed_node_worker",
+        "line": 2842,
+        "distance": 21
+      },
+      {
+        "header_line": 14749,
+        "name": "emit_member_name_leading_comments",
+        "line": 14762,
+        "distance": 14
+      }
+    ]
+  },
+  {
+    "header": "emitAccessorDeclaration",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 353,
+    "old_line": 1962,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_transformed_node_worker",
+      "line": 1980,
+      "distance": 19
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 2828,
+        "name": "emit_transformed_node_worker",
+        "line": 2842,
+        "distance": 15
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 2828,
+        "name": "emit_transformed_node_worker",
+        "line": 2842,
+        "distance": 15
+      },
+      {
+        "header_line": 14755,
+        "name": "emit_member_name_leading_comments",
+        "line": 14762,
+        "distance": 8
+      }
+    ]
+  },
+  {
+    "header": "emitTokenWithComment",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 393,
+    "old_line": 14540,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_token_with_comments",
+      "line": 14543,
+      "distance": 4
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 17568,
+        "name": "emit_token_with_comments",
+        "line": 17571,
+        "distance": 4
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 14508,
+        "name": "emit_child_with_trailing_phase_before_token",
+        "line": 14511,
+        "distance": 4
+      },
+      {
+        "header_line": 17568,
+        "name": "emit_token_with_comments",
+        "line": 17571,
+        "distance": 4
+      },
+      {
+        "header_line": 17690,
+        "name": "emit_token_with_comments_at_boundary",
+        "line": 17694,
+        "distance": 5
+      }
+    ]
+  },
+  {
+    "header": "emitSignatureAndBody",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 396,
+    "old_line": 1971,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_transformed_node_worker",
+      "line": 1980,
+      "distance": 10
+    },
+    "same_fn_candidates": [],
+    "all_candidates": [
+      {
+        "header_line": 2864,
+        "name": "emit_transformed_node_worker_unscoped",
+        "line": 2873,
+        "distance": 10
+      },
+      {
+        "header_line": 5726,
+        "name": "emit_meta_property",
+        "line": 8626,
+        "distance": 2901
+      }
+    ]
+  },
+  {
+    "header": "emitNodeList",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 436,
+    "old_line": 10519,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_declaration_members",
+      "line": 10537,
+      "distance": 19
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 12720,
+        "name": "emit_declaration_members",
+        "line": 12738,
+        "distance": 19
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 12720,
+        "name": "emit_declaration_members",
+        "line": 12738,
+        "distance": 19
+      },
+      {
+        "header_line": 19053,
+        "name": "emit_empty_node_array_boundary_comments",
+        "line": 19056,
+        "distance": 4
+      },
+      {
+        "header_line": 19103,
+        "name": "emit_empty_block_boundary_comments",
+        "line": 19106,
+        "distance": 4
+      }
+    ]
+  },
+  {
+    "header": "emitNodeListItems",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 437,
+    "old_line": 7844,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_json_delimited_expression_list",
+      "line": 7853,
+      "distance": 10
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 9711,
+        "name": "emit_json_delimited_expression_list",
+        "line": 9720,
+        "distance": 10
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 1497,
+        "name": "record_list_element_position",
+        "line": 1501,
+        "distance": 5
+      },
+      {
+        "header_line": 9495,
+        "name": "emit_comma_delimited_list_tail",
+        "line": 9639,
+        "distance": 145
+      },
+      {
+        "header_line": 9634,
+        "name": "emit_comma_delimited_list_tail",
+        "line": 9639,
+        "distance": 6
+      },
+      {
+        "header_line": 9711,
+        "name": "emit_json_delimited_expression_list",
+        "line": 9720,
+        "distance": 10
+      },
+      {
+        "header_line": 12291,
+        "name": "emit_comma_expression_list",
+        "line": 12298,
+        "distance": 8
+      },
+      {
+        "header_line": 12723,
+        "name": "emit_declaration_members",
+        "line": 12738,
+        "distance": 16
+      },
+      {
+        "header_line": 16072,
+        "name": "emit_intervening_comments_before_node_with_policy",
+        "line": 16078,
+        "distance": 7
+      },
+      {
+        "header_line": 18556,
+        "name": "emit_delimited_boundary_comments",
+        "line": 18559,
+        "distance": 4
+      },
+      {
+        "header_line": 18706,
+        "name": "emit_delimited_list_end_comments_in_container",
+        "line": 18740,
+        "distance": 35
+      }
+    ]
+  },
+  {
+    "header": "getLeadingLineTerminatorCount",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 455,
+    "old_line": 10525,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_declaration_members",
+      "line": 10537,
+      "distance": 13
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 12726,
+        "name": "emit_declaration_members",
+        "line": 12738,
+        "distance": 13
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 9211,
+        "name": "preserved_list_boundary_needs_line_break",
+        "line": 9217,
+        "distance": 7
+      },
+      {
+        "header_line": 12726,
+        "name": "emit_declaration_members",
+        "line": 12738,
+        "distance": 13
+      }
+    ]
+  },
+  {
+    "header": "getSeparatingLineTerminatorCount",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 456,
+    "old_line": 10528,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_declaration_members",
+      "line": 10537,
+      "distance": 10
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 12729,
+        "name": "emit_declaration_members",
+        "line": 12738,
+        "distance": 10
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 9138,
+        "name": "preserved_list_siblings_need_line_break",
+        "line": 9144,
+        "distance": 7
+      },
+      {
+        "header_line": 12729,
+        "name": "emit_declaration_members",
+        "line": 12738,
+        "distance": 10
+      }
+    ]
+  },
+  {
+    "header": "getClosingLineTerminatorCount",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 457,
+    "old_line": 10531,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_declaration_members",
+      "line": 10537,
+      "distance": 7
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 12732,
+        "name": "emit_declaration_members",
+        "line": 12738,
+        "distance": 7
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 9214,
+        "name": "preserved_list_boundary_needs_line_break",
+        "line": 9217,
+        "distance": 4
+      },
+      {
+        "header_line": 12732,
+        "name": "emit_declaration_members",
+        "line": 12738,
+        "distance": 7
+      }
+    ]
+  },
+  {
+    "header": "emitTrailingComment",
+    "path": "crates/emitter/src/printer.rs",
+    "script_line": 542,
+    "old_line": 16156,
+    "old_commit": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "old_fn": {
+      "name": "emit_same_line_trailing_comments",
+      "line": 16159,
+      "distance": 4
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 19392,
+        "name": "emit_same_line_trailing_comments",
+        "line": 19395,
+        "distance": 4
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 19214,
+        "name": "emit_source_trailing_comments_of_position_with_filter",
+        "line": 19217,
+        "distance": 4
+      },
+      {
+        "header_line": 19392,
+        "name": "emit_same_line_trailing_comments",
+        "line": 19395,
+        "distance": 4
+      }
+    ]
+  },
+  {
+    "header": "createComputedPropertyName",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 575,
+    "old_line": 2105,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "create_computed_property_name",
+      "line": 2108,
+      "distance": 4
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 2508,
+        "name": "create_computed_property_name",
+        "line": 2511,
+        "distance": 4
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 2508,
+        "name": "create_computed_property_name",
+        "line": 2511,
+        "distance": 4
+      },
+      {
+        "header_line": 6338,
+        "name": "parenthesize_computed_property_name_expression",
+        "line": 6341,
+        "distance": 4
+      }
+    ]
+  },
+  {
+    "header": "createStringLiteral",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 582,
+    "old_line": 1891,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "create_string_literal",
+      "line": 1894,
+      "distance": 4
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 2132,
+        "name": "create_string_literal",
+        "line": 2135,
+        "distance": 4
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 2132,
+        "name": "create_string_literal",
+        "line": 2135,
+        "distance": 4
+      },
+      {
+        "header_line": 2156,
+        "name": "create_string_literal_from_code_units",
+        "line": 2159,
+        "distance": 4
+      },
+      {
+        "header_line": 2294,
+        "name": "create_string_literal_node",
+        "line": 2297,
+        "distance": 4
+      },
+      {
+        "header_line": 2330,
+        "name": "update_string_literal",
+        "line": 2336,
+        "distance": 7
+      }
+    ]
+  },
+  {
+    "header": "createIdentifier",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 592,
+    "old_line": 744,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "classify_created_node_flags",
+      "line": 784,
+      "distance": 41
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 963,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 41
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 963,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 41
+      },
+      {
+        "header_line": 1988,
+        "name": "create_identifier",
+        "line": 1991,
+        "distance": 4
+      }
+    ]
+  },
+  {
+    "header": "createParameterDeclaration",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 617,
+    "old_line": 780,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "classify_created_node_flags",
+      "line": 784,
+      "distance": 5
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 999,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 5
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 999,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 5
+      },
+      {
+        "header_line": 3327,
+        "name": "create_parameter_declaration",
+        "line": 3331,
+        "distance": 5
+      }
+    ]
+  },
+  {
+    "header": "createMethodDeclaration",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 622,
+    "old_line": 774,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "classify_created_node_flags",
+      "line": 784,
+      "distance": 11
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 993,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 11
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 993,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 11
+      },
+      {
+        "header_line": 3575,
+        "name": "create_method_declaration",
+        "line": 3579,
+        "distance": 5
+      }
+    ]
+  },
+  {
+    "header": "createConstructorDeclaration",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 624,
+    "old_line": 777,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "classify_created_node_flags",
+      "line": 784,
+      "distance": 8
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 996,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 8
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 996,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 8
+      },
+      {
+        "header_line": 3623,
+        "name": "create_constructor_declaration",
+        "line": 3626,
+        "distance": 4
+      }
+    ]
+  },
+  {
+    "header": "createFunctionExpression",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 631,
+    "old_line": 753,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "classify_created_node_flags",
+      "line": 784,
+      "distance": 32
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 972,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 32
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 972,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 32
+      },
+      {
+        "header_line": 3843,
+        "name": "create_function_expression",
+        "line": 3847,
+        "distance": 5
+      }
+    ]
+  },
+  {
+    "header": "createArrowFunction",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 633,
+    "old_line": 756,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "classify_created_node_flags",
+      "line": 784,
+      "distance": 29
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 975,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 29
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 975,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 29
+      },
+      {
+        "header_line": 3914,
+        "name": "create_arrow_function",
+        "line": 3918,
+        "distance": 5
+      },
+      {
+        "header_line": 6135,
+        "name": "parenthesize_updated_arrow_concise_body",
+        "line": 6151,
+        "distance": 17
+      }
+    ]
+  },
+  {
+    "header": "createVariableDeclarationList",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 650,
+    "old_line": 750,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "classify_created_node_flags",
+      "line": 784,
+      "distance": 35
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 969,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 35
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 969,
+        "name": "classify_created_node_flags",
+        "line": 1003,
+        "distance": 35
+      },
+      {
+        "header_line": 4218,
+        "name": "create_variable_declaration_list",
+        "line": 4221,
+        "distance": 4
+      }
+    ]
+  },
+  {
+    "header": "createExportAssignment",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 652,
+    "old_line": 4391,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "create_export_assignment",
+      "line": 4394,
+      "distance": 4
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 4794,
+        "name": "create_export_assignment",
+        "line": 4797,
+        "distance": 4
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 4794,
+        "name": "create_export_assignment",
+        "line": 4797,
+        "distance": 4
+      },
+      {
+        "header_line": 6463,
+        "name": "parenthesize_export_assignment_expression",
+        "line": 6466,
+        "distance": 4
+      }
+    ]
+  },
+  {
+    "header": "createExpressionWithTypeArguments",
+    "path": "crates/emitter/src/factory.rs",
+    "script_line": 663,
+    "old_line": 2842,
+    "old_commit": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "old_fn": {
+      "name": "create_expression_with_type_arguments",
+      "line": 2845,
+      "distance": 4
+    },
+    "same_fn_candidates": [
+      {
+        "header_line": 3245,
+        "name": "create_expression_with_type_arguments",
+        "line": 3248,
+        "distance": 4
+      }
+    ],
+    "all_candidates": [
+      {
+        "header_line": 3245,
+        "name": "create_expression_with_type_arguments",
+        "line": 3248,
+        "distance": 4
+      },
+      {
+        "header_line": 5966,
+        "name": "parenthesize_heritage_expression",
+        "line": 5971,
+        "distance": 6
+      }
+    ]
+  }
+]

@@ -1,0 +1,7 @@
+# Concrete comment regression and final local shape
+
+Agreed to preserve Pending behavior, added debug assertion that a Pending PEE phase owns trailing, and added all four round5 nested no-ASI controls. Full observer now284 commands; comment-context11 shapes ×3 targets, original111 unchanged.
+
+Existing full emitter contracts caught two regressions from the newly active ordinary child phase: erased_parenthesized_arrow_body_preserves_its_no_asi_comment and return_and_yield_no_asi_parentheses_follow_erased_left_edges. Both duplicate leading line comments. Log integration/records/local/audit-emitter-final-checks.log:508units pass,450contracts pass,2fail.
+
+Cause is concrete: emit_partially_emitted_boundary_comments before-side had an extra emit_source_leading_comments_of_position after emitting trailing comments. That compensated for the missing child phase but now duplicates it. Upstream emitPartiallyEmittedExpression at119770 only emitTrailingCommentsOfPosition before emitting child. I removed ONLY the extra leading collector/call and its excluded set; kept trailing-before, ordinary child, leading-after. Existing common writer records maps, unchanged. No Pending surgery. Current diff reflects this. Please verify this precise final ownership split with existing no-ASI regression inputs. Read-only, no edits/builds/delegation; concise final check only. Numeric JSON-specific guard is also applied as agreed.

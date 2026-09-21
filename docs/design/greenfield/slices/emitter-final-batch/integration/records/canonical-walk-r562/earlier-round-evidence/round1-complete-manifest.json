@@ -1,0 +1,39 @@
+{
+  "qualified": false,
+  "recorded_at": "2026-09-20T18:32:16.652844+00:00",
+  "scope": "Completed first-round two metadata remints; second round active. Not a green certificate.",
+  "run_id": "20260921-024343-28510",
+  "files": [
+    {
+      "path": "round1-complete-h2-8a-observations.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/target/chain-walk/runs/20260921-024343-28510/h2-8a-observations.log",
+      "bytes": 18344,
+      "sha256": "ef0f72d4f9d17dc7b398664f847160adb9c4dcaeddcd7be9495fcbd07e215ae3",
+      "raw_sha256": "2c9615dadc3c12fcdafcd2d1db2c0c1f77578f553de32b21fc64cf0ad48d7957"
+    },
+    {
+      "path": "round1-complete-events.jsonl",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/target/chain-walk/runs/20260921-024343-28510/events.jsonl",
+      "bytes": 13471,
+      "sha256": "51dfd33219bab78660284146217167b364e8a9558c500dc8d3692769799b34c8",
+      "raw_sha256": "51dfd33219bab78660284146217167b364e8a9558c500dc8d3692769799b34c8"
+    },
+    {
+      "path": "round1-complete-summary.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/target/chain-walk/runs/20260921-024343-28510/summary.log",
+      "bytes": 501,
+      "sha256": "4edaf4d4abf7abe3637b98de3546cbdfffd3ea1b4deb995e444445546b8f7885",
+      "raw_sha256": "fcfb50b789b02d1347f88cf64b883931871e99fcef970603ea258a336db570fe"
+    },
+    {
+      "path": "review-h28a-delta.py",
+      "bytes": 1552,
+      "sha256": "e6b005f95c3aaa698f67d68693a3bdc094b104fda5376056539128c273b11afc"
+    },
+    {
+      "path": "h28a-delta-review.json",
+      "bytes": 1032,
+      "sha256": "9e4d39d4bd5fa4da02a82a50b22c2e7ad5c9aa097c9c20dfa73af8f56981495d"
+    }
+  ]
+}

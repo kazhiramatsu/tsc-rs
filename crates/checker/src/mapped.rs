@@ -808,7 +808,17 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
-    fn is_array_or_tuple_or_intersection(&mut self, ty: TypeId) -> CheckResult<bool> {
+    /// tsc-port: createTypeChecker.isArrayOrTupleOrIntersection @6.0.3
+    /// tsc-hash: 7d99cf49f398cf7f86a8c5c1556230d69c1065a67a2d323af9722dd08a5f97eb
+    /// tsc-span: _tsc.js:59086-59088
+    /// tsc-port: createTypeChecker.getResolvedApparentTypeOfMappedType @6.0.3
+    /// tsc-hash: 993cbe1a08b150cb5cef94c1040dc8a91d3bb90590ac1da233cfc5fa241f2ab6
+    /// tsc-span: _tsc.js:59080-59080
+    /// Reference scope: combined `isArrayOrTupleType(t) || isArrayOrTupleOrIntersection(t)`
+    /// lambda.
+    /// This combines the array/tuple and intersection predicates. The instantiate caller
+    /// guards INTERSECTION before using this projection; retain that guard.
+    pub(crate) fn is_array_or_tuple_or_intersection(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self.is_array_type(ty)? || self.tables.is_tuple_type(ty) {
             return Ok(true);
         }

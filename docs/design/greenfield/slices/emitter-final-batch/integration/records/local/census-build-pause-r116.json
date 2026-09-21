@@ -1,0 +1,28 @@
+{
+  "head": "aea09cbaf2015a5eef7869fc4888042f9784bf3c",
+  "census_manifest": {
+    "census_pid": 56011,
+    "head": "67df86615a45f9595025064bcc12fde93063fedf",
+    "original_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask",
+    "original_inode": 120896494,
+    "original_device": 16777234,
+    "sha256": "8bdfd58da50dd32576998c8604c14acca42ec64ae812ed4590aa3eba442ab47d",
+    "retained_copy": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-census-r78-immutable/xtask",
+    "recorded_at": "2026-09-19T03:52:26.570523+00:00",
+    "process_text_mappings": "p56011\nftxt\ni120896494\nn/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask\nftxt\ni1152921500312573277\nn/usr/lib/dyld\n"
+  },
+  "steps": [
+    {
+      "label": "compiler-bounded-build-r116",
+      "exit": 0
+    },
+    {
+      "label": "recovery-new-controls-r116",
+      "exit": 101
+    }
+  ],
+  "protocol": "Census paused only for Cargo build; immutable native functional replays may overlap the read-only frozen census. All commands demoted; no timing qualifies performance. No xtask rebuild or source mutation.",
+  "paused_at": "2026-09-19T06:44:10.460812+00:00",
+  "resumed_at": "2026-09-19T07:01:34.263110+00:00",
+  "census_executable_preserved": true
+}

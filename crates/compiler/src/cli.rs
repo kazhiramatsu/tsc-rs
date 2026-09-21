@@ -783,33 +783,22 @@ fn parse_inline_boolean(argument: &str) -> Result<bool, CliError> {
 }
 
 fn parse_target(value: &str) -> Result<i32, CliError> {
-    match value.to_ascii_lowercase().as_str() {
-        "es2015" | "es6" => Ok(2),
-        "es2016" => Ok(3),
-        "es2017" => Ok(4),
-        "es2018" => Ok(5),
-        "es2019" => Ok(6),
-        "es2020" => Ok(7),
-        "es2021" => Ok(8),
-        "es2022" => Ok(9),
-        "es2023" => Ok(10),
-        "es2024" => Ok(11),
-        "es2025" => Ok(12),
-        "esnext" | "latest" => Ok(99),
-        _ => Err(CliError::Usage(format!(
-            "--target currently admits es2015 through es2025, es6, esnext, and latest; got {value:?}"
-        ))),
+    // Retain the existing CLI alias; all TypeScript spellings come from the
+    // same catalog as tsconfig conversion.
+    if value.eq_ignore_ascii_case("latest") {
+        return Ok(99);
     }
+    parse_named_emit_option("target", value)
 }
 
 fn parse_module(value: &str) -> Result<i32, CliError> {
-    if value.eq_ignore_ascii_case("preserve") {
-        Ok(200)
-    } else {
-        Err(CliError::Usage(format!(
-            "--module currently admits only 'preserve', got {value:?}"
-        )))
-    }
+    parse_named_emit_option("module", value)
+}
+
+fn parse_named_emit_option(name: &str, value: &str) -> Result<i32, CliError> {
+    tsc_program::compiler_option_declaration(name)
+        .and_then(|option| option.value_kind().named_value(value))
+        .ok_or_else(|| CliError::Usage(format!("--{name} has an unknown value {value:?}")))
 }
 
 fn parse_new_line(value: &str) -> Result<i32, CliError> {
@@ -1005,7 +994,12 @@ fn execute_prepared(
         diagnostics.extend(outcome.options_diagnostics().iter().cloned());
         diagnostics.extend(additional_diagnostics.iter().cloned());
         diagnostics.extend(outcome.global_diagnostics().iter().cloned());
-        diagnostics.extend(outcome.semantic_diagnostics().iter().cloned());
+        if outcome.options_diagnostics().is_empty()
+            && additional_diagnostics.is_empty()
+            && outcome.global_diagnostics().is_empty()
+        {
+            diagnostics.extend(outcome.semantic_diagnostics().iter().cloned());
+        }
     }
     let work_counters = outcome.work_counters();
     let no_emit_activity = outcome.no_emit_activity();

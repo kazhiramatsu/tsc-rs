@@ -1,0 +1,24 @@
+{
+  "head": "807bd4718c356631c6a175f06b29aa782b2507e1",
+  "files": [
+    {
+      "path": "crates/harness/src/upstream_suites/execution/project.rs",
+      "before_sha256": "dc82805e089ce1888569d697d78115768d942c35996681d88fdaa55b0de75e71",
+      "after_sha256": "c03c49fb14243ea4a49984df4f4ae68134276558dac32f9c17ffbfd0bca398cf",
+      "replacements": 4
+    },
+    {
+      "path": "crates/syntax/tests/template_escape_flags.rs",
+      "before_sha256": "b8c63d3b61b29dd54267a801c5411ff78a8f7ee371d7a08dd657f515451d8d17",
+      "after_sha256": "3068ae1a711efe3a67067ba7969021c98c7324d68c10f9ea608d7901847c0413",
+      "replacements": 1
+    },
+    {
+      "path": "crates/host/tests/compiler_host_contract.rs",
+      "before_sha256": "270fa24b7d0efe9ab8c66f349d38123cc37f67934abff526c07850a0b845a757",
+      "after_sha256": "00f9579a62d5924d3be306550a2959b8b3dc4ec0e184ef9fed76fbce2fe9fc27",
+      "replacements": 1
+    }
+  ],
+  "scope": "Four project root-name slice clones become to_vec preserving all names and their order; one test format String passes by value instead of needless borrow. No selection/path/options/admission changes. Host directory-listing test compares the same one-element expected slice by reference."
+}

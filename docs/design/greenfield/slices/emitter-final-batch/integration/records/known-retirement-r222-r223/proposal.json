@@ -1,0 +1,49 @@
+{
+  "source_head": "0336c56663ff243503a18987a2cf8021109e8295",
+  "corpus_head": "0336c56663ff243503a18987a2cf8021109e8295",
+  "retired_transpile": [
+    "h2-8c/program-no-check/syntax-error/still-emits",
+    "h2-8c/transpile-js/diag/syntax-error-report-absent",
+    "h2-8c/transpile-js/diag/syntax-error-report-off",
+    "h2-8c/transpile-js/diag/syntax-error-report-on",
+    "h2-8c/transpile-js/inventory/declarationSingleFileHasErrors.ts~default~module~declarationSingleFileHasErrors.ts",
+    "h2-8c/transpile-js/inventory/declarationSingleFileHasErrorsReported.ts~default~module~declarationSingleFileHasErrorsReported.ts"
+  ],
+  "files": [
+    {
+      "path": "crates/compiler/tests/fixtures/emitter-final-known-native.json",
+      "before_sha256": "793376ef8746c1b66e0dc70610496573409c1025d7dfdaa94fc4f7d8f07a371d",
+      "after_sha256": "14c877a108df95a9bd38b3073dc53a2f0a45c1717a5ecde69bd101d878d3e913"
+    },
+    {
+      "path": "crates/compiler/tests/emitter_final_universe.rs",
+      "before_sha256": "52acf4a93c0fb973b8ae7ca84147fccc0f1465622e2894d8cd547f0fc2e60453",
+      "after_sha256": "ba2f97d2a5861364911b83aef83d44366b131dc5c65d7e0775fa4e921351843d"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2_8c_transpile/known-open.v1.json",
+      "before_sha256": "709f6c95d424c75cfb123ab48611f54d7bac241aae76c8a9fb12da55cf7216fc",
+      "after_sha256": "343948517923c305ccd2253736ae2326e4609ec6841c08115a0e56dfa88d2f20"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2_8c_transpile/known-native.v1.json",
+      "before_sha256": "2db42d4b7a51adb6fe9e87f517bf02b9e799777186c705ab712b0ff803592d10",
+      "after_sha256": "d4d3a0548f0b2726a53edcbe91fb6726a9dc3590c1896b5375d6284d1b6b8093"
+    },
+    {
+      "path": "crates/compiler/tests/transpile_routes_contract.rs",
+      "before_sha256": "3e5f72b4a43d54ab9b0d65ef2008ff6422b90beb6ee4d6a4796cc7e53bd769b8",
+      "after_sha256": "3ae23bf2d1dd54dec0c08d94d95e1ddffae32ada6eb57f7708cebbe99869755f"
+    },
+    {
+      "path": "scripts/emitter_final_witnesses.py",
+      "before_sha256": "e32a626a6faf1df2267b185f9fc2ee7d63eef8313d37adcfa94349f021dab7cd",
+      "after_sha256": "d65f11018dbe41a8cc87194335ddd6a69f6ee6dd6ca33f9110893ae8323c6dc4"
+    },
+    {
+      "path": "scripts/witness.py",
+      "before_sha256": "41248d464d80e25d1e3dadfd4a08ee7f19ee1a4c27ed63a0f8c90187c8ea38d2",
+      "after_sha256": "970870eedb181f340ccb560e50b312db5e0710bf8a9dafe4369d63624a63329f"
+    }
+  ]
+}

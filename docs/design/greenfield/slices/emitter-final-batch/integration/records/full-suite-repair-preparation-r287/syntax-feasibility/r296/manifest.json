@@ -1,0 +1,33 @@
+{
+  "base_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-syntax",
+    "--lib",
+    "--config",
+    "profile.dev.package.tsc-rs-syntax.opt-level=0",
+    "--config",
+    "profile.dev.package.tsc-rs-types.opt-level=0",
+    "--config",
+    "profile.dev.package.tsc-rs-diagnostics.opt-level=0",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "exit": 0,
+  "seconds": 0.584,
+  "log_sha256": "9700623fa1a265f7686b009fb02c638b3758dd4defcfcc39912a4bf1cbee511e",
+  "scope": "isolated syntax units only; no fullcommand qualification",
+  "prior_failures": [
+    "r293 fmt wrong edition2024",
+    "r294 test-only borrowed string arguments; fixed Into conversions"
+  ]
+}

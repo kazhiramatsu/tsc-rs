@@ -1,0 +1,35 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--manifest-path",
+    "crates/syntax/Cargo.toml",
+    "--lib",
+    "--test",
+    "emitter_recovery",
+    "--test",
+    "recovery_provenance",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-18T21:54:45.596509+00:00",
+  "head": "b6799938da48667180a31530eaedd9a43d1cf510",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/recovery-syntax-r46",
+    "TSC_RS_RECOVERY_FACTS_OUTPUT": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/docs/design/greenfield/slices/emitter-final-batch/integration/cross-review/recovery-native-facts-r52.json",
+    "CARGO_BUILD_JOBS": "2"
+  },
+  "exit": 0,
+  "seconds": 38.276,
+  "log_sha256": "9c865a6f40efba1cf2526bbf47ed69032290d2e4c8e537646410f32dbe684693",
+  "log_bytes": 16345
+}

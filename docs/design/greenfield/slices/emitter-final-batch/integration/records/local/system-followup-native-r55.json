@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--manifest-path",
+    "crates/compiler/Cargo.toml",
+    "--test",
+    "contracts",
+    "emitter_residual_audit::",
+    "--",
+    "async_arrow_body_ranges::",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-system-followup",
+  "started_at": "2026-09-18T22:21:37.963485+00:00",
+  "head": "f0ee8009d97829a55a0d081a8a1cc5b51b3ad2af",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 2531.008,
+  "log_sha256": "2e00af89f59e55c1e8657014089dc23808df62b663c31f83b5e8ab8db59033f5",
+  "log_bytes": 446921
+}

@@ -1,0 +1,9 @@
+[package]
+name = "emitter-test-layout-proof"
+version = "0.0.0"
+edition = "2021"
+[dependencies]
+syn = { version = "=2.0.118", features = ["full", "extra-traits", "visit-mut"] }
+proc-macro2 = { version = "=1.0.106", features = ["span-locations"] }
+quote = "=1.0.46"
+serde_json = "=1.0.150"

@@ -1,0 +1,13 @@
+{
+  "name": "harness-unit-r2",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 12,
+  "env": [],
+  "argv": "cargo test -p tsc-rs-harness --test unit",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T07:29:48Z",
+  "seconds": 0,
+  "exit": 101,
+  "log_sha256": "936b3b6eef96943b8429ca71e2f8d0264e641b083efbee2c823f9e21370c96f2",
+  "log_bytes": 107
+}

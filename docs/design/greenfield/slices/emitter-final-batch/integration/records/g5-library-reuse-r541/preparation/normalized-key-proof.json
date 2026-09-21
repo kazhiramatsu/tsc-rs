@@ -1,0 +1,12 @@
+{
+  "qualified": false,
+  "meaning": "Logic changes the actual normalized generator term; prior observation journals must not be rekeyed or reused.",
+  "old": {
+    "sha256": "c3df089bc69026110025e9f8ed83878e6f85504883cf9901761c7f805e6d1104",
+    "refusals": []
+  },
+  "next": {
+    "sha256": "a28f273e861bd3c39666d677cfc46809519da4258ccd81eaaa11bb421bb18b46",
+    "refusals": []
+  }
+}

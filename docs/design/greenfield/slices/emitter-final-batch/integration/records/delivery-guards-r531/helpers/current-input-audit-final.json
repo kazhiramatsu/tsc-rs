@@ -1,0 +1,2467 @@
+{
+  "qualification_claim": false,
+  "reason": "Input identity preparation alone is not final CI, hosted acceptance, or delivery qualification.",
+  "validation_ref": "bb01b86df0a2d266910d25124c4bfbade334c826",
+  "validation_tree": "9272feb3c8b9b11e0d34df645cfe4b3a6a03eff7",
+  "owner_identity_evidence": "docs/design/greenfield/slices/emitter-final-batch/integration/records/delivery-preparation-r251/emitter-delivery-owner-identities-r249.json",
+  "typescript_source": "vendor/typescript-6.0.3/lib/_tsc.js",
+  "typescript_source_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+  "selected_rows": {
+    "E-ENTRY": [
+      {
+        "name": "emit",
+        "lexical_path": "<top>/createProgram@122625:1/emit@123568:3",
+        "source_range": {
+          "start": {
+            "offset": 5752962,
+            "line": 123568,
+            "character": 3
+          },
+          "end": {
+            "offset": 5753630,
+            "line": 123591,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5753079,
+            "line": 123568,
+            "character": 120
+          },
+          "end": {
+            "offset": 5753630,
+            "line": 123591,
+            "character": 4
+          }
+        },
+        "body_sha256": "bcb9769a6c97c5df43e9ee4daed4e64a18a3d6ef35c910f1cf7fec3b85827dea",
+        "declaration_sha256": "e06eaff302902fe73c5b6628094f730a092f8130810b5e640cea2cbbc0f873f3"
+      },
+      {
+        "name": "emitWorker",
+        "lexical_path": "<top>/createProgram@122625:1/emitWorker@123595:3",
+        "source_range": {
+          "start": {
+            "offset": 5753744,
+            "line": 123595,
+            "character": 3
+          },
+          "end": {
+            "offset": 5754781,
+            "line": 123624,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5753883,
+            "line": 123595,
+            "character": 142
+          },
+          "end": {
+            "offset": 5754781,
+            "line": 123624,
+            "character": 4
+          }
+        },
+        "body_sha256": "138af6a036a33e225246c7633a5970d9b9245ddc3c4be64242c73c5cb207df63",
+        "declaration_sha256": "50d637fb77d3c7c0d85ddcbe6199358dfad8d32bb22c819699aa3c3793c93b68"
+      },
+      {
+        "name": "handleNoEmitOptions",
+        "lexical_path": "<top>/handleNoEmitOptions@125636:1",
+        "source_range": {
+          "start": {
+            "offset": 5850700,
+            "line": 125636,
+            "character": 1
+          },
+          "end": {
+            "offset": 5851882,
+            "line": 125663,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5850781,
+            "line": 125636,
+            "character": 82
+          },
+          "end": {
+            "offset": 5851882,
+            "line": 125663,
+            "character": 2
+          }
+        },
+        "body_sha256": "4ba6dd93ac97da94f79ef4c5b3929cce1128b7bbf4c78ba28e11523ad3544ba5",
+        "declaration_sha256": "99cbd5c28bacd5be3620af28584c7fcac63a1a58e4a9e8894985a4a699bd9526"
+      },
+      {
+        "name": "emitFiles",
+        "lexical_path": "<top>/emitFiles@116530:1",
+        "source_range": {
+          "start": {
+            "offset": 5474283,
+            "line": 116530,
+            "character": 1
+          },
+          "end": {
+            "offset": 5487757,
+            "line": 116858,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5474439,
+            "line": 116530,
+            "character": 157
+          },
+          "end": {
+            "offset": 5487757,
+            "line": 116858,
+            "character": 2
+          }
+        },
+        "body_sha256": "dc3a3df8e4e7b73d78b609cc612fa58592db762184a6afc41ecc8b9b5b505b18",
+        "declaration_sha256": "79c6c17f472618f7cbf09a9c24a5487d8468ac7a7f584c0bb3def7fe6375e46d"
+      }
+    ],
+    "E-PLAN-SCRIPT": [
+      {
+        "name": "getSourceFilesToEmit",
+        "lexical_path": "<top>/getSourceFilesToEmit@16600:1",
+        "source_range": {
+          "start": {
+            "offset": 1087337,
+            "line": 16600,
+            "character": 1
+          },
+          "end": {
+            "offset": 1088074,
+            "line": 16616,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1087405,
+            "line": 16600,
+            "character": 69
+          },
+          "end": {
+            "offset": 1088074,
+            "line": 16616,
+            "character": 2
+          }
+        },
+        "body_sha256": "3cbc21f08a0aa7e1d18f71ac620fa5991bfc6c34884fef968efd2edcd71017f6",
+        "declaration_sha256": "91a089a11e3db88786e78f41d58d68cb4432c5d1fe1a8933062b4576ccf23afd"
+      },
+      {
+        "name": "sourceFileMayBeEmitted",
+        "lexical_path": "<top>/sourceFileMayBeEmitted@16617:1",
+        "source_range": {
+          "start": {
+            "offset": 1088075,
+            "line": 16617,
+            "character": 1
+          },
+          "end": {
+            "offset": 1089252,
+            "line": 16634,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1088139,
+            "line": 16617,
+            "character": 65
+          },
+          "end": {
+            "offset": 1089252,
+            "line": 16634,
+            "character": 2
+          }
+        },
+        "body_sha256": "670a5d1398bde34a723a3b52187f3265a5ea45e60d10e6f6c33a3e030dda7f8a",
+        "declaration_sha256": "690c9dc87ed5045e0abbd1ce604b5de515248569d9f8c25d476c3a9a54589095"
+      },
+      {
+        "name": "getOutputPathsFor",
+        "lexical_path": "<top>/getOutputPathsFor@116373:1",
+        "source_range": {
+          "start": {
+            "offset": 5465676,
+            "line": 116373,
+            "character": 1
+          },
+          "end": {
+            "offset": 5466907,
+            "line": 116387,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5465736,
+            "line": 116373,
+            "character": 61
+          },
+          "end": {
+            "offset": 5466907,
+            "line": 116387,
+            "character": 2
+          }
+        },
+        "body_sha256": "be94599c57dbdf08bcef7a5880eedfd02e2cf7c942d6a53d5bc7f946e00e59db",
+        "declaration_sha256": "779ffeea2c3a08b826f4ec76c59446785080b38a4ddb06b27ee3fc7d0dda52da"
+      },
+      {
+        "name": "forEachEmittedFile",
+        "lexical_path": "<top>/forEachEmittedFile@116312:1",
+        "source_range": {
+          "start": {
+            "offset": 5463032,
+            "line": 116312,
+            "character": 1
+          },
+          "end": {
+            "offset": 5464107,
+            "line": 116341,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5463160,
+            "line": 116312,
+            "character": 129
+          },
+          "end": {
+            "offset": 5464107,
+            "line": 116341,
+            "character": 2
+          }
+        },
+        "body_sha256": "ab4b37d5331d2fc44795f5b00b7667f5e38022dda0a627d18b809b3933661be5",
+        "declaration_sha256": "a404863b3f2daf2ef54fbd8ea55304a6232da09da9a721ac5b7912f890b43b5b"
+      }
+    ],
+    "E-RESOLVER-IDENTITY-G": [
+      {
+        "name": "getParseTreeNode",
+        "lexical_path": "<top>/getParseTreeNode@11426:1",
+        "source_range": {
+          "start": {
+            "offset": 899169,
+            "line": 11426,
+            "character": 1
+          },
+          "end": {
+            "offset": 899453,
+            "line": 11437,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 899211,
+            "line": 11426,
+            "character": 43
+          },
+          "end": {
+            "offset": 899453,
+            "line": 11437,
+            "character": 2
+          }
+        },
+        "body_sha256": "347b711bf2db980330937e9915dc46e85a9b022065562b634b9aeb75fda0c74e",
+        "declaration_sha256": "88060e5fdb8f12e4006af67b9b59673798554cdfd2ee15d8b777c362c7aec936"
+      },
+      {
+        "name": "getEmitResolver",
+        "lexical_path": "<top>/createTypeChecker@46438:1/getEmitResolver@47561:3",
+        "source_range": {
+          "start": {
+            "offset": 2377077,
+            "line": 47561,
+            "character": 3
+          },
+          "end": {
+            "offset": 2377255,
+            "line": 47564,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 2377151,
+            "line": 47561,
+            "character": 77
+          },
+          "end": {
+            "offset": 2377255,
+            "line": 47564,
+            "character": 4
+          }
+        },
+        "body_sha256": "e18865f430be5effab98b76fd1860426ce2c047e58326a3ecc9f52b26991ecaa",
+        "declaration_sha256": "fc8adce2aab393391f72fc8d8c9c4467405ab4332829742a01a8b54f7ad05c21"
+      },
+      {
+        "name": "createResolver",
+        "lexical_path": "<top>/createTypeChecker@46438:1/createResolver@88545:3",
+        "source_range": {
+          "start": {
+            "offset": 4335848,
+            "line": 88545,
+            "character": 3
+          },
+          "end": {
+            "offset": 4343838,
+            "line": 88718,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4335874,
+            "line": 88545,
+            "character": 29
+          },
+          "end": {
+            "offset": 4343838,
+            "line": 88718,
+            "character": 4
+          }
+        },
+        "body_sha256": "56a0d47f897fcf258d6e316a00f9dc5e7d18a3ed1936033ab7c9350f623b3df2",
+        "declaration_sha256": "211f52056b6478c78a9a44ca50f7b76a9f2aca78eb450a553e5d5e2fda47ce19"
+      }
+    ],
+    "E-METADATA-BASE": [
+      {
+        "name": "getOriginalNode",
+        "lexical_path": "<top>/getOriginalNode@11400:1",
+        "source_range": {
+          "start": {
+            "offset": 898617,
+            "line": 11400,
+            "character": 1
+          },
+          "end": {
+            "offset": 898842,
+            "line": 11410,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 898658,
+            "line": 11400,
+            "character": 42
+          },
+          "end": {
+            "offset": 898842,
+            "line": 11410,
+            "character": 2
+          }
+        },
+        "body_sha256": "b934db3d55bd0eb6bebca82dce97b8f693ad055812d7abafa3340e0cfed74a5a",
+        "declaration_sha256": "6badb23618e3a5e148a45f29b741ff3dc8cc2ebe2bbabae5367d2db3f8a3ece2"
+      },
+      {
+        "name": "setOriginalNode",
+        "lexical_path": "<top>/setOriginalNode@25208:1",
+        "source_range": {
+          "start": {
+            "offset": 1463166,
+            "line": 25208,
+            "character": 1
+          },
+          "end": {
+            "offset": 1463439,
+            "line": 25217,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1463207,
+            "line": 25208,
+            "character": 42
+          },
+          "end": {
+            "offset": 1463439,
+            "line": 25217,
+            "character": 2
+          }
+        },
+        "body_sha256": "9b8a0d666f6c7c78e82dc6c54f02ee222d838717f6afe36bee0651879cedee8e",
+        "declaration_sha256": "7e220ce2d2db27797863de86e1e468291442228ed9b1d89820b835bace29441b"
+      },
+      {
+        "name": "mergeEmitNode",
+        "lexical_path": "<top>/mergeEmitNode@25218:1",
+        "source_range": {
+          "start": {
+            "offset": 1463440,
+            "line": 25218,
+            "character": 1
+          },
+          "end": {
+            "offset": 1465090,
+            "line": 25277,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1463493,
+            "line": 25218,
+            "character": 54
+          },
+          "end": {
+            "offset": 1465090,
+            "line": 25277,
+            "character": 2
+          }
+        },
+        "body_sha256": "fbb071893c01e70474bcfa9e2e06d2fa7ec542c7fc5009b5c29824d2a2ef6254",
+        "declaration_sha256": "ca45e7c23ed71f3b5b34953b9e9c40b886b8774f983a4b2ea7024c2d2ca036d7"
+      },
+      {
+        "name": "cloneNode",
+        "lexical_path": "<top>/createNodeFactory@20804:1/cloneNode@24436:3",
+        "source_range": {
+          "start": {
+            "offset": 1428813,
+            "line": 24436,
+            "character": 3
+          },
+          "end": {
+            "offset": 1429755,
+            "line": 24466,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1428838,
+            "line": 24436,
+            "character": 28
+          },
+          "end": {
+            "offset": 1429755,
+            "line": 24466,
+            "character": 4
+          }
+        },
+        "body_sha256": "d2da400839203fb9edb46bba233688560f9e7a6146cd330d0c34b798f4bb03dd",
+        "declaration_sha256": "04e6cc6ac32172f263e59d0ef1b89774f0e310425f3f99b6923286b5a3be59a7"
+      },
+      {
+        "name": "propagateChildFlags",
+        "lexical_path": "<top>/propagateChildFlags@25110:1",
+        "source_range": {
+          "start": {
+            "offset": 1459067,
+            "line": 25110,
+            "character": 1
+          },
+          "end": {
+            "offset": 1459373,
+            "line": 25114,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1459103,
+            "line": 25110,
+            "character": 37
+          },
+          "end": {
+            "offset": 1459373,
+            "line": 25114,
+            "character": 2
+          }
+        },
+        "body_sha256": "76bc9cd89a2ee3750e99c51c91ef4566f5f4f9ebb8760179e4de4593cb09c860",
+        "declaration_sha256": "16b9f8f076f47d0a9688611b5ab136c2e45b8efdd458316fca63de46f88d90e2"
+      }
+    ],
+    "E-METADATA-G-CLASS": [
+      {
+        "name": "getClassFacts",
+        "lexical_path": "<top>/transformTypeScript@94036:1/getClassFacts@94410:3",
+        "source_range": {
+          "start": {
+            "offset": 4602436,
+            "line": 94410,
+            "character": 3
+          },
+          "end": {
+            "offset": 4603377,
+            "line": 94427,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4602465,
+            "line": 94410,
+            "character": 32
+          },
+          "end": {
+            "offset": 4603377,
+            "line": 94427,
+            "character": 4
+          }
+        },
+        "body_sha256": "76c1d8d2a6ffe0e3e00ffb36ed62333d0fed487340faa27038cdca031975b6ee",
+        "declaration_sha256": "2810a156e92d234d6c7797ed07f1c7b79774d7e242b76593f0bcd8dafba79a96"
+      },
+      {
+        "name": "transformNamedEvaluation",
+        "lexical_path": "<top>/transformNamedEvaluation@93950:1",
+        "source_range": {
+          "start": {
+            "offset": 4584597,
+            "line": 93950,
+            "character": 1
+          },
+          "end": {
+            "offset": 4585943,
+            "line": 93969,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4584686,
+            "line": 93950,
+            "character": 90
+          },
+          "end": {
+            "offset": 4585943,
+            "line": 93969,
+            "character": 2
+          }
+        },
+        "body_sha256": "7d3ac24c5cf2dae915a1c722c47252f21dcdd0f9a5216964962f82ff51879883",
+        "declaration_sha256": "38695860c0723c03055fbb0e018351658b08af36731adfc55e51bf154500f9f1"
+      },
+      {
+        "name": "getAssignedName",
+        "lexical_path": "<top>/getAssignedName@11566:1",
+        "source_range": {
+          "start": {
+            "offset": 904171,
+            "line": 11566,
+            "character": 1
+          },
+          "end": {
+            "offset": 904771,
+            "line": 11580,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 904202,
+            "line": 11566,
+            "character": 32
+          },
+          "end": {
+            "offset": 904771,
+            "line": 11580,
+            "character": 2
+          }
+        },
+        "body_sha256": "8cb43bc114c1c0aebb88ad1daae3908f25a3c4698298d682fdb98224709ab176",
+        "declaration_sha256": "098e744c79840928112212c5908010bc68ea3cdb225d4b1de60bb74dd2c517a0"
+      },
+      {
+        "name": "visitClassDeclarationInNewClassLexicalEnvironment",
+        "lexical_path": "<top>/transformClassFields@95852:1/visitClassDeclarationInNewClassLexicalEnvironment@96971:3",
+        "source_range": {
+          "start": {
+            "offset": 4704512,
+            "line": 96971,
+            "character": 3
+          },
+          "end": {
+            "offset": 4707780,
+            "line": 97045,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4704584,
+            "line": 96971,
+            "character": 75
+          },
+          "end": {
+            "offset": 4707780,
+            "line": 97045,
+            "character": 4
+          }
+        },
+        "body_sha256": "2e7d127c59a1cc65682da77f29b1d32613204706686b8e9936a746e81afd82c4",
+        "declaration_sha256": "5d93d79fc1ea6be772cb5d2617fc3d134edaad9c4980d3b2d7418ffe57b85ebf"
+      },
+      {
+        "name": "getFirstConstructorWithBody",
+        "lexical_path": "<top>/getFirstConstructorWithBody@16674:1",
+        "source_range": {
+          "start": {
+            "offset": 1091173,
+            "line": 16674,
+            "character": 1
+          },
+          "end": {
+            "offset": 1091324,
+            "line": 16676,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1091216,
+            "line": 16674,
+            "character": 44
+          },
+          "end": {
+            "offset": 1091324,
+            "line": 16676,
+            "character": 2
+          }
+        },
+        "body_sha256": "dca0991ecda75ad4d689bd5b5bde8a892702ac1afa5a20097cd4b4523677b4fb",
+        "declaration_sha256": "08796cc1e617e4d833b2ea49899888e1d4213842c1e6048bd019ee667d45ae72"
+      },
+      {
+        "name": "transformClassMembers",
+        "lexical_path": "<top>/transformTypeScript@94036:1/transformClassMembers@94564:3",
+        "source_range": {
+          "start": {
+            "offset": 4608690,
+            "line": 94564,
+            "character": 3
+          },
+          "end": {
+            "offset": 4609878,
+            "line": 94598,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4608727,
+            "line": 94564,
+            "character": 40
+          },
+          "end": {
+            "offset": 4609878,
+            "line": 94598,
+            "character": 4
+          }
+        },
+        "body_sha256": "8da47f87e16377bbe760c9e069b8608992a0efb35a6c0d65f333757149c61465",
+        "declaration_sha256": "1705650ebc002b74e9bdc979e1cbcb5ae9c55429dbbadc1ccc930cd0c8311855"
+      }
+    ],
+    "E-CAPTURE-BASE": [
+      {
+        "name": "transformES2017",
+        "lexical_path": "<top>/transformES2017@100810:1",
+        "source_range": {
+          "start": {
+            "offset": 4867348,
+            "line": 100810,
+            "character": 1
+          },
+          "end": {
+            "offset": 4897769,
+            "line": 101560,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4867382,
+            "line": 100810,
+            "character": 35
+          },
+          "end": {
+            "offset": 4897769,
+            "line": 101560,
+            "character": 2
+          }
+        },
+        "body_sha256": "bfa8bab06b8a4a23840ff680cda6ca6f14d34426f090621c99b74470e0a09503",
+        "declaration_sha256": "e84500a5aa5de018fa6f8b03dfc11e57847dda2c4522ec30120f94cb2e7ed189"
+      }
+    ],
+    "E-CHECKER-FACTS-BASE": [
+      {
+        "name": "createResolver",
+        "lexical_path": "<top>/createTypeChecker@46438:1/createResolver@88545:3",
+        "source_range": {
+          "start": {
+            "offset": 4335848,
+            "line": 88545,
+            "character": 3
+          },
+          "end": {
+            "offset": 4343838,
+            "line": 88718,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4335874,
+            "line": 88545,
+            "character": 29
+          },
+          "end": {
+            "offset": 4343838,
+            "line": 88718,
+            "character": 4
+          }
+        },
+        "body_sha256": "56a0d47f897fcf258d6e316a00f9dc5e7d18a3ed1936033ab7c9350f623b3df2",
+        "declaration_sha256": "211f52056b6478c78a9a44ca50f7b76a9f2aca78eb450a553e5d5e2fda47ce19"
+      },
+      {
+        "name": "getEmitResolver",
+        "lexical_path": "<top>/createTypeChecker@46438:1/getEmitResolver@47561:3",
+        "source_range": {
+          "start": {
+            "offset": 2377077,
+            "line": 47561,
+            "character": 3
+          },
+          "end": {
+            "offset": 2377255,
+            "line": 47564,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 2377151,
+            "line": 47561,
+            "character": 77
+          },
+          "end": {
+            "offset": 2377255,
+            "line": 47564,
+            "character": 4
+          }
+        },
+        "body_sha256": "e18865f430be5effab98b76fd1860426ce2c047e58326a3ecc9f52b26991ecaa",
+        "declaration_sha256": "fc8adce2aab393391f72fc8d8c9c4467405ab4332829742a01a8b54f7ad05c21"
+      }
+    ],
+    "E-NAMES-BASE": [
+      {
+        "name": "generateName",
+        "lexical_path": "<top>/createPrinter@116912:1/generateName@120624:3",
+        "source_range": {
+          "start": {
+            "offset": 5623739,
+            "line": 120624,
+            "character": 3
+          },
+          "end": {
+            "offset": 5624241,
+            "line": 120632,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5623767,
+            "line": 120624,
+            "character": 31
+          },
+          "end": {
+            "offset": 5624241,
+            "line": 120632,
+            "character": 4
+          }
+        },
+        "body_sha256": "6cbe3f44410b19c815c821b3c608115d47dbdd5a486641a17caf915650ee7b43",
+        "declaration_sha256": "fecbbc798982be388f23048a085499b67d9cdb27c57aa91b3a1b80789e7b6e43"
+      },
+      {
+        "name": "generateNameCached",
+        "lexical_path": "<top>/createPrinter@116912:1/generateNameCached@120633:3",
+        "source_range": {
+          "start": {
+            "offset": 5624244,
+            "line": 120633,
+            "character": 3
+          },
+          "end": {
+            "offset": 5624630,
+            "line": 120637,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5624314,
+            "line": 120633,
+            "character": 73
+          },
+          "end": {
+            "offset": 5624630,
+            "line": 120637,
+            "character": 4
+          }
+        },
+        "body_sha256": "ce4c1fdbb19128eb45c2dbb1485b494518964d8a3690b0144a8d96bdae68096f",
+        "declaration_sha256": "976f864ebc31d76318dc766366075a68583abc7b4ebc485ff1b6cb6bf6300eb8"
+      },
+      {
+        "name": "makeUniqueName",
+        "lexical_path": "<top>/createPrinter@116912:1/makeUniqueName@120741:3",
+        "source_range": {
+          "start": {
+            "offset": 5628210,
+            "line": 120741,
+            "character": 3
+          },
+          "end": {
+            "offset": 5629495,
+            "line": 120779,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5628317,
+            "line": 120741,
+            "character": 110
+          },
+          "end": {
+            "offset": 5629495,
+            "line": 120779,
+            "character": 4
+          }
+        },
+        "body_sha256": "123d853d8625ddb97ec0f197e185ab6d2cb7dc99bcae43511779ab0433a03a07",
+        "declaration_sha256": "94b24041b1e9e89c3c2514f7411642fb63c4cf392b878c105f4c5931cd041078"
+      },
+      {
+        "name": "makeTempVariableName",
+        "lexical_path": "<top>/createPrinter@116912:1/makeTempVariableName@120703:3",
+        "source_range": {
+          "start": {
+            "offset": 5626711,
+            "line": 120703,
+            "character": 3
+          },
+          "end": {
+            "offset": 5628207,
+            "line": 120740,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5626801,
+            "line": 120703,
+            "character": 93
+          },
+          "end": {
+            "offset": 5628207,
+            "line": 120740,
+            "character": 4
+          }
+        },
+        "body_sha256": "587ca8c7b11f620a2b6b35995aed86873514415da1e1e065cca6fc4183538f80",
+        "declaration_sha256": "32ace3390b76de9265b620385ec40489d4e7cc8b19e1f180e3bca535731a6681"
+      },
+      {
+        "name": "generateNameForNode",
+        "lexical_path": "<top>/createPrinter@116912:1/generateNameForNode@120876:3",
+        "source_range": {
+          "start": {
+            "offset": 5631475,
+            "line": 120876,
+            "character": 3
+          },
+          "end": {
+            "offset": 5633662,
+            "line": 120942,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5631546,
+            "line": 120876,
+            "character": 74
+          },
+          "end": {
+            "offset": 5633662,
+            "line": 120942,
+            "character": 4
+          }
+        },
+        "body_sha256": "77abebf1be8e1ad96cefdbe088f37ef0091ff622f5de27779224e76262d8551d",
+        "declaration_sha256": "1a587dce38202bb6d52823d94501a8802866ef5fe74bcc71797ab27e10dc177b"
+      }
+    ],
+    "E-NAMES-CLASS-G": [
+      {
+        "name": "getClassFacts",
+        "lexical_path": "<top>/transformClassFields@95852:1/getClassFacts@96844:3",
+        "source_range": {
+          "start": {
+            "offset": 4697935,
+            "line": 96844,
+            "character": 3
+          },
+          "end": {
+            "offset": 4701278,
+            "line": 96898,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4697964,
+            "line": 96844,
+            "character": 32
+          },
+          "end": {
+            "offset": 4701278,
+            "line": 96898,
+            "character": 4
+          }
+        },
+        "body_sha256": "aeeb8f73d495db6f3c30cd2c9a8cbc60b358b3326af76976a2c2a366d05059c0",
+        "declaration_sha256": "6ee154ed4d251b5b480ffc84c1cf87c1a365a662eb60af07cee2221ca2d828f0"
+      },
+      {
+        "name": "visitClassExpressionInNewClassLexicalEnvironment",
+        "lexical_path": "<top>/transformClassFields@95852:1/visitClassExpressionInNewClassLexicalEnvironment@97049:3",
+        "source_range": {
+          "start": {
+            "offset": 4707929,
+            "line": 97049,
+            "character": 3
+          },
+          "end": {
+            "offset": 4712140,
+            "line": 97129,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4708000,
+            "line": 97049,
+            "character": 74
+          },
+          "end": {
+            "offset": 4712140,
+            "line": 97129,
+            "character": 4
+          }
+        },
+        "body_sha256": "0810e08b27e36844ab00c6fa28d8931dc698d8b380bc5a540cd988f16e98573b",
+        "declaration_sha256": "14b8c963902b758dd9fbbc2809669c02a1e07b8f9c760e44d8754bb9d8851921"
+      },
+      {
+        "name": "createClassTempVar",
+        "lexical_path": "<top>/transformClassFields@95852:1/visitClassExpressionInNewClassLexicalEnvironment@97049:3/createClassTempVar@97056:5",
+        "source_range": {
+          "start": {
+            "offset": 4708439,
+            "line": 97056,
+            "character": 5
+          },
+          "end": {
+            "offset": 4709001,
+            "line": 97068,
+            "character": 6
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4708469,
+            "line": 97056,
+            "character": 35
+          },
+          "end": {
+            "offset": 4709001,
+            "line": 97068,
+            "character": 6
+          }
+        },
+        "body_sha256": "e65e0534cb306ccbe154bd0db03763d4514408c8d71e071c330fb34bf582b4de",
+        "declaration_sha256": "770f003e666ad9ef409758dabc3bcb138ed0bfc88c98fbd11cff2ace7ceeab73"
+      }
+    ],
+    "E-HELPERS-IMPORT-STATE": [
+      {
+        "name": "getExternalHelpersModuleName",
+        "lexical_path": "<top>/getExternalHelpersModuleName@27603:1",
+        "source_range": {
+          "start": {
+            "offset": 1549309,
+            "line": 27603,
+            "character": 1
+          },
+          "end": {
+            "offset": 1549522,
+            "line": 27607,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1549353,
+            "line": 27603,
+            "character": 45
+          },
+          "end": {
+            "offset": 1549522,
+            "line": 27607,
+            "character": 2
+          }
+        },
+        "body_sha256": "03543704f8387b15bed91229e5febb1141c27b73d2a389a6868eef69de57e180",
+        "declaration_sha256": "6db2d2a14317b4e265b68983f6f12acdc48d0ac5ea0fa100d473c3d4da726414"
+      },
+      {
+        "name": "createExternalHelpersImportDeclarationIfNeeded",
+        "lexical_path": "<top>/createExternalHelpersImportDeclarationIfNeeded@27613:1",
+        "source_range": {
+          "start": {
+            "offset": 1549783,
+            "line": 27613,
+            "character": 1
+          },
+          "end": {
+            "offset": 1552942,
+            "line": 27680,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1549959,
+            "line": 27613,
+            "character": 177
+          },
+          "end": {
+            "offset": 1552942,
+            "line": 27680,
+            "character": 2
+          }
+        },
+        "body_sha256": "a43330a4c24a4052448136e0475492ec409428c37cf6b90f0de0bf83f99f3b98",
+        "declaration_sha256": "3a3e691d18793ccdbbe1034d74596457f70f9273b144fb1b40e6aaf0a1d49079"
+      },
+      {
+        "name": "emitHelpers",
+        "lexical_path": "<top>/createPrinter@116912:1/emitHelpers@117719:3",
+        "source_range": {
+          "start": {
+            "offset": 5519830,
+            "line": 117719,
+            "character": 3
+          },
+          "end": {
+            "offset": 5521188,
+            "line": 117755,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5519857,
+            "line": 117719,
+            "character": 30
+          },
+          "end": {
+            "offset": 5521188,
+            "line": 117755,
+            "character": 4
+          }
+        },
+        "body_sha256": "dfba569ce26e15df64ad4080ad00288ad29fdf757e17fcd0c3e6756f99500e0d",
+        "declaration_sha256": "5982791e77eaa10fd63b79e96a03d877bb9bcb537964f8b8c54e1a4a5ac606ad"
+      },
+      {
+        "name": "requestEmitHelper",
+        "lexical_path": "<top>/transformNodes@115977:1/requestEmitHelper@116243:3",
+        "source_range": {
+          "start": {
+            "offset": 5460507,
+            "line": 116243,
+            "character": 3
+          },
+          "end": {
+            "offset": 5461029,
+            "line": 116253,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5460542,
+            "line": 116243,
+            "character": 38
+          },
+          "end": {
+            "offset": 5461029,
+            "line": 116253,
+            "character": 4
+          }
+        },
+        "body_sha256": "87db25495496c36d88f450fe72ebe706dae3483ded8a832d773fe05e58f1b18a",
+        "declaration_sha256": "872c2c7f3556976f70dbbeb8233ac1592c0b97b6ca0fab8d6441131a1fc50e3f"
+      }
+    ],
+    "E-PRINTER-G": [
+      {
+        "name": "emitParametersForArrow",
+        "lexical_path": "<top>/createPrinter@116912:1/emitParametersForArrow@119983:3",
+        "source_range": {
+          "start": {
+            "offset": 5599889,
+            "line": 119983,
+            "character": 3
+          },
+          "end": {
+            "offset": 5600162,
+            "line": 119989,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5599945,
+            "line": 119983,
+            "character": 59
+          },
+          "end": {
+            "offset": 5600162,
+            "line": 119989,
+            "character": 4
+          }
+        },
+        "body_sha256": "0109618511b88f6d7da3378a825923d3ac573956d90209ef715faae2ff6bfe29",
+        "declaration_sha256": "5defa2865b66596114760529f7df0ae1b8c54ab92a012da39bef889e687fd7c3"
+      },
+      {
+        "name": "emitNodeListItems",
+        "lexical_path": "<top>/createPrinter@116912:1/emitNodeListItems@120068:3",
+        "source_range": {
+          "start": {
+            "offset": 5603071,
+            "line": 120068,
+            "character": 3
+          },
+          "end": {
+            "offset": 5607258,
+            "line": 120155,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5603205,
+            "line": 120068,
+            "character": 137
+          },
+          "end": {
+            "offset": 5607258,
+            "line": 120155,
+            "character": 4
+          }
+        },
+        "body_sha256": "4610f6b635e6f5c3795420e8575ad95bf0035207d42dde079a8c081ff41ec4e9",
+        "declaration_sha256": "f7da864479c04d23c6e375b40a09c19a7776552e5d60d6582bb24d6aa1529fc3"
+      },
+      {
+        "name": "canEmitSimpleArrowHead",
+        "lexical_path": "<top>/createPrinter@116912:1/canEmitSimpleArrowHead@119979:3",
+        "source_range": {
+          "start": {
+            "offset": 5599432,
+            "line": 119979,
+            "character": 3
+          },
+          "end": {
+            "offset": 5599886,
+            "line": 119982,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5599488,
+            "line": 119979,
+            "character": 59
+          },
+          "end": {
+            "offset": 5599886,
+            "line": 119982,
+            "character": 4
+          }
+        },
+        "body_sha256": "781aa4c488833c0689503044b3c2d83a9f55b0ac147ac7dea1518a0f9b3e9859",
+        "declaration_sha256": "c13aa429864884bf51e8e10d472629b63b69c18f41d3867571bb55e3c4844f12"
+      },
+      {
+        "name": "shouldEmitBlockFunctionBodyOnSingleLine",
+        "lexical_path": "<top>/createPrinter@116912:1/shouldEmitBlockFunctionBodyOnSingleLine@118999:3",
+        "source_range": {
+          "start": {
+            "offset": 5566711,
+            "line": 118999,
+            "character": 3
+          },
+          "end": {
+            "offset": 5567542,
+            "line": 119020,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5566766,
+            "line": 118999,
+            "character": 58
+          },
+          "end": {
+            "offset": 5567542,
+            "line": 119020,
+            "character": 4
+          }
+        },
+        "body_sha256": "328066096de45adb4784e8e4bd9e777424b9aeb0ddba7cd21de1640b1d7b9945",
+        "declaration_sha256": "ffb3e2a4581b1045c6dbf70ba75082c4feb6c979924dbc4684fbbe3bd9e2e078"
+      },
+      {
+        "name": "emitCaseOrDefaultClauseRest",
+        "lexical_path": "<top>/createPrinter@116912:1/emitCaseOrDefaultClauseRest@119486:3",
+        "source_range": {
+          "start": {
+            "offset": 5582813,
+            "line": 119486,
+            "character": 3
+          },
+          "end": {
+            "offset": 5583606,
+            "line": 119498,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5582884,
+            "line": 119486,
+            "character": 74
+          },
+          "end": {
+            "offset": 5583606,
+            "line": 119498,
+            "character": 4
+          }
+        },
+        "body_sha256": "e6cbe0bec707990b77601a165433d285ab5d40b61a425bcae8f4ea4bcf2e2d0b",
+        "declaration_sha256": "bb14e1ea7bd36663d4287998454e47ecd29f685a5728e0d03ce11aba39bb812d"
+      },
+      {
+        "name": "emitIdentifierName",
+        "lexical_path": "<top>/createPrinter@116912:1/emitIdentifierName@117149:3",
+        "source_range": {
+          "start": {
+            "offset": 5497287,
+            "line": 117149,
+            "character": 3
+          },
+          "end": {
+            "offset": 5497467,
+            "line": 117157,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5497321,
+            "line": 117149,
+            "character": 37
+          },
+          "end": {
+            "offset": 5497467,
+            "line": 117157,
+            "character": 4
+          }
+        },
+        "body_sha256": "a7bf71453455a9140cca840c4a9b5ad2a4eadde8d3325c8c38d3191ef795c2ac",
+        "declaration_sha256": "698abe706ef45083fe4759625b9572ff6425acb89681a831086ca47190f39add"
+      }
+    ],
+    "E-COMMENT-SCOPE-H": [
+      {
+        "name": "pipelineEmitWithComments",
+        "lexical_path": "<top>/createPrinter@116912:1/pipelineEmitWithComments@120978:3",
+        "source_range": {
+          "start": {
+            "offset": 5635011,
+            "line": 120978,
+            "character": 3
+          },
+          "end": {
+            "offset": 5635472,
+            "line": 120986,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5635057,
+            "line": 120978,
+            "character": 49
+          },
+          "end": {
+            "offset": 5635472,
+            "line": 120986,
+            "character": 4
+          }
+        },
+        "body_sha256": "785a620b146bdf04bffdce20332e8245c18aaefca96871276dd92160b01570d3",
+        "declaration_sha256": "532b7e96b4c74525c918362b3edfba76bbf6330311891b90af56b11ca6d4efbe"
+      },
+      {
+        "name": "emitCommentsBeforeNode",
+        "lexical_path": "<top>/createPrinter@116912:1/emitCommentsBeforeNode@120987:3",
+        "source_range": {
+          "start": {
+            "offset": 5635475,
+            "line": 120987,
+            "character": 3
+          },
+          "end": {
+            "offset": 5635780,
+            "line": 120994,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5635513,
+            "line": 120987,
+            "character": 41
+          },
+          "end": {
+            "offset": 5635780,
+            "line": 120994,
+            "character": 4
+          }
+        },
+        "body_sha256": "77275f1bd95cba0641defe29d4a7300fb2a660e708c85e495fedf7eab7c9626a",
+        "declaration_sha256": "f7d6666d60e1f5d1f878cd65f27781b34f16d08b2e61fc940dbf14d8ac09b6fd"
+      },
+      {
+        "name": "emitCommentsAfterNode",
+        "lexical_path": "<top>/createPrinter@116912:1/emitCommentsAfterNode@120995:3",
+        "source_range": {
+          "start": {
+            "offset": 5635783,
+            "line": 120995,
+            "character": 3
+          },
+          "end": {
+            "offset": 5636450,
+            "line": 121006,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5635892,
+            "line": 120995,
+            "character": 112
+          },
+          "end": {
+            "offset": 5636450,
+            "line": 121006,
+            "character": 4
+          }
+        },
+        "body_sha256": "3a604eb60c11618014e720fd74e43bf1fee458ceb76c2bf2f4ed604e7ad2874b",
+        "declaration_sha256": "de9a60239d807e44902bc89618859b60c4ce48cd7f6f6e462174be464a4e5fd1"
+      }
+    ],
+    "E-MAPS": [
+      {
+        "name": "createTextWriter",
+        "lexical_path": "<top>/createTextWriter@16365:1",
+        "source_range": {
+          "start": {
+            "offset": 1079123,
+            "line": 16365,
+            "character": 1
+          },
+          "end": {
+            "offset": 1081471,
+            "line": 16461,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1079158,
+            "line": 16365,
+            "character": 36
+          },
+          "end": {
+            "offset": 1081471,
+            "line": 16461,
+            "character": 2
+          }
+        },
+        "body_sha256": "835dadc2e09d2d66ae9b4a65e5a33e62cd885251ca297a525ab4f1ac3928b5eb",
+        "declaration_sha256": "b4532673ae6e5c863d1c9bdbff20f56f3c49d47419d142c1390c881b7964615f"
+      },
+      {
+        "name": "createSourceMapGenerator",
+        "lexical_path": "<top>/createSourceMapGenerator@92365:1",
+        "source_range": {
+          "start": {
+            "offset": 4521435,
+            "line": 92365,
+            "character": 1
+          },
+          "end": {
+            "offset": 4530744,
+            "line": 92601,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 4521533,
+            "line": 92365,
+            "character": 99
+          },
+          "end": {
+            "offset": 4530744,
+            "line": 92601,
+            "character": 2
+          }
+        },
+        "body_sha256": "96472f7193f92dfc90365727dc37cbea94bb429150f45be87b55ce4ffb2eab60",
+        "declaration_sha256": "90f3314c42852b0ba3e523c1135dbb459c16bc0aea9efa2f514707fada914433"
+      },
+      {
+        "name": "pipelineEmitWithSourceMaps",
+        "lexical_path": "<top>/createPrinter@116912:1/pipelineEmitWithSourceMaps@121277:3",
+        "source_range": {
+          "start": {
+            "offset": 5646994,
+            "line": 121277,
+            "character": 3
+          },
+          "end": {
+            "offset": 5647229,
+            "line": 121282,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5647042,
+            "line": 121277,
+            "character": 51
+          },
+          "end": {
+            "offset": 5647229,
+            "line": 121282,
+            "character": 4
+          }
+        },
+        "body_sha256": "0cfd79d18f4dc38149afea48d7f271d7bf7271a84427f49e2db4adb98a879a9e",
+        "declaration_sha256": "7c1f991d0223179d86207c9cdb2a3311ad2ab6dcdf428ab48dc18af1077bcd45"
+      },
+      {
+        "name": "emitSourceMapsBeforeNode",
+        "lexical_path": "<top>/createPrinter@116912:1/emitSourceMapsBeforeNode@121283:3",
+        "source_range": {
+          "start": {
+            "offset": 5647232,
+            "line": 121283,
+            "character": 3
+          },
+          "end": {
+            "offset": 5647771,
+            "line": 121293,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5647272,
+            "line": 121283,
+            "character": 43
+          },
+          "end": {
+            "offset": 5647771,
+            "line": 121293,
+            "character": 4
+          }
+        },
+        "body_sha256": "094004db78fc68450b918d9b38e720a6619b2eb1ec47c3fe071c983f3475aacb",
+        "declaration_sha256": "05067ea1b1e271980ecffb24c1d4d3734e3cd77a327c0f2966a303e8516d40d0"
+      },
+      {
+        "name": "emitSourceMapsAfterNode",
+        "lexical_path": "<top>/createPrinter@116912:1/emitSourceMapsAfterNode@121294:3",
+        "source_range": {
+          "start": {
+            "offset": 5647774,
+            "line": 121294,
+            "character": 3
+          },
+          "end": {
+            "offset": 5648227,
+            "line": 121303,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5647813,
+            "line": 121294,
+            "character": 42
+          },
+          "end": {
+            "offset": 5648227,
+            "line": 121303,
+            "character": 4
+          }
+        },
+        "body_sha256": "ccc759cea107aff28e6f93ddc7ac0dfbb11ce904207de7fc01b45f9e7f7f3cb3",
+        "declaration_sha256": "2e4fff1fc7b845a448f091a1c3acfb69e2bd862c28d458f5c2485d39e118e562"
+      }
+    ],
+    "E-OUTPUT-FUTURE": [
+      {
+        "name": "emitFiles",
+        "lexical_path": "<top>/emitFiles@116530:1",
+        "source_range": {
+          "start": {
+            "offset": 5474283,
+            "line": 116530,
+            "character": 1
+          },
+          "end": {
+            "offset": 5487757,
+            "line": 116858,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5474439,
+            "line": 116530,
+            "character": 157
+          },
+          "end": {
+            "offset": 5487757,
+            "line": 116858,
+            "character": 2
+          }
+        },
+        "body_sha256": "dc3a3df8e4e7b73d78b609cc612fa58592db762184a6afc41ecc8b9b5b505b18",
+        "declaration_sha256": "79c6c17f472618f7cbf09a9c24a5487d8468ac7a7f584c0bb3def7fe6375e46d"
+      },
+      {
+        "name": "writeFile",
+        "lexical_path": "<top>/writeFile@16644:1",
+        "source_range": {
+          "start": {
+            "offset": 1090014,
+            "line": 16644,
+            "character": 1
+          },
+          "end": {
+            "offset": 1090363,
+            "line": 16655,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1090107,
+            "line": 16644,
+            "character": 94
+          },
+          "end": {
+            "offset": 1090363,
+            "line": 16655,
+            "character": 2
+          }
+        },
+        "body_sha256": "03c5815c7b598e5705a4fcf0105d6cbb7f7dbd38d2f4ea2220bd75d04878698b",
+        "declaration_sha256": "1fe4c34ed59e5f306f71a3adccc7db0aa08c116ee58d05ecf461a54a04b09a51"
+      },
+      {
+        "name": "writeFileEnsuringDirectories",
+        "lexical_path": "<top>/writeFileEnsuringDirectories@16663:1",
+        "source_range": {
+          "start": {
+            "offset": 1090725,
+            "line": 16663,
+            "character": 1
+          },
+          "end": {
+            "offset": 1091065,
+            "line": 16670,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1090841,
+            "line": 16663,
+            "character": 117
+          },
+          "end": {
+            "offset": 1091065,
+            "line": 16670,
+            "character": 2
+          }
+        },
+        "body_sha256": "96841d400ebccd0aa09782ffca072adacb46ca55dbbffcb0821778e72c5749d2",
+        "declaration_sha256": "3ad8abbb5cec000e2399f4aa80e9981e12ec59585d40686589844dca5c87045a"
+      }
+    ],
+    "E-RECOVERY-FACTS": [
+      {
+        "name": "nextToken",
+        "lexical_path": "<top>/<anonymous>@28914:2/nextToken@29502:3",
+        "source_range": {
+          "start": {
+            "offset": 1639357,
+            "line": 29502,
+            "character": 3
+          },
+          "end": {
+            "offset": 1639653,
+            "line": 29507,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1639378,
+            "line": 29502,
+            "character": 24
+          },
+          "end": {
+            "offset": 1639653,
+            "line": 29507,
+            "character": 4
+          }
+        },
+        "body_sha256": "4414cde695ffb7fd5970d1b25a093805dd3b327d916b922440148e0e010a6dde",
+        "declaration_sha256": "d7be1a8066ed03963d05522e67db9db49c2a842b0cbb9059a284a835548c5dc8"
+      },
+      {
+        "name": "parseList",
+        "lexical_path": "<top>/<anonymous>@28914:2/parseList@30169:3",
+        "source_range": {
+          "start": {
+            "offset": 1664789,
+            "line": 30169,
+            "character": 3
+          },
+          "end": {
+            "offset": 1665347,
+            "line": 30189,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1664828,
+            "line": 30169,
+            "character": 42
+          },
+          "end": {
+            "offset": 1665347,
+            "line": 30189,
+            "character": 4
+          }
+        },
+        "body_sha256": "4b105c999e60f0ac66b88af52f7cdc21b8452c878e896e5c56afb678ede2473f",
+        "declaration_sha256": "4e9abe6278ae55d7248af9150679278fabc5c50eefbb8ebd33017cf0b2d6e6f1"
+      },
+      {
+        "name": "parseDelimitedList",
+        "lexical_path": "<top>/<anonymous>@28914:2/parseDelimitedList@30428:3",
+        "source_range": {
+          "start": {
+            "offset": 1674752,
+            "line": 30428,
+            "character": 3
+          },
+          "end": {
+            "offset": 1676208,
+            "line": 30479,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1674830,
+            "line": 30428,
+            "character": 81
+          },
+          "end": {
+            "offset": 1676208,
+            "line": 30479,
+            "character": 4
+          }
+        },
+        "body_sha256": "3559b0a075b6f35b77c7e94fbfe7d5d8b2878f35938a3bcad658dc7627cbf72c",
+        "declaration_sha256": "b084010f9d54acc38dc7740380d96368ec37d9481f9d1907ae2d220f548c9f23"
+      },
+      {
+        "name": "parseSemicolon",
+        "lexical_path": "<top>/<anonymous>@28914:2/parseSemicolon@29770:3",
+        "source_range": {
+          "start": {
+            "offset": 1648699,
+            "line": 29770,
+            "character": 3
+          },
+          "end": {
+            "offset": 1648804,
+            "line": 29772,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1648725,
+            "line": 29770,
+            "character": 29
+          },
+          "end": {
+            "offset": 1648804,
+            "line": 29772,
+            "character": 4
+          }
+        },
+        "body_sha256": "e8b89a955c1f5f556ea7db864ca6378ac92775b8be54b037ed87c8003b5aab1e",
+        "declaration_sha256": "c0cdd7a21a33a07ab6795dc397dc7d9251677bbb3adcb572b666695aeef86710"
+      },
+      {
+        "name": "parseErrorAtPosition",
+        "lexical_path": "<top>/<anonymous>@28914:2/parseErrorAtPosition@29467:3",
+        "source_range": {
+          "start": {
+            "offset": 1638218,
+            "line": 29467,
+            "character": 3
+          },
+          "end": {
+            "offset": 1638615,
+            "line": 29476,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1638282,
+            "line": 29467,
+            "character": 67
+          },
+          "end": {
+            "offset": 1638615,
+            "line": 29476,
+            "character": 4
+          }
+        },
+        "body_sha256": "2e47f978c60b0104356bfa0912d8511c1c2d9cf81aa4912692bfa6f6613616d8",
+        "declaration_sha256": "cef26b4eeb8e82472c200a1795e23ce516b6eb526eae24b0ded07cb7bb2aea6c"
+      },
+      {
+        "name": "abortParsingListOrMoveToNextToken",
+        "lexical_path": "<top>/<anonymous>@28914:2/abortParsingListOrMoveToNextToken@30356:3",
+        "source_range": {
+          "start": {
+            "offset": 1670700,
+            "line": 30356,
+            "character": 3
+          },
+          "end": {
+            "offset": 1670882,
+            "line": 30363,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1670749,
+            "line": 30356,
+            "character": 52
+          },
+          "end": {
+            "offset": 1670882,
+            "line": 30363,
+            "character": 4
+          }
+        },
+        "body_sha256": "c87a1ad53563401b000317138ff752bbbb3d0c6cba1330c693022955b6933690",
+        "declaration_sha256": "8b2c55f715a02d3367326dac0e00580e0636513b9b35072d467b2160715b06fd"
+      }
+    ],
+    "E-COMMENTS-G": [
+      {
+        "name": "emitLeadingComments",
+        "lexical_path": "<top>/createPrinter@116912:1/emitLeadingComments@121123:3",
+        "source_range": {
+          "start": {
+            "offset": 5641119,
+            "line": 121123,
+            "character": 3
+          },
+          "end": {
+            "offset": 5641596,
+            "line": 121134,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5641168,
+            "line": 121123,
+            "character": 52
+          },
+          "end": {
+            "offset": 5641596,
+            "line": 121134,
+            "character": 4
+          }
+        },
+        "body_sha256": "4a802267a9fc2ad3b69db95c8968d688d4a9ae11ca47ff9f885e59c4acbaa69d",
+        "declaration_sha256": "298824a359fbb3f96849fa53202922ff24f0fcdac82ce1d07301e45e2b5a4098"
+      },
+      {
+        "name": "emitTrailingComments",
+        "lexical_path": "<top>/createPrinter@116912:1/emitTrailingComments@121176:3",
+        "source_range": {
+          "start": {
+            "offset": 5643160,
+            "line": 121176,
+            "character": 3
+          },
+          "end": {
+            "offset": 5643260,
+            "line": 121178,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5643195,
+            "line": 121176,
+            "character": 38
+          },
+          "end": {
+            "offset": 5643260,
+            "line": 121178,
+            "character": 4
+          }
+        },
+        "body_sha256": "0e91574d870528dc2859413de94b524fa9ccd3482a9225207f1249b302540fef",
+        "declaration_sha256": "f3ba202d3c9bb59880808e19c99889920b5c44825a96c6e9610068c37ae38906"
+      },
+      {
+        "name": "iterateCommentRanges",
+        "lexical_path": "<top>/iterateCommentRanges@8491:1",
+        "source_range": {
+          "start": {
+            "offset": 786833,
+            "line": 8491,
+            "character": 1
+          },
+          "end": {
+            "offset": 789932,
+            "line": 8586,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 786912,
+            "line": 8491,
+            "character": 80
+          },
+          "end": {
+            "offset": 789932,
+            "line": 8586,
+            "character": 2
+          }
+        },
+        "body_sha256": "3eee4d4ab34b7da84a10b826c3b1d812cd230a108537ccf78cd9bdd099e13a9d",
+        "declaration_sha256": "52f9b1b78f0ae72ebde351a8f7f95bbf3f7784062dd5840b6decba9ca27c85f1"
+      },
+      {
+        "name": "forEachLeadingCommentToEmit",
+        "lexical_path": "<top>/createPrinter@116912:1/forEachLeadingCommentToEmit@121219:3",
+        "source_range": {
+          "start": {
+            "offset": 5644836,
+            "line": 121219,
+            "character": 3
+          },
+          "end": {
+            "offset": 5645234,
+            "line": 121233,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5644882,
+            "line": 121219,
+            "character": 49
+          },
+          "end": {
+            "offset": 5645234,
+            "line": 121233,
+            "character": 4
+          }
+        },
+        "body_sha256": "51147fd20e3945ed4c07c600e47347370d628758030b26803506fd60ec5256e5",
+        "declaration_sha256": "7c18e2d951032d9991cbeb9393cdd390908c421b3a3b587385bee6cdd596fc41"
+      },
+      {
+        "name": "emitTokenWithComment",
+        "lexical_path": "<top>/createPrinter@116912:1/emitTokenWithComment@118731:3",
+        "source_range": {
+          "start": {
+            "offset": 5556796,
+            "line": 118731,
+            "character": 3
+          },
+          "end": {
+            "offset": 5558030,
+            "line": 118764,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5556875,
+            "line": 118731,
+            "character": 82
+          },
+          "end": {
+            "offset": 5558030,
+            "line": 118764,
+            "character": 4
+          }
+        },
+        "body_sha256": "f814594a0c213e3d27c1925bbd432b4c52d15488a8aebe91a151fbfd0236b7a7",
+        "declaration_sha256": "f9518511a5266007fd3920528e805f5f67e215249e63b85abe593d98cee4f2e7"
+      },
+      {
+        "name": "emitDetachedComments",
+        "lexical_path": "<top>/emitDetachedComments@16817:1",
+        "source_range": {
+          "start": {
+            "offset": 1096625,
+            "line": 16817,
+            "character": 1
+          },
+          "end": {
+            "offset": 1098368,
+            "line": 16866,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1096723,
+            "line": 16817,
+            "character": 99
+          },
+          "end": {
+            "offset": 1098368,
+            "line": 16866,
+            "character": 2
+          }
+        },
+        "body_sha256": "acbce4095c210a58a22d3a12ce5f1ed5f9af5163e1e6ab72029115f300fa3b3e",
+        "declaration_sha256": "1e19aae2776c9680ecc908690dd29b091eda8ae9367bb6524505bea43b595563"
+      },
+      {
+        "name": "emitComments",
+        "lexical_path": "<top>/emitComments@16794:1",
+        "source_range": {
+          "start": {
+            "offset": 1095888,
+            "line": 16794,
+            "character": 1
+          },
+          "end": {
+            "offset": 1096624,
+            "line": 16816,
+            "character": 2
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 1096003,
+            "line": 16794,
+            "character": 116
+          },
+          "end": {
+            "offset": 1096624,
+            "line": 16816,
+            "character": 2
+          }
+        },
+        "body_sha256": "32c18cd1586d11d6e23e4299eef80373ebfc5a717f190eca7e3f09c2521fabe9",
+        "declaration_sha256": "922dfdc890df44083b38d563fd84bad69d419e4c3726ec142d01c1cee157b550"
+      }
+    ],
+    "E-COMMENT-PHASES-A36": [
+      {
+        "name": "emitSpreadElement",
+        "lexical_path": "<top>/createPrinter@116912:1/emitSpreadElement@118528:3",
+        "source_range": {
+          "start": {
+            "offset": 5549478,
+            "line": 118528,
+            "character": 3
+          },
+          "end": {
+            "offset": 5549694,
+            "line": 118531,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5549511,
+            "line": 118528,
+            "character": 36
+          },
+          "end": {
+            "offset": 5549694,
+            "line": 118531,
+            "character": 4
+          }
+        },
+        "body_sha256": "76ede5b5f810600552e216714554c1c3a1cf5dafc07a6b92d1683a5aed395e07",
+        "declaration_sha256": "0d2510940f4285bfba496f811e3a2255d7bf7b085a3e82ffd71379333474a12d"
+      },
+      {
+        "name": "emitSourceFileWorker",
+        "lexical_path": "<top>/createPrinter@116912:1/emitSourceFileWorker@119753:3",
+        "source_range": {
+          "start": {
+            "offset": 5591957,
+            "line": 119753,
+            "character": 3
+          },
+          "end": {
+            "offset": 5592474,
+            "line": 119769,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5591993,
+            "line": 119753,
+            "character": 39
+          },
+          "end": {
+            "offset": 5592474,
+            "line": 119769,
+            "character": 4
+          }
+        },
+        "body_sha256": "bdc8ef975bed4cf6d1aae4c7efd5f3deeedf03b3bdf5a9cfab32d3f981d98416",
+        "declaration_sha256": "4b0f0691cc1f0e2cbc0555fbc14c599b3eb76c37c3e554faf347a6ed11118835"
+      },
+      {
+        "name": "emitDecoratorsAndModifiers",
+        "lexical_path": "<top>/createPrinter@116912:1/emitDecoratorsAndModifiers@119846:3",
+        "source_range": {
+          "start": {
+            "offset": 5594995,
+            "line": 119846,
+            "character": 3
+          },
+          "end": {
+            "offset": 5596836,
+            "line": 119902,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5595065,
+            "line": 119846,
+            "character": 73
+          },
+          "end": {
+            "offset": 5596836,
+            "line": 119902,
+            "character": 4
+          }
+        },
+        "body_sha256": "726f85c1bdba7f66ee4b986777559699528a1ae844c5be1cd1ee4f18f9dc8163",
+        "declaration_sha256": "f4f46881ffa7b1e4c19a0e7fef1d6950c676dc9786722bfe0c4e886d70fde99b"
+      },
+      {
+        "name": "emitModifierList",
+        "lexical_path": "<top>/createPrinter@116912:1/emitModifierList@119903:3",
+        "source_range": {
+          "start": {
+            "offset": 5596839,
+            "line": 119903,
+            "character": 3
+          },
+          "end": {
+            "offset": 5597095,
+            "line": 119907,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5596882,
+            "line": 119903,
+            "character": 46
+          },
+          "end": {
+            "offset": 5597095,
+            "line": 119907,
+            "character": 4
+          }
+        },
+        "body_sha256": "988ee2fc3c9b23d8869953f7b9642faa74552de79aed233f101959b05eb52691",
+        "declaration_sha256": "95609fe19794a1fdf3b04c65ee44c6d75a8eee9c0b7a348f48816863406043fd"
+      }
+    ],
+    "E-COMMENT-ELLIPSIS-A37": [
+      {
+        "name": "emitParameter",
+        "lexical_path": "<top>/createPrinter@116912:1/emitParameter@117855:3",
+        "source_range": {
+          "start": {
+            "offset": 5523981,
+            "line": 117855,
+            "character": 3
+          },
+          "end": {
+            "offset": 5524656,
+            "line": 117871,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5524010,
+            "line": 117855,
+            "character": 32
+          },
+          "end": {
+            "offset": 5524656,
+            "line": 117871,
+            "character": 4
+          }
+        },
+        "body_sha256": "0a56a2b32f8b932723b5f3619389a43298135a07260af8cd93f732d25bf04f37",
+        "declaration_sha256": "6534a5db3d2a8c60c1a6e4b9a4886e495059c078ba2c69fba349e38e59ec488e"
+      },
+      {
+        "name": "emitSpreadAssignment",
+        "lexical_path": "<top>/createPrinter@116912:1/emitSpreadAssignment@119536:3",
+        "source_range": {
+          "start": {
+            "offset": 5585019,
+            "line": 119536,
+            "character": 3
+          },
+          "end": {
+            "offset": 5585275,
+            "line": 119541,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5585055,
+            "line": 119536,
+            "character": 39
+          },
+          "end": {
+            "offset": 5585275,
+            "line": 119541,
+            "character": 4
+          }
+        },
+        "body_sha256": "f41b333331193c0eae95c6a80b6a6fdcecfa5f6df771c3321af6dcc74de5927c",
+        "declaration_sha256": "5d2d0ee6886a5bcd53f6060fb8a2d8b4c7aed6b347ea26e717c4ea2e7526e3d0"
+      },
+      {
+        "name": "emitJsxExpression",
+        "lexical_path": "<top>/createPrinter@116912:1/emitJsxExpression@119448:3",
+        "source_range": {
+          "start": {
+            "offset": 5581201,
+            "line": 119448,
+            "character": 3
+          },
+          "end": {
+            "offset": 5582016,
+            "line": 119463,
+            "character": 4
+          }
+        },
+        "body_range": {
+          "start": {
+            "offset": 5581234,
+            "line": 119448,
+            "character": 36
+          },
+          "end": {
+            "offset": 5582016,
+            "line": 119463,
+            "character": 4
+          }
+        },
+        "body_sha256": "209bead4a3bffa43802721f38f43d9c89b985f32f1aa3a6d80192b68f6e09567",
+        "declaration_sha256": "39b4f8fd4bf88d7d01a2ac502c3b1bbc0cdfcf062fe4ba9f149b15048f76477f"
+      }
+    ]
+  },
+  "adjacent_checker_owner": {
+    "name": "getReturnTypeOfSignature",
+    "lexical_path": "<top>/createTypeChecker@46438:1/getReturnTypeOfSignature@59810:3",
+    "source_range": {
+      "start": {
+        "offset": 2969459,
+        "line": 59810,
+        "character": 3
+      },
+      "end": {
+        "offset": 2971437,
+        "line": 59841,
+        "character": 4
+      }
+    },
+    "body_range": {
+      "start": {
+        "offset": 2969504,
+        "line": 59810,
+        "character": 48
+      },
+      "end": {
+        "offset": 2971437,
+        "line": 59841,
+        "character": 4
+      }
+    },
+    "body_sha256": "35e1cbe7a9af04f018be187f8b9fb051acb73f2e832d86af03753c9a5412d935",
+    "declaration_sha256": "df557ad68b6debdc0429118c13f768427d8581a43db662b4536c5c7857152301"
+  },
+  "profiles": [
+    {
+      "path": "ratchets/h1-emit-profile.v1.json",
+      "sha256": "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db",
+      "classification": "historical H1 lineage",
+      "runtime_input_count": 0,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-1a-profile.v1.json",
+      "sha256": "d2098a7f178dcf86ff79da3b7f0d99960935701c2c0f6c83d4d4ec4f532cbd9a",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 14,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-1b-profile.v1.json",
+      "sha256": "c15e620742c266070b33de1aaf683eb795f655a6338d1675c05bd9b971e197b5",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 17,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-1c-profile.v1.json",
+      "sha256": "1cf76fb5c3e9df2011406381a94b847a54b64b9b74a69e236ce375483852bc9a",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 26,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-1d-profile.v1.json",
+      "sha256": "a9e3cf2f5579d64a7a691c5c1fc1bef8c01dca447f91e70877ec1479b12df7ef",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 29,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-1e-profile.v1.json",
+      "sha256": "6a215d3513e8bc67de87f26d32fbadc2b1c3368604cdc53de6283a8ba40646fd",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 31,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-2a-profile.v1.json",
+      "sha256": "461c6d1599a468a0c00d60ca5baf517f30983f74b2e49e8fc28cbd8b0d7c7ef6",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 37,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-2b-profile.v1.json",
+      "sha256": "3ad9ec48427a5f2f572e1d089351b796ffd44ce8ba82392bceb1e76c51033a7c",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 39,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-2c-profile.v1.json",
+      "sha256": "983b3386d22eae67e907cc715f9fa16e730cb31028e35a896cbb4c6ad7bb5fd9",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 41,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-2d-profile.v1.json",
+      "sha256": "7610055e114b0a687a2f66f39389496e2d4e3d376ce533550bd167a14cf423b3",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 45,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-3a-profile.v1.json",
+      "sha256": "9d3c36a29246fb1152145f959807499491ad865d087d8174e7331445ae45856c",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 53,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-3b-profile.v1.json",
+      "sha256": "b6f4a150177f023299009d6ca88824209987afae612932631a5b54c393b06c89",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 58,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-3c-profile.v1.json",
+      "sha256": "dbdd7a96a19fc2b0a1911440e14cb45223a73ecd965adbb4aa2496439469f30d",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 60,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-3d-profile.v1.json",
+      "sha256": "549942957adff1bde43021febbf4f505a08ad61895ddf8540e301613fca38229",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 63,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-4a-profile.v1.json",
+      "sha256": "f5c343d06ecc784f1328ff170b92389d69ba719af47ae71f6a2347e1893d01ac",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 64,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-4b-profile.v1.json",
+      "sha256": "b1904a1abfe9f8f4e3483f37fdc6edd28c141b3640f155078876b159b9e451f8",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 68,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-5a-profile.v1.json",
+      "sha256": "179dc4affee8dd675b8fcc4a672a05ba1a356998fc1b0da51b350ce263047164",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 72,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-5b-profile.v1.json",
+      "sha256": "49ac0e6688024b4d0f4c6e1df46da8fdeb4073a54f42084c17982aa9ad6af48d",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 79,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-5c-profile.v1.json",
+      "sha256": "225c09596a120d716f8cdc08ba8b52cd17df23c42ba7b427b93a056dc85a12b0",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 79,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-5d-profile.v1.json",
+      "sha256": "2b295e8b862f7b65c33e5701723073cc17cebe201de472216cfd46f555310314",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 82,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-5e-profile.v1.json",
+      "sha256": "e0e28339314b1e9d23a2a48aab4d37937838404c92a0732200650bd223a012ba",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 85,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-5f-profile.v1.json",
+      "sha256": "ff39b06c786b40f14c04621978a361201cab6bb17c8e3be10645cb6c1fcab9eb",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 86,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-5g-profile.v1.json",
+      "sha256": "9d6c6e1919dcee6e425a7a4301628c8c108be66f08a94aa26b6f88162b0ce552",
+      "classification": "current H2 runtime profile",
+      "runtime_input_count": 920,
+      "stale_runtime_inputs": []
+    },
+    {
+      "path": "ratchets/h2-profile-transition.v1.json",
+      "sha256": "af0ef502d102d44d9b0465ad7d3827f2effab74748669e38e7cc302d0942393c",
+      "classification": "H2 transition",
+      "runtime_input_count": 0,
+      "stale_runtime_inputs": []
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "case_id": "typescript-6.0.3/compiler/checkIndexConstraintOfJavascriptClassExpression.ts#default",
+    "noEmit": true,
+    "source": "checkIndexConstraintOfJavascriptClassExpression.ts"
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/compilerOptionsOutAndNoEmit.ts#default",
+    "noEmit": true,
+    "source": "compilerOptionsOutAndNoEmit.ts"
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/compilerOptionsOutFileAndNoEmit.ts#default",
+    "noEmit": true,
+    "source": "compilerOptionsOutFileAndNoEmit.ts"
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/jsFileCompilationTypeAssertions.ts#default",
+    "noEmit": null,
+    "source": "jsFileCompilationTypeAssertions.ts"
+  }
+]

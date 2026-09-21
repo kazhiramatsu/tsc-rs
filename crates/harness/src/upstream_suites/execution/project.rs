@@ -14,6 +14,7 @@ use super::{
     compare_utf16, error, join_config_path, normalize_virtual_path, EmitOptionFloor,
     ProjectExecutionPlan, ProjectModule, ProjectMount, ProjectRootSelection,
 };
+use crate::upstream_suites::VIRTUAL_SOURCE_ROOT;
 use crate::HarnessResult;
 
 const PROJECT_RUNNER_DEFAULT_LIBRARY: &str = "lib.es5.d.ts";
@@ -116,11 +117,7 @@ pub fn load_project_no_emit(
                     plan.fixture.source.relative_path
                 ))
             })?;
-            let root_names = config_root_plan
-                .file_names()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>();
+            let root_names = config_root_plan.file_names().to_vec();
             let compiler_options = config_root_plan
                 .module_resolution_options()
                 .compiler_options()
@@ -149,11 +146,7 @@ pub fn load_project_no_emit(
                         plan.fixture.source.relative_path
                     ))
                 })?;
-            let root_names = config_root_plan
-                .file_names()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>();
+            let root_names = config_root_plan.file_names().to_vec();
             let compiler_options = config_root_plan
                 .module_resolution_options()
                 .compiler_options()
@@ -282,11 +275,7 @@ pub fn load_project_emit_with_option_floor(
             // vendored `parseJsonSourceFileConfigFileContent`, which
             // tolerates them. The emit lane's contract is the frozen
             // observation (CA-4 packet §4 layer split).
-            let root_names = config_root_plan
-                .file_names()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>();
+            let root_names = config_root_plan.file_names().to_vec();
             let compiler_options = config_root_plan
                 .module_resolution_options()
                 .compiler_options()
@@ -319,11 +308,7 @@ pub fn load_project_emit_with_option_floor(
                 join_config_path(plan.fixture.current_directory.as_ref(), "tsconfig.json");
             let config_root_plan = parse_project_config(&host, &config_path, plan)?;
             // Same H0-scope tolerance as the named-config arm above.
-            let root_names = config_root_plan
-                .file_names()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>();
+            let root_names = config_root_plan.file_names().to_vec();
             let compiler_options = config_root_plan
                 .module_resolution_options()
                 .compiler_options()
@@ -392,6 +377,14 @@ fn apply_project_emit_options(
     plan: &ProjectExecutionPlan,
     options: &mut CompilerOptions,
 ) -> HarnessResult<()> {
+    let mut resolve_map_root = false;
+    let mut resolve_source_root = false;
+    let mut descriptor_map_root = None;
+    let mut descriptor_source_root = None;
+    // projectsRunner's existing-options object owns both keys even when the
+    // descriptor omits them; those undefined values override config roots.
+    options.map_root = None;
+    options.source_root = None;
     options.no_error_truncation = Some(false);
     options.skip_default_lib_check = Some(false);
     options.module_resolution = Some(1); // Classic
@@ -423,13 +416,24 @@ fn apply_project_emit_options(
                 options.source_map = Some(property_bool(&property.value, "sourceMap")?);
             }
             "sourceRoot" => {
+                descriptor_source_root = Some(&property.value);
                 options.source_root = property.value.as_str().map(JsString::from);
             }
             "mapRoot" => {
+                descriptor_map_root = Some(&property.value);
                 options.map_root = property.value.as_str().map(JsString::from);
             }
             "outDir" => {
                 options.out_dir = property.value.as_str().map(JsString::from);
+            }
+            "declarationDir" => {
+                options.declaration_dir = Some(
+                    property
+                        .value
+                        .as_str()
+                        .ok_or_else(|| error("project declarationDir must be a string".to_owned()))?
+                        .into(),
+                );
             }
             "outFile" => {
                 options.out_file = property.value.as_str().map(JsString::from);
@@ -437,8 +441,14 @@ fn apply_project_emit_options(
             "rootDir" => {
                 options.root_dir = property.value.as_str().map(JsString::from);
             }
-            "scenario" | "projectRoot" | "inputFiles" | "baselineCheck" | "runTest" | "project" => {
+            "resolveMapRoot" => {
+                resolve_map_root = property_bool(&property.value, "resolveMapRoot")?;
             }
+            "resolveSourceRoot" => {
+                resolve_source_root = property_bool(&property.value, "resolveSourceRoot")?;
+            }
+            "scenario" | "projectRoot" | "inputFiles" | "baselineCheck" | "runTest" | "project"
+            | "emittedFiles" => {}
             other => {
                 return Err(error(format!(
                     "project descriptor contains unsupported property {other:?}"
@@ -446,8 +456,55 @@ fn apply_project_emit_options(
             }
         }
     }
+    resolve_project_descriptor_root(
+        &mut options.map_root,
+        resolve_map_root,
+        descriptor_map_root,
+        "mapRoot",
+    )?;
+    resolve_project_descriptor_root(
+        &mut options.source_root,
+        resolve_source_root,
+        descriptor_source_root,
+        "sourceRoot",
+    )?;
     Ok(())
 }
+
+/// The project runner resolves these descriptor controls against its shared
+/// source mount, independently of the project's current directory and key order.
+/// Keep this projection bounded to the plain relative paths in the recorded
+/// descriptors; URL, drive and parent/trailing-separator semantics need their
+/// own observation before this loader can accept them with a resolve flag.
+fn resolve_project_descriptor_root(
+    value: &mut Option<JsString>,
+    resolve: bool,
+    descriptor: Option<&Value>,
+    name: &str,
+) -> HarnessResult<()> {
+    let Some(raw) = descriptor.filter(|_| resolve) else {
+        return Ok(());
+    };
+    let path = raw
+        .as_str()
+        .ok_or_else(|| error(format!("resolved project {name} must be a string")))?;
+    if path.is_empty() {
+        return Ok(());
+    }
+    if path.contains([':', '\\', '\0'])
+        || path.split('/').any(|part| matches!(part, "" | "." | ".."))
+    {
+        return Err(error(format!(
+            "resolved project {name} requires a plain relative path: {path:?}"
+        )));
+    }
+    *value = Some(normalize_virtual_path(VIRTUAL_SOURCE_ROOT, path)?.into());
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "../../../tests/unit/upstream_suites/execution/project/descriptor_option_tests.rs"]
+mod descriptor_option_tests;
 
 /// Parse and load the six `NodeModulesSearch` CommonJS/AMD variants through
 /// the same descriptor-existing-options then config path used by the pinned
@@ -565,6 +622,8 @@ fn apply_project_runner_existing_options(
     options: &mut CompilerOptions,
 ) -> HarnessResult<()> {
     // createCompilerOptions initializes these before descriptor options.
+    options.map_root = None;
+    options.source_root = None;
     options.no_error_truncation = Some(false);
     options.skip_default_lib_check = Some(false);
     options.module_resolution = Some(1); // Classic

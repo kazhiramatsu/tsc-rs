@@ -5262,7 +5262,7 @@ fn system_module_hoists_uninitialized_export_from_source_owned_if_statement() {
             "    var __moduleName = context_1 && context_1.id;\n",
             "    return {\n",
             "        setters: [],\n",
-            "        execute: function () {\n",
+            "        execute: function () {// https://github.com/microsoft/TypeScript/issues/59373\n",
             "            if (true) { }\n",
             "            exports_1(\"default\", cssExports);\n",
             "        }\n",
@@ -6537,6 +6537,40 @@ fn meta_property_token_maps_internal_invariants_match_typescript() {
                         );
                     }
                     "absent-name" => meta.name = None,
+                    "synthetic-owner" => {
+                        return self
+                            .arena
+                            .factory()
+                            .create_node(
+                                self.source,
+                                NodeData::MetaProperty(meta.clone()),
+                                crate::TransformFlags::NONE,
+                            )
+                            .map(|node| Some(node.node()));
+                    }
+                    "synthetic" => {
+                        let name = self
+                            .arena
+                            .node_ref(self.source, meta.name.unwrap())
+                            .unwrap();
+                        let NodeData::Identifier(name) = &self.arena.node(name)?.data else {
+                            panic!("MetaProperty name must be an identifier");
+                        };
+                        let text = name.text.clone();
+                        let name = self.arena.factory().create_identifier(self.source, &text)?;
+                        return self
+                            .arena
+                            .factory()
+                            .create_node(
+                                self.source,
+                                NodeData::MetaProperty(tsc_syntax::nodes::MetaPropertyData {
+                                    keyword_token: meta.keyword_token,
+                                    name: Some(name.node()),
+                                }),
+                                crate::TransformFlags::NONE,
+                            )
+                            .map(|node| Some(node.node()));
+                    }
                     other => panic!("unknown invariant mode {other}"),
                 }
             } else {
@@ -6577,7 +6611,7 @@ fn meta_property_token_maps_internal_invariants_match_typescript() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let rows = artifact["rows"].as_array().unwrap();
-    assert_eq!(rows.len(), 8);
+    assert_eq!(rows.len(), 12);
     let mut failures = Vec::new();
     for row in rows {
         let id = row["case_id"].as_str().unwrap();
@@ -6671,6 +6705,18 @@ fn meta_property_token_maps_internal_invariants_match_typescript() {
                         .unwrap(),
                     "{id}: complete internal map JSON"
                 );
+                let unrecorded = create_printer(
+                    PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
+                        .with_target(ScriptTarget::ES2015),
+                )
+                .print(&mut transformed, PrintRequest::SourceFile(source), None)
+                .unwrap();
+                assert_eq!(
+                    unrecorded.text(),
+                    expected_text,
+                    "{id}: unrecorded printer text"
+                );
+                assert!(unrecorded.source_map().is_none());
             });
             if result.is_err() {
                 failures.push((id, repetition));
@@ -6825,4 +6871,34 @@ fn meta_property_token_maps_module_name_context_is_not_a_value_reference() {
         observed.iter().all(|(_, name, value)| *name && *value),
         "MetaProperty name/reference query observations: {observed:?}"
     );
+}
+
+#[test]
+fn missing_declaration_transform_flags_do_not_propagate_decorator_effects() {
+    for text in [
+        "{ @g<number> class C {} }",
+        "{ @g(...[1])<number> class C {} }",
+        "{ @(async () => { await 1; })<number> class C {} }",
+        "{ @(g?.a?.())<number> class C {} }",
+    ] {
+        let parsed = parse_source_file("main.ts", text, ParseOptions::default(), None);
+        assert!(parsed.has_supported_emit_recovery(), "{text}");
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        initialize_transform_flags(&mut arena, source).unwrap();
+        let missing = parsed
+            .arena
+            .node_ids()
+            .find(|id| parsed.arena.node(*id).kind == tsc_syntax::SyntaxKind::MissingDeclaration)
+            .unwrap();
+        let node = arena.node_ref(source, missing).unwrap();
+        assert_eq!(arena.transform_flags(node), TransformFlags::NONE, "{text}");
+        let NodeData::MissingDeclaration(data) = &arena.node(node).unwrap().data else {
+            unreachable!()
+        };
+        assert!(
+            data.modifiers.is_some(),
+            "parser-attached decorators remain reachable"
+        );
+    }
 }

@@ -1,0 +1,37 @@
+{
+  "head": "4aeb1640156f291f4b5189b8ad9ed370cf17cf9d",
+  "syntax_tree": "bc3766dd14ba802a0f22bed54b2ec6c170b52b0e",
+  "status": "new80 complete commands twice; test-only fixture copies from official canonical mint",
+  "fixture_sources": {
+    "crates/compiler/tests/fixtures/export-name-syntax-maps.json": "1eca706c0ef59687e1baea0f00b80a97d6ada3751209e1ed3fcc9913a90feb37",
+    "crates/compiler/tests/integration/h2_8a_export_name_syntax_maps.rs": "b984947d4432f7d512fcd9f41f2f6b62f7d60634fc93f67ee78daeb80b155a19"
+  },
+  "qualified": true,
+  "steps": [
+    {
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8a_export_name_syntax_maps::export_name_syntax_maps_match_complete_typescript_observations",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 102.41153158294037,
+      "log_sha256": "1be9614880660d3aeb1c2f2c41bd6eaa91fa69e30c46a416dfb9fe5f857a4970"
+    }
+  ],
+  "test_files_restored": true
+}

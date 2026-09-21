@@ -1,0 +1,108 @@
+{
+  "captured_cases": 496,
+  "exact_twice": 452,
+  "failed_cases": 44,
+  "failure_shapes": {
+    "escaped-default-empty-block": 4,
+    "ordinary-call-unicode": 4,
+    "escaped-default-empty-line": 4,
+    "escaped-default-intervening": 4,
+    "ordinary-default-empty-line": 4,
+    "detached-function-unicode": 4,
+    "escaped-default-single-statement": 4,
+    "ordinary-case-empty-line": 4,
+    "escaped-case-empty-line": 4,
+    "detached-bom-unicode": 4,
+    "detached-namespace-unicode": 4
+  }
+}
+CASE emitter-r168-corpus-controls/es5/system/nocheck-false/remove-false/escaped-default-empty-block ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'materialized_utf8_base64']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,SAAc,OAAO,AAAR;AAAS,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,QAAa,CAAC,OAAO;AAAC,CAAC"}
+CASE emitter-r168-corpus-controls/es2015/esnext/nocheck-true/remove-false/ordinary-call-unicode ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'materialized_utf8_base64']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,CAAC,CAAC,OAAO,CACT,OAAO,CACP,CAAC,CAAC,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,CAAC,CAAC,OAAO;AACT,OAAO;AACP,CAAC,CAAC,CAAC"}
+WRITE /project/out/main.js keys ['callback_utf8_base64', 'materialized_utf8_base64']
+NATIVE "use strict";
+f(/* a */ /* b */ x);
+//# sourceMappingURL=main.js.map
+TS "use strict";
+f(/* a */
+/* b */
+x);
+//# sourceMappingURL=main.js.map
+CASE emitter-r168-corpus-controls/es5/system/nocheck-false/remove-false/escaped-default-empty-line ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'materialized_utf8_base64']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,SAAc,IAAI;IAAL,JACrC,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,QAAa,CAAC,IAAI;AAC1C,CAAC"}
+CASE emitter-r168-corpus-controls/esnext/commonjs/nocheck-true/remove-false/escaped-default-intervening ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'materialized_utf8_base64']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,SAAuB,IAAI;IAAL,JAC9C,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,QAAsB,CAAC,IAAI;AACnD,CAAC"}
+CASE emitter-r168-corpus-controls/es2015/commonjs/nocheck-false/remove-false/ordinary-default-empty-line ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'materialized_utf8_base64']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,SAAS,IAAI;IAAL,JAChC,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,QAAQ,CAAC,IAAI;AACrC,CAAC"}
+CASE emitter-r168-corpus-controls/esnext/commonjs/nocheck-true/remove-false/detached-function-unicode ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,SAAS,CAAC;IACV,OAAO;IAEP,OAAO,CAAC,CAAC;AAAC,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,SAAS,CAAC;IAGV,OAAO,CAAC,CAAC;AAAC,CAAC"}
+WRITE /project/out/main.js keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes', 'data_source_map_url_pos']
+NATIVE "use strict";
+function f() {
+    /* a */
+    return 1;
+}
+//# sourceMappingURL=main.js.map
+TS "use strict";
+function f() {
+    return 1;
+}
+//# sourceMappingURL=main.js.map
+CASE emitter-r168-corpus-controls/es2015/commonjs/nocheck-false/remove-false/escaped-default-single-statement ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,OAAO,CAAC,CAAM,CAAC,EAAE,CAAC,CAAC,IAAI;IAAL,JAC1C,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,OAAO,CAAC,CAAM,CAAC,EAAE,CAAC,CAAC,IAAI;AAC/C,CAAC"}
+CASE emitter-r168-corpus-controls/es2015/esnext/nocheck-true/remove-false/ordinary-case-empty-line ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'materialized_utf8_base64']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,KAAK,CAAC,EAAE,IAAI;IAAL,JAC/B,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,KAAK,CAAC,CAAC,CAAC,IAAI;AACpC,CAAC"}
+CASE emitter-r168-corpus-controls/es2015/esnext/nocheck-true/remove-false/escaped-case-empty-line ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'materialized_utf8_base64']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,KAAU,CAAC,EAAE,IAAI;IAAL,JACpC,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAC,QAAQ,CAAC,EAAE,CAAC;IAAC,KAAU,CAAC,CAAC,CAAC,IAAI;AACzC,CAAC"}
+CASE emitter-r168-corpus-controls/es5/system/nocheck-false/remove-false/detached-bom-unicode ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,OAAO;AAEgB,IAAI,CAAC,GAAG,CAAC,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAC,OAAO;AAEe,IAAI,CAAC,GAAG,CAAC,CAAC"}
+CASE emitter-r168-corpus-controls/esnext/commonjs/nocheck-true/remove-false/detached-namespace-unicode ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAU,CAAC,CAGQ;AAHnB,WAAU,CAAC;IACX,OAAO;IAEI,GAAC,GAAG,CAAC,CAAC;AAAC,CAAC,EAHT,CAAC,KAAD,CAAC,QAGQ"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,IAAU,CAAC,CAGQ;AAHnB,WAAU,CAAC;IAGA,GAAC,GAAG,CAAC,CAAC;AAAC,CAAC,EAHT,CAAC,KAAD,CAAC,QAGQ"}
+WRITE /project/out/main.js keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes', 'data_source_map_url_pos']
+NATIVE "use strict";
+var N;
+(function (N) {
+    /* a */
+    N.v = 1;
+})(N || (N = {}));
+//# sourceMappingURL=main.js.map
+TS "use strict";
+var N;
+(function (N) {
+    N.v = 1;
+})(N || (N = {}));
+//# sourceMappingURL=main.js.map

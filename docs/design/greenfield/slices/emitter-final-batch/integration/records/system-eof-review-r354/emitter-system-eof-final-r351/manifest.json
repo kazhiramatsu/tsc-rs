@@ -1,0 +1,21 @@
+{
+  "status": "DRAFT ONLY; approved actual182 guard +181 spellingcleanup +negativefactory12controls; apply after342 restores tests.",
+  "paths": [
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "original_sha256": "bcf2320f174c059ed8fd5650d48f26e24024fd19ee601ac61e121f129225b218",
+      "draft_sha256": "e6f556f4101218764d7757bd846565b710750da3069e56e990d2785652beae4e"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "original_sha256": "f107283ab91ba1cce3395eda4a4b261858b5c5147a5228f1154e87df831a40b7",
+      "draft_sha256": "2ad3b580e6f0dbd60c7de1721ab4149b326d73e65f1bb27d26a0eb5f4305072e"
+    },
+    {
+      "path": "crates/emitter/tests/unit/source_map/tests.rs",
+      "original_sha256": "dc93b4924eaf0fba9e039d978c358bead1bf8586e7f530a277ed1dafce9fa98e",
+      "draft_sha256": "52fb39cfafefbd971428b97f89817fd6add976698d063261a8e28ff20910c740"
+    }
+  ],
+  "additional_control": "Direct r346 empty-source synthetic MetaProperty printer panic regression, both import.meta/new.target; existing12oracle rows also print without recording."
+}

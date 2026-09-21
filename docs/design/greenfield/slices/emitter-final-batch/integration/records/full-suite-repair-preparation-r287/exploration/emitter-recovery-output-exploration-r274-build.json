@@ -1,0 +1,30 @@
+{
+  "scope": "isolated mock-resolver exploratory harness; explicitly discards recovery record; NOT qualification",
+  "argv": [
+    "rustc",
+    "--edition=2021",
+    "/tmp/emitter-recovery-output-exploration-r274.rs",
+    "-L",
+    "dependency=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps",
+    "-o",
+    "/tmp/emitter-recovery-output-exploration-r274",
+    "--extern",
+    "tsc_syntax=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+    "--extern",
+    "tsc_types=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_types-0a881027b005f88b.rlib",
+    "--extern",
+    "tsc_emitter=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_emitter-6c20e52794b4bfc4.rlib",
+    "--extern",
+    "tsc_diagnostics=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib",
+    "--extern",
+    "tsc_program=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-f2267fac85119f14.rlib"
+  ],
+  "libraries": {
+    "tsc_syntax": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+    "tsc_types": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_types-0a881027b005f88b.rlib",
+    "tsc_emitter": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_emitter-6c20e52794b4bfc4.rlib",
+    "tsc_diagnostics": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib",
+    "tsc_program": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-f2267fac85119f14.rlib"
+  },
+  "exit": 1
+}

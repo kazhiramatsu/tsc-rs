@@ -1,0 +1,32 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "scripts/compare-recovery-selected-corpus.py",
+    "--selection",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-keyword-successor-r185/selection.json",
+    "--native",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-corpus-candidate-r186/native.json",
+    "--oracle",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-keyword-successor-r185/oracle.json",
+    "--out",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-corpus-candidate-r186/comparison.json"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T14:34:43.703323+00:00",
+  "head": "3e28cb21344eae8980cfe66992913f2d8758ede2",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 1,
+  "seconds": 0.21,
+  "log_sha256": "51c6f76506172097623126284082e87d99944004b1adbebb0c93188ceb5cc824",
+  "log_bytes": 182
+}

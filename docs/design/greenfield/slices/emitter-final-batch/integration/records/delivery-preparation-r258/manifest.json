@@ -1,0 +1,82 @@
+{
+  "source_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "qualification_claim": false,
+  "scope": "Read-only preparation:18 rows,74 TypeScript routing-owner instances with declaration/body digests recomputed using UTF16 ranges;24 existing profile artifacts retain1251 stale pre-walk runtime-input references. This is not final qualification. r254 stopped on an already-deleted path in the old profile; r255 records absent/current mismatches and still refuses any mismatch in --merge mode. Actual Opus168 reviewed the first D draft; r259 adds actual walk certificate, named gates SUCCESS, PR561, all-phase completion/reuse, exact tree, and reference guards with narrower test-file wording. The r259 D generator and r260 external-log final CI wrapper were syntax parsed but never executed: actual final local+hosted+merge receipts do not exist yet. The local new-ci/target Cargo-cache symlink was later found non-ignored because the existing target/ rule matches directories; it must be replaced with an ignored directory layout before final CI. No policy/source change is needed. Canonical H2.5g Node receipt remains absent and the default walk allows one cold observation without an override.",
+  "files": [
+    {
+      "path": "emitter-walk-cache-preflight-r253.json",
+      "sha256": "d49e273c3be73209e7903372f79d1e748b06a8cc353b8cab8ae8147d919f8eb0",
+      "bytes": 1455
+    },
+    {
+      "path": "emitter-delivery-final-input-audit-r254.py",
+      "sha256": "002445eaef1ab3cc79770dc4d35902590d4fdb4853141405292a632fcb94f525",
+      "bytes": 4415
+    },
+    {
+      "path": "emitter-delivery-final-input-audit-r254-failure.md",
+      "sha256": "9c23e0f04e9f60af3e4487c625529a11223f84944b829e35692904919aa61a59",
+      "bytes": 474
+    },
+    {
+      "path": "emitter-delivery-final-input-audit-r255.py",
+      "sha256": "9ce500b4a50b49f51e3ed1339d3653f614a8ffefa337d843e8816d008e66fbd2",
+      "bytes": 4570
+    },
+    {
+      "path": "emitter-delivery-final-input-audit-r255.json",
+      "sha256": "097a408dba1f462bacd153f1cf6147d281c5402fc6c43162b42124cec67850b0",
+      "bytes": 441097
+    },
+    {
+      "path": "emitter-delivery-draft-r256.py",
+      "sha256": "f2c4f6612bfdaac9af04ff0a247e273bc580162a0b203a42bcc0d5912ba35025",
+      "bytes": 8472
+    },
+    {
+      "path": "emitter-delivery-draft-r259.py",
+      "sha256": "81cac3714dbb876c8ead7786703a4fc083bfb44deb0773ea256ffdd8aef44848",
+      "bytes": 11487
+    },
+    {
+      "path": "emitter-final-ci-run-r260.py",
+      "sha256": "7f6180b9d1e1f4bf0d7ff19caa3c3405b1dc44add66d5d7b37acd22af061bcd3",
+      "bytes": 4188
+    },
+    {
+      "path": "archive-emitter-delivery-preparation-r258.py",
+      "sha256": "bffe415dfcdaef29f78d81e1f8de76eae38829c32af4c2ce4e05b0de589523c1",
+      "bytes": 3978
+    },
+    {
+      "path": "cross-review/round168-request.md",
+      "sha256": "301093eb63e3af2d53e03b19c14552b8399c09d1fef0149ae5d0703c9e562d0d",
+      "bytes": 2567
+    },
+    {
+      "path": "cross-review/round168-opus.md",
+      "sha256": "e00648a5a5fe58e71995a902bd924ce4efc7d95c5a7ce85029686900874928e4",
+      "bytes": 4571
+    },
+    {
+      "path": "cross-review/round168-opus.meta.json",
+      "sha256": "8017fdbd673ed68eec1546f5e2dca18ce662d97a6e1d04d0ddd7c59af4957d1f",
+      "bytes": 2370
+    },
+    {
+      "path": "final-ci-log-destination.md",
+      "sha256": "ded9ae94ccfac75c8a65214347f9edecf1e6912988d01b54ca9ef8233f782234",
+      "bytes": 675
+    },
+    {
+      "path": "local/delivery-final-input-audit-r255.json",
+      "sha256": "c6f26918583db6c54076ba8491721b891fb2f82548307413bcd9451e13e991f0",
+      "bytes": 924
+    },
+    {
+      "path": "local/delivery-final-input-audit-r255.log.gz",
+      "sha256": "5ba3d5b5096b9b1bb3933248f290af6a4472bd5bc167d87d157271f830f84e4a",
+      "bytes": 216
+    }
+  ]
+}

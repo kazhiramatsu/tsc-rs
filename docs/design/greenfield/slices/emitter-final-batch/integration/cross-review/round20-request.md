@@ -1,0 +1,12 @@
+# Round 20: actionable parser-recovery closure plan (read-only)
+
+r19の既存ProgramFileFacts配線、for-of binding materialization修正を実装し、16対照を追加しました。いまRust focused/nativeと広い検証を逐次実行中です。編集、Cargo実行、他agent起動はせず、独立source調査だけお願いします。
+
+ユーザーは「修正できるものは全て」「影響大/未知はCodexとClaudeで突き合わせる」「終わりまで継続」と指示しています。r12で36 parse-recoveryを後続として分類しましたが、単に大きいことを理由に今回作業を終わらせるべきではありません。現candidateのCI統合を先に固定し、その後も安全に進められるよう、具体的な実装案を検討してください。
+
+1. 現KNOWN/KNOWN_PLAN_BASEのparse36および追加malformed-comment12を、実sourceとparser eventsからmissing/skip/reparse/report-onlyへ分類するための最小data-only instrumentationを設計してください。admissionを変えず、existing diagnostic/event countの契約を壊さないmetadata拡張（既存eventにflags等）を優先。checkpoint/restore/reparse/incrementalの全consumerも列挙。
+2. TypeScript 6.0.3の各入力の回復木とRust木を比べて、最小で安全に閉じられる群を特定してください。missing identifierは現在のprinterで本当に未実装か、既存empty text/range経路で既に動くかをsourceで再調査。r12のgrep結果だけでは断定しない。needed missing node/source-map/diagnostic ordering contractsを具体化。
+3. グローバルguardを外すだけ、case ID/source-text特例、typed refusalをgeneric KNOWNへ広げる案は禁止。共有factsから安全にadmitする実装順を提案し、特にasync32のparser tree差とtransform差を分けてください。
+4. 36をすべて閉じるために不可欠な変更と、現時点で本当に別製品境界であるものを区別。report-onlyの初段が0件でも正直に示してください。
+
+書き換え不要。根拠のfile/lineと具体的な関数・型・negative controlsを回答してください。実検証と編集はCodexが逐次行います。利用中Fableがrate limitになった場合は同じ依頼をOpusへ切り替える指示を受けています。

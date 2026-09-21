@@ -5,9 +5,11 @@
 //! contract the packet's §5.1 specifies.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use tsc_harness::upstream_suites::execution::{
-    load_project_emit, load_recorded_execution_plans, UpstreamExecutionInput,
+    load_project_emit, load_project_no_emit, load_recorded_execution_plans, OrderedJsonProperty,
+    ProjectExecutionPlan, UpstreamExecutionInput,
 };
 use tsc_program::ProgramLoadLimits;
 
@@ -16,6 +18,137 @@ fn workspace_root() -> PathBuf {
         .join("../..")
         .canonicalize()
         .expect("canonical workspace")
+}
+
+fn with_properties(
+    plan: &ProjectExecutionPlan,
+    values: &[(&str, serde_json::Value)],
+) -> ProjectExecutionPlan {
+    let mut plan = plan.clone();
+    let mut fixture = (*plan.fixture).clone();
+    let mut properties = fixture.properties.to_vec();
+    properties.extend(values.iter().map(|(name, value)| OrderedJsonProperty {
+        name: Arc::from(*name),
+        value: value.clone(),
+    }));
+    fixture.properties = Arc::from(properties);
+    plan.fixture = Arc::new(fixture);
+    plan
+}
+
+#[test]
+fn descriptor_resolve_flags_use_the_source_mount_and_preserve_fallbacks() {
+    use serde_json::json;
+    let workspace = workspace_root();
+    let corpus = load_recorded_execution_plans(&workspace).expect("recorded plans");
+    let original = project_plan(
+        &corpus,
+        "typescript-6.0.3/project/baseline.json#module%3Damd",
+    );
+    for (root, flag) in [
+        ("mapRoot", "resolveMapRoot"),
+        ("sourceRoot", "resolveSourceRoot"),
+    ] {
+        let cases = [
+            (vec![(root, json!("tests/maps"))], Some("tests/maps")),
+            (
+                vec![(root, json!("tests/maps")), (flag, json!(false))],
+                Some("tests/maps"),
+            ),
+            (
+                vec![(root, json!("tests/maps")), (flag, json!(true))],
+                Some("/.src/tests/maps"),
+            ),
+            (
+                vec![(flag, json!(true)), (root, json!("tests/maps"))],
+                Some("/.src/tests/maps"),
+            ),
+            (vec![(flag, json!(true))], None),
+            (vec![(flag, json!(true)), (root, json!(""))], Some("")),
+        ];
+        for (properties, expected) in cases {
+            let plan = with_properties(&original, &properties);
+            let loaded =
+                load_project_emit(&workspace, &plan, limits()).expect("bounded project options");
+            let options = &loaded.effective_compiler_options;
+            let actual = if root == "mapRoot" {
+                &options.map_root
+            } else {
+                &options.source_root
+            };
+            assert_eq!(
+                actual.as_ref().map(|value| value.as_str().unwrap()),
+                expected,
+                "{properties:?}"
+            );
+        }
+        for unsupported in [
+            "../maps",
+            "./maps",
+            "a//b",
+            "/maps",
+            "C:/maps",
+            "https://example.test/maps",
+            "maps/",
+            "maps\\nested",
+        ] {
+            let plan = with_properties(
+                &original,
+                &[(root, json!(unsupported)), (flag, json!(true))],
+            );
+            let error = load_project_emit(&workspace, &plan, limits())
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains("requires a plain relative path"), "{error}");
+        }
+        for properties in [
+            vec![(root, json!(1)), (flag, json!(true))],
+            vec![(root, json!("tests/maps")), (flag, json!("true"))],
+        ] {
+            assert!(load_project_emit(
+                &workspace,
+                &with_properties(&original, &properties),
+                limits()
+            )
+            .is_err());
+        }
+    }
+}
+
+#[test]
+fn declaration_directory_and_output_metadata_keep_their_distinct_meanings() {
+    use serde_json::json;
+    let workspace = workspace_root();
+    let corpus = load_recorded_execution_plans(&workspace).expect("recorded plans");
+    let original = project_plan(
+        &corpus,
+        "typescript-6.0.3/project/baseline.json#module%3Damd",
+    );
+    let plan = with_properties(
+        &original,
+        &[
+            ("declaration", json!(true)),
+            ("declarationDir", json!("declarations")),
+            ("emittedFiles", json!(["metadata.js"])),
+        ],
+    );
+    let loaded =
+        load_project_emit(&workspace, &plan, limits()).expect("declaration directory projection");
+    assert_eq!(
+        loaded.effective_compiler_options.declaration_dir,
+        Some("declarations".into())
+    );
+    assert_eq!(loaded.effective_compiler_options.list_emitted_files, None);
+    assert!(
+        load_project_no_emit(&workspace, &plan, limits()).is_err(),
+        "no-emit route keeps its emit-option refusal"
+    );
+    assert!(load_project_emit(
+        &workspace,
+        &with_properties(&original, &[("declarationDir", json!(false))]),
+        limits()
+    )
+    .is_err());
 }
 
 fn limits() -> ProgramLoadLimits {

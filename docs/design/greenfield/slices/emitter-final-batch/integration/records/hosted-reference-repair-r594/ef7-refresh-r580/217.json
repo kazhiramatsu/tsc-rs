@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-emitter-final-universe.mjs",
+    "--write",
+    "--set",
+    "217"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T19:56:23.332171+00:00",
+  "seconds": 106.834,
+  "exit": 0,
+  "log_sha256": "b8efeadfb92e9f0b9de5e1357acb8ea04b8f4d6c9a397a508da1406e423f7de2",
+  "before_sha256": "f8df0e94131f48908c762ce9c0a98fafe1754250287a68b81fbd1d08dea9b7fb",
+  "after_sha256": "77f198b0e8bc846509702f01be75baf5a3afd831505f538e1350faefa8059a5f"
+}

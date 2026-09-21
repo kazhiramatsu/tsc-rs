@@ -1,0 +1,22 @@
+{
+  "name": "emitter-final-batch-r11",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "emitter_final_batch"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T05:41:42Z",
+  "seconds": 101,
+  "exit": 0,
+  "log_sha256": "6d99b3644c6642b88b1f9d69fca35be188d8376941354250c66175df01462278",
+  "log_bytes": 1485
+}

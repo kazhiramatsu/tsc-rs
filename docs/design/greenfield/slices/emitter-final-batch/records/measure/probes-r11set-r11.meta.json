@@ -1,0 +1,19 @@
+{
+  "name": "probes-r11set-r11",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "$S/run-probes-dir.sh",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/tsc-rs",
+    "$S/r11probes"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T05:16:43Z",
+  "seconds": 136,
+  "exit": 0,
+  "log_sha256": "b70f59f135158594f72726328a764419dc07147bb14a6a24cf90e3ea0b81fe77",
+  "log_bytes": 285
+}

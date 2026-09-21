@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    ".github/ci/qualification.mjs",
+    "check-policy"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-ci-repair",
+  "started_at": "2026-09-18T19:08:35.559906+00:00",
+  "head": "d772eb5540982b2883de131da6ac36d5f6a6133e",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 5.182,
+  "log_sha256": "5a410dae8571b57481d5a80e08f858a77bd074bd7690d8a2a23fc555fe084afb",
+  "log_bytes": 44
+}

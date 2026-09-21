@@ -2,7 +2,7 @@
 
 2026-09-17。統合担当：Codex。**最終emitter向けCI予算整備をPR #557で統合。全10 replay job・両gateを含む14 checks成功。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v24.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v40.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -35,7 +35,29 @@ C02 generated-binding はPR #549で統合済み。 direct 156入力と pipeline 
 
 [POST-T1統合](../h2-8a-post-t1-residuals/integration/README.md)で新101入力・2 exact-name testsをpipeline jobへ追加したv23。73 standaloneの入口を棚卸しし、元pipelineの必要値を767 exact /0 knownとする。PR #555の最終候補で全14 checksが成功し、pipeline767 exact、新対照96 exact/5 knownとpacket79 exactを確認。実時間と全logは統合記録に保存した。
 
-## 現在の入口
+## 現在の入口（v40）
+
+2026-09-21。emitter 最終統合の候補を棚卸しした。hosted の recovery 登録を
+既存 fixture の 788 ケースに同期し、グループ合計は 1,580 ケースとなる。
+foundations は成功時の出力を保持する `--show-output` を使い、テスト名と成功判定の間へのログ混入を防ぐ。
+CLI の ES5 対応に残っていたテスト期待値と、H0 台帳の現在の宣言照合を修復した候補へ
+参照を更新した。テスト入口の構成は変えず、v39 は変更前の履歴として保持する。
+以下は設定された入口の件数であり、
+最終候補でのテスト実行完了を表すものではない。
+
+| Cargo の入口 | 個数 |
+| --- | ---: |
+| standalone target（filter なし） | 53 |
+| standalone target（名前で filter） | 19 |
+| standalone target の直接呼出しなし | 5 |
+| lib/bin の test harness | 16（直接入口は Program lib の 1 件） |
+
+standalone は合計 77 target。acceptance と source を共有するものは 14 target。
+直接入口のない 5 target の単独変更では全 acceptance / witness を選択するが、
+その standalone target 自身の実行を追加するわけではない。
+旧時点の細分類・残項目は次節以降に履歴として保持する。
+
+## v23 時点の入口（履歴）
 
 | Cargo の入口 | 個数 | 設定された PR CI の呼び方 |
 | --- | ---: | --- |
@@ -199,3 +221,17 @@ filter名、command owner、source/fixture path、driverの関数名はJSON台�
 現在のClaude依頼は[通常compiler emitter完了一括](../emitter-final-batch/README.md)。必要なfocused入口の候補と実測を提出し、shared runner/planner/hostedへの登録・分割と最終全件検証は統合担当が持つ。
 
 [最終emitter検証のCI予算整備](emitter-final-ci-budget/README.md)で入口台帳v24へ更新。重いrequire-rewrite / declaration-specifiersを既存宣言mapのjobへ移し、module-outputとして4 suitesをまとめる。入口数は73 standaloneのまま、観測・test件数は変更しない。PR #557で全14 checksが成功し統合済み。controls25m21s、module-output20m42s、全replayの最長28m25s。全65 witness suitesと、移動先を含むcompiler23 suites/81 testsを保持し、61 observer/Cargo実行の開始・終了・所要時間を記録した。比較条件、全log、mergeと検証treeの一致は同記録を参照。
+
+2026-09-18 emitter-final統合候補：EF7を217行＋PLAN-BASE 4 shards、oracle再観測、EF8・既存差分21行・batch、global769、class1228へ登録。入口台帳v26はcomposite runnerの実Cargo commandも展開する。最終結果は[統合記録](../emitter-final-batch/integration/README.md)を参照。
+
+2026-09-18 emitter-final追加監査：v27はProgramのmodule_request_contract prefix40 tests、
+compiler contracts内のCLI58・helper/追加対照480（468 exact＋12 typed boundary）・filesystem24・class24/global2を含む
+7 exact-name testsを明記する。新規fixtureは専用suiteを選択し、shared source変更は
+既存全群を保つ。v26は最初のCI候補の履歴として保持する。v27のsource commitとhashを
+最終source commit後に固定する。
+
+
+v28はfor-of生成名とretained-pattern mapの追加71完全commandとbundle原形のmanifest v2参照を反映する。
+以前の480 helper/ordinary inputsと観測、bundleの4入力と観測は保持する。
+helper/ordinaryの551選択は539 exactと12 typed boundaryに分け、境界を成功数へ含めない。
+v27は前候補の履歴として保持する。

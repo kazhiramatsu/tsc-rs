@@ -1,0 +1,34 @@
+{
+  "source_head": "0336c56663ff243503a18987a2cf8021109e8295",
+  "captured_groups": [
+    {
+      "label": "variable-type-native-r213",
+      "captured_exact_twice": 508,
+      "failed": 0,
+      "sorted_ids_sha256": "aa796242a66f6d9822d3de59bbc7ced7c800ecad0d2a1c198da6f373738d94ee"
+    },
+    {
+      "label": "variable-comma-native-r213",
+      "captured_exact_twice": 145,
+      "failed": 0,
+      "sorted_ids_sha256": "8df66350dd696a02b8ac7c37387598ae79292266ed4971084ae57db57ae48a3c"
+    },
+    {
+      "label": "variable-type-neighbours-r213",
+      "captured_exact_twice": 120,
+      "failed": 0,
+      "sorted_ids_sha256": "5293238c047b0ef5a44a560640985c9a99285808491f5b84101a4c5eebf8ee68"
+    }
+  ],
+  "jsdoc": {
+    "label": "jsdoc-original-r213",
+    "case_id": "typescript-6.0.3/compiler/declarationEmitRetainsJsdocyComments.ts#default",
+    "exact_twice_by_strict_comparator": 1,
+    "fixture_sha256": "498438004d18048ad23aa3be71a0cde4c6b422c181bc5f472c2d4c5c1eec848e",
+    "log_sha256": "6ee262e186f1a603182120f45c5162911bd6d76a27a4bb6c086138a8cb3219f8",
+    "comparator": "crates/compiler/tests/support/complete_command_corpus.rs::assert_complete_commands_twice",
+    "capture_hook": "This comparator asserts complete tuples twice in memory and does not write TSC_RS_H2_8A_CAPTURE_WRITES_DIR captures. An initial supplementary audit incorrectly assumed that hook and failed on the empty directory; this was an audit assumption, not a failed runtime test."
+  },
+  "total_complete_commands": 774,
+  "scope": "Complete-command regression only; emitter/checker/transpile pending."
+}

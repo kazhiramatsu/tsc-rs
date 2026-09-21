@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-async-capture-source-ranges.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-ci-repair",
+  "started_at": "2026-09-18T20:59:17.573365+00:00",
+  "head": "dbbca3009bbe2ef2741f4d20ef78ea3967424b1e",
+  "tracked_clean": false,
+  "diff_sha256": "39ca333121b1a982c9c11bf2db6e66a13ccc17d5d1176c5dd0727f9234e66d9d",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 106.711,
+  "log_sha256": "370030825fcae0cdff4768f6f76e6267f0505e239675981be6b8f58669321992",
+  "log_bytes": 88
+}

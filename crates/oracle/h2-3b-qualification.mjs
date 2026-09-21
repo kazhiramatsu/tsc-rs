@@ -29,7 +29,7 @@ const NODE_VERSION_PATH = ".node-version";
 const SOURCE_COMMIT = "050880ce59e30b356b686bd3144efe24f875ebc8";
 const TRUSTED_BASE_COMMIT = "3ce56e1fdb1c3841bc27f37b33488d3dd25b65a0";
 const H2_3A_PROFILE_SHA256 =
-  "2f42354c0ffe58d3aace4e01cfb2ccd5a1fdabda6ab367437aafa1f5a34288e1";
+  "dceed3de5af5c790e3d7b5cc2ab9194be33cafac5c40fd44f8d099af79183c9a";
 const EXPECTED_NODE = "25.2.1";
 const VIRTUAL_SOURCE_ROOT = "/.src";
 const MAX_TRANSFORM_DEPTH = 256;

@@ -1,0 +1,19 @@
+{
+  "head": "2df8d1cd0bae5a26efd1d4268bab4cc7cfd9cc12",
+  "production_source": [
+    {
+      "path": "crates/syntax/src/recovery/context.rs",
+      "prototype_283_sha256": "72f6163200262c33e83f4080e36b68dd5d3cd0fdda8f36cf67e8095ce82a3af4",
+      "current_sha256": "72f6163200262c33e83f4080e36b68dd5d3cd0fdda8f36cf67e8095ce82a3af4",
+      "same_tokens_ignoring_whitespace": true
+    },
+    {
+      "path": "crates/syntax/src/recovery.rs",
+      "prototype_283_sha256": "27eb7dbc0d144d72c5ceffe58ad7fd701b72c4e8e8f83038c06d757eaaa36085",
+      "current_sha256": "27eb7dbc0d144d72c5ceffe58ad7fd701b72c4e8e8f83038c06d757eaaa36085",
+      "same_tokens_ignoring_whitespace": true
+    }
+  ],
+  "canonical_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "full_command_qualified": false
+}

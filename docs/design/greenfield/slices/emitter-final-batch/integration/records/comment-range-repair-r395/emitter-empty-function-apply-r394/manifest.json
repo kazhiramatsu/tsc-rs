@@ -1,0 +1,18 @@
+{
+  "source_head": "70696be105e0c1f8009e2ac0a57236ace99c798d",
+  "native_qualified": false,
+  "scope": "Apply actual190 empty-function ownership correction and observe96 adjacent/detached factory controls; no native or final qualification yet.",
+  "steps": [
+    {
+      "label": "empty-body-final-oracle",
+      "exit": 0
+    },
+    {
+      "label": "empty-body-final-format",
+      "exit": 0
+    }
+  ],
+  "old244_unchanged": true,
+  "flags340_sha256": "f416cc12ad667d57833e4a96ffac2a44bee1ae2e96d8b72e4adb4a0939954c68",
+  "oracle_qualified": true
+}

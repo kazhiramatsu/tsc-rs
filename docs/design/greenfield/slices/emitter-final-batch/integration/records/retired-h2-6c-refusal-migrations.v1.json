@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "source_commit": "3ac5652297a1b8aa2ce80ad9690591cb06d3b291",
+  "source_path": "crates/xtask/src/h2_6c_refusal_migrations.rs",
+  "source_sha256": "67e8ba7d207d9fb400f148d59c9d73476e017137c64b6fe484f781a6d643c7fd",
+  "retired": [
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts#default",
+      "old_case_sha256": "f860d9b17947d19fcf944a086191f4d733782b2e281508fdcb434f9a15a06909",
+      "old_input_sha256": "2ab06b77deb11818a34fbb809f2491a3a9be5f925c8f5955df8a41bbe0653e61",
+      "new_input_sha256": "a7b13d679a286ca29f6c7513cb15d5e53e877be7e124b12c4652a35204b6f3e5",
+      "retained_vector_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef",
+      "current_option": "useCaseSensitiveFileNames",
+      "current_observation_sha256": "3b23b78f3efdd8f2b31e56bd9b6b58a9a35d08378fa775e6460f5ffae5756a9a"
+    }
+  ],
+  "original_exact_proof": "local/rows-oracle-corrected.log.gz",
+  "oracle_correction": "records/oracle-host-correction.v1.json",
+  "current_contract": "h2_6c_de_promotions::HOST_CASE_SENSITIVITY requires complete exact comparison; no active refusal registration"
+}

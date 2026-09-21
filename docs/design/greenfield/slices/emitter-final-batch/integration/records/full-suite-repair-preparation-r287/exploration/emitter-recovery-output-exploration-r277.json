@@ -1,0 +1,39 @@
+{
+  "scope": "EXPLORATION ONLY: mock resolver, recovery/diagnostics explicitly discarded via existing harness hook; JS transform text excluding source map URL; no real command/checker/declaration/maps qualification",
+  "argv": [
+    "/tmp/emitter-recovery-output-exploration-r277",
+    "/tmp/emitter-recovery-inspection-r272.ts"
+  ],
+  "exit": 0,
+  "log_sha256": "b28f7d7b40976c09c70d7d4c52b733dc509198f73cab8f98e69baaa88ec8e667",
+  "results": [
+    {
+      "case_id": "cjs/ts/es5/direct-extended-unicode",
+      "js_text_without_source_map_url_exact": true,
+      "error": null,
+      "expected_bytes": 133,
+      "actual_bytes": 133
+    },
+    {
+      "case_id": "amd/ts/es5/direct-extended-unicode",
+      "js_text_without_source_map_url_exact": true,
+      "error": null,
+      "expected_bytes": 216,
+      "actual_bytes": 216
+    },
+    {
+      "case_id": "umd/ts/es5/direct-extended-unicode",
+      "js_text_without_source_map_url_exact": true,
+      "error": null,
+      "expected_bytes": 506,
+      "actual_bytes": 506
+    },
+    {
+      "case_id": "system/ts/es5/direct-extended-unicode",
+      "js_text_without_source_map_url_exact": true,
+      "error": null,
+      "expected_bytes": 272,
+      "actual_bytes": 272
+    }
+  ]
+}

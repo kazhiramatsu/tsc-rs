@@ -1,0 +1,1934 @@
+{
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction6_es2017.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 26
+              },
+              "start": 26
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 26,
+              "kind": 80,
+              "parent": 224,
+              "pos": 26
+            }
+          ],
+          "path": "/.src/asyncArrowFunction6_es2017.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction7_es2017.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 132
+              },
+              "start": 132
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 132,
+              "kind": 80,
+              "parent": 224,
+              "pos": 132
+            }
+          ],
+          "path": "/.src/asyncArrowFunction7_es2017.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction8_es2017.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 57
+              },
+              "start": 57
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 57,
+              "kind": 80,
+              "parent": 224,
+              "pos": 57
+            }
+          ],
+          "path": "/.src/asyncArrowFunction8_es2017.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction9_es2017.ts#default",
+      "files": [
+        {
+          "actions": [
+            {
+              "kind": "token-skipped",
+              "length": 1,
+              "site": "ListAbort",
+              "start": 36,
+              "statement_start": 0,
+              "token": 59
+            },
+            {
+              "kind": "token-skipped",
+              "length": 2,
+              "site": "ListAbort",
+              "start": 52,
+              "statement_start": 52,
+              "token": 39
+            }
+          ],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 36
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 36
+            },
+            {
+              "diagnostic_index": 1,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": 2,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": {
+                "kind": 80,
+                "position": 51
+              },
+              "start": 52
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 52
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 52
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 51,
+              "kind": 80,
+              "parent": 217,
+              "pos": 51
+            }
+          ],
+          "path": "/.src/asyncArrowFunction9_es2017.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration10_es2017.ts#default",
+      "files": [
+        {
+          "actions": [
+            {
+              "kind": "token-skipped",
+              "length": 2,
+              "site": "ListAbort",
+              "start": 29,
+              "statement_start": 0,
+              "token": 39
+            }
+          ],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": {
+                "kind": 80,
+                "position": 28
+              },
+              "start": 29
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 29
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 29
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 28,
+              "kind": 80,
+              "parent": 224,
+              "pos": 28
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration10_es2017.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration6_es2017.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 28
+              },
+              "start": 28
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 28,
+              "kind": 80,
+              "parent": 224,
+              "pos": 28
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration6_es2017.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration7_es2017.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 132
+              },
+              "start": 132
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 132,
+              "kind": 80,
+              "parent": 224,
+              "pos": 132
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration7_es2017.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration9_es2017.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 56
+              },
+              "start": 56
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 56,
+              "kind": 80,
+              "parent": 224,
+              "pos": 56
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration9_es2017.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction6_es5.ts#target%3Des2015",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 26
+              },
+              "start": 26
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 26,
+              "kind": 80,
+              "parent": 224,
+              "pos": 26
+            }
+          ],
+          "path": "/.src/asyncArrowFunction6_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction6_es5.ts#target%3Des5",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 26
+              },
+              "start": 26
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 26,
+              "kind": 80,
+              "parent": 224,
+              "pos": 26
+            }
+          ],
+          "path": "/.src/asyncArrowFunction6_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction7_es5.ts#target%3Des2015",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 132
+              },
+              "start": 132
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 132,
+              "kind": 80,
+              "parent": 224,
+              "pos": 132
+            }
+          ],
+          "path": "/.src/asyncArrowFunction7_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction7_es5.ts#target%3Des5",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 132
+              },
+              "start": 132
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 132,
+              "kind": 80,
+              "parent": 224,
+              "pos": 132
+            }
+          ],
+          "path": "/.src/asyncArrowFunction7_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction8_es5.ts#target%3Des2015",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 57
+              },
+              "start": 57
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 57,
+              "kind": 80,
+              "parent": 224,
+              "pos": 57
+            }
+          ],
+          "path": "/.src/asyncArrowFunction8_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction8_es5.ts#target%3Des5",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 57
+              },
+              "start": 57
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 57,
+              "kind": 80,
+              "parent": 224,
+              "pos": 57
+            }
+          ],
+          "path": "/.src/asyncArrowFunction8_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction9_es5.ts#target%3Des2015",
+      "files": [
+        {
+          "actions": [
+            {
+              "kind": "token-skipped",
+              "length": 1,
+              "site": "ListAbort",
+              "start": 36,
+              "statement_start": 0,
+              "token": 59
+            },
+            {
+              "kind": "token-skipped",
+              "length": 2,
+              "site": "ListAbort",
+              "start": 52,
+              "statement_start": 52,
+              "token": 39
+            }
+          ],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 36
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 36
+            },
+            {
+              "diagnostic_index": 1,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": 2,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": {
+                "kind": 80,
+                "position": 51
+              },
+              "start": 52
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 52
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 52
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 51,
+              "kind": 80,
+              "parent": 217,
+              "pos": 51
+            }
+          ],
+          "path": "/.src/asyncArrowFunction9_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction9_es5.ts#target%3Des5",
+      "files": [
+        {
+          "actions": [
+            {
+              "kind": "token-skipped",
+              "length": 1,
+              "site": "ListAbort",
+              "start": 36,
+              "statement_start": 0,
+              "token": 59
+            },
+            {
+              "kind": "token-skipped",
+              "length": 2,
+              "site": "ListAbort",
+              "start": 52,
+              "statement_start": 52,
+              "token": 39
+            }
+          ],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 36
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 36
+            },
+            {
+              "diagnostic_index": 1,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": 2,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": {
+                "kind": 80,
+                "position": 51
+              },
+              "start": 52
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 52
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 52
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 51,
+              "kind": 80,
+              "parent": 217,
+              "pos": 51
+            }
+          ],
+          "path": "/.src/asyncArrowFunction9_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration10_es5.ts#target%3Des2015",
+      "files": [
+        {
+          "actions": [
+            {
+              "kind": "token-skipped",
+              "length": 2,
+              "site": "ListAbort",
+              "start": 29,
+              "statement_start": 0,
+              "token": 39
+            }
+          ],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": {
+                "kind": 80,
+                "position": 28
+              },
+              "start": 29
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 29
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 29
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 28,
+              "kind": 80,
+              "parent": 224,
+              "pos": 28
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration10_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration10_es5.ts#target%3Des5",
+      "files": [
+        {
+          "actions": [
+            {
+              "kind": "token-skipped",
+              "length": 2,
+              "site": "ListAbort",
+              "start": 29,
+              "statement_start": 0,
+              "token": 39
+            }
+          ],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": {
+                "kind": 80,
+                "position": 28
+              },
+              "start": 29
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 29
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 29
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 28,
+              "kind": 80,
+              "parent": 224,
+              "pos": 28
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration10_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration6_es5.ts#target%3Des2015",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 28
+              },
+              "start": 28
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 28,
+              "kind": 80,
+              "parent": 224,
+              "pos": 28
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration6_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration6_es5.ts#target%3Des5",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 28
+              },
+              "start": 28
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 28,
+              "kind": 80,
+              "parent": 224,
+              "pos": 28
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration6_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts#target%3Des2015",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 132
+              },
+              "start": 132
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 132,
+              "kind": 80,
+              "parent": 224,
+              "pos": 132
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration7_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts#target%3Des5",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 132
+              },
+              "start": 132
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 132,
+              "kind": 80,
+              "parent": 224,
+              "pos": 132
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration7_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration9_es5.ts#target%3Des2015",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 56
+              },
+              "start": 56
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 56,
+              "kind": 80,
+              "parent": 224,
+              "pos": 56
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration9_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration9_es5.ts#target%3Des5",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 56
+              },
+              "start": 56
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 56,
+              "kind": 80,
+              "parent": 224,
+              "pos": 56
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration9_es5.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction6_es6.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 26
+              },
+              "start": 26
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 26,
+              "kind": 80,
+              "parent": 224,
+              "pos": 26
+            }
+          ],
+          "path": "/.src/asyncArrowFunction6_es6.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction7_es6.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 132
+              },
+              "start": 132
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 132,
+              "kind": 80,
+              "parent": 224,
+              "pos": 132
+            }
+          ],
+          "path": "/.src/asyncArrowFunction7_es6.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction8_es6.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 57
+              },
+              "start": 57
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 57,
+              "kind": 80,
+              "parent": 224,
+              "pos": 57
+            }
+          ],
+          "path": "/.src/asyncArrowFunction8_es6.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction9_es6.ts#default",
+      "files": [
+        {
+          "actions": [
+            {
+              "kind": "token-skipped",
+              "length": 1,
+              "site": "ListAbort",
+              "start": 36,
+              "statement_start": 0,
+              "token": 59
+            },
+            {
+              "kind": "token-skipped",
+              "length": 2,
+              "site": "ListAbort",
+              "start": 52,
+              "statement_start": 52,
+              "token": 39
+            }
+          ],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 36
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 36
+            },
+            {
+              "diagnostic_index": 1,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 45
+            },
+            {
+              "diagnostic_index": 2,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": {
+                "kind": 80,
+                "position": 51
+              },
+              "start": 52
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 52
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 52
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 51,
+              "kind": 80,
+              "parent": 217,
+              "pos": 51
+            }
+          ],
+          "path": "/.src/asyncArrowFunction9_es6.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration10_es6.ts#default",
+      "files": [
+        {
+          "actions": [
+            {
+              "kind": "token-skipped",
+              "length": 2,
+              "site": "ListAbort",
+              "start": 29,
+              "statement_start": 0,
+              "token": 39
+            }
+          ],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": {
+                "kind": 80,
+                "position": 28
+              },
+              "start": 29
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 29
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 2,
+              "missing_node": null,
+              "start": 29
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 28,
+              "kind": 80,
+              "parent": 224,
+              "pos": 28
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration10_es6.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration6_es6.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 28
+              },
+              "start": 28
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 28,
+              "kind": 80,
+              "parent": 224,
+              "pos": 28
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration6_es6.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration7_es6.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 132
+              },
+              "start": 132
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 132,
+              "kind": 80,
+              "parent": 224,
+              "pos": 132
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration7_es6.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration9_es6.ts#default",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 56
+              },
+              "start": 56
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 56,
+              "kind": 80,
+              "parent": 224,
+              "pos": 56
+            }
+          ],
+          "path": "/.src/asyncFunctionDeclaration9_es6.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.3.ts#experimentaldecorators%3Dtrue",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 0,
+              "missing_node": {
+                "kind": 283,
+                "position": 66
+              },
+              "start": 66
+            },
+            {
+              "diagnostic_index": 1,
+              "kind": "Diagnostic(Parser)",
+              "length": 0,
+              "missing_node": {
+                "kind": 283,
+                "position": 95
+              },
+              "start": 95
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 66,
+              "kind": 283,
+              "parent": 242,
+              "pos": 63
+            },
+            {
+              "end": 95,
+              "kind": 283,
+              "parent": 242,
+              "pos": 90
+            }
+          ],
+          "path": "/.src/esDecorators-decoratorExpression.3.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.1.ts#module%3Des2022",
+      "files": [
+        {
+          "actions": [
+            {
+              "kind": "token-skipped",
+              "length": 5,
+              "site": "ListAbort",
+              "start": 243,
+              "statement_start": 181,
+              "token": 135
+            },
+            {
+              "kind": "token-skipped",
+              "length": 1,
+              "site": "ListAbort",
+              "start": 248,
+              "statement_start": 181,
+              "token": 30
+            },
+            {
+              "kind": "token-skipped",
+              "length": 1,
+              "site": "ListAbort",
+              "start": 255,
+              "statement_start": 181,
+              "token": 32
+            },
+            {
+              "end": 682,
+              "kind": "reparsed",
+              "start": 10
+            }
+          ],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 67
+              },
+              "start": 67
+            },
+            {
+              "diagnostic_index": 1,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 83
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 83
+              },
+              "start": 83
+            },
+            {
+              "diagnostic_index": 2,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 168
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 168
+              },
+              "start": 168
+            },
+            {
+              "diagnostic_index": 3,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": null,
+              "start": 243
+            },
+            {
+              "diagnostic_index": 4,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 248
+            },
+            {
+              "diagnostic_index": 5,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 255
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 255
+            },
+            {
+              "diagnostic_index": 6,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 310
+              },
+              "start": 310
+            },
+            {
+              "diagnostic_index": 7,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 326
+              },
+              "start": 326
+            },
+            {
+              "diagnostic_index": 8,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 349
+              },
+              "start": 349
+            },
+            {
+              "diagnostic_index": 9,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 426
+              },
+              "start": 426
+            },
+            {
+              "diagnostic_index": 10,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 467
+              },
+              "start": 467
+            },
+            {
+              "diagnostic_index": 11,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 517
+              },
+              "start": 517
+            },
+            {
+              "diagnostic_index": 12,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 608
+              },
+              "start": 608
+            },
+            {
+              "diagnostic_index": 13,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 635
+              },
+              "start": 635
+            },
+            {
+              "diagnostic_index": 14,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 671
+              },
+              "start": 671
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 67,
+              "kind": 80,
+              "parent": 227,
+              "pos": 67
+            },
+            {
+              "end": 83,
+              "kind": 80,
+              "parent": 217,
+              "pos": 83
+            },
+            {
+              "end": 168,
+              "kind": 80,
+              "parent": 217,
+              "pos": 168
+            },
+            {
+              "end": 310,
+              "kind": 80,
+              "parent": 224,
+              "pos": 310
+            },
+            {
+              "end": 326,
+              "kind": 80,
+              "parent": 214,
+              "pos": 326
+            },
+            {
+              "end": 349,
+              "kind": 80,
+              "parent": 171,
+              "pos": 349
+            },
+            {
+              "end": 426,
+              "kind": 80,
+              "parent": 171,
+              "pos": 426
+            },
+            {
+              "end": 467,
+              "kind": 80,
+              "parent": 214,
+              "pos": 467
+            },
+            {
+              "end": 517,
+              "kind": 80,
+              "parent": 224,
+              "pos": 517
+            },
+            {
+              "end": 608,
+              "kind": 80,
+              "parent": 171,
+              "pos": 608
+            },
+            {
+              "end": 635,
+              "kind": 80,
+              "parent": 214,
+              "pos": 635
+            },
+            {
+              "end": 671,
+              "kind": 80,
+              "parent": 224,
+              "pos": 671
+            }
+          ],
+          "path": "/.src/topLevelAwaitErrors.1.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.1.ts#module%3Desnext",
+      "files": [
+        {
+          "actions": [
+            {
+              "kind": "token-skipped",
+              "length": 5,
+              "site": "ListAbort",
+              "start": 243,
+              "statement_start": 181,
+              "token": 135
+            },
+            {
+              "kind": "token-skipped",
+              "length": 1,
+              "site": "ListAbort",
+              "start": 248,
+              "statement_start": 181,
+              "token": 30
+            },
+            {
+              "kind": "token-skipped",
+              "length": 1,
+              "site": "ListAbort",
+              "start": 255,
+              "statement_start": 181,
+              "token": 32
+            },
+            {
+              "end": 682,
+              "kind": "reparsed",
+              "start": 10
+            }
+          ],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 67
+              },
+              "start": 67
+            },
+            {
+              "diagnostic_index": 1,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 83
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 83
+              },
+              "start": 83
+            },
+            {
+              "diagnostic_index": 2,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 168
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 168
+              },
+              "start": 168
+            },
+            {
+              "diagnostic_index": 3,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": null,
+              "start": 243
+            },
+            {
+              "diagnostic_index": 4,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 248
+            },
+            {
+              "diagnostic_index": 5,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 255
+            },
+            {
+              "diagnostic_index": null,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": null,
+              "start": 255
+            },
+            {
+              "diagnostic_index": 6,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 310
+              },
+              "start": 310
+            },
+            {
+              "diagnostic_index": 7,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 326
+              },
+              "start": 326
+            },
+            {
+              "diagnostic_index": 8,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 349
+              },
+              "start": 349
+            },
+            {
+              "diagnostic_index": 9,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 426
+              },
+              "start": 426
+            },
+            {
+              "diagnostic_index": 10,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 467
+              },
+              "start": 467
+            },
+            {
+              "diagnostic_index": 11,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 517
+              },
+              "start": 517
+            },
+            {
+              "diagnostic_index": 12,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 608
+              },
+              "start": 608
+            },
+            {
+              "diagnostic_index": 13,
+              "kind": "Diagnostic(Parser)",
+              "length": 5,
+              "missing_node": {
+                "kind": 80,
+                "position": 635
+              },
+              "start": 635
+            },
+            {
+              "diagnostic_index": 14,
+              "kind": "Diagnostic(Parser)",
+              "length": 1,
+              "missing_node": {
+                "kind": 80,
+                "position": 671
+              },
+              "start": 671
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 67,
+              "kind": 80,
+              "parent": 227,
+              "pos": 67
+            },
+            {
+              "end": 83,
+              "kind": 80,
+              "parent": 217,
+              "pos": 83
+            },
+            {
+              "end": 168,
+              "kind": 80,
+              "parent": 217,
+              "pos": 168
+            },
+            {
+              "end": 310,
+              "kind": 80,
+              "parent": 224,
+              "pos": 310
+            },
+            {
+              "end": 326,
+              "kind": 80,
+              "parent": 214,
+              "pos": 326
+            },
+            {
+              "end": 349,
+              "kind": 80,
+              "parent": 171,
+              "pos": 349
+            },
+            {
+              "end": 426,
+              "kind": 80,
+              "parent": 171,
+              "pos": 426
+            },
+            {
+              "end": 467,
+              "kind": 80,
+              "parent": 214,
+              "pos": 467
+            },
+            {
+              "end": 517,
+              "kind": 80,
+              "parent": 224,
+              "pos": 517
+            },
+            {
+              "end": 608,
+              "kind": 80,
+              "parent": 171,
+              "pos": 608
+            },
+            {
+              "end": 635,
+              "kind": 80,
+              "parent": 214,
+              "pos": 635
+            },
+            {
+              "end": 671,
+              "kind": 80,
+              "parent": 224,
+              "pos": 671
+            }
+          ],
+          "path": "/.src/topLevelAwaitErrors.1.ts"
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.3.ts#experimentaldecorators%3Dfalse",
+      "files": [
+        {
+          "actions": [],
+          "events": [
+            {
+              "diagnostic_index": 0,
+              "kind": "Diagnostic(Parser)",
+              "length": 0,
+              "missing_node": {
+                "kind": 283,
+                "position": 66
+              },
+              "start": 66
+            },
+            {
+              "diagnostic_index": 1,
+              "kind": "Diagnostic(Parser)",
+              "length": 0,
+              "missing_node": {
+                "kind": 283,
+                "position": 95
+              },
+              "start": 95
+            }
+          ],
+          "missing_nodes": [
+            {
+              "end": 66,
+              "kind": 283,
+              "parent": 242,
+              "pos": 63
+            },
+            {
+              "end": 95,
+              "kind": 283,
+              "parent": 242,
+              "pos": 90
+            }
+          ],
+          "path": "/.src/esDecorators-decoratorExpression.3.ts"
+        }
+      ]
+    }
+  ],
+  "purpose": "syntax-provenance-only-not-emit-compatibility",
+  "schema": 1
+}

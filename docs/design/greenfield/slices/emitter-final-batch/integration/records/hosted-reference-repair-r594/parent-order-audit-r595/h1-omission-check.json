@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "crates/oracle/h1-rust-omission-inventory.mjs",
+    "--check"
+  ],
+  "exit": 1,
+  "seconds": 0.496,
+  "log_sha256": "0f9a186f3b8caee0fe71e900e29df65be77b9dab888e6703bea38aee8b12032b",
+  "log_bytes": 802,
+  "scope": "Read-only upstream freshness check after the real factory.rs runtime edit; no mint."
+}

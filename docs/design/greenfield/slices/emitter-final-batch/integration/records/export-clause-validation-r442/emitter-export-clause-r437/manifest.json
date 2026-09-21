@@ -1,0 +1,12 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "files": [
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "before": "e0a8976e8963a9897aba56be1df0d71e7ad2d0f7bf4f2c792ec3f59b27ab8f5a",
+      "after": "41fbdf31c3fed2329818b3a316a35844831b897353405561032d774b623ca027"
+    }
+  ],
+  "qualified": false,
+  "scope": "ExportDeclaration child comment phase only; reuse existing owner-aware prefix projection; strict CommentResume invariants untouched."
+}

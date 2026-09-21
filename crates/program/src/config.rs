@@ -1873,7 +1873,12 @@ fn unsupported_config_scope(
         if emitting && compiler_option_declaration(&option.name).is_none() {
             continue;
         }
+        // sourceMap is already projected and validated. An ordinary no-emit
+        // command retains it without constructing an emitter. Keep this later
+        // extension separate from the frozen H0 qualification inventory.
+        let no_emit_projection = !emitting && option.name == "sourceMap";
         if !(config_option_is_supported_by_h0(&option.name)
+            || no_emit_projection
             || emitting && config_option_is_projected_for_h1_emit(&option.name))
             && config_value_requests_feature(&option.value)
         {
@@ -1908,7 +1913,7 @@ fn config_project_references<'j0>(
         let Some(original_path) = object.get("path").and_then(Value::as_js) else {
             continue;
         };
-        let path = crate::js_path::normalized_absolute_path(original_path, config_base_path.into());
+        let path = crate::js_path::normalized_absolute_path(original_path, config_base_path);
         result.push(ConfigProjectReference {
             path,
             original_path: original_path.to_owned(),
@@ -2294,7 +2299,7 @@ impl ParseContext<'_> {
             node: None,
             read_parse_diagnostics: Vec::new(),
         };
-        match self.host.read_file(path.into()) {
+        match self.host.read_file(path) {
             Ok(Some(text)) => {
                 let source = ConfigSourceText::new(path, text);
                 let parsed = parse_config_source(&source)?;
@@ -2687,7 +2692,7 @@ impl ParseContext<'_> {
                         Value::Array(
                             specs
                                 .iter()
-                                .map(|spec| Value::String(spec.text.clone().into()))
+                                .map(|spec| Value::String(spec.text.clone()))
                                 .collect(),
                         ),
                     );
@@ -2796,7 +2801,7 @@ impl ParseContext<'_> {
         let base_path = base_path.into();
         let compiler_host = ConfigCompilerHostAdapter {
             host: self.host,
-            current_directory: base_path.into(),
+            current_directory: base_path,
         };
         let options = CompilerOptions {
             module_resolution: Some(99),
@@ -4504,7 +4509,7 @@ fn derive_file_names<'j0, 'j1>(
         Vec::new()
     } else {
         host.read_directory(
-            base_path.into(),
+            base_path,
             &flat_extensions,
             exclude_values.as_deref(),
             Some(include_values.as_slice()),
@@ -4703,7 +4708,7 @@ fn report_no_input_files<'j0>(
                     .unwrap_or(&[])
                     .iter()
                     .cloned()
-                    .map(|value| Value::String(value.into()))
+                    .map(Value::String)
                     .collect(),
             )
         });
@@ -6362,11 +6367,8 @@ fn rebase_config_specs<'j0>(
             {
                 text
             } else {
-                let mut difference = JsString::from(relative_directory_path(
-                    base_path,
-                    &spec.base_path,
-                    case_sensitive,
-                )?);
+                let mut difference =
+                    relative_directory_path(base_path, &spec.base_path, case_sensitive)?;
                 if text.is_empty() {
                     difference
                 } else if difference.is_empty() {

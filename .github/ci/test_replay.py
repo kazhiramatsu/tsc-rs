@@ -18,12 +18,111 @@ spec.loader.exec_module(replay)
 witness = replay.witness
 
 
+class EmitterFinalTests(unittest.TestCase):
+    def test_plan_base_shards_cover_frozen_membership_once(self):
+        final = witness.emitter_final_witnesses
+        parts = [final.case_ids(f"emitter-plan-base-{i}") for i in range(4)]
+        combined = [case for part in parts for case in part]
+        self.assertEqual(len(combined), len(set(combined)))
+        self.assertEqual(sorted(combined), final.ids(final.FIXTURES + "emitter-final-universe-plan-base.json.zst", 1798))
+        self.assertEqual([len(part) for part in parts], [450, 450, 449, 449])
+
+    def test_fixture_changes_select_the_complete_shard_family(self):
+        plan = replay.selection(["crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst"])
+        self.assertEqual(set(plan["witnesses"]), {"emitter-universe-oracle", *(f"emitter-plan-base-{i}" for i in range(4))})
+        for i in range(2):
+            suite = f"emitter-class-{i}"
+            name, _ = witness.emitter_final_witnesses.class_bands(suite)[0]
+            plan = replay.selection([f"crates/compiler/tests/fixtures/{name}.json"])
+            self.assertIn(suite, plan["witnesses"])
+            if name in witness.RETAINED_FIXTURES:
+                self.assertIn("retained", plan["witnesses"])
+
+    def test_hosted_shards_clear_interactive_selectors(self):
+        final = witness.emitter_final_witnesses
+        inherited = {key: "narrow" for key in final.SELECTORS}
+        inherited["PATH"] = "preserved"
+        env = final.environment("emitter-plan-base-2", inherited)
+        self.assertEqual(env["TSC_RS_EMITTER_FINAL_SHARD"], "2/4")
+        self.assertEqual(env["PATH"], "preserved")
+        self.assertFalse(set(final.SELECTORS) - {"TSC_RS_EMITTER_FINAL_SHARD"} & env.keys())
+        self.assertFalse(set(final.SELECTORS) & final.environment("emitter-final", inherited).keys())
+
+    def test_hosted_universe_rejects_partial_zero_and_ignored_replays(self):
+        final = witness.emitter_final_witnesses
+        command, count = final.commands("emitter-plan-base-0")[0]
+        good = ("test result: ok. 1 passed; 0 failed; 0 ignored;\n"
+                "emitter-final universe fixture: selected 450/1798 / exact 430 / known 20 / failed 0\n")
+        final.validate_output("emitter-plan-base-0", command, count, good)
+        for bad in ("", good * 2, good.replace("1 passed", "0 passed"),
+                    good.replace("0 ignored", "1 ignored"), good.replace("450/1798", "449/1798"),
+                    good.replace("known 20", "known 19"), good.replace("failed 0", "failed 1")):
+            with self.subTest(output=bad), self.assertRaises(ValueError):
+                final.validate_output("emitter-plan-base-0", command, count, bad)
+
+    def test_shared_complete_command_comparator_selects_both_consumers(self):
+        plan = replay.selection(["crates/compiler/tests/support/complete_command_corpus.rs"])
+        self.assertEqual(plan["acceptance"], [])
+        self.assertEqual(set(plan["witnesses"]), {"emitter-comment-controls", "utf16-recovery-corpus"})
+
+    def test_system_and_recovery_groups_require_every_registered_row(self):
+        final = witness.emitter_final_witnesses
+        for suite in ("emitter-system-controls", "emitter-recovery-controls"):
+            command, count = final.commands(suite)[-1]
+            rows = final.case_ids(suite)
+            summary = f"test result: ok. {count} passed; 0 failed; 0 ignored;\n"
+            lines = [f"complete command EXACT x2 {row}\n" for row in rows]
+            final.validate_output(suite, command, count, summary + "".join(lines))
+            for bad in (summary, summary + "".join(lines[1:]),
+                        summary + "".join([*lines, lines[0]]),
+                        summary + "".join([*lines[1:], "complete command EXACT x2 unexpected\n"])):
+                with self.subTest(suite=suite), self.assertRaises(ValueError):
+                    final.validate_output(suite, command, count, bad)
+            self.assertEqual(replay.WITNESS_GROUPS[suite], (suite,))
+        self.assertEqual(replay.WITNESS_GROUPS["emitter-comment-controls"],
+                         ("emitter-comment-controls",))
+        self.assertEqual(replay.WITNESS_GROUPS["emitter-global"], ("emitter-global",))
+
+    def test_system_group_includes_r77_replays_with_their_multiplicity(self):
+        final = witness.emitter_final_witnesses
+        suite = "emitter-system-controls"
+        ordinary = [row for name, count in final.SYSTEM_FIXTURES
+                    for row in final.ids(final.FIXTURES + name + ".json", count)]
+        roster = json.loads((ROOT / final.FIXTURES / "emitter-r77-regressions.json").read_text())["cases"]
+        self.assertEqual(len(roster), 70)
+        rows = ordinary + [row["case_id"] for row in roster]
+        self.assertEqual(len(rows), 6035)
+        self.assertGreater(len(rows), len(set(rows)))
+        self.assertCountEqual(final.case_ids(suite), rows)
+        command, count = final.commands(suite)[-1]
+        summary = f"test result: ok. {count} passed; 0 failed; 0 ignored;\n"
+        def output(memberships):
+            return summary + "".join(f"complete command EXACT x2 {row}\n" for row in memberships)
+        final.validate_output(suite, command, count, output(rows))
+        final.validate_output(suite, command, count, output(list(reversed(rows))))
+        for missing in (ordinary, sorted(set(rows)), rows[:-1]):
+            with self.subTest(rows=len(missing)), self.assertRaises(ValueError):
+                final.validate_output(suite, command, count, output(missing))
+
+    def test_registered_exact_test_names_exist(self):
+        source = "\n".join(path.read_text() for path in (ROOT / "crates/compiler/tests").rglob("*.rs"))
+        for suite in witness.emitter_final_witnesses.SUITES:
+            for command, count in witness.emitter_final_witnesses.commands(suite):
+                if count is None or "--exact" not in command:
+                    continue
+                names = [command[command.index("--test") + 2],
+                         *(arg for arg in command[command.index("--exact") + 1:] if not arg.startswith("--"))]
+                self.assertEqual(len(names), count)
+                for name in names:
+                    self.assertRegex(source, r"fn " + re.escape(name.rsplit("::", 1)[-1]) + r"\(")
+
+
 class CompilerBudgetTests(unittest.TestCase):
     def test_module_output_partition_preserves_all_suites_and_dedicated_selection(self):
         members = [suite for suites in replay.WITNESS_GROUPS.values() for suite in suites]
         self.assertCountEqual(members, witness.SUITES)
         self.assertEqual(len(members), len(set(members)))
-        self.assertEqual(len(replay.WITNESS_GROUPS), 7)
+        self.assertEqual(len(replay.WITNESS_GROUPS), 19)
         self.assertEqual(replay.WITNESS_GROUPS["module-output"],
                          ("declaration-map-apis", "declaration-maps", "require-rewrite", "declaration-specifiers"))
         workflow = (ROOT / ".github/workflows/witness.yml").read_text()
@@ -111,8 +210,8 @@ class FoundationTests(unittest.TestCase):
 
     def test_foundation_sources_have_one_bounded_job_and_all_targets(self):
         foundation = witness.foundation_witnesses
-        self.assertEqual(len(foundation.SUITES), 16)
-        self.assertEqual(len({(s["crate"], s["target"]) for s in foundation.SUITES.values()}), 16)
+        self.assertEqual(len(foundation.SUITES), 17)
+        self.assertEqual(len({(s["crate"], s["target"]) for s in foundation.SUITES.values()}), 17)
         for suite in foundation.SUITES:
             plan = replay.selection([foundation.source(suite)])
             self.assertEqual(plan["acceptance"], [])
@@ -164,6 +263,42 @@ class FoundationTests(unittest.TestCase):
                 self.assertEqual(witness.main([suite, "--all", "--dry-run"]), 0)
                 run.assert_not_called()
 
+    def test_foundation_captured_success_logs_preserve_exact_membership(self):
+        foundation = witness.foundation_witnesses
+        suites = ["syntax-emitter-recovery"]
+        output = self.output(suites).replace("test result:",
+            "successes:\n\n---- await_reparse_respects_factory_child_and_name_boundaries stdout ----\n"
+            "await flag boundary SUMMARY exact=285 failed=0 selected=285\n\n"
+            "---- original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts stdout ----\n"
+            "emitter recovery syntax SUMMARY exact=36 failed=0 selected=36\n"
+            "context recovery syntax cases: 788 expected admission=true\n"
+            "context recovery syntax refused_cases: 72 expected admission=false\n\n"
+            "successes:\n    await_reparse_respects_factory_child_and_name_boundaries\n"
+            "    original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts\n\n"
+            "test result:")
+        self.assertEqual(foundation.verify_output(suites, output), 2)
+        self.assertEqual(foundation.command(suites)[-3:], ["--", "--show-output", "--test-threads=1"])
+        with self.assertRaises(ValueError):
+            foundation.verify_output(suites, output.replace("successes:\n", "successes:\ntest fake ... ok\n", 1))
+
+    def test_foundation_interleaved_success_diagnostics_still_fail_closed(self):
+        foundation = witness.foundation_witnesses
+        suites = ["syntax-emitter-recovery"]
+        # Shape observed in the failed hosted foundations job: native exit 0,
+        # but --nocapture separates both status prefixes from their final ok.
+        output = self.output(suites).replace(
+            "test await_reparse_respects_factory_child_and_name_boundaries ... ok",
+            "test await_reparse_respects_factory_child_and_name_boundaries ... "
+            "await flag boundary SUMMARY exact=285 failed=0 selected=285\nok"
+        ).replace(
+            "test original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts ... ok",
+            "test original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts ... "
+            "emitter recovery syntax SUMMARY exact=36 failed=0 selected=36\n"
+            "context recovery syntax cases: 788 expected admission=true\n"
+            "context recovery syntax refused_cases: 72 expected admission=false\nok")
+        with self.assertRaisesRegex(ValueError, "emitter_recovery: missing, ignored, filtered or substituted"):
+            foundation.verify_output(suites, output)
+
     def test_foundation_batches_selected_targets_and_checks_oracles_first(self):
         foundation = witness.foundation_witnesses
         suites = ["syntax-entity-names", "syntax-template-flags"]
@@ -188,6 +323,21 @@ class FoundationTests(unittest.TestCase):
         with patch.object(foundation.subprocess, "run", return_value=subprocess.CompletedProcess([], 101, "failure")), redirect_stdout(io.StringIO()):
             with self.assertRaises(subprocess.CalledProcessError):
                 foundation.run(["host-memory"], {})
+
+    def test_bundle_foundation_replays_frozen_reference_before_native(self):
+        foundation = witness.foundation_witnesses
+        suites = ["program-bundle-facts"]
+        oracle = ["node", "scripts/check-frozen-de-reference.mjs", "--check", "bundle-plan"]
+        self.assertIn(suites[0], replay.selection([oracle[1]])["witnesses"])
+        fake = subprocess.CompletedProcess([], 0, self.output(suites))
+        with patch.object(foundation.subprocess, "run", return_value=fake) as run, redirect_stdout(io.StringIO()):
+            foundation.run(suites, {})
+        self.assertEqual([call.args[0] for call in run.call_args_list], [oracle, foundation.command(suites)])
+        self.assertTrue(run.call_args_list[0].kwargs["check"])
+        with patch.object(foundation.subprocess, "run", side_effect=subprocess.CalledProcessError(1, oracle)) as run:
+            with self.assertRaises(subprocess.CalledProcessError):
+                foundation.run(suites, {})
+        self.assertEqual(run.call_count, 1)
 
     def test_foundation_unreviewed_attributes_and_empty_declarations_fail(self):
         for text in ("", "#[ignore]\n#[test]\nfn omitted() {}", "#[cfg(feature = \"hidden\")]\n#[test]\nfn hidden() {}"):
@@ -578,6 +728,8 @@ class SelectionTests(unittest.TestCase):
     def test_compiler_direct_inputs_select_only_their_target_in_owning_job(self):
         for suite in witness.COMPILER_DIRECT:
             for path in witness.compiler_direct_inputs(suite):
+                if path == "crates/compiler/tests/support/complete_command_corpus.rs":
+                    continue  # explicit shared-comparator ownership contract above
                 if path in ("scripts/observe-literal-update.mjs", "scripts/observe-decorator-bindings.mjs"):
                     continue  # covered by the explicit cross-crate ownership contract below
                 if path in ("scripts/observe-bundle-declarations.mjs",
@@ -686,8 +838,9 @@ class SelectionTests(unittest.TestCase):
         command, env = witness.invocation("resolution-cache", [], {})
         self.assertIn("--lib", command)
         self.assertIn("resolution_cache_contract", command)
-        good = "\n".join(f"test result: ok. {n} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;" for n in (56, 11))
+        good = "\n".join(f"test result: ok. {n} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;" for n in (57, 11))
         for output in (good, good.split("\n")[0], good.replace("11 passed", "0 passed"),
+                       good.replace("57 passed", "56 passed"),
                        good.replace("0 ignored", "1 ignored", 1), good.replace("0 filtered", "1 filtered", 1)):
             with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output)) as run:
                 if output == good:
@@ -910,15 +1063,15 @@ class WitnessTests(unittest.TestCase):
     def test_frozen_input_catalog_counts(self):
         self.assertEqual({suite: len(witness.case_ids(suite)) for suite in witness.SUITES}, {
             "syntax-entity-names": 2, "syntax-meta-property": 1, "syntax-literal-values": 1,
-            "syntax-recovery": 1, "syntax-scanner-escapes": 1, "syntax-template-escapes": 5,
+            "syntax-recovery": 1, "syntax-emitter-recovery": 2, "syntax-scanner-escapes": 1, "syntax-template-escapes": 5,
             "syntax-template-flags": 1, "binder-symbol-names": 2, "types-option-numbers": 3,
             "host-memory": 13 if sys.platform == "win32" else 14,
             "host-filesystem": {"linux": 9, "darwin": 8, "win32": 7}[sys.platform],
             "program-bundle-facts": 1, "program-host-platform": 1, "program-config-paths": 2,
             "program-module-paths": 3, "program-raw-source": 1,
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
-            "followup3": 48, "retained": 530, "direct": 32, "printer": 142, "bundle-sinks": 10,
-            "declaration-map-cli": 8, "transpile-routes": 301, "resolution-cache": 26,
+            "followup3": 48, "retained": 530, "direct": 32, "printer": 143, "bundle-sinks": 10,
+            "declaration-map-cli": 8, "transpile-routes": 305, "resolution-cache": 26,
             "compact-body-comments": 240, "parameter-temporaries": 68,
             "config-library": 96, "prologue-comments": 8,
             "utf16-recovery-corpus": 50, "map-option-projection": 31,
@@ -933,9 +1086,14 @@ class WitnessTests(unittest.TestCase):
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,
             "class-header-token-metadata": 32, "comma-argument-factory": 519,
             "ellipsis-comment-metadata": 144, "import-type-attributes": 84,
-            "mapped-type-members": 328, "token-comment-phase-metadata": 96,
+            "mapped-type-members": 328, "token-comment-phase-metadata": 120,
             "utf16-identity-recovery": 79, "utf16-review-fix": 25, "utf16-tagged-template": 16,
             "utf16-literal-witnesses": 64, "utf16-original-commands": 4,
+            "emitter-final": 1125, "emitter-comment-controls": 1503, "emitter-universe-oracle": 2015,
+            "emitter-system-controls": 6035, "emitter-recovery-controls": 1580,
+            "emitter-plan-base-0": 450, "emitter-plan-base-1": 450,
+            "emitter-plan-base-2": 449, "emitter-plan-base-3": 449,
+            "emitter-global": 769, "emitter-class-0": 700, "emitter-class-1": 528,
         })
 
     def test_transpile_runner_requires_all_nine_tests_after_both_oracles(self):
@@ -1193,7 +1351,9 @@ class WitnessTests(unittest.TestCase):
                      "crates/oracle/vfs-directory-overlay.mjs",
                      "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
                      "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs"):
-            self.assertEqual(replay.selection([path])["witnesses"], list(witness.SUITES))
+            plan = replay.selection([path])
+            self.assertEqual(plan["witnesses"], list(witness.SUITES))
+            self.assertEqual(plan["acceptance"], list(replay.GROUPS))
         plan = replay.selection(["crates/compiler/tests/fixtures/declaration-comment-ranges.json",
                                  "crates/compiler/tests/fixtures/h2-8a-jsdoc-return.json"])
         self.assertEqual(plan["acceptance"], [])

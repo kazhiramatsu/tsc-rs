@@ -1,0 +1,34 @@
+{
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "qualified": false,
+  "steps": [
+    {
+      "label": "final-format-r244",
+      "exit": 0
+    },
+    {
+      "label": "final-workspace-clippy-r244",
+      "exit": 0
+    },
+    {
+      "label": "compiler-affected-targets-r244",
+      "exit": 101
+    },
+    {
+      "label": "harness-all-contracts-r244",
+      "exit": 0
+    },
+    {
+      "label": "xtask-tests-r244",
+      "exit": 101
+    },
+    {
+      "label": "baseline-example-build-r244",
+      "exit": 0
+    },
+    {
+      "label": "final-static-preflight-r244",
+      "exit": 0
+    }
+  ]
+}

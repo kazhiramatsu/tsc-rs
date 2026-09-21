@@ -1,0 +1,12 @@
+--- a/scripts/observe-utf16-identity-recovery-controls.mjs
++++ b/scripts/observe-utf16-identity-recovery-controls.mjs
+@@ -106,7 +106,8 @@
+   ["regexp-eof","export const x=/abc"],["comment-eof","export const x=1; /* ..."],
+   ["conflict-marker","<<<<<<< HEAD\nexport const x=1;"],
+   ["keyword-escape",String.raw`\u0063lass C {}`],
+-]) add(`b3-b4-rejected/${id}`,text,{},"typed-recovery-refusal");
++// Keep the historical IDs; completed keyword recovery now compares every field.
++]) add(`b3-b4-rejected/${id}`,text,{},id === "keyword-escape" ? "exact" : "typed-recovery-refusal");
+ add("b5-tagged-no-diagnostic",'declare function tag(t:TemplateStringsArray):unknown; export const x=tag`\\unicode`;',{target:4});
+ add("b6-eof-backslash",'export const x="\\');
+ add("b6-value-eof-backslash",'export const x="\\u{D800}\\');

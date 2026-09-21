@@ -1,0 +1,172 @@
+[
+  {
+    "path": "crates/checker/src/declaration_emit/replay_json.rs",
+    "line": 161,
+    "kind": "inline-body",
+    "file_lines": 209,
+    "potential_paths": []
+  },
+  {
+    "path": "crates/diagnostics/src/js_string.rs",
+    "line": 608,
+    "kind": "src-resident-declaration",
+    "file_lines": 609,
+    "potential_paths": []
+  },
+  {
+    "path": "crates/emitter/src/factory/parsed_metadata.rs",
+    "line": 289,
+    "kind": "inline-body",
+    "file_lines": 636,
+    "potential_paths": []
+  },
+  {
+    "path": "crates/harness/src/upstream_suites/execution/js_paths.rs",
+    "line": 406,
+    "kind": "inline-body",
+    "file_lines": 442,
+    "potential_paths": []
+  },
+  {
+    "path": "crates/harness/src/upstream_suites/execution/project.rs",
+    "line": 505,
+    "kind": "inline-body",
+    "file_lines": 1225,
+    "potential_paths": [
+      [
+        514,
+        "let workspace = Path::new(env!(\"CARGO_MANIFEST_DIR\")).join(\"../..\");"
+      ],
+      [
+        648,
+        "let metadata = std::fs::metadata(&normalized).map_err(|source_error| {"
+      ]
+    ]
+  },
+  {
+    "path": "crates/program/src/config_host.rs",
+    "line": 357,
+    "kind": "inline-body",
+    "file_lines": 469,
+    "potential_paths": [
+      [
+        410,
+        "let oracle: Value = serde_json::from_slice(include_bytes!("
+      ],
+      [
+        419,
+        "let oracle: Value = serde_json::from_slice(include_bytes!("
+      ]
+    ]
+  },
+  {
+    "path": "crates/program/src/config_options.rs",
+    "line": 1519,
+    "kind": "inline-body",
+    "file_lines": 1639,
+    "potential_paths": [
+      [
+        1527,
+        "serde_json::from_str(include_str!(\"../tests/fixtures/utf16-config-names.json\"))"
+      ],
+      [
+        1604,
+        "let oracle: Value = serde_json::from_slice(include_bytes!("
+      ]
+    ]
+  },
+  {
+    "path": "crates/program/src/js_path.rs",
+    "line": 382,
+    "kind": "inline-body",
+    "file_lines": 504,
+    "potential_paths": [
+      [
+        388,
+        "let fixture: serde_json::Value = serde_json::from_str(include_str!("
+      ],
+      [
+        404,
+        "let fixture: serde_json::Value = serde_json::from_str(include_str!("
+      ],
+      [
+        441,
+        "serde_json::from_str(include_str!(\"../tests/fixtures/utf16-lexical-paths.json\"))"
+      ]
+    ]
+  },
+  {
+    "path": "crates/program/src/js_string_ops.rs",
+    "line": 274,
+    "kind": "inline-body",
+    "file_lines": 356,
+    "potential_paths": [
+      [
+        281,
+        "serde_json::from_str(include_str!(\"../tests/fixtures/utf16-package-names.json\"))"
+      ],
+      [
+        305,
+        "let fixture: serde_json::Value = serde_json::from_str(include_str!("
+      ]
+    ]
+  },
+  {
+    "path": "crates/program/src/loader.rs",
+    "line": 4569,
+    "kind": "inline-body",
+    "file_lines": 4659,
+    "potential_paths": []
+  },
+  {
+    "path": "crates/program/src/loader.rs",
+    "line": 4603,
+    "kind": "inline-body",
+    "file_lines": 4659,
+    "potential_paths": []
+  },
+  {
+    "path": "crates/program/src/resolution_cache.rs",
+    "line": 2401,
+    "kind": "inline-body",
+    "file_lines": 2804,
+    "potential_paths": []
+  },
+  {
+    "path": "crates/types/src/escaped_name.rs",
+    "line": 112,
+    "kind": "inline-body",
+    "file_lines": 198,
+    "potential_paths": []
+  },
+  {
+    "path": "crates/xtask/src/h2_7de_acceptance.rs",
+    "line": 275,
+    "kind": "inline-body",
+    "file_lines": 353,
+    "potential_paths": [
+      [
+        280,
+        "let workspace = Path::new(env!(\"CARGO_MANIFEST_DIR\")).join(\"../..\");"
+      ],
+      [
+        282,
+        "&std::fs::read(workspace.join(QUALIFICATION)).expect(\"frozen qualification\"),"
+      ]
+    ]
+  },
+  {
+    "path": "crates/xtask/src/recovery_corpus_native.rs",
+    "line": 705,
+    "kind": "inline-body",
+    "file_lines": 777,
+    "potential_paths": []
+  },
+  {
+    "path": "crates/xtask/src/recovery_parse_snapshot.rs",
+    "line": 380,
+    "kind": "inline-body",
+    "file_lines": 467,
+    "potential_paths": []
+  }
+]

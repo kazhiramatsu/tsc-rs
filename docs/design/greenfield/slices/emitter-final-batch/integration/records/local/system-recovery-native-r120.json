@@ -1,0 +1,38 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r120-immutable/contracts",
+    "--exact",
+    "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
+    "emitter_residual_audit::await_flag_boundaries_match_complete_typescript_commands",
+    "emitter_residual_audit::exported_destructuring_comments_match_complete_typescript_commands",
+    "h2_8a_import_helpers::missing_await_recovery_matches_complete_typescript_observations",
+    "h2_8a_import_helpers::missing_declaration_recovery_matches_complete_typescript_observations",
+    "h2_8a_import_helpers::missing_declaration_effects_match_complete_typescript_observations",
+    "h2_8a_import_helpers::missing_declaration_scripts_match_complete_typescript_observations",
+    "h2_8a_import_helpers::missing_declaration_binding_matches_complete_typescript_observations",
+    "h2_8a_import_helpers::parameter_gap_recovery_matches_complete_typescript_observations",
+    "h2_8a_import_helpers::statement_gap_recovery_matches_complete_typescript_observations",
+    "h2_8a_import_helpers::context_recovery_matches_complete_typescript_observations",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T07:39:28.381773+00:00",
+  "head": "b451489e4a18abbff42651d8eb814537f4c5f800",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/system-recovery-native-r120-captures",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 4536.738,
+  "log_sha256": "8d9ba3d2472453a4daabe8c67e6c6fc9a06f6ca90081e8beb3c53f2c6c5d5264",
+  "log_bytes": 412420
+}

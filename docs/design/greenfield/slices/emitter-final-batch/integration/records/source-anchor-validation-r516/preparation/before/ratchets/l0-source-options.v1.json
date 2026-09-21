@@ -1,0 +1,559 @@
+{
+  "schema": 3,
+  "status": "owned-bind-state-complete",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "tsc_path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "tsc_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "option_declarations": 129
+  },
+  "document_address": {
+    "registry_namespace": [
+      "typescript_pin",
+      "jsdoc_parsing_mode",
+      "canonicalization_profile",
+      "rust_parser_policy"
+    ],
+    "bucket": [
+      "source_file_affecting_options",
+      "implied_node_format"
+    ],
+    "path": "canonical_path",
+    "variant": "script_kind",
+    "excluded_version_facts": [
+      "document_version",
+      "text_hash",
+      "snapshot_lineage"
+    ]
+  },
+  "option_sets": {
+    "source_file_affecting": [
+      {
+        "name": "target",
+        "rust_field": "target",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "module",
+        "rust_field": "module",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "jsx",
+        "rust_field": "jsx",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": true,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "importHelpers",
+        "rust_field": "import_helpers",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": false,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "alwaysStrict",
+        "rust_field": "always_strict",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": false,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "noFallthroughCasesInSwitch",
+        "rust_field": "no_fallthrough_cases_in_switch",
+        "affects_source_file": false,
+        "affects_bind_diagnostics": true,
+        "affects_semantic_diagnostics": true,
+        "affects_module_resolution": false,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "moduleResolution",
+        "rust_field": "module_resolution",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "jsxImportSource",
+        "rust_field": "jsx_import_source",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": true,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "allowUnusedLabels",
+        "rust_field": "allow_unused_labels",
+        "affects_source_file": false,
+        "affects_bind_diagnostics": true,
+        "affects_semantic_diagnostics": true,
+        "affects_module_resolution": false,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "allowUnreachableCode",
+        "rust_field": "allow_unreachable_code",
+        "affects_source_file": false,
+        "affects_bind_diagnostics": true,
+        "affects_semantic_diagnostics": true,
+        "affects_module_resolution": false,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "moduleDetection",
+        "rust_field": "module_detection",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      }
+    ],
+    "source_file_only": [
+      "target",
+      "module",
+      "jsx",
+      "importHelpers",
+      "alwaysStrict",
+      "moduleResolution",
+      "jsxImportSource",
+      "moduleDetection"
+    ],
+    "bind_diagnostics": [
+      "noFallthroughCasesInSwitch",
+      "allowUnusedLabels",
+      "allowUnreachableCode"
+    ],
+    "semantic_diagnostics": [
+      "assumeChangesOnlyAffectDirectDependencies",
+      "checkJs",
+      "jsx",
+      "importsNotUsedAsValues",
+      "verbatimModuleSyntax",
+      "isolatedDeclarations",
+      "erasableSyntaxOnly",
+      "noImplicitAny",
+      "strictNullChecks",
+      "strictFunctionTypes",
+      "strictBindCallApply",
+      "strictPropertyInitialization",
+      "strictBuiltinIteratorReturn",
+      "stableTypeOrdering",
+      "noImplicitThis",
+      "useUnknownInCatchVariables",
+      "noUnusedLocals",
+      "noUnusedParameters",
+      "exactOptionalPropertyTypes",
+      "noImplicitReturns",
+      "noFallthroughCasesInSwitch",
+      "noUncheckedIndexedAccess",
+      "noImplicitOverride",
+      "noPropertyAccessFromIndexSignature",
+      "allowSyntheticDefaultImports",
+      "esModuleInterop",
+      "allowUmdGlobalAccess",
+      "allowImportingTsExtensions",
+      "rewriteRelativeImportExtensions",
+      "noUncheckedSideEffectImports",
+      "experimentalDecorators",
+      "emitDecoratorMetadata",
+      "jsxImportSource",
+      "noErrorTruncation",
+      "noImplicitUseStrict",
+      "allowUnusedLabels",
+      "allowUnreachableCode",
+      "suppressExcessPropertyErrors",
+      "suppressImplicitAnyIndexErrors",
+      "noStrictGenericChecks",
+      "useDefineForClassFields"
+    ],
+    "module_resolution": [
+      "target",
+      "module",
+      "checkJs",
+      "jsx",
+      "moduleResolution",
+      "baseUrl",
+      "paths",
+      "rootDirs",
+      "typeRoots",
+      "moduleSuffixes",
+      "resolvePackageJsonExports",
+      "resolvePackageJsonImports",
+      "customConditions",
+      "jsxImportSource",
+      "resolveJsonModule",
+      "noResolve",
+      "forceConsistentCasingInFileNames",
+      "maxNodeModuleJsDepth",
+      "moduleDetection"
+    ],
+    "program_structure": [
+      "lib",
+      "libReplacement",
+      "types",
+      "allowArbitraryExtensions",
+      "noLib",
+      "disableSizeLimit"
+    ]
+  },
+  "rust_source_ownership": {
+    "representations": [
+      {
+        "owner": "PreparedSourceFile.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "path": "crates/program/src/prepared.rs",
+        "line": 92,
+        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+        "evidence": "pub struct PreparedSourceFile {"
+      },
+      {
+        "owner": "InputFile.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "path": "crates/checker/src/lib.rs",
+        "line": 76,
+        "source_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
+        "evidence": "pub struct InputFile {"
+      },
+      {
+        "owner": "SourceFile.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "authority": "parsed-document-single-snapshot-authority",
+        "path": "crates/syntax/src/lib.rs",
+        "line": 111,
+        "source_sha256": "66caef32f161ab1c108be327f0d1e6b91bfbc4984d9c44ea40672d514926f1d7",
+        "evidence": "pub struct SourceFile {"
+      },
+      {
+        "owner": "ConfigSourceText.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "path": "crates/program/src/config.rs",
+        "line": 268,
+        "source_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c",
+        "evidence": "pub struct ConfigSourceText {"
+      },
+      {
+        "owner": "ProgramConfigFile.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "path": "crates/program/src/prepared.rs",
+        "line": 798,
+        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+        "evidence": "pub struct ProgramConfigFile {"
+      },
+      {
+        "owner": "PreparedAuxiliaryFile.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "path": "crates/program/src/prepared.rs",
+        "line": 296,
+        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+        "evidence": "pub struct PreparedAuxiliaryFile {"
+      },
+      {
+        "owner": "PackageMetadata.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "path": "crates/program/src/prepared.rs",
+        "line": 418,
+        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+        "evidence": "pub struct PackageMetadata {"
+      }
+    ],
+    "shared_snapshot_edges": [
+      {
+        "from": "PreparedSourceFile.snapshot",
+        "to": "InputFile.snapshot",
+        "path": "crates/compiler/src/lib.rs",
+        "line": 1508,
+        "source_sha256": "4ad9dc557d89d3cdb3953ea7e6a573c6055b80c154f85b6d5567f9c1fd956125",
+        "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
+      },
+      {
+        "from": "InputFile.snapshot",
+        "to": "SourceFile.snapshot",
+        "branch": "json",
+        "path": "crates/checker/src/lib.rs",
+        "line": 1688,
+        "source_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
+        "evidence": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain("
+      },
+      {
+        "from": "InputFile.snapshot",
+        "to": "SourceFile.snapshot",
+        "branch": "ordinary",
+        "path": "crates/checker/src/lib.rs",
+        "line": 1772,
+        "source_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
+        "evidence": "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain("
+      },
+      {
+        "from": "PreparedSourceFile.snapshot",
+        "to": "module-request SourceFile.snapshot",
+        "path": "crates/program/src/module_requests.rs",
+        "line": 315,
+        "source_sha256": "d307824c1f5b2bb08b23300108a6b04162bdd8c639604c73fc21407116aa1bff",
+        "evidence": "    let parsed = parse_source_file_from_snapshot("
+      },
+      {
+        "from": "ConfigSourceText.snapshot",
+        "to": "ProgramConfigFile.snapshot",
+        "path": "crates/program/src/config.rs",
+        "line": 4955,
+        "source_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c",
+        "evidence": "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()))"
+      },
+      {
+        "from": "package-json ingress snapshot",
+        "to": "JSON SourceFile.snapshot and PackageMetadata.snapshot",
+        "path": "crates/program/src/json.rs",
+        "line": 57,
+        "source_sha256": "276fdb51d175d61fbabb1e84e9aa655158ed73d0fe06b8de314873213422a47f",
+        "evidence": "    let source = parse_json_text_from_snapshot("
+      },
+      {
+        "from": "prepared/config/auxiliary snapshots",
+        "to": "CLI diagnostic snapshot map",
+        "path": "crates/compiler/src/cli.rs",
+        "line": 1114,
+        "source_sha256": "b05a748416462f5852224cb473c3cb6db71b74223efc5b59655ea404b2ac042a",
+        "evidence": "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);"
+      }
+    ],
+    "full_text_copy_edges": [],
+    "zero_copy_counter_contract": {
+      "path": "crates/compiler/tests/integration/program_session_contract.rs",
+      "line": 229,
+      "source_sha256": "b1be18716e19e1d1a9175fb9ac1d058670510e8170e3e077ba654881f2478192",
+      "evidence": "fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {"
+    },
+    "position_index": {
+      "static_h0": {
+        "representation": "private dense byte/UTF-16 tables",
+        "path": "crates/diagnostics/src/text.rs",
+        "line": 55,
+        "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881",
+        "evidence": "struct DensePositionIndex {"
+      },
+      "edited": {
+        "representation": "persistent line tree with subtree byte/UTF-16/line counts",
+        "path": "crates/diagnostics/src/text.rs",
+        "line": 237,
+        "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881",
+        "evidence": "struct PersistentLineTree {"
+      },
+      "accessor_contract": {
+        "path": "crates/diagnostics/src/text.rs",
+        "line": 517,
+        "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881",
+        "evidence": "    pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {"
+      },
+      "versioned_store": {
+        "path": "crates/diagnostics/src/text.rs",
+        "line": 812,
+        "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881",
+        "evidence": "pub struct VersionedTextStore {"
+      }
+    },
+    "identity_ownership": {
+      "domain_allocator": {
+        "policies": [
+          "ephemeral-bump",
+          "reclaiming-interval"
+        ],
+        "spaces": [
+          "node",
+          "node-array",
+          "persistent-symbol",
+          "private-name-serial"
+        ],
+        "path": "crates/types/src/identity.rs",
+        "line": 400,
+        "source_sha256": "bd03e47ba29789155534e9b7e1d630133942b45dc2c34be322b5bfbe081a29d8",
+        "evidence": "pub struct IdentityDomain {"
+      },
+      "lease_lifetime": {
+        "storage": "Arc lease; last-owner Drop releases the exact interval",
+        "path": "crates/types/src/identity.rs",
+        "line": 629,
+        "source_sha256": "bd03e47ba29789155534e9b7e1d630133942b45dc2c34be322b5bfbe081a29d8",
+        "evidence": "pub struct IdentityLease {"
+      },
+      "syntax_owner": {
+        "storage": "NodeArena node/array leases",
+        "path": "crates/syntax/src/arena.rs",
+        "line": 18,
+        "source_sha256": "f0768edda52c5cc2037786b004de52a71a89e5d233475096d374028c2fbeffbf",
+        "evidence": "    node_lease: Option<IdentityLease>,"
+      },
+      "generated_syntax_relocation": {
+        "source": "nodes.schema.json field model",
+        "path": "crates/xtask/src/main.rs",
+        "line": 12688,
+        "source_sha256": "393b2443b6bc1b28fa7d47a1782939a59b20066296df76c3e6b374bc0a9d322c",
+        "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
+      },
+      "bind_owner": {
+        "storage": "BinderWorker publication moves symbol/private-name leases into owned BindData",
+        "path": "crates/binder/src/declare.rs",
+        "line": 69,
+        "source_sha256": "eb5a88b86c2a2553dbb0231f84d3ef4d9702435f5d7fff56c515f9d31f5198d5",
+        "evidence": "    private_name_serial_lease: Option<IdentityLease>,"
+      },
+      "program_snapshot_owner": {
+        "storage": "Arc-owned ParsedDocument/BoundDocument handles ordered by ProgramSnapshot",
+        "path": "crates/checker/src/program.rs",
+        "line": 714,
+        "source_sha256": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653",
+        "evidence": "pub struct ProgramSnapshot {"
+      },
+      "program_owner_intervals": {
+        "contract": "base-sorted non-contiguous and non-overlapping",
+        "path": "crates/checker/src/program.rs",
+        "line": 940,
+        "source_sha256": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653",
+        "evidence": "    symbol_owners: Vec<ArenaOwner>,"
+      },
+      "checker_transient_partition": {
+        "high_bit": 2147483648,
+        "path": "crates/types/src/identity.rs",
+        "line": 15,
+        "source_sha256": "bd03e47ba29789155534e9b7e1d630133942b45dc2c34be322b5bfbe081a29d8",
+        "evidence": "pub const TRANSIENT_SYMBOL_BIT: u32 = 1 << 31;"
+      }
+    },
+    "compiler_options_owner": {
+      "path": "crates/types/src/options.rs",
+      "source_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee",
+      "fields": [
+        "allow_arbitrary_extensions",
+        "allow_importing_ts_extensions",
+        "allow_js",
+        "allow_synthetic_default_imports",
+        "allow_umd_global_access",
+        "allow_unreachable_code",
+        "allow_unused_labels",
+        "always_strict",
+        "assume_changes_only_affect_direct_dependencies",
+        "base_url",
+        "charset",
+        "check_js",
+        "composite",
+        "custom_conditions",
+        "declaration",
+        "declaration_dir",
+        "declaration_map",
+        "downlevel_iteration",
+        "emit_bom",
+        "emit_declaration_only",
+        "emit_decorator_metadata",
+        "erasable_syntax_only",
+        "es_module_interop",
+        "exact_optional_property_types",
+        "experimental_decorators",
+        "force_consistent_casing_in_file_names",
+        "ignore_deprecations",
+        "import_helpers",
+        "imports_not_used_as_values",
+        "incremental",
+        "inline_source_map",
+        "inline_sources",
+        "isolated_declarations",
+        "isolated_modules",
+        "jsx",
+        "jsx_factory",
+        "jsx_fragment_factory",
+        "jsx_import_source",
+        "keyof_strings_only",
+        "lib",
+        "lib_replacement",
+        "list_emitted_files",
+        "map_root",
+        "max_node_module_js_depth",
+        "module",
+        "module_detection",
+        "module_resolution",
+        "module_suffixes",
+        "new_line",
+        "no_check",
+        "no_dts_resolution",
+        "no_emit",
+        "no_emit_helpers",
+        "no_emit_on_error",
+        "no_error_truncation",
+        "no_fallthrough_cases_in_switch",
+        "no_implicit_any",
+        "no_implicit_override",
+        "no_implicit_returns",
+        "no_implicit_this",
+        "no_implicit_use_strict",
+        "no_property_access_from_index_signature",
+        "no_resolve",
+        "no_strict_generic_checks",
+        "no_unchecked_indexed_access",
+        "no_unchecked_side_effect_imports",
+        "no_unused_locals",
+        "no_unused_parameters",
+        "out",
+        "out_dir",
+        "out_file",
+        "preserve_const_enums",
+        "preserve_value_imports",
+        "react_namespace",
+        "remove_comments",
+        "resolve_json_module",
+        "resolve_package_json_exports",
+        "resolve_package_json_imports",
+        "rewrite_relative_import_extensions",
+        "root_dir",
+        "skip_default_lib_check",
+        "skip_lib_check",
+        "source_map",
+        "source_root",
+        "stable_type_ordering",
+        "strict",
+        "strict_bind_call_apply",
+        "strict_builtin_iterator_return",
+        "strict_function_types",
+        "strict_null_checks",
+        "strict_property_initialization",
+        "strip_internal",
+        "suppress_excess_property_errors",
+        "suppress_implicit_any_index_errors",
+        "target",
+        "ts_build_info_file",
+        "use_define_for_class_fields",
+        "use_unknown_in_catch_variables",
+        "verbatim_module_syntax"
+      ]
+    }
+  }
+}

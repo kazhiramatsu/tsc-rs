@@ -1,0 +1,49 @@
+{
+  "scope": "Read-only syntax provenance; exact complete preorder kind/range/parent comparison, not emit qualification",
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "input_sha256": "0a2ddbb52c6a8f6f59b3d8db84f17a6dedf0bcb1f1118cd1eaf3932164bf9b1a",
+  "libraries": {
+    "tsc_program": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-d551a6a48da91fa2.rlib",
+      "sha256": "1eb1eacbe7863979905f9f9f81bd9e8e322bd16a7fff8d8b89c86e4f29812226",
+      "fingerprint": 4425454659278275463
+    },
+    "tsc_syntax": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+      "sha256": "9e9b23d4e1fc2f9076244bdbad0234d6d2a41b5f9e6f69732fd4c209b5abe5d1",
+      "fingerprint": 15546780842092886918
+    },
+    "tsc_types": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_types-0a881027b005f88b.rlib",
+      "sha256": "3d84bcd4a152361fde46ba84d7498bb4ad0758277be64335fd810c238adb7d9b",
+      "fingerprint": 10492488923332748760
+    }
+  },
+  "source_sha256": "11418093fbfdb15bfcc9276be746af9ad7315057ca43c9432a5a160338a8290c",
+  "oracle_sha256": "c28fd09ce9293ee74f2d0d8bd786d985509e7b00ca5fd4e0652b90ae213ff11d",
+  "build_exit": 0,
+  "native_exit": 0,
+  "oracle_exit": 0,
+  "nodes": 25,
+  "full_tree_equal": true,
+  "decorators": [
+    {
+      "kind": 171,
+      "pos": 38,
+      "end": 44,
+      "parent": 244,
+      "name": "Decorator",
+      "parentName": "FirstStatement"
+    },
+    {
+      "kind": 171,
+      "pos": 52,
+      "end": 58,
+      "parent": 244,
+      "name": "Decorator",
+      "parentName": "FirstStatement"
+    }
+  ],
+  "native_sha256": "1e6faf1e5a3937400177903fdb2787149fca002105fa165704d20510b35a294f",
+  "observations_sha256": "eb2893f708ffbc94d2af22e0a0932dcedc0dea453dab7e6504f048394f27b654"
+}

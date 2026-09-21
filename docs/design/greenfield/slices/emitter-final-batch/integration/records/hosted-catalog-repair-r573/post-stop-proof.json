@@ -1,0 +1,14 @@
+{
+  "owned_processes_gone": true,
+  "untracked_inputs_preserved": 88,
+  "tracked_clean": true,
+  "actual_ci_exit": -15,
+  "seconds": 356.871,
+  "completed_phases": [
+    "workspace-audit",
+    "rustfmt",
+    "structural-preflight",
+    "clippy"
+  ],
+  "scope": "Integrator cancellation before catalog correction; never a successful complete gate."
+}

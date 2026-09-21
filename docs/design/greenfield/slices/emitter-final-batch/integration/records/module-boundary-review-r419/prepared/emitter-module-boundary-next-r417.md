@@ -1,0 +1,11 @@
+# Ready repair package (not applied)
+
+Canonical8859338 is frozen until396 all20 stagesfinish and398archivesactualfailure. KnownredbandsM4staleroute,token329onefail,ellipsis434sameonefail. Newdiagnostic12allfailconfirm4moduledeclarationcauses.
+
+Apply files from416 (2product) and414(1observer2testconsumers), plus401M4only afterhashpreconditions. 413wasinitialdraftsuperseded416typedExportfactory. Rerunofficialtokenobserver --write ONLYcanonical thenassertoriginal165casesunchanged andall80newIDs, final245. Snapshotoldfixturebeforemint. cargo fmt--all.
+
+SourceLeading preserves trailingtokenphase via Some(PositionCommentPhase::SourceLeading), no modifier APIchanges. ActualOpus191wrongcollectormechanism/parameterproposal preserved;192explicitlyretractsafterdirectTSprobe415. 192claimreturnoriginaldropsprevious-passchildren isnottrue ofthisvisitor'scurrentnode; typedupdatechosenforexplicitupstreampath, nottoassertfictitiouscurrentbug. Actualsharedparser/checker/mapengineunchanged.
+
+Finalvalidation: emitterall1020, compiler M4all4, token409, ellipsis514, compiler exportname80 anddeclaration/map/export targetedbands, source maprecording/production8, new80 completecommands allmustpass. Selectnew80first tofailfast fromexistingcompiler helperusingtemporaryselectiononlyifrestoreguard; preferoriginalfulltoken409already~400s. Repeatotheraffectedmoduletests asneeded, oncecanonicalfixedrunfresh375original16994+48+108. Preserve396failuresandall405setupfailure.
+
+Then allmandatory tail per397:25pins,fmt/clippy,onechainwalk,v36inventory,finalVpushPR561,actualunsplitCI18+hosted,mergecommitONLY,postmergeDqualification. No finalcompletionclaimbeforetail.

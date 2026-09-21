@@ -1,3 +1,9 @@
+// Share each unchanged scalar fixture observer once per test crate.
+#[path = "../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+
 #[path = "integration/automatic_type_directive_session_contract.rs"]
 mod automatic_type_directive_session_contract;
 #[path = "integration/cli_contract.rs"]
@@ -8,6 +14,8 @@ mod declaration_resolver_replay_decision_equal;
 mod declaration_transformer_replay_decision_equal;
 #[path = "integration/emit_session_contract.rs"]
 mod emit_session_contract;
+#[path = "integration/emitter_residual_audit.rs"]
+mod emitter_residual_audit;
 #[path = "integration/es2015_generators_witness_contract.rs"]
 mod es2015_generators_witness_contract;
 #[path = "integration/filesystem_loader_contract.rs"]
@@ -121,6 +129,9 @@ mod h2_8a_output_roots;
 
 #[path = "integration/h2_8a_output_filesystem.rs"]
 mod h2_8a_output_filesystem;
+
+#[path = "integration/h2_8a_output_matrix.rs"]
+mod h2_8a_output_matrix;
 
 #[path = "integration/h2_7c_declaration_getters.rs"]
 mod h2_7c_declaration_getters;
@@ -294,3 +305,6 @@ mod h2_8b_config_entity_commands;
 
 #[path = "integration/h2_8b_config_diagnostic_routing.rs"]
 mod h2_8b_config_diagnostic_routing;
+
+#[path = "integration/async_arrow_body_ranges.rs"]
+mod async_arrow_body_ranges;

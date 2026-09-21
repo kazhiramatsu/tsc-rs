@@ -1,0 +1,197 @@
+{
+  "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/malformed-hex-escape",
+  "attempt": 1,
+  "actual": {
+    "writes": [],
+    "reported_diagnostics": [
+      {
+        "code": 1125,
+        "category": 1,
+        "file": "/project/main.ts",
+        "start": 28,
+        "length": 0,
+        "message": {
+          "utf16": [
+            72,
+            101,
+            120,
+            97,
+            100,
+            101,
+            99,
+            105,
+            109,
+            97,
+            108,
+            32,
+            100,
+            105,
+            103,
+            105,
+            116,
+            32,
+            101,
+            120,
+            112,
+            101,
+            99,
+            116,
+            101,
+            100,
+            46
+          ],
+          "utf8_base64": "SGV4YWRlY2ltYWwgZGlnaXQgZXhwZWN0ZWQu"
+        },
+        "related_information": null
+      }
+    ],
+    "status_writes": [],
+    "exit_code": 1,
+    "emit_result": {
+      "emit_skipped": true,
+      "diagnostics": [
+        {
+          "code": 1125,
+          "category": 1,
+          "file": "/project/main.ts",
+          "start": 28,
+          "length": 0,
+          "message": {
+            "utf16": [
+              72,
+              101,
+              120,
+              97,
+              100,
+              101,
+              99,
+              105,
+              109,
+              97,
+              108,
+              32,
+              100,
+              105,
+              103,
+              105,
+              116,
+              32,
+              101,
+              120,
+              112,
+              101,
+              99,
+              116,
+              101,
+              100,
+              46
+            ],
+            "utf8_base64": "SGV4YWRlY2ltYWwgZGlnaXQgZXhwZWN0ZWQu"
+          },
+          "related_information": null
+        }
+      ],
+      "emitted_files": null,
+      "source_maps": null
+    }
+  },
+  "error": null,
+  "no_emit_observation": null,
+  "typed_recovery_refusal": false,
+  "native_contract": "exact",
+  "partial_writes": null,
+  "expected": {
+    "writes": [],
+    "reported_diagnostics": [
+      {
+        "code": 1125,
+        "category": 1,
+        "file": "/project/main.ts",
+        "start": 28,
+        "length": 0,
+        "message": {
+          "utf16": [
+            72,
+            101,
+            120,
+            97,
+            100,
+            101,
+            99,
+            105,
+            109,
+            97,
+            108,
+            32,
+            100,
+            105,
+            103,
+            105,
+            116,
+            32,
+            101,
+            120,
+            112,
+            101,
+            99,
+            116,
+            101,
+            100,
+            46
+          ],
+          "utf8_base64": "SGV4YWRlY2ltYWwgZGlnaXQgZXhwZWN0ZWQu"
+        },
+        "related_information": null
+      }
+    ],
+    "status_writes": [],
+    "exit_code": 1,
+    "emit_result": {
+      "emit_skipped": true,
+      "diagnostics": [
+        {
+          "code": 1125,
+          "category": 1,
+          "file": "/project/main.ts",
+          "start": 28,
+          "length": 0,
+          "message": {
+            "utf16": [
+              72,
+              101,
+              120,
+              97,
+              100,
+              101,
+              99,
+              105,
+              109,
+              97,
+              108,
+              32,
+              100,
+              105,
+              103,
+              105,
+              116,
+              32,
+              101,
+              120,
+              112,
+              101,
+              99,
+              116,
+              101,
+              100,
+              46
+            ],
+            "utf8_base64": "SGV4YWRlY2ltYWwgZGlnaXQgZXhwZWN0ZWQu"
+          },
+          "related_information": null
+        }
+      ],
+      "emitted_files": null,
+      "source_maps": null
+    }
+  }
+}

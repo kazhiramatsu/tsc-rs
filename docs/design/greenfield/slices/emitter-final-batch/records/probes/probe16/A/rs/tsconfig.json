@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es5", "module": "esnext", "lib": ["esnext"], "strict": false, "outDir": "out", "newLine": "lf", "ignoreDeprecations": "6.0" }, "files": ["main.ts"] }

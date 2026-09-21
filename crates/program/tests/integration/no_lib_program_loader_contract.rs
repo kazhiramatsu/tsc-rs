@@ -266,11 +266,10 @@ fn assert_resolution_host_error(
 ) {
     assert_eq!(error.kind(), ProgramLoadErrorKind::Resolution);
     assert_eq!(error.operation(), expected_operation);
-    let ProgramLoadError::Resolution {
-        source: ResolutionError::Host(actual),
-        ..
-    } = error
-    else {
+    let ProgramLoadError::Resolution { source, .. } = error else {
+        panic!("expected a nested resolver host failure");
+    };
+    let ResolutionError::Host(actual) = *source else {
         panic!("expected a nested resolver host failure");
     };
     assert_eq!(&actual, expected_host_error);
@@ -1371,7 +1370,7 @@ fn extensionless_roots_preserve_requests_probe_first_group_and_report_ts6231() {
     let ProgramLoadError::Host { source, .. } = error else {
         panic!("extensionless root reads retain typed host failures");
     };
-    assert_eq!(source, read_failure);
+    assert_eq!(*source, read_failure);
 }
 
 #[test]
@@ -3621,7 +3620,7 @@ fn augmentation_only_typescript_target_is_rejected_without_program_membership() 
         unreachable!("kind identifies the resolution variant");
     };
     assert!(matches!(
-        source,
+        *source,
         ResolutionError::Unsupported { ref feature, .. }
             if feature == "resolution-only-source-target"
     ));
@@ -4888,7 +4887,7 @@ fn path_phase_traversal_failure_precedes_module_resolution_failure() {
     let ProgramLoadError::Host { source, .. } = error else {
         unreachable!("kind identifies the host variant");
     };
-    assert_eq!(source, child_read);
+    assert_eq!(*source, child_read);
 }
 
 #[test]
@@ -4916,7 +4915,7 @@ fn earlier_root_read_failure_precedes_later_root_normalization_failure() {
     let ProgramLoadError::Host { source, .. } = error else {
         unreachable!("kind identifies the host variant");
     };
-    assert_eq!(source, first_read);
+    assert_eq!(*source, first_read);
 }
 
 #[test]
@@ -5149,10 +5148,6 @@ fn later_root_promotes_its_own_emit_eligibility_but_not_external_relative_childr
     assert!(!child.may_be_emitted());
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;
 
-#[path = "../support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use super::utf16_scalar_json::observe as scalar_json;

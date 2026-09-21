@@ -1,0 +1,22 @@
+{
+  "name": "build-cli-r11b",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "build",
+    "-p",
+    "tsc-rs-compiler",
+    "--bin",
+    "tsc-rs"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T06:39:16Z",
+  "seconds": 168,
+  "exit": 0,
+  "log_sha256": "91f320007435da702b5f5177882efc70f7b001c9a1ca3c02fb2769227cb5f4eb",
+  "log_bytes": 357
+}

@@ -1,0 +1,15 @@
+{
+  "name": "witness-printer-all-r8",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 33,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "python3 scripts/witness.py printer --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T15:33:11Z",
+  "seconds": 15,
+  "exit": 0,
+  "log_sha256": "16226703c69aa438805f3cf5863a921c349228e6ccd59f5b8fbf9f13ae796daf",
+  "log_bytes": 18423
+}

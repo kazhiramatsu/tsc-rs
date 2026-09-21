@@ -130,14 +130,27 @@ fn current_source_promotions_compare_original_observations_and_pin_their_owner()
     )
     .expect("parse H2.1a qualification");
     let cases = artifact["cases"].as_array().expect("qualification cases");
-    assert_eq!(super::CURRENT_EXACT_SOURCE_PROMOTIONS.len(), 2);
+    assert_eq!(super::CURRENT_EXACT_SOURCE_PROMOTIONS.len(), 8);
+    assert_eq!(
+        super::CURRENT_EXACT_SOURCE_PROMOTIONS
+            .iter()
+            .filter(|promotion| !promotion.expected_extra_activity.is_empty())
+            .count(),
+        1,
+    );
     let mut writes = 0;
     let mut diagnostics = 0;
-    for (case_id, _, required_slice) in super::CURRENT_EXACT_SOURCE_PROMOTIONS {
+    for promotion in super::CURRENT_EXACT_SOURCE_PROMOTIONS {
+        let case_id = promotion.case_id;
+        let required_slice = promotion.required_slice;
         let case = cases
             .iter()
-            .find(|case| case["case_id"] == *case_id)
+            .find(|case| case["case_id"] == case_id)
             .expect("recorded source promotion");
+        assert_eq!(
+            super::current_exact_source_promotion(case).expect("validate exact source promotion"),
+            Some(promotion),
+        );
         let (case_writes, case_diagnostics) = super::execute_observed(
             &workspace,
             case,
@@ -148,7 +161,7 @@ fn current_source_promotions_compare_original_observations_and_pin_their_owner()
         diagnostics += case_diagnostics;
 
         let mut wrong_owner = case.clone();
-        wrong_owner["required_slices"] = serde_json::json!([if *required_slice == "H2.9" {
+        wrong_owner["required_slices"] = serde_json::json!([if required_slice == "H2.9" {
             "H2.8a"
         } else {
             "H2.9"
@@ -158,5 +171,5 @@ fn current_source_promotions_compare_original_observations_and_pin_their_owner()
         wrong_identity["case_fingerprint_sha256"] = serde_json::json!("changed");
         assert!(super::current_exact_source_promotion(&wrong_identity).is_err());
     }
-    assert_eq!((writes, diagnostics), (2, 3));
+    assert_eq!((writes, diagnostics), (9, 21));
 }

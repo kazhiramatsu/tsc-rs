@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "bash",
+    "-n",
+    "/tmp/emitter-hosted-reference-repair-r578/pending-helper-r595/chain-walk.sh"
+  ],
+  "exit": 0,
+  "seconds": 0.005,
+  "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "log_bytes": 0
+}

@@ -1,0 +1,37 @@
+{
+  "files": [
+    {
+      "path": "emitter-r168-corpus-controls.json.gz",
+      "sha256": "4a4bec7b210e1d20caf0c6aa6ed481ddeb0274354c7091e8a50e293bf870efe9",
+      "raw_sha256": "e20a11dac76efcfc040aab70b00942602bcfdb8b14884127a2bdbfd055a99d60"
+    },
+    {
+      "path": "observe-emitter-r168-corpus-controls.mjs.gz",
+      "sha256": "58ce71a90cbe591d87d2cb067c704609371ffbbd9230d2d5298f1e69fc1e73b7",
+      "raw_sha256": "88a05f6863531340566160f5aec73e1c114df0bd6264a35539c8d29f9aac6e27"
+    },
+    {
+      "path": "emitter-r171-corpus-controls.json.gz",
+      "sha256": "a3fe525348fab2453bdbe6f797fcc337f3dac199e667959020d033c107444fbe",
+      "raw_sha256": "1d98602616ca0f984088dc094a13f3cd320f41b8f5b7673e3fda423c6e28fbee"
+    },
+    {
+      "path": "observe-emitter-r171-corpus-controls.mjs.gz",
+      "sha256": "4e2e0ffad36fc4ff913aa0e9c8c935671d7f7080de7a5e59aa0afcb2b7f123d3",
+      "raw_sha256": "c6c56468182ebfa253bba89084339e3d79fa2ad1e4b30b5c6170b1f3ceafa6a3"
+    },
+    {
+      "path": "unicode-ctor-oracle-r192.json",
+      "sha256": "82c4bbd277e282919c70533841015bfac75091159ab926c5436616cbd700de1c"
+    },
+    {
+      "path": "unicode-ctor-oracle-r192.log.gz",
+      "sha256": "bce12ac3a4ceef8bbce8a59eaaea8479c36b48f7a73294b4d204da40ac612b66"
+    }
+  ],
+  "prior_cases_preserved": true,
+  "counts": {
+    "r168": 408,
+    "r171": 280
+  }
+}

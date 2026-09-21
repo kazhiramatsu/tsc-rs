@@ -1,0 +1,18 @@
+{
+  "head": "993f3fed08bac0771d872362f004c833229b9cf4",
+  "cases": 120,
+  "exact": 112,
+  "failed": 8,
+  "failed_observations": 16,
+  "archive_sha256": "def4c288d63c77d151cfa0cc38a4347b72a55139587a32e737d80a6b21144dfd",
+  "failed_cases": [
+    "emitter-r112-post-child-metadata/do-body/no-trailing/retain",
+    "emitter-r112-post-child-metadata/do-body/range/retain",
+    "emitter-r112-post-child-metadata/export-clause/no-trailing/retain",
+    "emitter-r112-post-child-metadata/export-clause/range/retain",
+    "emitter-r112-post-child-metadata/import-clause/no-trailing/retain",
+    "emitter-r112-post-child-metadata/import-clause/range/retain",
+    "emitter-r112-post-child-metadata/specifier-property/no-trailing/retain",
+    "emitter-r112-post-child-metadata/specifier-property/range/retain"
+  ]
+}

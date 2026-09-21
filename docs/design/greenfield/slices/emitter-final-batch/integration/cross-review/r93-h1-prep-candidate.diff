@@ -1,0 +1,387 @@
+diff --git a/.github/ci/contracts/h1-rust-omissions.schema.json b/.github/ci/contracts/h1-rust-omissions.schema.json
+index b25b9a879..c5586fd2f 100644
+--- a/.github/ci/contracts/h1-rust-omissions.schema.json
++++ b/.github/ci/contracts/h1-rust-omissions.schema.json
+@@ -86,7 +86,7 @@
+       ],
+       "properties": {
+         "production_boundary_omissions": { "const": 0 },
+-        "absence_proofs": { "$ref": "#/$defs/positive_integer" },
++        "absence_proofs": { "$ref": "#/$defs/nonnegative_integer" },
+         "option_projection_omissions": { "$ref": "#/$defs/nonnegative_integer" },
+         "explicit_checker_emit_elisions": { "$ref": "#/$defs/positive_integer" },
+         "existing_prerequisites": { "$ref": "#/$defs/positive_integer" }
+@@ -124,7 +124,7 @@
+         },
+         "absence_proofs": {
+           "type": "array",
+-          "minItems": 1,
++          "minItems": 0,
+           "items": { "$ref": "#/$defs/absence_proof" }
+         }
+       }
+diff --git a/crates/emitter/src/builtins.rs b/crates/emitter/src/builtins.rs
+index 7b2f726ed..8fcd37574 100644
+--- a/crates/emitter/src/builtins.rs
++++ b/crates/emitter/src/builtins.rs
+@@ -488,8 +488,8 @@ pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transfo
+ }
+ 
+ /// transformECMAScriptModule with the emit host that decides a file's helpers
+-/// import form (EF7-PRESERVE-CJS-HELPERS); the host-less entry above keeps the
+-/// H1 omission-inventory anchor.
++/// import form (EF7-PRESERVE-CJS-HELPERS). The host-less wrapper above is
++/// retained for callers that do not supply an emit host.
+ pub fn transform_ecmascript_module_with_host<'host>(
+     options: &CompilerOptions,
+     host: Option<&'host dyn EmitHost>,
+diff --git a/crates/oracle/h1-rust-omission-inventory.mjs b/crates/oracle/h1-rust-omission-inventory.mjs
+index 36a47b4b7..9e2ab1044 100644
+--- a/crates/oracle/h1-rust-omission-inventory.mjs
++++ b/crates/oracle/h1-rust-omission-inventory.mjs
+@@ -112,6 +112,25 @@ function source(relative) {
+   return text;
+ }
+ 
++// Accept an injected source reader so a single scan reports every broken
++// reference, including missing files and non-unique needles.
++export function collectAnchorFailures(specs, sourceFor) {
++  const failures = [];
++  const ids = new Set();
++  for (const [id, relative, needle] of specs) {
++    if (ids.has(id)) failures.push(`duplicate anchor identifier ${id}`);
++    ids.add(id);
++    let text;
++    try { text = sourceFor(relative); }
++    catch (error) { failures.push(`cannot read anchor ${id} in ${relative}: ${error.message}`); continue; }
++    const offset = text.indexOf(needle);
++    if (offset < 0) failures.push(`missing anchor ${id} in ${relative}`);
++    else if (text.indexOf(needle, offset + 1) >= 0)
++      failures.push(`anchor ${id} is not unique in ${relative}`);
++  }
++  return failures;
++}
++
+ function anchor(id, relative, needle) {
+   const text = source(relative);
+   const offset = text.indexOf(needle);
+@@ -149,12 +168,12 @@ const anchorSpecs = [
+   [
+     "emitter-artifact-protocol",
+     "crates/emitter/src/artifact.rs",
+-    "pub struct EmitArtifact {\n    path: PathBuf,\n    callback_text: Box<str>,\n    write_byte_order_mark: bool,\n    kind: EmitArtifactKind,\n    source_files: Option<Box<[PathBuf]>>,\n    metadata: Option<EmitWriteMetadata>,\n}",
++    "pub struct EmitArtifact {\n    path: JsString,\n    callback_text: EmitCallbackText,\n    write_byte_order_mark: bool,\n    kind: EmitArtifactKind,\n    source_files: Option<Box<[JsString]>>,\n    metadata: Option<EmitWriteMetadata>,\n}",
+   ],
+   [
+     "emitter-output-plan-shape",
+     "crates/emitter/src/plan.rs",
+-    "pub struct EmitOutputPaths {\n    javascript: Option<PathBuf>,\n    javascript_map: Option<PathBuf>,\n    declaration: Option<PathBuf>,\n    declaration_map: Option<PathBuf>,\n    build_info: Option<PathBuf>,\n}",
++    "pub struct EmitOutputPaths {\n    javascript: Option<JsString>,\n    javascript_map: Option<JsString>,\n    declaration: Option<JsString>,\n    declaration_map: Option<JsString>,\n    build_info: Option<JsString>,\n}",
+   ],
+   [
+     "emitter-output-sink-protocol",
+@@ -169,7 +188,7 @@ const anchorSpecs = [
+   [
+     "emitter-filesystem-protocol",
+     "crates/emitter/src/sink.rs",
+-    "pub trait EmitFileSystem {\n    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String>;",
++    "pub trait EmitFileSystem {\n    fn write_file(&mut self, path: JsStr<'_>, bytes: &[u8]) -> Result<(), JsString>;",
+   ],
+   [
+     "emitter-filesystem-sink",
+@@ -179,7 +198,7 @@ const anchorSpecs = [
+   [
+     "emitter-outcome-protocol",
+     "crates/emitter/src/outcome.rs",
+-    "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[PathBuf]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n    h2_activity: H2ActivityCounters,\n}",
++    "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[JsString]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n    h2_activity: H2ActivityCounters,\n}",
+   ],
+   [
+     "emitter-transform-arena",
+@@ -256,7 +275,7 @@ const anchorSpecs = [
+   [
+     "emitter-transform-ecmascript-module",
+     "crates/emitter/src/builtins.rs",
+-    "pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {",
++    "pub fn transform_ecmascript_module_with_host<'host>(",
+   ],
+   [
+     "emitter-changed-import-printer",
+@@ -296,7 +315,7 @@ const anchorSpecs = [
+   [
+     "program-session-owner",
+     "crates/compiler/src/lib.rs",
+-    "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
++    "pub struct ProgramSession {\n    prepared: PreparedProgram,\n    /// H2.8c research route (see [`EmitRouteKind`]); ordinary sessions keep\n    /// the Program route and every existing option refusal.\n    emit_route: EmitRouteKind,\n    /// API-supplied per-source facts (see [`SourceApiFacts`]); empty for\n    /// ordinary sessions.\n    source_api_facts: BTreeMap<SourceFileId, SourceApiFacts>,\n}",
+   ],
+   [
+     "program-session-run",
+@@ -311,9 +330,7 @@ const anchorSpecs = [
+   [
+     "program-session-memory-emit",
+     "crates/compiler/src/lib.rs",
+-    // h2-6a-m-2: the harness print bridge repeats the bare preflight
+-    // line; the activity-canary prefix pins the production session.
+-    "h2_activity.construct_output_plan();\n        let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
++    "h2_activity.construct_output_plan();\n        let preflight = if forced_declarations {\n            None\n        } else {\n            Some(preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?)\n        };",
+   ],
+   [
+     "emitter-host-protocol",
+@@ -333,7 +350,7 @@ const anchorSpecs = [
+   [
+     "checker-live-emit-callback",
+     "crates/checker/src/lib.rs",
+-    "pub fn check_program_with_authoritative_modules_at_for_emit(",
++    "pub fn check_program_with_authoritative_modules_at_for_emit<'cwd>(",
+   ],
+   [
+     "h1-no-emit-canary",
+@@ -368,7 +385,7 @@ const anchorSpecs = [
+   [
+     "prepared-source-emit-facts",
+     "crates/program/src/prepared.rs",
+-    "may_be_emitted: bool,\n    implied_node_format: Option<ResolutionMode>,\n    implied_node_format_for_emit: Option<ResolutionMode>,",
++    "may_be_emitted: bool,\n    may_emit_forced_declaration: bool,\n    implied_node_format: Option<ResolutionMode>,\n    implied_node_format_for_emit: Option<ResolutionMode>,",
+   ],
+   [
+     "checker-authoritative-emit-facts",
+@@ -453,7 +470,7 @@ const anchorSpecs = [
+   [
+     "config-transient-output-discovery",
+     "crates/program/src/config.rs",
+-    "out_dir: Option<String>,\n    declaration_dir: Option<String>,",
++    "out_dir: Option<JsString>,\n    declaration_dir: Option<JsString>,",
+   ],
+   [
+     "program-snapshot-owner",
+@@ -463,107 +480,7 @@ const anchorSpecs = [
+   [
+     "constructor-capture-this-elided",
+     "crates/checker/src/functions.rs",
+-    "captureLexicalThis is emit-only (no-op)",
+-  ],
+-  [
+-    "async-linked-references-elided",
+-    "crates/checker/src/functions.rs",
+-    "`markLinkedReferences` is emit-only.",
+-  ],
+-  [
+-    "decorator-linked-references-elided",
+-    "crates/checker/src/calls.rs",
+-    "markLinkedReferences is declaration-emit bookkeeping",
+-  ],
+-  [
+-    "import-equals-linked-references-elided",
+-    "crates/checker/src/modules.rs",
+-    "markLinkedReferences'\n    /// declaration-emit traversal remains outside this checker slice",
+-  ],
+-  [
+-    "export-linked-aliases-elided",
+-    "crates/checker/src/modules.rs",
+-    "collectLinkedAliases is live behind the declaration/composite gate;",
+-  ],
+-  [
+-    "property-access-linked-references-elided",
+-    "crates/checker/src/access.rs",
+-    "markLinkedReferences' non-alias bookkeeping",
+-  ],
+-  [
+-    "inaccessible-this-elided",
+-    "crates/checker/src/check.rs",
+-    "inaccessible-this tracking is declaration-emit band",
+-  ],
+-  [
+-    "binding-object-rest-helper-elided",
+-    "crates/checker/src/statements.rs",
+-    "Object-rest emit-helper probe elided",
+-  ],
+-  [
+-    "binding-array-helper-elided",
+-    "crates/checker/src/statements.rs",
+-    "downlevelIteration emit-helper probe is elided",
+-  ],
+-  [
+-    "for-await-helper-elided",
+-    "crates/checker/src/statements.rs",
+-    "ForAwaitOf emit-helper probe — elided",
+-  ],
+-  [
+-    "for-of-helper-elided",
+-    "crates/checker/src/statements.rs",
+-    "downlevelIteration ForOf emit-helper probe — elided",
+-  ],
+-  [
+-    "signature-helper-probes-elided",
+-    "crates/checker/src/functions.rs",
+-    "Emit-helper probes are importHelpers-gated (no-op)",
+-  ],
+-  [
+-    "yield-helper-probes-elided",
+-    "crates/checker/src/functions.rs",
+-    "Grammar closure runs eager (the 5.4 addLazyDiagnostic\n    /// decision), as does the noImplicitAny 7057 closure. Emit-helper\n    /// probes are importHelpers-gated (no-op)",
+-  ],
+-  [
+-    "class-extends-helper-elided",
+-    "crates/checker/src/class.rs",
+-    "Elision: the ES5 Extends emit-helper probe",
+-  ],
+-  [
+-    "private-field-in-helper-elided",
+-    "crates/checker/src/operators.rs",
+-    "ClassPrivateFieldIn emit-helper rows are",
+-  ],
+-  [
+-    "object-rest-helper-elided",
+-    "crates/checker/src/operators.rs",
+-    "ObjectSpreadRest emit-helper row is importHelpers-gated",
+-  ],
+-  [
+-    "destructuring-helper-elided",
+-    "crates/checker/src/operators.rs",
+-    "DestructuringAssignment emit-helper row is",
+-  ],
+-  [
+-    "private-field-set-helper-elided",
+-    "crates/checker/src/operators.rs",
+-    "ClassPrivateFieldSet emit-helper row is importHelpers-gated",
+-  ],
+-  [
+-    "object-assign-helper-inactive",
+-    "crates/checker/src/literals.rs",
+-    "languageVersion ObjectAssign emit-helper gate is dead at",
+-  ],
+-  [
+-    "template-helper-inactive",
+-    "crates/checker/src/calls.rs",
+-    "MakeTemplateObject emit-helper check is dead at ES2025",
+-  ],
+-  [
+-    "export-assignment-linked-aliases-elided",
+-    "crates/checker/src/modules.rs",
+-    "self.collect_linked_aliases(expression, /*set_visibility*/ true)?;",
++    "Constructor captureLexicalThis has no observable consumer in TS 6.0.3:",
+   ],
+   [
+     "standard-class-fields-option-check",
+@@ -582,7 +499,8 @@ const anchorSpecs = [
+   ],
+ ];
+ 
+-const anchors = anchorSpecs.map((spec) => anchor(...spec));
++const referenceFailures = collectAnchorFailures(anchorSpecs, source);
++const anchors = referenceFailures.length ? [] : anchorSpecs.map((spec) => anchor(...spec));
+ const anchorById = new Map(anchors.map((entry) => [entry.id, entry]));
+ requireCondition(anchorById.size === anchors.length, "anchor identifiers are not unique");
+ 
+@@ -626,34 +544,22 @@ function regexMatches(scope, expression) {
+   return matches;
+ }
+ 
+-const absenceSpecs = [
+-  {
+-    id: "linked-reference-producers",
+-    // h2-7a-m-2 landed the checker-native collect_linked_aliases
+-    // foundation (check-phase paint live behind the declaration/
+-    // composite gate; declaration-emit consumption dormant), closing
+-    // that half of this omission. mark_linked_references remains the
+-    // recorded absence until its owning slice ports it.
+-    kind: "regex-zero",
+-    scope: "checker-production",
+-    expression:
+-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+mark_linked_references[ \\t]*\\(",
+-  },
+-];
++// All previously recorded absences now have production implementations.
++const absenceSpecs = [];
+ 
+ const absenceProofs = absenceSpecs.map((spec) => {
+   if (spec.kind === "path-absent") {
+     const exists = fs.existsSync(path.join(WORKSPACE, spec.path));
+-    requireCondition(!exists, `expected omission path now exists: ${spec.path}`);
++    if (exists) referenceFailures.push(`expected omission path now exists: ${spec.path}`);
+     return { ...spec, exists };
+   }
+   const matches = regexMatches(spec.scope, spec.expression);
+-  requireCondition(
+-    matches.length === 0,
+-    `${spec.id} omission closed or collided: ${JSON.stringify(matches)}`,
+-  );
++  if (matches.length !== 0)
++    referenceFailures.push(`${spec.id} omission closed or collided: ${JSON.stringify(matches)}`);
+   return { ...spec, match_count: matches.length, matches };
+ });
++requireCondition(referenceFailures.length === 0,
++  `H1 omission references failed:\n${referenceFailures.join("\n")}`);
+ const absenceById = new Map(absenceProofs.map((proof) => [proof.id, proof]));
+ 
+ function evidence(anchorIds = [], absenceIds = []) {
+@@ -734,27 +640,7 @@ for (const [option, rustField] of optionSpecs) {
+ const optionProjectionOmissions = [];
+ 
+ const checkerElisionSpecs = [
+-  ["constructor-capture-lexical-this", "constructor-capture-this-elided", "adjacent-class-field", "profile-control"],
+-  ["async-mark-linked-references", "async-linked-references-elided", "dormant-declaration", "typed-deferred"],
+-  ["decorator-mark-linked-references", "decorator-linked-references-elided", "dormant-declaration/decorator", "typed-deferred"],
+-  ["import-equals-mark-linked-references", "import-equals-linked-references-elided", "adjacent-import-equals", "profile-control"],
+-  ["export-collect-linked-aliases", "export-linked-aliases-elided", "dormant-declaration", "typed-deferred"],
+-  ["property-access-mark-linked-references", "property-access-linked-references-elided", "dormant-declaration-non-alias-bookkeeping", "typed-deferred"],
+-  ["inaccessible-this-tracking", "inaccessible-this-elided", "dormant-declaration", "typed-deferred"],
+-  ["binding-object-rest-helper", "binding-object-rest-helper-elided", "adjacent-helper", "profile-control"],
+-  ["binding-array-downlevel-helper", "binding-array-helper-elided", "adjacent-helper", "profile-control"],
+-  ["for-await-helper", "for-await-helper-elided", "adjacent-helper", "profile-control"],
+-  ["for-of-downlevel-helper", "for-of-helper-elided", "adjacent-helper", "profile-control"],
+-  ["signature-helper-probes", "signature-helper-probes-elided", "adjacent-helper", "profile-control"],
+-  ["yield-helper-probes", "yield-helper-probes-elided", "adjacent-helper", "profile-control"],
+-  ["class-extends-helper", "class-extends-helper-elided", "adjacent-helper", "profile-control"],
+-  ["class-private-field-in-helper", "private-field-in-helper-elided", "adjacent-helper", "profile-control"],
+-  ["object-rest-helper", "object-rest-helper-elided", "adjacent-helper", "profile-control"],
+-  ["destructuring-helper", "destructuring-helper-elided", "adjacent-helper", "profile-control"],
+-  ["class-private-field-set-helper", "private-field-set-helper-elided", "adjacent-helper", "profile-control"],
+-  ["object-assign-helper", "object-assign-helper-inactive", "inactive-at-ESNext", "generated-canary"],
+-  ["template-object-helper", "template-helper-inactive", "inactive-at-ESNext", "generated-canary"],
+-  ["export-assignment-collect-linked-aliases", "export-assignment-linked-aliases-elided", "dormant-declaration", "typed-deferred"],
++  ["constructor-capture-lexical-this", "constructor-capture-this-elided", "unobservable-in-typescript-6.0.3", "revisit-if-potentialThisCollisions-acquires-a-producer"],
+ ];
+ 
+ const checkerEmitElisions = checkerElisionSpecs.map(
+@@ -1034,20 +920,24 @@ requireCondition(
+ 
+ const rendered = `${JSON.stringify(artifact, null, 2)}\n`;
+ const mode = process.argv[2];
+-if (mode === "--write") {
+-  fs.writeFileSync(TARGET_PATH, rendered);
+-  process.stdout.write(`wrote ${TARGET_RELATIVE_PATH}\n`);
+-} else if (mode === "--check") {
+-  requireCondition(fs.existsSync(TARGET_PATH), `missing ${TARGET_RELATIVE_PATH}`);
+-  requireCondition(
+-    fs.readFileSync(TARGET_PATH, "utf8") === rendered,
+-    `stale ${TARGET_RELATIVE_PATH}; run with --write and review`,
+-  );
+-  process.stdout.write(
+-    `H1 Rust omission inventory is fresh: boundaries=${boundaryOmissions.length} options=${optionProjectionOmissions.length} checker_elisions=${checkerEmitElisions.length}\n`,
+-  );
+-} else if (mode === undefined) {
+-  process.stdout.write(rendered);
+-} else {
+-  throw new Error("usage: h1-rust-omission-inventory.mjs [--write|--check]");
++if (process.argv[1] && path.resolve(process.argv[1]) === GENERATOR_PATH) {
++  if (mode === "--write") {
++    fs.writeFileSync(TARGET_PATH, rendered);
++    process.stdout.write(`wrote ${TARGET_RELATIVE_PATH}\n`);
++  } else if (mode === "--check") {
++    requireCondition(fs.existsSync(TARGET_PATH), `missing ${TARGET_RELATIVE_PATH}`);
++    requireCondition(
++      fs.readFileSync(TARGET_PATH, "utf8") === rendered,
++      `stale ${TARGET_RELATIVE_PATH}; run with --write and review`,
++    );
++    process.stdout.write(
++      `H1 Rust omission inventory is fresh: boundaries=${boundaryOmissions.length} options=${optionProjectionOmissions.length} checker_elisions=${checkerEmitElisions.length}\n`,
++    );
++  } else if (mode === "--check-anchors") {
++    process.stdout.write(`H1 omission references valid: anchors=${anchors.length} absences=${absenceProofs.length} checker_elisions=${checkerEmitElisions.length}; artifact freshness NOT asserted\n`);
++  } else if (mode === undefined) {
++    process.stdout.write(rendered);
++  } else {
++    throw new Error("usage: h1-rust-omission-inventory.mjs [--write|--check|--check-anchors]");
++  }
+ }

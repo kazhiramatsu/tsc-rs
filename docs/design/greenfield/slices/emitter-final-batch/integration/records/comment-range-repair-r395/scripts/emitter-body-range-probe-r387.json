@@ -1,0 +1,89 @@
+{
+  "scope": "Pinned TypeScript transpileModule twice; JS diagnostic probe only, not a complete-command proof.",
+  "rows": [
+    {
+      "semi": "",
+      "alwaysStrict": false,
+      "removeComments": false,
+      "source": "const Home = {};\nexport default Home\n// trailing export comment\n",
+      "output": "System.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var Home;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {\n            Home = {};\n            exports_1(\"default\", Home);\n            // trailing export comment\n        }\n    };\n});\n",
+      "diagnostics": [
+        5107,
+        5107
+      ]
+    },
+    {
+      "semi": "",
+      "alwaysStrict": false,
+      "removeComments": true,
+      "source": "const Home = {};\nexport default Home\n// trailing export comment\n",
+      "output": "System.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var Home;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {\n            Home = {};\n            exports_1(\"default\", Home);\n        }\n    };\n});\n",
+      "diagnostics": [
+        5107,
+        5107
+      ]
+    },
+    {
+      "semi": "",
+      "alwaysStrict": true,
+      "removeComments": false,
+      "source": "const Home = {};\nexport default Home\n// trailing export comment\n",
+      "output": "System.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var Home;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {\n            Home = {};\n            exports_1(\"default\", Home);\n        }\n    };\n});\n",
+      "diagnostics": [
+        5107
+      ]
+    },
+    {
+      "semi": "",
+      "alwaysStrict": true,
+      "removeComments": true,
+      "source": "const Home = {};\nexport default Home\n// trailing export comment\n",
+      "output": "System.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var Home;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {\n            Home = {};\n            exports_1(\"default\", Home);\n        }\n    };\n});\n",
+      "diagnostics": [
+        5107
+      ]
+    },
+    {
+      "semi": ";",
+      "alwaysStrict": false,
+      "removeComments": false,
+      "source": "const Home = {};\nexport default Home;\n// trailing export comment\n",
+      "output": "System.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var Home;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {\n            Home = {};\n            exports_1(\"default\", Home);\n            // trailing export comment\n        }\n    };\n});\n",
+      "diagnostics": [
+        5107,
+        5107
+      ]
+    },
+    {
+      "semi": ";",
+      "alwaysStrict": false,
+      "removeComments": true,
+      "source": "const Home = {};\nexport default Home;\n// trailing export comment\n",
+      "output": "System.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var Home;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {\n            Home = {};\n            exports_1(\"default\", Home);\n        }\n    };\n});\n",
+      "diagnostics": [
+        5107,
+        5107
+      ]
+    },
+    {
+      "semi": ";",
+      "alwaysStrict": true,
+      "removeComments": false,
+      "source": "const Home = {};\nexport default Home;\n// trailing export comment\n",
+      "output": "System.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var Home;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {\n            Home = {};\n            exports_1(\"default\", Home);\n        }\n    };\n});\n",
+      "diagnostics": [
+        5107
+      ]
+    },
+    {
+      "semi": ";",
+      "alwaysStrict": true,
+      "removeComments": true,
+      "source": "const Home = {};\nexport default Home;\n// trailing export comment\n",
+      "output": "System.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var Home;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {\n            Home = {};\n            exports_1(\"default\", Home);\n        }\n    };\n});\n",
+      "diagnostics": [
+        5107
+      ]
+    }
+  ]
+}

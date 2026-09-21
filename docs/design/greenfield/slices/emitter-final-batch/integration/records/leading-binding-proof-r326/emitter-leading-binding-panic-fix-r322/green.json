@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-syntax",
+    "--lib",
+    "--config",
+    "profile.dev.package.tsc-rs-syntax.opt-level=0",
+    "--config",
+    "profile.dev.package.tsc-rs-types.opt-level=0",
+    "--config",
+    "profile.dev.package.tsc-rs-diagnostics.opt-level=0",
+    "--",
+    "--test-threads=1"
+  ],
+  "exit": 0,
+  "seconds": 3.3152671249117702,
+  "log_sha256": "a41244c93b3d333c421b7a69a7de05d0c3a69a71d8eb775d8c2f09be47e6b5f2"
+}

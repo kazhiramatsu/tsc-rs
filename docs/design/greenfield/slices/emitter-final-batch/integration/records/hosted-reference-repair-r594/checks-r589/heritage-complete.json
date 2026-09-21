@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "contracts",
+    "emitter_residual_audit::heritage_factory_boundaries_match_complete_typescript_commands",
+    "--",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T20:33:01.941855+00:00",
+  "seconds": 102.665,
+  "exit": 0,
+  "log_sha256": "f2eae48e151f0a762767027daa3fdb572c09e3732bc6c108668f4175c5af36ea",
+  "log_bytes": 16061
+}

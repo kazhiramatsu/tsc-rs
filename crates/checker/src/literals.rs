@@ -925,8 +925,8 @@ impl<'a> CheckerState<'a> {
     /// Elided/dead arms: checkGrammarObjectLiteralExpression (89637)
     /// is live through the M7 8.1b owner slice, with only its
     /// private-name and suggestion rows split to 8.1f/8.4; the
-    /// languageVersion ObjectAssign emit-helper gate is dead at
-    /// ES2025; the Inferential intra-expression site is a live named
+    /// languageVersion ObjectAssign emit-helper gate is live; the
+    /// Inferential intra-expression site is a live named
     /// escape (Inferential producible since M6 7.1; site recording is
     /// 7.4 wiring). The result is FRESH per call — no node-links
     /// caching, matching tsc.
@@ -1252,8 +1252,12 @@ impl<'a> CheckerState<'a> {
                     self.add_intra_expression_inference_site(inference_context, inference_node, ty);
                 }
             } else if kind == SyntaxKind::SpreadAssignment {
-                // languageVersion < ObjectAssign:
-                // checkExternalEmitHelpers — dead at ES2025.
+                if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
+                    self.check_external_emit_helpers(
+                        member_decl,
+                        crate::modules::EMIT_HELPER_ASSIGN,
+                    )?;
+                }
                 if !acc.properties_array.is_empty() {
                     let segment = self.create_object_literal_segment(node, acc)?;
                     let raw_symbol = self.node_symbol(node);

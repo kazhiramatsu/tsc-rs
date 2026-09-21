@@ -1,0 +1,42 @@
+{
+  "source_head": "b79ceaef0a19fd45a48cb23a3637ed30616bbf93",
+  "files": [
+    {
+      "path": "emitter-integration-merge-r217.json",
+      "sha256": "df459551cf3a3b8be7fe0f181cc8642f7fc26e9c9605668d9127e04c496b3412",
+      "bytes": 1059,
+      "raw_sha256": "df459551cf3a3b8be7fe0f181cc8642f7fc26e9c9605668d9127e04c496b3412"
+    },
+    {
+      "path": "emitter-integration-merge-r217.log.gz",
+      "sha256": "ac8729cb63008ccc96974a60ac71aafa355e4a0e7e58ee9414b4d08dd06aef0a",
+      "bytes": 34237,
+      "raw_sha256": "286bf681530942db95a33f88a9ebf6d73482aff41eb22435bb0063c3f2aa6f98"
+    },
+    {
+      "path": "integrated-selector-r218.json",
+      "sha256": "768bb11cbc1a49a0d584984b3c1873c07e7de5e0b603c3362acd3cf1d745d977",
+      "bytes": 685,
+      "raw_sha256": "768bb11cbc1a49a0d584984b3c1873c07e7de5e0b603c3362acd3cf1d745d977"
+    },
+    {
+      "path": "integrated-selector-r218.log.gz",
+      "sha256": "8d9428a63e739ef5b72eae8e952ccdde736201f851c99b26c0f9f3412208aafc",
+      "bytes": 55,
+      "raw_sha256": "8d9428a63e739ef5b72eae8e952ccdde736201f851c99b26c0f9f3412208aafc"
+    },
+    {
+      "path": "integrated-h1-anchors-r219.json",
+      "sha256": "c4f8f5a616de9ca3602e61bedaefe567474b95e97db4a076e51b603979974f8e",
+      "bytes": 706,
+      "raw_sha256": "c4f8f5a616de9ca3602e61bedaefe567474b95e97db4a076e51b603979974f8e"
+    },
+    {
+      "path": "integrated-h1-anchors-r219.log.gz",
+      "sha256": "c44e972a7865e540c034a4354ff149a0cfbd88991906436d3864851bd7f9cbfc",
+      "bytes": 110,
+      "raw_sha256": "c44e972a7865e540c034a4354ff149a0cfbd88991906436d3864851bd7f9cbfc"
+    }
+  ],
+  "scope": "Runtime byte equality against r211 candidate, proof-script selector23 and H1anchors68. Does not qualify the stale generated H1 inventory or the final full gate."
+}

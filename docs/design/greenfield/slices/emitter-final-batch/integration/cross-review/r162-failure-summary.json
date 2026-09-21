@@ -1,0 +1,75 @@
+[
+  {
+    "case_id": "typescript-6.0.3/compiler/dottedModuleName.ts#default",
+    "disposition": "complete-command-mismatch; emit-not-qualified",
+    "differing_fields": [
+      "writes"
+    ],
+    "write_diffs": [
+      {
+        "path": "/.src/dottedModuleName.js",
+        "diff": "--- TypeScript\n+++ native\n@@ -3,6 +3,8 @@\n (function (M) {\r\n     let N;\r\n     (function (N) {\r\n+        function f(x) { }\r\n+        N.f = f;\r\n         2 * x;\r\n         let X;\r\n         (function (X) {\r\n"
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/compiler/fatarrowfunctionsOptionalArgs.ts#default",
+    "disposition": "complete-command-mismatch; emit-not-qualified",
+    "differing_fields": [
+      "writes"
+    ],
+    "write_diffs": [
+      {
+        "path": "/.src/fatarrowfunctionsOptionalArgs.js",
+        "diff": "--- TypeScript\n+++ native\n@@ -4,6 +4,7 @@\n () => 1;\r\n // one param, no type\r\n (arg) => 2;\r\n+// one param, no type\r\n // one param, no type\r\n arg => 2;\r\n // one param, no type with default value\r\n"
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/decorators/invalid/decoratorOnUsing.ts#default",
+    "disposition": "complete-command-mismatch; emit-not-qualified",
+    "differing_fields": [
+      "writes"
+    ],
+    "write_diffs": [
+      {
+        "path": "/.src/decoratorOnUsing.js",
+        "diff": "--- TypeScript\n+++ native\n@@ -1,4 +1,6 @@\n \"use strict\";\r\n+@dec\r\n using ;\r\n 1;\r\n+@dec\r\n using x;\r\n"
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/scanner/ecmascript5/scannerUnicodeEscapeInKeyword2.ts#default",
+    "disposition": "production-refusal; emit-not-qualified",
+    "native": {
+      "production_error": "emit recovery for 3 parse diagnostics (3 recovery events) is deferred to H2.9",
+      "partial_writes": []
+    }
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/parser/ecmascript5/ErrorRecovery/parserErrantEqualsGreaterThanAfterFunction2.ts#default",
+    "disposition": "complete-command-mismatch; emit-not-qualified",
+    "differing_fields": [
+      "writes"
+    ],
+    "write_diffs": [
+      {
+        "path": "/.src/parserErrantEqualsGreaterThanAfterFunction2.js",
+        "diff": "--- TypeScript\n+++ native\n@@ -1,2 +1,3 @@\n \"use strict\";\r\n+function f(p) { }\r\n p;\r\n"
+      }
+    ]
+  },
+  {
+    "case_id": "typescript-6.0.3/conformance/parser/ecmascript5/RealWorld/parserharness.ts#default",
+    "disposition": "complete-command-mismatch; emit-not-qualified",
+    "differing_fields": [
+      "writes"
+    ],
+    "write_diffs": [
+      {
+        "path": "/.src/parserharness.js",
+        "diff": "--- TypeScript\n+++ native\n@@ -13,10 +13,6 @@\n // See the License for the specific language governing permissions and\r\n // limitations under the License.\r\n //\r\n-///<reference path='..\\compiler\\io.ts'/>\r\n-///<reference path='..\\compiler\\typescript.ts'/>\r\n-///<reference path='..\\services\\typescriptServices.ts' />\r\n-///<reference path='diff.ts'/>\r\n function switchToForwardSlashes(path) {\r\n     return path.replace(/\\\\/g, \"/\");\r\n }\r\n@@ -1070,7 +1066,7 @@\n         Compiler.compileFile = compileFile;\r\n         function compileUnit(code, filename, callback, settingsCallback, context, references) {\r\n             // not recursive\r\n-            function clone /* <T> */(source, target) {\r\n+            function clone(source, target) {\r\n                 for (var prop in source) {\r\n                     target[prop] = source[prop];\r\n                 }\r\n"
+      }
+    ]
+  }
+]

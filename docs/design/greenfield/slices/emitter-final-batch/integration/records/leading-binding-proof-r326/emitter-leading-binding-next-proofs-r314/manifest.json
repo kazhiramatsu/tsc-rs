@@ -1,0 +1,19 @@
+{
+  "head": "2df8d1cd0bae5a26efd1d4268bab4cc7cfd9cc12",
+  "status": "original16994 input replay on committed2df",
+  "steps": [
+    {
+      "label": "original16994",
+      "argv": [
+        "python3",
+        "/tmp/emitter-leading-binding-proof-r299/replay.py",
+        "--out",
+        "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-successor-r314"
+      ],
+      "exit": 1,
+      "seconds": 98.69629879202694,
+      "log_sha256": "4fd39fe28255c786aed8cd35be0d5d8fb343e33a3e09679722e4784663c8a8ba"
+    }
+  ],
+  "qualified": false
+}

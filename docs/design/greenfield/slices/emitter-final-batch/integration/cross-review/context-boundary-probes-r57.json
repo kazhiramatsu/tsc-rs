@@ -1,0 +1,351 @@
+{
+  "kind": "supplemental-typescript-syntax-boundary-observations",
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "cases": [
+    {
+      "text": "export {}; @await<T> class C {}",
+      "diagnostics": [
+        {
+          "code": 1146,
+          "start": 17,
+          "length": 0,
+          "message": "Declaration expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "flags": 0
+        },
+        {
+          "kind": "MissingDeclaration",
+          "pos": 10,
+          "end": 17,
+          "flags": 262144
+        },
+        {
+          "kind": "ExpressionStatement",
+          "pos": 17,
+          "end": 31,
+          "flags": 0
+        }
+      ],
+      "decorators": [
+        [
+          {
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 17
+          }
+        ]
+      ]
+    },
+    {
+      "text": "async function f() { @await<T> class C {} }",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 22,
+          "length": 5,
+          "message": "Expression expected."
+        },
+        {
+          "code": 1146,
+          "start": 27,
+          "length": 0,
+          "message": "Declaration expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "FunctionDeclaration",
+          "pos": 0,
+          "end": 43,
+          "flags": 0
+        }
+      ],
+      "decorators": [
+        [
+          {
+            "kind": "Identifier",
+            "pos": 22,
+            "end": 22
+          }
+        ]
+      ]
+    },
+    {
+      "text": "export {}; @await<T>() class C {}",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 12,
+          "length": 5,
+          "message": "Expression expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "flags": 0
+        },
+        {
+          "kind": "ClassDeclaration",
+          "pos": 10,
+          "end": 33,
+          "flags": 65536
+        }
+      ],
+      "decorators": [
+        [
+          {
+            "kind": "CallExpression",
+            "pos": 12,
+            "end": 22
+          },
+          {
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 12
+          }
+        ]
+      ]
+    },
+    {
+      "text": "export {}; @await<T>`x` class C {}",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 12,
+          "length": 5,
+          "message": "Expression expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "flags": 0
+        },
+        {
+          "kind": "ClassDeclaration",
+          "pos": 10,
+          "end": 34,
+          "flags": 65536
+        }
+      ],
+      "decorators": [
+        [
+          {
+            "kind": "TaggedTemplateExpression",
+            "pos": 12,
+            "end": 23
+          },
+          {
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 12
+          }
+        ]
+      ]
+    },
+    {
+      "text": "export {}; @await! class C {}",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 12,
+          "length": 5,
+          "message": "Expression expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "flags": 0
+        },
+        {
+          "kind": "ClassDeclaration",
+          "pos": 10,
+          "end": 29,
+          "flags": 65536
+        }
+      ],
+      "decorators": [
+        [
+          {
+            "kind": "NonNullExpression",
+            "pos": 12,
+            "end": 18
+          },
+          {
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 12
+          }
+        ]
+      ]
+    },
+    {
+      "text": "export {}; @await?.[x] class C {}",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 12,
+          "length": 5,
+          "message": "Expression expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "flags": 0
+        },
+        {
+          "kind": "ClassDeclaration",
+          "pos": 10,
+          "end": 33,
+          "flags": 65536
+        }
+      ],
+      "decorators": [
+        [
+          {
+            "kind": "ElementAccessExpression",
+            "pos": 12,
+            "end": 22
+          },
+          {
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 12
+          }
+        ]
+      ]
+    },
+    {
+      "text": "export {}; interface I extends await<string> {}",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "flags": 0
+        },
+        {
+          "kind": "InterfaceDeclaration",
+          "pos": 10,
+          "end": 47,
+          "flags": 0
+        }
+      ],
+      "decorators": []
+    },
+    {
+      "text": "export {}; let a = await /1; b; c; x/;",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 37,
+          "length": 1,
+          "message": "Expression expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "flags": 0
+        },
+        {
+          "kind": "FirstStatement",
+          "pos": 10,
+          "end": 38,
+          "flags": 65536
+        },
+        {
+          "kind": "ExpressionStatement",
+          "pos": 31,
+          "end": 34,
+          "flags": 0
+        },
+        {
+          "kind": "ExpressionStatement",
+          "pos": 34,
+          "end": 38,
+          "flags": 0
+        }
+      ],
+      "decorators": []
+    },
+    {
+      "text": "export {}; let a = await /1; b; c; x/; await (1,);",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 48,
+          "length": 1,
+          "message": "Expression expected."
+        },
+        {
+          "code": 1109,
+          "start": 37,
+          "length": 1,
+          "message": "Expression expected."
+        },
+        {
+          "code": 1109,
+          "start": 48,
+          "length": 1,
+          "message": "Expression expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "flags": 0
+        },
+        {
+          "kind": "FirstStatement",
+          "pos": 10,
+          "end": 38,
+          "flags": 65536
+        },
+        {
+          "kind": "ExpressionStatement",
+          "pos": 38,
+          "end": 50,
+          "flags": 65536
+        },
+        {
+          "kind": "ExpressionStatement",
+          "pos": 34,
+          "end": 38,
+          "flags": 0
+        },
+        {
+          "kind": "ExpressionStatement",
+          "pos": 38,
+          "end": 50,
+          "flags": 65536
+        }
+      ],
+      "decorators": []
+    }
+  ]
+}

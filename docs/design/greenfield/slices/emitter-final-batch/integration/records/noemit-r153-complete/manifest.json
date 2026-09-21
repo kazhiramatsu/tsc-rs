@@ -1,0 +1,66 @@
+{
+  "source_head": "42f9ccefc",
+  "qualification": "two original noEmit whole commands exact twice; not emit-loader success",
+  "files": [
+    {
+      "path": "manifest.json",
+      "sha256": "f576fb607d505513e254bc8001dc0db539fb26ed0d635e32ecdbf3e5ce112256",
+      "bytes": 280
+    },
+    {
+      "path": "capture-36b78743cc959a1f04b1c5fe8ce1dad5d52d7c4f9c72fa05d7b2cd4873647ce2-0.json",
+      "sha256": "1150e900af926dd60b4dc959b7a773cab06f5c2037568058260e06ba01e3fd7f",
+      "bytes": 4518
+    },
+    {
+      "path": "capture-36b78743cc959a1f04b1c5fe8ce1dad5d52d7c4f9c72fa05d7b2cd4873647ce2-1.json",
+      "sha256": "09a12011c005e82b424bdb34f2985fff3412fa0f18c1426ec5d40b9421fc0b8f",
+      "bytes": 4518
+    },
+    {
+      "path": "capture-4a58f3465b4a32d7f7a4f0783a9dc9c06497ac8f008e1c8ba4574ed9ea239371-0.json",
+      "sha256": "7d33f140dd94b185d7f54d18823b2d6ccbdc86861f2346887a2a3dc00e4735d5",
+      "bytes": 7541
+    },
+    {
+      "path": "capture-4a58f3465b4a32d7f7a4f0783a9dc9c06497ac8f008e1c8ba4574ed9ea239371-1.json",
+      "sha256": "7aaa8718e9e24bfc7bcbeef021caec54a9a0e0cca030ea3e45a811cf003222c6",
+      "bytes": 7541
+    },
+    {
+      "path": "emitter-noemit-r153.py",
+      "sha256": "cb529c3f47f39b6544b818250c3bb5f3c419d315036a1905ae9fd6b56d358eb8",
+      "bytes": 1782
+    },
+    {
+      "path": "noemit-build-r153.json",
+      "sha256": "23c280a6d2fc9c4f096f7124369bc104ced7fe3ec87814fa6b8b12764564cf22",
+      "bytes": 783
+    },
+    {
+      "path": "noemit-build-r153.log.gz",
+      "sha256": "b313b7efc66c2a1087b7111ecec000fb546cca929af5ad12eceb894210212256",
+      "bytes": 3962
+    },
+    {
+      "path": "noemit-native-r153.json",
+      "sha256": "548bef9a5b429a61368ed21f5a938235a1e5616dbd66be477071a67b0de37ee5",
+      "bytes": 958
+    },
+    {
+      "path": "noemit-native-r153.log.gz",
+      "sha256": "89d6b26863660c3fe8419fe205869b1d631e2ac079b9c5f1a8239d3af27609c2",
+      "bytes": 267
+    },
+    {
+      "path": "noemit-pipeline-r153.json",
+      "sha256": "3f4a71d76fb52810e8d422ae8d059b729c495d036c13b468ed5edb158862b9a4",
+      "bytes": 672
+    },
+    {
+      "path": "noemit-pipeline-r153.log.gz",
+      "sha256": "3465cb60740bdb3e9c09a13b887b038c2c9726afdf8220c9533b23ebd25eb881",
+      "bytes": 1225
+    }
+  ]
+}

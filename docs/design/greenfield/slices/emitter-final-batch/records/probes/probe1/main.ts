@@ -1,0 +1,12 @@
+declare const a: { b: { c: number }, d: () => void, e: number[] };
+a.b /* t1 */;
+a.b.c /* t2 */;
+a.b /* m3 */.c /* t3 */;
+a.d /* t4 */();
+a.d /* t5 */ ();
+[a.b /* t6 */];
+f(a.b /* t7 */);
+a.e[0] /* t8 */;
+a.b /* t9 */ + 1;
+let x = a.b /* t10 */;
+declare function f(v: unknown): void;

@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "docs/design/greenfield/slices/emitter-final-batch/integration/audit-oracles.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T16:52:25.000318+00:00",
+  "head": "91e3b214b2eb6deb20e576abea57b538c918a48a",
+  "tracked_clean": false,
+  "diff_sha256": "f9bd8d4e16dddf630f5577e09db22a6847f48d1ee3206e0417771f548f58b48b",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 326.062,
+  "log_sha256": "5977a7502186a74ee1e4118b3e5210ff73b4a663f86050f4a0c217eaac1b3920",
+  "log_bytes": 2705
+}

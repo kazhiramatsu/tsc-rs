@@ -50,7 +50,7 @@ const NODE_VERSION_PATH = ".node-version";
 const SOURCE_COMMIT = "050880ce59e30b356b686bd3144efe24f875ebc8";
 const H2_5F_MERGE_COMMIT = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 const H2_5F_PROFILE_SHA256 =
-  "675aac05fc53c88758a1a92b76f7eb386f6660ca6a7b07e317aa5c8580db8ec4";
+  "cd751cd7e5e28186dd60d0654eeec3b87607358bf0715a910afae8fef9efb684";
 const EXPANDED_RUN_LAYOUT_GENERATOR_SHA256 =
   "5255ec1656d1cbbf812736054e297828fd3ff51f7a8159068afcb87bedfaf453";
 const COMPACT_RUN_LAYOUT_GENERATOR_SHA256 =
@@ -1237,6 +1237,26 @@ function reusableStoredCases(
   return new Map(stored.cases.map((entry) => [entry.case_id, entry]));
 }
 
+function storedLibraryDiagnosticPathsReusable(observation, fixturePaths) {
+  if (!Array.isArray(observation?.reported_diagnostics) ||
+      !Array.isArray(observation?.emit_result?.diagnostics)) return false;
+  // gate-tax 3 deliberately records the raw default-library filename. A
+  // canonical-workspace move must invalidate write-side reuse of those cases;
+  // otherwise --write preserves the old path and --check can never converge.
+  // Fixture/config paths are fresh, validated inputs and remain literal.
+  const libraryMarker = `/${TYPESCRIPT_LIB_DIRECTORY}/`;
+  const libraryRoot = `${ts.normalizePath(path.dirname(ts.getDefaultLibFilePath({})))}/`;
+  return [
+    ...observation.reported_diagnostics,
+    ...observation.emit_result.diagnostics,
+  ].every(({ file }) =>
+    typeof file !== "string" ||
+    !file.includes(libraryMarker) ||
+    fixturePaths.has(file) ||
+    file.startsWith(libraryRoot),
+  );
+}
+
 function storedCaseReusable(stored, suite, row, loaded, settings, selection) {
   if (
     stored.suite !== suite ||
@@ -1286,7 +1306,7 @@ function storedCaseReusable(stored, suite, row, loaded, settings, selection) {
   ) {
     return false;
   }
-  return selection.vfs_write_order.every((id, index) => {
+  const filesMatch = selection.vfs_write_order.every((id, index) => {
     const unit = loaded.units[id];
     const record = stored.input.files[index];
     return (
@@ -1295,6 +1315,14 @@ function storedCaseReusable(stored, suite, row, loaded, settings, selection) {
       record.utf8_sha256 === sha256(Buffer.from(unit.text, "utf8"))
     );
   });
+  if (!filesMatch) return false;
+  const fixturePaths = new Set([
+    ...selection.vfs_write_order.map((id) =>
+      ts.getNormalizedAbsolutePath(loaded.units[id].name, cwd)),
+    ...vfsSymlinks.map((link) => link.link_path),
+    ...(virtualConfig === null ? [] : [virtualConfig.path]),
+  ]);
+  return storedLibraryDiagnosticPathsReusable(stored.typescript_observation, fixturePaths);
 }
 
 function analyzeCase(

@@ -1,0 +1,11 @@
+{
+  "predecessor_wrapper_sha256": "f59088d758cf3061866df620e4eed9e1f932e0aebca87f5c61b5d483dbc968f4",
+  "changes": [
+    "Explicitly pin panic-fix head32b6 and parent2df and grandparent628",
+    "Update context and regression test source hashes only",
+    "Use separately pinned local scope inspection",
+    "Change build label only; comparison/selector and original evidence pins unchanged"
+  ],
+  "failure_reproduction": "/tmp/emitter-leading-binding-panic-r321/manifest.json",
+  "red_green_tests": "/tmp/emitter-leading-binding-panic-fix-r322"
+}

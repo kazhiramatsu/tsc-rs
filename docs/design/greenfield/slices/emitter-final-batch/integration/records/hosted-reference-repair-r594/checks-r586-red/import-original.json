@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "xtask",
+    "h2-5g-probe",
+    "--indices",
+    "8368"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T20:23:55.580657+00:00",
+  "seconds": 9.169,
+  "exit": 1,
+  "log_sha256": "d87454466619cd6426b5b56f9bc86c39415b31f685886430dec7ea4a56a1470a",
+  "log_bytes": 979
+}

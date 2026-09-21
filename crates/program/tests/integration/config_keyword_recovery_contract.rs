@@ -33,8 +33,8 @@ impl ConfigParseHost for EmptyConfigHost {
         _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
     ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
-        (|| -> Result<Vec<String>, ConfigHostError> { Ok(Vec::new()) })()
-            .map(|paths| paths.into_iter().map(Into::into).collect())
+        let scalar_paths: Result<Vec<String>, ConfigHostError> = { Ok(Vec::new()) };
+        scalar_paths.map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 

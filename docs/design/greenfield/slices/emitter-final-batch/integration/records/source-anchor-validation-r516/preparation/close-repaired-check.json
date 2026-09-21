@@ -1,0 +1,4 @@
+{
+  "exit": 1,
+  "scope": "Read-only original generator check after reference repair; a generated artifact can remain stale."
+}

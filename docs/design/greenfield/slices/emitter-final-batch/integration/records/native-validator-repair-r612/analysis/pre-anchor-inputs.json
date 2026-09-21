@@ -1,0 +1,32 @@
+[
+  {
+    "path": "crates/compiler/tests/unit/cli/tests.rs",
+    "current_sha256": "93bdffa732cb97b810a0a68d658acce52fb27da1663e5867619210df791fc611",
+    "head_sha256": "a7fc1efdc2ff77d54925545e7253abf0e2477f10bfcb997ef3dbca032b449cd1",
+    "changed": true
+  },
+  {
+    "path": "crates/conformance/src/host_resolution.rs",
+    "current_sha256": "09212f5b2decdd05b4f2a97f2d90da4f33caf6364a3e50b7c91e4b96fe399747",
+    "head_sha256": "09212f5b2decdd05b4f2a97f2d90da4f33caf6364a3e50b7c91e4b96fe399747",
+    "changed": false
+  },
+  {
+    "path": "crates/conformance/tests/unit/host_resolution/tests.rs",
+    "current_sha256": "7523b8cf552eb9b6c8e829765ce4866162f818e20e71707a5d70f5d60ae5d1bc",
+    "head_sha256": "7523b8cf552eb9b6c8e829765ce4866162f818e20e71707a5d70f5d60ae5d1bc",
+    "changed": false
+  },
+  {
+    "path": "ratchets/host-resolution.v1.json",
+    "current_sha256": "2bf76d7f5a8c6aef1de53242fc9d6b6d6f9df8ddfec2076d03feefe44de57e8e",
+    "head_sha256": "2bf76d7f5a8c6aef1de53242fc9d6b6d6f9df8ddfec2076d03feefe44de57e8e",
+    "changed": false
+  },
+  {
+    "path": "crates/program/src/module_resolution.rs",
+    "current_sha256": "05b837d4848887c0a21de89d38da77154671b8fc2424875b1a1dc4dd34140ab6",
+    "head_sha256": "05b837d4848887c0a21de89d38da77154671b8fc2424875b1a1dc4dd34140ab6",
+    "changed": false
+  }
+]

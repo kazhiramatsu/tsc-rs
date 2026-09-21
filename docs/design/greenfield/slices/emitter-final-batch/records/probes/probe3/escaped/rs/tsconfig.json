@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es5", "module": "commonjs", "outDir": "out", "strict": true, "useDefineForClassFields": false, "experimentalDecorators": false, "sourceMap": true, "ignoreDeprecations": "6.0" }, "files": ["main.ts"] }

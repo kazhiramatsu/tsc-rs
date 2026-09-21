@@ -1,0 +1,17 @@
+{
+  "when": "2026-09-21T02:13:05.531178+00:00",
+  "head": "5b28906cf5544c63bb55f4c97e40f714672fd722",
+  "reason": "Intentional cancellation before the hosted foundation-output repair; not a successful complete gate or natural CI failure.",
+  "owned_processes": [
+    {
+      "pid": 15797,
+      "ppid": 15792,
+      "command": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask ci --baseline 3b1f5fe87fd31e3b303bb44bd257342735452ed9"
+    },
+    {
+      "pid": 57383,
+      "ppid": 15797,
+      "command": "node /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/oracle/h2-5d-qualification.mjs --check"
+    }
+  ]
+}

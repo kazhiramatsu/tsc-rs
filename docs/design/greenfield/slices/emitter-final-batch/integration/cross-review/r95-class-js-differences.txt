@@ -1,0 +1,60 @@
+emitter-class-helper-gates/expr-decorated/es5/commonjs/missing
+--- typescript
++++ native
+@@ -8,9 +8,9 @@
+     var _classExtraInitializers = [];
+     var _classThis;
+     var class_1 = _classThis = /** @class */ (function () {
+-        function class_1() {
++        function class_2() {
+         }
+-        return class_1;
++        return class_2;
+     }());
+     tslib_1.__setFunctionName(_classThis, "C");
+     (function () {
+emitter-class-helper-gates/expr-decorated/es5/commonjs/present
+--- typescript
++++ native
+@@ -8,9 +8,9 @@
+     var _classExtraInitializers = [];
+     var _classThis;
+     var class_1 = _classThis = /** @class */ (function () {
+-        function class_1() {
++        function class_2() {
+         }
+-        return class_1;
++        return class_2;
+     }());
+     tslib_1.__setFunctionName(_classThis, "C");
+     (function () {
+emitter-class-helper-gates/expr-decorated/es5/esnext/missing
+--- typescript
++++ native
+@@ -5,9 +5,9 @@
+     var _classExtraInitializers = [];
+     var _classThis;
+     var class_1 = _classThis = /** @class */ (function () {
+-        function class_1() {
++        function class_2() {
+         }
+-        return class_1;
++        return class_2;
+     }());
+     __setFunctionName(_classThis, "C");
+     (function () {
+emitter-class-helper-gates/expr-decorated/es5/esnext/present
+--- typescript
++++ native
+@@ -5,9 +5,9 @@
+     var _classExtraInitializers = [];
+     var _classThis;
+     var class_1 = _classThis = /** @class */ (function () {
+-        function class_1() {
++        function class_2() {
+         }
+-        return class_1;
++        return class_2;
+     }());
+     __setFunctionName(_classThis, "C");
+     (function () {

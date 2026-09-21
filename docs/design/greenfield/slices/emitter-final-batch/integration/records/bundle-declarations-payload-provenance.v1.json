@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "path": "crates/emitter/tests/fixtures/bundle-declarations.json",
+  "changes": [
+    {
+      "path": "ratchets/h2-7de-observations.v1.json",
+      "before": "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+      "after": "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9"
+    }
+  ],
+  "old_payload": "b51176a375710c3db4d9068e7832baea6a40174262186b9d897029a4047cd0e5",
+  "metadata_only_payload": "bd63c9cc11dad4fe66758568e5f0d4fb552b84846fcb02e03068b8c2260c9c10"
+}

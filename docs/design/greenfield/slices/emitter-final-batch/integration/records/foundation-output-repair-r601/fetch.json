@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "gh",
+    "run",
+    "view",
+    "35552763555",
+    "--repo",
+    "kazhiramatsu/tsc-rs",
+    "--job",
+    "106190560627",
+    "--log"
+  ],
+  "exit": 1,
+  "recorded_at": "2026-09-21T02:07:01.060149+00:00",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

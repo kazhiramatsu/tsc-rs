@@ -1,0 +1,17 @@
+{
+  "source_head": "d5ceab6e6192f001f5deef6b54eb6551a2b0ad69",
+  "steps": [
+    {
+      "label": "variable-comma-native-r152",
+      "exit": 0
+    },
+    {
+      "label": "variable-type-neighbours-r152",
+      "exit": 0
+    },
+    {
+      "label": "variable-transpile-r152",
+      "exit": 101
+    }
+  ]
+}

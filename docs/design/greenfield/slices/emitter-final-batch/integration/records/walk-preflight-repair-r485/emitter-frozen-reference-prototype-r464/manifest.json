@@ -1,0 +1,94 @@
+{
+  "qualified_final": false,
+  "scope": "Scratch historical-tree reproducer prototype only. Original generator/helper code copied unchanged, explicit original parents; current input equality after metadata changes not yet implemented. No canonical mutation, no --write.",
+  "canonical_head": "2ee2bd6a96f0e8bd0605ffa4f6e59ffc9dbcad69",
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "crates/oracle/h2-7de-candidates.mjs",
+    "--check"
+  ],
+  "exit": 0,
+  "seconds": 2.810183749999851,
+  "copied": [
+    {
+      "path": "crates/oracle/h2-7de-candidates.mjs",
+      "sha256": "0c1947c53ae421dd7859af4d391306dcc2c60bb45ceec75767dbd73069a389d7"
+    },
+    {
+      "path": "crates/oracle/h2-7de-observations.mjs",
+      "sha256": "9a525d7db81a634725c2d5a6cbc01c3219e835109ed0927eaf35a213f18401e5"
+    },
+    {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    },
+    {
+      "path": ".node-version",
+      "sha256": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c"
+    },
+    {
+      "path": "ratchets/h2-candidate-dispositions.v1.json",
+      "sha256": "673c9e935830dd73f52893f17dda374c5d551b47059a9fa620550f4183c6bca8"
+    },
+    {
+      "path": "ratchets/h2-6c-qualification.v1.json",
+      "sha256": "bb0f1937e5ad91a3f245cea26b90c14a3c1ea34bd923b50b827b842cdd051826"
+    },
+    {
+      "path": "ratchets/h2-7b-qualification.v1.json",
+      "sha256": "afbbf588c95e43d9adb78bf5720010c58ab8a2d15eb9ac985984f938daca60ed"
+    },
+    {
+      "path": "ratchets/h2-7c-qualification.v1.json",
+      "sha256": "248e4fadb632b958bf5348f4f728e3f8b56984a98287c958825b87640699a024"
+    }
+  ],
+  "links": [
+    {
+      "path": "vendor",
+      "target": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/vendor"
+    },
+    {
+      "path": "ts-tests",
+      "target": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/ts-tests"
+    },
+    {
+      "path": "ratchets/h2-7de-candidates.v1.json",
+      "target": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/ratchets/h2-7de-candidates.v1.json"
+    },
+    {
+      "path": "ratchets/h2-7de-candidate-inputs.v1.json",
+      "target": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/ratchets/h2-7de-candidate-inputs.v1.json"
+    },
+    {
+      "path": "ratchets/h2-7de-observations.v1.json",
+      "target": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/ratchets/h2-7de-observations.v1.json"
+    }
+  ],
+  "log_sha256": "6457564aff83fbf894f36d24293de4e31d8d1733f269863433fb9a3f0e82270a",
+  "observations": {
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "node",
+      "crates/oracle/h2-7de-observations.mjs",
+      "--check"
+    ],
+    "exit": 1,
+    "seconds": 27.25451224995777,
+    "log_sha256": "14f811e32a66d88888e8faf3984f09d6f132bf761d78b6a9eca17a106d668ee0",
+    "canonical_frozen_artifacts_sha256": {
+      "ratchets/h2-7de-candidates.v1.json": "956514a27a7c9d4504f2bd364f07492b758660c4c6d525201ba62d1389a04db2",
+      "ratchets/h2-7de-candidate-inputs.v1.json": "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a",
+      "ratchets/h2-7de-observations.v1.json": "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9"
+    }
+  }
+}

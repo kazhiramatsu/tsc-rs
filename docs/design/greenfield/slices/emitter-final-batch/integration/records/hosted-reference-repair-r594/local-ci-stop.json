@@ -1,0 +1,21 @@
+{
+  "when": "2026-09-20T19:46:42.578457+00:00",
+  "reason": "Intentional cancellation of obsolete final candidate before hosted reference repair; not a successful complete gate or natural CI test failure.",
+  "owned_processes": [
+    {
+      "pid": 68351,
+      "ppid": 68333,
+      "command": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask ci --baseline 3b1f5fe87fd31e3b303bb44bd257342735452ed9"
+    },
+    {
+      "pid": 68847,
+      "ppid": 68351,
+      "command": "node /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/oracle/l0-performance.mjs --check"
+    },
+    {
+      "pid": 85744,
+      "ppid": 68847,
+      "command": "(git)"
+    }
+  ]
+}

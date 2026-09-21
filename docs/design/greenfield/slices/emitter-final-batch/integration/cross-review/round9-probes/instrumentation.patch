@@ -1,0 +1,51 @@
+--- typescript.js
++++ ts-instr.js
+@@ -17617,6 +17617,7 @@
+   }
+ }
+ function createDiagnosticForNode(node, message, ...args) {
++  if (message && message.code === 2300) console.error('DIAG2300 @'+node.pos+'\n'+new Error().stack.split('\n').slice(2,12).join('\n'));
+   const sourceFile = getSourceFileOfNode(node);
+   return createDiagnosticForNodeInSourceFile(sourceFile, node, message, ...args);
+ }
+@@ -52388,6 +52389,8 @@
+     }
+     return target;
+     function reportMergeSymbolError(target2, source2) {
++      console.error('MERGE-ERR target.flags=%s source.flags=%s targetDecl=%s sourceDecl=%s', target2.flags, source2.flags, target2.declarations && target2.declarations.map(d=>d.kind).join(','), source2.declarations && source2.declarations.map(d=>d.kind).join(','));
++      console.error(new Error().stack.split('\n').slice(2,14).join('\n'));
+       const isEitherEnum = !!(target2.flags & 384 /* Enum */ || source2.flags & 384 /* Enum */);
+       const isEitherBlockScoped = !!(target2.flags & 2 /* BlockScopedVariable */ || source2.flags & 2 /* BlockScopedVariable */);
+       const message = isEitherEnum ? Diagnostics.Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations : isEitherBlockScoped ? Diagnostics.Cannot_redeclare_block_scoped_variable_0 : Diagnostics.Duplicate_identifier_0;
+@@ -62235,6 +62238,7 @@
+     return !!s.valueDeclaration && isPrivateIdentifierClassElementDeclaration(s.valueDeclaration) && isStatic(s.valueDeclaration);
+   }
+   function resolveDeclaredMembers(type) {
++    console.error('RDM typeId=%s sym=%s symId=%s declaredProps=%s', type.id, type.symbol && type.symbol.escapedName, type.symbol && getSymbolId(type.symbol), !!type.declaredProperties);
+     if (!type.declaredProperties) {
+       const symbol = type.symbol;
+       const members = getMembersOfSymbol(symbol);
+@@ -62297,6 +62301,7 @@
+   function lateBindMember(parent2, earlySymbols, lateSymbols, decl) {
+     Debug.assert(!!decl.symbol, "The member is expected to have a symbol.");
+     const links = getNodeLinks(decl);
++    console.error('LBM parent=%s transient=%s cached=%s', parent2.escapedName, !!(parent2.flags & 33554432), !!links.resolvedSymbol);
+     if (!links.resolvedSymbol) {
+       links.resolvedSymbol = decl.symbol;
+       const declName = isBinaryExpression(decl) ? decl.left : decl.name;
+@@ -62346,6 +62351,7 @@
+   }
+   function getResolvedMembersOrExportsOfSymbol(symbol, resolutionKind) {
+     const links = getSymbolLinks(symbol);
++    console.error('RMEOS-ENTRY %s transient=%s cached=%s symId=%s', symbol.escapedName, !!(symbol.flags & 33554432), !!links[resolutionKind], getSymbolId(symbol));
+     if (!links[resolutionKind]) {
+       const isStatic2 = resolutionKind === "resolvedExports" /* resolvedExports */;
+       const earlySymbols = !isStatic2 ? symbol.members : symbol.flags & 1536 /* Module */ ? getExportsOfModuleWorker(symbol).exports : symbol.exports;
+@@ -62395,6 +62401,7 @@
+           });
+         }
+       }
++      console.error('RMEOS %s %s transient=%s cjs=%s keys=%s', symbol.escapedName, resolutionKind, !!(symbol.flags & 33554432), !!links.cjsExportMerged, resolved && [...resolved.keys()].join(','));
+       links[resolutionKind] = resolved || emptySymbols;
+     }
+     return links[resolutionKind];

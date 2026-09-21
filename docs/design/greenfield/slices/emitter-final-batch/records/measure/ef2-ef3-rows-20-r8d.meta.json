@@ -1,0 +1,13 @@
+{
+  "name": "ef2-ef3-rows-20-r8d",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 33,
+  "env": [],
+  "argv": "cargo test -p tsc-rs-compiler --test emitter_final_rows -- --nocapture",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T14:12:25Z",
+  "seconds": 354,
+  "exit": 101,
+  "log_sha256": "a7613aa61fa909e961f684eb21f02a0e686e3a5f799e1a3375319528ebf819cb",
+  "log_bytes": 5779
+}

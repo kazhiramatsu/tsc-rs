@@ -1,0 +1,34 @@
+--- a/crates/emitter/tests/unit/builtins/tests.rs
++++ b/crates/emitter/tests/unit/builtins/tests.rs
+@@ -6537,6 +6537,22 @@
+                         );
+                     }
+                     "absent-name" => meta.name = None,
++                    "synthetic" => {
++                        let name = self.arena.node_ref(self.source, meta.name.unwrap()).unwrap();
++                        let NodeData::Identifier(name) = &self.arena.node(name)?.data else {
++                            panic!("MetaProperty name must be an identifier");
++                        };
++                        let text = name.text.clone();
++                        let name = self.arena.factory().create_identifier(self.source, &text)?;
++                        return self.arena.factory().create_node(
++                            self.source,
++                            NodeData::MetaProperty(tsc_syntax::nodes::MetaPropertyData {
++                                keyword_token: meta.keyword_token,
++                                name: Some(name.node()),
++                            }),
++                            crate::TransformFlags::NONE,
++                        ).map(|node| Some(node.node()));
++                    }
+                     other => panic!("unknown invariant mode {other}"),
+                 }
+             } else {
+@@ -6577,7 +6593,7 @@
+     assert_eq!(artifact["typescript"], "6.0.3");
+     assert_eq!(artifact["repetitions"], 2);
+     let rows = artifact["rows"].as_array().unwrap();
+-    assert_eq!(rows.len(), 8);
++    assert_eq!(rows.len(), 10);
+     let mut failures = Vec::new();
+     for row in rows {
+         let id = row["case_id"].as_str().unwrap();

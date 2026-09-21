@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "kind": "emitter-final-batch-start-record",
+  "recorded_at": "2026-09-17T06:48:19+00:00",
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-emitter-final",
+  "branch": "draft/h2-8a-emitter-final",
+  "start_head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "origin_main_at_start": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "post_t1_merge_ancestor": "ce39261ace254b4aaf9d2923220f4672818b1d8f",
+  "status_short": "",
+  "toolchain": {
+    "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+    "cargo": "cargo 1.93.0 (083ac5135 2025-12-15)",
+    "node": "v25.2.1",
+    "node_pin": "25.2.1",
+    "rust_toolchain_channel": "1.93.0"
+  },
+  "platform": {
+    "system": "Darwin",
+    "release": "25.5.0",
+    "machine": "arm64",
+    "cpus": "10"
+  },
+  "vendor_sha256": {
+    "vendor/typescript-6.0.3/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "handoff_sha256": {
+    "docs/design/greenfield/slices/emitter-final-batch/README.md": "eb4d1c2be7208558e4236ae7b43b11eac0552008e8c5fc56692907900e092e82",
+    "docs/design/greenfield/slices/emitter-final-batch/inventory.v1.json": "3295fd76cfb1add5e7481a9f0f6de9d9ac686010846e53a92742c623fa2a357a",
+    "docs/design/greenfield/slices/emitter-final-batch/inventory.py": "8bdc5525bc2da21dc986176b9ba7a83fd4c808ec0967c44682371c77ddbca2f1"
+  },
+  "inventory_check": "python3 docs/design/greenfield/slices/emitter-final-batch/inventory.py --check -> exit 0 (verified before the worktree was created and again at start)",
+  "build": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2 cargo test --workspace --no-run (warm build, log: scratchpad/logs/build-warm.log)"
+}

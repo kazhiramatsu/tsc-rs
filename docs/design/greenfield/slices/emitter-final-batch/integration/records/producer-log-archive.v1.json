@@ -1,0 +1,1529 @@
+{
+  "logs": [
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/chain10-r8-probes.log.gz",
+      "uncompressed_sha256": "1ef233fcfcc49594a8d81577def3e5e8f350f688bb8a5a674f6f00915d75790e",
+      "uncompressed_bytes": 14463
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-decorator-binding-all-r8.log.gz",
+      "uncompressed_sha256": "2cbabad0b09784e2fb84f913a324599a059a525ae39a02bb77b26b15e48f9684",
+      "uncompressed_bytes": 36206
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/probes-r11b.log.gz",
+      "uncompressed_sha256": "6f3184f5d93deedf9663cd34a39a2b86e5ee99494d53367170c40cef5b945f6d",
+      "uncompressed_bytes": 37
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/contracts-output-matrix-r11.log.gz",
+      "uncompressed_sha256": "8e16f7c49f2c45e70470ef74672bcfc83297344bcff88a5875e1a509c0613c5a",
+      "uncompressed_bytes": 540
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/printer-all-r6.log.gz",
+      "uncompressed_sha256": "3893ed62fca761094799964ce254eef498c9c16fd6d00e92a2b37099d0c8da5f",
+      "uncompressed_bytes": 18422
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-review-fix-all-r11.log.gz",
+      "uncompressed_sha256": "b512aaf323b9160842a7335d70d37bce9f42f50363e10f4af678e4a204106a75",
+      "uncompressed_bytes": 1082
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-bundle-metadata-t1-all-r11.log.gz",
+      "uncompressed_sha256": "106ab73b6574e53a6ea1c325371fc979b8350f6ba246a7f5fc1496b5374719b0",
+      "uncompressed_bytes": 18367
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/harness-contracts-r3.log.gz",
+      "uncompressed_sha256": "fc1337ef0510225601574526a9ea95aaf0c1762a4a93d71f49e1726d8862309c",
+      "uncompressed_bytes": 8427
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/probes-r11set-r11.log.gz",
+      "uncompressed_sha256": "b70f59f135158594f72726328a764419dc07147bb14a6a24cf90e3ea0b81fe77",
+      "uncompressed_bytes": 285
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-decorator-binding-all-r9.log.gz",
+      "uncompressed_sha256": "4a4b075800b0ec518e30865d7fb1466c84b936c1ac840dc8dbfcecee7b3f121d",
+      "uncompressed_bytes": 36204
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-prologue-comments-all-r7.log.gz",
+      "uncompressed_sha256": "24e05b1000de2147459cafc1a82a2211d96d99804e32a8dc27e1c1e948fc70c2",
+      "uncompressed_bytes": 1086
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-touched-r9b.log.gz",
+      "uncompressed_sha256": "985de836cf27b8a8e8e3b6f77240eaa207df4407ca9a87fe8065231744587932",
+      "uncompressed_bytes": 110465
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40-r2.log.gz",
+      "uncompressed_sha256": "777795345c6987bee6a027b37b978f136e3c9e1478979d233904a01180000489",
+      "uncompressed_bytes": 209551
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r8-debug5.log.gz",
+      "uncompressed_sha256": "10662c4ee824210b1ac2eeb92ccf94ccfe933190816e8d351b9b6e446bfba99d",
+      "uncompressed_bytes": 719
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-parameter-temporaries-all-r9.log.gz",
+      "uncompressed_sha256": "13407710da0b9eee666b0bbe578864f2667340e6a71430cd4c607b5f86b5c6bf",
+      "uncompressed_bytes": 6495
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-r9.log.gz",
+      "uncompressed_sha256": "3960e2ac4e09fe71617354fd53ecfdf970020033e91166a21f5f9df6e2085bd6",
+      "uncompressed_bytes": 47647
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/printer-all-r5.log.gz",
+      "uncompressed_sha256": "02c9f5dc98758465227013f8031bcebaea8ffb1b0b98bb602ba4d6e44db640cf",
+      "uncompressed_bytes": 18422
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r3.log.gz",
+      "uncompressed_sha256": "0372785e3d731fdd05416d7922234eec529b68f9d4a26c37d31fc2b708ec7a06",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-transpile-routes-all-r11c.log.gz",
+      "uncompressed_sha256": "c6a2a44dc24cb8d193cff611f8699178afc265f52360ebab342525874ed08e01",
+      "uncompressed_bytes": 39772
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/checker-lib-r9b.log.gz",
+      "uncompressed_sha256": "951bc87642adf6c6955da857132cc4a4c926ace09b06f77874cacb47be0766b8",
+      "uncompressed_bytes": 145419
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/checker-lib-r8f.log.gz",
+      "uncompressed_sha256": "17b5f8b7afbe71d2e55d10f5a9d3d16a328c4402227f8c9516fd705745c912cf",
+      "uncompressed_bytes": 145418
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-r9b.log.gz",
+      "uncompressed_sha256": "f7470c1f44371d408ea562c9d408bc1fa3e198140770c465ae192d0d6489c057",
+      "uncompressed_bytes": 47742
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-r8f.log.gz",
+      "uncompressed_sha256": "702f4efafff5beebeb507ae819b094cd61d2c60cc19969632e34d75b85ecc358",
+      "uncompressed_bytes": 50273
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-transpile-routes-all-r11b.log.gz",
+      "uncompressed_sha256": "6644244887ab3c669fb26d515660e393cd4adb6c271759afff40a5c60af2a227",
+      "uncompressed_bytes": 52000
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-parameter-temporaries-all-r11.log.gz",
+      "uncompressed_sha256": "3fd6e534a60a12614b19fe650b3ed2dd9c9e4801a136b24f689b93f4ac7c3ec1",
+      "uncompressed_bytes": 6499
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r2.log.gz",
+      "uncompressed_sha256": "19219a40af4a3f3f688c760d8428ec1883873607a99fe34c48c94146f244dc1e",
+      "uncompressed_bytes": 1152
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-parameter-temporaries-all-r8.log.gz",
+      "uncompressed_sha256": "e8cbd66be558440484b7781f03e63de0ee589640e4d25369820b6ef83b04759c",
+      "uncompressed_bytes": 6499
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7-debug.log.gz",
+      "uncompressed_sha256": "e5625a2cbe14b69ede56eb615147a3e94e774f58cca1c9be7ec6534804463f3c",
+      "uncompressed_bytes": 827
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-r8.log.gz",
+      "uncompressed_sha256": "451919dc3a6553011c3b9dd9d654328b8f9b092d6effecfa0b0115aaf7dd8548",
+      "uncompressed_bytes": 48515
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-literal-witnesses-all-r9a.log.gz",
+      "uncompressed_sha256": "8df67d105730227e62a2a4ab76ce121c58925b10e9903ab8571d5cf790a04aa1",
+      "uncompressed_bytes": 32068
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-final-rows-r9a.log.gz",
+      "uncompressed_sha256": "f4cb87472dad77a5020256c530e947d875a3074a8e304ee065119f66e69b2e40",
+      "uncompressed_bytes": 447
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-string-literal-identifier-source-all-r9.log.gz",
+      "uncompressed_sha256": "1acf9e5210dbb4026537384d049f6ca0309d40b4d499e5be9503757d7c130ef5",
+      "uncompressed_bytes": 5801
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40-r7.log.gz",
+      "uncompressed_sha256": "c6c63b93d56ee442950b999800299e9ed4c51ad7dcee5ea9ce5a521e6d613062",
+      "uncompressed_bytes": 20293
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/harness-contracts-r8f.log.gz",
+      "uncompressed_sha256": "982720decd4d29c390b29a8800daaf21ebf68ac506aab08c80f12982146b816d",
+      "uncompressed_bytes": 8615
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/probes-r11set-r11b.log.gz",
+      "uncompressed_sha256": "b70f59f135158594f72726328a764419dc07147bb14a6a24cf90e3ea0b81fe77",
+      "uncompressed_bytes": 285
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r6.log.gz",
+      "uncompressed_sha256": "49e93753911a87c77c22b1dcf7e845c09084ef444600a8b7ca74c2c454bbe159",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20.log.gz",
+      "uncompressed_sha256": "43eff788abf819d9886de5682b15419d68c346efe9e05af3e12a6217890f8068",
+      "uncompressed_bytes": 13512
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-literal-update-all-r9a.log.gz",
+      "uncompressed_sha256": "d4671ce47ff9bd33c84b939bb824c934f438513deacd584829d5e92404c883a5",
+      "uncompressed_bytes": 1764
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-literal-update-all-r8.log.gz",
+      "uncompressed_sha256": "31ceeffea53b9f31c79ccedd74b578cffbfa570234e28cb865a6297f7a79d751",
+      "uncompressed_bytes": 1768
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-post-t1-residuals-all-r9a.log.gz",
+      "uncompressed_sha256": "4d84e34757c0f82550a082ddad639094efb48fd625a1b13e9a999e83d655259c",
+      "uncompressed_bytes": 93899
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40-capture.log.gz",
+      "uncompressed_sha256": "daa8988e910aa196764718f739169688699d77dae99a499bddf2ef247ceed968",
+      "uncompressed_bytes": 183003
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40-r8f.log.gz",
+      "uncompressed_sha256": "abe87c487d2db81f841eea1074e1c1b5b7a104ef06796f19c769045557783f08",
+      "uncompressed_bytes": 3587
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-literal-update-all-r9.log.gz",
+      "uncompressed_sha256": "718639dda01d07dc5b96be8b9766f6fb88a280679180ec30c2a61e01d990322a",
+      "uncompressed_bytes": 1765
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7.log.gz",
+      "uncompressed_sha256": "52ad46bdd66229c6bf38daf65e91a187ce7333fb69abd542373a8e83b52cedd9",
+      "uncompressed_bytes": 827
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40-r6.log.gz",
+      "uncompressed_sha256": "52870aa08abb0be9f29b5b3d715026cfeb06735cc831ce81b46e4834fb9d0c88",
+      "uncompressed_bytes": 100010
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-string-literal-identifier-source-all-r8.log.gz",
+      "uncompressed_sha256": "eae4a848bcd52e8a8d80765e487e5d41437dc13dbfa39729d386e411a7504511",
+      "uncompressed_bytes": 5801
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/contracts-output-matrix-r9.log.gz",
+      "uncompressed_sha256": "abce8691c7dcd1b50755218c161396b443a2f9fe62ae00a6f04b6b24012f1076",
+      "uncompressed_bytes": 540
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-final-rows-r9b.log.gz",
+      "uncompressed_sha256": "e664ac9d940ac1a08d7fc0f9935ba39004eef3a782beb7c70b670b92f805252a",
+      "uncompressed_bytes": 559
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-bundle-metadata-t1-all-r8.log.gz",
+      "uncompressed_sha256": "5d7253c4dfc82c701dd7b06a9971836746aa33032e95e279e1fa6785986498eb",
+      "uncompressed_bytes": 18367
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-literal-escaping-all-r11.log.gz",
+      "uncompressed_sha256": "cc61a9b2262536a5125399c7129bd68f3f1e26fdfa883f9091d125335a586007",
+      "uncompressed_bytes": 1313
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40-r4.log.gz",
+      "uncompressed_sha256": "46970d306e36413a271a0cdb46387ec03a1337087c199cbcc3dc4cc38f559f9b",
+      "uncompressed_bytes": 361104
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r5.log.gz",
+      "uncompressed_sha256": "657d58720174280396a91e14776f19c94be188591d4590d07453abeccbb4631c",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/harness-contracts-r7.log.gz",
+      "uncompressed_sha256": "f76db6477fa71aea8d6e14d172cbca6e127338be349c0ed40f3597131b689b43",
+      "uncompressed_bytes": 8427
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r11.log.gz",
+      "uncompressed_sha256": "959b58427c44e6234b3c21fa1510727add04a01348bfdd1d8f2adfe21437b325",
+      "uncompressed_bytes": 67908
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r8-debug3.log.gz",
+      "uncompressed_sha256": "945b47082cb5ebb9099e270e5fd2d12ed1aad0ede258fc86c152c4f146e9bd7a",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-transpile-routes-all-r7c.log.gz",
+      "uncompressed_sha256": "f28bca869e3d123d12e8fae2c61e22885a5cea9d72af99a421863c8472da7ff1",
+      "uncompressed_bytes": 39773
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-compact-body-comments-all-r11.log.gz",
+      "uncompressed_sha256": "c7f6af6962067d53227c887d8523808ce6596a861b5516c772b4e093f462b8d5",
+      "uncompressed_bytes": 949
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-post-t1-residuals-all-r8.log.gz",
+      "uncompressed_sha256": "2b737a14aa524274f749d5676a377192fe9fd12fb017145673c2ef30fdbf7832",
+      "uncompressed_bytes": 93900
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40-r8e.log.gz",
+      "uncompressed_sha256": "8606815f3703354a57f42f53031864ea009f0e5c0018e3c6e5f35df9ace52c48",
+      "uncompressed_bytes": 3587
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-post-t1-residuals-all-r9.log.gz",
+      "uncompressed_sha256": "266e3e48b1371e0f0a7c806b39406b4041d34b246d59ca80813b9a913e3ceb85",
+      "uncompressed_bytes": 93897
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-string-literal-identifier-source-all-r9a.log.gz",
+      "uncompressed_sha256": "0b8170efb167070a3572c560df7c9043b502a3a50496b25825553489e5d14ca5",
+      "uncompressed_bytes": 5801
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-transpile-routes-all-r7b.log.gz",
+      "uncompressed_sha256": "9739eee8231a61adda3083b8025d54b5ba06cad3da47a3e8c91d15443c60620d",
+      "uncompressed_bytes": 53725
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r8-debug2.log.gz",
+      "uncompressed_sha256": "9ccafe6a8490616d1e9170eacb8454b472d4a0ad6783e118764fda537e57e8cc",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r4.log.gz",
+      "uncompressed_sha256": "85f816296f065c856ce84d88bb975544eb5152fade772e42d12b778bbc99710e",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40-r5.log.gz",
+      "uncompressed_sha256": "d6284319bdae93df2476fa64d95d1a786af8854cd690e204101511d064083cff",
+      "uncompressed_bytes": 353034
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-bundle-metadata-t1-all-r9.log.gz",
+      "uncompressed_sha256": "fbef160cce27583b911478d26ca3b9f4e7c4bba0b359049f942b71111adc8202",
+      "uncompressed_bytes": 18365
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-transpile-routes-all-r7.log.gz",
+      "uncompressed_sha256": "593d52484a8dc211e625d5eac7b768bfac6dda7b8e9db15555d512aff19333d7",
+      "uncompressed_bytes": 41275
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/check-r8d.log.gz",
+      "uncompressed_sha256": "d3ab9608cc9eee324fa0bbfb69b92bd84ec841a3a8728c228d40bbc1ad79399c",
+      "uncompressed_bytes": 166
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/probes-r9b.log.gz",
+      "uncompressed_sha256": "538cbe6e76db4157c6376c022945a45e42c53cd1f3a6dda8414ca888ab272464",
+      "uncompressed_bytes": 89
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7-debug4.log.gz",
+      "uncompressed_sha256": "6a615d7536712176ba2a67e5f2d4f4c47817f716d437df10a6ce9e11275e773a",
+      "uncompressed_bytes": 84535
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-prologue-comments-all-r11.log.gz",
+      "uncompressed_sha256": "2b367b2648ce47e6bc9dd30188184a512f513ff3ed83cee409083a770e51194b",
+      "uncompressed_bytes": 1087
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/checker-lib-r6.log.gz",
+      "uncompressed_sha256": "1d4474a0f8d20c129f0051f37073fa82d57226c1bef4b7dba1f97111a3262f40",
+      "uncompressed_bytes": 145418
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-class-header-token-metadata-all-r11.log.gz",
+      "uncompressed_sha256": "4ad97008de142c2a70bb067fc95909c106ba06f55d85bfba8ce5fce27d470738",
+      "uncompressed_bytes": 4165
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-final-batch-r11.log.gz",
+      "uncompressed_sha256": "6d99b3644c6642b88b1f9d69fca35be188d8376941354250c66175df01462278",
+      "uncompressed_bytes": 1485
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef6-global-14-capture.log.gz",
+      "uncompressed_sha256": "864bb5238717f990b1c5f9341df8925d1efacb8598a6ee0e71b26b5ca8e2a49e",
+      "uncompressed_bytes": 5975
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/checker-lib-r7.log.gz",
+      "uncompressed_sha256": "1f16cd00d000e1802fa9ba78cf86ec9a8d646ffd328b8c64576b81ed873c06ab",
+      "uncompressed_bytes": 145418
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-jsdoc-return-all-r11.log.gz",
+      "uncompressed_sha256": "fde03712d05a87ea699346f8d05a59d91f5b31e80451b6cbfe0c7ffc7dc7693f",
+      "uncompressed_bytes": 3981
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r11b.log.gz",
+      "uncompressed_sha256": "91f320007435da702b5f5177882efc70f7b001c9a1ca3c02fb2769227cb5f4eb",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-emitter-compiler-r11b.log.gz",
+      "uncompressed_sha256": "83b4e266f059b66919f97b43f455f68f1cad0c0c55f3d828af25d598d24ec4d8",
+      "uncompressed_bytes": 3748
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/probes-r9c.log.gz",
+      "uncompressed_sha256": "6f3184f5d93deedf9663cd34a39a2b86e5ee99494d53367170c40cef5b945f6d",
+      "uncompressed_bytes": 37
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-decorator-binding-all-r9a.log.gz",
+      "uncompressed_sha256": "d4afdd8da134ecffda15502b6948d4db0038e73751084429d26c61291932d7ee",
+      "uncompressed_bytes": 36204
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-identity-recovery-all-r7.log.gz",
+      "uncompressed_sha256": "1eb9d5ffeb31806016454075d3c6e74f1682ec926f18163ab6cc458044064f53",
+      "uncompressed_bytes": 1445
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/declaration-comments-all-r6.log.gz",
+      "uncompressed_sha256": "b7c1096465bdc768add5011a200f0ab13188c230c65e0c51d4d3b89640239891",
+      "uncompressed_bytes": 5065
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-declaration-comments-all-r7.log.gz",
+      "uncompressed_sha256": "14b970d386a50c76e688d9f690c2412bd6bcf8d5b3b8034c19bf9ae09c1d2813",
+      "uncompressed_bytes": 5065
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r8c.log.gz",
+      "uncompressed_sha256": "643ff2df9ba7039e8e6dfdec92f1a0ec3b770d2eef8ac88cd7c817c5be695a1e",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-class-header-token-metadata-all-r7.log.gz",
+      "uncompressed_sha256": "49b50818386ac95ec4b0fd9ded2bbbb508da24f57543315726cbd697a28e8230",
+      "uncompressed_bytes": 4164
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/probes-r9.log.gz",
+      "uncompressed_sha256": "6f3184f5d93deedf9663cd34a39a2b86e5ee99494d53367170c40cef5b945f6d",
+      "uncompressed_bytes": 37
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-literal-witnesses-all-r8.log.gz",
+      "uncompressed_sha256": "85e9dfbf66a5c3fd6dfd7dc39e9ead95c02f7e8c3cac3ff58f1d6646b3de1e3d",
+      "uncompressed_bytes": 32066
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-jsdoc-return-all-r8.log.gz",
+      "uncompressed_sha256": "14b890ca34391ee4ed14851a347c70ef7a49f249f6a891ff54ec8546272b90f9",
+      "uncompressed_bytes": 3981
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef6-global-14-r3.log.gz",
+      "uncompressed_sha256": "75cc0eee0c97c8de1726a571f5fc084158e98f1dc58c2c9b7cb9eea4442bfdcd",
+      "uncompressed_bytes": 5321
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-jsdoc-return-all-r9.log.gz",
+      "uncompressed_sha256": "f9b96b8b9ed819de0cb353e67d8c8d536408d842df56cb00fc5ec78ecf9fbb24",
+      "uncompressed_bytes": 3978
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-identity-recovery-all-r11.log.gz",
+      "uncompressed_sha256": "68571406b5f3cf2249607ba5e64015680dfb94311897deb24bc4c6d513ffe76f",
+      "uncompressed_bytes": 1445
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-declaration-comments-all-r11.log.gz",
+      "uncompressed_sha256": "06f00820dc22244c3313b8de35d4bc7688f25b33e71af5de83d0f7aa4994c5fb",
+      "uncompressed_bytes": 5067
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-review-fix-all-r7.log.gz",
+      "uncompressed_sha256": "b40ea227fae41d3b3124cd335a9906c5310484c4a967a0745da46cb1e8052d46",
+      "uncompressed_bytes": 1081
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-literal-witnesses-all-r9.log.gz",
+      "uncompressed_sha256": "1b29f961ee6a3211ec47b7f1d45004ea2051825ee4a21689000354d2c3761c90",
+      "uncompressed_bytes": 32066
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-transpile-routes-all-r11.log.gz",
+      "uncompressed_sha256": "f362a3304e1b1c3ed93a1e89c061303b0df362dfd1ff853c6a56022af608119e",
+      "uncompressed_bytes": 41487
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r8b.log.gz",
+      "uncompressed_sha256": "e0fc1a75ef0fe21fe36ad38e74da75ec56b9adebaf61b6a42602b338fe9ec1f2",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-original-commands-all-r8.log.gz",
+      "uncompressed_sha256": "19d180be060ef52061320c46d68a012859e5136a9a62b84fe70398a2cad80fd2",
+      "uncompressed_bytes": 1595
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r9b.log.gz",
+      "uncompressed_sha256": "ecf05c1e38dc1f1ed6834cbc363c01ee010fe9553b96f28e040f252f0acfa11b",
+      "uncompressed_bytes": 415
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r8f.log.gz",
+      "uncompressed_sha256": "b5e38f4796c4008f3b2f10ae179a571129ca93314ac339d54275f8dedd485206",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef6-global-14-r8f.log.gz",
+      "uncompressed_sha256": "8cda7164b6de0ec813f35d8a1f6655575215ee429111dbebce5396b46f9bda25",
+      "uncompressed_bytes": 2165
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-final-rows-r9.log.gz",
+      "uncompressed_sha256": "e63e161a16f320ee8f1d2e9fd726bae652a6adad9754e67c12aad9fbf0e9e3eb",
+      "uncompressed_bytes": 447
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/check-r8b.log.gz",
+      "uncompressed_sha256": "e78bd3ea2cbf1231d63a4f5cfb70ef4bc245f33f4c94e8f084aacba989b99043",
+      "uncompressed_bytes": 261
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7-debug2.log.gz",
+      "uncompressed_sha256": "19f1bb75b64a4bec082b50fe7277862c762188db6ecfc0b4a1f1a7fed5c69070",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-literal-escaping-all-r8.log.gz",
+      "uncompressed_sha256": "9e8a98a05af87e53a80bc2f4b4b06067ec525c8f3dfa9a14efc98fe05e34c206",
+      "uncompressed_bytes": 1312
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef6-global-14-r6.log.gz",
+      "uncompressed_sha256": "814a8df5991c052ef957f3d2deaf7e3deefd0215197bf4d9bc3244e4c4a2309a",
+      "uncompressed_bytes": 4200
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7-final.log.gz",
+      "uncompressed_sha256": "c685627eb867d87a5711f52ed5255f87eaf4642c07ef983f7f7e1d553fdb303d",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef6-global-14-r7.log.gz",
+      "uncompressed_sha256": "1111173ba1e745991c3fe2ffee9f3386a2281879cb634d1b6feb7c43753c0aa9",
+      "uncompressed_bytes": 4200
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/fmt-r11b.log.gz",
+      "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "uncompressed_bytes": 0
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r8e.log.gz",
+      "uncompressed_sha256": "5a263a056543f801bbd51900959043e2c485db0714bb82251523420624a0a79d",
+      "uncompressed_bytes": 43141
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-literal-escaping-all-r9.log.gz",
+      "uncompressed_sha256": "e7f0c03551b6823085e70be8b2017130eed45e277f66b4fca75ee6afbe5a359f",
+      "uncompressed_bytes": 1311
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7-debug3.log.gz",
+      "uncompressed_sha256": "ac9331842ad48c19d05c81adebb47b8cfe44803ee0dc689fe05344a4c77f9194",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-original-commands-all-r9a.log.gz",
+      "uncompressed_sha256": "3ac48eef4d4f868a86981e5b111d6b43f287e9fc1eed318d4df8b98f559f5fd3",
+      "uncompressed_bytes": 1596
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-compact-body-comments-all-r7.log.gz",
+      "uncompressed_sha256": "0b0c831d5b32e19df01ba06530bd2cf1abc0da40912a6d31a3db9c10b9a7c21a",
+      "uncompressed_bytes": 947
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/check-r8c.log.gz",
+      "uncompressed_sha256": "9ae1c9870cb2247b774fab8aaa0b6eff3717e5c4af532360504b3fc0c98fcf76",
+      "uncompressed_bytes": 908
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r7b.log.gz",
+      "uncompressed_sha256": "d0d5c405ac180fcf79e8a24deafd74f44127afc49db6be73d0edb9a04cbf6e3d",
+      "uncompressed_bytes": 7831
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/universe-r11.log.gz",
+      "uncompressed_sha256": "c7893a054a34d824fe352df28de45d13c61585412a4993f544deec6b71fc8644",
+      "uncompressed_bytes": 31367
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r9c.log.gz",
+      "uncompressed_sha256": "1847ba54b8ef9236f7d9708f170c172734acad8a44fec6a949b776413f896eeb",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-original-commands-all-r9.log.gz",
+      "uncompressed_sha256": "14168cbeb4a83a0c4f16b254364faac4784e707799b43a65ce6ec5d2efe82f39",
+      "uncompressed_bytes": 1594
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r8e.log.gz",
+      "uncompressed_sha256": "22e0df986057b9ba5be07526ac5fb348862a3dedef42108383cc3e088acbb889",
+      "uncompressed_bytes": 72
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef6-global-14-r8e.log.gz",
+      "uncompressed_sha256": "3c21ecd8f6442d0c71a925ba7d33104b728e1b6e46f0ac1a1a302fb14f851d08",
+      "uncompressed_bytes": 2165
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/check-r8a.log.gz",
+      "uncompressed_sha256": "1f2889611c4b0572e204747d73505af8567082bcce768d3785b6279077f6fddb",
+      "uncompressed_bytes": 667
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r8.log.gz",
+      "uncompressed_sha256": "fe80a20d49c14f2b7d7c4dcce22ef12528533e6e85367a3426fda8ee9dc69f77",
+      "uncompressed_bytes": 4898
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-r9a.log.gz",
+      "uncompressed_sha256": "05c6f942e30120da415dcdaeb62644dd2b0453de1fad7d9833740dfb3603be77",
+      "uncompressed_bytes": 111068
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-printer-all-r9.log.gz",
+      "uncompressed_sha256": "e6faac315f563d9fa60376ed81ab5918bda619f3db02adb5b3c56f7ce3258d3c",
+      "uncompressed_bytes": 18422
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r9.log.gz",
+      "uncompressed_sha256": "da2c1ee5ff9de104e807b906686bb792d4a2ee9e2be7318a606e83988b9d4e76",
+      "uncompressed_bytes": 42432
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r8.log.gz",
+      "uncompressed_sha256": "5b8e455c7c0a28c7cf88d9d452761450c5643dab4ed8effab7955ed858635f96",
+      "uncompressed_bytes": 42337
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef6-global-14.log.gz",
+      "uncompressed_sha256": "d562d8fa1663220e898b2af240cd44cf43b3cecab46dd5f5a35047f5194fa583",
+      "uncompressed_bytes": 5975
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-printer-all-r8.log.gz",
+      "uncompressed_sha256": "16226703c69aa438805f3cf5863a921c349228e6ccd59f5b8fbf9f13ae796daf",
+      "uncompressed_bytes": 18423
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r9b.log.gz",
+      "uncompressed_sha256": "b45ff3eed0fe7cf56eccaa42803946f546297429f33271afdedff637525e7dc0",
+      "uncompressed_bytes": 42432
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r8f.log.gz",
+      "uncompressed_sha256": "589382cfb5641999099550c4cc6ce512727957d3c2b3a794eee0325bc49ebd8c",
+      "uncompressed_bytes": 42337
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-printer-all-r9a.log.gz",
+      "uncompressed_sha256": "63eff71423c03de3cd1fc8d7c2e1bb4e7deb00bd78d078ad55c984ade37a5b7e",
+      "uncompressed_bytes": 18423
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r8d.log.gz",
+      "uncompressed_sha256": "b5077468ccd6d701ad4765c85f99bc43e047b3986d8d9d1727384ba1a580ce35",
+      "uncompressed_bytes": 1005
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-original-commands-all-r7.log.gz",
+      "uncompressed_sha256": "cd498147fc66c4c4fa484885485b9d9dcf59637d04081c2755de9f730cf91fc1",
+      "uncompressed_bytes": 1595
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/chain10-r8e-probes.log.gz",
+      "uncompressed_sha256": "8c55f4aba710739b34d85ec731ab6f84c32f34b98422a7e48797d91d34bee0d7",
+      "uncompressed_bytes": 4448
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/check-r7b.log.gz",
+      "uncompressed_sha256": "988a45c2b9fd59eab123eb4afeadb79a639e44b31a72325396ca674f8804c07a",
+      "uncompressed_bytes": 1086
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r8c.log.gz",
+      "uncompressed_sha256": "7a59f0b225fd5e2f056446074d0d6932faefca391c68a2669408d6a1ac8b1ede",
+      "uncompressed_bytes": 6755
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r8-debug.log.gz",
+      "uncompressed_sha256": "46f9fa343db066bbc10718dcb4f01f21cb43b941c0e356eef0d753be05c108a6",
+      "uncompressed_bytes": 667
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-compact-body-comments-all-r9.log.gz",
+      "uncompressed_sha256": "b2e77a42297ec710b9dbaf3ba64d51fdee864f0c014ded618248d56a6e2ca106",
+      "uncompressed_bytes": 947
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r4.log.gz",
+      "uncompressed_sha256": "d7b22da844772e7528b34896ed89288b8603ef9c7a3ebab556f58483fc2eddba",
+      "uncompressed_bytes": 9656
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-literal-escaping-all-r7.log.gz",
+      "uncompressed_sha256": "4d8d91a9fe1de4b011a7c30d3ebfe44225d2eddc0fd670b300c59ce6c593f64b",
+      "uncompressed_bytes": 1311
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r5.log.gz",
+      "uncompressed_sha256": "6eb43e498ba31d3a912520c57509fd84ef2f6ca85b8dee8adc00db740fc25517",
+      "uncompressed_bytes": 42432
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r4.log.gz",
+      "uncompressed_sha256": "e9300740ab26b58d7f20d19dfc9777b6a5577fb50ec65bc4dc3d394b48f21216",
+      "uncompressed_bytes": 42432
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef6-global-14-r8.log.gz",
+      "uncompressed_sha256": "0d651c64e3c7de82a9adf07756812683178dbdd3797957a0449498c245ae2c26",
+      "uncompressed_bytes": 2165
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r5.log.gz",
+      "uncompressed_sha256": "68028645d5ca299a9b90aa77cb2ba923744e018d27d5a94060c31ee7eed62e9f",
+      "uncompressed_bytes": 3009
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-post-t1-residuals-all-r11.log.gz",
+      "uncompressed_sha256": "8cce3c0b5fd0454dc6c2e166efc5d0abe74ec75bcf717bf30084a3cc30a7d6d5",
+      "uncompressed_bytes": 93900
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-compact-body-comments-all-r8.log.gz",
+      "uncompressed_sha256": "b81ada9df4bed7c45e7676e9b9127f3cc8cecc52edcc4f2b60027324f758c21f",
+      "uncompressed_bytes": 947
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-literal-update-all-r11.log.gz",
+      "uncompressed_sha256": "db5474210c5eee2f8cf65652eeed8258b7bc0e8ba2ce8ffaa2a09a5c0ee327c3",
+      "uncompressed_bytes": 1768
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r8b.log.gz",
+      "uncompressed_sha256": "c974acb3b51baf4ebf1d30c5976464d2d1be8a2f2ba64f447d5bb5e6185e6ccd",
+      "uncompressed_bytes": 7228
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/check-r7c.log.gz",
+      "uncompressed_sha256": "2d7e218c68451cf67d1efe5ad5c76640073dda2c8bdb40a4189f7378e7fc0c72",
+      "uncompressed_bytes": 730
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/compact-body-comments-all-r6.log.gz",
+      "uncompressed_sha256": "41d3976a0a8aeb9a21e0a3ef29146956ad616869b5df5ce897222283a202521c",
+      "uncompressed_bytes": 947
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-final-rows-r11.log.gz",
+      "uncompressed_sha256": "c12bba4db9688b92ecb34da91b8ca23661cae6132dbfd20a143707f3cddae657",
+      "uncompressed_bytes": 447
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7e.log.gz",
+      "uncompressed_sha256": "545b58f6cf526ed97ff684c63450baa2ee54adabd405197094c970f8f545824d",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r7.log.gz",
+      "uncompressed_sha256": "1cae89f6ea24524701eb878b9075235e69f8279d9b12fcfc0f9a735e70716fd4",
+      "uncompressed_bytes": 2954
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-string-literal-identifier-source-all-r11.log.gz",
+      "uncompressed_sha256": "36d34402d590fe29c673100c48940c8740b52d3bbcea0e21d57dd20ae8727d05",
+      "uncompressed_bytes": 5803
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r6.log.gz",
+      "uncompressed_sha256": "eff1f7f3add73e28825921ad32c1d71d3c2320faa5203f5d503e1a30561da67e",
+      "uncompressed_bytes": 42432
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r7.log.gz",
+      "uncompressed_sha256": "ea88ec0fb4f0ba015958689115c7ea509324ac45075c256cded7513b5788236c",
+      "uncompressed_bytes": 42432
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-compact-body-comments-all-r9a.log.gz",
+      "uncompressed_sha256": "2f209024932e74e02e8f637100e25e6b14457dbe6a1cc381ff4aad8c582fee43",
+      "uncompressed_bytes": 947
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-printer-all-r7.log.gz",
+      "uncompressed_sha256": "41bee35cb8a2bb928cd6ffe1698192536ff55ee64e85c013deb7b2e43cfb6db9",
+      "uncompressed_bytes": 18423
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r6.log.gz",
+      "uncompressed_sha256": "3bbe61020314c97132e707bb66ab39d74add1852d9857664f626f4fdbf4f8ed5",
+      "uncompressed_bytes": 9157
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/universe-r9.log.gz",
+      "uncompressed_sha256": "83a444893e81da648ba934918422f996999501dcaccf10de88b2ba23a9054271",
+      "uncompressed_bytes": 33897
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-literal-escaping-all-r9a.log.gz",
+      "uncompressed_sha256": "828f5f0b188792245747c172dd6af7f03e4cf6d5deda069b76e04f5e45c8f75b",
+      "uncompressed_bytes": 1371
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/fmt-r9.log.gz",
+      "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "uncompressed_bytes": 0
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/harness-contracts-r11.log.gz",
+      "uncompressed_sha256": "89cff97994ba36a9699413b465021a54e1f99a4a6c19745753ab7ad83d850319",
+      "uncompressed_bytes": 9915
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/compact-body-comments-all-r5.log.gz",
+      "uncompressed_sha256": "be5040764c9fe68332a902521cee3a2915dfd599e96028bef24ab659a4d5311e",
+      "uncompressed_bytes": 946
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7d.log.gz",
+      "uncompressed_sha256": "ac9331842ad48c19d05c81adebb47b8cfe44803ee0dc689fe05344a4c77f9194",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-hoisted-exports-r8.log.gz",
+      "uncompressed_sha256": "6ce434b4c4c78ac14a4c8eb16b45442f30cb4c8be3b09131ff596706b7a078fe",
+      "uncompressed_bytes": 451
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-declaration-comments-all-r9.log.gz",
+      "uncompressed_sha256": "21e6fc6c7d07e26904bd95e37e782524540d79d828bf9095935cde9b025fefd4",
+      "uncompressed_bytes": 5065
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-transpile-routes-all-r8.log.gz",
+      "uncompressed_sha256": "f472f662ef4183a9de3bc1e6fca77b4a195e2838cacf03fa643590d25717458f",
+      "uncompressed_bytes": 39773
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-identity-recovery-all-r9.log.gz",
+      "uncompressed_sha256": "87ad4bdad9447859170fc33892801d8074055f2abac6447d4bdccbcec1b51652",
+      "uncompressed_bytes": 1444
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/check-r7d.log.gz",
+      "uncompressed_sha256": "4c492766e6875d018a1ccfaf700ac1c1f003bf9ed66b0aabab4cb17308801bc7",
+      "uncompressed_bytes": 261
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r8e.log.gz",
+      "uncompressed_sha256": "f2ac4e49cf5ced6ddf88fce59432784341c13e79a6caad27fb4df5304a63284b",
+      "uncompressed_bytes": 4615
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r2.log.gz",
+      "uncompressed_sha256": "6f048f38da3c5aef9c8c03c757a6b358fcd8b784402d0c75993d2eb7fd022631",
+      "uncompressed_bytes": 10737
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/checker-lib-r9.log.gz",
+      "uncompressed_sha256": "bf1879e0d46fe2343b0205734217180bef9d717af4c5147af27d4ada104c9ce3",
+      "uncompressed_bytes": 145510
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-nodeps-r9.log.gz",
+      "uncompressed_sha256": "6f4c02bb9be902ae30bbf5410ec1a1c19f58571d749484af27f6553f6ec97614",
+      "uncompressed_bytes": 11890
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r3.log.gz",
+      "uncompressed_sha256": "7651d73b7e6b813fb660ac4eab19f95a32a7216e2fc9d55ad98e5ca50d259270",
+      "uncompressed_bytes": 42432
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r7b.log.gz",
+      "uncompressed_sha256": "2fe02606be346d9d17fd4e4700d4d6de999fd98ba15e7da4baa5116b87f8eebb",
+      "uncompressed_bytes": 42432
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-r11.log.gz",
+      "uncompressed_sha256": "b6296505ac0c6508c2b773cc0ef4d83d9fcd03588b5cb1ad4b825297f0af794a",
+      "uncompressed_bytes": 47742
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-bundle-metadata-t1-all-r9a.log.gz",
+      "uncompressed_sha256": "e78efab63b539a029863185894f11d628b9ebce28240ba4663aea55c29835ab5",
+      "uncompressed_bytes": 18365
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/checker-lib-r11.log.gz",
+      "uncompressed_sha256": "104ac49ffdbc7d320177ac562c42d43eb82210b303d7e7f6ad4ea011dead627a",
+      "uncompressed_bytes": 145512
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-review-fix-all-r9a.log.gz",
+      "uncompressed_sha256": "d274dc4800f451b9f6d0d392ddb86758c7db91c2855bba9fa16d9089b157fddb",
+      "uncompressed_bytes": 1365
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/probes-r10set-r11.log.gz",
+      "uncompressed_sha256": "34ec8b3deb124b920c1bd92fb13457aadd0559a1590125b81c4652f4e41104c3",
+      "uncompressed_bytes": 28
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/checker-lib-r8.log.gz",
+      "uncompressed_sha256": "487cd3095fb384d9caa9259e3315bf89eed37cfd65a91ff587b4ecb9751316ca",
+      "uncompressed_bytes": 145418
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r3.log.gz",
+      "uncompressed_sha256": "b1b1bda9ea3e9d1f78f73d1f0f53e12e819a62384b6ddf4f30efe82c7d84c86e",
+      "uncompressed_bytes": 9462
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-focused-r8.log.gz",
+      "uncompressed_sha256": "8ea9c21ce59ecda1bead4dce8bb934ab5a89672f6468c28cb810258f6a62945c",
+      "uncompressed_bytes": 769
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/universe-plan-base-r11.log.gz",
+      "uncompressed_sha256": "68c17fdbbb3c2244e8ab60a32060237c42f990ad955bb71cb753a732d706022f",
+      "uncompressed_bytes": 280424
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r8d.log.gz",
+      "uncompressed_sha256": "a7613aa61fa909e961f684eb21f02a0e686e3a5f799e1a3375319528ebf819cb",
+      "uncompressed_bytes": 5779
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/contracts-output-matrix-r9a.log.gz",
+      "uncompressed_sha256": "2ee4db7c320124e0062ec46bc3869a2334fea0f125b2a22a15e283091637870c",
+      "uncompressed_bytes": 540
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/check-r7e.log.gz",
+      "uncompressed_sha256": "25149e1935942adcfb8729ac4e91d7f5f2d37cf2965cc9add255dea4d30af998",
+      "uncompressed_bytes": 261
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-identity-recovery-all-r8.log.gz",
+      "uncompressed_sha256": "fd34f820e356435cd400944bc29c79084b9ca36d09dc8a992d7c9ad610a7f4b2",
+      "uncompressed_bytes": 1444
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-transpile-routes-all-r9.log.gz",
+      "uncompressed_sha256": "803021849a04a6331c8399eef6f73fd1e0db91dbc1c6a0f7ed19028cafcad048",
+      "uncompressed_bytes": 39773
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-declaration-comments-all-r8.log.gz",
+      "uncompressed_sha256": "be83168c7fe11141e7eab8c95dba8ed22c8517120533d96b9cd403e19808d029",
+      "uncompressed_bytes": 5067
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/jsdoc-return-all-r6.log.gz",
+      "uncompressed_sha256": "4808a816d7640217f076c3f0ad9e538e9e041e2f05a7763c89be9e7331106d89",
+      "uncompressed_bytes": 3979
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-literal-witnesses-all-r11.log.gz",
+      "uncompressed_sha256": "548301d507ab0407412f4f94eeb83b3cf818e9bcbd0eeb520d9130a62f713af6",
+      "uncompressed_bytes": 32067
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-class-header-token-metadata-all-r8.log.gz",
+      "uncompressed_sha256": "5a18f06918dd687ffaffe7d9a1886ee72f241d6aee0bd269e154c94285d74a68",
+      "uncompressed_bytes": 4163
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef2-ef3-rows-20-r8f.log.gz",
+      "uncompressed_sha256": "ccba17ea316f4d3336c05837bb60bf4c4451e3aec6341be1a604f2372d7d3658",
+      "uncompressed_bytes": 4898
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-literal-witnesses-all-r7.log.gz",
+      "uncompressed_sha256": "973b95b26968f71541e26c45c4b88f0c709b8c964ddd610cfd008ce70363f088",
+      "uncompressed_bytes": 32066
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-parameter-temporaries-all-r9a.log.gz",
+      "uncompressed_sha256": "8470f454a2bef86a7d5dfac56215d5e8d126492fdbccee009323b50ee3eb4305",
+      "uncompressed_bytes": 6498
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-review-fix-all-r9.log.gz",
+      "uncompressed_sha256": "8b4b418abffa5ba4fe29c99a2bce0442895c5137d18f959643a64ac2e7c9a162",
+      "uncompressed_bytes": 1081
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-jsdoc-return-all-r7.log.gz",
+      "uncompressed_sha256": "67972a217636d1373a050d82101ee609a97670c5a5f632ce85307c59ba146cf8",
+      "uncompressed_bytes": 3979
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-review-fix-all-r8.log.gz",
+      "uncompressed_sha256": "7691c5eb83ff60b58806c3865776056eb98461245a3026c3feb1c28bf14bd138",
+      "uncompressed_bytes": 1081
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef6-global-14-r7b.log.gz",
+      "uncompressed_sha256": "3ae049ce9135bcdbe049490eb29654d905dda4760183dfeee94666f427594cab",
+      "uncompressed_bytes": 4200
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/contracts-output-matrix-r9b.log.gz",
+      "uncompressed_sha256": "feb0a5f3b2a3ca29a86d8a43fde26b602af04355c172328acc4039ef50db89ed",
+      "uncompressed_bytes": 540
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7b.log.gz",
+      "uncompressed_sha256": "1413657489f9931677c5cfd8f313b45f8859740c117fc24a1dd4e861c1597469",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-final-batch-r9.log.gz",
+      "uncompressed_sha256": "5895bc883c389c7e51275d6a75cc69fa19996904533d4592f927080e024ec617",
+      "uncompressed_bytes": 1269
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-class-header-token-metadata-all-r9.log.gz",
+      "uncompressed_sha256": "7e4a6140c7a6dc4be8b1ab0085c388cab4e959836cfcae69ed91d7f546d6a28a",
+      "uncompressed_bytes": 4164
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/fmt-r11.log.gz",
+      "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "uncompressed_bytes": 0
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40-r8.log.gz",
+      "uncompressed_sha256": "e93a827e3e334c8f2f0187eae9adc64242023a77f2ef5b0c609d91560e16c148",
+      "uncompressed_bytes": 3587
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/universe-r9a.log.gz",
+      "uncompressed_sha256": "5a18ff2fd71a061b26151958fa41b87c7b4ac15a82f52101798e4318765458b1",
+      "uncompressed_bytes": 1365
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7-debug4b.log.gz",
+      "uncompressed_sha256": "998bb71894c8487b6df5abe2a291f367a6900e252a6a83d398d2ef7da9311262",
+      "uncompressed_bytes": 35061
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r9.log.gz",
+      "uncompressed_sha256": "a5f4c585ee974ca44916ac30a98bbc189e067a7e0a6bc6d2e8d6bc525be724af",
+      "uncompressed_bytes": 72
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-original-commands-all-r11.log.gz",
+      "uncompressed_sha256": "e940eb43058081621d24ecb18a85bedb18320824525250a0ea6162c80b822745",
+      "uncompressed_bytes": 1654
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-literal-update-all-r7.log.gz",
+      "uncompressed_sha256": "d2c9b26f63ea35b3d56866f9ec972d5210639acc6c9be4a69782ea34882106a4",
+      "uncompressed_bytes": 1768
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/universe-plan-base-r9.log.gz",
+      "uncompressed_sha256": "9c9f3fa43e7f6e6ba3f73d6abc589a50add9510f6fa9933ef5b7487ad1778714",
+      "uncompressed_bytes": 409556
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-lib-r11.log.gz",
+      "uncompressed_sha256": "a76178ee4597a2a1142b81c4e49afda6a8db3eb8b07db7b0694d2f9636be32a2",
+      "uncompressed_bytes": 42432
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-r7b.log.gz",
+      "uncompressed_sha256": "eed29d444db10cb93279c0a82fd630ef2a63fc46c37228d216e41546f581339d",
+      "uncompressed_bytes": 48610
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r8.log.gz",
+      "uncompressed_sha256": "3204bca46bca9162b143880e33183e2e48a4c015f68654a2ebf663470d945409",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r7-debug4c.log.gz",
+      "uncompressed_sha256": "51a6d0afbfddb008c3eb0f6e02d0ecd488a1c6438f896d0882583247272c0eee",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-string-literal-identifier-source-all-r7.log.gz",
+      "uncompressed_sha256": "8325f2ca353d914a9ccac528050777bff4b8da4d1c2159f47bed3f143aea32f8",
+      "uncompressed_bytes": 5801
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-printer-all-r11.log.gz",
+      "uncompressed_sha256": "fcfac99756a79e4757f16b6aacfbb0c71fcc2666a1502b229f9f9f49aef8ae46",
+      "uncompressed_bytes": 18423
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-bundle-metadata-t1-all-r7.log.gz",
+      "uncompressed_sha256": "28ac99337fd86a9fa64eff358d1bac3183f0017deb674084d2880fc1ff84aa6f",
+      "uncompressed_bytes": 18365
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/universe-r9b.log.gz",
+      "uncompressed_sha256": "bb834b097c61d7f52a51234bb472206060e7524a92368debeefca17ec95c1a6b",
+      "uncompressed_bytes": 188997
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/harness-contracts-r8.log.gz",
+      "uncompressed_sha256": "6ce9014f3048749515491ac5c726a52db0161fd3e1fad5f15e17eeac2a5fdee5",
+      "uncompressed_bytes": 8426
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/class-header-token-metadata-all-r6.log.gz",
+      "uncompressed_sha256": "1e096c74ee406c40c03994904026a6fed503eaddcfe650260c5c2528f83901a8",
+      "uncompressed_bytes": 4163
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-post-t1-residuals-all-r7.log.gz",
+      "uncompressed_sha256": "68c0e3c1473e6633784e788e2d688c8fd66bfffae7c7f2fbed200defff04b5c0",
+      "uncompressed_bytes": 93898
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/clippy-emitter-compiler-lib-r11c.log.gz",
+      "uncompressed_sha256": "b70c892be24efe1d7cd9c785fecf01f02155b45754f8054e1eaec56f89d4505c",
+      "uncompressed_bytes": 915
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/harness-contracts-r9.log.gz",
+      "uncompressed_sha256": "1b5959ff6b96d8d14270f5bda3edb42628a197e8214228f4ae4f1f6279e21ec7",
+      "uncompressed_bytes": 8521
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/universe-r9c.log.gz",
+      "uncompressed_sha256": "eda392a373b8361225ceb31941a51e21f2ab3bb67034cb693ef3ce0328dd6f86",
+      "uncompressed_bytes": 1365
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-cli-r11.log.gz",
+      "uncompressed_sha256": "c136d0c8906b1ad587b5d36fea4bd61ae35bd78b761cda7b1edb3989ddfc15a8",
+      "uncompressed_bytes": 357
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-prologue-comments-all-r9.log.gz",
+      "uncompressed_sha256": "daf73c64205e3f1dcdb263adf1f8e59733179cf30f1179983db0b3dafd1b1d8b",
+      "uncompressed_bytes": 1083
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-decorator-binding-all-r7.log.gz",
+      "uncompressed_sha256": "b2859e0c90130b235f110af6eabdfe1229bfae77adb272ead6013d03d6c67515",
+      "uncompressed_bytes": 36206
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-decorator-binding-all-r11.log.gz",
+      "uncompressed_sha256": "b16720a6df48bdc7c42d9ac63bfd11c7a7bbc3d6ea125c2dcce829152a3c33d9",
+      "uncompressed_bytes": 36206
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-jsdoc-return-all-r9a.log.gz",
+      "uncompressed_sha256": "05ed1e69c85b1a195289277338984db09038e143503cb52cd5a96c6d8a8ac788",
+      "uncompressed_bytes": 3978
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-r5.log.gz",
+      "uncompressed_sha256": "e6fc772c81ab993729bb656bb4471d2a7b8a775c3f645951602d8e9e47036d44",
+      "uncompressed_bytes": 48610
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/check-r6.log.gz",
+      "uncompressed_sha256": "646ca27b973e4b6e86468dd7b7e5a349e68f07df8055eac19aefc5c760a2b623",
+      "uncompressed_bytes": 832
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/decorator-binding-all-r5.log.gz",
+      "uncompressed_sha256": "65a59683f3f28e07b34b79b10e5069525d80a15932079b8acaa29288016606aa",
+      "uncompressed_bytes": 36204
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-class-header-token-metadata-all-r9a.log.gz",
+      "uncompressed_sha256": "72cbf4580c392d089a8dea69366633ecbad86bf0379d4b28c9c29469a4f5e64a",
+      "uncompressed_bytes": 4163
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-final-batch-r9a.log.gz",
+      "uncompressed_sha256": "c7b0661c65a7b325c78e96cad635644e45f3a8c90eb562f3f3943e51c8dd9175",
+      "uncompressed_bytes": 1269
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/check-r7.log.gz",
+      "uncompressed_sha256": "d608b9f01802b25c913ea76793b47af5c2dbdc5e9c43cd4b1f14b4b401deb1d0",
+      "uncompressed_bytes": 731
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/build-new-targets.log.gz",
+      "uncompressed_sha256": "94c53d68ab4579bdc12e9b14264aa55ce5b8c6458fce049cb2f3ac23d7506711",
+      "uncompressed_bytes": 353
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-r4.log.gz",
+      "uncompressed_sha256": "7e3d934b687e5ca1e997b52d3fb158383bb3eb167206e276028a7a0041d8d3fb",
+      "uncompressed_bytes": 48610
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-prologue-comments-all-r9a.log.gz",
+      "uncompressed_sha256": "4ad26ad01b8efb90da81eff9b9fb9fac799866fb2a79c910e48aae987bab4aca",
+      "uncompressed_bytes": 1083
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-prologue-comments-all-r8.log.gz",
+      "uncompressed_sha256": "ec19214192ca669db207dcaf66fcbb26a124dc4354d9f7cf45c937219916132f",
+      "uncompressed_bytes": 1085
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/universe-r9d.log.gz",
+      "uncompressed_sha256": "4989904076087c649d6f83e2d279b589569af3fb7cea0f4f1047cdfeff9e1135",
+      "uncompressed_bytes": 36129
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-declaration-comments-all-r9a.log.gz",
+      "uncompressed_sha256": "81dff1e9ae2b06db9fbda4180d71b72faf54f186266cd83b370d50319175c11d",
+      "uncompressed_bytes": 5065
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-r6.log.gz",
+      "uncompressed_sha256": "dcac4e5e02f4394980615ab750615d11614d42acd67a437f6ac32bd6f7775d59",
+      "uncompressed_bytes": 48610
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-utf16-identity-recovery-all-r9a.log.gz",
+      "uncompressed_sha256": "86187e99a9e135576d9190ddda6e33b6075893d8ce46f3053cbca9c2452e5c65",
+      "uncompressed_bytes": 1446
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-transpile-routes-all-r9a.log.gz",
+      "uncompressed_sha256": "84588a718e59bee5158625ba5a6619d7b028bbfac4d978438bec864528582236",
+      "uncompressed_bytes": 39773
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40-r7b.log.gz",
+      "uncompressed_sha256": "5a1c1d9c936bafb49d13a8d0c8a5f7092beac81a7ffa1de3aa374b97085eb377",
+      "uncompressed_bytes": 3588
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/harness-unit-r2.log.gz",
+      "uncompressed_sha256": "936b3b6eef96943b8429ca71e2f8d0264e641b083efbee2c823f9e21370c96f2",
+      "uncompressed_bytes": 107
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/decorator-binding-all-r6.log.gz",
+      "uncompressed_sha256": "0c02a17a493f4f00b2bbeb1fbf0b450afc0bbfde667480f2b007a469bc711098",
+      "uncompressed_bytes": 36204
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-final-batch-r9b.log.gz",
+      "uncompressed_sha256": "fff8ef782761457455daa5ee891607ee220943e1f15c239dbcb9ec7961875775",
+      "uncompressed_bytes": 1485
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/emitter-contracts-r7.log.gz",
+      "uncompressed_sha256": "98ae8d887984a9e4b8f8d41a55315e512c3223e27d93375efcae199002719732",
+      "uncompressed_bytes": 48610
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/witness-parameter-temporaries-all-r7.log.gz",
+      "uncompressed_sha256": "08aabea39a912fcb530ce54996536153469f4412ef3f6bd076ba894b65e6170a",
+      "uncompressed_bytes": 6498
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/ef4-ef5-class-40.log.gz",
+      "uncompressed_sha256": "feb2095012bbb40bc6844c764cd9a9f0bb72915547c811374db352229bd316a4",
+      "uncompressed_bytes": 182624
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/measure/probes-r11.log.gz",
+      "uncompressed_sha256": "19db771fb3a357fe1d0cdf47bafd9d3f7495fa839baf8ae763bee70e03e1637d",
+      "uncompressed_bytes": 149
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/after2-decorator-comments-retired.log.gz",
+      "uncompressed_sha256": "8c380bb05493f265cb5661a47bd2a02fae1721044bc0bcf0ffb04bc8d08d1eb5",
+      "uncompressed_bytes": 22135
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/after1-decorator-comments.log.gz",
+      "uncompressed_sha256": "88bf8998d6a09c3581bf8b44b413b60bcbb5197ac51301e89494d9a29b2ca956",
+      "uncompressed_bytes": 24972
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/before-decorator-comments.log.gz",
+      "uncompressed_sha256": "5e5c257afda1f565203e58e4a10143731e650333a40a65c2ef2a08093f02f35a",
+      "uncompressed_bytes": 22412
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/adjacent/bundle-metadata-t1-all.log.gz",
+      "uncompressed_sha256": "5a1a8787a4122179a17668fc5145570b5656b1420c4964e198587e77e8dc20ad",
+      "uncompressed_bytes": 18365
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/adjacent/declaration-comments-all.log.gz",
+      "uncompressed_sha256": "95494883c967cbade821bb7cf80e70a0e96700b2019ca08057285a7720fd18b4",
+      "uncompressed_bytes": 5065
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/adjacent/inherited-compact-private-body-start-bytes.log.gz",
+      "uncompressed_sha256": "14e7832719bfa01597785c7f211d3dd3b6ac89a3d357a6c5fbe5eabd816932fe",
+      "uncompressed_bytes": 1339
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/adjacent/emitter-contracts.log.gz",
+      "uncompressed_sha256": "2297027de69ffb73953163d7789b63e693692c47a92ba6428b5c7bf49c886caf",
+      "uncompressed_bytes": 48610
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/adjacent/prologue-comments-all.log.gz",
+      "uncompressed_sha256": "d147208ffce73006abc8d9bf7416d0f2cf5111b1671c3394d999f6916b8504e3",
+      "uncompressed_bytes": 1084
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/adjacent/emitter-lib.log.gz",
+      "uncompressed_sha256": "9ceba4806f8ecde77f5530951c6a8bc4d6198dd9002ad92f11dc85c67cf6285d",
+      "uncompressed_bytes": 42432
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/adjacent/compact-body-comments-all.log.gz",
+      "uncompressed_sha256": "8f4d645c5236d91bbdb8e33cefd35a7817c7e39c0374f08f5ba5b5c316875208",
+      "uncompressed_bytes": 947
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/adjacent/inherited-compact-private-body-pa-reverted.log.gz",
+      "uncompressed_sha256": "563293a7d70253d562119edcba4424fd1f693196924edbf4226ae2047a0d3be0",
+      "uncompressed_bytes": 1339
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/ef1/adjacent/printer-all.log.gz",
+      "uncompressed_sha256": "3c645c500cd5a14cddd8acfe8bab32de7261c56d8ef6b218d955a16f6ddacf14",
+      "uncompressed_bytes": 18583
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe14/using/rs/rs.log.gz",
+      "uncompressed_sha256": "aa16be9ec56ff958df520618857765f239fb37fdadc76de5d76d30b70fa1513b",
+      "uncompressed_bytes": 393
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe14/using/ts/tsc.log.gz",
+      "uncompressed_sha256": "aa16be9ec56ff958df520618857765f239fb37fdadc76de5d76d30b70fa1513b",
+      "uncompressed_bytes": 393
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe13/self-import/rs/rs.log.gz",
+      "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "uncompressed_bytes": 0
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe13/self-import/ts/tsc.log.gz",
+      "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "uncompressed_bytes": 0
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe12/for-of37/rs/rs.log.gz",
+      "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "uncompressed_bytes": 0
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe12/for-of37/ts/tsc.log.gz",
+      "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "uncompressed_bytes": 0
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe15/outfile/rs/rs.log.gz",
+      "uncompressed_sha256": "c9221ec2e481bc212108230df68017687e3e2f2bacc2e3b4e78ff97da4150afd",
+      "uncompressed_bytes": 684
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe2/B/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe3/concise-arrow/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe3/legacy-static-block/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe3/escaped/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe3/legacy-bound-this/rs/rs.log.gz",
+      "uncompressed_sha256": "b47704b4a703cc863487d0402075c4b0dcd684218d314c41b3deb02adc153713",
+      "uncompressed_bytes": 112
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe3/direct-escaped/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe3/nested-computed/rs/rs.log.gz",
+      "uncompressed_sha256": "57f157005d0c00bfb1fd73305f3cbc3be68ca00eb87da7c20c5adee129821419",
+      "uncompressed_bytes": 184
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe16/B/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe16/B/ts/tsc.log.gz",
+      "uncompressed_sha256": "cbf7de6a7ab22aa8f3b63eed31368677222a5389d4a0bcaa112a952910051cec",
+      "uncompressed_bytes": 11
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe16/E/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe16/E/ts/tsc.log.gz",
+      "uncompressed_sha256": "cbf7de6a7ab22aa8f3b63eed31368677222a5389d4a0bcaa112a952910051cec",
+      "uncompressed_bytes": 11
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe16/D/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe16/D/ts/tsc.log.gz",
+      "uncompressed_sha256": "cbf7de6a7ab22aa8f3b63eed31368677222a5389d4a0bcaa112a952910051cec",
+      "uncompressed_bytes": 11
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe16/C/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe16/C/ts/tsc.log.gz",
+      "uncompressed_sha256": "cbf7de6a7ab22aa8f3b63eed31368677222a5389d4a0bcaa112a952910051cec",
+      "uncompressed_bytes": 11
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe16/A/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe16/A/ts/tsc.log.gz",
+      "uncompressed_sha256": "cbf7de6a7ab22aa8f3b63eed31368677222a5389d4a0bcaa112a952910051cec",
+      "uncompressed_bytes": 11
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe11/P1/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe11/P6/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe11/P7/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe11/P5/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe11/P3/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe11/P4/rs/rs.log.gz",
+      "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "uncompressed_bytes": 0
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe8/imported-promise/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe6/dec/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe7/async-gen-super/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe7/read-comment/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe7/arrow-paren/rs/rs.log.gz",
+      "uncompressed_sha256": "a21e5fdd6948829e21a68f1edbdb4d3a855443829a598f0bdfe683cdf38e2642",
+      "uncompressed_bytes": 82
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe9/legacy-static-block/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    },
+    {
+      "path": "docs/design/greenfield/slices/emitter-final-batch/records/probes/probe9/field-arrow/rs/rs.log.gz",
+      "uncompressed_sha256": "c7e564ead95ec9532cd1f07bc8a20dabe630a496aec088f4c86ea4c812c426f9",
+      "uncompressed_bytes": 10
+    }
+  ]
+}

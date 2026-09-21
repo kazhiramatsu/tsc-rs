@@ -1,0 +1,15 @@
+{
+  "source_commit": "5a0275bc74777cc5a34b2c61c56b4173b29ed6d2",
+  "before_qualification_sha256": "5a19db90ba6e1456159c606aa22c39370ea932d8b790be7a0193d6fea10cb052",
+  "after_qualification_sha256": "7ab805cbeef7858607b5babc966bce2f091e41342d4d4c348e2decdab18ae700",
+  "cases": 9027,
+  "all_case_ids_order_and_dispositions_unchanged": true,
+  "complete_report_identical_except_qualification_sha256": true,
+  "counts": {
+    "admitted": 8511,
+    "h2_8a_deferred": 6,
+    "h2_9_deferred": 510
+  },
+  "authoritative": false,
+  "workspace_plan_unchanged": true
+}

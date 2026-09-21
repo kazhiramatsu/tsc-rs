@@ -1,0 +1,2003 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "31735256edb2d20b9dedb2147c2dd2a752b1b8e07d5ac28923a00aab2945ce22",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "products/out/deep/first-write",
+      "current_directory": "/project",
+      "fault": "first-write",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "out/deep",
+        "emitBOM": true,
+        "listEmittedFiles": true,
+        "declaration": true,
+        "sourceMap": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/deep/a.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "out/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+            "callback_utf8_bytes": 156,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 127,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/deep/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "out/deep/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 33,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "out/deep/b.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 129,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 129,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "out/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "materialized_utf8_bytes": 150,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 118,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "out/deep/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "out/deep/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 33,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "out/deep/a.js",
+            "out/deep/a.js.map",
+            "out/deep/a.d.ts",
+            "out/deep/a.d.ts.map",
+            "out/deep/b.js",
+            "out/deep/b.js.map",
+            "out/deep/b.d.ts",
+            "out/deep/b.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/a.ts\"],\"names\":[],\"mappings\":\";;;AAAA,SAAS;AACI,QAAA,CAAC,GAAW,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../src/a.ts\"],\"names\":[],\"mappings\":\"AACA,eAAO,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/b.ts\"],\"names\":[],\"mappings\":\";;;AAAa,QAAA,CAAC,GAAW,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../src/b.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,CAAC,EAAE,MAAY,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [
+          "TSFILE: /project/out/deep/a.js",
+          "TSFILE: /project/out/deep/a.js.map",
+          "TSFILE: /project/out/deep/a.d.ts",
+          "TSFILE: /project/out/deep/a.d.ts.map",
+          "TSFILE: /project/out/deep/b.js",
+          "TSFILE: /project/out/deep/b.js.map",
+          "TSFILE: /project/out/deep/b.d.ts",
+          "TSFILE: /project/out/deep/b.d.ts.map"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "out/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/out/deep/a.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ=="
+            },
+            {
+              "path": "/project/out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw"
+            },
+            {
+              "path": "/project/out/deep/a.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ=="
+            },
+            {
+              "path": "/project/out/deep/a.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA=="
+            },
+            {
+              "path": "/project/out/deep/b.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9"
+            },
+            {
+              "path": "/project/out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw"
+            },
+            {
+              "path": "/project/out/deep/b.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ=="
+            },
+            {
+              "path": "/project/out/deep/b.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/out",
+            "/project/out/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "products/out/deep/create-directory",
+      "current_directory": "/project",
+      "fault": "create-directory",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "out/deep",
+        "emitBOM": true,
+        "listEmittedFiles": true,
+        "declaration": true,
+        "sourceMap": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/deep/a.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "out/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+            "callback_utf8_bytes": 156,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 127,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/deep/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "out/deep/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 33,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "out/deep/b.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 129,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 129,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "out/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "materialized_utf8_bytes": 150,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 118,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "out/deep/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "out/deep/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 33,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/a.d.ts': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/a.d.ts.map': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/a.js': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/a.js.map': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/b.d.ts': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/b.d.ts.map': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/b.js': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/b.js.map': H2.8 controlled create failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/a.d.ts': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/a.d.ts.map': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/a.js': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/a.js.map': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/b.d.ts': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/b.d.ts.map': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/b.js': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/b.js.map': H2.8 controlled create failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "out/deep/a.js",
+            "out/deep/a.js.map",
+            "out/deep/a.d.ts",
+            "out/deep/a.d.ts.map",
+            "out/deep/b.js",
+            "out/deep/b.js.map",
+            "out/deep/b.d.ts",
+            "out/deep/b.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/a.ts\"],\"names\":[],\"mappings\":\";;;AAAA,SAAS;AACI,QAAA,CAAC,GAAW,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../src/a.ts\"],\"names\":[],\"mappings\":\"AACA,eAAO,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/b.ts\"],\"names\":[],\"mappings\":\";;;AAAa,QAAA,CAAC,GAAW,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../src/b.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,CAAC,EAAE,MAAY,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [
+          "TSFILE: /project/out/deep/a.js",
+          "TSFILE: /project/out/deep/a.js.map",
+          "TSFILE: /project/out/deep/a.d.ts",
+          "TSFILE: /project/out/deep/a.d.ts.map",
+          "TSFILE: /project/out/deep/b.js",
+          "TSFILE: /project/out/deep/b.js.map",
+          "TSFILE: /project/out/deep/b.d.ts",
+          "TSFILE: /project/out/deep/b.d.ts.map"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": "H2.8 controlled create failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "products//project/new/deep/first-write",
+      "current_directory": "/project",
+      "fault": "first-write",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/new/deep",
+        "emitBOM": true,
+        "listEmittedFiles": true,
+        "declaration": true,
+        "sourceMap": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/new/deep/a.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/new/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+            "callback_utf8_bytes": 156,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 127,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/new/deep/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/new/deep/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 33,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/new/deep/b.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 129,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 129,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/new/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "materialized_utf8_bytes": 150,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 118,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/new/deep/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/new/deep/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 33,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/new/deep/a.js",
+            "/project/new/deep/a.js.map",
+            "/project/new/deep/a.d.ts",
+            "/project/new/deep/a.d.ts.map",
+            "/project/new/deep/b.js",
+            "/project/new/deep/b.js.map",
+            "/project/new/deep/b.d.ts",
+            "/project/new/deep/b.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/a.ts\"],\"names\":[],\"mappings\":\";;;AAAA,SAAS;AACI,QAAA,CAAC,GAAW,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../src/a.ts\"],\"names\":[],\"mappings\":\"AACA,eAAO,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/b.ts\"],\"names\":[],\"mappings\":\";;;AAAa,QAAA,CAAC,GAAW,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../src/b.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,CAAC,EAAE,MAAY,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [
+          "TSFILE: /project/new/deep/a.js",
+          "TSFILE: /project/new/deep/a.js.map",
+          "TSFILE: /project/new/deep/a.d.ts",
+          "TSFILE: /project/new/deep/a.d.ts.map",
+          "TSFILE: /project/new/deep/b.js",
+          "TSFILE: /project/new/deep/b.js.map",
+          "TSFILE: /project/new/deep/b.d.ts",
+          "TSFILE: /project/new/deep/b.d.ts.map"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/new/deep/a.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ=="
+            },
+            {
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw"
+            },
+            {
+              "path": "/project/new/deep/a.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ=="
+            },
+            {
+              "path": "/project/new/deep/a.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA=="
+            },
+            {
+              "path": "/project/new/deep/b.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9"
+            },
+            {
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw"
+            },
+            {
+              "path": "/project/new/deep/b.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ=="
+            },
+            {
+              "path": "/project/new/deep/b.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/new",
+            "/project/new/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "products//project/new/deep/create-directory",
+      "current_directory": "/project",
+      "fault": "create-directory",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/new/deep",
+        "emitBOM": true,
+        "listEmittedFiles": true,
+        "declaration": true,
+        "sourceMap": true,
+        "declarationMap": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/new/deep/a.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/new/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+            "callback_utf8_bytes": 156,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 127,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/new/deep/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/new/deep/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 33,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/new/deep/b.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 129,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 129,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/new/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "materialized_utf8_bytes": 150,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 118,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/new/deep/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/new/deep/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 33,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/a.d.ts': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/a.d.ts.map': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/a.js': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/a.js.map': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/b.d.ts': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/b.d.ts.map': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/b.js': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/b.js.map': H2.8 controlled create failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/a.d.ts': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/a.d.ts.map': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/a.js': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/a.js.map': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/b.d.ts': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/b.d.ts.map': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/b.js': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/b.js.map': H2.8 controlled create failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "/project/new/deep/a.js",
+            "/project/new/deep/a.js.map",
+            "/project/new/deep/a.d.ts",
+            "/project/new/deep/a.d.ts.map",
+            "/project/new/deep/b.js",
+            "/project/new/deep/b.js.map",
+            "/project/new/deep/b.d.ts",
+            "/project/new/deep/b.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/a.ts\"],\"names\":[],\"mappings\":\";;;AAAA,SAAS;AACI,QAAA,CAAC,GAAW,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../src/a.ts\"],\"names\":[],\"mappings\":\"AACA,eAAO,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/b.ts\"],\"names\":[],\"mappings\":\";;;AAAa,QAAA,CAAC,GAAW,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"b.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../src/b.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,CAAC,EAAE,MAAY,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [
+          "TSFILE: /project/new/deep/a.js",
+          "TSFILE: /project/new/deep/a.js.map",
+          "TSFILE: /project/new/deep/a.d.ts",
+          "TSFILE: /project/new/deep/a.d.ts.map",
+          "TSFILE: /project/new/deep/b.js",
+          "TSFILE: /project/new/deep/b.js.map",
+          "TSFILE: /project/new/deep/b.d.ts",
+          "TSFILE: /project/new/deep/b.d.ts.map"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9hLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLFNBQVM7QUFDSSxRQUFBLENBQUMsR0FBVyxDQUFDLENBQUMifQ==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsQ0FBQyxHQUFXLEdBQUcsQ0FBQyJ9",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLENBQUMsRUFBRSxNQUFZLENBQUMifQ==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.d.ts",
+              "utf8_base64": "77u/ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9Yi5kLnRzLm1hcA==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": "H2.8 controlled create failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    }
+  ]
+}

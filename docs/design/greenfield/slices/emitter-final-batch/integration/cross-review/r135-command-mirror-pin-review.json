@@ -1,0 +1,12 @@
+[
+  {
+    "path": "crates/program/src/prepared.rs",
+    "before": "8d06da73848e491dfbd7323d1cd7b0740a17e4038cf13a3cec3daeb551eb82ee",
+    "after": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
+  },
+  {
+    "path": "crates/program/src/config.rs",
+    "before": "b1bdb6588e15d6a25b166a18cc6363061709436bfdbe35b60ab11e2413eeba92",
+    "after": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c"
+  }
+]

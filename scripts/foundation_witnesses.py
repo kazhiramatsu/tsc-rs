@@ -17,6 +17,10 @@ SUITES = {
     "syntax-literal-values": {"crate": "syntax", "target": "owned_literal_values", "oracle": "utf16-owned-literal-values",
                               "inputs": ("crates/compiler/tests/fixtures/utf16-literals-adjacent-probes-inputs.json",)},
     "syntax-recovery": {"crate": "syntax", "target": "recovery_provenance", "oracle": "utf16-recovery-boundary"},
+    "syntax-emitter-recovery": {"crate": "syntax", "target": "emitter_recovery", "oracle": "emitter-recovery",
+                                "additional_oracles": ("await-flag-boundary",),
+                                "inputs": ("docs/design/greenfield/slices/emitter-final-batch/integration/cross-review/recovery-inputs-r20.json",
+                                           "crates/compiler/tests/fixtures/emitter-context-recovery.json")},
     "syntax-scanner-escapes": {"crate": "syntax", "target": "scanner_escape_diagnostics", "oracle": "utf16-scanner-escape-diagnostics"},
     "syntax-template-escapes": {"crate": "syntax", "target": "template_escape_flags"},
     "syntax-template-flags": {"crate": "syntax", "target": "template_flags", "oracle": "utf16-template-flags"},
@@ -26,7 +30,13 @@ SUITES = {
     "host-memory": {"crate": "host", "target": "compiler_host_contract"},
     "host-filesystem": {"crate": "host", "target": "filesystem_host_contract"},
     "program-bundle-facts": {"crate": "program", "target": "h2_7d_bundle_source_facts", "oracle": "bundle-plan",
-                             "fixture": "crates/emitter/tests/fixtures/bundle-plan.json"},
+                             "fixture": "crates/emitter/tests/fixtures/bundle-plan.json",
+                             "inputs": ("scripts/check-frozen-de-reference.mjs",
+                                        "scripts/frozen-de-reference/manifest.json",
+                                        "scripts/frozen-de-reference/h2-6c-qualification.v1.json.gz",
+                                        "scripts/frozen-de-reference/h2-7b-qualification.v1.json.gz",
+                                        "scripts/frozen-de-reference/h2-7c-qualification.v1.json.gz",
+                                        "scripts/frozen-de-reference/h2-candidate-dispositions.v1.json.gz")},
     "program-host-platform": {"crate": "program", "target": "host_platform_smoke_contract"},
     "program-config-paths": {"crate": "program", "target": "utf16_config_paths"},
     "program-module-paths": {"crate": "program", "target": "utf16_module_paths"},
@@ -45,6 +55,9 @@ def inputs(suite):
     if "oracle" in spec:
         paths.add(f"scripts/observe-{spec['oracle']}.mjs")
         paths.add(spec.get("fixture", f"crates/{spec['crate']}/tests/fixtures/{spec['oracle']}.json"))
+    for observer in spec.get("additional_oracles", ()):
+        paths.add(f"scripts/observe-{observer}.mjs")
+        paths.add(f"crates/{spec['crate']}/tests/fixtures/{observer}.json")
     return paths
 
 
@@ -91,7 +104,9 @@ def command(suites):
     argv = ["cargo", "test", "--manifest-path", f"crates/{next(iter(crates))}/Cargo.toml"]
     for suite in suites:
         argv.extend(("--test", SUITES[suite]["target"]))
-    return [*argv, "--", "--nocapture", "--test-threads=1"]
+    # Preserve whole libtest status lines while retaining successful-test logs.
+    # With --nocapture, a test's diagnostics split `test NAME ... ok` in two.
+    return [*argv, "--", "--show-output", "--test-threads=1"]
 
 
 def verify_output(suites, output):
@@ -125,11 +140,14 @@ def run(suites, env):
                 raise ValueError(f"{suite}: missing registered input: {path}")
         spec = SUITES[suite]
         batches.setdefault(spec["crate"], []).append(suite)
-        if "oracle" in spec and spec["oracle"] not in observers:
-            observers.append(spec["oracle"])
+        for observer in ([spec["oracle"]] if "oracle" in spec else []) + list(spec.get("additional_oracles", ())):
+            if observer not in observers:
+                observers.append(observer)
     started = time.monotonic()
     for observer in observers:
-        subprocess.run(["node", f"scripts/observe-{observer}.mjs", "--check"], cwd=ROOT, env=env, check=True)
+        oracle = (["node", "scripts/check-frozen-de-reference.mjs", "--check", "bundle-plan"]
+                  if observer == "bundle-plan" else ["node", f"scripts/observe-{observer}.mjs", "--check"])
+        subprocess.run(oracle, cwd=ROOT, env=env, check=True)
     oracle_seconds = time.monotonic() - started
     started = time.monotonic()
     passed = 0

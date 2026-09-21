@@ -1,0 +1,108 @@
+--- a/crates/emitter/src/printer.rs
++++ b/crates/emitter/src/printer.rs
+@@ -3901,12 +3901,15 @@
+                 )? {
+                     writer.write_space(" ");
+                 }
+-                let import_keyword = self.emit_token_with_comments(
++                // The modifier node already owns its trailing comments.
++                // The keyword visits only getLeadingCommentRanges at that end.
++                let import_keyword = self.emit_source_leading_token_with_context(
+                     transformation,
+                     node,
+                     FixedToken::keyword(SyntaxKind::ImportKeyword),
+                     import_anchor,
+-                    false,
++                    TokenLeadingSpace::None,
++                    expression_context,
+                     writer,
+                 )?;
+                 let mut module_prefix = import_keyword;
+@@ -4222,8 +4225,8 @@
+                         kind: record.kind,
+                     });
+                 }
+-                let export_anchor =
+-                    self.token_after_modifiers_cursor(transformation, node, data.modifiers)?;
++                // Unlike import declarations, tsc starts this token at node.pos.
++                let export_anchor = self.node_start_cursor(transformation, node)?;
+                 if self.emit_modifiers(
+                     transformation,
+                     node.source(),
+@@ -4504,18 +4507,9 @@
+                 )
+             }
+             NodeData::ExportAssignment(data) => {
+-                let export_anchor =
+-                    self.token_after_modifiers_cursor(transformation, node, data.modifiers)?;
+-                if self.emit_modifiers(
+-                    transformation,
+-                    node.source(),
+-                    data.modifiers,
+-                    DecoratorPolicy::Omit,
+-                    expression_context,
+-                    writer,
+-                )? {
+-                    writer.write_space(" ");
+-                }
++                // emitExportAssignment never prints its recovery modifiers,
++                // including when the declaration transform retains them.
++                let export_anchor = self.node_start_cursor(transformation, node)?;
+                 let export_keyword = self.emit_token_with_comments(
+                     transformation,
+                     node,
+--- a/crates/emitter/src/builtins.rs
++++ b/crates/emitter/src/builtins.rs
+@@ -14891,9 +14891,9 @@
+         mut data: tsc_syntax::nodes::ImportDeclarationData,
+     ) -> Result<Option<NodeId>, TransformError> {
+         let Some(clause_id) = data.import_clause else {
+-            return Ok(Some(
+-                self.update_generic(original, NodeData::ImportDeclaration(data))?,
+-            ));
++            // tsc returns a side-effect import unchanged, including recovery
++            // modifiers. A generic child visit would erase type modifiers.
++            return Ok(Some(original.node()));
+         };
+         let clause_node = self.node(clause_id);
+         let clause_data = match &self.context.arena().node(clause_node)?.data {
+@@ -15163,12 +15163,33 @@
+         if data.is_type_only {
+             return Ok(None);
+         }
+-        let Some(clause) = data.export_clause else {
+-            return Ok(Some(
+-                self.update_generic(original, NodeData::ExportDeclaration(data))?,
+-            ));
+-        };
+-        let clause_node = self.node(clause);
++        let clause_node = match data.export_clause.map(|clause| self.node(clause)) {
++            Some(clause)
++                if self.context.arena().node(clause)?.kind != SyntaxKind::NamespaceExport =>
++            {
++                clause
++            }
++            export_clause => {
++                // tsc's typed update preserves all current fields for star
++                // and namespace exports, including recovery modifiers.
++                let modifiers = data.modifiers.map(|modifiers| self.array(modifiers));
++                let module_specifier = data.module_specifier.map(|module| self.node(module));
++                let attributes = data.attributes.map(|attributes| self.node(attributes));
++                return Ok(Some(
++                    self.context
++                        .factory()?
++                        .update_export_declaration(
++                            original,
++                            modifiers,
++                            data.is_type_only,
++                            export_clause,
++                            module_specifier,
++                            attributes,
++                        )?
++                        .node(),
++                ));
++            }
++        };
+         let NodeData::NamedExports(mut named) =
+             self.context.arena().node(clause_node)?.data.clone()
+         else {

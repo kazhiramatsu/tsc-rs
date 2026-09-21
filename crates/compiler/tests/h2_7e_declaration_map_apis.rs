@@ -189,7 +189,6 @@ impl EmitFileSystem for ControlledSystem<'_> {
         bytes: &[u8],
     ) -> Result<(), tsc_diagnostics::JsString> {
         let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
-        (|| -> Result<(), String> {
         self.attempts.push(json!({"path":path,"callback_utf8_base64":base64::engine::general_purpose::STANDARD.encode(bytes),"write_byte_order_mark":false}));
         if self
             .rules
@@ -198,11 +197,10 @@ impl EmitFileSystem for ControlledSystem<'_> {
             .iter()
             .any(|r| r["path"].as_str().unwrap() == path.to_string_lossy())
         {
-            Err("H2.7e controlled system failure".to_owned())
+            Err("H2.7e controlled system failure".into())
         } else {
             Ok(())
         }
-            })().map_err(Into::into)
     }
     fn create_directory(
         &mut self,

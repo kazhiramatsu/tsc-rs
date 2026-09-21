@@ -1,0 +1,757 @@
+emitter-r95-neighbours/for-await/es5/commonjs/remove-false/comments
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -45,7 +45,7 @@
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.f = f;
+ function f() {
+-    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x /*binding*/, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
++    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
+         switch (_e.label) {
+             case 0:
+                 _e.trys.push([0, 5, 6, 11]);
+
+emitter-r95-neighbours/for-await/es5/esnext/remove-false/comments
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -42,7 +42,7 @@
+     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+ };
+ export function f() {
+-    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x /*binding*/, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
++    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
+         switch (_e.label) {
+             case 0:
+                 _e.trys.push([0, 5, 6, 11]);
+
+emitter-r95-neighbours/for-await/es2015/commonjs/remove-false/comments
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -19,10 +19,10 @@
+ exports.f = f;
+ function f() {
+     return __awaiter(this, void 0, void 0, function* () { var _a, e_1, _b, _c; try {
+-        for (var _d = true, /*source*/ values_1 = __asyncValues(/*source*/ values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) {
++        for (var _d = true, /*source*/ values_1 = __asyncValues(/*source*/ values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) { /*body*/
+             _c = values_1_1.value;
+             _d = false;
+-            const x = _c; /*binding*/
++            const x /*binding*/ = _c; /*binding*/
+             fn(x); /*end*/
+         }
+     }
+
+emitter-r95-neighbours/for-await/es2015/esnext/remove-false/comments
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -16,10 +16,10 @@
+ };
+ export function f() {
+     return __awaiter(this, void 0, void 0, function* () { var _a, e_1, _b, _c; try {
+-        for (var _d = true, /*source*/ values_1 = __asyncValues(/*source*/ values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) {
++        for (var _d = true, /*source*/ values_1 = __asyncValues(/*source*/ values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) { /*body*/
+             _c = values_1_1.value;
+             _d = false;
+-            const x = _c; /*binding*/
++            const x /*binding*/ = _c; /*binding*/
+             fn(x); /*end*/
+         }
+     }
+
+emitter-r95-neighbours/for-await/es2017/commonjs/remove-false/comments
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -9,10 +9,10 @@
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.f = f;
+ async function f() { var _a, e_1, _b, _c; try {
+-    for (var _d = true, /*source*/ values_1 = __asyncValues(/*source*/ values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) {
++    for (var _d = true, /*source*/ values_1 = __asyncValues(/*source*/ values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) { /*body*/
+         _c = values_1_1.value;
+         _d = false;
+-        const x = _c; /*binding*/
++        const x /*binding*/ = _c; /*binding*/
+         fn(x); /*end*/
+     }
+ }
+
+emitter-r95-neighbours/for-await/es2017/esnext/remove-false/comments
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -6,10 +6,10 @@
+     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+ };
+ export async function f() { var _a, e_1, _b, _c; try {
+-    for (var _d = true, /*source*/ values_1 = __asyncValues(/*source*/ values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) {
++    for (var _d = true, /*source*/ values_1 = __asyncValues(/*source*/ values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) { /*body*/
+         _c = values_1_1.value;
+         _d = false;
+-        const x = _c; /*binding*/
++        const x /*binding*/ = _c; /*binding*/
+         fn(x); /*end*/
+     }
+ }
+
+emitter-r95-wrapper-rest/for-await/es5/commonjs/remove-false/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -56,36 +56,35 @@
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.f = f;
+ function f() {
+-    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, _b, x, rest, e_1_1; var _c, e_1, _d, _e; return __generator(this, function (_f) {
+-        switch (_f.label) {
++    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x, rest, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
++        switch (_e.label) {
+             case 0:
+-                _f.trys.push([0, 5, 6, 11]);
++                _e.trys.push([0, 5, 6, 11]);
+                 _a = true, values_1 = __asyncValues(values);
+-                _f.label = 1;
++                _e.label = 1;
+             case 1: return [4 /*yield*/, values_1.next()];
+             case 2:
+-                if (!(values_1_1 = _f.sent(), _c = values_1_1.done, !_c)) return [3 /*break*/, 4];
+-                _e = values_1_1.value;
++                if (!(values_1_1 = _e.sent(), _b = values_1_1.done, !_b)) return [3 /*break*/, 4];
++                _d = values_1_1.value;
+                 _a = false;
+-                _b = _e;
+-                x = _b.x, rest = __rest(_b, ["x"]);
++                x = _d.x, rest = __rest(_d, ["x"]);
+                 fn(x, rest);
+-                _f.label = 3;
++                _e.label = 3;
+             case 3:
+                 _a = true;
+                 return [3 /*break*/, 1];
+             case 4: return [3 /*break*/, 11];
+             case 5:
+-                e_1_1 = _f.sent();
++                e_1_1 = _e.sent();
+                 e_1 = { error: e_1_1 };
+                 return [3 /*break*/, 11];
+             case 6:
+-                _f.trys.push([6, , 9, 10]);
+-                if (!(!_a && !_c && (_d = values_1.return))) return [3 /*break*/, 8];
+-                return [4 /*yield*/, _d.call(values_1)];
++                _e.trys.push([6, , 9, 10]);
++                if (!(!_a && !_b && (_c = values_1.return))) return [3 /*break*/, 8];
++                return [4 /*yield*/, _c.call(values_1)];
+             case 7:
+-                _f.sent();
+-                _f.label = 8;
++                _e.sent();
++                _e.label = 8;
+             case 8: return [3 /*break*/, 10];
+             case 9:
+                 if (e_1) throw e_1.error;
+
+emitter-r95-wrapper-rest/for-await/es5/commonjs/remove-false/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -56,36 +56,35 @@
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.f = f;
+ function f() {
+-    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, _b, x, rest, e_1_1; var _c, e_1, _d, _e; return __generator(this, function (_f) {
+-        switch (_f.label) {
++    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x, rest, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
++        switch (_e.label) {
+             case 0:
+-                _f.trys.push([0, 5, 6, 11]);
++                _e.trys.push([0, 5, 6, 11]);
+                 _a = true, values_1 = __asyncValues(values);
+-                _f.label = 1;
++                _e.label = 1;
+             case 1: return [4 /*yield*/, values_1.next()];
+             case 2:
+-                if (!(values_1_1 = _f.sent(), _c = values_1_1.done, !_c)) return [3 /*break*/, 4];
+-                _e = values_1_1.value;
++                if (!(values_1_1 = _e.sent(), _b = values_1_1.done, !_b)) return [3 /*break*/, 4];
++                _d = values_1_1.value;
+                 _a = false;
+-                _b = _e;
+-                x = _b.x, rest = __rest(_b, ["x"]);
++                x = _d.x, rest = __rest(_d, ["x"]);
+                 fn(x, rest);
+-                _f.label = 3;
++                _e.label = 3;
+             case 3:
+                 _a = true;
+                 return [3 /*break*/, 1];
+             case 4: return [3 /*break*/, 11];
+             case 5:
+-                e_1_1 = _f.sent();
++                e_1_1 = _e.sent();
+                 e_1 = { error: e_1_1 };
+                 return [3 /*break*/, 11];
+             case 6:
+-                _f.trys.push([6, , 9, 10]);
+-                if (!(!_a && !_c && (_d = values_1.return))) return [3 /*break*/, 8];
+-                return [4 /*yield*/, _d.call(values_1)];
++                _e.trys.push([6, , 9, 10]);
++                if (!(!_a && !_b && (_c = values_1.return))) return [3 /*break*/, 8];
++                return [4 /*yield*/, _c.call(values_1)];
+             case 7:
+-                _f.sent();
+-                _f.label = 8;
++                _e.sent();
++                _e.label = 8;
+             case 8: return [3 /*break*/, 10];
+             case 9:
+                 if (e_1) throw e_1.error;
+
+emitter-r95-wrapper-rest/for-await/es5/commonjs/remove-true/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -56,36 +56,35 @@
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.f = f;
+ function f() {
+-    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, _b, x, rest, e_1_1; var _c, e_1, _d, _e; return __generator(this, function (_f) {
+-        switch (_f.label) {
++    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x, rest, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
++        switch (_e.label) {
+             case 0:
+-                _f.trys.push([0, 5, 6, 11]);
++                _e.trys.push([0, 5, 6, 11]);
+                 _a = true, values_1 = __asyncValues(values);
+-                _f.label = 1;
++                _e.label = 1;
+             case 1: return [4, values_1.next()];
+             case 2:
+-                if (!(values_1_1 = _f.sent(), _c = values_1_1.done, !_c)) return [3, 4];
+-                _e = values_1_1.value;
++                if (!(values_1_1 = _e.sent(), _b = values_1_1.done, !_b)) return [3, 4];
++                _d = values_1_1.value;
+                 _a = false;
+-                _b = _e;
+-                x = _b.x, rest = __rest(_b, ["x"]);
++                x = _d.x, rest = __rest(_d, ["x"]);
+                 fn(x, rest);
+-                _f.label = 3;
++                _e.label = 3;
+             case 3:
+                 _a = true;
+                 return [3, 1];
+             case 4: return [3, 11];
+             case 5:
+-                e_1_1 = _f.sent();
++                e_1_1 = _e.sent();
+                 e_1 = { error: e_1_1 };
+                 return [3, 11];
+             case 6:
+-                _f.trys.push([6, , 9, 10]);
+-                if (!(!_a && !_c && (_d = values_1.return))) return [3, 8];
+-                return [4, _d.call(values_1)];
++                _e.trys.push([6, , 9, 10]);
++                if (!(!_a && !_b && (_c = values_1.return))) return [3, 8];
++                return [4, _c.call(values_1)];
+             case 7:
+-                _f.sent();
+-                _f.label = 8;
++                _e.sent();
++                _e.label = 8;
+             case 8: return [3, 10];
+             case 9:
+                 if (e_1) throw e_1.error;
+
+emitter-r95-wrapper-rest/for-await/es5/commonjs/remove-true/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -56,36 +56,35 @@
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.f = f;
+ function f() {
+-    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, _b, x, rest, e_1_1; var _c, e_1, _d, _e; return __generator(this, function (_f) {
+-        switch (_f.label) {
++    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x, rest, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
++        switch (_e.label) {
+             case 0:
+-                _f.trys.push([0, 5, 6, 11]);
++                _e.trys.push([0, 5, 6, 11]);
+                 _a = true, values_1 = __asyncValues(values);
+-                _f.label = 1;
++                _e.label = 1;
+             case 1: return [4, values_1.next()];
+             case 2:
+-                if (!(values_1_1 = _f.sent(), _c = values_1_1.done, !_c)) return [3, 4];
+-                _e = values_1_1.value;
++                if (!(values_1_1 = _e.sent(), _b = values_1_1.done, !_b)) return [3, 4];
++                _d = values_1_1.value;
+                 _a = false;
+-                _b = _e;
+-                x = _b.x, rest = __rest(_b, ["x"]);
++                x = _d.x, rest = __rest(_d, ["x"]);
+                 fn(x, rest);
+-                _f.label = 3;
++                _e.label = 3;
+             case 3:
+                 _a = true;
+                 return [3, 1];
+             case 4: return [3, 11];
+             case 5:
+-                e_1_1 = _f.sent();
++                e_1_1 = _e.sent();
+                 e_1 = { error: e_1_1 };
+                 return [3, 11];
+             case 6:
+-                _f.trys.push([6, , 9, 10]);
+-                if (!(!_a && !_c && (_d = values_1.return))) return [3, 8];
+-                return [4, _d.call(values_1)];
++                _e.trys.push([6, , 9, 10]);
++                if (!(!_a && !_b && (_c = values_1.return))) return [3, 8];
++                return [4, _c.call(values_1)];
+             case 7:
+-                _f.sent();
+-                _f.label = 8;
++                _e.sent();
++                _e.label = 8;
+             case 8: return [3, 10];
+             case 9:
+                 if (e_1) throw e_1.error;
+
+emitter-r95-wrapper-rest/for-await/es5/esnext/remove-false/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -53,36 +53,35 @@
+     return t;
+ };
+ export function f() {
+-    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, _b, x, rest, e_1_1; var _c, e_1, _d, _e; return __generator(this, function (_f) {
+-        switch (_f.label) {
++    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x, rest, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
++        switch (_e.label) {
+             case 0:
+-                _f.trys.push([0, 5, 6, 11]);
++                _e.trys.push([0, 5, 6, 11]);
+                 _a = true, values_1 = __asyncValues(values);
+-                _f.label = 1;
++                _e.label = 1;
+             case 1: return [4 /*yield*/, values_1.next()];
+             case 2:
+-                if (!(values_1_1 = _f.sent(), _c = values_1_1.done, !_c)) return [3 /*break*/, 4];
+-                _e = values_1_1.value;
++                if (!(values_1_1 = _e.sent(), _b = values_1_1.done, !_b)) return [3 /*break*/, 4];
++                _d = values_1_1.value;
+                 _a = false;
+-                _b = _e;
+-                x = _b.x, rest = __rest(_b, ["x"]);
++                x = _d.x, rest = __rest(_d, ["x"]);
+                 fn(x, rest);
+-                _f.label = 3;
++                _e.label = 3;
+             case 3:
+                 _a = true;
+                 return [3 /*break*/, 1];
+             case 4: return [3 /*break*/, 11];
+             case 5:
+-                e_1_1 = _f.sent();
++                e_1_1 = _e.sent();
+                 e_1 = { error: e_1_1 };
+                 return [3 /*break*/, 11];
+             case 6:
+-                _f.trys.push([6, , 9, 10]);
+-                if (!(!_a && !_c && (_d = values_1.return))) return [3 /*break*/, 8];
+-                return [4 /*yield*/, _d.call(values_1)];
++                _e.trys.push([6, , 9, 10]);
++                if (!(!_a && !_b && (_c = values_1.return))) return [3 /*break*/, 8];
++                return [4 /*yield*/, _c.call(values_1)];
+             case 7:
+-                _f.sent();
+-                _f.label = 8;
++                _e.sent();
++                _e.label = 8;
+             case 8: return [3 /*break*/, 10];
+             case 9:
+                 if (e_1) throw e_1.error;
+
+emitter-r95-wrapper-rest/for-await/es5/esnext/remove-false/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -53,36 +53,35 @@
+     return t;
+ };
+ export function f() {
+-    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, _b, x, rest, e_1_1; var _c, e_1, _d, _e; return __generator(this, function (_f) {
+-        switch (_f.label) {
++    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x, rest, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
++        switch (_e.label) {
+             case 0:
+-                _f.trys.push([0, 5, 6, 11]);
++                _e.trys.push([0, 5, 6, 11]);
+                 _a = true, values_1 = __asyncValues(values);
+-                _f.label = 1;
++                _e.label = 1;
+             case 1: return [4 /*yield*/, values_1.next()];
+             case 2:
+-                if (!(values_1_1 = _f.sent(), _c = values_1_1.done, !_c)) return [3 /*break*/, 4];
+-                _e = values_1_1.value;
++                if (!(values_1_1 = _e.sent(), _b = values_1_1.done, !_b)) return [3 /*break*/, 4];
++                _d = values_1_1.value;
+                 _a = false;
+-                _b = _e;
+-                x = _b.x, rest = __rest(_b, ["x"]);
++                x = _d.x, rest = __rest(_d, ["x"]);
+                 fn(x, rest);
+-                _f.label = 3;
++                _e.label = 3;
+             case 3:
+                 _a = true;
+                 return [3 /*break*/, 1];
+             case 4: return [3 /*break*/, 11];
+             case 5:
+-                e_1_1 = _f.sent();
++                e_1_1 = _e.sent();
+                 e_1 = { error: e_1_1 };
+                 return [3 /*break*/, 11];
+             case 6:
+-                _f.trys.push([6, , 9, 10]);
+-                if (!(!_a && !_c && (_d = values_1.return))) return [3 /*break*/, 8];
+-                return [4 /*yield*/, _d.call(values_1)];
++                _e.trys.push([6, , 9, 10]);
++                if (!(!_a && !_b && (_c = values_1.return))) return [3 /*break*/, 8];
++                return [4 /*yield*/, _c.call(values_1)];
+             case 7:
+-                _f.sent();
+-                _f.label = 8;
++                _e.sent();
++                _e.label = 8;
+             case 8: return [3 /*break*/, 10];
+             case 9:
+                 if (e_1) throw e_1.error;
+
+emitter-r95-wrapper-rest/for-await/es5/esnext/remove-true/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -53,36 +53,35 @@
+     return t;
+ };
+ export function f() {
+-    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, _b, x, rest, e_1_1; var _c, e_1, _d, _e; return __generator(this, function (_f) {
+-        switch (_f.label) {
++    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x, rest, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
++        switch (_e.label) {
+             case 0:
+-                _f.trys.push([0, 5, 6, 11]);
++                _e.trys.push([0, 5, 6, 11]);
+                 _a = true, values_1 = __asyncValues(values);
+-                _f.label = 1;
++                _e.label = 1;
+             case 1: return [4, values_1.next()];
+             case 2:
+-                if (!(values_1_1 = _f.sent(), _c = values_1_1.done, !_c)) return [3, 4];
+-                _e = values_1_1.value;
++                if (!(values_1_1 = _e.sent(), _b = values_1_1.done, !_b)) return [3, 4];
++                _d = values_1_1.value;
+                 _a = false;
+-                _b = _e;
+-                x = _b.x, rest = __rest(_b, ["x"]);
++                x = _d.x, rest = __rest(_d, ["x"]);
+                 fn(x, rest);
+-                _f.label = 3;
++                _e.label = 3;
+             case 3:
+                 _a = true;
+                 return [3, 1];
+             case 4: return [3, 11];
+             case 5:
+-                e_1_1 = _f.sent();
++                e_1_1 = _e.sent();
+                 e_1 = { error: e_1_1 };
+                 return [3, 11];
+             case 6:
+-                _f.trys.push([6, , 9, 10]);
+-                if (!(!_a && !_c && (_d = values_1.return))) return [3, 8];
+-                return [4, _d.call(values_1)];
++                _e.trys.push([6, , 9, 10]);
++                if (!(!_a && !_b && (_c = values_1.return))) return [3, 8];
++                return [4, _c.call(values_1)];
+             case 7:
+-                _f.sent();
+-                _f.label = 8;
++                _e.sent();
++                _e.label = 8;
+             case 8: return [3, 10];
+             case 9:
+                 if (e_1) throw e_1.error;
+
+emitter-r95-wrapper-rest/for-await/es5/esnext/remove-true/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -53,36 +53,35 @@
+     return t;
+ };
+ export function f() {
+-    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, _b, x, rest, e_1_1; var _c, e_1, _d, _e; return __generator(this, function (_f) {
+-        switch (_f.label) {
++    return __awaiter(this, void 0, void 0, function () { var _a, values_1, values_1_1, x, rest, e_1_1; var _b, e_1, _c, _d; return __generator(this, function (_e) {
++        switch (_e.label) {
+             case 0:
+-                _f.trys.push([0, 5, 6, 11]);
++                _e.trys.push([0, 5, 6, 11]);
+                 _a = true, values_1 = __asyncValues(values);
+-                _f.label = 1;
++                _e.label = 1;
+             case 1: return [4, values_1.next()];
+             case 2:
+-                if (!(values_1_1 = _f.sent(), _c = values_1_1.done, !_c)) return [3, 4];
+-                _e = values_1_1.value;
++                if (!(values_1_1 = _e.sent(), _b = values_1_1.done, !_b)) return [3, 4];
++                _d = values_1_1.value;
+                 _a = false;
+-                _b = _e;
+-                x = _b.x, rest = __rest(_b, ["x"]);
++                x = _d.x, rest = __rest(_d, ["x"]);
+                 fn(x, rest);
+-                _f.label = 3;
++                _e.label = 3;
+             case 3:
+                 _a = true;
+                 return [3, 1];
+             case 4: return [3, 11];
+             case 5:
+-                e_1_1 = _f.sent();
++                e_1_1 = _e.sent();
+                 e_1 = { error: e_1_1 };
+                 return [3, 11];
+             case 6:
+-                _f.trys.push([6, , 9, 10]);
+-                if (!(!_a && !_c && (_d = values_1.return))) return [3, 8];
+-                return [4, _d.call(values_1)];
++                _e.trys.push([6, , 9, 10]);
++                if (!(!_a && !_b && (_c = values_1.return))) return [3, 8];
++                return [4, _c.call(values_1)];
+             case 7:
+-                _f.sent();
+-                _f.label = 8;
++                _e.sent();
++                _e.label = 8;
+             case 8: return [3, 10];
+             case 9:
+                 if (e_1) throw e_1.error;
+
+emitter-r95-wrapper-rest/for-await/es2015/commonjs/remove-false/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -33,8 +33,7 @@
+         for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+             _c = values_1_1.value;
+             _d = false;
+-            let _e = _c;
+-            const { x } = _e, rest = __rest(_e, ["x"]);
++            const { x } = _c, rest = __rest(_c, ["x"]);
+             fn(x, rest);
+         }
+     }
+
+emitter-r95-wrapper-rest/for-await/es2015/commonjs/remove-false/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -33,8 +33,7 @@
+         for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+             _c = values_1_1.value;
+             _d = false;
+-            let _e = _c;
+-            const { x } = _e, rest = __rest(_e, ["x"]);
++            const { x } = _c, rest = __rest(_c, ["x"]);
+             fn(x, rest);
+         }
+     }
+
+emitter-r95-wrapper-rest/for-await/es2015/commonjs/remove-true/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -33,8 +33,7 @@
+         for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+             _c = values_1_1.value;
+             _d = false;
+-            let _e = _c;
+-            const { x } = _e, rest = __rest(_e, ["x"]);
++            const { x } = _c, rest = __rest(_c, ["x"]);
+             fn(x, rest);
+         }
+     }
+
+emitter-r95-wrapper-rest/for-await/es2015/commonjs/remove-true/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -33,8 +33,7 @@
+         for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+             _c = values_1_1.value;
+             _d = false;
+-            let _e = _c;
+-            const { x } = _e, rest = __rest(_e, ["x"]);
++            const { x } = _c, rest = __rest(_c, ["x"]);
+             fn(x, rest);
+         }
+     }
+
+emitter-r95-wrapper-rest/for-await/es2015/esnext/remove-false/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -30,8 +30,7 @@
+         for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+             _c = values_1_1.value;
+             _d = false;
+-            let _e = _c;
+-            const { x } = _e, rest = __rest(_e, ["x"]);
++            const { x } = _c, rest = __rest(_c, ["x"]);
+             fn(x, rest);
+         }
+     }
+
+emitter-r95-wrapper-rest/for-await/es2015/esnext/remove-false/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -30,8 +30,7 @@
+         for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+             _c = values_1_1.value;
+             _d = false;
+-            let _e = _c;
+-            const { x } = _e, rest = __rest(_e, ["x"]);
++            const { x } = _c, rest = __rest(_c, ["x"]);
+             fn(x, rest);
+         }
+     }
+
+emitter-r95-wrapper-rest/for-await/es2015/esnext/remove-true/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -30,8 +30,7 @@
+         for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+             _c = values_1_1.value;
+             _d = false;
+-            let _e = _c;
+-            const { x } = _e, rest = __rest(_e, ["x"]);
++            const { x } = _c, rest = __rest(_c, ["x"]);
+             fn(x, rest);
+         }
+     }
+
+emitter-r95-wrapper-rest/for-await/es2015/esnext/remove-true/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -30,8 +30,7 @@
+         for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = yield values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+             _c = values_1_1.value;
+             _d = false;
+-            let _e = _c;
+-            const { x } = _e, rest = __rest(_e, ["x"]);
++            const { x } = _c, rest = __rest(_c, ["x"]);
+             fn(x, rest);
+         }
+     }
+
+emitter-r95-wrapper-rest/for-await/es2017/commonjs/remove-false/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -23,8 +23,7 @@
+     for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+         _c = values_1_1.value;
+         _d = false;
+-        let _e = _c;
+-        const { x } = _e, rest = __rest(_e, ["x"]);
++        const { x } = _c, rest = __rest(_c, ["x"]);
+         fn(x, rest);
+     }
+ }
+
+emitter-r95-wrapper-rest/for-await/es2017/commonjs/remove-false/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -23,8 +23,7 @@
+     for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+         _c = values_1_1.value;
+         _d = false;
+-        let _e = _c;
+-        const { x } = _e, rest = __rest(_e, ["x"]);
++        const { x } = _c, rest = __rest(_c, ["x"]);
+         fn(x, rest);
+     }
+ }
+
+emitter-r95-wrapper-rest/for-await/es2017/commonjs/remove-true/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -23,8 +23,7 @@
+     for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+         _c = values_1_1.value;
+         _d = false;
+-        let _e = _c;
+-        const { x } = _e, rest = __rest(_e, ["x"]);
++        const { x } = _c, rest = __rest(_c, ["x"]);
+         fn(x, rest);
+     }
+ }
+
+emitter-r95-wrapper-rest/for-await/es2017/commonjs/remove-true/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -23,8 +23,7 @@
+     for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+         _c = values_1_1.value;
+         _d = false;
+-        let _e = _c;
+-        const { x } = _e, rest = __rest(_e, ["x"]);
++        const { x } = _c, rest = __rest(_c, ["x"]);
+         fn(x, rest);
+     }
+ }
+
+emitter-r95-wrapper-rest/for-await/es2017/esnext/remove-false/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -20,8 +20,7 @@
+     for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+         _c = values_1_1.value;
+         _d = false;
+-        let _e = _c;
+-        const { x } = _e, rest = __rest(_e, ["x"]);
++        const { x } = _c, rest = __rest(_c, ["x"]);
+         fn(x, rest);
+     }
+ }
+
+emitter-r95-wrapper-rest/for-await/es2017/esnext/remove-false/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -20,8 +20,7 @@
+     for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+         _c = values_1_1.value;
+         _d = false;
+-        let _e = _c;
+-        const { x } = _e, rest = __rest(_e, ["x"]);
++        const { x } = _c, rest = __rest(_c, ["x"]);
+         fn(x, rest);
+     }
+ }
+
+emitter-r95-wrapper-rest/for-await/es2017/esnext/remove-true/object-rest-block
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -20,8 +20,7 @@
+     for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+         _c = values_1_1.value;
+         _d = false;
+-        let _e = _c;
+-        const { x } = _e, rest = __rest(_e, ["x"]);
++        const { x } = _c, rest = __rest(_c, ["x"]);
+         fn(x, rest);
+     }
+ }
+
+emitter-r95-wrapper-rest/for-await/es2017/esnext/remove-true/object-rest-single
+--- TypeScript /project/out/main.js
++++ native /project/out/main.js
+@@ -20,8 +20,7 @@
+     for (var _d = true, values_1 = __asyncValues(values), values_1_1; values_1_1 = await values_1.next(), _a = values_1_1.done, !_a; _d = true) {
+         _c = values_1_1.value;
+         _d = false;
+-        let _e = _c;
+-        const { x } = _e, rest = __rest(_e, ["x"]);
++        const { x } = _c, rest = __rest(_c, ["x"]);
+         fn(x, rest);
+     }
+ }

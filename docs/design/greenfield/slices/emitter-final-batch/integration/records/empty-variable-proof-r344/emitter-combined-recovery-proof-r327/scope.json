@@ -1,0 +1,77 @@
+{
+  "previous_185_source_deltas": [
+    {
+      "path": "crates/syntax/src/recovery.rs",
+      "before": "2057b4a631a0a9aa48faa168cc7fa5ef391cd6a5091933d1bcfb4f9be7686e17",
+      "after": "27eb7dbc0d144d72c5ceffe58ad7fd701b72c4e8e8f83038c06d757eaaa36085"
+    },
+    {
+      "path": "crates/syntax/src/recovery/context.rs",
+      "before": "c1e18d476453ff4ce90172b009310d0c160771190509583d3436d1e6f8e9aaa4",
+      "after": "733c3c9b68af56cdf470c8e1039c7a7793d4ef0cfd12adc7fcb22dd5a52aaed7"
+    },
+    {
+      "path": "crates/syntax/tests/emitter_recovery.rs",
+      "before": "4b31499baed497ea3d375f816f1d710ee45e9aa3b8ae73aeb4a1b2e9e22a0cdf",
+      "after": "53508b9e5f278643396e605ae537f35cf8480354ca94bb85117b4ca351df9c39"
+    },
+    {
+      "path": "crates/syntax/tests/template_escape_flags.rs",
+      "before": "b8c63d3b61b29dd54267a801c5411ff78a8f7ee371d7a08dd657f515451d8d17",
+      "after": "3068ae1a711efe3a67067ba7969021c98c7324d68c10f9ea608d7901847c0413"
+    },
+    {
+      "path": "crates/syntax/tests/unit/parser/recovery.rs",
+      "before": "3261d7c44ba08a01f46ae952373b630fb17e53facfbd147c00f021dffdebb974",
+      "after": "cdb491f3a4590d8c5c20620d1c86ffe399e061d47e7252b3cf22e9a6231524dd"
+    }
+  ],
+  "fixture_original_snapshot_coverage": [
+    {
+      "case_id": "cjs/js/es5/direct-extended-unicode",
+      "text_sha256": "8274d45fefbfc47049d8ca05760838f7bb4c3c93a6447967ffbb06bbd3189bf9",
+      "original_exact_text_matches": []
+    },
+    {
+      "case_id": "cjs/ts/es5/direct-extended-unicode",
+      "text_sha256": "8274d45fefbfc47049d8ca05760838f7bb4c3c93a6447967ffbb06bbd3189bf9",
+      "original_exact_text_matches": []
+    },
+    {
+      "case_id": "amd/js/es5/direct-extended-unicode",
+      "text_sha256": "8274d45fefbfc47049d8ca05760838f7bb4c3c93a6447967ffbb06bbd3189bf9",
+      "original_exact_text_matches": []
+    },
+    {
+      "case_id": "amd/ts/es5/direct-extended-unicode",
+      "text_sha256": "8274d45fefbfc47049d8ca05760838f7bb4c3c93a6447967ffbb06bbd3189bf9",
+      "original_exact_text_matches": []
+    },
+    {
+      "case_id": "umd/js/es5/direct-extended-unicode",
+      "text_sha256": "8274d45fefbfc47049d8ca05760838f7bb4c3c93a6447967ffbb06bbd3189bf9",
+      "original_exact_text_matches": []
+    },
+    {
+      "case_id": "umd/ts/es5/direct-extended-unicode",
+      "text_sha256": "8274d45fefbfc47049d8ca05760838f7bb4c3c93a6447967ffbb06bbd3189bf9",
+      "original_exact_text_matches": []
+    },
+    {
+      "case_id": "system/js/es5/direct-extended-unicode",
+      "text_sha256": "8274d45fefbfc47049d8ca05760838f7bb4c3c93a6447967ffbb06bbd3189bf9",
+      "original_exact_text_matches": []
+    },
+    {
+      "case_id": "system/ts/es5/direct-extended-unicode",
+      "text_sha256": "8274d45fefbfc47049d8ca05760838f7bb4c3c93a6447967ffbb06bbd3189bf9",
+      "original_exact_text_matches": []
+    }
+  ],
+  "counts": {
+    "parse_inputs": 16994,
+    "loaded_rows": 14219,
+    "load_failures": 110
+  },
+  "correction_to_opus174": "8fixture commandIDs must be independently exercised; exact parseinput membership in original16994 is not assumed. Nonselected commands use14219 rows denominator, not16994parseinputs."
+}

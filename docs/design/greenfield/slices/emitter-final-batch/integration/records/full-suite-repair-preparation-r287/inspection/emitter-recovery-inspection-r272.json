@@ -1,0 +1,11 @@
+{
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "scope": "read-only diagnostic inspection linked against existing debug libraries; not qualification",
+  "argv": [
+    "/tmp/emitter-recovery-inspection-r272",
+    "/tmp/emitter-recovery-inspection-r272.ts"
+  ],
+  "exit": 0,
+  "source_sha256": "83e087ceb5c964b8828fe5916c847fd28d5a6e6ec8a5213f55d8e6834f89bb01",
+  "log_sha256": "934445f69e2604e08e060285fe8c3b7fef2f54e4960cc04fc3b1e53f74756391"
+}

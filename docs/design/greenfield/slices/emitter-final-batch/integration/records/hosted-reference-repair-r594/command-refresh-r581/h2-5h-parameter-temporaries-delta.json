@@ -1,0 +1,21 @@
+{
+  "cases": 68,
+  "case_payloads_identical": true,
+  "changes": [
+    {
+      "path": "/selection_sha256",
+      "before": "962a0304a62008bc09891a9f781a1bf432d96fc46d2dde1ee23561c0335d3b9d",
+      "after": "37c05886da54e9f0aa67ea4bfe853eae605a88ef23b38443b3c8aeafc03f0e28"
+    },
+    {
+      "path": "/parents/0/sha256",
+      "before": "488e9940fcb8b6b359bad5fc9fa822eeae46af59b9aefd2bd5e3a20c37c396a3",
+      "after": "0eb36d43e7c163408d1077c2533781feac6898c8e06734f0c262b287c49fe45b"
+    },
+    {
+      "path": "/parents/1/sha256",
+      "before": "8666e68c50b098fcac015b523307ce71e4f39d689e9cb7f3b31d405cde9cacaa",
+      "after": "f395a35558bf02b189a25f09642dfb35d93cc1a9f6061583bcd2758d91bf34c1"
+    }
+  ]
+}

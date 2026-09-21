@@ -1,0 +1,20 @@
+{
+  "qualified": false,
+  "reason": "canonical Cargo formatting differs from standalone rustfmt edition2021; must compare actual formatted edition/config before proof",
+  "changed": [
+    "crates/checker/tests/unit/declaration_emit/replay_json/tests.rs",
+    "crates/emitter/tests/unit/factory/parsed_metadata/tests.rs",
+    "crates/harness/tests/unit/upstream_suites/execution/js_paths/tests.rs",
+    "crates/harness/tests/unit/upstream_suites/execution/project/descriptor_option_tests.rs",
+    "crates/program/tests/unit/config_host/tests.rs",
+    "crates/program/tests/unit/config_options/schema_oracle.rs",
+    "crates/program/tests/unit/js_path/tests.rs",
+    "crates/program/tests/unit/js_string_ops/tests.rs",
+    "crates/program/tests/unit/loader/typed_error_source_tests.rs",
+    "crates/program/tests/unit/loader/node_modules_membership_tests.rs",
+    "crates/program/tests/unit/resolution_cache/tests.rs",
+    "crates/types/tests/unit/escaped_name/tests.rs",
+    "crates/xtask/tests/unit/h2_7de_acceptance/tests.rs",
+    "crates/xtask/tests/unit/recovery_corpus_native/tests.rs"
+  ]
+}

@@ -126,14 +126,28 @@ pub(crate) enum ModuleResolutionMode {
 }
 
 pub(crate) const EMIT_HELPER_EXTENDS: u32 = 1 << 0;
+pub(crate) const EMIT_HELPER_ASSIGN: u32 = 1 << 1;
+pub(crate) const EMIT_HELPER_REST: u32 = 1 << 2;
 pub(crate) const EMIT_HELPER_DECORATE: u32 = 1 << 3;
+pub(crate) const EMIT_HELPER_METADATA: u32 = 1 << 4;
+pub(crate) const EMIT_HELPER_PARAM: u32 = 1 << 5;
+pub(crate) const EMIT_HELPER_AWAITER: u32 = 1 << 6;
+pub(crate) const EMIT_HELPER_GENERATOR: u32 = 1 << 7;
+pub(crate) const EMIT_HELPER_VALUES: u32 = 1 << 8;
+/// `AsyncGeneratorIncludes = Await | AsyncGenerator`.
+pub(crate) const EMIT_HELPER_ASYNC_GENERATOR_INCLUDES: u32 = (1 << 11) | (1 << 12);
+/// `AsyncDelegatorIncludes = Await | AsyncDelegator | AsyncValues`.
+pub(crate) const EMIT_HELPER_ASYNC_DELEGATOR_INCLUDES: u32 = (1 << 11) | (1 << 13) | (1 << 14);
+pub(crate) const EMIT_HELPER_FOR_AWAIT_OF_INCLUDES: u32 = 1 << 14;
 pub(crate) const EMIT_HELPER_READ: u32 = 1 << 9;
 pub(crate) const EMIT_HELPER_SPREAD_ARRAY: u32 = 1 << 10;
 pub(crate) const EMIT_HELPER_EXPORT_STAR: u32 = 1 << 15;
 pub(crate) const EMIT_HELPER_IMPORT_STAR: u32 = 1 << 16;
 pub(crate) const EMIT_HELPER_IMPORT_DEFAULT: u32 = 1 << 17;
+pub(crate) const EMIT_HELPER_MAKE_TEMPLATE_OBJECT: u32 = 1 << 18;
 pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_GET: u32 = 1 << 19;
 pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_SET: u32 = 1 << 20;
+pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_IN: u32 = 1 << 21;
 pub(crate) const EMIT_HELPER_SET_FUNCTION_NAME: u32 = 1 << 22;
 pub(crate) const EMIT_HELPER_PROP_KEY: u32 = 1 << 23;
 pub(crate) const EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES: u32 = 1 << 24;
@@ -821,7 +835,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: eba18720abbdbd0651800589a37460fcdde212ca769970f24590355abfa629d3
     /// tsc-span: _tsc.js:87981-88007
     pub(crate) fn emit_is_value_alias_declaration(&mut self, node: NodeId) -> CheckResult<bool> {
-        debug_assert_ne!(self.options.verbatim_module_syntax, Some(true));
+        // `verbatimModuleSyntax` reaches the ordinary emit route since
+        // H2.8a-A-RES-EMITTER-FINAL EF7-VERBATIM-GATE; tsc answers these
+        // resolver queries independently of the option.
         match self.kind_of(node) {
             SyntaxKind::ImportEqualsDeclaration => {
                 let Some(symbol) = self.emit_alias_declaration_symbol(node) else {
@@ -954,7 +970,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<bool> {
-        debug_assert_ne!(self.options.verbatim_module_syntax, Some(true));
+        // `verbatimModuleSyntax` reaches the ordinary emit route since
+        // H2.8a-A-RES-EMITTER-FINAL EF7-VERBATIM-GATE; tsc answers these
+        // resolver queries independently of the option.
         if !self.is_alias_symbol_declaration(node) {
             return Ok(false);
         }
@@ -1020,7 +1038,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:71930-71944
     /// d2: d2:d2f9914c7e95d8ac4679e678fab00dd2c5872ed35fac7f99c5be9fb073a75c7e
     pub(crate) fn mark_alias_symbol_as_referenced(&mut self, symbol: SymbolId) -> CheckResult<()> {
-        debug_assert_ne!(self.options.verbatim_module_syntax, Some(true));
+        // `verbatimModuleSyntax` reaches the ordinary emit route since
+        // H2.8a-A-RES-EMITTER-FINAL EF7-VERBATIM-GATE; tsc answers these
+        // resolver queries independently of the option.
         if self.links.symbol(symbol).alias_referenced {
             return Ok(());
         }
@@ -1382,6 +1402,39 @@ impl<'a> CheckerState<'a> {
             self.get_property_of_type_ex(apparent, &name, false)?
         };
         self.mark_property_alias_referenced(location, left, prop, left_type)
+    }
+
+    /// `markLinkedReferences(location, ReferenceHint.AsyncFunction)`
+    /// (_tsc.js:71662-71679): the front-door guards (verbatimModuleSyntax,
+    /// ambient locations) followed by the async-function marker.
+    /// tsc-port: createTypeChecker.markLinkedReferences @6.0.3
+    /// tsc-hash: 5bfb1b06d6bbd776c9ef32b5d1aa3e0720db62113276dc9abe99b2a9a0558522
+    /// tsc-span: _tsc.js:71662-71668
+    /// Reference scope: front-door guards.
+    /// tsc-port: createTypeChecker.markLinkedReferences @6.0.3
+    /// tsc-hash: 808d14cedeff78d9fa5481de6203b976b60c89d4ecbb6b9b0a74cd59748e0780
+    /// tsc-span: _tsc.js:71678-71679
+    /// Reference scope: AsyncFunction arm; reject whole 71662-71732 (other hint arms not
+    /// mirrored).
+    pub(crate) fn mark_linked_references_async_function(
+        &mut self,
+        location: NodeId,
+    ) -> CheckResult<()> {
+        if self.options.verbatim_module_syntax == Some(true) {
+            return Ok(());
+        }
+        if self
+            .binder
+            .flags_of(location)
+            .intersects(tsc_types::NodeFlags::AMBIENT)
+            && !matches!(
+                self.kind_of(location),
+                SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration
+            )
+        {
+            return Ok(());
+        }
+        self.mark_async_function_alias_referenced(location)
     }
 
     /// tsc-port: markAsyncFunctionAliasReferenced @6.0.3
@@ -2968,8 +3021,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: reportInvalidImportEqualsExportMember @6.0.3
     /// tsc-hash: 8c4469049e4a46f4f4745eede49d15e95046313726a19d94760a76b79f324fb3
     /// tsc-span: _tsc.js:48945-48958
-    ///
-    /// The isInJSFile middle arm is JS-only (constant-dead).
     fn report_invalid_import_equals_export_member(
         &mut self,
         name: NodeId,
@@ -2982,6 +3033,13 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::_0_can_only_be_imported_by_using_a_default_import
             } else {
                 &diagnostics::_0_can_only_be_imported_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
+            };
+            self.error_at_js(Some(name), message, &[(declaration_name).into()]);
+        } else if self.is_in_js_file(name) {
+            let message = if es_module_interop {
+                &diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_using_a_default_import
+            } else {
+                &diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
             };
             self.error_at_js(Some(name), message, &[(declaration_name).into()]);
         } else if es_module_interop {
@@ -3907,7 +3965,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at_js(
                     Some(error_node),
                     &diagnostics::Cannot_import_type_declaration_files_Consider_importing_0_instead_of_1,
-                    &[(without_prefix).into(), (module_reference).into()],
+                    &[(without_prefix), (module_reference)],
                 );
             }
         }
@@ -3945,7 +4003,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at_js(
                     error_node,
                     resolution_diagnostic,
-                    &[(module_reference).into(), (&diagnostic_file_name).into()],
+                    &[(module_reference), (&diagnostic_file_name).into()],
                 );
             }
             // resolveExternalModule only loads a source behind the JSX
@@ -4031,7 +4089,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at_js(
                             Some(error_node),
                             &diagnostics::This_import_uses_a_0_extension_to_resolve_to_an_input_TypeScript_file_but_will_not_be_rewritten_during_emit_because_it_is_not_a_relative_path,
-                            &[(extension).into()],
+                            &[(extension)],
                         );
                     }
                 }
@@ -4114,10 +4172,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at_js(
                             Some(error_node),
                             &diagnostics::Module_0_was_resolved_to_1_but_jsx_is_not_set,
-                            &[
-                                (module_reference).into(),
-                                (&untyped.resolved_file_name).into(),
-                            ],
+                            &[(module_reference), (&untyped.resolved_file_name).into()],
                         );
                     }
                     return Ok(None);
@@ -4131,7 +4186,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at_js(
                             Some(error_node),
                             &diagnostics::Module_0_was_resolved_to_1_but_allowArbitraryExtensions_is_not_set,
-                            &[(module_reference).into(), (&resolved_file_name).into()],
+                            &[(module_reference), (&resolved_file_name).into()],
                         );
                     }
                     return Ok(None);
@@ -4143,7 +4198,7 @@ impl<'a> CheckerState<'a> {
                     self.error_at_js(
                         Some(error_node),
                         &diagnostics::Invalid_module_name_in_augmentation_Module_0_resolves_to_an_untyped_module_at_1_which_cannot_be_augmented,
-                        &[(module_reference).into(), (&untyped.resolved_file_name).into()],
+                        &[(module_reference), (&untyped.resolved_file_name).into()],
                     );
                 } else {
                     let is_error = module_not_found_error.is_some()
@@ -4259,11 +4314,9 @@ impl<'a> CheckerState<'a> {
             if let Some(alternate_result) = alternate_result {
                 let details = self
                     .alternate_result_module_not_found_detail(alternate_result, module_reference);
-                let chain = MessageChain::new_js(
-                    module_not_found_error,
-                    &[(module_reference.to_owned()).into()],
-                )
-                .with_next(vec![details]);
+                let chain =
+                    MessageChain::new_js(module_not_found_error, &[(module_reference.to_owned())])
+                        .with_next(vec![details]);
                 let span = self.diag_span_of_node(error_node);
                 let diagnostic = self.diagnostic_at_span(&span, chain);
                 self.push_error_diagnostic(diagnostic);
@@ -4271,7 +4324,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at_js(
                     Some(error_node),
                     module_not_found_error,
-                    &[(module_reference).into()],
+                    &[(module_reference)],
                 );
             }
         }
@@ -4315,7 +4368,7 @@ impl<'a> CheckerState<'a> {
             self.error_at_js(
                 Some(error_node),
                 &diagnostics::Module_0_cannot_be_imported_using_this_construct_The_specifier_only_resolves_to_an_ES_module_which_cannot_be_imported_with_require_Use_an_ECMAScript_import_instead,
-                &[(module_reference).into()],
+                &[(module_reference)],
             );
         } else {
             let message = match override_host.map(|node| self.data_of(node)) {
@@ -4336,7 +4389,7 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::The_current_file_is_a_CommonJS_module_whose_imports_will_produce_require_calls_however_the_referenced_file_is_an_ECMAScript_module_and_cannot_be_imported_with_require_Consider_writing_a_dynamic_import_0_call_instead
                 }
             };
-            let mut chain = MessageChain::new_js(message, &[(module_reference.to_owned()).into()]);
+            let mut chain = MessageChain::new_js(message, &[(module_reference.to_owned())]);
             if let Some(details) = self.create_mode_mismatch_details(location) {
                 chain = chain.with_next(vec![details]);
             }
@@ -4446,7 +4499,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let entry = crate::state::UnresolvedModuleAugmentation {
-                module_reference: module_reference.to_owned().into(),
+                module_reference: module_reference.to_owned(),
                 augmentation_file: augmentation_file.clone(),
                 container_path: path.clone(),
                 container_symbol: current,
@@ -4582,8 +4635,7 @@ impl<'a> CheckerState<'a> {
             .enumerate()
             .filter(|(_, bytes)| *bytes == marker.as_bytes())
             .map(|(position, _)| position + marker.as_bytes().len())
-            .filter(|&end| source.as_bytes().get(end).is_none_or(|&byte| byte == b'/'))
-            .next_back()?;
+            .rfind(|&end| source.as_bytes().get(end).is_none_or(|&byte| byte == b'/'))?;
         Some(
             source
                 .split_at_byte(end)
@@ -4852,7 +4904,7 @@ impl<'a> CheckerState<'a> {
         let request = crate::AuthoritativeModuleRequest {
             source_token,
             containing_file: containing_file.into(),
-            specifier: module_reference.into(),
+            specifier: module_reference,
             mode,
         };
         let provider = self
@@ -4893,7 +4945,7 @@ impl<'a> CheckerState<'a> {
                         crate::AuthoritativeModuleFailure::UnknownTargetToken {
                             source_token,
                             containing_file: containing_file.clone(),
-                            specifier: module_reference.to_owned().into(),
+                            specifier: module_reference.to_owned(),
                             mode,
                             target_token: resolved.target_token,
                         },
@@ -4922,7 +4974,7 @@ impl<'a> CheckerState<'a> {
                     crate::AuthoritativeModuleFailure::Lookup {
                         source_token,
                         containing_file: containing_file.clone(),
-                        specifier: module_reference.to_owned().into(),
+                        specifier: module_reference.to_owned(),
                         mode,
                         failure,
                     },
@@ -5036,7 +5088,7 @@ impl<'a> CheckerState<'a> {
                         if let Some(&index) = self.program_path_index.get(probed.as_bytes()) {
                             return ProgramModuleResolution::Resolved(ResolvedProgramModule {
                                 file_index: index,
-                                resolved_file_name: probed.clone().into(),
+                                resolved_file_name: probed.clone(),
                                 resolved_using_ts_extension: false,
                                 is_tsx: probed.ends_with(".tsx"),
                                 is_arbitrary_extension: false,
@@ -5058,7 +5110,7 @@ impl<'a> CheckerState<'a> {
                             if let Some(&index) = self.program_path_index.get(probed.as_bytes()) {
                                 return ProgramModuleResolution::Resolved(ResolvedProgramModule {
                                     file_index: index,
-                                    resolved_file_name: probed.clone().into(),
+                                    resolved_file_name: probed.clone(),
                                     resolved_using_ts_extension: false,
                                     is_tsx: probed.ends_with(".jsx"),
                                     is_arbitrary_extension: false,
@@ -5408,7 +5460,7 @@ impl<'a> CheckerState<'a> {
         if self.options.emit_module_resolution_kind() == 2 {
             return MessageChain::new_js(
                 &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
-                &[(alternate_result.to_owned()).into()],
+                &[(alternate_result.to_owned())],
             );
         }
         let library_name = if alternate_result.contains("/node_modules/@types/") {
@@ -5421,7 +5473,7 @@ impl<'a> CheckerState<'a> {
         };
         MessageChain::new_js(
             &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_when_respecting_package_json_exports_The_1_library_may_need_to_update_its_package_json_or_typings,
-            &[(alternate_result.to_owned()).into(), (library_name).into()],
+            &[(alternate_result.to_owned()), (library_name)],
         )
     }
 
@@ -5459,23 +5511,23 @@ impl<'a> CheckerState<'a> {
                 } else if resolution.types_package_exists {
                     MessageChain::new_js(
                         &diagnostics::If_the_0_package_actually_exposes_this_module_consider_sending_a_pull_request_to_amend_https_github_com_DefinitelyTyped_DefinitelyTyped_tree_master_types_1,
-                        &[(package_name.clone()).into(), (Self::mangle_scoped_package_name(package_name)).into()],
+                        &[(package_name.clone()), (Self::mangle_scoped_package_name(package_name))],
                     )
                 } else if resolution.package_bundles_types {
                     MessageChain::new_js(
                         &diagnostics::If_the_0_package_actually_exposes_this_module_try_adding_a_new_declaration_d_ts_file_containing_declare_module_1,
-                        &[(package_name.clone()).into(), (module_reference.to_owned()).into()],
+                        &[(package_name.clone()), (module_reference.to_owned())],
                     )
                 } else {
                     MessageChain::new_js(
                         &diagnostics::Try_npm_i_save_dev_types_1_if_it_exists_or_add_a_new_declaration_d_ts_file_containing_declare_module_0,
-                        &[(module_reference.to_owned()).into(), (Self::mangle_scoped_package_name(package_name)).into()],
+                        &[(module_reference.to_owned()), (Self::mangle_scoped_package_name(package_name))],
                     )
                 }
             });
         let mut chain = MessageChain::new_js(
             &diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type,
-            &[(module_reference.to_owned()).into(), (resolution.resolved_file_name.clone()).into()],
+            &[(module_reference.to_owned()), (resolution.resolved_file_name.clone())],
         );
         if !is_error {
             chain.category = DiagnosticCategory::Suggestion;
@@ -5587,7 +5639,7 @@ impl<'a> CheckerState<'a> {
             || module_reference.starts_with("/")
         {
             return UntypedModuleResolution {
-                resolved_file_name: resolved_file_name.into(),
+                resolved_file_name,
                 package_name: None,
                 alternate_result: None,
                 types_package_exists: false,
@@ -5598,7 +5650,7 @@ impl<'a> CheckerState<'a> {
         let (package, subpath) = Self::bare_package_parts(module_reference);
         let Some(package_root) = self.nearest_visible_package_root(&importer, &package) else {
             return UntypedModuleResolution {
-                resolved_file_name: resolved_file_name.into(),
+                resolved_file_name,
                 package_name: None,
                 alternate_result: None,
                 types_package_exists: false,
@@ -5653,7 +5705,7 @@ impl<'a> CheckerState<'a> {
             None
         };
         UntypedModuleResolution {
-            resolved_file_name: resolved_file_name.into(),
+            resolved_file_name,
             package_name,
             alternate_result,
             types_package_exists,
@@ -5913,8 +5965,8 @@ impl<'a> CheckerState<'a> {
     ) -> Option<HostModuleTarget> {
         let candidate = candidate.into();
         let exists = |path: JsStr<'_>| self.host_file_paths.contains(path.as_bytes());
-        let typed = |path: JsString| HostModuleTarget::Typed(path.into());
-        let untyped = |path: JsString| HostModuleTarget::Untyped(path.into());
+        let typed = |path: JsString| HostModuleTarget::Typed(path);
+        let untyped = |path: JsString| HostModuleTarget::Untyped(path);
         if Self::is_typed_host_path(candidate) && exists(candidate) {
             return Some(typed(candidate.to_owned()));
         }
@@ -6240,15 +6292,11 @@ impl<'a> CheckerState<'a> {
         while helper <= EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES {
             if unchecked & helper != 0 {
                 for &name in Self::external_emit_helper_names(helper, legacy_decorators) {
-                    let exported = exports
-                        .get(&escape_leading_underscores(name))
-                        .copied()
-                        .filter(|&symbol| {
-                            self.binder
-                                .symbol(symbol)
-                                .flags
-                                .intersects(SymbolFlags::VALUE)
-                        });
+                    let exported = self.get_symbol_in_table(
+                        &exports,
+                        &escape_leading_underscores(name),
+                        SymbolFlags::VALUE,
+                    )?;
                     let symbol = self.resolve_symbol_ex(exported, false)?;
                     let Some(symbol) = symbol.filter(|&symbol| symbol != self.unknown_symbol)
                     else {
@@ -6294,28 +6342,28 @@ impl<'a> CheckerState<'a> {
     fn external_emit_helper_names(helper: u32, legacy_decorators: bool) -> &'static [&'static str] {
         match helper {
             EMIT_HELPER_EXTENDS => &["__extends"],
-            2 => &["__assign"],
-            4 => &["__rest"],
+            EMIT_HELPER_ASSIGN => &["__assign"],
+            EMIT_HELPER_REST => &["__rest"],
             EMIT_HELPER_DECORATE if legacy_decorators => &["__decorate"],
             EMIT_HELPER_DECORATE => &["__esDecorate", "__runInitializers"],
-            16 => &["__metadata"],
-            32 => &["__param"],
+            EMIT_HELPER_METADATA => &["__metadata"],
+            EMIT_HELPER_PARAM => &["__param"],
             64 => &["__awaiter"],
             128 => &["__generator"],
-            256 => &["__values"],
+            EMIT_HELPER_VALUES => &["__values"],
             EMIT_HELPER_READ => &["__read"],
             EMIT_HELPER_SPREAD_ARRAY => &["__spreadArray"],
             2_048 => &["__await"],
             4_096 => &["__asyncGenerator"],
             8_192 => &["__asyncDelegator"],
-            16_384 => &["__asyncValues"],
+            EMIT_HELPER_FOR_AWAIT_OF_INCLUDES => &["__asyncValues"],
             EMIT_HELPER_EXPORT_STAR => &["__exportStar"],
             EMIT_HELPER_IMPORT_STAR => &["__importStar"],
             EMIT_HELPER_IMPORT_DEFAULT => &["__importDefault"],
-            262_144 => &["__makeTemplateObject"],
+            EMIT_HELPER_MAKE_TEMPLATE_OBJECT => &["__makeTemplateObject"],
             EMIT_HELPER_CLASS_PRIVATE_FIELD_GET => &["__classPrivateFieldGet"],
             EMIT_HELPER_CLASS_PRIVATE_FIELD_SET => &["__classPrivateFieldSet"],
-            2_097_152 => &["__classPrivateFieldIn"],
+            EMIT_HELPER_CLASS_PRIVATE_FIELD_IN => &["__classPrivateFieldIn"],
             EMIT_HELPER_SET_FUNCTION_NAME => &["__setFunctionName"],
             EMIT_HELPER_PROP_KEY => &["__propKey"],
             EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES => {
@@ -6440,7 +6488,7 @@ impl<'a> CheckerState<'a> {
         let make = |file_index: usize, resolved_using_ts_extension: bool, path: JsStr<'_>| {
             ResolvedProgramModule {
                 file_index,
-                resolved_file_name: path.to_owned().into(),
+                resolved_file_name: path.to_owned(),
                 resolved_using_ts_extension,
                 is_tsx: (path.ends_with(".tsx") && !path.ends_with(".d.tsx"))
                     || path.ends_with(".jsx"),
@@ -6475,7 +6523,7 @@ impl<'a> CheckerState<'a> {
                     if let Some(index) = lookup(twin.as_js()) {
                         return Some(ResolvedProgramModule {
                             file_index: index,
-                            resolved_file_name: twin.into(),
+                            resolved_file_name: twin,
                             resolved_using_ts_extension: false,
                             is_tsx: false,
                             is_arbitrary_extension: true,
@@ -6605,6 +6653,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// JS-valued program path normalization; scalar/native I/O is downstream.
+    /// tsrs-native: JS-valued lexical program-path normalization adapter over tsc_program
+    /// (empty→'.'/'/' defaults)
     pub(crate) fn normalize_js_program_path<'p, 'b>(
         path: impl Into<tsc_types::JsStr<'p>>,
         base: impl Into<tsc_types::JsStr<'b>>,
@@ -8216,8 +8266,25 @@ impl<'a> CheckerState<'a> {
                     &[],
                 );
             }
-            // The isolatedModules global-script row remains outside this
-            // slice.
+            if (self.options.isolated_modules == Some(true)
+                || self.options.verbatim_module_syntax == Some(true))
+                && self
+                    .binder
+                    .source_of_node(node)
+                    .external_module_indicator
+                    .is_none()
+            {
+                let option_name = if self.options.verbatim_module_syntax == Some(true) {
+                    "verbatimModuleSyntax"
+                } else {
+                    "isolatedModules"
+                };
+                self.error_at_js(
+                    Some(name),
+                    &diagnostics::Namespaces_are_not_allowed_in_global_script_files_when_0_is_enabled_If_this_file_is_not_intended_to_be_a_global_script_set_moduleDetection_to_force_or_add_an_empty_export_statement,
+                    &[option_name.into()],
+                );
+            }
             if self.binder.symbol(symbol).declarations.len() > 1 {
                 let first_non_ambient =
                     self.get_first_non_ambient_class_or_function_declaration(symbol);
@@ -8833,6 +8900,25 @@ impl<'a> CheckerState<'a> {
             };
             let display = self.emit_symbol_to_string_default(symbol)?;
             self.error_at_js(Some(node), message, &[(&display).into()]);
+        } else if self.kind_of(node) != SyntaxKind::ExportSpecifier
+            && self.options.isolated_modules == Some(true)
+            && symbol_flags.intersects(SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE)
+            && self
+                .find_ancestor(Some(node), |state, ancestor| {
+                    if state.is_type_only_import_or_export_declaration(ancestor) {
+                        Ancestor::Yes
+                    } else {
+                        Ancestor::No
+                    }
+                })
+                .is_none()
+        {
+            let display = self.emit_symbol_to_string_default(symbol)?;
+            self.error_at_js(
+                Some(node),
+                &diagnostics::Import_0_conflicts_with_local_value_so_must_be_declared_with_a_type_only_import_when_isolatedModules_is_enabled,
+                &[display.as_js()],
+            );
         }
 
         let isolated_modules_like = self.options.isolated_modules == Some(true)
@@ -8895,6 +8981,25 @@ impl<'a> CheckerState<'a> {
                             } else {
                                 self.error_at_js(Some(node), message, &[(&display).into()]);
                             }
+                        }
+                        if is_type
+                            && self.kind_of(node) == SyntaxKind::ImportEqualsDeclaration
+                            && node_util::get_effective_modifier_flags(
+                                self.binder.source_of_node(node),
+                                node,
+                            )
+                            .intersects(ModifierFlags::EXPORT)
+                        {
+                            let option_name = if self.options.verbatim_module_syntax == Some(true) {
+                                "verbatimModuleSyntax"
+                            } else {
+                                "isolatedModules"
+                            };
+                            self.error_at_js(
+                                Some(node),
+                                &diagnostics::Cannot_use_export_import_on_a_type_or_type_only_namespace_when_0_is_enabled,
+                                &[option_name.into()],
+                            );
                         }
                     }
                     SyntaxKind::ExportSpecifier => {
@@ -9648,8 +9753,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// Non-ambient import-equals declarations require runtime syntax and fail
     /// erasableSyntaxOnly before internal/external reference checking. The
-    /// exported-alias accessibility mark is live; markLinkedReferences'
-    /// declaration-emit traversal remains outside this checker slice.
+    /// exported-alias accessibility mark is live; unchecked emit-time alias
+    /// traversal uses mark_linked_references_unspecified.
     pub(crate) fn check_import_equals_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         if self.check_grammar_module_element_context(
             node,

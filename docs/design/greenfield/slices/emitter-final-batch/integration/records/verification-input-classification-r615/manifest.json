@@ -1,0 +1,121 @@
+{
+  "source_head": "09d98a925f9d012b0cd280e7a880691fbcd5e4ed",
+  "scope": "Actual pre-mint refusal and reviewed two-file gate-tooling classification; not final walk or CI qualification",
+  "files": [
+    {
+      "path": "analysis/classification-call-sites.txt",
+      "sha256": "986b5251aad86fcc8143cac5782651c38964bf2ef6a5aa5810149fc8c6988800",
+      "bytes": 550
+    },
+    {
+      "path": "analysis/final-canonical-walk-r613.json",
+      "sha256": "4864a000364083502d200576a84930b3f70d6ca89cf50d1b01b5aa98459517f4",
+      "bytes": 931
+    },
+    {
+      "path": "analysis/final-canonical-walk-r613.log.gz",
+      "sha256": "d559c0eb6ff113f748406323d07ddcb6a161081fc329b6d02dc28ed2efa4cbad",
+      "bytes": 674
+    },
+    {
+      "path": "analysis/generator-syntax.json",
+      "sha256": "45fe2cafb313bde427fa072c6e1a78d21715a2798725338a8b6549a8e7d5f617",
+      "bytes": 767
+    },
+    {
+      "path": "analysis/generator-syntax.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "analysis/input-identity-plan.json",
+      "sha256": "3e03e99a3b2c7738ad85b7e1d3ac916d133841e90c7a851624cb3d3dd79639ae",
+      "bytes": 503
+    },
+    {
+      "path": "analysis/opus237-launcher.json",
+      "sha256": "97aae6479137f3e3e7822f649806cad29d74a0728b2f2ce22b2bf566e37b1831",
+      "bytes": 142
+    },
+    {
+      "path": "analysis/opus237-request.md",
+      "sha256": "67f6eb134ceaeef3fc11f2ca49ffead9238b6d3eb3d677928df7f866fc897f08",
+      "bytes": 4022
+    },
+    {
+      "path": "analysis/opus237-response.json",
+      "sha256": "a4a74a17af1c8cbfd353e77c6c38eb15c9493eeba478c905c6ac8692dcfedd72",
+      "bytes": 7587
+    },
+    {
+      "path": "analysis/opus237-stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "analysis/pin-preflight-fixed.json",
+      "sha256": "43263836f77a7bc7f5cefee1466a868afdd699caa1a726bb36cbb6a65e06375f",
+      "bytes": 751
+    },
+    {
+      "path": "analysis/pin-preflight-fixed.log.gz",
+      "sha256": "00f0196440d5a4d3cc78c13d2e923370dbd2905a9a484fda82800100feaa52b2",
+      "bytes": 118
+    },
+    {
+      "path": "analysis/profile-check-before-walk.json",
+      "sha256": "9777e789f4e2771faf1ff2b708e1aa88e97df24bf0e7be5ff60bd72657af250b",
+      "bytes": 769
+    },
+    {
+      "path": "analysis/profile-check-before-walk.log.gz",
+      "sha256": "72013390668de6a58b8456e09f3e6792ddcd393073afb7a4526ef22b0408c01b",
+      "bytes": 358
+    },
+    {
+      "path": "analysis/resolution.md",
+      "sha256": "22049e59e470ff96de1df6b957fa9f79f725dd96586f7b531867299818313949",
+      "bytes": 2179
+    },
+    {
+      "path": "analysis/run-check.py",
+      "sha256": "7574fb1e0207837ff1cb97d8dbbaeb30583b86006651eb29f44f625e10861318",
+      "bytes": 1675
+    },
+    {
+      "path": "analysis/run-opus237.py",
+      "sha256": "c40eba4e8472c1f79a6ef411341c7500dd51190f82b588441c7174f886291b21",
+      "bytes": 999
+    },
+    {
+      "path": "analysis/shadow-scope-proof.json",
+      "sha256": "69c864afb34241a806639638aad64775fa2cd4a03492a245e205e9219823e9a1",
+      "bytes": 1662
+    },
+    {
+      "path": "analysis/static-preconditions-fixed.json",
+      "sha256": "6fe1d976352b896148a66482d5023dcd6a16b07c0ea21518e10e5223b90042ac",
+      "bytes": 755
+    },
+    {
+      "path": "analysis/static-preconditions-fixed.log.gz",
+      "sha256": "12e971ea8b6e5f333f2da08b7978a97d9842b803244b74a0e9b1ca6ae3dc7b01",
+      "bytes": 170
+    },
+    {
+      "path": "resolution.md",
+      "sha256": "22049e59e470ff96de1df6b957fa9f79f725dd96586f7b531867299818313949",
+      "bytes": 2179
+    },
+    {
+      "path": "classification.patch",
+      "sha256": "6124eba0861abc835f1de305f2780e434fb88e78dd1ccd802964f30e45a92c56",
+      "bytes": 907
+    },
+    {
+      "path": "failed-run-summary.log.gz",
+      "sha256": "b276b077fc37e689b7eba768dddf07ba5d207c754953450a368e7f21500eaccc",
+      "bytes": 86
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "cases": 1798,
+  "case_payloads_identical": true,
+  "changes": [
+    {
+      "path": "/inputs/1/sha256",
+      "before": "673c9e935830dd73f52893f17dda374c5d551b47059a9fa620550f4183c6bca8",
+      "after": "6e838d0c4702ca360869040da41c3f2c875c6ad48c02d28cfba2d7e9e9538449"
+    }
+  ]
+}

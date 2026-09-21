@@ -1,0 +1,13 @@
+{
+  "name": "declaration-comments-all",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 6,
+  "env": [],
+  "argv": "python3 scripts/witness.py declaration-comments --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T07:03:23Z",
+  "seconds": 74,
+  "exit": 0,
+  "log_sha256": "95494883c967cbade821bb7cf80e70a0e96700b2019ca08057285a7720fd18b4",
+  "log_bytes": 5065
+}

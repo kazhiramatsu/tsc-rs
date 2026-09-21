@@ -620,7 +620,10 @@ pub(crate) mod paths {
         }
     }
 
-    /// tsc-port: getDirectoryPath @6.0.3 (_tsc.js:5391-5397).
+    /// tsc-port: getDirectoryPath @6.0.3
+    /// tsc-hash: 7f2c6450b6b1c1bc4e1c65523c113201cd6cad6445d29d8c2d368913af418157
+    /// tsc-span: _tsc.js:5391-5397
+    /// Reference detail: getDirectoryPath @6.0.3 (_tsc.js:5391-5397).
     pub(crate) fn directory_path<'a>(path: impl Into<JsStr<'a>>) -> JsString {
         let path = normalize_slashes(path);
         let root = get_root_length(&path);

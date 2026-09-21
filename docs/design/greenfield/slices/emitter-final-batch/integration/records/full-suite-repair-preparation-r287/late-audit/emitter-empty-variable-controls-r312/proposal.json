@@ -1,0 +1,25 @@
+{
+  "status": "prepared, not minted; apply only after initialized-transform-flags probe and narrow syntax prototype",
+  "additional_commands": 96,
+  "axes": {
+    "shapes": 8,
+    "targets": 2,
+    "modules": 3,
+    "removeComments": 2
+  },
+  "all_new_commands": {
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "existing_supported_commands": 432,
+  "existing_refused_commands": 72,
+  "required_old_observation_identity": true,
+  "consumer_updates_pending": [
+    "h2_8a_import_helpers.rs context test528",
+    "emitter-r77-regressions.json fixture hash only after allold432+72cases identical,70selectedIDsunchanged"
+  ],
+  "observer_sha256": "f047df27ada878aad0a9aea0f0232d8d8bc39599ad2772fcd5897c2a157e1056",
+  "scope": "ordinary complete commands twice; does not replace frozen source map API witness or16994originalinput replay",
+  "strict_prologue_control": "first-const all12target/module/comment combinations"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "emitter-final-rows-r9b",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "emitter_final_rows"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T01:59:53Z",
+  "seconds": 141,
+  "exit": 0,
+  "log_sha256": "e664ac9d940ac1a08d7fc0f9935ba39004eef3a782beb7c70b670b92f805252a",
+  "log_bytes": 559
+}

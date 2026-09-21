@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-emitter-jsdoc-original-command.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-ci-repair",
+  "started_at": "2026-09-18T19:51:58.865953+00:00",
+  "head": "71b1ae19bb15c373831d7d7c5ac824152d77f93a",
+  "tracked_clean": false,
+  "diff_sha256": "63178e59c97df21f7f54ac53037f3982a77185cc0254878e7e4491871998aaf2",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 3.909,
+  "log_sha256": "87fc308423ef11f03270e443f0c9103edaa552a3c61e13efbe4614c67ea3a221",
+  "log_bytes": 262
+}

@@ -12737,6 +12737,1357 @@
       }
     },
     {
+      "case_id": "printer-failure/printNode/review/function-body-sticky-comments",
+      "entry": "printNode",
+      "newLine": "crlf",
+      "sources": [
+        {
+          "name": "main.ts",
+          "text": "function f() {\r\n// head\r\n\r\nx(/* inner */);\r\n// tail\r\n}\r\n// next\r\ng(/* next arg */);\r\n"
+        }
+      ],
+      "tracked": [
+        308,
+        245,
+        80
+      ],
+      "rust_counterpart": "StandaloneNode",
+      "emit_flags": [
+        {
+          "target": "s0",
+          "path": "body",
+          "flags": 4096
+        }
+      ],
+      "ops": [
+        {
+          "entry": "printFile",
+          "target": "file",
+          "printer": "fresh"
+        },
+        {
+          "entry": "printFile",
+          "target": "file"
+        },
+        {
+          "entry": "printFile",
+          "target": "file"
+        },
+        {
+          "target": "s0",
+          "fault": {
+            "phase": "before",
+            "kind": 80,
+            "occurrence": 2
+          }
+        },
+        {
+          "entry": "printFile",
+          "target": "file"
+        },
+        {
+          "entry": "printFile",
+          "target": "file"
+        },
+        {
+          "target": "s1"
+        }
+      ],
+      "typescript_observation": {
+        "events": [
+          {
+            "op": 0,
+            "phase": "substitute",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 0,
+            "phase": "before",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 0,
+            "phase": "substitute",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 0,
+            "phase": "before",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 0,
+            "phase": "after",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 0,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 0,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 0,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 0,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 0,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 0,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 0,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 0,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 0,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 0,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 0,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 0,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 0,
+            "phase": "after",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 1,
+            "phase": "substitute",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 1,
+            "phase": "before",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 1,
+            "phase": "substitute",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 1,
+            "phase": "before",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 1,
+            "phase": "after",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 1,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 1,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 1,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 1,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 1,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 1,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 1,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 1,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 1,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 1,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 1,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 1,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 1,
+            "phase": "after",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 2,
+            "phase": "substitute",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 2,
+            "phase": "before",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 2,
+            "phase": "substitute",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 2,
+            "phase": "before",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 2,
+            "phase": "after",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 2,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 2,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 2,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 2,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 2,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 2,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 2,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 2,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 2,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 2,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 2,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 2,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 2,
+            "phase": "after",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 3,
+            "phase": "substitute",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 3,
+            "phase": "before",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 3,
+            "phase": "after",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 3,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 3,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 3,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 3,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 4,
+            "phase": "substitute",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 4,
+            "phase": "before",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 4,
+            "phase": "substitute",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 4,
+            "phase": "before",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 4,
+            "phase": "after",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 4,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 4,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 4,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 4,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 4,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 4,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 4,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 4,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 4,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 4,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 4,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 4,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 4,
+            "phase": "after",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 5,
+            "phase": "substitute",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 5,
+            "phase": "before",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 5,
+            "phase": "substitute",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 5,
+            "phase": "before",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 5,
+            "phase": "after",
+            "hint": "IdentifierName",
+            "kind": 80,
+            "pos": 8,
+            "end": 10
+          },
+          {
+            "op": 5,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 5,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 5,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 5,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 5,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 14,
+            "end": 28
+          },
+          {
+            "op": 5,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 14,
+            "end": 42
+          },
+          {
+            "op": 5,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 5,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 5,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 5,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 5,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 5,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 5,
+            "phase": "after",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 85
+          },
+          {
+            "op": 6,
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 6,
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          },
+          {
+            "op": 6,
+            "phase": "substitute",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 6,
+            "phase": "before",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 6,
+            "phase": "after",
+            "hint": "Expression",
+            "kind": 80,
+            "pos": 54,
+            "end": 66
+          },
+          {
+            "op": 6,
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 54,
+            "end": 83
+          }
+        ],
+        "results": [
+          {
+            "op": 0,
+            "status": "returned",
+            "text": "function f() {\r\n    // head\r\n    x();\r\n    // tail\r\n}\r\n// next\r\ng( /* next arg */);\r\n",
+            "text_utf16": [
+              102,
+              117,
+              110,
+              99,
+              116,
+              105,
+              111,
+              110,
+              32,
+              102,
+              40,
+              41,
+              32,
+              123,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              47,
+              47,
+              32,
+              104,
+              101,
+              97,
+              100,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              120,
+              40,
+              41,
+              59,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              47,
+              47,
+              32,
+              116,
+              97,
+              105,
+              108,
+              13,
+              10,
+              125,
+              13,
+              10,
+              47,
+              47,
+              32,
+              110,
+              101,
+              120,
+              116,
+              13,
+              10,
+              103,
+              40,
+              32,
+              47,
+              42,
+              32,
+              110,
+              101,
+              120,
+              116,
+              32,
+              97,
+              114,
+              103,
+              32,
+              42,
+              47,
+              41,
+              59,
+              13,
+              10
+            ],
+            "utf8_base64": "ZnVuY3Rpb24gZigpIHsNCiAgICAvLyBoZWFkDQogICAgeCgpOw0KICAgIC8vIHRhaWwNCn0NCi8vIG5leHQNCmcoIC8qIG5leHQgYXJnICovKTsNCg==",
+            "utf8_bytes": 85,
+            "end_utf16": {
+              "position": 85,
+              "line": 7,
+              "column": 0
+            }
+          },
+          {
+            "op": 1,
+            "status": "returned",
+            "text": "function f() {\r\n    // head\r\n    x();\r\n    // tail\r\n}\r\n// next\r\ng( /* next arg */);\r\n",
+            "text_utf16": [
+              102,
+              117,
+              110,
+              99,
+              116,
+              105,
+              111,
+              110,
+              32,
+              102,
+              40,
+              41,
+              32,
+              123,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              47,
+              47,
+              32,
+              104,
+              101,
+              97,
+              100,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              120,
+              40,
+              41,
+              59,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              47,
+              47,
+              32,
+              116,
+              97,
+              105,
+              108,
+              13,
+              10,
+              125,
+              13,
+              10,
+              47,
+              47,
+              32,
+              110,
+              101,
+              120,
+              116,
+              13,
+              10,
+              103,
+              40,
+              32,
+              47,
+              42,
+              32,
+              110,
+              101,
+              120,
+              116,
+              32,
+              97,
+              114,
+              103,
+              32,
+              42,
+              47,
+              41,
+              59,
+              13,
+              10
+            ],
+            "utf8_base64": "ZnVuY3Rpb24gZigpIHsNCiAgICAvLyBoZWFkDQogICAgeCgpOw0KICAgIC8vIHRhaWwNCn0NCi8vIG5leHQNCmcoIC8qIG5leHQgYXJnICovKTsNCg==",
+            "utf8_bytes": 85,
+            "end_utf16": {
+              "position": 85,
+              "line": 7,
+              "column": 0
+            }
+          },
+          {
+            "op": 2,
+            "status": "returned",
+            "text": "function f() {\r\n    // head\r\n    x();\r\n    // tail\r\n}\r\n// next\r\ng( /* next arg */);\r\n",
+            "text_utf16": [
+              102,
+              117,
+              110,
+              99,
+              116,
+              105,
+              111,
+              110,
+              32,
+              102,
+              40,
+              41,
+              32,
+              123,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              47,
+              47,
+              32,
+              104,
+              101,
+              97,
+              100,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              120,
+              40,
+              41,
+              59,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              47,
+              47,
+              32,
+              116,
+              97,
+              105,
+              108,
+              13,
+              10,
+              125,
+              13,
+              10,
+              47,
+              47,
+              32,
+              110,
+              101,
+              120,
+              116,
+              13,
+              10,
+              103,
+              40,
+              32,
+              47,
+              42,
+              32,
+              110,
+              101,
+              120,
+              116,
+              32,
+              97,
+              114,
+              103,
+              32,
+              42,
+              47,
+              41,
+              59,
+              13,
+              10
+            ],
+            "utf8_base64": "ZnVuY3Rpb24gZigpIHsNCiAgICAvLyBoZWFkDQogICAgeCgpOw0KICAgIC8vIHRhaWwNCn0NCi8vIG5leHQNCmcoIC8qIG5leHQgYXJnICovKTsNCg==",
+            "utf8_bytes": 85,
+            "end_utf16": {
+              "position": 85,
+              "line": 7,
+              "column": 0
+            }
+          },
+          {
+            "op": 3,
+            "status": "threw",
+            "error": "printer-failure:before:Identifier:2"
+          },
+          {
+            "op": 4,
+            "status": "returned",
+            "text": "function f() {\r\n    // head\r\n    function f() {\r\n        x();\r\n    }\r\n    g();\r\n",
+            "text_utf16": [
+              102,
+              117,
+              110,
+              99,
+              116,
+              105,
+              111,
+              110,
+              32,
+              102,
+              40,
+              41,
+              32,
+              123,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              47,
+              47,
+              32,
+              104,
+              101,
+              97,
+              100,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              102,
+              117,
+              110,
+              99,
+              116,
+              105,
+              111,
+              110,
+              32,
+              102,
+              40,
+              41,
+              32,
+              123,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              32,
+              32,
+              32,
+              32,
+              120,
+              40,
+              41,
+              59,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              125,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              103,
+              40,
+              41,
+              59,
+              13,
+              10
+            ],
+            "utf8_base64": "ZnVuY3Rpb24gZigpIHsNCiAgICAvLyBoZWFkDQogICAgZnVuY3Rpb24gZigpIHsNCiAgICAgICAgeCgpOw0KICAgIH0NCiAgICBnKCk7DQo=",
+            "utf8_bytes": 80,
+            "end_utf16": {
+              "position": 80,
+              "line": 6,
+              "column": 0
+            }
+          },
+          {
+            "op": 5,
+            "status": "returned",
+            "text": "function f() {\r\n    x();\r\n}\r\ng();\r\n",
+            "text_utf16": [
+              102,
+              117,
+              110,
+              99,
+              116,
+              105,
+              111,
+              110,
+              32,
+              102,
+              40,
+              41,
+              32,
+              123,
+              13,
+              10,
+              32,
+              32,
+              32,
+              32,
+              120,
+              40,
+              41,
+              59,
+              13,
+              10,
+              125,
+              13,
+              10,
+              103,
+              40,
+              41,
+              59,
+              13,
+              10
+            ],
+            "utf8_base64": "ZnVuY3Rpb24gZigpIHsNCiAgICB4KCk7DQp9DQpnKCk7DQo=",
+            "utf8_bytes": 35,
+            "end_utf16": {
+              "position": 35,
+              "line": 4,
+              "column": 0
+            }
+          },
+          {
+            "op": 6,
+            "status": "returned",
+            "text": "g();",
+            "text_utf16": [
+              103,
+              40,
+              41,
+              59
+            ],
+            "utf8_base64": "ZygpOw==",
+            "utf8_bytes": 4,
+            "end_utf16": {
+              "position": 4,
+              "line": 0,
+              "column": 4
+            }
+          }
+        ]
+      }
+    },
+    {
       "case_id": "printer-failure/printNode/review/bundled-helpers/success",
       "entry": "printNode",
       "newLine": "crlf",

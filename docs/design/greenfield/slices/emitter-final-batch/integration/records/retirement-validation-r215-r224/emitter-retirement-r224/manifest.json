@@ -1,0 +1,214 @@
+{
+  "head": "4dfc0fb4d3b3ca2364957c85d9ad84bd0a677dc2",
+  "qualified": false,
+  "steps": [
+    {
+      "label": "retirement-compiler-build-r224",
+      "exit": 0
+    },
+    {
+      "label": "retirement-comparison-guards-r224",
+      "exit": 0
+    },
+    {
+      "label": "retired-parse-00-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction6_es2017.ts#default"
+    },
+    {
+      "label": "retired-parse-01-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction7_es2017.ts#default"
+    },
+    {
+      "label": "retired-parse-02-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction8_es2017.ts#default"
+    },
+    {
+      "label": "retired-parse-03-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction9_es2017.ts#default"
+    },
+    {
+      "label": "retired-parse-04-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration10_es2017.ts#default"
+    },
+    {
+      "label": "retired-parse-05-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration6_es2017.ts#default"
+    },
+    {
+      "label": "retired-parse-06-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration7_es2017.ts#default"
+    },
+    {
+      "label": "retired-parse-07-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration9_es2017.ts#default"
+    },
+    {
+      "label": "retired-parse-08-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction6_es5.ts#target%3Des2015"
+    },
+    {
+      "label": "retired-parse-09-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction6_es5.ts#target%3Des5"
+    },
+    {
+      "label": "retired-parse-10-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction7_es5.ts#target%3Des2015"
+    },
+    {
+      "label": "retired-parse-11-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction7_es5.ts#target%3Des5"
+    },
+    {
+      "label": "retired-parse-12-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction8_es5.ts#target%3Des2015"
+    },
+    {
+      "label": "retired-parse-13-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction8_es5.ts#target%3Des5"
+    },
+    {
+      "label": "retired-parse-14-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction9_es5.ts#target%3Des2015"
+    },
+    {
+      "label": "retired-parse-15-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction9_es5.ts#target%3Des5"
+    },
+    {
+      "label": "retired-parse-16-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration10_es5.ts#target%3Des2015"
+    },
+    {
+      "label": "retired-parse-17-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration10_es5.ts#target%3Des5"
+    },
+    {
+      "label": "retired-parse-18-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration6_es5.ts#target%3Des2015"
+    },
+    {
+      "label": "retired-parse-19-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration6_es5.ts#target%3Des5"
+    },
+    {
+      "label": "retired-parse-20-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts#target%3Des2015"
+    },
+    {
+      "label": "retired-parse-21-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts#target%3Des5"
+    },
+    {
+      "label": "retired-parse-22-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration9_es5.ts#target%3Des2015"
+    },
+    {
+      "label": "retired-parse-23-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration9_es5.ts#target%3Des5"
+    },
+    {
+      "label": "retired-parse-24-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction6_es6.ts#default"
+    },
+    {
+      "label": "retired-parse-25-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction7_es6.ts#default"
+    },
+    {
+      "label": "retired-parse-26-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction8_es6.ts#default"
+    },
+    {
+      "label": "retired-parse-27-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es6/asyncArrowFunction/asyncArrowFunction9_es6.ts#default"
+    },
+    {
+      "label": "retired-parse-28-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration10_es6.ts#default"
+    },
+    {
+      "label": "retired-parse-29-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration6_es6.ts#default"
+    },
+    {
+      "label": "retired-parse-30-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration7_es6.ts#default"
+    },
+    {
+      "label": "retired-parse-31-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration9_es6.ts#default"
+    },
+    {
+      "label": "retired-parse-32-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.3.ts#experimentaldecorators%3Dfalse"
+    },
+    {
+      "label": "retired-parse-33-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.3.ts#experimentaldecorators%3Dtrue"
+    },
+    {
+      "label": "retired-parse-34-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.1.ts#module%3Des2022"
+    },
+    {
+      "label": "retired-parse-35-r224",
+      "exit": 0,
+      "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.1.ts#module%3Desnext"
+    },
+    {
+      "label": "retired-transpile-r224",
+      "exit": 0
+    },
+    {
+      "label": "final-source-clippy-r224",
+      "exit": 101
+    }
+  ],
+  "artifacts": [
+    {
+      "target": "transpile_routes_contract",
+      "binary": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-retirement-r224/transpile_routes_contract",
+      "sha256": "f0692af3ad0c7de8d0cd36bd9a9be7e05307618ff769c9415075afe1c912c3db"
+    },
+    {
+      "target": "emitter_final_universe",
+      "binary": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-retirement-r224/emitter_final_universe",
+      "sha256": "b7c222cb8ca11e18172c2900cc9c8d27c026f56c36d169fe8c8c143ff644ec4a"
+    }
+  ]
+}

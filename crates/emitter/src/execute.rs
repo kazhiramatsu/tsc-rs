@@ -110,10 +110,12 @@ enum EmitOperation {
 fn validate_emit_options(
     options: &CompilerOptions,
     operation: EmitOperation,
-    route: EmitRouteKind,
+    _route: EmitRouteKind,
 ) -> Result<(), EmitFailure> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES5 || target > ScriptTarget::ES_NEXT {
+    // JSON is an internal parser mode, not an unknown future JS target.
+    // Filename-independent source-kind facts are not yet represented.
+    if target < ScriptTarget::ES5 || target == ScriptTarget::JSON {
         return unsupported("target");
     }
     if !matches!(
@@ -144,34 +146,28 @@ fn validate_emit_options(
             operation == EmitOperation::Files && options.no_emit == Some(true),
             "noEmit",
         ),
-        (
-            operation == EmitOperation::Files
-                && options.no_check == Some(true)
-                && !route.admits_no_check(),
-            "noCheck",
-        ),
-        (
-            options.isolated_modules == Some(true) && !route.admits_isolated_module_options(),
-            "isolatedModules",
-        ),
-        (
-            options.verbatim_module_syntax == Some(true) && !route.admits_isolated_module_options(),
-            "verbatimModuleSyntax",
-        ),
+        // `noCheck` has no ordinary-emit refusal left: `skipTypeChecking`
+        // already reads the option for every file, and the emit resolver
+        // resolves lazily (tsc emits the program unchecked;
+        // EF7-NOCHECK-ROUTE).
+        // `isolatedModules` and `verbatimModuleSyntax` have no ordinary-emit
+        // refusal left: the TypeScript transform already keeps const enum
+        // declarations (`should_preserve_const_enums`), skips const-value
+        // folding (`tryGetConstEnumValue`, _tsc.js substituteConstantValue)
+        // and reads `verbatim_module_syntax` for alias elision on every
+        // route, and the checker owns both options' diagnostics
+        // (H2.8a-A-RES-EMITTER-FINAL EF3 / EF7-VERBATIM-GATE).
         (
             options.stable_type_ordering == Some(true),
             "stableTypeOrdering",
         ),
         (options.incremental == Some(true), "incremental"),
         (options.composite == Some(true), "composite"),
-        (
-            options.assume_changes_only_affect_direct_dependencies == Some(true),
-            "assumeChangesOnlyAffectDirectDependencies",
-        ),
-        (
-            options.emit_decorator_metadata == Some(true) && !options.experimental_decorators,
-            "emitDecoratorMetadata",
-        ),
+        // assumeChangesOnlyAffectDirectDependencies changes the builder's
+        // affected-file traversal only. It is inert in this fresh Program.
+        // `emitDecoratorMetadata` without `experimentalDecorators` is inert
+        // for emit (only the legacy decorator transform reads it) and the
+        // program reports TS5052; tsc emits normally (EF7-METADATA-INERT).
     ] {
         if active {
             return unsupported(name);
@@ -204,18 +200,6 @@ pub fn validate_forced_declaration_request(host: &dyn EmitHost) -> Result<(), Em
 fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Result<(), EmitFailure> {
     let options = host.compiler_options();
     validate_emit_options(options, operation, host.emit_route())?;
-    if options
-        .out_file
-        .as_ref()
-        .is_some_and(|path| !path.is_empty())
-    {
-        if options.import_helpers == Some(true) {
-            return unsupported("importHelpers");
-        }
-        if !host.use_case_sensitive_file_names() {
-            return unsupported("useCaseSensitiveFileNames");
-        }
-    }
     for source_id in host.source_file_ids() {
         let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(*source_id),
@@ -606,15 +590,14 @@ pub(crate) fn source_map_recording_inputs_for_output(
     let (_, basename) = directory_and_basename(normalized.as_js());
     SourceMapRecordingInputs {
         file: basename.into(),
-        source_root: source_root_field(options).into(),
+        source_root: source_root_field(options),
         sources_directory_path: source_map_directory_for_output(
             lane,
             options,
             javascript_path,
             source_path,
-        )
-        .into(),
-        current_directory: lane.current_directory.clone().into(),
+        ),
+        current_directory: lane.current_directory.clone(),
         use_case_sensitive_source_keys: lane.use_case_sensitive_source_keys,
         inline_sources: options.inline_sources == Some(true),
     }
@@ -1089,7 +1072,7 @@ pub fn emit_files_with_activity(
                         ))?;
                     let map_json = generator.to_json_string();
                     source_map_observations.push(SourceMapObservation::new(
-                        generator.raw_sources().iter().cloned().collect(),
+                        generator.raw_sources().to_vec(),
                         map_json.clone().into_boxed_str(),
                     ));
                     let url = source_mapping_url_for_output(

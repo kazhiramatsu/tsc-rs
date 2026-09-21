@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-recovery-selected-corpus.mjs",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-variable-successor-r151/selection.json",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-variable-successor-r151/oracle-r155.json",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-census"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T11:57:35.227303+00:00",
+  "head": "4a34f2702d02344ae6092b6c4aeb80240dd59bea",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 34.025,
+  "log_sha256": "c16547103ef3672f96be0fb0f736101181d6c82aa7468a298c6680e88691fcee",
+  "log_bytes": 5961
+}

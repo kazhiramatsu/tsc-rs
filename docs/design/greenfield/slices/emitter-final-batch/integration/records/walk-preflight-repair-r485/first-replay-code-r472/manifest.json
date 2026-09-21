@@ -1,0 +1,35 @@
+{
+  "scope": "source state of first successful full four-target replay r469 and five mutation tests r467; before registry file-kind tightening",
+  "files": [
+    {
+      "path": "scripts/check-frozen-de-reference.mjs",
+      "sha256": "9d194ed42b4035639d8b6d80509907ca4d428dd13d679e5b7b74e28878500bb4",
+      "bytes": 9650
+    },
+    {
+      "path": "scripts/frozen-de-reference.test.mjs",
+      "sha256": "c787dec850492675099a95643eba4a7b3a2e887607f950345da9cbd68639d398",
+      "bytes": 7657
+    },
+    {
+      "path": "scripts/frozen-de-reference/manifest.json",
+      "sha256": "68d91a4a1d33cf8b17146e9b586c64dee7ccd8f758bbd7965b9d1248b0d85bfd",
+      "bytes": 119745
+    },
+    {
+      "path": "scripts/chain-walk.sh",
+      "sha256": "fea90adf7f5967d6b4b378028f697bc294568db6bf3128e9c797ea3dc0ebe11e",
+      "bytes": 23507
+    },
+    {
+      "path": "new-ci/src/bin/plan.rs",
+      "sha256": "0e2b26bc6488b696f251c10796be165194715946d96f067134ee0b00a7d65603",
+      "bytes": 60666
+    },
+    {
+      "path": ".github/ci/qualification.test.mjs",
+      "sha256": "d8baae06a5abe9bcf130912c1801aa857a8058682bd7b7409452a054cdf98d0b",
+      "bytes": 46365
+    }
+  ]
+}

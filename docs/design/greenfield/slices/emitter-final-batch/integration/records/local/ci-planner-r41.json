@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    ".github/ci",
+    "-p",
+    "test_replay.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-ci-repair",
+  "started_at": "2026-09-18T20:40:20.367239+00:00",
+  "head": "be917acbff507134fb8e7eaf9ddb81d3db90e043",
+  "tracked_clean": false,
+  "diff_sha256": "8d2ff1fb1dd47d616e719c46ceb983b879132637bead200959212fcfa05d9174",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 21.165,
+  "log_sha256": "a7eccda6b323a952d9894b1b77387b983b7d220afbaf6e1e399b320191bd1d54",
+  "log_bytes": 404713
+}

@@ -1,0 +1,98 @@
+{
+  "head": "4aeb1640156f291f4b5189b8ad9ed370cf17cf9d",
+  "scope": "Private361 typed EOF guard + range-owned bodycomments + body-only NoNested extent, official172flags/22failure +12MetaProperty and515+emitterlib controls. Prior342 failed4Systemtrivia; not claimedqualified. Newfull748compiler controls tofollow.",
+  "qualified": false,
+  "steps": [
+    {
+      "label": "fmt",
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 3.7368257918860763,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "emitter-lib",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-emitter",
+        "--lib",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 101,
+      "seconds": 216.8146341671236,
+      "log_sha256": "f811b8b5ffb6841d26838ffa07b90a203281617a8bd242257f93eac3057c1c18"
+    },
+    {
+      "label": "flags",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-emitter",
+        "--test",
+        "list_comment_flags_contract",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 234.509309459012,
+      "log_sha256": "2b17f056869ef1b222fb0e7093ed2b86f9787e3a192833e5211542e1dadad91e"
+    },
+    {
+      "label": "failure",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-emitter",
+        "--test",
+        "printer_failure_contract",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 101,
+      "seconds": 9.474223499884829,
+      "log_sha256": "13b7192fed67dfce86a0b899fe01fe07420326ebfb384fb27e9f344d88f94de2"
+    }
+  ],
+  "diff_sha256": "c70a8d1fd9364897df238e028f5266aa6b5cd3d45903bf0c2c9606a0e98408be",
+  "source_files": {
+    "crates/emitter/src/builtins/system.rs": "bceab1c261394c358890818b309faa43fffed8f997aaca0aa78ee59cbdbd7aa3",
+    "crates/emitter/src/printer.rs": "ce583ff62afa8eef0f54a135315613242953c0d807a559b2634356e570de9206",
+    "crates/emitter/tests/fixtures/list-comment-flags.json": "7f5bd23c31fc7553e2876003530553e61ec5519584c6282cc9d011d70596ef79",
+    "crates/emitter/tests/fixtures/meta-property-token-map-invariants.json": "2dd59b331426db941de78d42c5b88719965f42206697b5991015433e718d7d1f",
+    "crates/emitter/tests/fixtures/printer-failure-review.json": "7ede37e442f591a2d3e459a137c3c83a799110b7b6f05cde0aa66d3e8e78e123",
+    "crates/emitter/tests/list_comment_flags_contract.rs": "a6f64f49adb58dc5a266dbeba14b8f30951ca6eeaa39c893faa0e76f2f358a51",
+    "crates/emitter/tests/printer_failure_contract.rs": "d0574a45cad056ea0621d109f4bd65ed09a8c7917ed0204fbec9150f2db21f6a",
+    "crates/emitter/tests/unit/builtins/tests.rs": "2ad3b580e6f0dbd60c7de1721ab4149b326d73e65f1bb27d26a0eb5f4305072e",
+    "crates/emitter/tests/unit/source_map/tests.rs": "52fb39cfafefbd971428b97f89817fd6add976698d063261a8e28ff20910c740"
+  }
+}

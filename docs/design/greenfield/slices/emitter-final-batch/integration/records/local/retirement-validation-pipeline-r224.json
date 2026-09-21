@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/tmp/emitter-retirement-validation-r224.py",
+    "--tree",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+    "--head",
+    "4dfc0fb4d3b3ca2364957c85d9ad84bd0a677dc2"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T17:08:30.505533+00:00",
+  "head": "4dfc0fb4d3b3ca2364957c85d9ad84bd0a677dc2",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 843.595,
+  "log_sha256": "2b774325946b08786ca623e7a6330314dea1392a1322e2f61603a5b4d96ac0df",
+  "log_bytes": 33519
+}

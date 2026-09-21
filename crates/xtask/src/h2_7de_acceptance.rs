@@ -165,7 +165,7 @@ fn validate_artifact(
     for (name, hash) in [
         (
             CENSUS,
-            "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d",
+            "956514a27a7c9d4504f2bd364f07492b758660c4c6d525201ba62d1389a04db2",
         ),
         (
             INPUTS,
@@ -173,7 +173,7 @@ fn validate_artifact(
         ),
         (
             OBSERVATIONS,
-            "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+            "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9",
         ),
     ] {
         let bytes = std::fs::read(workspace.join(name))?;
@@ -273,81 +273,5 @@ fn validate_artifact(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn qualification() -> (std::path::PathBuf, Value) {
-        let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let artifact = serde_json::from_slice(
-            &std::fs::read(workspace.join(QUALIFICATION)).expect("frozen qualification"),
-        )
-        .expect("qualification JSON");
-        (workspace, artifact)
-    }
-
-    fn repin(artifact: &mut Value) {
-        artifact
-            .as_object_mut()
-            .unwrap()
-            .remove("qualification_fingerprint_sha256");
-        artifact["qualification_fingerprint_sha256"] =
-            json!(digest(serde_json::to_vec(artifact).unwrap()));
-    }
-
-    #[test]
-    fn frozen_qualification_selects_the_original_291_ids() {
-        let (workspace, artifact) = qualification();
-        let (d, e) = validate_artifact(&workspace, &artifact).unwrap();
-        assert_eq!((d.len(), e.len()), (283, 8));
-        assert!(d.is_disjoint(&e));
-        assert_eq!(d.union(&e).count(), 291);
-        assert!(
-            e.contains("typescript-6.0.3/compiler/declarationMapsWithoutDeclaration.ts#default")
-        );
-    }
-
-    #[test]
-    fn qualification_rejects_fingerprint_and_repinned_identity_changes() {
-        let (workspace, original) = qualification();
-        let eligible = original["cases"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .position(|case| case["disposition"] == "eligible-for-rust-comparison")
-            .unwrap();
-        let transpile = original["cases"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .position(|case| case["input_route"] == "transpile-api")
-            .unwrap();
-
-        let mut fingerprint = original.clone();
-        fingerprint["qualification_fingerprint_sha256"] = json!("0".repeat(64));
-        assert!(validate_artifact(&workspace, &fingerprint)
-            .unwrap_err()
-            .to_string()
-            .contains("fingerprint mismatch"));
-
-        let mut input = original.clone();
-        input["cases"][eligible]["input"]["sha256"] = json!("0".repeat(64));
-        let mut tuple = original.clone();
-        tuple["cases"][eligible]["observation"]["typescript_observation_sha256"] =
-            json!("0".repeat(64));
-        let mut promoted = original.clone();
-        promoted["cases"][transpile]["disposition"] = json!("eligible-for-rust-comparison");
-        promoted["cases"][transpile]["remaining_slices"] = json!([]);
-        let mut denominator = original.clone();
-        denominator["summary"]["union"]["eligible"] = json!(292);
-        for (mut artifact, reason) in [
-            (input, "input identity changed"),
-            (tuple, "complete observation changed"),
-            (promoted, "membership or input projection changed"),
-            (denominator, "denominator changed"),
-        ] {
-            repin(&mut artifact);
-            let error = validate_artifact(&workspace, &artifact).unwrap_err();
-            assert!(error.to_string().contains(reason), "{reason}: {error}");
-        }
-    }
-}
+#[path = "../tests/unit/h2_7de_acceptance/tests.rs"]
+mod tests;

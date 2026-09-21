@@ -1902,6 +1902,10 @@ impl<'a> CheckerState<'a> {
 
     /// The node span is shared with the scalar entry; name-bearing arguments
     /// remain canonical until the diagnostic output boundary.
+    /// tsc-port: createDiagnosticForNode @6.0.3
+    /// tsc-hash: 358ec88d52a45803957de382a162466361b967ba9a0665a2d6d7431d2eff55fe
+    /// tsc-span: _tsc.js:13909-13912
+    /// JS-valued twin of `diagnostic_for_node`; keep their diagnostic behavior aligned.
     pub fn diagnostic_for_node_js(
         &self,
         node: NodeId,
@@ -2043,6 +2047,10 @@ impl<'a> CheckerState<'a> {
         self.create_error_js(location, message, &args)
     }
 
+    /// tsc-port: createTypeChecker.createError @6.0.3
+    /// tsc-hash: dedcf6cc6c301274f018ef98543f4abebe1b7826c45f601b914137812caa8cfa
+    /// tsc-span: _tsc.js:47580-47582
+    /// JS-valued twin of `create_error`; keep their diagnostic behavior aligned.
     pub fn create_error_js(
         &self,
         location: Option<NodeId>,
@@ -2074,6 +2082,10 @@ impl<'a> CheckerState<'a> {
         self.push_error_diagnostic(diagnostic)
     }
 
+    /// tsc-port: createTypeChecker.error @6.0.3
+    /// tsc-hash: be9cd419909a0ad4fd544342a9a6c97f837da3819b2844e45c7be96b438439c9
+    /// tsc-span: _tsc.js:47583-47587
+    /// JS-valued twin of `error_at`; keep their diagnostic behavior aligned.
     pub fn error_at_js(
         &mut self,
         location: Option<NodeId>,
@@ -2192,6 +2204,8 @@ impl<'a> CheckerState<'a> {
         self.diagnostics.len() - 1
     }
 
+    /// tsrs-native: JS twin of error_at_with_related (sibling tsrs-native): attaches
+    /// related info to createError
     pub fn error_at_with_related_js(
         &mut self,
         location: Option<NodeId>,
@@ -2220,6 +2234,10 @@ impl<'a> CheckerState<'a> {
         self.lookup_or_issue_error_js(location, message, &args)
     }
 
+    /// tsc-port: createTypeChecker.lookupOrIssueError @6.0.3
+    /// tsc-hash: 9571aad04fba17397e7740b9b0f7b02e8646fb85b89ae01858ad7879ead111d6
+    /// tsc-span: _tsc.js:47565-47574
+    /// JS-valued twin of `lookup_or_issue_error`; keep their diagnostic behavior aligned.
     pub fn lookup_or_issue_error_js(
         &mut self,
         location: Option<NodeId>,

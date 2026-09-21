@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "node",
+    ".github/ci/fci-h2-5g-membership.mjs",
+    "--repeat-check"
+  ],
+  "exit": 0,
+  "seconds": 0.9267665410879999,
+  "log_sha256": "545c5a478cb2fe3f12fd90603671e148ba21f9b534c484f880fabf739776b924"
+}

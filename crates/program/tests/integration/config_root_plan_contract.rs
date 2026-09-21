@@ -672,7 +672,7 @@ fn typed_file_options_are_normalized_without_changing_raw_values() {
     );
     assert_eq!(
         rooted.discovery_options().out_dir(),
-        (Some("//server/share/out")).map(Into::into)
+        Some(Into::into("//server/share/out"))
     );
 
     let edge = parse_config_root_plan(
@@ -2012,7 +2012,7 @@ fn config_dir_templates_use_the_root_config_directory() {
 
     assert_eq!(
         plan.discovery_options().out_dir(),
-        (Some("/project/dist")).map(Into::into)
+        Some(Into::into("/project/dist"))
     );
     assert_eq!(
         host.requested_includes.borrow()[0],
@@ -2050,7 +2050,7 @@ fn inherited_paths_keep_their_defining_base_while_templates_use_the_root_base() 
 
     assert_eq!(
         plan.options().stored_paths_base_path(),
-        (Some("/base")).map(Into::into)
+        Some(Into::into("/base"))
     );
     assert_eq!(
         plan.options().typed_value_state("pathsBasePath"),
@@ -2466,7 +2466,7 @@ fn empty_path_specs_keep_each_typescript_host_boundary_distinct() {
     .expect("empty output directory");
     assert_eq!(
         plan.discovery_options().out_dir(),
-        (Some("/project")).map(Into::into)
+        Some(Into::into("/project"))
     );
     assert_eq!(
         output.requested_excludes.borrow()[0],
@@ -2839,6 +2839,4 @@ fn package_imports_resolve_config_targets() {
     }
 }
 
-#[path = "../support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use super::utf16_scalar_json::observe as scalar_json;

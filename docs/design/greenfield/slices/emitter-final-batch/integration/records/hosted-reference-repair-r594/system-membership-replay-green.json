@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "scope": "replay current strict membership validator against exact historical hosted log; not a new native run",
+  "hosted_job": 106137477664,
+  "log_sha256": "9fa563caebcdefa4ec85cd7d729f354690aa22de25f5effb0d12ff0cf2fe74e4",
+  "rust_tests": 23,
+  "expected_memberships": 6027,
+  "observed_memberships": 6027,
+  "roster_extra_memberships": 70
+}

@@ -1,0 +1,7 @@
+{
+  "new_commands": 96,
+  "all_supported": 684,
+  "refused": 72,
+  "old588_and72_must_remain_identical": true,
+  "observer_sha256": "eb9e6f989bfac70ac716cfa59f468c9c709280a268755d563ca09f12a6423d35"
+}

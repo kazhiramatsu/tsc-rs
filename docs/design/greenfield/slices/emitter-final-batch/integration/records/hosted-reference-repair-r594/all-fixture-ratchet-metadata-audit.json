@@ -1,0 +1,48 @@
+{
+  "scope": "All ratchet path/universe sha256 metadata outside cases/observations in compiler/emitter/program fixture JSON and JSON.zst. Stale entries require classification, not automatic rewriting.",
+  "checked": 11,
+  "stale": [
+    {
+      "consumer": "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json",
+      "pointer": "/parents/0/sha256",
+      "input": "ratchets/h2-5h-qualification.v1.json",
+      "pinned": "488e9940fcb8b6b359bad5fc9fa822eeae46af59b9aefd2bd5e3a20c37c396a3",
+      "current": "0eb36d43e7c163408d1077c2533781feac6898c8e06734f0c262b287c49fe45b"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json",
+      "pointer": "/parents/1/sha256",
+      "input": "ratchets/h2-5g-qualification.v1.json",
+      "pinned": "8666e68c50b098fcac015b523307ce71e4f39d689e9cb7f3b31d405cde9cacaa",
+      "current": "f395a35558bf02b189a25f09642dfb35d93cc1a9f6061583bcd2758d91bf34c1"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/emitter-final-universe.json",
+      "pointer": "/inputs/1/sha256",
+      "input": "ratchets/h2-candidate-dispositions.v1.json",
+      "pinned": "673c9e935830dd73f52893f17dda374c5d551b47059a9fa620550f4183c6bca8",
+      "current": "6e838d0c4702ca360869040da41c3f2c875c6ad48c02d28cfba2d7e9e9538449"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/utf16-original-rows-complete.json",
+      "pointer": "/parent/sha256",
+      "input": "ratchets/h2-5h-qualification.v1.json",
+      "pinned": "488e9940fcb8b6b359bad5fc9fa822eeae46af59b9aefd2bd5e3a20c37c396a3",
+      "current": "0eb36d43e7c163408d1077c2533781feac6898c8e06734f0c262b287c49fe45b"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/emitter-jsdoc-original-command.json",
+      "pointer": "/selection/0/artifact_sha256",
+      "input": "ratchets/h2-7b-qualification.v1.json",
+      "pinned": "afbbf588c95e43d9adb78bf5720010c58ab8a2d15eb9ac985984f938daca60ed",
+      "current": "5701f868c527d2769aaee31ca2d715d6a52877aa63702117acd05085d8740fc3"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst",
+      "pointer": "/inputs/1/sha256",
+      "input": "ratchets/h2-candidate-dispositions.v1.json",
+      "pinned": "673c9e935830dd73f52893f17dda374c5d551b47059a9fa620550f4183c6bca8",
+      "current": "6e838d0c4702ca360869040da41c3f2c875c6ad48c02d28cfba2d7e9e9538449"
+    }
+  ]
+}

@@ -47,8 +47,8 @@ impl ConfigParseHost for MemoryConfigHost {
         _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
     ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
-        (|| -> Result<Vec<String>, ConfigHostError> { Ok(Vec::new()) })()
-            .map(|paths| paths.into_iter().map(Into::into).collect())
+        let scalar_paths: Result<Vec<String>, ConfigHostError> = { Ok(Vec::new()) };
+        scalar_paths.map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
@@ -296,7 +296,7 @@ fn large_paths_map_finalizes_templates_in_one_ordered_pass() {
 
     assert_eq!(
         plan.options().stored_paths_base_path(),
-        (Some("/project")).map(Into::into)
+        Some(Into::into("/project"))
     );
     let ConfigOptionValueState::Object(paths) = plan.options().typed_value_state("paths") else {
         panic!("paths is a converted object value")

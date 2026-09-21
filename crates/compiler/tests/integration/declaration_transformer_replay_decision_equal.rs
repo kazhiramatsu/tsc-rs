@@ -2545,7 +2545,7 @@ impl EmitHost for HarnessEmitHost<'_, '_, '_> {
     }
 
     fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
-        (&self.common_source_directory)
+        self.common_source_directory
             .to_str()
             .expect("scalar mock host directory")
             .into()
@@ -2873,9 +2873,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 })
                 .transpose()?;
             return Ok(AuthoritativeModuleResolution::NotFound(
-                AuthoritativeNotFoundModule {
-                    alternate_result: alternate_result.map(Into::into),
-                },
+                AuthoritativeNotFoundModule { alternate_result },
             ));
         };
         if let ResolvedModuleTarget::Unloaded {
@@ -2928,9 +2926,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     })
                     .transpose()?;
                 return Ok(AuthoritativeModuleResolution::NotFound(
-                    AuthoritativeNotFoundModule {
-                        alternate_result: alternate_result.map(Into::into),
-                    },
+                    AuthoritativeNotFoundModule { alternate_result },
                 ));
             }
             let node_modules_depth_applies = module.is_external_library_import()
@@ -3017,7 +3013,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     package_name: module
                         .package_id()
                         .map(|package_id| package_id.name().to_owned()),
-                    alternate_result: alternate_result.map(Into::into),
+                    alternate_result,
                     types_package_exists: resolution.types_package_exists(),
                     package_bundles_types: resolution.package_bundles_types(),
                 },
@@ -3105,6 +3101,4 @@ const fn program_resolution_mode(mode: AuthoritativeResolutionMode) -> Resolutio
     }
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

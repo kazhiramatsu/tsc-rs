@@ -508,27 +508,105 @@ impl<'a> CheckerState<'a> {
         self.get_type_of_symbol(symbol)
     }
 
+    /// tsc-port: createTypeChecker.getFirstTransformableStaticClassElement @6.0.3
+    /// tsc-hash: 0347591824e6fc73b7ea30fef6d58a29777ea5a89f8b2b20ab02633bb50c95dd
+    /// tsc-span: _tsc.js:84937-84937
+    /// Reference scope: firstOrUndefined(getDecorators(node)) projection.
+    pub(crate) fn first_syntactic_decorator(&self, node: NodeId) -> Option<NodeId> {
+        let modifiers = tsc_binder::node_util::modifiers_of(self.binder.source_of_node(node), node);
+        self.nodes_of(modifiers)
+            .into_iter()
+            .find(|modifier| self.kind_of(*modifier) == SyntaxKind::Decorator)
+    }
+
+    // Standard parameter decorators never qualify. For accessors, the first
+    // decorated member of the first syntactic pair owns the decision, even
+    // when that member has no body and therefore cannot be decorated.
+    fn standard_class_element_is_decorated(
+        &self,
+        member: NodeId,
+        class: NodeId,
+        members: &[NodeId],
+    ) -> bool {
+        if matches!(
+            self.kind_of(member),
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+        ) && !tsc_binder::node_util::has_dynamic_name(self.binder.source_of_node(member), member)
+        {
+            let name = self
+                .name_of_node(member)
+                .and_then(|name| self.property_name_for_property_name_node(name));
+            let first_decorated = members
+                .iter()
+                .copied()
+                .filter(|candidate| {
+                    matches!(
+                        self.kind_of(*candidate),
+                        SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+                    ) && self.is_static_element(*candidate) == self.is_static_element(member)
+                        && self
+                            .name_of_node(*candidate)
+                            .and_then(|name| self.property_name_for_property_name_node(name))
+                            == name
+                })
+                .take(2)
+                .find(|candidate| self.first_syntactic_decorator(*candidate).is_some());
+            if first_decorated != Some(member) {
+                return false;
+            }
+        }
+        self.first_syntactic_decorator(member).is_some()
+            && self.node_can_be_decorated(false, member, Some(class), self.parent_of(class))
+    }
+
+    // getFirstTransformableStaticClassElement, _tsc.js:84921-84948.
+    // The standard-decorator branch cannot acquire constructor/element
+    // parameter decorators, so those always-false utility arms are omitted.
+    /// tsc-port: createTypeChecker.getFirstTransformableStaticClassElement @6.0.3
+    /// tsc-hash: 2963f39a45b2e07f6581c2a3e95d26d288f775c5edeee85290d9dbcb71bce83a
+    /// tsc-span: _tsc.js:84921-84949
+    /// Under standard decorators, constructor parameters cannot be decorated, so class
+    /// decoration is the class-or-parameter predicate projection here.
+    pub(crate) fn first_transformable_static_class_element(&self, node: NodeId) -> Option<NodeId> {
+        let members = match self.data_of(node) {
+            NodeData::ClassDeclaration(data) => data.members,
+            NodeData::ClassExpression(data) => data.members,
+            _ => return None,
+        };
+        let transform_private = self.options.emit_script_target() < ScriptTarget::ES_NEXT;
+        let transform_decorated = !self.options.experimental_decorators
+            && transform_private
+            && self.first_syntactic_decorator(node).is_some();
+        if !transform_private && !transform_decorated {
+            return None;
+        }
+        let members = self.nodes_of(members);
+        for &member in &members {
+            if transform_decorated
+                && self.standard_class_element_is_decorated(member, node, &members)
+            {
+                return self.first_syntactic_decorator(node).or(Some(node));
+            }
+            if transform_private
+                && (self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration
+                    || self.is_static_element(member)
+                        && (self.is_private_identifier_class_element(member)
+                            || !self.options.emit_standard_class_fields()
+                                && matches!(self.data_of(member), NodeData::PropertyDeclaration(data) if data.initializer.is_some())))
+            {
+                return Some(member);
+            }
+        }
+        None
+    }
+
     /// tsc-port: checkClassExpressionExternalHelpers @6.0.3
     /// tsc-hash: 5cdf3e4e84646112ba71437925723c10e4f1d9fbf2eeccfae194c78a23386e3a
     /// tsc-span: _tsc.js:84950-84972
     fn check_class_expression_external_helpers(&mut self, node: NodeId) -> CheckResult<()> {
-        let (name, modifiers) = match self.data_of(node) {
-            NodeData::ClassExpression(data) => (data.name, data.modifiers),
-            _ => return Ok(()),
-        };
-        if name.is_some()
-            || self.options.experimental_decorators
-            || self.options.emit_script_target() >= tsc_types::ScriptTarget::ES_NEXT
-        {
+        if self.name_of_node(node).is_some() {
             return Ok(());
         }
-        let Some(first_decorator) = self
-            .nodes_of(modifiers)
-            .into_iter()
-            .find(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
-        else {
-            return Ok(());
-        };
 
         let mut parent = self.parent_of(node);
         while parent.is_some_and(|parent| {
@@ -548,7 +626,14 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         let is_named_evaluation_source = match self.data_of(parent) {
-            NodeData::PropertyAssignment(_) | NodeData::ExportAssignment(_) => true,
+            NodeData::PropertyAssignment(data) => !data.name.is_some_and(|name| {
+                matches!(
+                    self.kind_of(name),
+                    SyntaxKind::Identifier | SyntaxKind::StringLiteral
+                ) && self.property_name_for_property_name_node(name)
+                    == Some(EscapedName::escape("__proto__".into()))
+            }),
+            NodeData::ExportAssignment(_) => true,
             NodeData::ShorthandPropertyAssignment(data) => {
                 data.object_assignment_initializer.is_some()
             }
@@ -588,10 +673,18 @@ impl<'a> CheckerState<'a> {
         if !is_named_evaluation_source {
             return Ok(());
         }
-        self.check_external_emit_helpers(
-            first_decorator,
-            crate::modules::EMIT_HELPER_SET_FUNCTION_NAME,
-        )?;
+        let location = if !self.options.experimental_decorators
+            && self.options.emit_script_target() < ScriptTarget::ES_NEXT
+            && self.first_syntactic_decorator(node).is_some()
+        {
+            self.first_syntactic_decorator(node).or(Some(node))
+        } else {
+            self.first_transformable_static_class_element(node)
+        };
+        let Some(location) = location else {
+            return Ok(());
+        };
+        self.check_external_emit_helpers(location, crate::modules::EMIT_HELPER_SET_FUNCTION_NAME)?;
         let parent_name = match self.data_of(parent) {
             NodeData::PropertyAssignment(data) => data.name,
             NodeData::PropertyDeclaration(data) => data.name,
@@ -599,10 +692,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         if parent_name.is_some_and(|name| self.kind_of(name) == SyntaxKind::ComputedPropertyName) {
-            self.check_external_emit_helpers(
-                first_decorator,
-                crate::modules::EMIT_HELPER_PROP_KEY,
-            )?;
+            self.check_external_emit_helpers(location, crate::modules::EMIT_HELPER_PROP_KEY)?;
         }
         Ok(())
     }
@@ -628,8 +718,7 @@ impl<'a> CheckerState<'a> {
     /// Order is the spec (m4-58 §6). addLazyDiagnostic = eager
     /// identity for the base-type block, the implements diagnostics,
     /// and the final index-constraint/property-initialization block.
-    /// Elision: the ES5 Extends emit-helper probe (no-op at the
-    /// project target).
+    /// The ES5 Extends helper is checked at the base-type node's parent.
     fn check_class_like_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_class_like_declaration(node);
         self.check_decorators(node)?;

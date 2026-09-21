@@ -147,10 +147,6 @@ fn root_diagnostic_module_format_notes_match_complete_observations() {
     super::h2_7c_declaration_blocking::assert_cases_with_reporting(&artifact, true);
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;
 
-#[path = "../../../program/tests/support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use crate::utf16_scalar_json::observe as scalar_json;

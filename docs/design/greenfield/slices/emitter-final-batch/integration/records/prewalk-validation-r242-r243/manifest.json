@@ -1,0 +1,27 @@
+{
+  "qualified": false,
+  "checks_passed": true,
+  "scope": "Workspace all-targets Clippy -D warnings and static walk preconditions pass on fixed Rust file hashes. Receipts truthfully record dirty source at34dea8e69 after the raw-patch archive whitespace check rejected the attempted commit. Static preconditions pass does not imply generator artifacts are fresh. Commit precedes the clean-source follow-up tests and final walk.",
+  "files": [
+    {
+      "path": "final-workspace-clippy-r242.json",
+      "sha256": "edce00a6e658d05d42308339aafedac152968fad16c31fc766cf09fedae6445c",
+      "bytes": 754
+    },
+    {
+      "path": "final-workspace-clippy-r242.log.gz",
+      "sha256": "9e1e3e7590d910bcb0353da5c560d56c8f5a011af091c6d38f39e533b38569e4",
+      "bytes": 195
+    },
+    {
+      "path": "final-static-preflight-r243.json",
+      "sha256": "55e2e98c7524f7f8abf38da879419d8525acfd8d1e1bc81dc3e31474e3721f1b",
+      "bytes": 682
+    },
+    {
+      "path": "final-static-preflight-r243.log.gz",
+      "sha256": "ca0c3b09b55585de319263c926c4cac15acd69bd974fd79546fea00e0d00775e",
+      "bytes": 152
+    }
+  ]
+}

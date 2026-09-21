@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es2015", "module": "commonjs", "outDir": "out", "types": [] }, "files": ["main.ts"] }

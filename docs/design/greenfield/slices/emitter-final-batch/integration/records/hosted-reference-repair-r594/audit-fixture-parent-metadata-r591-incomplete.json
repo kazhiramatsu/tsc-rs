@@ -1,0 +1,78 @@
+{
+  "scope": "Current ratchet path/artifact/universe + associated sha256 metadata outside cases/observations in compiler/emitter/program fixture JSON and JSON.zst; not native execution or exhaustive arbitrary metadata schema validation.",
+  "time": "2026-09-20T20:42:02.317009+00:00",
+  "checked": 10,
+  "stale": [],
+  "entries": [
+    {
+      "consumer": "crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst",
+      "pointer": "/inputs/1/sha256",
+      "input": "ratchets/h2-candidate-dispositions.v1.json",
+      "pinned": "6e838d0c4702ca360869040da41c3f2c875c6ad48c02d28cfba2d7e9e9538449",
+      "current": "6e838d0c4702ca360869040da41c3f2c875c6ad48c02d28cfba2d7e9e9538449"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst",
+      "pointer": "/inputs/2/sha256",
+      "input": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "pinned": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b",
+      "current": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/emitter-final-universe.json",
+      "pointer": "/inputs/1/sha256",
+      "input": "ratchets/h2-candidate-dispositions.v1.json",
+      "pinned": "6e838d0c4702ca360869040da41c3f2c875c6ad48c02d28cfba2d7e9e9538449",
+      "current": "6e838d0c4702ca360869040da41c3f2c875c6ad48c02d28cfba2d7e9e9538449"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/emitter-final-universe.json",
+      "pointer": "/inputs/2/sha256",
+      "input": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "pinned": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b",
+      "current": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json",
+      "pointer": "/parents/0/sha256",
+      "input": "ratchets/h2-5h-qualification.v1.json",
+      "pinned": "0eb36d43e7c163408d1077c2533781feac6898c8e06734f0c262b287c49fe45b",
+      "current": "0eb36d43e7c163408d1077c2533781feac6898c8e06734f0c262b287c49fe45b"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json",
+      "pointer": "/parents/1/sha256",
+      "input": "ratchets/h2-5g-qualification.v1.json",
+      "pinned": "f395a35558bf02b189a25f09642dfb35d93cc1a9f6061583bcd2758d91bf34c1",
+      "current": "f395a35558bf02b189a25f09642dfb35d93cc1a9f6061583bcd2758d91bf34c1"
+    },
+    {
+      "consumer": "crates/compiler/tests/fixtures/utf16-original-rows-complete.json",
+      "pointer": "/parent/sha256",
+      "input": "ratchets/h2-5h-qualification.v1.json",
+      "pinned": "0eb36d43e7c163408d1077c2533781feac6898c8e06734f0c262b287c49fe45b",
+      "current": "0eb36d43e7c163408d1077c2533781feac6898c8e06734f0c262b287c49fe45b"
+    },
+    {
+      "consumer": "crates/emitter/tests/fixtures/bundle-declarations.json",
+      "pointer": "/inputs/2/sha256",
+      "input": "ratchets/h2-7de-candidate-inputs.v1.json",
+      "pinned": "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a",
+      "current": "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a"
+    },
+    {
+      "consumer": "crates/emitter/tests/fixtures/bundle-declarations.json",
+      "pointer": "/inputs/3/sha256",
+      "input": "ratchets/h2-7de-observations.v1.json",
+      "pinned": "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9",
+      "current": "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9"
+    },
+    {
+      "consumer": "crates/emitter/tests/fixtures/bundle-plan.json",
+      "pointer": "/candidate_inputs/sha256",
+      "input": "ratchets/h2-7de-candidate-inputs.v1.json",
+      "pinned": "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a",
+      "current": "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a"
+    }
+  ]
+}

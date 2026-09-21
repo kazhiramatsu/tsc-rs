@@ -1,0 +1,6 @@
+{
+  "scope": "Read-only compatibility of actual crate_tree_sha with the archive certificate formula before source commit. No walk or certificate minted.",
+  "rust_files": 784,
+  "actual_shell_sha256": "58199d4bfb3490cf68d3527016d180314e2c4d319478407cae91df88a206e840",
+  "archive_formula_sha256": "58199d4bfb3490cf68d3527016d180314e2c4d319478407cae91df88a206e840"
+}

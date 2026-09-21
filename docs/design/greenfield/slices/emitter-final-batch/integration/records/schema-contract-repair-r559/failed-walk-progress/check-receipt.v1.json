@@ -1,0 +1,16 @@
+{
+  "schema": 2,
+  "kind": "h2-5g-qualification-check-receipt",
+  "minted_by": "full-re-observation-check",
+  "workspace": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "node": "v25.2.1",
+  "platform": "darwin",
+  "arch": "arm64",
+  "normalizer_sha256": "1e70250a23f092782fa4e925457cfe2bf13382248e186f97f7038f04e783279a",
+  "pin_index_rows_sha256": "6a7e290eeb34debb34c490c9789a48f6f0fbb1ac2a3ee42acf1114decf5f4cb6",
+  "normalized_generator_sha256": "a28f273e861bd3c39666d677cfc46809519da4258ccd81eaaa11bb421bb18b46",
+  "generator_sha256": "a20787a8955f3c2f80f1aa6c21d143316b6f0fa5f6d3c178b791a711beb7dad6",
+  "global_records_sha256": "f3425ddef4cbe259d6e49b5a2d03fcd70ebdbfc3e6f01fd3df985c6dc7c92354",
+  "cases_observation_sha256": "fcda868880c37f096b843a1ddabc6ee2bc4a55822d44284ce7ef34f3e6262cda",
+  "receipt_fingerprint_sha256": "af6e855da1a0a01526e1d69e9531168b81568076559fb19b4eb9210af59ebfb3"
+}

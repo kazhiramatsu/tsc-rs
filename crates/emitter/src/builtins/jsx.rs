@@ -1,9 +1,10 @@
+use crate::transform::try_visit_transform_children;
 use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_syntax::{
-    for_each_child, is_identifier_text_for_target, skip_trivia, try_visit_each_child, NodeArrayId,
-    NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
+    for_each_child, is_identifier_text_for_target, skip_trivia, NodeArrayId, NodeData,
+    NodeDataChildVisitor, NodeId, SyntaxKind,
 };
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
@@ -361,7 +362,7 @@ impl<'context> JsxVisitor<'context> {
             NodeData::JsxText(data) => self.visit_jsx_text(&data.text)?.map(TransformNode::node),
             NodeData::Token => Some(id),
             mut data => {
-                try_visit_each_child(&mut data, self)?;
+                try_visit_transform_children(&mut data, self)?;
                 Some(self.update_generic(original, data)?.node())
             }
         };

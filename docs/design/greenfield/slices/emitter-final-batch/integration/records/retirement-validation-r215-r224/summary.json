@@ -1,0 +1,29 @@
+{
+  "head": "4dfc0fb4d3b3ca2364957c85d9ad84bd0a677dc2",
+  "known36": "all exact twice through replay_universe_fixture;36 separate selected1 summaries",
+  "guards": 3,
+  "transpile_tests": 9,
+  "transpile_summaries": {
+    "transpile-js": {
+      "exact": 151,
+      "known_open": 2,
+      "unexpected_open": 0,
+      "unexpected_exact": 0
+    },
+    "transpile-dts": {
+      "exact": 87,
+      "known_open": 0,
+      "unexpected_open": 0,
+      "unexpected_exact": 0
+    },
+    "program-no-check": {
+      "exact": 51,
+      "known_open": 0,
+      "unexpected_open": 0,
+      "unexpected_exact": 0
+    }
+  },
+  "clippy": "workspace all-targets -D warnings exit101: unnecessary_filter_map in syntax recovery test; runtime replays passed, lint repair follows separately",
+  "r215": "build exit0; preparation selected ordinary bin as test and failed before runtime; fixed in r224 with same source",
+  "capture_scope": "replay_universe_fixture compares both runs in memory and only writes mismatch files; successful raw capture env hook belongs to a different helper, so no successful universe capture archive is claimed"
+}

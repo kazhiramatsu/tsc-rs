@@ -1,0 +1,43 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "contracts",
+    "--",
+    "--exact",
+    "emitter_residual_audit::r77_recovery_regressions_match_complete_typescript_commands",
+    "emitter_residual_audit::recovery_boundary_neighbours_match_complete_typescript_commands",
+    "emitter_residual_audit::heritage_factory_boundaries_match_complete_typescript_commands",
+    "emitter_residual_audit::helper_diagnostic_boundaries_match_complete_typescript_commands",
+    "emitter_residual_audit::nested_parenthesis_recovery_matches_complete_typescript_commands",
+    "emitter_residual_audit::class_helper_gates_match_complete_typescript_commands",
+    "emitter_residual_audit::r95_emitter_neighbours_match_complete_typescript_commands",
+    "emitter_residual_audit::r95_wrapper_and_rest_neighbours_match_complete_typescript_commands",
+    "emitter_residual_audit::r95_statement_callee_boundaries_match_complete_typescript_commands",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T05:04:25.019913+00:00",
+  "head": "663da193844047b951bb9035787e914d7372831f",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r101-complete-captures",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 1030.527,
+  "log_sha256": "2d4e678eb49bece01c529b5335b5c2a2656106da87388fba9be75831be208870",
+  "log_bytes": 464243
+}

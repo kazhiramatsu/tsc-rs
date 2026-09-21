@@ -1,0 +1,11 @@
+{
+  "review": 206,
+  "scope": "Gate topology only; all70testfiles/bodies/addresses/Cargo manifests/hosted invocations unchanged",
+  "registry": "scripts/workspace-test-targets.json",
+  "compiler": 33,
+  "emitter": 22,
+  "program": 7,
+  "syntax": 8,
+  "default_max": 2,
+  "python_scanner": "Remains inline-module check; actual Rust workspace audit added to chain preflight so the target rule is checked before minting."
+}

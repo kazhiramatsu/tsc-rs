@@ -984,7 +984,13 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.iterable {
             return Ok(cached);
         }
+        // getDiagnosticsWorker (_tsc.js: checker) returns the global rows a
+        // file's check raised (`deferredGlobalDiagnostics`): the reporting
+        // probe here (`createIterableType` for a rest-only array binding
+        // pattern under a lib without `Iterable`) is one of them.
+        let diagnostics_before = self.diagnostics.len();
         let resolved = self.get_global_type("Iterable", 3, report_errors)?;
+        self.publish_visible_global_diagnostics_since(diagnostics_before);
         if let Some(resolved) = resolved {
             self.global_type_memos.iterable = Some(resolved);
             return Ok(resolved);

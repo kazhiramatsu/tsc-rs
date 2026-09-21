@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es2022", "outDir": "out", "strict": true }, "files": ["main.ts"] }

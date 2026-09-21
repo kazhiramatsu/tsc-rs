@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "unchanged_cases": 48,
+  "new_cases": 6,
+  "repetitions": 2,
+  "before_sha256": "ac7cdc860e6f8393673be9e3c50a3859e1a98c43147af83159c2e17373a087fd",
+  "after_sha256": "c99ec9eb55531a51a1fb51d2158aa943b50454b33f7e8f08bd81cef70bbc7b8d",
+  "proof": "local/audit-cli-oracle-r4.json"
+}

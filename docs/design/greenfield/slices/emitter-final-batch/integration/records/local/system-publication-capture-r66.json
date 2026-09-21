@@ -1,0 +1,34 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--manifest-path",
+    "crates/compiler/Cargo.toml",
+    "--test",
+    "contracts",
+    "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
+    "--",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-18T23:57:55.268595+00:00",
+  "head": "18c0e70a43a84517a1c2a430b3232cae1b19f3c7",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/docs/design/greenfield/slices/emitter-final-batch/integration/records/captures/system-r66",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 317.276,
+  "log_sha256": "cbee50eed60bb673da6ad2db80daeeb872a7e48b86da8dbcedf6a4010dcb1de0",
+  "log_bytes": 308223
+}

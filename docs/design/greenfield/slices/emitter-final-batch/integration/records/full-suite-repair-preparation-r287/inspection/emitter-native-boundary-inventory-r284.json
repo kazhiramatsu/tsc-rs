@@ -1,0 +1,180 @@
+{
+  "scope": "read-only fixture annotations, not count of active/unresolved product failures; activeconsumers needclassification",
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "fixtures": [
+    {
+      "path": "crates/compiler/tests/fixtures/import-helpers.json",
+      "key": "rust_expected_parse_recovery",
+      "count": 12,
+      "rows": [
+        {
+          "case_id": "import-helpers/comment-boundary/esnext/remove-true/optional-own-line",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/esnext/remove-true/optional-line-comment",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/esnext/remove-false/optional-own-line",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/esnext/remove-false/optional-line-comment",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/es2022/remove-true/optional-own-line",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/es2022/remove-true/optional-line-comment",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/es2022/remove-false/optional-own-line",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/es2022/remove-false/optional-line-comment",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/es2015/remove-true/optional-own-line",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/es2015/remove-true/optional-line-comment",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/es2015/remove-false/optional-own-line",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        },
+        {
+          "case_id": "import-helpers/comment-boundary/es2015/remove-false/optional-line-comment",
+          "expectation": {
+            "count": 3,
+            "recovery_events": 4,
+            "owner_slice": "H2.9",
+            "partial_writes": [],
+            "cause": "newline before as terminates the expression; missing/skip recovery facts and comment ownership are not admitted by the transform"
+          }
+        }
+      ]
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/declaration-dir.json",
+      "key": "rust_expected_unsupported_option",
+      "count": 3,
+      "rows": [
+        {
+          "case_id": "adjacent/empty-directory#out-dir-fallback",
+          "expectation": "outDir"
+        },
+        {
+          "case_id": "adjacent/nested#disabled-dir",
+          "expectation": "outDir"
+        },
+        {
+          "case_id": "adjacent/nested#separate-out-dir",
+          "expectation": "outDir"
+        }
+      ]
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-7c-corpus-inputs.json",
+      "key": "rust_expected_unsupported_option",
+      "count": 1,
+      "rows": [
+        {
+          "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeAllowJsPackageSelfName2.ts#default",
+          "expectation": "rootDir"
+        }
+      ]
+    }
+  ],
+  "classification": [
+    {
+      "key": "rust_expected_parse_recovery",
+      "count": 12,
+      "status": "active stale refusal assertions in import-helpers; actual complete comparison pending before retirement282"
+    },
+    {
+      "key": "rust_expected_unsupported_option=outDir",
+      "count": 3,
+      "status": "historical metadata; declaration_dir test explicitly retains3 historical references; common comparator filters out outDir and executes exact observations; r244 declaration-dir test passed"
+    },
+    {
+      "key": "rust_expected_unsupported_option=rootDir",
+      "count": 1,
+      "status": "historical metadata; h2_7c_corpus155 filters out rootDir and executes exact original observations; r244 corpus test passed"
+    }
+  ]
+}

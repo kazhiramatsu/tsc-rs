@@ -1,0 +1,15 @@
+{
+  "source_head": "4d09f3534",
+  "files": [
+    {
+      "path": "emitter-r171-corpus-controls.json.gz",
+      "sha256": "79d4fefd446e4e7423bfdde0b704f895d33d06b4cce4be58d808eabb4ea43d5f",
+      "raw_sha256": "60a5edc242fb902aa08c784069da32019c6ab51285270943988a4cd8e670fef6"
+    },
+    {
+      "path": "observe-emitter-r171-corpus-controls.mjs.gz",
+      "sha256": "b6577430f4809bab1dadccb22c6c2600788a8491b5bd1e1aaf897038236a680a",
+      "raw_sha256": "bd79ba11c2104b32d3e0d7bbc57a9f8f6338bcc931f3fd39dae7672476d1b0d5"
+    }
+  ]
+}

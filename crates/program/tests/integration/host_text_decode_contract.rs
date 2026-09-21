@@ -126,7 +126,7 @@ fn package_resolution_uses_the_central_host_text_decoder() {
             .package_metadata()
             .expect("encoded package retains metadata");
         assert_eq!(metadata.text(), json);
-        assert_eq!(metadata.name(), (Some("pkg")).map(Into::into));
+        assert_eq!(metadata.name(), Some(Into::into("pkg")));
     }
 
     let mut lossy_json = br#"{"name":"pXkg","types":"./index.d.ts"}"#.to_vec();
@@ -139,7 +139,7 @@ fn package_resolution_uses_the_central_host_text_decoder() {
     let metadata = resolved
         .package_metadata()
         .expect("lossily decoded package retains metadata");
-    assert_eq!(metadata.name(), (Some("p\u{fffd}kg")).map(Into::into));
+    assert_eq!(metadata.name(), Some(Into::into("p\u{fffd}kg")));
     assert!(metadata.text().contains("p\u{fffd}kg"));
 
     let mut bom_json = vec![0xEF, 0xBB, 0xBF];

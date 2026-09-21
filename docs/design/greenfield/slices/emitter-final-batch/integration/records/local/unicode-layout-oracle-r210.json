@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-emitter-r168-corpus-controls.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T15:38:00.576938+00:00",
+  "head": "ed4a419830cc05b4c6d3063b22a8dc5813950bfd",
+  "tracked_clean": false,
+  "diff_sha256": "77f300384150975ebfb262c6791df435a729e29b166a172250d2d9d59cfd002f",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 160.903,
+  "log_sha256": "17a732b89daeb15097274d6bbc135b606582f78f6b2a873eb9e75f433669968c",
+  "log_bytes": 75
+}

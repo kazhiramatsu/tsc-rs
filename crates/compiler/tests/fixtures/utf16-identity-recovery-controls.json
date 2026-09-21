@@ -3,7 +3,7 @@
   "scope": "Accepted review A1-A10/B1-B6 plus C1 target and substitution controls; upstream full command observations, native outcome separate",
   "typescript": "6.0.3",
   "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "cb638aa30d2f58f71f40452bc82371167b477e5f5844bec766b4b16da2a97a63",
+  "observer_sha256": "c790867e709884ef59b273d5658bca73ccaca6efdfeda1442aa4413a289e2ed1",
   "repetitions": 2,
   "complete_command_executions": 130,
   "upstream_limitations": [
@@ -95770,7 +95770,7 @@
         "outDir": "/project/out",
         "target": 2
       },
-      "native": "typed-recovery-refusal",
+      "native": "exact",
       "complete_command_runs": [
         {
           "writes": [

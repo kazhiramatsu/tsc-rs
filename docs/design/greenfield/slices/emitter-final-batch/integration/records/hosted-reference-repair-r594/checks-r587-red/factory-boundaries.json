@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-emitter",
+    "--lib",
+    "factory::original_provenance_tests::access_parenthesization_matches_typescript_kind_and_range_boundaries",
+    "--",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T20:25:55.700806+00:00",
+  "seconds": 107.823,
+  "exit": 101,
+  "log_sha256": "9d20a06ee1d0484722969447296161c5734cac5c2ee7f76af518274d1b8ae1d1",
+  "log_bytes": 1199
+}

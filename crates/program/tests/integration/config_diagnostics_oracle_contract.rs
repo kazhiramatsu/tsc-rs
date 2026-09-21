@@ -187,7 +187,7 @@ impl ConfigParseHost for OracleConfigHost {
                 .collect::<Vec<_>>()
         });
         let includes = includes_scalar.as_deref();
-        (|| -> Result<Vec<String>, ConfigHostError> {
+        let scalar_paths: Result<Vec<String>, ConfigHostError> = {
             self.log.borrow_mut().push(json!({
                 "operation": "read_directory",
                 "directory": directory,
@@ -198,8 +198,8 @@ impl ConfigParseHost for OracleConfigHost {
                 "result": self.read_directory_result,
             }));
             Ok(self.read_directory_result.clone())
-        })()
-        .map(|paths| paths.into_iter().map(Into::into).collect())
+        };
+        scalar_paths.map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
@@ -264,8 +264,9 @@ impl ConfigParseHost for PathsValidationConfigHost {
         _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
     ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
-        (|| -> Result<Vec<String>, ConfigHostError> { Ok(self.parsed_file_names.clone()) })()
-            .map(|paths| paths.into_iter().map(Into::into).collect())
+        let scalar_paths: Result<Vec<String>, ConfigHostError> =
+            { Ok(self.parsed_file_names.clone()) };
+        scalar_paths.map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
@@ -844,6 +845,4 @@ fn compiler_paths_options_diagnostics_match_the_frozen_typescript_oracle() {
     }
 }
 
-#[path = "../support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use super::utf16_scalar_json::observe as scalar_json;

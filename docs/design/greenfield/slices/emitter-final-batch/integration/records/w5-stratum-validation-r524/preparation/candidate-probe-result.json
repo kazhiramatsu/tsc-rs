@@ -1,0 +1,11 @@
+{
+  "qualified": false,
+  "scope": "external candidate static-context and predicate probe; supplied exact r519 census, no fresh census or TypeScript observation qualification",
+  "cases": 120,
+  "signed_stratum": 67,
+  "complete_census_rows": 67,
+  "predicate_rejections": 9,
+  "m1_projection_preserved": true,
+  "s2_projection_preserved": true,
+  "historical_census_sha256": "f386699988577ebb29ce7bc00c6fca831981b1ee716dde21317521c844b6f19e"
+}

@@ -8,11 +8,11 @@
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "77a0006afe8f87540e667e8cbe029d5914488370a800a5fbec05af3fa2ea91cb"
+    "sha256": "945965ff057d570909a56c5731782b3afcfa6b1addee354d701a963e8323482b"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
-    "sha256": "d9acd36021bc026bcebbe2749539a3c9ee5d7b8706097a1030d8ce72adb2c8c6"
+    "sha256": "6f1851f73bc89ddcca630247dad8948a04007db8556bad6b01400cfc8ad969ba"
   },
   "authorities": {
     "compatibility_residual": {
@@ -39,17 +39,17 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 261,
-    "rust_source_files": 246,
+    "file_count": 298,
+    "rust_source_files": 283,
     "cargo_manifests": 15,
-    "bytes": 19631720,
-    "tree_sha256": "fccd04218aebededcc2ed7aa62bae566a6c9ac451ab2d1d21d1017d5e677ff01"
+    "bytes": 21614354,
+    "tree_sha256": "f095e231d225d76910754f52dc97ddf452b9864fdd627b9636831ebad1130fc4"
   },
   "summary": {
     "production_boundary_omissions": 0,
-    "absence_proofs": 1,
+    "absence_proofs": 0,
     "option_projection_omissions": 0,
-    "explicit_checker_emit_elisions": 21,
+    "explicit_checker_emit_elisions": 1,
     "existing_prerequisites": 14
   },
   "existing_prerequisites": [
@@ -210,128 +210,8 @@
     {
       "id": "constructor-capture-lexical-this",
       "anchor": "constructor-capture-this-elided",
-      "disposition": "adjacent-class-field",
-      "closure": "profile-control"
-    },
-    {
-      "id": "async-mark-linked-references",
-      "anchor": "async-linked-references-elided",
-      "disposition": "dormant-declaration",
-      "closure": "typed-deferred"
-    },
-    {
-      "id": "decorator-mark-linked-references",
-      "anchor": "decorator-linked-references-elided",
-      "disposition": "dormant-declaration/decorator",
-      "closure": "typed-deferred"
-    },
-    {
-      "id": "import-equals-mark-linked-references",
-      "anchor": "import-equals-linked-references-elided",
-      "disposition": "adjacent-import-equals",
-      "closure": "profile-control"
-    },
-    {
-      "id": "export-collect-linked-aliases",
-      "anchor": "export-linked-aliases-elided",
-      "disposition": "dormant-declaration",
-      "closure": "typed-deferred"
-    },
-    {
-      "id": "property-access-mark-linked-references",
-      "anchor": "property-access-linked-references-elided",
-      "disposition": "dormant-declaration-non-alias-bookkeeping",
-      "closure": "typed-deferred"
-    },
-    {
-      "id": "inaccessible-this-tracking",
-      "anchor": "inaccessible-this-elided",
-      "disposition": "dormant-declaration",
-      "closure": "typed-deferred"
-    },
-    {
-      "id": "binding-object-rest-helper",
-      "anchor": "binding-object-rest-helper-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "binding-array-downlevel-helper",
-      "anchor": "binding-array-helper-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "for-await-helper",
-      "anchor": "for-await-helper-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "for-of-downlevel-helper",
-      "anchor": "for-of-helper-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "signature-helper-probes",
-      "anchor": "signature-helper-probes-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "yield-helper-probes",
-      "anchor": "yield-helper-probes-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "class-extends-helper",
-      "anchor": "class-extends-helper-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "class-private-field-in-helper",
-      "anchor": "private-field-in-helper-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "object-rest-helper",
-      "anchor": "object-rest-helper-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "destructuring-helper",
-      "anchor": "destructuring-helper-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "class-private-field-set-helper",
-      "anchor": "private-field-set-helper-elided",
-      "disposition": "adjacent-helper",
-      "closure": "profile-control"
-    },
-    {
-      "id": "object-assign-helper",
-      "anchor": "object-assign-helper-inactive",
-      "disposition": "inactive-at-ESNext",
-      "closure": "generated-canary"
-    },
-    {
-      "id": "template-object-helper",
-      "anchor": "template-helper-inactive",
-      "disposition": "inactive-at-ESNext",
-      "closure": "generated-canary"
-    },
-    {
-      "id": "export-assignment-collect-linked-aliases",
-      "anchor": "export-assignment-linked-aliases-elided",
-      "disposition": "dormant-declaration",
-      "closure": "typed-deferred"
+      "disposition": "unobservable-in-typescript-6.0.3",
+      "closure": "revisit-if-potentialThisCollisions-acquires-a-producer"
     }
   ],
   "evidence": {
@@ -357,20 +237,20 @@
       {
         "id": "emitter-artifact-protocol",
         "path": "crates/emitter/src/artifact.rs",
-        "line": 83,
+        "line": 127,
         "column": 1,
-        "text": "pub struct EmitArtifact {\n    path: PathBuf,\n    callback_text: Box<str>,\n    write_byte_order_mark: bool,\n    kind: EmitArtifactKind,\n    source_files: Option<Box<[PathBuf]>>,\n    metadata: Option<EmitWriteMetadata>,\n}",
-        "text_sha256": "7d7687dfea5eadd4e5389d38e9f0a3a99095f98841a764bb701caaf042570836",
-        "file_sha256": "b90d9389a9d4aa3a737900a6a6f7e1d742720633f57436f77a8d4dfc309f1a8b"
+        "text": "pub struct EmitArtifact {\n    path: JsString,\n    callback_text: EmitCallbackText,\n    write_byte_order_mark: bool,\n    kind: EmitArtifactKind,\n    source_files: Option<Box<[JsString]>>,\n    metadata: Option<EmitWriteMetadata>,\n}",
+        "text_sha256": "4526115668e746f7bb76d12978842dff6f3b13d8cae203cd3bd284a5fd2ac212",
+        "file_sha256": "935d12e322851ed779e2bcb3e7c2c487e31b169921293a759f329157cb356c35"
       },
       {
         "id": "emitter-output-plan-shape",
         "path": "crates/emitter/src/plan.rs",
-        "line": 64,
+        "line": 78,
         "column": 1,
-        "text": "pub struct EmitOutputPaths {\n    javascript: Option<PathBuf>,\n    javascript_map: Option<PathBuf>,\n    declaration: Option<PathBuf>,\n    declaration_map: Option<PathBuf>,\n    build_info: Option<PathBuf>,\n}",
-        "text_sha256": "7b9332f2f24bd1e1ac1a7a6c7379f51b9b5161b02ba290af1eb9fd8b98d86f70",
-        "file_sha256": "2ab1740787e9b600835eef9625767d3f419718bb3cc1cc7a43f3d80757585e89"
+        "text": "pub struct EmitOutputPaths {\n    javascript: Option<JsString>,\n    javascript_map: Option<JsString>,\n    declaration: Option<JsString>,\n    declaration_map: Option<JsString>,\n    build_info: Option<JsString>,\n}",
+        "text_sha256": "bbe127b627d4605a5c4840388d1563543f93f75e56ef295ca7aa3c2b0defed59",
+        "file_sha256": "c0270680f15d1a72292b01b23b5c5fdd97483bf9becc70fa9fe9ed5018e98baf"
       },
       {
         "id": "emitter-output-sink-protocol",
@@ -379,25 +259,25 @@
         "column": 1,
         "text": "pub trait OutputSink {\n    fn write(&mut self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError>;\n}",
         "text_sha256": "2fbebc79e857ae5de0b5bcec090b681d4da9dfaec995bbf2725a925bd49097ec",
-        "file_sha256": "31c61d2ce54c744c763ed4a67c9cb835624cf99cdc6d4050405ef38f374fddaf"
+        "file_sha256": "b165104002f69005b94b7e569f70f62e3acc221cb54fb60e350aae01e80413fb"
       },
       {
         "id": "emitter-memory-sink",
         "path": "crates/emitter/src/sink.rs",
-        "line": 96,
+        "line": 121,
         "column": 1,
         "text": "pub struct MemoryOutputSink {\n    writes: Vec<EmitArtifact>,\n}",
         "text_sha256": "af2c33c91b2107ba124d86db378a5085555e50bc1216f00890c73696d1689f44",
-        "file_sha256": "31c61d2ce54c744c763ed4a67c9cb835624cf99cdc6d4050405ef38f374fddaf"
+        "file_sha256": "b165104002f69005b94b7e569f70f62e3acc221cb54fb60e350aae01e80413fb"
       },
       {
         "id": "emitter-filesystem-protocol",
         "path": "crates/emitter/src/sink.rs",
         "line": 25,
         "column": 1,
-        "text": "pub trait EmitFileSystem {\n    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String>;",
-        "text_sha256": "a17cb3439271a8ce2251a65f204b1146277f9fdfb7334b70f53479a9a48ff09e",
-        "file_sha256": "31c61d2ce54c744c763ed4a67c9cb835624cf99cdc6d4050405ef38f374fddaf"
+        "text": "pub trait EmitFileSystem {\n    fn write_file(&mut self, path: JsStr<'_>, bytes: &[u8]) -> Result<(), JsString>;",
+        "text_sha256": "078b520b1a6a52a53af8f29c4e95a265e0726f3102f01891b389324178559845",
+        "file_sha256": "b165104002f69005b94b7e569f70f62e3acc221cb54fb60e350aae01e80413fb"
       },
       {
         "id": "emitter-filesystem-sink",
@@ -406,88 +286,88 @@
         "column": 1,
         "text": "pub struct FsOutputSink<'filesystem> {\n    filesystem: &'filesystem mut dyn EmitFileSystem,\n}",
         "text_sha256": "7146908da1b7729b833495ab14dbd53aa41b9ce2c91948fa4590d44e7c9ba12e",
-        "file_sha256": "31c61d2ce54c744c763ed4a67c9cb835624cf99cdc6d4050405ef38f374fddaf"
+        "file_sha256": "b165104002f69005b94b7e569f70f62e3acc221cb54fb60e350aae01e80413fb"
       },
       {
         "id": "emitter-outcome-protocol",
         "path": "crates/emitter/src/outcome.rs",
         "line": 37,
         "column": 1,
-        "text": "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[PathBuf]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n    h2_activity: H2ActivityCounters,\n}",
-        "text_sha256": "0688795002bacbd09e7139ee4bbc06b22bc8757efd84e3841ca5356aa518637e",
-        "file_sha256": "1b72c97602c8ed82347a7f58fa2613ac3bed1fe6b695533693160aa84eba1c2e"
+        "text": "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[JsString]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n    h2_activity: H2ActivityCounters,\n}",
+        "text_sha256": "bc544a79217f1959112602a87b90c99a9e74000fbe087bebc6a8f207b0a5a386",
+        "file_sha256": "a4f5beac8a1d58250e505f765b30df513c33bb2b887c1fd4a88ad12ae6fdb98a"
       },
       {
         "id": "emitter-transform-arena",
         "path": "crates/emitter/src/factory.rs",
-        "line": 171,
+        "line": 184,
         "column": 1,
         "text": "pub struct TransformArena {",
         "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
-        "file_sha256": "c2574fbe3e595c9945c585d7ba23e517c06c5b576c3c05f7e39eee304b7cd81e"
+        "file_sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef"
       },
       {
         "id": "emitter-node-factory",
         "path": "crates/emitter/src/factory.rs",
-        "line": 1601,
+        "line": 1822,
         "column": 1,
         "text": "pub struct NodeFactory<'arena> {",
         "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
-        "file_sha256": "c2574fbe3e595c9945c585d7ba23e517c06c5b576c3c05f7e39eee304b7cd81e"
+        "file_sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef"
       },
       {
         "id": "emitter-transform-flags",
         "path": "crates/emitter/src/transform.rs",
-        "line": 51,
+        "line": 142,
         "column": 1,
         "text": "pub struct TransformFlags(i32);",
         "text_sha256": "7c653a426ba14a23c6ac44c6c084daceaab7fd4dd8e74b8b181e04bb2a0fa9f6",
-        "file_sha256": "21440fc5ec47c81209dc51a689325a1ab2204534333abd41a2f3fdf83316c6c0"
+        "file_sha256": "b6df451d9062683b7ba21ed81cd15ef46768933d78cdbf681041d04738d48e08"
       },
       {
         "id": "emitter-emit-metadata",
         "path": "crates/emitter/src/metadata.rs",
-        "line": 333,
+        "line": 487,
         "column": 1,
         "text": "pub struct EmitMetadata {",
         "text_sha256": "8ef23fa666dcb24593e950f34243354d67421355e90ba282ceead155eff4bf82",
-        "file_sha256": "cb93c9618d5438a211f9a31160c1c44843c6bb4c45aae565c6e7ee760ab72bf9"
+        "file_sha256": "2f3f6a7d95aba30065daf16be9f0f685675a3d98c661a34c6ea9c166378423ee"
       },
       {
         "id": "emitter-transformation-context",
         "path": "crates/emitter/src/transform.rs",
-        "line": 456,
+        "line": 582,
         "column": 1,
         "text": "pub struct TransformationContext {",
         "text_sha256": "a5d206c9a41608a94d45968e79501af02c879c7e8679fe82d310c007ef891c32",
-        "file_sha256": "21440fc5ec47c81209dc51a689325a1ab2204534333abd41a2f3fdf83316c6c0"
+        "file_sha256": "b6df451d9062683b7ba21ed81cd15ef46768933d78cdbf681041d04738d48e08"
       },
       {
         "id": "emitter-transform-nodes",
         "path": "crates/emitter/src/transform.rs",
-        "line": 997,
+        "line": 1252,
         "column": 1,
         "text": "pub fn transform_nodes<'transformers>(\n    arena: TransformArena,",
         "text_sha256": "ee73c8006515252e70d72539adf77b69e552e86480b442b60a9aece45010ca0a",
-        "file_sha256": "21440fc5ec47c81209dc51a689325a1ab2204534333abd41a2f3fdf83316c6c0"
+        "file_sha256": "b6df451d9062683b7ba21ed81cd15ef46768933d78cdbf681041d04738d48e08"
       },
       {
         "id": "emitter-text-writer",
         "path": "crates/emitter/src/writer.rs",
-        "line": 28,
+        "line": 121,
         "column": 1,
         "text": "pub struct TextWriter {",
         "text_sha256": "7b734811755d47e0c85b6139208b95d862f5d7db46da45c9459aaecb6e63286f",
-        "file_sha256": "0e3c1168e6251a7c42a5d9a811c0e4debfaa85398cafb9c512116a85f6bcecb6"
+        "file_sha256": "b05cec77ad1cf1e93ee931c989e1a46141b7e8da8f93f764240fbd0f9159dfc9"
       },
       {
         "id": "emitter-printer-factory",
         "path": "crates/emitter/src/printer.rs",
-        "line": 917,
+        "line": 1167,
         "column": 1,
         "text": "pub fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "b2b28569285f283070dbfb006f00a9bfa13a78e89b44b08f3e720e5d51396ba0"
+        "file_sha256": "41fbdf31c3fed2329818b3a316a35844831b897353405561032d774b623ca027"
       },
       {
         "id": "emitter-position-domains",
@@ -501,101 +381,101 @@
       {
         "id": "emitter-source-map-recorder",
         "path": "crates/emitter/src/source_map.rs",
-        "line": 445,
+        "line": 426,
         "column": 1,
         "text": "pub struct SourceMapRecording {",
         "text_sha256": "8613594a9379a1270da4e2ebbc614e8ac71571dad079e770f2b32e9e03e3ff91",
-        "file_sha256": "fc842ccc5a8abdd91ddcc4c2e7e5e3d02256d640754855f381da680051c44b17"
+        "file_sha256": "927996137eb5f0d91b9cf4fc3bffb705876ebccd87637d626e4940782c94b452"
       },
       {
         "id": "emitter-resolver-protocol",
         "path": "crates/emitter/src/resolver.rs",
-        "line": 705,
+        "line": 746,
         "column": 1,
         "text": "pub trait EmitResolver {",
         "text_sha256": "ae109ea619b5241506500e367bb7aae9e5f56333941a673b9fbaf5c412e8f0fd",
-        "file_sha256": "098757ea48024b5806e88cf89d258a5157d2bb65893b8b5adcafa9b5f603c37a"
+        "file_sha256": "e9b2a32ac8f816449528f46b2d4a0912cb5cef4e68a1db089452c36907dac4ba"
       },
       {
         "id": "emitter-script-transformer-selection",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 104,
+        "line": 106,
         "column": 1,
         "text": "pub fn get_script_transformers<'resolver>(",
         "text_sha256": "88f607a40f2d43018feaa22538fc6ccec9553ddedee9f5c57b5d53482625ad1b",
-        "file_sha256": "dbf901d714bc777c4628a70d95821bc8d8e98fe72180eae7c8f30f8e26095a71"
+        "file_sha256": "1d6d6b7ec60542ea456f9de97b095f5372f1896fa119e6be0c6853e218e79ec3"
       },
       {
         "id": "emitter-transform-typescript",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 356,
+        "line": 442,
         "column": 1,
         "text": "pub fn transform_type_script<'resolver>(",
         "text_sha256": "848a2eea9bbbb33aa08e7d3a84951a26791e61eeeea736dba1b7370193ffeee5",
-        "file_sha256": "dbf901d714bc777c4628a70d95821bc8d8e98fe72180eae7c8f30f8e26095a71"
+        "file_sha256": "1d6d6b7ec60542ea456f9de97b095f5372f1896fa119e6be0c6853e218e79ec3"
       },
       {
         "id": "emitter-transform-class-fields",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 390,
+        "line": 476,
         "column": 1,
         "text": "pub fn transform_class_fields<'resolver>(",
         "text_sha256": "6725dc3040c7b665e642b0595eb187992791ad9331c370100c1dfd03cbd38159",
-        "file_sha256": "dbf901d714bc777c4628a70d95821bc8d8e98fe72180eae7c8f30f8e26095a71"
+        "file_sha256": "1d6d6b7ec60542ea456f9de97b095f5372f1896fa119e6be0c6853e218e79ec3"
       },
       {
         "id": "emitter-transform-ecmascript-module",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 400,
+        "line": 493,
         "column": 1,
-        "text": "pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {",
-        "text_sha256": "29640dfc9438abcb5ec228a2ef9199a2afcacc2b58bf8f5adc8adafd45f57e40",
-        "file_sha256": "dbf901d714bc777c4628a70d95821bc8d8e98fe72180eae7c8f30f8e26095a71"
+        "text": "pub fn transform_ecmascript_module_with_host<'host>(",
+        "text_sha256": "0fc3605d6c8565c9b9a8fc521a6b78911c026721aef6b1e80b7dd840ebd9cc18",
+        "file_sha256": "1d6d6b7ec60542ea456f9de97b095f5372f1896fa119e6be0c6853e218e79ec3"
       },
       {
         "id": "emitter-changed-import-printer",
         "path": "crates/emitter/src/printer.rs",
-        "line": 2847,
+        "line": 3891,
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "b2b28569285f283070dbfb006f00a9bfa13a78e89b44b08f3e720e5d51396ba0"
+        "file_sha256": "41fbdf31c3fed2329818b3a316a35844831b897353405561032d774b623ca027"
       },
       {
         "id": "checker-scoped-emit-session",
         "path": "crates/checker/src/emit.rs",
-        "line": 24,
+        "line": 25,
         "column": 1,
         "text": "pub struct CheckerSession<'program> {",
         "text_sha256": "c116253f653dd9a956605df77c212d4cdf2f1de1f490f223842fce7f005920ca",
-        "file_sha256": "ed777b7b2ece3d605d0c58995d6b0966e0d7489f13ad8e131a0b377b050b54fe"
+        "file_sha256": "c1ac78ca2fcccf9f59f6a55c79663957fab7fee2e961e891a207f0fd819d3f6f"
       },
       {
         "id": "checker-emit-resolver-adapter",
         "path": "crates/checker/src/emit.rs",
-        "line": 133,
+        "line": 272,
         "column": 1,
         "text": "impl EmitResolver for CheckerSession<'_> {",
         "text_sha256": "a3574a190846d6bbe3db3311fedd3678739660afbe2f1b146111edcceccbb1cd",
-        "file_sha256": "ed777b7b2ece3d605d0c58995d6b0966e0d7489f13ad8e131a0b377b050b54fe"
+        "file_sha256": "c1ac78ca2fcccf9f59f6a55c79663957fab7fee2e961e891a207f0fd819d3f6f"
       },
       {
         "id": "checker-value-alias-producer",
         "path": "crates/checker/src/modules.rs",
-        "line": 823,
+        "line": 837,
         "column": 5,
         "text": "pub(crate) fn emit_is_value_alias_declaration(",
         "text_sha256": "df1c2306bb3ade145585e2643e6444cdefa71cb6fa5e7607eaafbc121c57f4c9",
-        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
+        "file_sha256": "0aa527fe30bfc7cc48dac9cbfb94c3088e099a6ef3b407faafe53e2b5e8dbc8a"
       },
       {
         "id": "checker-referenced-alias-producer",
         "path": "crates/checker/src/modules.rs",
-        "line": 953,
+        "line": 969,
         "column": 5,
         "text": "pub(crate) fn emit_is_referenced_alias_declaration(",
         "text_sha256": "13ff591fc4def3e7f9b8c6325ea63baf7939970e1cdeac1f9f3efa84aa3d6fb8",
-        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
+        "file_sha256": "0aa527fe30bfc7cc48dac9cbfb94c3088e099a6ef3b407faafe53e2b5e8dbc8a"
       },
       {
         "id": "active-transform-oracle",
@@ -609,83 +489,83 @@
       {
         "id": "prepared-program-emitting-builder",
         "path": "crates/program/src/prepared.rs",
-        "line": 1285,
+        "line": 1386,
         "column": 5,
         "text": "pub fn emitting_builder(\n        path_context: PathContext,\n        compiler_options: CompilerOptions,\n    ) -> PreparedProgramBuilder {",
         "text_sha256": "deac2532e1f03c9f92934b1c3b401a65c77cb1e75d0b9c8e96ed353bbc7e6c16",
-        "file_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da"
+        "file_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
       },
       {
         "id": "program-session-owner",
         "path": "crates/compiler/src/lib.rs",
-        "line": 68,
+        "line": 75,
         "column": 1,
-        "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
-        "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
-        "file_sha256": "4ad9dc557d89d3cdb3953ea7e6a573c6055b80c154f85b6d5567f9c1fd956125"
+        "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n    /// H2.8c research route (see [`EmitRouteKind`]); ordinary sessions keep\n    /// the Program route and every existing option refusal.\n    emit_route: EmitRouteKind,\n    /// API-supplied per-source facts (see [`SourceApiFacts`]); empty for\n    /// ordinary sessions.\n    source_api_facts: BTreeMap<SourceFileId, SourceApiFacts>,\n}",
+        "text_sha256": "dc227aa1a7480c91b61127852107e86dfb20e295fe29b99378fcc7a445c76dc7",
+        "file_sha256": "cfa9c07e7b0e084b8267b5bc9b381bc6f8c1aec1abbfd3d418c53f7e03f365ae"
       },
       {
         "id": "program-session-run",
         "path": "crates/compiler/src/lib.rs",
-        "line": 711,
+        "line": 865,
         "column": 5,
         "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(\n            false,\n            LibraryPrefixCompletion::Complete,\n            &mut no_emit_canary,\n        )\n    }",
         "text_sha256": "72843bad62a020e651352f5298e1238e0d3233a734dfd355d03efded33399b80",
-        "file_sha256": "4ad9dc557d89d3cdb3953ea7e6a573c6055b80c154f85b6d5567f9c1fd956125"
+        "file_sha256": "cfa9c07e7b0e084b8267b5bc9b381bc6f8c1aec1abbfd3d418c53f7e03f365ae"
       },
       {
         "id": "program-session-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 736,
+        "line": 1010,
         "column": 5,
         "text": "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
         "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
-        "file_sha256": "4ad9dc557d89d3cdb3953ea7e6a573c6055b80c154f85b6d5567f9c1fd956125"
+        "file_sha256": "cfa9c07e7b0e084b8267b5bc9b381bc6f8c1aec1abbfd3d418c53f7e03f365ae"
       },
       {
         "id": "program-session-memory-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 858,
+        "line": 1356,
         "column": 9,
-        "text": "h2_activity.construct_output_plan();\n        let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
-        "text_sha256": "3375e03b5f74bdc119bd01aab9a4a3c56c5222952feec228050212066b767898",
-        "file_sha256": "4ad9dc557d89d3cdb3953ea7e6a573c6055b80c154f85b6d5567f9c1fd956125"
+        "text": "h2_activity.construct_output_plan();\n        let preflight = if forced_declarations {\n            None\n        } else {\n            Some(preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?)\n        };",
+        "text_sha256": "5a429265149905b18cc2e6e68fe1e8b71c2b441cdf4743b3754d2099764527fe",
+        "file_sha256": "cfa9c07e7b0e084b8267b5bc9b381bc6f8c1aec1abbfd3d418c53f7e03f365ae"
       },
       {
         "id": "emitter-host-protocol",
         "path": "crates/emitter/src/host.rs",
-        "line": 76,
+        "line": 106,
         "column": 1,
         "text": "pub trait EmitHost {",
         "text_sha256": "24e57ba5fe1431ce68abf94caa9f328d352d90bfd61e0481b2642335d433eafc",
-        "file_sha256": "09f93daa6327259c0fc806f513421b91540af4dbb143d8c1a26dd205fbaefbcc"
+        "file_sha256": "d3e3a0ef35bc50a06a0c8a9680a221dc2d19e803af967c0f5da29b95c4776dae"
       },
       {
         "id": "emitter-output-preflight",
         "path": "crates/emitter/src/plan.rs",
-        "line": 426,
+        "line": 558,
         "column": 1,
         "text": "pub fn preflight_emit(",
         "text_sha256": "cadeaacab2c6b8cff7f06e8ac04d677e927e8404ce878894cec000b93eb46be0",
-        "file_sha256": "2ab1740787e9b600835eef9625767d3f419718bb3cc1cc7a43f3d80757585e89"
+        "file_sha256": "c0270680f15d1a72292b01b23b5c5fdd97483bf9becc70fa9fe9ed5018e98baf"
       },
       {
         "id": "emitter-emit-files",
         "path": "crates/emitter/src/execute.rs",
-        "line": 258,
+        "line": 292,
         "column": 1,
         "text": "pub fn emit_files(",
         "text_sha256": "06f4b40f5c04f28c09e441a13bd303ec30f299622d68d6270a7987525e7558e1",
-        "file_sha256": "c387c307ce32641ebc045a792a2aacdd518b96739f663028e1906456bcc0e010"
+        "file_sha256": "a45bb61cf080f235655a4f68e78c50119aa06824eb36a372e5e64b147e48ca3c"
       },
       {
         "id": "checker-live-emit-callback",
         "path": "crates/checker/src/lib.rs",
-        "line": 1351,
+        "line": 1529,
         "column": 1,
-        "text": "pub fn check_program_with_authoritative_modules_at_for_emit(",
-        "text_sha256": "9a6778daa37b4dbd06c9aea5c03e49a2d7cf3cc17acd8bf568158f3f81e7a154",
-        "file_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c"
+        "text": "pub fn check_program_with_authoritative_modules_at_for_emit<'cwd>(",
+        "text_sha256": "a72f213a7d1915a18db784fc1422a04a0028b832d61c8f4783a69c15a53229a3",
+        "file_sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
       },
       {
         "id": "h1-no-emit-canary",
@@ -699,20 +579,20 @@
       {
         "id": "checker-session-local-state",
         "path": "crates/checker/src/lib.rs",
-        "line": 1881,
+        "line": 2124,
         "column": 9,
         "text": "let mut state = state::CheckerState::from_snapshot(&snapshot, options);",
         "text_sha256": "66431a38f7144074bc77255200f22293db4d3cec0c2a25e8f9803518da8f1b6a",
-        "file_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c"
+        "file_sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
       },
       {
         "id": "checker-state-collapse",
         "path": "crates/checker/src/lib.rs",
-        "line": 2064,
+        "line": 2358,
         "column": 9,
         "text": "partial_checks = state.partial_check_records.clone();\n        authoritative_failure = state.take_authoritative_module_failure();",
         "text_sha256": "8c4b08d85fa65cffc07ed4b19a65542608d4991af99d50672f5fe53d65d75885",
-        "file_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c"
+        "file_sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
       },
       {
         "id": "display-clone-not-emitter",
@@ -721,7 +601,7 @@
         "column": 5,
         "text": "This is deliberately not an emitter. It prints the synthesized face of",
         "text_sha256": "3c24a6622a50fc81cdf2c3e219a5c176ea59c0e2ecd3e6fa7344fde37c0fcdc0",
-        "file_sha256": "ae87ea05998a8d6fead55bb11142e9108c507f105a7f14f5850b0fb33eadb587"
+        "file_sha256": "bc9604ba139c7c73510985eda143373308082fd30f8eacb93f0345a9eb1ff832"
       },
       {
         "id": "display-clone-exclusions",
@@ -730,106 +610,106 @@
         "column": 61,
         "text": "It does not copy\n//! source text, comments, source maps, substitutions, or declaration emit\n//! state",
         "text_sha256": "bd4a64f8bff85d17147f9c15781d3dedddfeadbb2fd34a3c8c0ac64f7a91c96d",
-        "file_sha256": "ae87ea05998a8d6fead55bb11142e9108c507f105a7f14f5850b0fb33eadb587"
+        "file_sha256": "bc9604ba139c7c73510985eda143373308082fd30f8eacb93f0345a9eb1ff832"
       },
       {
         "id": "prepared-program-current-shape",
         "path": "crates/program/src/prepared.rs",
-        "line": 1257,
+        "line": 1358,
         "column": 1,
         "text": "pub struct PreparedProgram {\n    mode: PreparedProgramMode,\n    path_context: PathContext,\n    compiler_options: CompilerOptions,\n    program_options: ProgramOptions,",
         "text_sha256": "7154a3ed2670d5958b7d02d684d1bd43295530a7de7f26ad0a1b6540d9c2a706",
-        "file_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da"
+        "file_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
       },
       {
         "id": "prepared-source-emit-facts",
         "path": "crates/program/src/prepared.rs",
-        "line": 102,
+        "line": 101,
         "column": 5,
-        "text": "may_be_emitted: bool,\n    implied_node_format: Option<ResolutionMode>,\n    implied_node_format_for_emit: Option<ResolutionMode>,",
-        "text_sha256": "1aba6224a8c27a73e287ac96e80f1a36afde25124d316b52a7acff589ad67538",
-        "file_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da"
+        "text": "may_be_emitted: bool,\n    may_emit_forced_declaration: bool,\n    implied_node_format: Option<ResolutionMode>,\n    implied_node_format_for_emit: Option<ResolutionMode>,",
+        "text_sha256": "60b17caaee6b9a388c9bacdc46f32777ebb23a1ce3bc72db7f5c4fdd3382d94a",
+        "file_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
       },
       {
         "id": "checker-authoritative-emit-facts",
         "path": "crates/checker/src/lib.rs",
-        "line": 152,
+        "line": 288,
         "column": 5,
         "text": "pub may_be_emitted: bool,\n    /// Raw `SourceFile.impliedNodeFormat`",
         "text_sha256": "3d4ae97d2c33a29370c93a0ac34ff42c614ac8cac2f3d8cf8a1291f4bfa10444",
-        "file_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c"
+        "file_sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
       },
       {
         "id": "compiler-options-current-shape",
         "path": "crates/types/src/options.rs",
-        "line": 87,
+        "line": 88,
         "column": 1,
         "text": "pub struct CompilerOptions {",
         "text_sha256": "26ecd93b5a351f3bfc7897c600ee93f422303b72187b8f49fa50bb10e97dbaed",
-        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
+        "file_sha256": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde"
       },
       {
         "id": "compiler-options-bootstrap-scalars",
         "path": "crates/types/src/options.rs",
-        "line": 101,
+        "line": 102,
         "column": 5,
         "text": "pub target: Option<i32>,\n    /// tsc ModuleKind value; None when the option is absent.",
         "text_sha256": "72849bd6c27037777c9a8702e8a896ed5180945b9a3c6e6399e6d7ac28c4df17",
-        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
+        "file_sha256": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde"
       },
       {
         "id": "compiler-options-class-fields",
         "path": "crates/types/src/options.rs",
-        "line": 181,
+        "line": 182,
         "column": 5,
         "text": "pub use_define_for_class_fields: Option<bool>,",
         "text_sha256": "4a2e57ffc561b38f20b1d02ff112ac6299bac6498a0583cfc1bdb3bbaff78474",
-        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
+        "file_sha256": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde"
       },
       {
         "id": "compiler-options-no-emit",
         "path": "crates/types/src/options.rs",
-        "line": 202,
+        "line": 203,
         "column": 5,
         "text": "pub no_emit: Option<bool>,",
         "text_sha256": "bfa25442fb2488d03706d502b88b76e651350f20e40f4051056cf1b99d2d9ce0",
-        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
+        "file_sha256": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde"
       },
       {
         "id": "compiler-options-new-line",
         "path": "crates/types/src/options.rs",
-        "line": 267,
+        "line": 275,
         "column": 5,
         "text": "pub new_line: Option<i32>,",
         "text_sha256": "93f0e2e3378c1b520fdcf5beb6390f647adcf4e008f4877e6176b54dc6cb388a",
-        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
+        "file_sha256": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde"
       },
       {
         "id": "compiler-options-remove-comments",
         "path": "crates/types/src/options.rs",
-        "line": 270,
+        "line": 278,
         "column": 5,
         "text": "pub remove_comments: Option<bool>,",
         "text_sha256": "76a9e83ac783b8d2ca87042b54bbcea595186a03e3fc5886e8753e9a18f72286",
-        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
+        "file_sha256": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde"
       },
       {
         "id": "compiler-options-no-implicit-use-strict",
         "path": "crates/types/src/options.rs",
-        "line": 273,
+        "line": 281,
         "column": 5,
         "text": "pub no_implicit_use_strict: Option<bool>,",
         "text_sha256": "696627f9b67f69259d63411a930db1d5a04984b92bb8b64e989a1386db4d2808",
-        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
+        "file_sha256": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde"
       },
       {
         "id": "compiler-options-no-emit-helpers",
         "path": "crates/types/src/options.rs",
-        "line": 276,
+        "line": 284,
         "column": 5,
         "text": "pub no_emit_helpers: Option<bool>,",
         "text_sha256": "8f5ef00bd1995716ebc5e58ccc51b9d5609091f1a7b173058bbcf8df3f83cc28",
-        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
+        "file_sha256": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde"
       },
       {
         "id": "binder-source-aggregate-emit-flags",
@@ -838,307 +718,118 @@
         "column": 17,
         "text": "flags = NodeFlags::from_bits(flags.bits() | self.emit_flags);",
         "text_sha256": "b36ad2deac5ebd21ed6ef4cef86d0d1fd16244c2ba6bc92c10ba1a42fdc9b412",
-        "file_sha256": "0b3195baf932773a125c9e35fe972bbd018210eaed051a2a6facd4275fac9c37"
+        "file_sha256": "62694c1c80e8ed68c9287028e698ccd68cb305014f3a2f9f74e3c9d9cbcc57d9"
       },
       {
         "id": "loader-no-emit-gate",
         "path": "crates/program/src/loader.rs",
-        "line": 813,
+        "line": 982,
         "column": 9,
         "text": "PreparedProgramMode::NoEmit if compiler_options.no_emit != Some(true) => {\n            return Err(reject_input(\n                \"compilerOptions.noEmit must be explicitly true\",\n            ));\n        }",
         "text_sha256": "ea56a5c792b675777b5e1504ab6d537ba08735cd18d681b5dde6fc83d6e62858",
-        "file_sha256": "f6c231fa1fc7d3302a4a6af24ae2c10014bb83699bf3e444697c4f010d1f8321"
+        "file_sha256": "68fdb60c9bd7f966374527e13047aeb26a0a9ca65b1822bd91baf5e0a4305d62"
       },
       {
         "id": "loader-emitting-entry",
         "path": "crates/program/src/loader.rs",
-        "line": 493,
+        "line": 631,
         "column": 1,
         "text": "pub fn load_emitting_program(\n    host: &dyn CompilerHost,",
         "text_sha256": "847811760d5f9d4a072ca20e85e75e66fd13772d36606ca8e6e71925e3c86120",
-        "file_sha256": "f6c231fa1fc7d3302a4a6af24ae2c10014bb83699bf3e444697c4f010d1f8321"
+        "file_sha256": "68fdb60c9bd7f966374527e13047aeb26a0a9ca65b1822bd91baf5e0a4305d62"
       },
       {
         "id": "config-emitting-entry",
         "path": "crates/program/src/config.rs",
-        "line": 1293,
+        "line": 1367,
         "column": 1,
         "text": "pub fn load_emitting_config_program_with_overrides(\n    host: &dyn CompilerHost,",
         "text_sha256": "63acf5cb745e1348e9ab12605e59631e792b10440cd3fd2a84110e3c58017cbd",
-        "file_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c"
+        "file_sha256": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c"
       },
       {
         "id": "config-no-emit-gate",
         "path": "crates/program/src/config.rs",
-        "line": 1231,
+        "line": 1305,
         "column": 5,
         "text": "A config without an explicit\n/// `noEmit: true` is rejected before `load_program`",
         "text_sha256": "161a551a4d1b128d9d948b1d08261a98bd294a5e7bb6fecdfc5aa1dfb3ff004d",
-        "file_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c"
+        "file_sha256": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c"
       },
       {
         "id": "cli-mode-dispatch",
         "path": "crates/compiler/src/cli.rs",
-        "line": 890,
+        "line": 969,
         "column": 5,
         "text": "if prepared.mode() == PreparedProgramMode::Emit {\n        return execute_emitting_prepared(",
         "text_sha256": "c84948081c61402e6e74bbd46486e07254a1b1cd3f66fcd6ff31d153a2664dfb",
-        "file_sha256": "b05a748416462f5852224cb473c3cb6db71b74223efc5b59655ea404b2ac042a"
+        "file_sha256": "e63efeba593dd865a8bc2b46748059b370c5b8520a63728005adaac492c9912e"
       },
       {
         "id": "cli-filesystem-sink-dispatch",
         "path": "crates/compiler/src/cli.rs",
-        "line": 939,
+        "line": 1056,
         "column": 5,
         "text": "let mut sink = FsOutputSink::new(route.output_filesystem);",
         "text_sha256": "177c3cf353fa6ee63c49c02a3b33a2794c580d44f8ee5e861ef87c64a994aa8b",
-        "file_sha256": "b05a748416462f5852224cb473c3cb6db71b74223efc5b59655ea404b2ac042a"
+        "file_sha256": "e63efeba593dd865a8bc2b46748059b370c5b8520a63728005adaac492c9912e"
       },
       {
         "id": "config-transient-output-discovery",
         "path": "crates/program/src/config.rs",
-        "line": 838,
+        "line": 858,
         "column": 5,
-        "text": "out_dir: Option<String>,\n    declaration_dir: Option<String>,",
-        "text_sha256": "a8617177e430f042fb859063fe81c6befc627994db9f901f674fb6b6c436373d",
-        "file_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c"
+        "text": "out_dir: Option<JsString>,\n    declaration_dir: Option<JsString>,",
+        "text_sha256": "a6f1c42be4e994526ee9de89618e554cd7dd910b7b32581221772ae066b10a65",
+        "file_sha256": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c"
       },
       {
         "id": "program-snapshot-owner",
         "path": "crates/checker/src/program.rs",
-        "line": 714,
+        "line": 715,
         "column": 1,
         "text": "pub struct ProgramSnapshot {",
         "text_sha256": "fb951bcb22124d9299bd8c6db9cbecab03b8f7fa17ce5ed47c9a5a0c19f39422",
-        "file_sha256": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653"
+        "file_sha256": "e079db6a0d8d85d9cb56d5effa29e1f06d8c67c67f867304e34797e27e4f0dc3"
       },
       {
         "id": "constructor-capture-this-elided",
         "path": "crates/checker/src/functions.rs",
-        "line": 2940,
+        "line": 2989,
         "column": 9,
-        "text": "captureLexicalThis is emit-only (no-op)",
-        "text_sha256": "a5afdcaea9009dcbe6110f8e5c425c2b95c80c101b40a974145aea8d8c3a5d23",
-        "file_sha256": "afd2adb3091ad10fff2e87950c4f8a8ea9504e3f85496d730f9020fc1cedd57f"
-      },
-      {
-        "id": "async-linked-references-elided",
-        "path": "crates/checker/src/functions.rs",
-        "line": 2229,
-        "column": 28,
-        "text": "`markLinkedReferences` is emit-only.",
-        "text_sha256": "75a1a3c197f04e688ff2785c06a229889434ebc3db6c17e4e3d57db7df9c98cc",
-        "file_sha256": "afd2adb3091ad10fff2e87950c4f8a8ea9504e3f85496d730f9020fc1cedd57f"
-      },
-      {
-        "id": "decorator-linked-references-elided",
-        "path": "crates/checker/src/calls.rs",
-        "line": 151,
-        "column": 9,
-        "text": "markLinkedReferences is declaration-emit bookkeeping",
-        "text_sha256": "e8150228ea991d60766c6ebf7021b01797a4147e5e888edf89b02885304e7518",
-        "file_sha256": "60869af25532743103a03c6bc168f5d248e2035b37f572d10a9bb5aeefe537e3"
-      },
-      {
-        "id": "import-equals-linked-references-elided",
-        "path": "crates/checker/src/modules.rs",
-        "line": 9216,
-        "column": 52,
-        "text": "markLinkedReferences'\n    /// declaration-emit traversal remains outside this checker slice",
-        "text_sha256": "79b39f17b3cc5cfa26c699e287d8bbb1fed82b3cab81b0d321f6d0234fe88d06",
-        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
-      },
-      {
-        "id": "export-linked-aliases-elided",
-        "path": "crates/checker/src/modules.rs",
-        "line": 9531,
-        "column": 9,
-        "text": "collectLinkedAliases is live behind the declaration/composite gate;",
-        "text_sha256": "18e5229ef67189796ffcf85844ffdb0c398175399c4e427c6636c78c0bf09181",
-        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
-      },
-      {
-        "id": "property-access-linked-references-elided",
-        "path": "crates/checker/src/access.rs",
-        "line": 1958,
-        "column": 11,
-        "text": "markLinkedReferences' non-alias bookkeeping",
-        "text_sha256": "3efb7dc8370504d1a849885324fc1d5353c79da322996324626f1db46db1d879",
-        "file_sha256": "317fb130f96c1a5f2d55d00de119b5cb719494edda8ca9c8d6ba5aa5070bfd5e"
-      },
-      {
-        "id": "inaccessible-this-elided",
-        "path": "crates/checker/src/check.rs",
-        "line": 6053,
-        "column": 16,
-        "text": "inaccessible-this tracking is declaration-emit band",
-        "text_sha256": "16bfbe4a19081974e7847b1b3bb1e3749c92e0d792d02f9370b5becbf731c972",
-        "file_sha256": "f82d1b985c99994c00094f9072a506f6d655af68a7ed970f73099f231de551a6"
-      },
-      {
-        "id": "binding-object-rest-helper-elided",
-        "path": "crates/checker/src/statements.rs",
-        "line": 157,
-        "column": 17,
-        "text": "Object-rest emit-helper probe elided",
-        "text_sha256": "42a70c07fffaf36dd3c3ba48cb67b038da64059eedb77415ccc77cc955518cfd",
-        "file_sha256": "58618d9fbe59c0eb87eb03e25d346f6b7e9ad6b54873e952f1201011180e6399"
-      },
-      {
-        "id": "binding-array-helper-elided",
-        "path": "crates/checker/src/statements.rs",
-        "line": 208,
-        "column": 12,
-        "text": "downlevelIteration emit-helper probe is elided",
-        "text_sha256": "747920ad8a12ab86165c7e42ffec4988937e008324baabe436c209bc6161707e",
-        "file_sha256": "58618d9fbe59c0eb87eb03e25d346f6b7e9ad6b54873e952f1201011180e6399"
-      },
-      {
-        "id": "for-await-helper-elided",
-        "path": "crates/checker/src/statements.rs",
-        "line": 2046,
-        "column": 27,
-        "text": "ForAwaitOf emit-helper probe — elided",
-        "text_sha256": "146d22250a56eae1acd985846dc96db6f0ea07d219a434fa2d495cbc6639aea4",
-        "file_sha256": "58618d9fbe59c0eb87eb03e25d346f6b7e9ad6b54873e952f1201011180e6399"
-      },
-      {
-        "id": "for-of-helper-elided",
-        "path": "crates/checker/src/statements.rs",
-        "line": 2048,
-        "column": 13,
-        "text": "downlevelIteration ForOf emit-helper probe — elided",
-        "text_sha256": "907e5bd8ed066c6e704bfeb9af310c69e929dec2806999802901e87259a1ddfe",
-        "file_sha256": "58618d9fbe59c0eb87eb03e25d346f6b7e9ad6b54873e952f1201011180e6399"
-      },
-      {
-        "id": "signature-helper-probes-elided",
-        "path": "crates/checker/src/functions.rs",
-        "line": 2030,
-        "column": 9,
-        "text": "Emit-helper probes are importHelpers-gated (no-op)",
-        "text_sha256": "9c5de72689a22c8e0799402f36e66fe8f0eec13c37cff814da77dcaa0d6f0393",
-        "file_sha256": "afd2adb3091ad10fff2e87950c4f8a8ea9504e3f85496d730f9020fc1cedd57f"
-      },
-      {
-        "id": "yield-helper-probes-elided",
-        "path": "crates/checker/src/functions.rs",
-        "line": 1707,
-        "column": 9,
-        "text": "Grammar closure runs eager (the 5.4 addLazyDiagnostic\n    /// decision), as does the noImplicitAny 7057 closure. Emit-helper\n    /// probes are importHelpers-gated (no-op)",
-        "text_sha256": "bcb6ffe779b4ebaa2e9df2c10203b9b75cf8cc9a1effdce3d237d3af3ca5913d",
-        "file_sha256": "afd2adb3091ad10fff2e87950c4f8a8ea9504e3f85496d730f9020fc1cedd57f"
-      },
-      {
-        "id": "class-extends-helper-elided",
-        "path": "crates/checker/src/class.rs",
-        "line": 631,
-        "column": 9,
-        "text": "Elision: the ES5 Extends emit-helper probe",
-        "text_sha256": "bb21850556c12b7bd6df9003137503e5b2e454a4ae3227ce1d410ae3025083a4",
-        "file_sha256": "456c1e3f602ff40952ef1fa7dc1fa1567d11355cd1608ebe5593ee5fe06f96bf"
-      },
-      {
-        "id": "private-field-in-helper-elided",
-        "path": "crates/checker/src/operators.rs",
-        "line": 1141,
-        "column": 21,
-        "text": "ClassPrivateFieldIn emit-helper rows are",
-        "text_sha256": "c6d829a07734b2b4a430901ce369faa37a42b3d117f36926f0c650d86a395700",
-        "file_sha256": "35fabcce556582afe8df6bd5db14c0ea93ab6d216d2d0fd6ed576e6fae1c7002"
-      },
-      {
-        "id": "object-rest-helper-elided",
-        "path": "crates/checker/src/operators.rs",
-        "line": 2148,
-        "column": 13,
-        "text": "ObjectSpreadRest emit-helper row is importHelpers-gated",
-        "text_sha256": "6648786413c0c11ceb9e34c26050d93b7c8cdb56b56432876af5eee10e5632b3",
-        "file_sha256": "35fabcce556582afe8df6bd5db14c0ea93ab6d216d2d0fd6ed576e6fae1c7002"
-      },
-      {
-        "id": "destructuring-helper-elided",
-        "path": "crates/checker/src/operators.rs",
-        "line": 2276,
-        "column": 13,
-        "text": "DestructuringAssignment emit-helper row is",
-        "text_sha256": "c5660a02f51abf708bf8a2aea9da1ae488400c02e79b492f8eaf0b0249033ca7",
-        "file_sha256": "35fabcce556582afe8df6bd5db14c0ea93ab6d216d2d0fd6ed576e6fae1c7002"
-      },
-      {
-        "id": "private-field-set-helper-elided",
-        "path": "crates/checker/src/operators.rs",
-        "line": 2454,
-        "column": 13,
-        "text": "ClassPrivateFieldSet emit-helper row is importHelpers-gated",
-        "text_sha256": "cba827eeafce9c37fb699863568cc72102e7ff49d4a26801dfd5b224642f8c9d",
-        "file_sha256": "35fabcce556582afe8df6bd5db14c0ea93ab6d216d2d0fd6ed576e6fae1c7002"
-      },
-      {
-        "id": "object-assign-helper-inactive",
-        "path": "crates/checker/src/literals.rs",
-        "line": 927,
-        "column": 9,
-        "text": "languageVersion ObjectAssign emit-helper gate is dead at",
-        "text_sha256": "24e19960db18b8d9cec2364b3256206c513a0f2d7db64e451167b397cb44495f",
-        "file_sha256": "3beafa9eada2152a19ebfa69d4d2894c5169b5489d723cbf67f3a0a55e1e2271"
-      },
-      {
-        "id": "template-helper-inactive",
-        "path": "crates/checker/src/calls.rs",
-        "line": 6360,
-        "column": 13,
-        "text": "MakeTemplateObject emit-helper check is dead at ES2025",
-        "text_sha256": "087a603f871a4885b303e2dbb727b4eb24404b2edc544dbcd0fd98a28a8b5d3f",
-        "file_sha256": "60869af25532743103a03c6bc168f5d248e2035b37f572d10a9bb5aeefe537e3"
-      },
-      {
-        "id": "export-assignment-linked-aliases-elided",
-        "path": "crates/checker/src/modules.rs",
-        "line": 9731,
-        "column": 17,
-        "text": "self.collect_linked_aliases(expression, /*set_visibility*/ true)?;",
-        "text_sha256": "ffcb1108a931a67a9e05e41a387e994950457f2d303020cb36c316451b644ebf",
-        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
+        "text": "Constructor captureLexicalThis has no observable consumer in TS 6.0.3:",
+        "text_sha256": "d62e83c9e7192cf98fec6a01452cb244feaefe0ab97c94af0f686f480815415e",
+        "file_sha256": "c3ac782c8d3e8ad67f9dcfb35d35217ae4561a1b463fda03a800def92df2a880"
       },
       {
         "id": "standard-class-fields-option-check",
         "path": "crates/checker/src/resolve.rs",
-        "line": 1034,
+        "line": 1067,
         "column": 10,
         "text": "useDefineForClassFields=false` at ESNext, so this must use the exact\n    /// computed emitStandardClassFields predicate rather than target alone",
         "text_sha256": "4234e9b10494a7707e8f1ad710ea60cc83737657453a226cfbc4f3809ea86b79",
-        "file_sha256": "351e00140de6d00d4950e54d35082ee79a33a0027ad08ecdf3d0b91a058cd066"
+        "file_sha256": "b65e13e3982ac8275ace47477667fa4cc0741626f81210affd42a9d6778d2e8b"
       },
       {
         "id": "external-helper-producer-present",
         "path": "crates/checker/src/modules.rs",
-        "line": 5824,
+        "line": 6221,
         "column": 5,
         "text": "pub(crate) fn check_external_emit_helpers(",
         "text_sha256": "e127a45e63e86b553a6030b1b4e9a7c4f9a4388a49143d7aa0267cf5b6df8884",
-        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
+        "file_sha256": "0aa527fe30bfc7cc48dac9cbfb94c3088e099a6ef3b407faafe53e2b5e8dbc8a"
       },
       {
         "id": "jsx-alias-producer-present",
         "path": "crates/checker/src/jsx.rs",
-        "line": 934,
-        "column": 5,
+        "line": 928,
+        "column": 16,
         "text": "fn mark_jsx_alias_referenced(&mut self, node: NodeId) -> CheckResult<()> {",
         "text_sha256": "917d92a0f0662bd0cbcda4260a8721fb7800a6f7587734654abf2cb4557260e5",
-        "file_sha256": "5e657bbe6e28fe578e35ceb842fe12af39b27c43a5c3bc4453e7d4fc80f0dace"
+        "file_sha256": "dc995da2db99dc8cb5153ac41c4eeb96e0cbc0f998371e67b57507c002c791c7"
       }
     ],
-    "absence_proofs": [
-      {
-        "id": "linked-reference-producers",
-        "kind": "regex-zero",
-        "scope": "checker-production",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+mark_linked_references[ \\t]*\\(",
-        "match_count": 0,
-        "matches": []
-      }
-    ]
+    "absence_proofs": []
   },
-  "inventory_fingerprint_sha256": "1df05ae7c2abfd7cd59c71f47ef09d8b6a86da8348e0d21fe6601b36133ecfb7"
+  "inventory_fingerprint_sha256": "37720ae1570ba6da316bb64648ac3e5437d0b4788841b10b32364fbb26ecfd8c"
 }

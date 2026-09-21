@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "scripts/test-walk-static-checks.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T11:00:17.721403+00:00",
+  "head": "fa06ae275710e40278240d0b8f9737749a230b0b",
+  "tracked_clean": false,
+  "diff_sha256": "3edd065bdbc7f8a352dd1b65f072996acd28097fa3c9a7ec64e1197eacb9fc88",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 9.132,
+  "log_sha256": "a1b88b620156b87bc1dca08a39b77e6694104a4a55e2ee1ac076e4e006fc4ea5",
+  "log_bytes": 102
+}

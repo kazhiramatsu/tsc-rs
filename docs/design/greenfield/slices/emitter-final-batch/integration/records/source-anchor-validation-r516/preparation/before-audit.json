@@ -1,0 +1,164 @@
+{
+  "source_head": "fa06ae275710e40278240d0b8f9737749a230b0b",
+  "formal_walk_failed_before_any_successful_write": true,
+  "rust_tracked_clean": true,
+  "owners": [
+    {
+      "path": "crates/program/src/prepared.rs",
+      "needle": "pub struct PreparedSourceFile {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/checker/src/lib.rs",
+      "needle": "pub struct InputFile {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/syntax/src/lib.rs",
+      "needle": "pub struct SourceFile {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/program/src/config.rs",
+      "needle": "pub struct ConfigSourceText {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "needle": "pub struct ProgramConfigFile {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "needle": "pub struct PreparedAuxiliaryFile {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "needle": "pub struct PackageMetadata {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/compiler/src/lib.rs",
+      "needle": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),",
+      "occurrences": 0
+    },
+    {
+      "path": "crates/checker/src/lib.rs",
+      "needle": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain(",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/checker/src/lib.rs",
+      "needle": "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(",
+      "occurrences": 0
+    },
+    {
+      "path": "crates/program/src/module_requests.rs",
+      "needle": "    let parsed = parse_source_file_from_snapshot(",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/program/src/config.rs",
+      "needle": "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()))",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/program/src/json.rs",
+      "needle": "    let source = parse_json_text_from_snapshot(",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/compiler/src/cli.rs",
+      "needle": "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);",
+      "occurrences": 0
+    },
+    {
+      "path": "crates/compiler/tests/integration/program_session_contract.rs",
+      "needle": "fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/diagnostics/src/text.rs",
+      "needle": "struct DensePositionIndex {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/diagnostics/src/text.rs",
+      "needle": "struct PersistentLineTree {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/diagnostics/src/text.rs",
+      "needle": "    pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/diagnostics/src/text.rs",
+      "needle": "pub struct VersionedTextStore {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/types/src/identity.rs",
+      "needle": "pub struct IdentityDomain {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/types/src/identity.rs",
+      "needle": "pub struct IdentityLease {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/syntax/src/arena.rs",
+      "needle": "    node_lease: Option<IdentityLease>,",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/xtask/src/main.rs",
+      "needle": "fn render_relocate_rs(schemas: &[NodeSchema])",
+      "occurrences": 0
+    },
+    {
+      "path": "crates/binder/src/declare.rs",
+      "needle": "    private_name_serial_lease: Option<IdentityLease>,",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "needle": "pub struct ProgramSnapshot {",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "needle": "    symbol_owners: Vec<ArenaOwner>,",
+      "occurrences": 1
+    },
+    {
+      "path": "crates/types/src/identity.rs",
+      "needle": "pub const TRANSIENT_SYMBOL_BIT: u32 = 1 << 31;",
+      "occurrences": 1
+    }
+  ],
+  "failures": [
+    {
+      "path": "crates/compiler/src/lib.rs",
+      "needle": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),",
+      "occurrences": 0
+    },
+    {
+      "path": "crates/checker/src/lib.rs",
+      "needle": "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(",
+      "occurrences": 0
+    },
+    {
+      "path": "crates/compiler/src/cli.rs",
+      "needle": "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);",
+      "occurrences": 0
+    },
+    {
+      "path": "crates/xtask/src/main.rs",
+      "needle": "fn render_relocate_rs(schemas: &[NodeSchema])",
+      "occurrences": 0
+    }
+  ]
+}

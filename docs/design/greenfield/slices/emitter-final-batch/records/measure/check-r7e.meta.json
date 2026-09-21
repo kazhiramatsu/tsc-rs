@@ -1,0 +1,13 @@
+{
+  "name": "check-r7e",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 24,
+  "env": [],
+  "argv": "cargo check -p tsc-rs-emitter -p tsc-rs-checker",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T09:18:10Z",
+  "seconds": 10,
+  "exit": 0,
+  "log_sha256": "25149e1935942adcfb8729ac4e91d7f5f2d37cf2965cc9add255dea4d30af998",
+  "log_bytes": 261
+}

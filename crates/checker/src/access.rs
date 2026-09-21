@@ -539,7 +539,10 @@ impl<'a> CheckerState<'a> {
                     .any(|declaration| self.is_class_instance_property(declaration))
             {
                 if let Some(error_node) = error_node {
-                    let prop_name = self.symbol_display_name(prop);
+                    // 74895: symbolToString(prop) — the declaration-backed
+                    // written face (a JS `this['x']` declaration prints its
+                    // quoted literal), not the bare symbol name.
+                    let prop_name = self.symbol_name_as_written_slice(prop);
                     self.error_at_js(
                         Some(error_node),
                         &tsc_diagnostics::gen::Class_field_0_defined_by_the_parent_class_is_not_accessible_in_the_child_class_via_super,
@@ -569,8 +572,11 @@ impl<'a> CheckerState<'a> {
                     && self.is_node_used_during_class_initialization(location)
                 {
                     if let Some(error_node) = error_node {
-                        let prop_name = self.symbol_display_name(prop);
-                        let class_name = self.symbol_display_name(parent_symbol);
+                        // 74904: symbolToString(prop), symbolToString(parentSymbol)
+                        // — the written faces (an anonymous class expression
+                        // assigned to `const Foo` prints `Foo`, not `__class`).
+                        let prop_name = self.symbol_name_as_written_slice(prop);
+                        let class_name = self.symbol_name_as_written_slice(parent_symbol);
                         self.error_at_js(
                             Some(error_node),
                             &tsc_diagnostics::gen::Abstract_property_0_in_class_1_cannot_be_accessed_in_the_constructor,
@@ -1145,6 +1151,9 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsc-port: createTypeChecker.isMethodAccessForCall @6.0.3
+    /// tsc-hash: 9548723ba085419779c0d0e8fea4e739dfb92b3de3ad2a6d8003d5bc78a19988
+    /// tsc-span: _tsc.js:75081-75086
     pub(crate) fn is_method_access_for_call(&self, node: NodeId) -> bool {
         let mut node = node;
         while let Some(parent) = self.parent_of(node) {
@@ -1494,6 +1503,8 @@ impl<'a> CheckerState<'a> {
         self.related_info_for_node_js(node, message, &args)
     }
 
+    /// tsrs-native: JS-valued twin of related_info_for_node: RelatedInfo adapter over
+    /// createDiagnosticForNode span/message; same disposition as its sibling
     pub(crate) fn related_info_for_node_js(
         &self,
         node: NodeId,
@@ -1969,11 +1980,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: cd288efe571bfca00aa5dea8cea66ae89c8a6d13c180bcf483606acc60c3ece3
     /// tsc-span: _tsc.js:75201-75322
     ///
-    /// Elisions/dispositions, each FN-only or unobservable:
-    /// - markLinkedReferences' non-alias bookkeeping; its
-    ///   identifier/property/export/JSX alias paths are live from M7
-    ///   8.3a;
-    /// - getWidenedType is the 5.6 [WIDEN] identity (extraction §6).
+    /// Checked alias paths and unchecked emit-time alias traversal both
+    /// preserve linked references. getWidenedType uses the 5.6 [WIDEN]
+    /// identity (extraction §6).
     fn check_property_access_expression_or_qualified_name(
         &mut self,
         node: NodeId,
@@ -3379,7 +3388,7 @@ impl<'a> CheckerState<'a> {
                     let subtype_name = self.type_to_string_slice(subtype)?;
                     chain_tail.push(tsc_diagnostics::MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                        &[missing_property.clone(), subtype_name.into()],
+                        &[missing_property.clone(), subtype_name],
                     ));
                     break;
                 }
@@ -3394,7 +3403,7 @@ impl<'a> CheckerState<'a> {
             suggestion.push_js(missing_property.as_js());
             head = tsc_diagnostics::MessageChain::new_js(
                 &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
-                &[missing_property.clone(), type_name.into(), suggestion],
+                &[missing_property.clone(), type_name, suggestion],
             );
         } else {
             let promised = self.get_promised_type_of_promise(containing_type)?;
@@ -3408,7 +3417,7 @@ impl<'a> CheckerState<'a> {
                 let type_name = self.type_to_string_slice(containing_type)?;
                 head = tsc_diagnostics::MessageChain::new_js(
                     &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                    &[missing_property.clone(), type_name.into()],
+                    &[missing_property.clone(), type_name],
                 );
                 related = Some(self.related_info_for_node(
                     prop_node,
@@ -3447,7 +3456,7 @@ impl<'a> CheckerState<'a> {
                 if let Some(lib) = lib_suggestion {
                     head = tsc_diagnostics::MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_2_or_later,
-                        &[missing_property.clone(), container.into(), lib.into()],
+                        &[missing_property.clone(), container, lib.into()],
                     );
                 } else {
                     let suggestion = self.get_suggested_symbol_for_nonexistent_property(
@@ -3466,11 +3475,7 @@ impl<'a> CheckerState<'a> {
                         };
                         head = tsc_diagnostics::MessageChain::new_js(
                             message,
-                            &[
-                                missing_property.clone(),
-                                container.into(),
-                                suggested_name.clone(),
-                            ],
+                            &[missing_property.clone(), container, suggested_name.clone()],
                         );
                         if let Some(value_declaration) =
                             self.binder.symbol(suggestion).value_declaration
@@ -3484,7 +3489,7 @@ impl<'a> CheckerState<'a> {
                     } else if self.container_seems_to_be_empty_dom_element(containing_type)? {
                         head = tsc_diagnostics::MessageChain::new_js(
                             &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Try_changing_the_lib_compiler_option_to_include_dom,
-                            &[missing_property.clone(), container.into()],
+                            &[missing_property.clone(), container],
                         );
                     } else {
                         // chainDiagnosticMessages NESTS: the never-
@@ -3499,7 +3504,7 @@ impl<'a> CheckerState<'a> {
                         }
                         head = tsc_diagnostics::MessageChain::new_js(
                             &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                            &[missing_property.clone(), container.into()],
+                            &[missing_property.clone(), container],
                         );
                     }
                 }
@@ -4120,7 +4125,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at_js(
                             Some(access_node),
                             &tsc_diagnostics::gen::Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter,
-                            &[(display).into()],
+                            &[(display)],
                         );
                         return Ok(self.tables.intrinsics.error);
                     }

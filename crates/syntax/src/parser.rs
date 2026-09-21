@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
-use crate::{ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryEvent, ParseRecoveryKind};
+use crate::{
+    MissingNodeRecovery, ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryAction,
+    ParseRecoveryEvent, ParseRecoveryKind, ParseTokenSkipSite,
+};
 
 mod jsdoc;
 
@@ -1031,12 +1034,30 @@ impl<'text> Parser<'text> {
         if is_keyword(self.token())
             && (self.scanner.has_unicode_escape() || self.scanner.has_extended_unicode_escape())
         {
+            let retained_before = self.parse_diagnostics.len();
             self.parse_error_at(
                 self.scanner.token_start(),
                 self.scanner.pos(),
                 &gen::Keywords_cannot_contain_escape_characters,
                 &[],
             );
+            // A same-start report may have been deduplicated. Such a
+            // suppressed attempt must not justify a different retained error.
+            if self.parse_diagnostics.len() > retained_before {
+                let start = self.to_utf16(self.scanner.token_start());
+                let end = self.to_utf16(self.scanner.pos());
+                self.parse_recovery
+                    .actions
+                    .push(ParseRecoveryAction::EscapedKeywordConsumed {
+                        token: self.token(),
+                        start,
+                        length: end.saturating_sub(start),
+                        statement_start: self.to_utf16(
+                            self.recovery_statement_start
+                                .unwrap_or(self.scanner.token_start()),
+                        ),
+                    });
+            }
         }
         self.next_token_without_check()
     }
@@ -1233,20 +1254,38 @@ impl<'text> Parser<'text> {
         message: Option<&'static DiagnosticMessage>,
         args: &[&dyn DiagnosticArgument],
     ) -> NodeId {
-        if report_at_current_position {
-            if let Some(message) = message {
-                self.parse_error_at_position(self.scanner.full_start_pos(), 0, message, args);
-            }
-        } else if let Some(message) = message {
-            self.parse_error_at_current_token(message, args);
-        }
-
-        if message.is_none() {
+        let position = self.to_utf16(self.scanner.full_start_pos());
+        if let Some(message) = message {
+            let (start, length) = if report_at_current_position {
+                (self.scanner.full_start_pos(), 0)
+            } else {
+                (
+                    self.scanner.token_start(),
+                    self.scanner.pos() - self.scanner.token_start(),
+                )
+            };
+            let args = args
+                .iter()
+                .map(|arg| arg.diagnostic_value().to_owned())
+                .collect();
+            let (_, event_index) = self.push_parse_diagnostic_with_event(
+                start,
+                length,
+                message,
+                args,
+                ParseDiagnosticOrigin::Parser,
+            );
+            self.parse_error_before_next_finished_node = true;
+            self.parse_recovery.events[event_index].missing_node =
+                Some(MissingNodeRecovery { kind, position });
+        } else {
             self.parse_recovery.events.push(ParseRecoveryEvent {
                 kind: ParseRecoveryKind::SilentMissingNode(kind),
                 start: self.to_utf16(self.scanner.full_start_pos()),
                 length: 0,
+                full_start: position,
                 diagnostic_index: None,
+                missing_node: None,
                 reparse_start: self.to_utf16(
                     self.recovery_statement_start
                         .unwrap_or(self.scanner.full_start_pos()),
@@ -1366,6 +1405,14 @@ impl<'text> Parser<'text> {
         let candidate = cursor.current_node(self.scanner.full_start_pos() as u32)?;
         let source = cursor.source();
         let node = source.arena.node(candidate.old_node);
+        let start = source
+            .positions()
+            .byte_to_utf16(node.pos)
+            .expect("syntax node positions are scalar boundaries");
+        let end = source
+            .positions()
+            .byte_to_utf16(node.end)
+            .expect("syntax node positions are scalar boundaries");
         let flags = NodeFlags::from_bits(node.flags);
         if node.pos == node.end && node.kind != SyntaxKind::EndOfFileToken
             || candidate.intersects_change
@@ -1373,19 +1420,16 @@ impl<'text> Parser<'text> {
                 NodeFlags::THIS_NODE_HAS_ERROR | NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR,
             )
             || flags & NodeFlags::CONTEXT_FLAGS != self.context_flags & NodeFlags::CONTEXT_FLAGS
-            || source.parse_recovery.events().iter().any(|event| {
-                let start = source
-                    .snapshot()
-                    .positions()
-                    .byte_to_utf16(node.pos)
-                    .expect("syntax node positions are scalar boundaries");
-                let end = source
-                    .snapshot()
-                    .positions()
-                    .byte_to_utf16(node.end)
-                    .expect("syntax node positions are scalar boundaries");
-                (start..=end).contains(&event.start)
-            })
+            || source
+                .parse_recovery
+                .events()
+                .iter()
+                .any(|event| (start..=end).contains(&event.start))
+            || source
+                .parse_recovery
+                .actions()
+                .iter()
+                .any(|action| action.intersects(start, end))
             || !Self::can_reuse_node(source, candidate.old_node, context)
         {
             return None;
@@ -1563,6 +1607,7 @@ impl<'text> Parser<'text> {
                 if let Some(element) = element {
                     list.push(element);
                     if start_pos == self.scanner.full_start_pos() {
+                        self.record_token_skip(ParseTokenSkipSite::ListNoProgress);
                         self.next_token();
                     }
                     continue;
@@ -1633,9 +1678,11 @@ impl<'text> Parser<'text> {
                     && self.token() == SyntaxKind::SemicolonToken
                     && !self.scanner.has_preceding_line_break()
                 {
+                    self.record_token_skip(ParseTokenSkipSite::DelimitedSemicolon);
                     self.next_token();
                 }
                 if start_pos == self.scanner.full_start_pos() {
+                    self.record_token_skip(ParseTokenSkipSite::DelimitedNoProgress);
                     self.next_token();
                 }
                 continue;
@@ -1839,8 +1886,28 @@ impl<'text> Parser<'text> {
         if self.is_in_some_parsing_context() {
             return true;
         }
+        self.record_token_skip(ParseTokenSkipSite::ListAbort);
         self.next_token();
         false
+    }
+
+    fn record_token_skip(&mut self, site: ParseTokenSkipSite) {
+        let start = self.to_utf16(self.scanner.token_start());
+        let end = self.to_utf16(self.scanner.pos());
+        // A progress skip between source elements has no enclosing statement;
+        // the skipped token then owns its retention across a top-level reparse.
+        self.parse_recovery
+            .actions
+            .push(ParseRecoveryAction::TokenSkipped {
+                token: self.token(),
+                start,
+                length: end.saturating_sub(start),
+                statement_start: self.to_utf16(
+                    self.recovery_statement_start
+                        .unwrap_or(self.scanner.token_start()),
+                ),
+                site,
+            });
     }
 
     fn is_in_some_parsing_context(&mut self) -> bool {
@@ -3641,6 +3708,7 @@ impl<'text> Parser<'text> {
                 &gen::Declaration_or_statement_expected_This_follows_a_block_of_statements_so_if_you_intended_to_write_a_destructuring_assignment_you_might_need_to_wrap_the_whole_assignment_in_parentheses,
                 &[],
             );
+            self.record_token_skip(ParseTokenSkipSite::BlockTrailingEquals);
             self.next_token();
         }
 
@@ -4693,6 +4761,9 @@ impl<'text> Parser<'text> {
             let is_identifier = self.is_identifier();
             let await_expression =
                 self.create_identifier_node(is_identifier, Some(&gen::Expression_expected), None);
+            // This branch consumes the invalid await token after producing
+            // an empty chain head. Retain its typed recovery provenance.
+            self.record_token_skip(ParseTokenSkipSite::DecoratorAwait);
             self.next_token();
             let member_expression = self.parse_member_expression_rest(pos, await_expression, true);
             return self.parse_call_expression_rest(pos, member_expression);
@@ -6974,6 +7045,7 @@ impl<'text> Parser<'text> {
         if name_node.pos == name_node.end && !has_modifiers && self.is_modifier_kind(self.token()) {
             // A modifier alone ("void foo(private)") would loop forever;
             // consume it so the list makes progress (tsc parseNameOfParameter).
+            self.record_token_skip(ParseTokenSkipSite::ParameterModifier);
             self.next_token();
         }
         name
@@ -7036,6 +7108,7 @@ impl<'text> Parser<'text> {
                 &gen::_0_expected,
                 &[&token_to_string(SyntaxKind::ColonToken)],
             );
+            self.record_token_skip(ParseTokenSkipSite::TypePredicateArrow);
             self.next_token();
             true
         } else {
@@ -8981,6 +9054,7 @@ impl<'text> Parser<'text> {
                 &gen::Cannot_start_a_function_call_in_a_type_annotation,
                 &[],
             );
+            self.record_token_skip(ParseTokenSkipSite::TypeAnnotationCall);
             self.next_token();
             return;
         }
@@ -9431,23 +9505,82 @@ impl<'text> Parser<'text> {
             && self.subtree_contains_possible_top_level_await(id)
     }
 
-    /// Simulates TransformFlags.ContainsPossibleTopLevelAwait: the only
-    /// source is an identifier spelled `await` (factory createIdentifier);
-    /// function-like factories strip the flag from their BODY propagation;
-    /// enum/module/import= factories clear it on the whole node.
+    /// Project the factory's ContainsPossibleTopLevelAwait bit without
+    /// importing emitter transform flags into syntax. A statement's own bit
+    /// selects a reparse run; function/arrow/constructor children strip that
+    /// bit on outward propagation. Names and bodies have field-specific
+    /// propagation, while type and erased declarations contribute nothing.
+    ///
+    /// tsc-port: propagateNameFlags @6.0.3
+    /// tsc-hash: 6ea1ef78cec08f7f1ad6603869b26c33b346051837bf89660ec62e436aa257ae
+    /// tsc-span: _tsc.js:25101-25103
+    /// tsc-port: propagateIdentifierNameFlags @6.0.3
+    /// tsc-hash: 27391b1b26307bbb9bfa39beffd6561a928f0d3ca3ec9a6952a70f5e5fb5aeda
+    /// tsc-span: _tsc.js:25104-25106
+    /// tsc-port: propagateChildFlags @6.0.3
+    /// tsc-hash: 8ddb64c96b023e53f3d136865d331f4ff32cc68182cf51faa166e2023be5abb0
+    /// tsc-span: _tsc.js:25110-25114
+    /// tsc-port: getTransformFlagsSubtreeExclusions @6.0.3
+    /// tsc-hash: 2d364dcf4298f054e648486f6e466f4b82d973fc80597df00ed06d9c612aa913
+    /// tsc-span: _tsc.js:25125-25194
+    /// Reference detail: propagateChildFlags / propagateNameFlags @6.0.3
     fn subtree_contains_possible_top_level_await(&self, root: NodeId) -> bool {
         // Explicit stack: deep trees overflow a recursive walk.
         let mut stack = vec![root];
         while let Some(id) = stack.pop() {
             let node = self.arena.node(id);
-            let body = match &node.data {
+            if node.kind >= SyntaxKind::FirstTypeNode && node.kind <= SyntaxKind::LastTypeNode {
+                continue;
+            }
+            if id != root
+                && matches!(
+                    node.kind,
+                    SyntaxKind::FunctionDeclaration
+                        | SyntaxKind::FunctionExpression
+                        | SyntaxKind::ArrowFunction
+                        | SyntaxKind::Constructor
+                )
+            {
+                continue;
+            }
+            let mut children = Vec::new();
+            macro_rules! nodes {
+                ($($child:expr),* $(,)?) => { children.extend([$($child),*].into_iter().flatten()); };
+            }
+            macro_rules! arrays {
+                ($($array:expr),* $(,)?) => { $(if let Some(array) = $array {
+                    children.extend(self.arena.node_array(array).nodes.iter().copied());
+                })* };
+            }
+            macro_rules! name {
+                ($name:expr) => {
+                    if let Some(name) = $name {
+                        if self.arena.node(name).kind != SyntaxKind::Identifier {
+                            children.push(name);
+                        }
+                    }
+                };
+            }
+            match &node.data {
                 NodeData::Identifier(data) => {
                     if data.escaped_text == "await" {
                         return true;
                     }
                     continue;
                 }
-                NodeData::EnumDeclaration(_)
+                // Assigned ContainsTypeScript, or explicitly cleared by the
+                // factory. MissingDeclaration's modifiers are assigned only
+                // after construction and never aggregate into its flags.
+                NodeData::TypeParameter(_)
+                | NodeData::PropertySignature(_)
+                | NodeData::MethodSignature(_)
+                | NodeData::CallSignature(_)
+                | NodeData::ConstructSignature(_)
+                | NodeData::IndexSignature(_)
+                | NodeData::InterfaceDeclaration(_)
+                | NodeData::TypeAliasDeclaration(_)
+                | NodeData::MissingDeclaration(_)
+                | NodeData::EnumDeclaration(_)
                 | NodeData::ModuleDeclaration(_)
                 | NodeData::ImportEqualsDeclaration(_)
                 | NodeData::ImportDeclaration(_)
@@ -9460,26 +9593,143 @@ impl<'text> Parser<'text> {
                 | NodeData::ExportDeclaration(_)
                 | NodeData::NamedExports(_)
                 | NodeData::ExportSpecifier(_)
-                | NodeData::ExternalModuleReference(_) => continue,
-                NodeData::MethodDeclaration(data) => data.body,
-                NodeData::Constructor(data) => data.body,
-                NodeData::GetAccessor(data) => data.body,
-                NodeData::SetAccessor(data) => data.body,
-                NodeData::FunctionExpression(data) => data.body,
-                NodeData::ArrowFunction(data) => data.body,
-                NodeData::FunctionDeclaration(data) => data.body,
-                _ => None,
-            };
-            let mut children = Vec::new();
-            for_each_child(&self.arena, node, |child| {
-                children.push(child);
-                false
-            });
-            for child in children.into_iter().rev() {
-                if Some(child) != body {
-                    stack.push(child);
+                | NodeData::ExternalModuleReference(_)
+                | NodeData::NamespaceExportDeclaration(_) => continue,
+                NodeData::FunctionDeclaration(data) => {
+                    if data.body.is_none()
+                        || self.modifiers_contain(data.modifiers, SyntaxKind::DeclareKeyword)
+                    {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(data.modifiers, data.type_parameters, data.parameters);
+                    nodes!(data.asterisk_token, data.r#type);
+                }
+                NodeData::FunctionExpression(data) => {
+                    name!(data.name);
+                    arrays!(data.modifiers, data.type_parameters, data.parameters);
+                    nodes!(data.asterisk_token, data.r#type);
+                }
+                NodeData::ArrowFunction(data) => {
+                    arrays!(data.modifiers, data.type_parameters, data.parameters);
+                    nodes!(data.equals_greater_than_token, data.r#type);
+                }
+                NodeData::MethodDeclaration(data) => {
+                    if data.body.is_none() {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(data.modifiers, data.type_parameters, data.parameters);
+                    nodes!(data.asterisk_token, data.question_token, data.r#type);
+                }
+                NodeData::Constructor(data) => {
+                    if data.body.is_none() {
+                        continue;
+                    }
+                    // typeParameters/type are parser post-assignments.
+                    arrays!(data.modifiers, data.parameters);
+                }
+                NodeData::GetAccessor(data) => {
+                    if data.body.is_none() {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(data.modifiers, data.parameters);
+                    nodes!(data.r#type);
+                }
+                NodeData::SetAccessor(data) => {
+                    if data.body.is_none() {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(data.modifiers, data.parameters);
+                }
+                NodeData::ClassDeclaration(data) => {
+                    if self.modifiers_contain(data.modifiers, SyntaxKind::DeclareKeyword) {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(
+                        data.modifiers,
+                        data.type_parameters,
+                        data.heritage_clauses,
+                        data.members
+                    );
+                }
+                NodeData::ClassExpression(data) => {
+                    name!(data.name);
+                    arrays!(
+                        data.modifiers,
+                        data.type_parameters,
+                        data.heritage_clauses,
+                        data.members
+                    );
+                }
+                NodeData::VariableStatement(data) => {
+                    if self.modifiers_contain(data.modifiers, SyntaxKind::DeclareKeyword) {
+                        continue;
+                    }
+                    arrays!(data.modifiers);
+                    nodes!(data.declaration_list);
+                }
+                NodeData::Parameter(data) => {
+                    if data.name.is_some_and(|name| {
+                        matches!(&self.arena.node(name).data,
+                        NodeData::Identifier(identifier) if identifier.escaped_text == "this")
+                    }) {
+                        continue;
+                    }
+                    name!(data.name);
+                    arrays!(data.modifiers);
+                    nodes!(
+                        data.dot_dot_dot_token,
+                        data.question_token,
+                        data.initializer
+                    );
+                }
+                NodeData::VariableDeclaration(data) => {
+                    name!(data.name);
+                    nodes!(data.exclamation_token, data.initializer);
+                }
+                NodeData::PropertyDeclaration(data) => {
+                    name!(data.name);
+                    arrays!(data.modifiers);
+                    nodes!(
+                        data.question_token,
+                        data.exclamation_token,
+                        data.initializer
+                    );
+                }
+                NodeData::BindingElement(data) => {
+                    name!(data.property_name);
+                    name!(data.name);
+                    nodes!(data.dot_dot_dot_token, data.initializer);
+                }
+                NodeData::PropertyAssignment(data) => {
+                    name!(data.name);
+                    nodes!(data.initializer);
+                }
+                NodeData::ShorthandPropertyAssignment(data) => {
+                    nodes!(data.object_assignment_initializer);
+                }
+                NodeData::PropertyAccessExpression(data) => {
+                    nodes!(data.expression, data.question_dot_token);
+                }
+                NodeData::QualifiedName(data) => {
+                    nodes!(data.left);
+                }
+                NodeData::ClassStaticBlockDeclaration(data) => {
+                    // Its body propagates, but parser-assigned modifiers do not.
+                    nodes!(data.body);
+                }
+                _ => {
+                    for_each_child(&self.arena, node, |child| {
+                        children.push(child);
+                        false
+                    });
                 }
             }
+            stack.extend(children.into_iter().rev());
         }
         false
     }
@@ -9530,6 +9780,13 @@ impl<'text> Parser<'text> {
             }
             self.parse_recovery.events.push(retained);
         }
+        self.parse_recovery.actions.extend(
+            recovery
+                .actions
+                .iter()
+                .copied()
+                .filter(|action| positions.contains(&action.owner_start())),
+        );
     }
 
     /// tsc reparseTopLevelAwait: maximal runs of possible-await statements
@@ -9570,6 +9827,7 @@ impl<'text> Parser<'text> {
                 let statement = self.parse_source_element();
                 statements.push(statement);
                 if start_pos == self.scanner.full_start_pos() {
+                    self.record_token_skip(ParseTokenSkipSite::TopLevelAwaitReparse);
                     self.next_token();
                 }
                 if let Some(cursor) = pos {
@@ -9583,6 +9841,12 @@ impl<'text> Parser<'text> {
                     }
                 }
             }
+            self.parse_recovery
+                .actions
+                .push(ParseRecoveryAction::Reparsed {
+                    start: next_pos,
+                    end: self.to_utf16(self.scanner.full_start_pos()),
+                });
             self.context_flags = saved_context_flags;
             self.scanner.restore(scanner_state);
 
@@ -9683,15 +9947,11 @@ impl<'text> Parser<'text> {
                 continue;
             }
             if kind == SyntaxKind::ExpressionStatement
-                && matches!(
-                    &self.arena.node(host).data,
-                    NodeData::ExpressionStatement(data)
-                        if data.expression.is_some_and(|expression| {
-                            let expression = self.arena.node(expression);
-                            expression.kind == SyntaxKind::ParenthesizedExpression
-                                && expression.pos as usize == pos
-                        })
-                )
+                && self
+                    .source_text
+                    .as_bytes()
+                    .get(crate::skip_trivia(self.source_text, pos))
+                    == Some(&b'(')
             {
                 // parseExpressionOrLabeledStatement explicitly clears its
                 // hasJSDoc bit when the expression began with `(`.
@@ -9898,6 +10158,18 @@ impl<'text> Parser<'text> {
         args: Vec<JsString>,
         origin: ParseDiagnosticOrigin,
     ) -> Option<usize> {
+        self.push_parse_diagnostic_with_event(start, length, message, args, origin)
+            .0
+    }
+
+    fn push_parse_diagnostic_with_event(
+        &mut self,
+        start: usize,
+        length: usize,
+        message: &'static DiagnosticMessage,
+        args: Vec<JsString>,
+        origin: ParseDiagnosticOrigin,
+    ) -> (Option<usize>, usize) {
         let start_utf16 = self.to_utf16(start);
         let end_utf16 = self.to_utf16(start.saturating_add(length));
         let diagnostic_index = if self
@@ -9916,11 +10188,14 @@ impl<'text> Parser<'text> {
         } else {
             None
         };
+        let event_index = self.parse_recovery.events.len();
         self.parse_recovery.events.push(ParseRecoveryEvent {
             kind: ParseRecoveryKind::Diagnostic(origin),
             start: start_utf16,
             length: end_utf16.saturating_sub(start_utf16),
+            full_start: self.to_utf16(self.scanner.full_start_pos()),
             diagnostic_index,
+            missing_node: None,
             reparse_start: self.to_utf16(match origin {
                 ParseDiagnosticOrigin::ScannerToken(_) => self.scanner.token_start(),
                 ParseDiagnosticOrigin::Parser => self.recovery_statement_start.unwrap_or(start),
@@ -9928,7 +10203,7 @@ impl<'text> Parser<'text> {
                 | ParseDiagnosticOrigin::ReferenceDirective => start,
             }),
         });
-        diagnostic_index
+        (diagnostic_index, event_index)
     }
 
     fn to_utf16(&self, byte_offset: usize) -> u32 {
@@ -9957,9 +10232,10 @@ fn parse_source_file(
 /// Validate the complete entity-name grammar with the normal JS scanner.
 /// Retaining parser errors rejects malformed escapes and unterminated comments.
 ///
-/// tsc-port: parseIsolatedEntityName2 (validity projection) @6.0.3
-/// tsc-hash: 92cfd18e0c60b7d06ba8360b03cbfd7259a3d463273461742c418c6861f6a9d0
-/// tsc-span: _tsc.js:29042-29061
+/// tsc-port: parseIsolatedEntityName2 @6.0.3
+/// tsc-hash: 38241864551c9c11c2146069951211d38747175eeb21a3c2f780d2e2bd720c6e
+/// tsc-span: _tsc.js:29042-29060
+/// Reference detail: parseIsolatedEntityName2 (validity projection) @6.0.3
 pub fn is_entity_name_text(text: &str, language_version: ScriptTarget) -> bool {
     parse_entity_name_components(text.into(), language_version).is_some()
 }

@@ -1,0 +1,150 @@
+{
+  "qualified": false,
+  "scope": "External final-CI and post-merge documentation helper preparation only; no CI/walk/merge qualification. Keep helpers co-located. Old helpers are retained as history.",
+  "source_head_for_readonly_audits": "bb01b86df0a2d266910d25124c4bfbade334c826",
+  "actual_opus_reviews": [
+    215,
+    216,
+    217
+  ],
+  "tests": {
+    "passed": 9,
+    "failed": 0,
+    "scope": "Synthetic refusal controls and a real invalid-CLI rejection; no Cargo gate invoked"
+  },
+  "decisions": [
+    "Require complete18phase log before marking CI receipt qualified.",
+    "Require identical failed demoted prior run metadata; sole-performance-failure remains review of real failure log.",
+    "Derive exact24profile roster from GitV and require18rows74ownerinstances.",
+    "Decode rawlogs consistently, bind walkcertificate bytes to archivedGitV record insideDOCSTREE, render actualpriority/priorfailureprovenance.",
+    "Round217 A/B applied: separatepriorityparagraph, reject stray--previous before any gate;9tests pass.",
+    "Opus215 explicit--lane all key claim and216 two-letter-profile count claim corrected; newprofile name rejection tested."
+  ],
+  "files": [
+    {
+      "path": "helpers/current-input-audit-final.json",
+      "sha256": "52602ae0a500430ad2fa94d0018571a2fba0cf9f3d9e352f9bd83499578352d9",
+      "bytes": 72559
+    },
+    {
+      "path": "helpers/current-input-audit-final.log.gz",
+      "sha256": "cd4b0d90cbc65fc77f81b4daede55208b26af0721ea9b344d98ee46919c5abab",
+      "bytes": 225
+    },
+    {
+      "path": "helpers/current-input-audit.json",
+      "sha256": "52602ae0a500430ad2fa94d0018571a2fba0cf9f3d9e352f9bd83499578352d9",
+      "bytes": 72559
+    },
+    {
+      "path": "helpers/delivery_receipt_checks.py",
+      "sha256": "c5da71446ee7e8a5f1d9eaf6b78e017e1e9365f4d1eadc958aa1bc5949eca255",
+      "bytes": 4341
+    },
+    {
+      "path": "helpers/emitter-delivery-draft-r530.py",
+      "sha256": "ef1e29167a09f2a7d50a192ee5196697ec741552fc079e010c01111279543c87",
+      "bytes": 12073
+    },
+    {
+      "path": "helpers/emitter-delivery-final-input-audit-r530.py",
+      "sha256": "ea675b1678e3a07c82167484b55142037b8273b9265d8685e340141eb2133b17",
+      "bytes": 4666
+    },
+    {
+      "path": "helpers/emitter-final-ci-run-r530.py",
+      "sha256": "68656686b126925474d7a10b4ef3acfee02e99f1095a4cea8805f42d9131830b",
+      "bytes": 4699
+    },
+    {
+      "path": "helpers/round216-request.md",
+      "sha256": "5316794cd42bcb3d6b7d075deb54ffe86a033c9b29497aedcd6355b6e3ced022",
+      "bytes": 2592
+    },
+    {
+      "path": "helpers/round216-response.json",
+      "sha256": "e082e28bf1e1c3b0cce6e6cf4bd3b9ef2e0c16fbeb35781724c7ef3515f0fd71",
+      "bytes": 7809
+    },
+    {
+      "path": "helpers/round216-stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "helpers/round217-request.md",
+      "sha256": "caa599d40ee06bcb7989bf1503943feb60b10664e81e96b69ab38eb97835ded7",
+      "bytes": 2192
+    },
+    {
+      "path": "helpers/round217-response.json",
+      "sha256": "3d331acb37d702fd0aa241db9e1fdb39a1b87ead4f05e7feabfca1531f4a27e9",
+      "bytes": 6177
+    },
+    {
+      "path": "helpers/round217-stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "helpers/source-fingerprints.json",
+      "sha256": "09ec4baabb24df83e058116c15660a2021a4d3a110fa615f8516235e2fa71eab",
+      "bytes": 875
+    },
+    {
+      "path": "helpers/test_delivery_receipt_checks.py",
+      "sha256": "fc56efc8c22197e500701f04c7ff74a042b9efb8b7325d78dac62d8041f42ddf",
+      "bytes": 7587
+    },
+    {
+      "path": "helpers/tests-final.log.gz",
+      "sha256": "bd45b51ea7029d8707adad5659a790ed12eb58c062a87c3bec52e303606dcb67",
+      "bytes": 406
+    },
+    {
+      "path": "helpers/tests.log.gz",
+      "sha256": "65ca92feb045f9bb7167d3d4bae9c2c36477a331ae02f6668e08f1ef75bab700",
+      "bytes": 277
+    },
+    {
+      "path": "review215/emitter-final-ci-tail-review-r528-request.md",
+      "sha256": "c8bf953cb3e860d2309e0ce5ef461c339780d8abc23315c4ff74087f934ef021",
+      "bytes": 3057
+    },
+    {
+      "path": "review215/emitter-final-ci-tail-review-r528-response.json",
+      "sha256": "a34dc08cd87a6184190af9f4e8d2d8d3e5be3d1e77f0faccf6d24d891b2bd7b4",
+      "bytes": 8056
+    },
+    {
+      "path": "review215/emitter-final-ci-tail-review-r528-stderr.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "before/emitter-final-ci-run-r260.py",
+      "sha256": "7f6180b9d1e1f4bf0d7ff19caa3c3405b1dc44add66d5d7b37acd22af061bcd3",
+      "bytes": 4188
+    },
+    {
+      "path": "before/emitter-delivery-final-input-audit-r255.py",
+      "sha256": "9e99cb82fe26257a8c868a44b4df2711de29987ff057b5ef2dde57ab4455ee91",
+      "bytes": 4570
+    },
+    {
+      "path": "before/emitter-delivery-draft-r259.py",
+      "sha256": "c405409c3a8fbd5cb2b70352879e84841df38826e8b364e6f7bbc2ea9323b1f6",
+      "bytes": 11487
+    },
+    {
+      "path": "preliminary/emitter-delivery-profile-roster-audit-r529.json",
+      "sha256": "305e8271b47953b600c3feca6a5ed426855efd792bfcd979528672cab7161d37",
+      "bytes": 1209
+    },
+    {
+      "path": "preliminary/emitter-delivery-readonly-input-audit-r529.json",
+      "sha256": "52602ae0a500430ad2fa94d0018571a2fba0cf9f3d9e352f9bd83499578352d9",
+      "bytes": 72559
+    }
+  ]
+}

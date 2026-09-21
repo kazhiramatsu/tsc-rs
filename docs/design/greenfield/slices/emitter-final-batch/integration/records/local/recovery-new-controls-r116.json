@@ -1,0 +1,31 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r116-immutable/contracts",
+    "--exact",
+    "emitter_residual_audit::r107_declaration_comment_controls_match_complete_typescript_commands",
+    "emitter_residual_audit::r109_token_neighbours_match_complete_typescript_commands",
+    "emitter_residual_audit::r111_do_body_controls_match_complete_typescript_commands",
+    "emitter_residual_audit::r113_type_comment_controls_match_complete_typescript_commands",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T07:01:35.909577+00:00",
+  "head": "aea09cbaf2015a5eef7869fc4888042f9784bf3c",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/recovery-new-controls-r116-captures"
+  },
+  "exit": 101,
+  "seconds": 32.681,
+  "log_sha256": "c6d5cdcfa8d1fe2957540a123be0df0ae9cdecc16ea20f5012c9f5a28d69154a",
+  "log_bytes": 19494
+}

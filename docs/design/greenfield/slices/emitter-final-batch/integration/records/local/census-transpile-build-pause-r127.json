@@ -1,0 +1,18 @@
+{
+  "head": "d0edc1a74a6249318b19aa449ab2735983a8df46",
+  "census_binary": {
+    "census_pid": 56011,
+    "head": "67df86615a45f9595025064bcc12fde93063fedf",
+    "original_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask",
+    "original_inode": 120896494,
+    "original_device": 16777234,
+    "sha256": "8bdfd58da50dd32576998c8604c14acca42ec64ae812ed4590aa3eba442ab47d",
+    "retained_copy": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-census-r78-immutable/xtask",
+    "recorded_at": "2026-09-19T03:52:26.570523+00:00",
+    "process_text_mappings": "p56011\nftxt\ni120896494\nn/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask\nftxt\ni1152921500312573277\nn/usr/lib/dyld\n"
+  },
+  "purpose": "Check independent live KNOWN tables affected by parse admission; not performance qualification",
+  "paused_at": "2026-09-19T09:30:30.303326+00:00",
+  "resumed_at": "2026-09-19T09:30:35.204276+00:00",
+  "census_executable_preserved": true
+}

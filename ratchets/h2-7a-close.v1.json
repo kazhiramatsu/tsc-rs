@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-close.mjs",
-    "sha256": "1c99c11811d108b208e58b792c8565c6238bb1354d3094d6c82e28ffe106d20d"
+    "sha256": "9fd65ada95c7316b97eb43cbb6886aea5271ed32c1f0141044227e59fafea2e1"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-close.schema.json",
@@ -26,29 +26,29 @@
   "inputs": {
     "owner_inventory": {
       "path": "ratchets/h2-7a-owner-inventory.v1.json",
-      "sha256": "7d3288e329f447cf8c33ef6fe84f2ac017379c19255e721c036a3f2417c5bc6c",
-      "inventory_fingerprint_sha256": "9517d3c437f9e52d284ff1af59f83d3e359acc557440f95dd884e058af55eb81"
+      "sha256": "777a3fcefa1bb5e8ed8d372213c15dcff62adf64d251ef267211fed6ded782cf",
+      "inventory_fingerprint_sha256": "4869d9eaef8eb2ad715b4c86ca7c9d4d285897349cc2effb338561a33e85c023"
     },
     "witnesses": {
       "path": "ratchets/h2-7a-witnesses.v1.json",
-      "sha256": "312250793b598caf1de79cc97c2f02a1aa26c954b6cebff490dfdbf06799b3ed",
-      "witnesses_fingerprint_sha256": "cb9f4f3e816c2fcae6fc08eaef400fe0c5c8ed9190237df2169b73779fd045be",
+      "sha256": "06d508361f05e450a68399a657926948f0e380b565279de98112bbccf5d3cc6f",
+      "witnesses_fingerprint_sha256": "7a0d71b81f30252fd27d29f1d32b879df1d193c0b8536c0d6845d53dca21bf3b",
       "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad",
       "case_manifest_fingerprint": "81d5b13a639f5cc8e74bc82dea62aef8c2b54c70419cd1c575225a0ec24f3ab1"
     },
     "probe_traces": {
       "path": "ratchets/h2-7a-probe-traces.v1.json",
-      "sha256": "802979c4f03ede96372f2c85e0fc178e02f038f92d5104873109e46a777483bf",
-      "probe_traces_fingerprint_sha256": "dbc391922dfcc8b549fd80cd601c3c8d7efbbf576c399dca2813719ffcac7b4f"
+      "sha256": "80e2aff8f4472b1eb66ae34895cd4c369e04b1426411dca0f102fddf7477a06a",
+      "probe_traces_fingerprint_sha256": "6d8e4c6a9e677953de90d01f88b54eda9de8da217434c2497f777627383b6e29"
     },
     "printer_reprint": {
       "path": "ratchets/h2-7a-printer-reprint.v1.json",
-      "sha256": "b4ec52dffd2120df9026133c30ccc07725ee5f63b4d78b266db86af909f6439a",
-      "printer_reprint_fingerprint_sha256": "23ef291e49b5c4fb8c5773486cfbc40d0681f276063ed23629af9db034a97b13"
+      "sha256": "286230f6ae5c359a17c5747ce653dd3e6bc0cdb6a11e44f993a6aaff6dccac91",
+      "printer_reprint_fingerprint_sha256": "b984e595f61919cb946c439ceec2ac5832ce0899c5792d5358f04743b01837ec"
     },
     "candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "673c9e935830dd73f52893f17dda374c5d551b47059a9fa620550f4183c6bca8"
+      "sha256": "55f00c57e7226da1220b93773c106e1626526d2b2ffff8b9d4e5b0ef1d288c7a"
     }
   },
   "runtime_contract": {
@@ -206,27 +206,27 @@
       "retained_arms": [
         {
           "name": "DeclarationOnly",
-          "line": 231,
+          "line": 232,
           "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "BuilderSignature",
-          "line": 236,
+          "line": 237,
           "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "DeclarationMap",
-          "line": 251,
+          "line": 252,
           "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "BuildInfo",
-          "line": 255,
+          "line": 256,
           "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "ScriptOutputMissingJavaScriptPath",
-          "line": 261,
+          "line": 262,
           "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         }
       ],
@@ -238,8 +238,8 @@
       "retained_arms": [
         {
           "name": "composite",
-          "line": 151,
-          "span_sha256": "6989d50f565df3bc031a11a54a3031588953dc39a9c9f67175c0778cef7416eb"
+          "line": 165,
+          "span_sha256": "973bdb11aea8caca4c03f89bd4678717df3cc55da2646f82e7857c158892f805"
         }
       ],
       "sha256_at_h2_6c_close": "e4b1e42504e5af8fc49433b4e2bf2ee3255f6e40e264e38e7743f01170f7a1ae"
@@ -267,7 +267,7 @@
       "retained_arms": [
         {
           "name": "BundleDispatch",
-          "line": 1082,
+          "line": 1628,
           "span_sha256": "c7d7ad51c32eb24ea88af506d6dfb34b03ab5e6ad47b99e92687c6a8fb6912fa"
         }
       ]
@@ -297,5 +297,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "fc38c323fe98b08a919e7877200c6107fdcbb5b854747bc9621177feeaca63e4"
+  "close_fingerprint_sha256": "81951fb43412da9d581f360b16e8f5d13da3ee9832428f18fc88b3b3335db2a0"
 }

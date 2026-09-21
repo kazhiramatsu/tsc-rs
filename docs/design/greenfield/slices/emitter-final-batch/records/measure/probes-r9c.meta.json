@@ -1,0 +1,17 @@
+{
+  "name": "probes-r9c",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "$S/run-probes.sh"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T02:25:22Z",
+  "seconds": 194,
+  "exit": 0,
+  "log_sha256": "6f3184f5d93deedf9663cd34a39a2b86e5ee99494d53367170c40cef5b945f6d",
+  "log_bytes": 37
+}

@@ -1,0 +1,16 @@
+{
+  "purpose": "Claude read-only TypeScript diagnostic and symbol-order trace. Scripts retain original scratch paths; not compatibility qualification or a replacement for complete command fixtures.",
+  "base": "vendor/typescript-6.0.3/lib/typescript.js",
+  "base_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "instrumented_sha256": "65a44810f854aa57110df850cd530c7fd33a38f27146ca6bdea5973187842c6e",
+  "files": {
+    "instrumentation.patch": "b1f4031919f30449717955cd319c5f0fe3816c50fccb05494525b741afe8544f",
+    "probe2.js": "5acd7e130f9798b477f0dcd90f116368cdfd3054a7da99e5115efdafbfb86bb5",
+    "probe3.js": "e9f4ec6c5ded901c4b277f44c80b2d1348d604a1ca162475d2eb57fb931ad98a",
+    "probe4.js": "5fa681edc248ad901ef3e603280691eec4a2cb60e14dd63542acccdf8b06a3eb",
+    "run-nodiag.js": "f6b2e9a25056ee0083f49d7eca4550b2a479a9df96bb6d1f2078f812b2d6ef9b",
+    "run-variant.js": "bd300738955d39496489df3339baaa3e9489d1bf8a84db7d249a0382dec4ca01",
+    "run.js": "d6f380c3d85b47e2c3c9037f37e5ec2ebe73c5c28e2caf06873c85f65cacfe0d",
+    "variant.json": "0379a363905325a8572b1d10edee0082fe0b38f3c28ea61f3b2441af2db5f38a"
+  }
+}

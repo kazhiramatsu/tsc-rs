@@ -1,0 +1,11 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "candidate_diff_sha256": "49a4d91dce5a72a980479b23ce20e0a48d750e35b1004bcdd76cad3a43ed7043",
+  "prior_manifest_sha256": "f7019f307686d3292519ebc8d7b3852f0ca1f6daf04bb7cfb43af0fe9d5e0486",
+  "reason": "r440 preserved successful36completecommandproof but refused qualification after erroneous token_cursor::tests selector ran0tests. Actual module is token_cursor_tests. This retries only the missing guard.",
+  "label": "export-clause-resume-guard-r443",
+  "exit": 0,
+  "seconds": 0.4693280840292573,
+  "qualified_focused_commands_and_guard": true,
+  "qualified_final": false
+}

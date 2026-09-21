@@ -725,6 +725,8 @@ impl<'a> CheckerState<'a> {
         self.related_for_node_js(node, message, &args)
     }
 
+    /// tsrs-native: JS twin of related_for_node RelatedInfo adapter (sibling is tsrs-
+    /// native)
     pub(crate) fn related_for_node_js(
         &self,
         node: NodeId,

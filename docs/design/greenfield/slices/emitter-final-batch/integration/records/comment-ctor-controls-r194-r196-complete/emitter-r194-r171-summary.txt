@@ -1,0 +1,42 @@
+{
+  "captured_cases": 280,
+  "exact_twice": 264,
+  "failed_cases": 16,
+  "failure_shapes": {
+    "constructor-missing-decorated-parameter": 8,
+    "constructor-missing-parameter-property": 8
+  }
+}
+CASE emitter-r171-corpus-controls/es5/system/nocheck-false/remove-false/constructor-missing-decorated-parameter ERROR transformLegacyDecorators requires transformTypeScript current constructor with body for transform node 0:37344
+CASE emitter-r171-corpus-controls/es2015/commonjs/nocheck-false/remove-true/constructor-missing-parameter-property ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,MAAM,CAAC;IAAP;QAA6B,MAAC,GAAD,CAAC,CAAQ;IAAQ,CAAC;CAAA"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,MAAM,CAAC;CAAwC"}
+WRITE /project/out/main.js keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes', 'data_source_map_url_pos']
+NATIVE "use strict";
+class C {
+    constructor() {
+        this.x = x;
+    }
+}
+//# sourceMappingURL=main.js.map
+TS "use strict";
+class C {
+}
+//# sourceMappingURL=main.js.map
+WRITE /project/out/main.d.ts.map keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes']
+NATIVE {"version":3,"file":"main.d.ts","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":"AAAA,cAAM,CAAC;IAAsB,CAAC,EAAE,MAAM;gBAAT,CAAC,EAAE,MAAM;IAAK,CAAC,MAAC;CAAE"}
+TS {"version":3,"file":"main.d.ts","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":"AAAA,cAAM,CAAC;gBAAsB,CAAC,EAAE,MAAM;IAAK,CAAC,MAAC;CAAE"}
+WRITE /project/out/main.d.ts keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes', 'data_source_map_url_pos']
+NATIVE declare class C {
+    x: number;
+    constructor(x: number);
+    1: any;
+}
+//# sourceMappingURL=main.d.ts.map
+TS declare class C {
+    constructor(x: number);
+    1: any;
+}
+//# sourceMappingURL=main.d.ts.map

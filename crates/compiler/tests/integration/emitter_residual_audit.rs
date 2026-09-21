@@ -1,0 +1,582 @@
+//! Focused reproductions found by the integration audit; frozen original
+//! complete commands use the same comparator as the full output matrix.
+
+#[path = "h2_7d_original_corpus_shared.rs"]
+#[allow(dead_code)]
+mod original_corpus;
+
+#[test]
+fn anonymous_class_names_match_complete_original_commands() {
+    use serde_json::{json, Value};
+    use sha2::{Digest, Sha256};
+    let roster: Value = serde_json::from_str(include_str!(
+        "../fixtures/emitter-audit-class-regressions.json"
+    ))
+    .unwrap();
+    let rows = roster["cases"].as_array().unwrap();
+    assert_eq!(rows.len(), 24);
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let mut cases = Vec::new();
+    for (name, hash) in roster["fixtures"].as_object().unwrap() {
+        let bytes = std::fs::read(root.join(name)).unwrap();
+        assert_eq!(
+            format!("{:x}", Sha256::digest(&bytes)),
+            hash.as_str().unwrap()
+        );
+        let fixture: Value = serde_json::from_slice(&bytes).unwrap();
+        for row in rows.iter().filter(|row| row["fixture"] == *name) {
+            let matching: Vec<_> = fixture["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|case| case["case_id"] == row["case_id"])
+                .collect();
+            assert_eq!(matching.len(), 1);
+            cases.push(matching[0].clone());
+        }
+    }
+    assert_eq!(cases.len(), 24);
+    super::h2_7c_declaration_blocking::assert_cases_with_reporting(&json!({"cases":cases}), true);
+}
+
+#[test]
+fn javascript_regressions_match_complete_original_commands() {
+    let ids = [
+        "typescript-6.0.3/compiler/jsFileCompilationAwaitModifier.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeAliases.ts#default",
+    ];
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    assert_eq!(
+        original_corpus::assert_output_matrix_projection(&root, &ids).len(),
+        ids.len()
+    );
+}
+
+#[test]
+fn empty_block_comments_match_complete_typescript_commands() {
+    use serde_json::{json, Value};
+    let artifact: Value =
+        serde_json::from_slice(include_bytes!("../fixtures/empty-block-comments.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 72);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                super::h2_8a_import_helpers::capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("empty-block comments EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "empty-block comments SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete empty-block comment failures: {failures:?}"
+    );
+}
+
+#[test]
+fn historical_session_refusals_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-session-retirements.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    assert_eq!(artifact["cases"].as_array().unwrap().len(), 4);
+    super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+        &artifact,
+        true,
+        super::h2_8a_import_helpers::capture_complete_command,
+    );
+}
+
+#[path = "../support/complete_command_corpus.rs"]
+mod complete_command_corpus;
+
+#[test]
+fn jsdoc_original_command_matches_complete_typescript_observations() {
+    complete_command_corpus::assert_complete_commands_twice(include_bytes!(
+        "../fixtures/emitter-jsdoc-original-command.json"
+    ));
+}
+
+#[test]
+fn exported_destructuring_comments_match_complete_typescript_commands() {
+    use serde_json::{json, Value};
+    let artifacts = [
+        (
+            include_bytes!("../fixtures/export-destructuring-comments.json").as_slice(),
+            216,
+        ),
+        (
+            include_bytes!("../fixtures/export-destructuring-boundaries.json").as_slice(),
+            72,
+        ),
+        (
+            include_bytes!("../fixtures/export-destructuring-trailing.json").as_slice(),
+            48,
+        ),
+        (
+            include_bytes!("../fixtures/property-initializer-comment-ownership.json").as_slice(),
+            54,
+        ),
+        (
+            include_bytes!("../fixtures/system-destructuring-order.json").as_slice(),
+            198,
+        ),
+        (
+            include_bytes!("../fixtures/system-binding-boundaries.json").as_slice(),
+            168,
+        ),
+        (
+            include_bytes!("../fixtures/access-token-ranges.json").as_slice(),
+            168,
+        ),
+        (
+            include_bytes!("../fixtures/system-using-publication.json").as_slice(),
+            206,
+        ),
+    ]
+    .map(|(bytes, count)| {
+        let artifact: Value = serde_json::from_slice(bytes).unwrap();
+        assert_eq!(artifact["typescript"], "6.0.3");
+        assert_eq!(artifact["repetitions"], 2);
+        assert_eq!(artifact["cases"].as_array().unwrap().len(), count);
+        artifact
+    });
+    let cases: Vec<_> = artifacts
+        .iter()
+        .flat_map(|artifact| artifact["cases"].as_array().unwrap())
+        .collect();
+    assert_eq!(cases.len(), 1130);
+    let mut failures = Vec::new();
+    for case in &cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &json!({"cases": [case]}),
+                true,
+                super::h2_8a_import_helpers::capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("export destructuring comments EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "export destructuring comments SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "complete export destructuring command failures: {failures:?}"
+    );
+}
+
+#[test]
+fn system_binding_publication_matches_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/system-binding-publication.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 1044);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &serde_json::json!({"cases": [case]}),
+                true,
+                super::h2_8a_import_helpers::capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("System binding publication EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "System binding publication SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "System binding publication failures: {failures:?}"
+    );
+}
+
+#[test]
+fn heritage_factory_boundaries_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-heritage-boundaries.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 140);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn helper_diagnostic_boundaries_match_complete_typescript_commands() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-helper-probes.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 122);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn class_helper_gates_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-class-helper-gates.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 320);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r95_emitter_neighbours_match_complete_typescript_commands() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-r95-neighbours.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 288);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r95_wrapper_and_rest_neighbours_match_complete_typescript_commands() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-r95-wrapper-rest.json"))
+            .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 88);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r95_statement_callee_boundaries_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r95-call-boundaries.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 18);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn nested_parenthesis_recovery_matches_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-nested-paren-recovery.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 108);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn recovery_boundary_neighbours_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-recovery-boundaries.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 774);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r77_recovery_regressions_match_complete_typescript_commands() {
+    use sha2::{Digest, Sha256};
+    let roster: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/emitter-r77-regressions.json")).unwrap();
+    let rows = roster["cases"].as_array().unwrap();
+    assert_eq!(rows.len(), 70);
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let mut cases = Vec::new();
+    for (name, hash) in roster["fixtures"].as_object().unwrap() {
+        let bytes = std::fs::read(root.join(name)).unwrap();
+        assert_eq!(
+            format!("{:x}", Sha256::digest(&bytes)),
+            hash.as_str().unwrap()
+        );
+        let fixture: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        for row in rows.iter().filter(|row| row["fixture"] == *name) {
+            let matching: Vec<_> = fixture["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|case| case["case_id"] == row["case_id"])
+                .collect();
+            assert_eq!(matching.len(), 1);
+            cases.push(matching[0].clone());
+        }
+    }
+    assert_eq!(cases.len(), 70);
+    assert_recovery_boundary_commands(&cases);
+}
+
+fn assert_recovery_boundary_commands(cases: &[serde_json::Value]) {
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &serde_json::json!({"cases": [case]}),
+                true,
+                super::h2_8a_import_helpers::capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("Recovery boundary EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "Recovery boundary SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "Recovery boundary failures: {failures:?}"
+    );
+}
+
+#[test]
+fn await_flag_boundaries_match_complete_typescript_commands() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/await-flag-commands.json")).unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 690);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let result = std::panic::catch_unwind(|| {
+            super::h2_7c_declaration_blocking::assert_cases_with_command_inspection(
+                &serde_json::json!({"cases": [case]}),
+                true,
+                super::h2_8a_import_helpers::capture_complete_command,
+            );
+        });
+        if result.is_err() {
+            failures.push(id);
+        } else {
+            eprintln!("Await flag commands EXACT x2 {id}");
+        }
+    }
+    eprintln!(
+        "Await flag commands SUMMARY exact={} failed={} selected={}",
+        cases.len() - failures.len(),
+        failures.len(),
+        cases.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "Await flag commands failures: {failures:?}"
+    );
+}
+
+#[test]
+fn r104_object_rest_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r104-rest-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 10);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r107_declaration_comment_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r107-declaration-comments.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 3);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r109_token_neighbours_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r109-token-neighbours.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 58);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r113_type_comment_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r113-type-comment-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 9);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r111_do_body_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r111-do-body-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 4);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r117_type_comment_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r117-type-comment-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 12);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r119_type_comment_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r119-type-comment-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 24);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn variable_type_recovery_matches_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r129-variable-type-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 508);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn variable_comma_recovery_matches_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_str(include_str!(
+        "../fixtures/emitter-r145-variable-comma-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 145);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r167_corpus_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r167-corpus-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 176);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r168_corpus_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r168-corpus-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 1080);
+    assert_recovery_boundary_commands(cases);
+}
+
+#[test]
+fn r171_corpus_controls_match_complete_typescript_commands() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/emitter-r171-corpus-controls.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 344);
+    assert_recovery_boundary_commands(cases);
+}

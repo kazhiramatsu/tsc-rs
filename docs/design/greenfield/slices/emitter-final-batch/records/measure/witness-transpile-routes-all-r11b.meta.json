@@ -1,0 +1,20 @@
+{
+  "name": "witness-transpile-routes-all-r11b",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "python3",
+    "scripts/witness.py",
+    "transpile-routes",
+    "--all"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T08:11:29Z",
+  "seconds": 54,
+  "exit": 1,
+  "log_sha256": "6644244887ab3c669fb26d515660e393cd4adb6c271759afff40a5c60af2a227",
+  "log_bytes": 52000
+}

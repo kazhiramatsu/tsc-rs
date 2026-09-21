@@ -1247,6 +1247,4 @@ fn declaration_augmentation_allows_a_resolution_only_arbitrary_target() {
     assert!(memory_outcome.semantic_diagnostics().is_empty());
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

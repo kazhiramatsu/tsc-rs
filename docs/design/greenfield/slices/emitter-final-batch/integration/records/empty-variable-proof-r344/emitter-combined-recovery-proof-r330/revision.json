@@ -1,0 +1,9 @@
+{
+  "predecessor_wrapper_sha256": "a638e3825d01b4f47a43f4991057f388288e855705e09aaa3717c3322ffadea6",
+  "changes": [
+    "Pin additional guarded-parent source/test commit and exact ancestry",
+    "Build label only; all comparison, selection, and frozen evidence constraints unchanged"
+  ],
+  "reason": "Actual Opus178 implementation review",
+  "syntax_tests": "216 PASS"
+}

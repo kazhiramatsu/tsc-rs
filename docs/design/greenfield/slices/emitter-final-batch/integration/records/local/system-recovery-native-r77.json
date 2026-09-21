@@ -1,0 +1,43 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "--manifest-path",
+    "crates/compiler/Cargo.toml",
+    "--test",
+    "contracts",
+    "--",
+    "emitter_residual_audit::system_binding_publication_matches_complete_typescript_commands",
+    "emitter_residual_audit::await_flag_boundaries_match_complete_typescript_commands",
+    "emitter_residual_audit::exported_destructuring_comments_match_complete_typescript_commands",
+    "h2_8a_import_helpers::missing_await_recovery_matches_complete_typescript_observations",
+    "h2_8a_import_helpers::missing_declaration_recovery_matches_complete_typescript_observations",
+    "h2_8a_import_helpers::missing_declaration_effects_match_complete_typescript_observations",
+    "h2_8a_import_helpers::missing_declaration_scripts_match_complete_typescript_observations",
+    "h2_8a_import_helpers::missing_declaration_binding_matches_complete_typescript_observations",
+    "h2_8a_import_helpers::parameter_gap_recovery_matches_complete_typescript_observations",
+    "h2_8a_import_helpers::statement_gap_recovery_matches_complete_typescript_observations",
+    "h2_8a_import_helpers::context_recovery_matches_complete_typescript_observations",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T01:19:56.976578+00:00",
+  "head": "5e6a4cfa1545dfb878f971bfb254dce7c293730a",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 2820.676,
+  "log_sha256": "dbce792dd71ff364333d49010fb84ff5a0faab9d29cb0167c8dc85227553efdf",
+  "log_bytes": 573134
+}

@@ -1,0 +1,10 @@
+{
+  "lib": "\ninterface IArguments { length: number; callee: Function; }\ninterface Array<T> { length: number; [index: number]: T; }\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n",
+  "text": "export {};\n",
+  "modules": [
+    100,
+    101,
+    102,
+    199
+  ]
+}

@@ -1,0 +1,1950 @@
+{
+  "status": "Preparation only. Every owner declaration is extracted from the pinned TypeScript source, not inferred from a shared name. Choose scoped declarations for each row and recheck source/artifact hashes at final V before documentation qualification.",
+  "typescript_version": "6.0.3",
+  "source_path": "vendor/typescript-6.0.3/lib/_tsc.js",
+  "source_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+  "h1_existing_owner_bodies_verified": 46,
+  "rows": {
+    "E-ENTRY": [
+      "emit",
+      "emitWorker",
+      "handleNoEmitOptions",
+      "emitFiles"
+    ],
+    "E-PLAN-SCRIPT": [
+      "getSourceFilesToEmit",
+      "sourceFileMayBeEmitted",
+      "getOutputPathsFor",
+      "forEachEmittedFile"
+    ],
+    "E-RESOLVER-IDENTITY-G": [
+      "getParseTreeNode",
+      "getEmitResolver",
+      "createResolver"
+    ],
+    "E-METADATA-BASE": [
+      "getOriginalNode",
+      "setOriginalNode",
+      "mergeEmitNode",
+      "cloneNode",
+      "propagateChildFlags"
+    ],
+    "E-METADATA-G-CLASS": [
+      "getClassFacts",
+      "transformNamedEvaluation",
+      "getAssignedName",
+      "visitClassDeclarationInNewClassLexicalEnvironment"
+    ],
+    "E-CAPTURE-BASE": [
+      "transformES2017",
+      "transformNodes"
+    ],
+    "E-CHECKER-FACTS-BASE": [
+      "getEmitResolver",
+      "createResolver",
+      "getReturnTypeOfSignature"
+    ],
+    "E-NAMES-BASE": [
+      "generateName",
+      "generateNameCached",
+      "generateUniqueName"
+    ],
+    "E-NAMES-CLASS-G": [
+      "createClassTempVar",
+      "visitClassExpressionInNewClassLexicalEnvironment",
+      "getClassFacts"
+    ],
+    "E-HELPERS-IMPORT-STATE": [
+      "getExternalHelpersModuleName",
+      "createExternalHelpersImportDeclarationIfNeeded",
+      "emitHelpers",
+      "requestEmitHelper"
+    ],
+    "E-PRINTER-G": [
+      "emitParametersForArrow",
+      "emitNodeListItems",
+      "pipelineEmitWithComments"
+    ],
+    "E-COMMENT-SCOPE-H": [
+      "pipelineEmitWithComments",
+      "emitNodeWithComments",
+      "emitLeadingComments",
+      "emitTrailingComments"
+    ],
+    "E-MAPS": [
+      "createTextWriter",
+      "createSourceMapGenerator",
+      "emitNodeWithSourceMap"
+    ],
+    "E-OUTPUT-FUTURE": [
+      "emitFiles",
+      "writeFile",
+      "writeFileEnsuringDirectories"
+    ],
+    "E-RECOVERY-FACTS": [
+      "nextToken",
+      "parseList",
+      "parseDelimitedList",
+      "parseSemicolon"
+    ],
+    "E-COMMENTS-G": [
+      "pipelineEmitWithComments",
+      "emitLeadingComments",
+      "emitTrailingComments"
+    ],
+    "E-COMMENT-PHASES-A36": [
+      "emitModifiers",
+      "emitSpreadElement",
+      "emitSourceFileWorker"
+    ],
+    "E-COMMENT-ELLIPSIS-A37": [
+      "emitParameter",
+      "emitSpreadAssignment",
+      "emitJsxExpression"
+    ]
+  },
+  "candidates": {
+    "emit": [
+      {
+        "name": "emit",
+        "lexical_path": "<top>/createPrinter@116912:1/emit@117145:3",
+        "source_range": {
+          "start": {
+            "offset": 5497143,
+            "line": 117145,
+            "character": 3
+          },
+          "end": {
+            "offset": 5497284,
+            "line": 117148,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "086da35b8c0cf0bf5d2309978a019078dc447748e9d12585bbd1b0204dd591c5",
+        "body_range": {
+          "start": {
+            "offset": 5497182,
+            "line": 117145,
+            "character": 42
+          },
+          "end": {
+            "offset": 5497284,
+            "line": 117148,
+            "character": 4
+          }
+        },
+        "body_sha256": "4454cdaef559f138626e109c3217a0fe7d8ebeb79b3f86b7e231ab5f9c8159f8"
+      },
+      {
+        "name": "emit",
+        "lexical_path": "<top>/createProgram@122625:1/emit@123568:3",
+        "source_range": {
+          "start": {
+            "offset": 5752962,
+            "line": 123568,
+            "character": 3
+          },
+          "end": {
+            "offset": 5753630,
+            "line": 123591,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "e06eaff302902fe73c5b6628094f730a092f8130810b5e640cea2cbbc0f873f3",
+        "body_range": {
+          "start": {
+            "offset": 5753079,
+            "line": 123568,
+            "character": 120
+          },
+          "end": {
+            "offset": 5753630,
+            "line": 123591,
+            "character": 4
+          }
+        },
+        "body_sha256": "bcb9769a6c97c5df43e9ee4daed4e64a18a3d6ef35c910f1cf7fec3b85827dea"
+      },
+      {
+        "name": "emit",
+        "lexical_path": "<top>/createBuilderProgram@127315:1/emit@127554:3",
+        "source_range": {
+          "start": {
+            "offset": 5939064,
+            "line": 127554,
+            "character": 3
+          },
+          "end": {
+            "offset": 5941009,
+            "line": 127609,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "a0a441247b5c30f90fd6f39808e800297d3d5bb1f685db5e1ecbd945afd43c49",
+        "body_range": {
+          "start": {
+            "offset": 5939165,
+            "line": 127554,
+            "character": 104
+          },
+          "end": {
+            "offset": 5941009,
+            "line": 127609,
+            "character": 4
+          }
+        },
+        "body_sha256": "f2256bfc78e32e8d926999338a2ee41847c2d8925448453644ea5b81252d0694"
+      },
+      {
+        "name": "emit",
+        "lexical_path": "<top>/createRedirectedBuilderProgram@127896:1/emit@127911:11",
+        "source_range": {
+          "start": {
+            "offset": 5955289,
+            "line": 127911,
+            "character": 11
+          },
+          "end": {
+            "offset": 5955462,
+            "line": 127911,
+            "character": 184
+          }
+        },
+        "declaration_sha256": "fc547b3ba60be32367b74d5917f615a078d9d95854b691584c9dd0f2bad61e75",
+        "body_range": {
+          "start": {
+            "offset": 5955369,
+            "line": 127911,
+            "character": 91
+          },
+          "end": {
+            "offset": 5955462,
+            "line": 127911,
+            "character": 184
+          }
+        },
+        "body_sha256": "e31e3c352a373103f960ca587215baf54b3f80bced50eb74e0acc65746e13709"
+      },
+      {
+        "name": "emit",
+        "lexical_path": "<top>/createBuildOrUpdateInvalidedProject@130875:1/emit@130917:11",
+        "source_range": {
+          "start": {
+            "offset": 6095525,
+            "line": 130917,
+            "character": 11
+          },
+          "end": {
+            "offset": 6096138,
+            "line": 130928,
+            "character": 6
+          }
+        },
+        "declaration_sha256": "1c6e802fcfa56d236e677cdaac8abf3d6b086dda83e4f981d5d4235d68816c21",
+        "body_range": {
+          "start": {
+            "offset": 6095616,
+            "line": 130917,
+            "character": 102
+          },
+          "end": {
+            "offset": 6096138,
+            "line": 130928,
+            "character": 6
+          }
+        },
+        "body_sha256": "d0ac728de2a1f830b637c8e6dd263aed27be51a8fc7fedd7ddebc95417c6e931"
+      },
+      {
+        "name": "emit",
+        "lexical_path": "<top>/createBuildOrUpdateInvalidedProject@130875:1/emit@130984:3",
+        "source_range": {
+          "start": {
+            "offset": 6098401,
+            "line": 130984,
+            "character": 3
+          },
+          "end": {
+            "offset": 6101925,
+            "line": 131059,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "79c7ab1378743c96a4438a4e39ffeb2888888daa45dc53caead868b255b65ce4",
+        "body_range": {
+          "start": {
+            "offset": 6098473,
+            "line": 130984,
+            "character": 75
+          },
+          "end": {
+            "offset": 6101925,
+            "line": 131059,
+            "character": 4
+          }
+        },
+        "body_sha256": "a6bae109b785043854a8df736511cc33873e2c1fb04c0fb81d5e43f8eaaeef16"
+      }
+    ],
+    "emitWorker": [
+      {
+        "name": "emitWorker",
+        "lexical_path": "<top>/transformGenerators@108119:1/emitWorker@109671:3",
+        "source_range": {
+          "start": {
+            "offset": 5194208,
+            "line": 109671,
+            "character": 3
+          },
+          "end": {
+            "offset": 5194635,
+            "line": 109684,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "708b6b86fe08a7ff26086920d3ec5ccbca7b74352bfe667efc0919f230250462",
+        "body_range": {
+          "start": {
+            "offset": 5194250,
+            "line": 109671,
+            "character": 45
+          },
+          "end": {
+            "offset": 5194635,
+            "line": 109684,
+            "character": 4
+          }
+        },
+        "body_sha256": "3d7d87bf0585a23e7e21e5eb981eda6df550b2865064abdcbae6b23c6c658b5c"
+      },
+      {
+        "name": "emitWorker",
+        "lexical_path": "<top>/createProgram@122625:1/emitWorker@123595:3",
+        "source_range": {
+          "start": {
+            "offset": 5753744,
+            "line": 123595,
+            "character": 3
+          },
+          "end": {
+            "offset": 5754781,
+            "line": 123624,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "50d637fb77d3c7c0d85ddcbe6199358dfad8d32bb22c819699aa3c3793c93b68",
+        "body_range": {
+          "start": {
+            "offset": 5753883,
+            "line": 123595,
+            "character": 142
+          },
+          "end": {
+            "offset": 5754781,
+            "line": 123624,
+            "character": 4
+          }
+        },
+        "body_sha256": "138af6a036a33e225246c7633a5970d9b9245ddc3c4be64242c73c5cb207df63"
+      }
+    ],
+    "handleNoEmitOptions": [
+      {
+        "name": "handleNoEmitOptions",
+        "lexical_path": "<top>/handleNoEmitOptions@125636:1",
+        "source_range": {
+          "start": {
+            "offset": 5850700,
+            "line": 125636,
+            "character": 1
+          },
+          "end": {
+            "offset": 5851882,
+            "line": 125663,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "99cbd5c28bacd5be3620af28584c7fcac63a1a58e4a9e8894985a4a699bd9526",
+        "body_range": {
+          "start": {
+            "offset": 5850781,
+            "line": 125636,
+            "character": 82
+          },
+          "end": {
+            "offset": 5851882,
+            "line": 125663,
+            "character": 2
+          }
+        },
+        "body_sha256": "4ba6dd93ac97da94f79ef4c5b3929cce1128b7bbf4c78ba28e11523ad3544ba5"
+      }
+    ],
+    "emitFiles": [
+      {
+        "name": "emitFiles",
+        "lexical_path": "<top>/emitFiles@116530:1",
+        "source_range": {
+          "start": {
+            "offset": 5474283,
+            "line": 116530,
+            "character": 1
+          },
+          "end": {
+            "offset": 5487757,
+            "line": 116858,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "79c6c17f472618f7cbf09a9c24a5487d8468ac7a7f584c0bb3def7fe6375e46d",
+        "body_range": {
+          "start": {
+            "offset": 5474439,
+            "line": 116530,
+            "character": 157
+          },
+          "end": {
+            "offset": 5487757,
+            "line": 116858,
+            "character": 2
+          }
+        },
+        "body_sha256": "dc3a3df8e4e7b73d78b609cc612fa58592db762184a6afc41ecc8b9b5b505b18"
+      }
+    ],
+    "getSourceFilesToEmit": [
+      {
+        "name": "getSourceFilesToEmit",
+        "lexical_path": "<top>/getSourceFilesToEmit@16600:1",
+        "source_range": {
+          "start": {
+            "offset": 1087337,
+            "line": 16600,
+            "character": 1
+          },
+          "end": {
+            "offset": 1088074,
+            "line": 16616,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "91a089a11e3db88786e78f41d58d68cb4432c5d1fe1a8933062b4576ccf23afd",
+        "body_range": {
+          "start": {
+            "offset": 1087405,
+            "line": 16600,
+            "character": 69
+          },
+          "end": {
+            "offset": 1088074,
+            "line": 16616,
+            "character": 2
+          }
+        },
+        "body_sha256": "3cbc21f08a0aa7e1d18f71ac620fa5991bfc6c34884fef968efd2edcd71017f6"
+      }
+    ],
+    "sourceFileMayBeEmitted": [
+      {
+        "name": "sourceFileMayBeEmitted",
+        "lexical_path": "<top>/sourceFileMayBeEmitted@16617:1",
+        "source_range": {
+          "start": {
+            "offset": 1088075,
+            "line": 16617,
+            "character": 1
+          },
+          "end": {
+            "offset": 1089252,
+            "line": 16634,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "690c9dc87ed5045e0abbd1ce604b5de515248569d9f8c25d476c3a9a54589095",
+        "body_range": {
+          "start": {
+            "offset": 1088139,
+            "line": 16617,
+            "character": 65
+          },
+          "end": {
+            "offset": 1089252,
+            "line": 16634,
+            "character": 2
+          }
+        },
+        "body_sha256": "670a5d1398bde34a723a3b52187f3265a5ea45e60d10e6f6c33a3e030dda7f8a"
+      }
+    ],
+    "getOutputPathsFor": [
+      {
+        "name": "getOutputPathsFor",
+        "lexical_path": "<top>/getOutputPathsFor@116373:1",
+        "source_range": {
+          "start": {
+            "offset": 5465676,
+            "line": 116373,
+            "character": 1
+          },
+          "end": {
+            "offset": 5466907,
+            "line": 116387,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "779ffeea2c3a08b826f4ec76c59446785080b38a4ddb06b27ee3fc7d0dda52da",
+        "body_range": {
+          "start": {
+            "offset": 5465736,
+            "line": 116373,
+            "character": 61
+          },
+          "end": {
+            "offset": 5466907,
+            "line": 116387,
+            "character": 2
+          }
+        },
+        "body_sha256": "be94599c57dbdf08bcef7a5880eedfd02e2cf7c942d6a53d5bc7f946e00e59db"
+      }
+    ],
+    "forEachEmittedFile": [
+      {
+        "name": "forEachEmittedFile",
+        "lexical_path": "<top>/forEachEmittedFile@116312:1",
+        "source_range": {
+          "start": {
+            "offset": 5463032,
+            "line": 116312,
+            "character": 1
+          },
+          "end": {
+            "offset": 5464107,
+            "line": 116341,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "a404863b3f2daf2ef54fbd8ea55304a6232da09da9a721ac5b7912f890b43b5b",
+        "body_range": {
+          "start": {
+            "offset": 5463160,
+            "line": 116312,
+            "character": 129
+          },
+          "end": {
+            "offset": 5464107,
+            "line": 116341,
+            "character": 2
+          }
+        },
+        "body_sha256": "ab4b37d5331d2fc44795f5b00b7667f5e38022dda0a627d18b809b3933661be5"
+      }
+    ],
+    "getParseTreeNode": [
+      {
+        "name": "getParseTreeNode",
+        "lexical_path": "<top>/getParseTreeNode@11426:1",
+        "source_range": {
+          "start": {
+            "offset": 899169,
+            "line": 11426,
+            "character": 1
+          },
+          "end": {
+            "offset": 899453,
+            "line": 11437,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "88060e5fdb8f12e4006af67b9b59673798554cdfd2ee15d8b777c362c7aec936",
+        "body_range": {
+          "start": {
+            "offset": 899211,
+            "line": 11426,
+            "character": 43
+          },
+          "end": {
+            "offset": 899453,
+            "line": 11437,
+            "character": 2
+          }
+        },
+        "body_sha256": "347b711bf2db980330937e9915dc46e85a9b022065562b634b9aeb75fda0c74e"
+      }
+    ],
+    "getEmitResolver": [
+      {
+        "name": "getEmitResolver",
+        "lexical_path": "<top>/createTypeChecker@46438:1/getEmitResolver@47561:3",
+        "source_range": {
+          "start": {
+            "offset": 2377077,
+            "line": 47561,
+            "character": 3
+          },
+          "end": {
+            "offset": 2377255,
+            "line": 47564,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "fc8adce2aab393391f72fc8d8c9c4467405ab4332829742a01a8b54f7ad05c21",
+        "body_range": {
+          "start": {
+            "offset": 2377151,
+            "line": 47561,
+            "character": 77
+          },
+          "end": {
+            "offset": 2377255,
+            "line": 47564,
+            "character": 4
+          }
+        },
+        "body_sha256": "e18865f430be5effab98b76fd1860426ce2c047e58326a3ecc9f52b26991ecaa"
+      },
+      {
+        "name": "getEmitResolver",
+        "lexical_path": "<top>/transformNodes@115977:1/getEmitResolver@116001:22",
+        "source_range": {
+          "start": {
+            "offset": 5449147,
+            "line": 116001,
+            "character": 22
+          },
+          "end": {
+            "offset": 5449161,
+            "line": 116001,
+            "character": 36
+          }
+        },
+        "declaration_sha256": "88c10811522a20eccffd8d1ad4ffb8b53fd9476ec0430c61fffb1b9270e5b0b0",
+        "body_range": {
+          "start": {
+            "offset": 5449153,
+            "line": 116001,
+            "character": 28
+          },
+          "end": {
+            "offset": 5449161,
+            "line": 116001,
+            "character": 36
+          }
+        },
+        "body_sha256": "439c3635079b57a69aff22860369462fb9330c300fa4dbc70426f087192e369d"
+      }
+    ],
+    "createResolver": [
+      {
+        "name": "createResolver",
+        "lexical_path": "<top>/createTypeChecker@46438:1/createResolver@88545:3",
+        "source_range": {
+          "start": {
+            "offset": 4335848,
+            "line": 88545,
+            "character": 3
+          },
+          "end": {
+            "offset": 4343838,
+            "line": 88718,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "211f52056b6478c78a9a44ca50f7b76a9f2aca78eb450a553e5d5e2fda47ce19",
+        "body_range": {
+          "start": {
+            "offset": 4335874,
+            "line": 88545,
+            "character": 29
+          },
+          "end": {
+            "offset": 4343838,
+            "line": 88718,
+            "character": 4
+          }
+        },
+        "body_sha256": "56a0d47f897fcf258d6e316a00f9dc5e7d18a3ed1936033ab7c9350f623b3df2"
+      }
+    ],
+    "getOriginalNode": [
+      {
+        "name": "getOriginalNode",
+        "lexical_path": "<top>/getOriginalNode@11400:1",
+        "source_range": {
+          "start": {
+            "offset": 898617,
+            "line": 11400,
+            "character": 1
+          },
+          "end": {
+            "offset": 898842,
+            "line": 11410,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "6badb23618e3a5e148a45f29b741ff3dc8cc2ebe2bbabae5367d2db3f8a3ece2",
+        "body_range": {
+          "start": {
+            "offset": 898658,
+            "line": 11400,
+            "character": 42
+          },
+          "end": {
+            "offset": 898842,
+            "line": 11410,
+            "character": 2
+          }
+        },
+        "body_sha256": "b934db3d55bd0eb6bebca82dce97b8f693ad055812d7abafa3340e0cfed74a5a"
+      }
+    ],
+    "setOriginalNode": [
+      {
+        "name": "setOriginalNode",
+        "lexical_path": "<top>/setOriginalNode@25208:1",
+        "source_range": {
+          "start": {
+            "offset": 1463166,
+            "line": 25208,
+            "character": 1
+          },
+          "end": {
+            "offset": 1463439,
+            "line": 25217,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "7e220ce2d2db27797863de86e1e468291442228ed9b1d89820b835bace29441b",
+        "body_range": {
+          "start": {
+            "offset": 1463207,
+            "line": 25208,
+            "character": 42
+          },
+          "end": {
+            "offset": 1463439,
+            "line": 25217,
+            "character": 2
+          }
+        },
+        "body_sha256": "9b8a0d666f6c7c78e82dc6c54f02ee222d838717f6afe36bee0651879cedee8e"
+      }
+    ],
+    "mergeEmitNode": [
+      {
+        "name": "mergeEmitNode",
+        "lexical_path": "<top>/mergeEmitNode@25218:1",
+        "source_range": {
+          "start": {
+            "offset": 1463440,
+            "line": 25218,
+            "character": 1
+          },
+          "end": {
+            "offset": 1465090,
+            "line": 25277,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "ca45e7c23ed71f3b5b34953b9e9c40b886b8774f983a4b2ea7024c2d2ca036d7",
+        "body_range": {
+          "start": {
+            "offset": 1463493,
+            "line": 25218,
+            "character": 54
+          },
+          "end": {
+            "offset": 1465090,
+            "line": 25277,
+            "character": 2
+          }
+        },
+        "body_sha256": "fbb071893c01e70474bcfa9e2e06d2fa7ec542c7fc5009b5c29824d2a2ef6254"
+      }
+    ],
+    "cloneNode": [
+      {
+        "name": "cloneNode",
+        "lexical_path": "<top>/createNodeFactory@20804:1/cloneNode@24436:3",
+        "source_range": {
+          "start": {
+            "offset": 1428813,
+            "line": 24436,
+            "character": 3
+          },
+          "end": {
+            "offset": 1429755,
+            "line": 24466,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "04e6cc6ac32172f263e59d0ef1b89774f0e310425f3f99b6923286b5a3be59a7",
+        "body_range": {
+          "start": {
+            "offset": 1428838,
+            "line": 24436,
+            "character": 28
+          },
+          "end": {
+            "offset": 1429755,
+            "line": 24466,
+            "character": 4
+          }
+        },
+        "body_sha256": "d2da400839203fb9edb46bba233688560f9e7a6146cd330d0c34b798f4bb03dd"
+      }
+    ],
+    "propagateChildFlags": [
+      {
+        "name": "propagateChildFlags",
+        "lexical_path": "<top>/propagateChildFlags@25110:1",
+        "source_range": {
+          "start": {
+            "offset": 1459067,
+            "line": 25110,
+            "character": 1
+          },
+          "end": {
+            "offset": 1459373,
+            "line": 25114,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "16b9f8f076f47d0a9688611b5ab136c2e45b8efdd458316fca63de46f88d90e2",
+        "body_range": {
+          "start": {
+            "offset": 1459103,
+            "line": 25110,
+            "character": 37
+          },
+          "end": {
+            "offset": 1459373,
+            "line": 25114,
+            "character": 2
+          }
+        },
+        "body_sha256": "76bc9cd89a2ee3750e99c51c91ef4566f5f4f9ebb8760179e4de4593cb09c860"
+      }
+    ],
+    "getClassFacts": [
+      {
+        "name": "getClassFacts",
+        "lexical_path": "<top>/transformTypeScript@94036:1/getClassFacts@94410:3",
+        "source_range": {
+          "start": {
+            "offset": 4602436,
+            "line": 94410,
+            "character": 3
+          },
+          "end": {
+            "offset": 4603377,
+            "line": 94427,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "2810a156e92d234d6c7797ed07f1c7b79774d7e242b76593f0bcd8dafba79a96",
+        "body_range": {
+          "start": {
+            "offset": 4602465,
+            "line": 94410,
+            "character": 32
+          },
+          "end": {
+            "offset": 4603377,
+            "line": 94427,
+            "character": 4
+          }
+        },
+        "body_sha256": "76c1d8d2a6ffe0e3e00ffb36ed62333d0fed487340faa27038cdca031975b6ee"
+      },
+      {
+        "name": "getClassFacts",
+        "lexical_path": "<top>/transformClassFields@95852:1/getClassFacts@96844:3",
+        "source_range": {
+          "start": {
+            "offset": 4697935,
+            "line": 96844,
+            "character": 3
+          },
+          "end": {
+            "offset": 4701278,
+            "line": 96898,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "6ee154ed4d251b5b480ffc84c1cf87c1a365a662eb60af07cee2221ca2d828f0",
+        "body_range": {
+          "start": {
+            "offset": 4697964,
+            "line": 96844,
+            "character": 32
+          },
+          "end": {
+            "offset": 4701278,
+            "line": 96898,
+            "character": 4
+          }
+        },
+        "body_sha256": "aeeb8f73d495db6f3c30cd2c9a8cbc60b358b3326af76976a2c2a366d05059c0"
+      }
+    ],
+    "transformNamedEvaluation": [
+      {
+        "name": "transformNamedEvaluation",
+        "lexical_path": "<top>/transformNamedEvaluation@93950:1",
+        "source_range": {
+          "start": {
+            "offset": 4584597,
+            "line": 93950,
+            "character": 1
+          },
+          "end": {
+            "offset": 4585943,
+            "line": 93969,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "38695860c0723c03055fbb0e018351658b08af36731adfc55e51bf154500f9f1",
+        "body_range": {
+          "start": {
+            "offset": 4584686,
+            "line": 93950,
+            "character": 90
+          },
+          "end": {
+            "offset": 4585943,
+            "line": 93969,
+            "character": 2
+          }
+        },
+        "body_sha256": "7d3ac24c5cf2dae915a1c722c47252f21dcdd0f9a5216964962f82ff51879883"
+      }
+    ],
+    "getAssignedName": [
+      {
+        "name": "getAssignedName",
+        "lexical_path": "<top>/getAssignedName@11566:1",
+        "source_range": {
+          "start": {
+            "offset": 904171,
+            "line": 11566,
+            "character": 1
+          },
+          "end": {
+            "offset": 904771,
+            "line": 11580,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "098e744c79840928112212c5908010bc68ea3cdb225d4b1de60bb74dd2c517a0",
+        "body_range": {
+          "start": {
+            "offset": 904202,
+            "line": 11566,
+            "character": 32
+          },
+          "end": {
+            "offset": 904771,
+            "line": 11580,
+            "character": 2
+          }
+        },
+        "body_sha256": "8cb43bc114c1c0aebb88ad1daae3908f25a3c4698298d682fdb98224709ab176"
+      }
+    ],
+    "visitClassDeclarationInNewClassLexicalEnvironment": [
+      {
+        "name": "visitClassDeclarationInNewClassLexicalEnvironment",
+        "lexical_path": "<top>/transformClassFields@95852:1/visitClassDeclarationInNewClassLexicalEnvironment@96971:3",
+        "source_range": {
+          "start": {
+            "offset": 4704512,
+            "line": 96971,
+            "character": 3
+          },
+          "end": {
+            "offset": 4707780,
+            "line": 97045,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "5d93d79fc1ea6be772cb5d2617fc3d134edaad9c4980d3b2d7418ffe57b85ebf",
+        "body_range": {
+          "start": {
+            "offset": 4704584,
+            "line": 96971,
+            "character": 75
+          },
+          "end": {
+            "offset": 4707780,
+            "line": 97045,
+            "character": 4
+          }
+        },
+        "body_sha256": "2e7d127c59a1cc65682da77f29b1d32613204706686b8e9936a746e81afd82c4"
+      }
+    ],
+    "transformES2017": [
+      {
+        "name": "transformES2017",
+        "lexical_path": "<top>/transformES2017@100810:1",
+        "source_range": {
+          "start": {
+            "offset": 4867348,
+            "line": 100810,
+            "character": 1
+          },
+          "end": {
+            "offset": 4897769,
+            "line": 101560,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "e84500a5aa5de018fa6f8b03dfc11e57847dda2c4522ec30120f94cb2e7ed189",
+        "body_range": {
+          "start": {
+            "offset": 4867382,
+            "line": 100810,
+            "character": 35
+          },
+          "end": {
+            "offset": 4897769,
+            "line": 101560,
+            "character": 2
+          }
+        },
+        "body_sha256": "bfa8bab06b8a4a23840ff680cda6ca6f14d34426f090621c99b74470e0a09503"
+      }
+    ],
+    "transformNodes": [
+      {
+        "name": "transformNodes",
+        "lexical_path": "<top>/transformNodes@115977:1",
+        "source_range": {
+          "start": {
+            "offset": 5448125,
+            "line": 115977,
+            "character": 1
+          },
+          "end": {
+            "offset": 5461918,
+            "line": 116276,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "f649f4b5477746d2b6bd0aef30ee2ec098679aa842f23e1e84055566d921d2cc",
+        "body_range": {
+          "start": {
+            "offset": 5448220,
+            "line": 115977,
+            "character": 96
+          },
+          "end": {
+            "offset": 5461918,
+            "line": 116276,
+            "character": 2
+          }
+        },
+        "body_sha256": "3115c907f6d6ed5217cf1e2a9eda8dfab77fcd6bb5472926670c686d0e85cf06"
+      }
+    ],
+    "getReturnTypeOfSignature": [
+      {
+        "name": "getReturnTypeOfSignature",
+        "lexical_path": "<top>/createTypeChecker@46438:1/getReturnTypeOfSignature@59810:3",
+        "source_range": {
+          "start": {
+            "offset": 2969459,
+            "line": 59810,
+            "character": 3
+          },
+          "end": {
+            "offset": 2971437,
+            "line": 59841,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "df557ad68b6debdc0429118c13f768427d8581a43db662b4536c5c7857152301",
+        "body_range": {
+          "start": {
+            "offset": 2969504,
+            "line": 59810,
+            "character": 48
+          },
+          "end": {
+            "offset": 2971437,
+            "line": 59841,
+            "character": 4
+          }
+        },
+        "body_sha256": "35e1cbe7a9af04f018be187f8b9fb051acb73f2e832d86af03753c9a5412d935"
+      }
+    ],
+    "generateName": [
+      {
+        "name": "generateName",
+        "lexical_path": "<top>/createPrinter@116912:1/generateName@120624:3",
+        "source_range": {
+          "start": {
+            "offset": 5623739,
+            "line": 120624,
+            "character": 3
+          },
+          "end": {
+            "offset": 5624241,
+            "line": 120632,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "fecbbc798982be388f23048a085499b67d9cdb27c57aa91b3a1b80789e7b6e43",
+        "body_range": {
+          "start": {
+            "offset": 5623767,
+            "line": 120624,
+            "character": 31
+          },
+          "end": {
+            "offset": 5624241,
+            "line": 120632,
+            "character": 4
+          }
+        },
+        "body_sha256": "6cbe3f44410b19c815c821b3c608115d47dbdd5a486641a17caf915650ee7b43"
+      }
+    ],
+    "generateNameCached": [
+      {
+        "name": "generateNameCached",
+        "lexical_path": "<top>/createPrinter@116912:1/generateNameCached@120633:3",
+        "source_range": {
+          "start": {
+            "offset": 5624244,
+            "line": 120633,
+            "character": 3
+          },
+          "end": {
+            "offset": 5624630,
+            "line": 120637,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "976f864ebc31d76318dc766366075a68583abc7b4ebc485ff1b6cb6bf6300eb8",
+        "body_range": {
+          "start": {
+            "offset": 5624314,
+            "line": 120633,
+            "character": 73
+          },
+          "end": {
+            "offset": 5624630,
+            "line": 120637,
+            "character": 4
+          }
+        },
+        "body_sha256": "ce4c1fdbb19128eb45c2dbb1485b494518964d8a3690b0144a8d96bdae68096f"
+      }
+    ],
+    "generateUniqueName": [],
+    "createClassTempVar": [
+      {
+        "name": "createClassTempVar",
+        "lexical_path": "<top>/transformClassFields@95852:1/visitClassExpressionInNewClassLexicalEnvironment@97049:3/createClassTempVar@97056:5",
+        "source_range": {
+          "start": {
+            "offset": 4708439,
+            "line": 97056,
+            "character": 5
+          },
+          "end": {
+            "offset": 4709001,
+            "line": 97068,
+            "character": 6
+          }
+        },
+        "declaration_sha256": "770f003e666ad9ef409758dabc3bcb138ed0bfc88c98fbd11cff2ace7ceeab73",
+        "body_range": {
+          "start": {
+            "offset": 4708469,
+            "line": 97056,
+            "character": 35
+          },
+          "end": {
+            "offset": 4709001,
+            "line": 97068,
+            "character": 6
+          }
+        },
+        "body_sha256": "e65e0534cb306ccbe154bd0db03763d4514408c8d71e071c330fb34bf582b4de"
+      }
+    ],
+    "visitClassExpressionInNewClassLexicalEnvironment": [
+      {
+        "name": "visitClassExpressionInNewClassLexicalEnvironment",
+        "lexical_path": "<top>/transformClassFields@95852:1/visitClassExpressionInNewClassLexicalEnvironment@97049:3",
+        "source_range": {
+          "start": {
+            "offset": 4707929,
+            "line": 97049,
+            "character": 3
+          },
+          "end": {
+            "offset": 4712140,
+            "line": 97129,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "14b8c963902b758dd9fbbc2809669c02a1e07b8f9c760e44d8754bb9d8851921",
+        "body_range": {
+          "start": {
+            "offset": 4708000,
+            "line": 97049,
+            "character": 74
+          },
+          "end": {
+            "offset": 4712140,
+            "line": 97129,
+            "character": 4
+          }
+        },
+        "body_sha256": "0810e08b27e36844ab00c6fa28d8931dc698d8b380bc5a540cd988f16e98573b"
+      }
+    ],
+    "getExternalHelpersModuleName": [
+      {
+        "name": "getExternalHelpersModuleName",
+        "lexical_path": "<top>/getExternalHelpersModuleName@27603:1",
+        "source_range": {
+          "start": {
+            "offset": 1549309,
+            "line": 27603,
+            "character": 1
+          },
+          "end": {
+            "offset": 1549522,
+            "line": 27607,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "6db2d2a14317b4e265b68983f6f12acdc48d0ac5ea0fa100d473c3d4da726414",
+        "body_range": {
+          "start": {
+            "offset": 1549353,
+            "line": 27603,
+            "character": 45
+          },
+          "end": {
+            "offset": 1549522,
+            "line": 27607,
+            "character": 2
+          }
+        },
+        "body_sha256": "03543704f8387b15bed91229e5febb1141c27b73d2a389a6868eef69de57e180"
+      }
+    ],
+    "createExternalHelpersImportDeclarationIfNeeded": [
+      {
+        "name": "createExternalHelpersImportDeclarationIfNeeded",
+        "lexical_path": "<top>/createExternalHelpersImportDeclarationIfNeeded@27613:1",
+        "source_range": {
+          "start": {
+            "offset": 1549783,
+            "line": 27613,
+            "character": 1
+          },
+          "end": {
+            "offset": 1552942,
+            "line": 27680,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "3a3e691d18793ccdbbe1034d74596457f70f9273b144fb1b40e6aaf0a1d49079",
+        "body_range": {
+          "start": {
+            "offset": 1549959,
+            "line": 27613,
+            "character": 177
+          },
+          "end": {
+            "offset": 1552942,
+            "line": 27680,
+            "character": 2
+          }
+        },
+        "body_sha256": "a43330a4c24a4052448136e0475492ec409428c37cf6b90f0de0bf83f99f3b98"
+      }
+    ],
+    "emitHelpers": [
+      {
+        "name": "emitHelpers",
+        "lexical_path": "<top>/createPrinter@116912:1/emitHelpers@117719:3",
+        "source_range": {
+          "start": {
+            "offset": 5519830,
+            "line": 117719,
+            "character": 3
+          },
+          "end": {
+            "offset": 5521188,
+            "line": 117755,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "5982791e77eaa10fd63b79e96a03d877bb9bcb537964f8b8c54e1a4a5ac606ad",
+        "body_range": {
+          "start": {
+            "offset": 5519857,
+            "line": 117719,
+            "character": 30
+          },
+          "end": {
+            "offset": 5521188,
+            "line": 117755,
+            "character": 4
+          }
+        },
+        "body_sha256": "dfba569ce26e15df64ad4080ad00288ad29fdf757e17fcd0c3e6756f99500e0d"
+      }
+    ],
+    "requestEmitHelper": [
+      {
+        "name": "requestEmitHelper",
+        "lexical_path": "<top>/transformNodes@115977:1/requestEmitHelper@116243:3",
+        "source_range": {
+          "start": {
+            "offset": 5460507,
+            "line": 116243,
+            "character": 3
+          },
+          "end": {
+            "offset": 5461029,
+            "line": 116253,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "872c2c7f3556976f70dbbeb8233ac1592c0b97b6ca0fab8d6441131a1fc50e3f",
+        "body_range": {
+          "start": {
+            "offset": 5460542,
+            "line": 116243,
+            "character": 38
+          },
+          "end": {
+            "offset": 5461029,
+            "line": 116253,
+            "character": 4
+          }
+        },
+        "body_sha256": "87db25495496c36d88f450fe72ebe706dae3483ded8a832d773fe05e58f1b18a"
+      }
+    ],
+    "emitParametersForArrow": [
+      {
+        "name": "emitParametersForArrow",
+        "lexical_path": "<top>/createPrinter@116912:1/emitParametersForArrow@119983:3",
+        "source_range": {
+          "start": {
+            "offset": 5599889,
+            "line": 119983,
+            "character": 3
+          },
+          "end": {
+            "offset": 5600162,
+            "line": 119989,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "5defa2865b66596114760529f7df0ae1b8c54ab92a012da39bef889e687fd7c3",
+        "body_range": {
+          "start": {
+            "offset": 5599945,
+            "line": 119983,
+            "character": 59
+          },
+          "end": {
+            "offset": 5600162,
+            "line": 119989,
+            "character": 4
+          }
+        },
+        "body_sha256": "0109618511b88f6d7da3378a825923d3ac573956d90209ef715faae2ff6bfe29"
+      }
+    ],
+    "emitNodeListItems": [
+      {
+        "name": "emitNodeListItems",
+        "lexical_path": "<top>/createPrinter@116912:1/emitNodeListItems@120068:3",
+        "source_range": {
+          "start": {
+            "offset": 5603071,
+            "line": 120068,
+            "character": 3
+          },
+          "end": {
+            "offset": 5607258,
+            "line": 120155,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "f7da864479c04d23c6e375b40a09c19a7776552e5d60d6582bb24d6aa1529fc3",
+        "body_range": {
+          "start": {
+            "offset": 5603205,
+            "line": 120068,
+            "character": 137
+          },
+          "end": {
+            "offset": 5607258,
+            "line": 120155,
+            "character": 4
+          }
+        },
+        "body_sha256": "4610f6b635e6f5c3795420e8575ad95bf0035207d42dde079a8c081ff41ec4e9"
+      }
+    ],
+    "pipelineEmitWithComments": [
+      {
+        "name": "pipelineEmitWithComments",
+        "lexical_path": "<top>/createPrinter@116912:1/pipelineEmitWithComments@120978:3",
+        "source_range": {
+          "start": {
+            "offset": 5635011,
+            "line": 120978,
+            "character": 3
+          },
+          "end": {
+            "offset": 5635472,
+            "line": 120986,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "532b7e96b4c74525c918362b3edfba76bbf6330311891b90af56b11ca6d4efbe",
+        "body_range": {
+          "start": {
+            "offset": 5635057,
+            "line": 120978,
+            "character": 49
+          },
+          "end": {
+            "offset": 5635472,
+            "line": 120986,
+            "character": 4
+          }
+        },
+        "body_sha256": "785a620b146bdf04bffdce20332e8245c18aaefca96871276dd92160b01570d3"
+      }
+    ],
+    "emitNodeWithComments": [],
+    "emitLeadingComments": [
+      {
+        "name": "emitLeadingComments",
+        "lexical_path": "<top>/createPrinter@116912:1/emitLeadingComments@121123:3",
+        "source_range": {
+          "start": {
+            "offset": 5641119,
+            "line": 121123,
+            "character": 3
+          },
+          "end": {
+            "offset": 5641596,
+            "line": 121134,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "298824a359fbb3f96849fa53202922ff24f0fcdac82ce1d07301e45e2b5a4098",
+        "body_range": {
+          "start": {
+            "offset": 5641168,
+            "line": 121123,
+            "character": 52
+          },
+          "end": {
+            "offset": 5641596,
+            "line": 121134,
+            "character": 4
+          }
+        },
+        "body_sha256": "4a802267a9fc2ad3b69db95c8968d688d4a9ae11ca47ff9f885e59c4acbaa69d"
+      }
+    ],
+    "emitTrailingComments": [
+      {
+        "name": "emitTrailingComments",
+        "lexical_path": "<top>/createPrinter@116912:1/emitTrailingComments@121176:3",
+        "source_range": {
+          "start": {
+            "offset": 5643160,
+            "line": 121176,
+            "character": 3
+          },
+          "end": {
+            "offset": 5643260,
+            "line": 121178,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "f3ba202d3c9bb59880808e19c99889920b5c44825a96c6e9610068c37ae38906",
+        "body_range": {
+          "start": {
+            "offset": 5643195,
+            "line": 121176,
+            "character": 38
+          },
+          "end": {
+            "offset": 5643260,
+            "line": 121178,
+            "character": 4
+          }
+        },
+        "body_sha256": "0e91574d870528dc2859413de94b524fa9ccd3482a9225207f1249b302540fef"
+      }
+    ],
+    "createTextWriter": [
+      {
+        "name": "createTextWriter",
+        "lexical_path": "<top>/createTextWriter@16365:1",
+        "source_range": {
+          "start": {
+            "offset": 1079123,
+            "line": 16365,
+            "character": 1
+          },
+          "end": {
+            "offset": 1081471,
+            "line": 16461,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "b4532673ae6e5c863d1c9bdbff20f56f3c49d47419d142c1390c881b7964615f",
+        "body_range": {
+          "start": {
+            "offset": 1079158,
+            "line": 16365,
+            "character": 36
+          },
+          "end": {
+            "offset": 1081471,
+            "line": 16461,
+            "character": 2
+          }
+        },
+        "body_sha256": "835dadc2e09d2d66ae9b4a65e5a33e62cd885251ca297a525ab4f1ac3928b5eb"
+      }
+    ],
+    "createSourceMapGenerator": [
+      {
+        "name": "createSourceMapGenerator",
+        "lexical_path": "<top>/createSourceMapGenerator@92365:1",
+        "source_range": {
+          "start": {
+            "offset": 4521435,
+            "line": 92365,
+            "character": 1
+          },
+          "end": {
+            "offset": 4530744,
+            "line": 92601,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "90f3314c42852b0ba3e523c1135dbb459c16bc0aea9efa2f514707fada914433",
+        "body_range": {
+          "start": {
+            "offset": 4521533,
+            "line": 92365,
+            "character": 99
+          },
+          "end": {
+            "offset": 4530744,
+            "line": 92601,
+            "character": 2
+          }
+        },
+        "body_sha256": "96472f7193f92dfc90365727dc37cbea94bb429150f45be87b55ce4ffb2eab60"
+      }
+    ],
+    "emitNodeWithSourceMap": [],
+    "writeFile": [
+      {
+        "name": "writeFile",
+        "lexical_path": "<top>/writeFile@16644:1",
+        "source_range": {
+          "start": {
+            "offset": 1090014,
+            "line": 16644,
+            "character": 1
+          },
+          "end": {
+            "offset": 1090363,
+            "line": 16655,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "1fe4c34ed59e5f306f71a3adccc7db0aa08c116ee58d05ecf461a54a04b09a51",
+        "body_range": {
+          "start": {
+            "offset": 1090107,
+            "line": 16644,
+            "character": 94
+          },
+          "end": {
+            "offset": 1090363,
+            "line": 16655,
+            "character": 2
+          }
+        },
+        "body_sha256": "03c5815c7b598e5705a4fcf0105d6cbb7f7dbd38d2f4ea2220bd75d04878698b"
+      },
+      {
+        "name": "writeFile",
+        "lexical_path": "<top>/createProgramHost@129605:1/writeFile@129622:16",
+        "source_range": {
+          "start": {
+            "offset": 6038282,
+            "line": 129622,
+            "character": 16
+          },
+          "end": {
+            "offset": 6038366,
+            "line": 129622,
+            "character": 100
+          }
+        },
+        "declaration_sha256": "a8d3e49378904a2d91bcfb6c87f827eb278c82a8ba9cba75f2cdc017cae9069f",
+        "body_range": {
+          "start": {
+            "offset": 6038318,
+            "line": 129622,
+            "character": 52
+          },
+          "end": {
+            "offset": 6038366,
+            "line": 129622,
+            "character": 100
+          }
+        },
+        "body_sha256": "55575b0f5da0b095cad128215b605fe1ac75785bbf093cefbe3c4f515c7bacb3"
+      }
+    ],
+    "writeFileEnsuringDirectories": [
+      {
+        "name": "writeFileEnsuringDirectories",
+        "lexical_path": "<top>/writeFileEnsuringDirectories@16663:1",
+        "source_range": {
+          "start": {
+            "offset": 1090725,
+            "line": 16663,
+            "character": 1
+          },
+          "end": {
+            "offset": 1091065,
+            "line": 16670,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "3ad8abbb5cec000e2399f4aa80e9981e12ec59585d40686589844dca5c87045a",
+        "body_range": {
+          "start": {
+            "offset": 1090841,
+            "line": 16663,
+            "character": 117
+          },
+          "end": {
+            "offset": 1091065,
+            "line": 16670,
+            "character": 2
+          }
+        },
+        "body_sha256": "96841d400ebccd0aa09782ffca072adacb46ca55dbbffcb0821778e72c5749d2"
+      }
+    ],
+    "nextToken": [
+      {
+        "name": "nextToken",
+        "lexical_path": "<top>/<anonymous>@28914:2/nextToken@29502:3",
+        "source_range": {
+          "start": {
+            "offset": 1639357,
+            "line": 29502,
+            "character": 3
+          },
+          "end": {
+            "offset": 1639653,
+            "line": 29507,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "d7be1a8066ed03963d05522e67db9db49c2a842b0cbb9059a284a835548c5dc8",
+        "body_range": {
+          "start": {
+            "offset": 1639378,
+            "line": 29502,
+            "character": 24
+          },
+          "end": {
+            "offset": 1639653,
+            "line": 29507,
+            "character": 4
+          }
+        },
+        "body_sha256": "4414cde695ffb7fd5970d1b25a093805dd3b327d916b922440148e0e010a6dde"
+      }
+    ],
+    "parseList": [
+      {
+        "name": "parseList",
+        "lexical_path": "<top>/<anonymous>@28914:2/parseList@30169:3",
+        "source_range": {
+          "start": {
+            "offset": 1664789,
+            "line": 30169,
+            "character": 3
+          },
+          "end": {
+            "offset": 1665347,
+            "line": 30189,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "4e9abe6278ae55d7248af9150679278fabc5c50eefbb8ebd33017cf0b2d6e6f1",
+        "body_range": {
+          "start": {
+            "offset": 1664828,
+            "line": 30169,
+            "character": 42
+          },
+          "end": {
+            "offset": 1665347,
+            "line": 30189,
+            "character": 4
+          }
+        },
+        "body_sha256": "4b105c999e60f0ac66b88af52f7cdc21b8452c878e896e5c56afb678ede2473f"
+      }
+    ],
+    "parseDelimitedList": [
+      {
+        "name": "parseDelimitedList",
+        "lexical_path": "<top>/<anonymous>@28914:2/parseDelimitedList@30428:3",
+        "source_range": {
+          "start": {
+            "offset": 1674752,
+            "line": 30428,
+            "character": 3
+          },
+          "end": {
+            "offset": 1676208,
+            "line": 30479,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "b084010f9d54acc38dc7740380d96368ec37d9481f9d1907ae2d220f548c9f23",
+        "body_range": {
+          "start": {
+            "offset": 1674830,
+            "line": 30428,
+            "character": 81
+          },
+          "end": {
+            "offset": 1676208,
+            "line": 30479,
+            "character": 4
+          }
+        },
+        "body_sha256": "3559b0a075b6f35b77c7e94fbfe7d5d8b2878f35938a3bcad658dc7627cbf72c"
+      }
+    ],
+    "parseSemicolon": [
+      {
+        "name": "parseSemicolon",
+        "lexical_path": "<top>/<anonymous>@28914:2/parseSemicolon@29770:3",
+        "source_range": {
+          "start": {
+            "offset": 1648699,
+            "line": 29770,
+            "character": 3
+          },
+          "end": {
+            "offset": 1648804,
+            "line": 29772,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "c0cdd7a21a33a07ab6795dc397dc7d9251677bbb3adcb572b666695aeef86710",
+        "body_range": {
+          "start": {
+            "offset": 1648725,
+            "line": 29770,
+            "character": 29
+          },
+          "end": {
+            "offset": 1648804,
+            "line": 29772,
+            "character": 4
+          }
+        },
+        "body_sha256": "e8b89a955c1f5f556ea7db864ca6378ac92775b8be54b037ed87c8003b5aab1e"
+      }
+    ],
+    "emitModifiers": [],
+    "emitSpreadElement": [
+      {
+        "name": "emitSpreadElement",
+        "lexical_path": "<top>/createPrinter@116912:1/emitSpreadElement@118528:3",
+        "source_range": {
+          "start": {
+            "offset": 5549478,
+            "line": 118528,
+            "character": 3
+          },
+          "end": {
+            "offset": 5549694,
+            "line": 118531,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "0d2510940f4285bfba496f811e3a2255d7bf7b085a3e82ffd71379333474a12d",
+        "body_range": {
+          "start": {
+            "offset": 5549511,
+            "line": 118528,
+            "character": 36
+          },
+          "end": {
+            "offset": 5549694,
+            "line": 118531,
+            "character": 4
+          }
+        },
+        "body_sha256": "76ede5b5f810600552e216714554c1c3a1cf5dafc07a6b92d1683a5aed395e07"
+      }
+    ],
+    "emitSourceFileWorker": [
+      {
+        "name": "emitSourceFileWorker",
+        "lexical_path": "<top>/createPrinter@116912:1/emitSourceFileWorker@119753:3",
+        "source_range": {
+          "start": {
+            "offset": 5591957,
+            "line": 119753,
+            "character": 3
+          },
+          "end": {
+            "offset": 5592474,
+            "line": 119769,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "4b0f0691cc1f0e2cbc0555fbc14c599b3eb76c37c3e554faf347a6ed11118835",
+        "body_range": {
+          "start": {
+            "offset": 5591993,
+            "line": 119753,
+            "character": 39
+          },
+          "end": {
+            "offset": 5592474,
+            "line": 119769,
+            "character": 4
+          }
+        },
+        "body_sha256": "bdc8ef975bed4cf6d1aae4c7efd5f3deeedf03b3bdf5a9cfab32d3f981d98416"
+      }
+    ],
+    "emitParameter": [
+      {
+        "name": "emitParameter",
+        "lexical_path": "<top>/createPrinter@116912:1/emitParameter@117855:3",
+        "source_range": {
+          "start": {
+            "offset": 5523981,
+            "line": 117855,
+            "character": 3
+          },
+          "end": {
+            "offset": 5524656,
+            "line": 117871,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "6534a5db3d2a8c60c1a6e4b9a4886e495059c078ba2c69fba349e38e59ec488e",
+        "body_range": {
+          "start": {
+            "offset": 5524010,
+            "line": 117855,
+            "character": 32
+          },
+          "end": {
+            "offset": 5524656,
+            "line": 117871,
+            "character": 4
+          }
+        },
+        "body_sha256": "0a56a2b32f8b932723b5f3619389a43298135a07260af8cd93f732d25bf04f37"
+      }
+    ],
+    "emitSpreadAssignment": [
+      {
+        "name": "emitSpreadAssignment",
+        "lexical_path": "<top>/createPrinter@116912:1/emitSpreadAssignment@119536:3",
+        "source_range": {
+          "start": {
+            "offset": 5585019,
+            "line": 119536,
+            "character": 3
+          },
+          "end": {
+            "offset": 5585275,
+            "line": 119541,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "5d2d0ee6886a5bcd53f6060fb8a2d8b4c7aed6b347ea26e717c4ea2e7526e3d0",
+        "body_range": {
+          "start": {
+            "offset": 5585055,
+            "line": 119536,
+            "character": 39
+          },
+          "end": {
+            "offset": 5585275,
+            "line": 119541,
+            "character": 4
+          }
+        },
+        "body_sha256": "f41b333331193c0eae95c6a80b6a6fdcecfa5f6df771c3321af6dcc74de5927c"
+      }
+    ],
+    "emitJsxExpression": [
+      {
+        "name": "emitJsxExpression",
+        "lexical_path": "<top>/createPrinter@116912:1/emitJsxExpression@119448:3",
+        "source_range": {
+          "start": {
+            "offset": 5581201,
+            "line": 119448,
+            "character": 3
+          },
+          "end": {
+            "offset": 5582016,
+            "line": 119463,
+            "character": 4
+          }
+        },
+        "declaration_sha256": "39b4f8fd4bf88d7d01a2ac502c3b1bbc0cdfcf062fe4ba9f149b15048f76477f",
+        "body_range": {
+          "start": {
+            "offset": 5581234,
+            "line": 119448,
+            "character": 36
+          },
+          "end": {
+            "offset": 5582016,
+            "line": 119463,
+            "character": 4
+          }
+        },
+        "body_sha256": "209bead4a3bffa43802721f38f43d9c89b985f32f1aa3a6d80192b68f6e09567"
+      }
+    ]
+  }
+}

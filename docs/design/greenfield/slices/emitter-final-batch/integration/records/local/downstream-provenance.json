@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "docs/design/greenfield/slices/emitter-final-batch/integration/refresh-provenance.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-integration",
+  "started_at": "2026-09-18T11:50:14.714997+00:00",
+  "head": "fb5e8b4e10f6ad853393d26162dd5223ed157632",
+  "diff_sha256": "a8d6e6c30a144c6cfa9e4abd97b6ba0be3e4346413e00bccb26a8158acd3a7dd",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 480.828,
+  "log_sha256": "d4a7451a1aaa0d3c222075b008284c47a3c7fce51bfa6b56830ab74edeb975ed",
+  "log_bytes": 110757
+}

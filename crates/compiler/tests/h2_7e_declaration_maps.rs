@@ -757,23 +757,20 @@ impl tsc_emitter::EmitFileSystem for ControlledFileSystem<'_> {
         bytes: &[u8],
     ) -> Result<(), tsc_diagnostics::JsString> {
         let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
-        (|| -> Result<(), String> {
-            self.attempts.push(json!({"path":path,
+        self.attempts.push(json!({"path":path,
             "callback_utf8_base64":base64::engine::general_purpose::STANDARD.encode(bytes),
             "write_byte_order_mark":false}));
-            if self
-                .rules
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|rule| rule["path"].as_str().unwrap() == path.to_string_lossy())
-            {
-                Err("H2.7e controlled system failure".to_owned())
-            } else {
-                Ok(())
-            }
-        })()
-        .map_err(Into::into)
+        if self
+            .rules
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|rule| rule["path"].as_str().unwrap() == path.to_string_lossy())
+        {
+            Err("H2.7e controlled system failure".into())
+        } else {
+            Ok(())
+        }
     }
     fn create_directory(
         &mut self,
@@ -1017,7 +1014,7 @@ fn h2_7e_ordinary_maps_without_declaration_preserve_ts5069_and_javascript() {
     );
     let observations = read(
         "ratchets/h2-7de-observations.v1.json",
-        "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+        "ef68d9021d7bde36eba86abb44b780418106aa44b6d9cbacca427d5edb9d74d9",
     );
     let input = inputs["cases"]
         .as_array()

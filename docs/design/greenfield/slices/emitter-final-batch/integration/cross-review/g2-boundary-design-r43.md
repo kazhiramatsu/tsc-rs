@@ -1,0 +1,15 @@
+# G2 boundary design (unqualified)
+
+The metadata-only full_start addition has an independent r42 review. Capture occurs at event creation, and only current-token reporting may use it as a node-end proof. Diagnostic start remains distinct from leading trivia. A full-start equality alone is not sufficient for explicit-range reports.
+
+The original arrow9 command shows an additional list-termination report at the `<` beginning the subsequent TypeAssertion expression. No token is skipped there. It cannot be accounted for by the initially proposed closer/span/skip ties; round43 is reviewing its ownership proof before implementation.
+
+Also, ties must be alternatives rather than a cardinality assertion across categories: the report at `as` in `(object?.x // comment\n as number)` both follows the incomplete parenthesis and exactly spans the subsequently parsed `as` ExpressionStatement. Prefer the closer proof first; otherwise a unique statement span, otherwise an owned skip or explicitly proven list termination. Each event is consumed once, but two independent proofs of the same event are not ambiguity between different nodes of one category.
+
+Preserve B, C and G1 predicates as frozen comparison baselines. G2 must account for every reachable missing node, reporting event and action, not just the originally observed case. No reparse, silent missing node, suppressed missing-node event, non-ListAbort skip, unowned gap or zero-length report-only event is admitted. Scope can widen only after the full corpus admission census and complete command comparisons.
+
+A 144-command TypeScript fixture covers the original arrow, TypeAssertion missing operand, optional/plain/assignment/block/namespace parentheses, UTF-16 comments and three clean neighbours, across three targets, two modules and both removeComments values. Both TypeScript repetitions passed. No native G2 admission exists yet and this is not retirement evidence.
+
+R43 adds the declaration-list termination tie: last declaration, declaration list and containing variable statement all end at the event full start, followed immediately in the same statement array by a TypeAssertionExpression statement with an independently matched missing operand. Commas/semicolons consumed between them invalidate the tie. `number` is confirmed to be an explicit-range report; Codex's contrary preliminary hypothesis was wrong. The proposed positive `let x = 1 <T>y;` actually has no parse diagnostics (ordinary relational expression), so it is a clean negative-space control, not evidence of recovered list termination.
+
+G2 implementation now preserves frozen B/C/G1 accessors, adds creation full-start guards, complete retained-diagnostic coverage, statement/declaration gap ownership, closer/span/list-termination report proofs and a 144-case complete-command fixture. Unit positives/negatives and forged provenance checks are present but not run. `--all-profiles` now produces separate B/C/G1/G2 reports from a single full loader pass; no census has completed. Do not retire any KNOWN from this draft.

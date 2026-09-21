@@ -1,0 +1,12 @@
+{
+  "head": "5b28906cf5544c63bb55f4c97e40f714672fd722",
+  "rust_files": 784,
+  "converged_crates_sha256": "c49ae53fc3ed1c838323fbf1f9c5b1850332a158fb72301258dfcc015c3f68aa",
+  "walk_certificate_matches": true,
+  "verifier_ast_unchanged": true,
+  "original_untracked_preserved": 90,
+  "runtime_profiles_checked": 23,
+  "unique_current_runtime_inputs": 920,
+  "stale_runtime_inputs": [],
+  "runtime_input_changed_paths": []
+}

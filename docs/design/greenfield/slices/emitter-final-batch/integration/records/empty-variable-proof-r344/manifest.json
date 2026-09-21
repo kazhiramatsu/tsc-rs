@@ -1,0 +1,518 @@
+{
+  "canonical_head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "prototype_head": "4aeb1640156f291f4b5189b8ad9ed370cf17cf9d",
+  "scope": "Combined B/C syntax16994 proof preserves original AST/diagnostics/raw recovery and all profiles, zero new corpus admissions. 110 original loader failures remain unqualified. B80 full commands x2 pass. Empty-variable96 commands have88 exact and8 System JS map failures (r336), both frozen recording/production suites pass. Official context mint684+72 keeps original rows unchanged; new System/EOF fix and full684 native qualification PENDING and not covered by this archive. Actual Opus178-180 reviews included; AST probes338 are metadata exploration only. Failed335 test preparation retained.",
+  "qualified": false,
+  "files": [
+    {
+      "path": "emitter-empty-variable-prototype-r325/manifest.json",
+      "source": "/tmp/emitter-empty-variable-prototype-r325/manifest.json",
+      "bytes": 580,
+      "sha256": "f9d3f6106d44e99d583d3d7e276466e9a4d415fd00e31748ca9a6f524608dccd"
+    },
+    {
+      "path": "emitter-empty-variable-prototype-r325/proposal.patch.gz",
+      "source": "/tmp/emitter-empty-variable-prototype-r325/proposal.patch.gz",
+      "bytes": 2881,
+      "sha256": "6271d8548ed1afffe56466b7e6feb2ea465e0f27fb5e859305255ab05dccbe3f"
+    },
+    {
+      "path": "emitter-empty-variable-prototype-r325/syntax.log.gz",
+      "source": "/tmp/emitter-empty-variable-prototype-r325/syntax.log",
+      "bytes": 4587,
+      "sha256": "65635be8a189d16aa35ef2f47c78b444fe4207577e38d9b1a1997637ba8f9175"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r327/pins.json",
+      "source": "/tmp/emitter-combined-recovery-proof-r327/pins.json",
+      "bytes": 4188,
+      "sha256": "c718229a4b3180f1c771c07e103899c055d9007efc0338eb5c0b09db43be7c58"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r327/replay.py",
+      "source": "/tmp/emitter-combined-recovery-proof-r327/replay.py",
+      "bytes": 14488,
+      "sha256": "a638e3825d01b4f47a43f4991057f388288e855705e09aaa3717c3322ffadea6"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r327/revision.json",
+      "source": "/tmp/emitter-combined-recovery-proof-r327/revision.json",
+      "bytes": 466,
+      "sha256": "a37321b9406edc03446fce55077ecd1b8f8bbceec9a328ed728abd483043ae08"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r327/run.log.gz",
+      "source": "/tmp/emitter-combined-recovery-proof-r327/run.log",
+      "bytes": 265,
+      "sha256": "219b72aaa99ca6cd8ab2dddd00fc5c106e4f13f8aa191260b481301da388b526"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r327/scope.json",
+      "source": "/tmp/emitter-combined-recovery-proof-r327/scope.json",
+      "bytes": 3156,
+      "sha256": "c689191096690438db66cd6c0ddd9e238bd36d72aa2d98fdc0c9b77e61924474"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r327/test_guards.py",
+      "source": "/tmp/emitter-combined-recovery-proof-r327/test_guards.py",
+      "bytes": 3105,
+      "sha256": "0707da2b9c2b60e818be034add3bfae5b7ba78ec4ac46aa1cd78f05d07d7c5c2"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r330/pins.json",
+      "source": "/tmp/emitter-combined-recovery-proof-r330/pins.json",
+      "bytes": 4236,
+      "sha256": "90b5d0ab575119be81103959eec05ff087232f47828a245545c77d54b9f4c0fb"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r330/replay.py",
+      "source": "/tmp/emitter-combined-recovery-proof-r330/replay.py",
+      "bytes": 14488,
+      "sha256": "4a6997e766bff2c20686889631810e84a62a181753f43839fac7d3c5ba71a259"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r330/revision.json",
+      "source": "/tmp/emitter-combined-recovery-proof-r330/revision.json",
+      "bytes": 373,
+      "sha256": "caada3089bb62f049e4dbd64ea3e8fd66e309bfd3873d732bc67e06956f131aa"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r330/run.log.gz",
+      "source": "/tmp/emitter-combined-recovery-proof-r330/run.log",
+      "bytes": 265,
+      "sha256": "219b72aaa99ca6cd8ab2dddd00fc5c106e4f13f8aa191260b481301da388b526"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r330/scope.json",
+      "source": "/tmp/emitter-combined-recovery-proof-r330/scope.json",
+      "bytes": 3156,
+      "sha256": "d47111c27b4ab3fdcc62c6d525c7de980469b40ebfe7403fb751da545451154a"
+    },
+    {
+      "path": "emitter-combined-recovery-proof-r330/test_guards.py",
+      "source": "/tmp/emitter-combined-recovery-proof-r330/test_guards.py",
+      "bytes": 3105,
+      "sha256": "0707da2b9c2b60e818be034add3bfae5b7ba78ec4ac46aa1cd78f05d07d7c5c2"
+    },
+    {
+      "path": "emitter-empty-variable-controls-r331/observe-emitter-context-recovery.mjs",
+      "source": "/tmp/emitter-empty-variable-controls-r331/observe-emitter-context-recovery.mjs",
+      "bytes": 11982,
+      "sha256": "0457fc2cf54ea74a6b8f275d0cda3621c5b5e0bcba36fac3ac95b2907ef64cd3"
+    },
+    {
+      "path": "emitter-empty-variable-controls-r331/proposal.json",
+      "source": "/tmp/emitter-empty-variable-controls-r331/proposal.json",
+      "bytes": 365,
+      "sha256": "833c9d5c5522c2c5771d6f8add8942fe72424acf64cee0d443ccc577da98ba85"
+    },
+    {
+      "path": "emitter-empty-variable-witness-controls-r334/manifest.json",
+      "source": "/tmp/emitter-empty-variable-witness-controls-r334/manifest.json",
+      "bytes": 830,
+      "sha256": "b3ea372700240477037ecb41c724dcb3b5b2d0f6f0efd846c6e7e7fd98b44039"
+    },
+    {
+      "path": "emitter-empty-variable-witness-controls-r334/proposal.patch",
+      "source": "/tmp/emitter-empty-variable-witness-controls-r334/proposal.patch",
+      "bytes": 6748,
+      "sha256": "51b871ff7597070554a3fd0600068c5bbcc1ec23e04f70fcd284f4a57ef027ac"
+    },
+    {
+      "path": "emitter-empty-variable-witness-controls-r334/proposal.patch.gz",
+      "source": "/tmp/emitter-empty-variable-witness-controls-r334/proposal.patch.gz",
+      "bytes": 2318,
+      "sha256": "1b208c02d3f09ed0e2a2d02c80affeef0bc275255f55b7fd568fa37ea0e5d6ab"
+    },
+    {
+      "path": "emitter-empty-variable-witness-controls-r334/source_map_emit_witness_contract.rs",
+      "source": "/tmp/emitter-empty-variable-witness-controls-r334/source_map_emit_witness_contract.rs",
+      "bytes": 15693,
+      "sha256": "d85f28c550133c812ceee39eac2ce56afb7a37cc1d7c93a000ca68d2495d6618"
+    },
+    {
+      "path": "emitter-empty-variable-witness-controls-r334/source_map_recording_witness_contract.rs",
+      "source": "/tmp/emitter-empty-variable-witness-controls-r334/source_map_recording_witness_contract.rs",
+      "bytes": 25961,
+      "sha256": "d6bfdb81ac5b03d59c544891161fd378a05722387c4c85e64f0dc13702ffdd36"
+    },
+    {
+      "path": "emitter-system-range-controls-r339/observe-emitter-context-recovery.mjs",
+      "source": "/tmp/emitter-system-range-controls-r339/observe-emitter-context-recovery.mjs",
+      "bytes": 13649,
+      "sha256": "eb9e6f989bfac70ac716cfa59f468c9c709280a268755d563ca09f12a6423d35"
+    },
+    {
+      "path": "emitter-system-range-controls-r339/proposal.json",
+      "source": "/tmp/emitter-system-range-controls-r339/proposal.json",
+      "bytes": 201,
+      "sha256": "390a46b4a3e32e4a0998a8c6fa3bc759e1c4e8b759f7e3029991cc2f5af13339"
+    },
+    {
+      "path": "emitter-empty-variable-flags-r324/flags-test-append.rs",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-flags-r324/flags-test-append.rs",
+      "bytes": 2306,
+      "sha256": "72fa6006906ff78c2fc168b7b152cf5e9cfc92e5d0de7f2727d9ed8ea0ee0baf"
+    },
+    {
+      "path": "emitter-empty-variable-flags-r324/initialized-flags.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-flags-r324/initialized-flags.log.gz",
+      "bytes": 464,
+      "sha256": "54bcf3ae9b54d449b67cd71b4295581ccc40d8e5bf0de454043de45df7ff2aed"
+    },
+    {
+      "path": "emitter-empty-variable-flags-r324/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-flags-r324/manifest.json",
+      "bytes": 888,
+      "sha256": "0f40aa1bec9ce0ce497cc8d8b76c9a6eea5d2b491722454c07537ae608981ac9"
+    },
+    {
+      "path": "emitter-empty-variable-flags-r324/temporary-flags-test.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-flags-r324/temporary-flags-test.diff.gz",
+      "bytes": 996,
+      "sha256": "f90368e7dcf1bcd5bd62c054ae05b9b70ef71943118ba49439153185323356df"
+    },
+    {
+      "path": "emitter-empty-variable-controls-mint-r328/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-controls-mint-r328/manifest.json",
+      "bytes": 8776,
+      "sha256": "d05facce3f17ad318bb33e013ad2af27d069d61091359829f3f0db585d766939"
+    },
+    {
+      "path": "emitter-empty-variable-controls-mint-r328/original-observer.mjs",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-controls-mint-r328/original-observer.mjs",
+      "bytes": 10131,
+      "sha256": "13d4c7be5958f2558aade36cd1f8c9e6f458a0db3af322d60cc8c07b81dcb99d"
+    },
+    {
+      "path": "emitter-empty-variable-controls-mint-r328/original-r77-roster.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-controls-mint-r328/original-r77-roster.json",
+      "bytes": 11365,
+      "sha256": "3138ce800620869068cfc5d87f6d51e54d49533f13565ad316671af4cda31860"
+    },
+    {
+      "path": "emitter-empty-variable-controls-mint-r328/original504.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-controls-mint-r328/original504.json.gz",
+      "bytes": 140496,
+      "sha256": "91664d44a47f10af732f2be03e133183b236665e46b317f724929111ed95cabe"
+    },
+    {
+      "path": "emitter-empty-variable-controls-mint-r331/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-controls-mint-r331/manifest.json",
+      "bytes": 6100,
+      "sha256": "06ca069eba82490c84b1e9c3f9388c11149651412a383e1676e0bcbe3e775fcf"
+    },
+    {
+      "path": "emitter-empty-variable-controls-mint-r331/original-observer.mjs",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-controls-mint-r331/original-observer.mjs",
+      "bytes": 11580,
+      "sha256": "7be92af5b86d3a13b9e0fa948198d66f208e8c90c665880fdc5b94af07dafc21"
+    },
+    {
+      "path": "emitter-empty-variable-controls-mint-r331/original-r77-roster.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-controls-mint-r331/original-r77-roster.json",
+      "bytes": 11365,
+      "sha256": "c8a6b5fb25f18119cd76933a5efb42fbbcd1283ed3359e96658020a7929bedc2"
+    },
+    {
+      "path": "emitter-empty-variable-controls-mint-r331/previous600.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-controls-mint-r331/previous600.json.gz",
+      "bytes": 158332,
+      "sha256": "1a4a6355a0b4c13adf6aca22b6d30dd523b158ff29893af8d764faeb906d2530"
+    },
+    {
+      "path": "emitter-leading-binding-full-command-r332/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-full-command-r332/manifest.json",
+      "bytes": 1172,
+      "sha256": "f7bb2c41301015aaf8592eae9bbed9993152b399351d8540a67c3e22942d8431"
+    },
+    {
+      "path": "emitter-leading-binding-full-command-r332/native80.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-full-command-r332/native80.log.gz",
+      "bytes": 781,
+      "sha256": "6688541744ab0605d73dd0ef61155a752711fb3ea6978983a5b07364ea14ef0a"
+    },
+    {
+      "path": "emitter-leading-binding-full-command-r332/test-only.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-leading-binding-full-command-r332/test-only.diff.gz",
+      "bytes": 10242,
+      "sha256": "b924734f4a91fbbc2f895264714c22052c4355c0ea583eb07f5608c5225a8489"
+    },
+    {
+      "path": "emitter-empty-variable-full-command-r335/empty96.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-full-command-r335/empty96.log.gz",
+      "bytes": 643,
+      "sha256": "599fdec34ddac600b176d6915ad68a697213fec2ec6f992b9bad05799c926364"
+    },
+    {
+      "path": "emitter-empty-variable-full-command-r335/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-full-command-r335/manifest.json",
+      "bytes": 11074,
+      "sha256": "d216eef96fec35ba66c7f2a872fc80acb9db21a3ec85cebaa7b0b3a7fc487e8c"
+    },
+    {
+      "path": "emitter-empty-variable-full-command-r335/production-witnesses.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-full-command-r335/production-witnesses.log.gz",
+      "bytes": 643,
+      "sha256": "599fdec34ddac600b176d6915ad68a697213fec2ec6f992b9bad05799c926364"
+    },
+    {
+      "path": "emitter-empty-variable-full-command-r335/recording-witnesses.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-full-command-r335/recording-witnesses.log.gz",
+      "bytes": 643,
+      "sha256": "599fdec34ddac600b176d6915ad68a697213fec2ec6f992b9bad05799c926364"
+    },
+    {
+      "path": "emitter-empty-variable-full-command-r335/test-only.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-full-command-r335/test-only.diff.gz",
+      "bytes": 21820,
+      "sha256": "046ce556515a45274fcca68386318300a646a6d95694d166defca013d9efdddb"
+    },
+    {
+      "path": "emitter-empty-variable-full-command-r336/empty96.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-full-command-r336/empty96.log.gz",
+      "bytes": 1709,
+      "sha256": "648ed311aa928fd0bc6650eba040659767bec995814495c859ab5336cad05ff4"
+    },
+    {
+      "path": "emitter-empty-variable-full-command-r336/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-full-command-r336/manifest.json",
+      "bytes": 11070,
+      "sha256": "40bad9a9b9683d211dedc7b2b90259d17cd0cbab854b17de5e3a08a80ffa5e97"
+    },
+    {
+      "path": "emitter-empty-variable-full-command-r336/production-witnesses.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-full-command-r336/production-witnesses.log.gz",
+      "bytes": 341,
+      "sha256": "809c2f329b5332e07e3b79ae5bbd90dbfd0acb7e974662cd868f55ebed51338e"
+    },
+    {
+      "path": "emitter-empty-variable-full-command-r336/recording-witnesses.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-full-command-r336/recording-witnesses.log.gz",
+      "bytes": 380,
+      "sha256": "b35f8b8513610fb3dfe27153a216d3d74b2d1cc77478901202205cfe37e20bb0"
+    },
+    {
+      "path": "emitter-empty-variable-full-command-r336/test-only.diff.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-empty-variable-full-command-r336/test-only.diff.gz",
+      "bytes": 21825,
+      "sha256": "62892ae5ebdbf7e7d19dea65bfcf2da411f54418901b6327ca064f822b565c77"
+    },
+    {
+      "path": "emitter-system-range-controls-mint-r339/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-system-range-controls-mint-r339/manifest.json",
+      "bytes": 8796,
+      "sha256": "a788f02fd16080eb6aaa6b8dd148eaa7cbd30ed72dd9e1af54bcc0fec0b3a48f"
+    },
+    {
+      "path": "emitter-system-range-controls-mint-r339/original-observer.mjs",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-system-range-controls-mint-r339/original-observer.mjs",
+      "bytes": 11982,
+      "sha256": "0457fc2cf54ea74a6b8f275d0cda3621c5b5e0bcba36fac3ac95b2907ef64cd3"
+    },
+    {
+      "path": "emitter-system-range-controls-mint-r339/original-r77-roster.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-system-range-controls-mint-r339/original-r77-roster.json",
+      "bytes": 11365,
+      "sha256": "907d4db3a537d838f4e1a875491d93f76c9907f93d38f047d0de8185c1ecd1f4"
+    },
+    {
+      "path": "emitter-system-range-controls-mint-r339/previous660.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-system-range-controls-mint-r339/previous660.json.gz",
+      "bytes": 165470,
+      "sha256": "d005d275450869bda3111afa3637475d0d8296dbae7c20693ce6b5d057ffc6bc"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r327/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r327/manifest.json",
+      "bytes": 10077,
+      "sha256": "e68c17b446de23c5796a9949137eee25b7cf8a7667ffadb70b48007e9b324578"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r327/steps.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r327/steps.json",
+      "bytes": 890,
+      "sha256": "2baf28b10e5eefa0ad5a8ac3b1a1c40e225d439b31abeb8571c380d4230d3924"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r327/resolved-dependencies.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r327/resolved-dependencies.json",
+      "bytes": 6247,
+      "sha256": "8c5b9ea4163ee1a73607568e7220ba3373b9f98e151af1db5753d58ba2190096"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r327/build.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r327/build.log",
+      "bytes": 445,
+      "sha256": "015683a968f2decab2aa2c6a58410dea584420e5b31f70b5fe5937a6a1e22d5a"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r327/test.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r327/test.log",
+      "bytes": 481,
+      "sha256": "65e78bd45a3bc0426ee336a184e3f41e8edf5b0b899c55a00a48590bb70a1e5b"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r327/replay.stderr.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r327/replay.stderr.log",
+      "bytes": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r327/successor.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r327/successor.json",
+      "bytes": 7939869,
+      "sha256": "fbff2efd445bb230a2d8c07239b96addd9b7d02aa4b98e8bb0e7a2317bd7fa6c"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r327/selection.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r327/selection.json",
+      "bytes": 166683,
+      "sha256": "1eb659db7d22b071616605ec25cc71655dc9b37a09845003caf9b64d117d800b"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r330/manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r330/manifest.json",
+      "bytes": 10077,
+      "sha256": "585ab3373502a630174763dca133ff15dcddbe00887810bb8c12115e9821a87a"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r330/steps.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r330/steps.json",
+      "bytes": 890,
+      "sha256": "5e248843b3b50a9b1e0b4ba8c017262aef81de796dfda10f82b20fea5aac7950"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r330/resolved-dependencies.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r330/resolved-dependencies.json",
+      "bytes": 6247,
+      "sha256": "8c5b9ea4163ee1a73607568e7220ba3373b9f98e151af1db5753d58ba2190096"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r330/build.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r330/build.log",
+      "bytes": 448,
+      "sha256": "f497baf8c724839841085554dcf6d520797f0b56df97465daca4e0f90d87f0c3"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r330/test.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r330/test.log",
+      "bytes": 482,
+      "sha256": "3f78cc00ae5cab7451bbc3f9d3d9545a1ff03801207611fa8b036cf09d7bc107"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r330/replay.stderr.log.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r330/replay.stderr.log",
+      "bytes": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r330/successor.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r330/successor.json",
+      "bytes": 7939870,
+      "sha256": "6764d7f31e63a5adf2582b93c3638bb69868e4ccfba8f4bc5f2324dd1c443d7f"
+    },
+    {
+      "path": "emitter-combined-recovery-successor-r330/selection.json.gz",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-combined-recovery-successor-r330/selection.json",
+      "bytes": 166682,
+      "sha256": "0ade80609920b0b2f34585b2291e5bbee5dd7caa6c7815833e0343da147c19f1"
+    },
+    {
+      "path": "reviews/emitter-round178-request.md",
+      "source": "/tmp/emitter-round178-request.md",
+      "bytes": 4127,
+      "sha256": "cbbdc5df24a7a1246985b2e25d768c431826fd54fb3cc1c36aa4f04d036119c4"
+    },
+    {
+      "path": "reviews/emitter-claude-review-round178-opus.json",
+      "source": "/tmp/emitter-claude-review-round178-opus.json",
+      "bytes": 8094,
+      "sha256": "e3dc57e1e38c0ae82b4f2da1693011f7b593c9cdb5a6bf54a46064d1117bad70"
+    },
+    {
+      "path": "reviews/emitter-round179-request.md",
+      "source": "/tmp/emitter-round179-request.md",
+      "bytes": 3461,
+      "sha256": "22d4263e9d21072401ce13e982dbd1bcaae6124e93e873a8fe7e23d7030d9227"
+    },
+    {
+      "path": "reviews/emitter-claude-review-round179-opus.json",
+      "source": "/tmp/emitter-claude-review-round179-opus.json",
+      "bytes": 9434,
+      "sha256": "6c385aa1291782191ddb5e00f84d415b931ae04b4e9ff2eac11ef767c2b555e1"
+    },
+    {
+      "path": "reviews/emitter-round180-request.md",
+      "source": "/tmp/emitter-round180-request.md",
+      "bytes": 4312,
+      "sha256": "59ae2d78d2901065968237912b9349d59133a6cf3f2406bea722430e069a63c9"
+    },
+    {
+      "path": "reviews/emitter-claude-review-round180-opus.json",
+      "source": "/tmp/emitter-claude-review-round180-opus.json",
+      "bytes": 10159,
+      "sha256": "1845a742eaa78d94ae3f403236b746bd18fadcab9ad728bcaee44dc52855206e"
+    },
+    {
+      "path": "scripts/emitter-empty-variable-flags-r324.py",
+      "source": "/tmp/emitter-empty-variable-flags-r324.py",
+      "bytes": 2813,
+      "sha256": "d7ea52a97759ad260729b954017698f595238e7bb8e9e24b185d4f35da0283e0"
+    },
+    {
+      "path": "scripts/emitter-empty-variable-controls-mint-r328.py",
+      "source": "/tmp/emitter-empty-variable-controls-mint-r328.py",
+      "bytes": 3429,
+      "sha256": "8e7c239f0f22cff27d0ef747b4dbd0ac9a0b4903be63aa2fcd0535b51756434c"
+    },
+    {
+      "path": "scripts/emitter-empty-variable-controls-mint-r331.py",
+      "source": "/tmp/emitter-empty-variable-controls-mint-r331.py",
+      "bytes": 3683,
+      "sha256": "0899e9d476a3df5e805f1cf211557afedbc93eae5a8440db668f02e49df3852d"
+    },
+    {
+      "path": "scripts/emitter-leading-binding-full-command-r332.py",
+      "source": "/tmp/emitter-leading-binding-full-command-r332.py",
+      "bytes": 2622,
+      "sha256": "e5c328aca7549554cb503d061b6e3c0b3b9c62c5ea3cbad1f72b43a4939be04f"
+    },
+    {
+      "path": "scripts/emitter-empty-variable-full-command-r335.py",
+      "source": "/tmp/emitter-empty-variable-full-command-r335.py",
+      "bytes": 4239,
+      "sha256": "ca53c090fe61cd3b490dfed8d4ac62c1f29eb17180a4b88eb9c428e67fe13100"
+    },
+    {
+      "path": "scripts/emitter-empty-variable-full-command-r336.py",
+      "source": "/tmp/emitter-empty-variable-full-command-r336.py",
+      "bytes": 4273,
+      "sha256": "ab387f6af409a88ca2cdd49252e482f00b85e0d3573a1cb8c9936cdcda44f14b"
+    },
+    {
+      "path": "scripts/emitter-system-execute-ranges-r338.mjs",
+      "source": "/tmp/emitter-system-execute-ranges-r338.mjs",
+      "bytes": 3226,
+      "sha256": "6dd9cab0b1a6fef9b6c84584f3101521696a237eb6dc14354c777c0a3f2c2417"
+    },
+    {
+      "path": "scripts/emitter-system-execute-ranges-r338.json",
+      "source": "/tmp/emitter-system-execute-ranges-r338.json",
+      "bytes": 114264,
+      "sha256": "7aaae5c847ee78b37c2b3d2488bb31ca0095383976eb3a3c8b17d2650bc79361"
+    },
+    {
+      "path": "scripts/emitter-system-range-controls-mint-r339.py",
+      "source": "/tmp/emitter-system-range-controls-mint-r339.py",
+      "bytes": 3467,
+      "sha256": "e31b5866f13ef3a21911ecb874c3bb3e456c4c376845110d7f00425dcafb3fc9"
+    },
+    {
+      "path": "archive.py",
+      "source": "/tmp/archive-emitter-empty-variable-proof-r344.py",
+      "bytes": 4021,
+      "sha256": "7177f1fdc3f758269d5c51eab4c024fa1a19bc301408f04349ed0a0213c662f9"
+    }
+  ]
+}

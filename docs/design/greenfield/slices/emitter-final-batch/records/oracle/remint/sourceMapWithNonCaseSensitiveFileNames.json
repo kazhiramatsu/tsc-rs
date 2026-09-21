@@ -1,0 +1,52 @@
+{
+ "old": {
+  "host_use_case_sensitive_file_names": true,
+  "writes": [
+   {
+    "path": "/.src/testfiles/fooResult.js.map",
+    "sha256": "3a57600186c2e09dc64cf9e8cc8418aff1b2e2c865320274e4274dfc8a54840c",
+    "bom": false,
+    "text": "{\"version\":3,\"file\":\"fooResult.js\",\"sourceRoot\":\"\",\"sources\":[\"../testFiles/app.ts\",\"../testFiles/app2.ts\"],\"names\":[],\"mappings\":\";AAAA,gFAAgF;AAChF,0GAA0G;AAC1G,MAAM,CAAC;CACN;ACHD,MAAM,CAAC;CACN\"}"
+   },
+   {
+    "path": "/.src/testfiles/fooResult.js",
+    "sha256": "c509c0df0dc2322e3d00635a7ce2d1448f0dc9290c0181e25a40cc9bee29e690",
+    "bom": false,
+    "text": "\"use strict\";\r\n// Note in the out result we are using same folder name only different in casing\r\n// Since this is non case sensitive, the relative paths should be just app.ts and app2.ts in the sourcemap\r\nclass c {\r\n}\r\nclass d {\r\n}\r\n//# sourceMappingURL=fooResult.js.map"
+   }
+  ],
+  "diagnostics": [
+   {
+    "code": 5101,
+    "file": null,
+    "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+   }
+  ],
+  "exit": 2
+ },
+ "new": {
+  "host_use_case_sensitive_file_names": false,
+  "writes": [
+   {
+    "path": "/.src/testfiles/fooResult.js.map",
+    "sha256": "083fcce15b193af20ade3eb7eaa3552823bb78656f38d376680ad1438504cb67",
+    "bom": false,
+    "text": "{\"version\":3,\"file\":\"fooResult.js\",\"sourceRoot\":\"\",\"sources\":[\"app.ts\",\"app2.ts\"],\"names\":[],\"mappings\":\";AAAA,gFAAgF;AAChF,0GAA0G;AAC1G,MAAM,CAAC;CACN;ACHD,MAAM,CAAC;CACN\"}"
+   },
+   {
+    "path": "/.src/testfiles/fooResult.js",
+    "sha256": "c509c0df0dc2322e3d00635a7ce2d1448f0dc9290c0181e25a40cc9bee29e690",
+    "bom": false,
+    "text": "\"use strict\";\r\n// Note in the out result we are using same folder name only different in casing\r\n// Since this is non case sensitive, the relative paths should be just app.ts and app2.ts in the sourcemap\r\nclass c {\r\n}\r\nclass d {\r\n}\r\n//# sourceMappingURL=fooResult.js.map"
+   }
+  ],
+  "diagnostics": [
+   {
+    "code": 5101,
+    "file": null,
+    "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+   }
+  ],
+  "exit": 2
+ }
+}

@@ -1,0 +1,1 @@
+export const \u{1F600}x = 1;

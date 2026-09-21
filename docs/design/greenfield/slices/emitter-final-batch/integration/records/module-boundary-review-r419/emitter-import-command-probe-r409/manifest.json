@@ -1,0 +1,71 @@
+{
+  "scope": "Supplemental same-library diagnostic probe; full existing command comparator is retained and expected to fail. No source changes. Not a replacement for canonical Cargo tests.",
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "libraries": {
+    "tsc_emitter": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_emitter-63ad03d85a501501.rlib",
+      "sha256": "ddbc8e94ecbbddbfb1ecc44f965b7d3241fc8767f9c758107f642aaf499cddd4"
+    },
+    "tsc_syntax": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+      "sha256": "9e9b23d4e1fc2f9076244bdbad0234d6d2a41b5f9e6f69732fd4c209b5abe5d1"
+    },
+    "tsc_compiler": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_compiler-b6c594b373b590f1.rlib",
+      "sha256": "886769103ab48ad61d4a76513814859791b884ba25b4eb5517447174f8f68212"
+    },
+    "tsc_program": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-d551a6a48da91fa2.rlib",
+      "sha256": "1eb1eacbe7863979905f9f9f81bd9e8e322bd16a7fff8d8b89c86e4f29812226"
+    },
+    "tsc_host": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_host-b40ac1fcbe4595ba.rlib",
+      "sha256": "09d0e5db5b9326d8bd4da4e3edf611cd0349fde5f8d9f86e899f8eefa73fce92"
+    },
+    "tsc_harness": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_harness-ba5430733484fc96.rlib",
+      "sha256": "9759fd8222ec42f5bcd6a521cb66b1203920a45e52a9c02fc6c46ea6ca4f3b71"
+    },
+    "tsc_diagnostics": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib",
+      "sha256": "1e202f12760fc125e8d8ee11105182a02cb8f7cb093e49252c61f87ce32abcae"
+    },
+    "serde_json": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libserde_json-8d4b5d6d0f817ece.rlib",
+      "sha256": "6896c9542f0b05876341cf685224e5d70bcf813a5de9f65b912b77e2f281f2c6"
+    },
+    "base64": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libbase64-5d57c3489a1b1f3f.rlib",
+      "sha256": "c69bafde28d0156bd6c0a5f9e904fda5f6365d252326e761b38d8a5a6b53f6cc"
+    }
+  },
+  "argv": [
+    "rustc",
+    "--edition=2021",
+    "/tmp/emitter-import-command-probe-r409/main.rs",
+    "-L",
+    "dependency=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps",
+    "-o",
+    "/tmp/emitter-import-command-probe-r409/probe",
+    "--extern",
+    "tsc_emitter=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_emitter-63ad03d85a501501.rlib",
+    "--extern",
+    "tsc_syntax=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+    "--extern",
+    "tsc_compiler=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_compiler-b6c594b373b590f1.rlib",
+    "--extern",
+    "tsc_program=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-d551a6a48da91fa2.rlib",
+    "--extern",
+    "tsc_host=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_host-b40ac1fcbe4595ba.rlib",
+    "--extern",
+    "tsc_harness=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_harness-ba5430733484fc96.rlib",
+    "--extern",
+    "tsc_diagnostics=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_diagnostics-1db5e9b3d2f22d62.rlib",
+    "--extern",
+    "serde_json=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libserde_json-8d4b5d6d0f817ece.rlib",
+    "--extern",
+    "base64=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libbase64-5d57c3489a1b1f3f.rlib"
+  ],
+  "build_exit": 0,
+  "native_exit": 101
+}

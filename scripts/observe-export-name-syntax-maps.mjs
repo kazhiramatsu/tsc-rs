@@ -32,6 +32,23 @@ for (const [modeName,module] of [["cjs",ts.ModuleKind.CommonJS],["amd",ts.Module
   }
  }
 }
+// Adjacent witnesses for the composite leading-invalid-binding recovery.
+// Preserve every original case; all added expectations are full TS commands.
+const leadingBindingShapes = [
+ ["let-export", "export let \\u{10401} = 2;\n"],
+ ["var-script", "var \\u{10400} = 1;\n"],
+ ["unicode-leading", "/* 😀 */ export const \\u{10400} = 1;\n"],
+ ["two-statements", "export const \\u{10400} = 1; export const \\u{10401} = 2;\n"],
+ ["property-trivia", "export const \\u{ 10400 } = 1;\n"],
+];
+for (const [modeName,module] of [["cjs",ts.ModuleKind.CommonJS],["amd",ts.ModuleKind.AMD],["umd",ts.ModuleKind.UMD],["system",ts.ModuleKind.System]])
+ for (const extension of ["js","ts"])
+  for (const [shape,text] of leadingBindingShapes) {
+   const main = "/project/main."+extension;
+   inputs.push({case_id:`leading-binding-recovery/${modeName}/${extension}/${shape}`,roots:[main],
+    files:[{path:main,text}],options:{...defaults,module,target:ts.ScriptTarget.ES5,declarationMap:true}});
+  }
+assert.equal(inputs.length,80);
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
     start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),
@@ -40,7 +57,7 @@ function diagnostic(d) {
 function write(args, index) {
   const [name, text, bom, onError, sources, data] = args;
   const bytes = Buffer.from(text), materialized = bom ? Buffer.concat([Buffer.from([239, 187, 191]), bytes]) : bytes;
-  return { index, path: name, kind: ts.isDeclarationFileName(name) ? "declaration" : name.endsWith(".map") ? "source-map" : name.endsWith(".mjs") ? "mjs" : name.endsWith(".cjs") ? "cjs" : "javascript",
+  return { index, path: name, kind: ts.isDeclarationFileName(name) ? "declaration" : name.endsWith(".map") && ts.isDeclarationFileName(name.slice(0,-4)) ? "declaration-map" : name.endsWith(".map") ? "source-map" : name.endsWith(".mjs") ? "mjs" : name.endsWith(".cjs") ? "cjs" : "javascript",
     callback_utf8_base64: bytes.toString("base64"), callback_utf8_bytes: bytes.length,
     write_byte_order_mark: bom, materialized_utf8_base64: materialized.toString("base64"), materialized_utf8_bytes: materialized.length,
     on_error_callback_present: onError !== undefined, source_files: sources?.map(source => source.fileName) ?? null,

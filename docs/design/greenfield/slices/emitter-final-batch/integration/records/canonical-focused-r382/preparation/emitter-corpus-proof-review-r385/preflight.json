@@ -1,0 +1,10 @@
+{
+  "head": "70696be105e0c1f8009e2ac0a57236ace99c798d",
+  "parser_source_paths": 76,
+  "only_syntax_delta": "crates/syntax/tests/emitter_recovery.rs count432->748",
+  "fresh_predicate_diff_matches_prior": true,
+  "old_build_manifest_matches": true,
+  "selected_commands": 48,
+  "original_load_failures": 110,
+  "scope": "Read-only source/evidence preparation; no replay, command proof or final qualification"
+}

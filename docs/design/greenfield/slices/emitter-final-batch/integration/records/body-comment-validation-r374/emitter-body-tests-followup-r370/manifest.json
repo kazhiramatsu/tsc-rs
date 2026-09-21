@@ -1,0 +1,44 @@
+{
+  "head": "4aeb1640156f291f4b5189b8ad9ed370cf17cf9d",
+  "qualified": true,
+  "scope": "No productionchange. Correct one stale System unit JS expectation using pinnedTypeScript368(explicitalwaysStrictfalse), extend newserializedfailurecase with2successfulsame-printer operations peractual186. Original21failurecasesunchanged. ThisrunqualifiesONLYemitterlib; failurecontracthasmeasurementadaptermismatch (actualtext/eventsallmatch but physicalstringcolumn0vswriterpendingindent4), review187pending.",
+  "steps": [
+    {
+      "label": "fmt",
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 3.6456064169760793,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "emitter-lib",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-emitter",
+        "--lib",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 161.49530933308415,
+      "log_sha256": "256de87d817c8e5596c0d944c02eefade5badd3ea6339e85a93b28873ae7b77f"
+    }
+  ],
+  "unit_before_sha256": "2ad3b580e6f0dbd60c7de1721ab4149b326d73e65f1bb27d26a0eb5f4305072e",
+  "unit_after_sha256": "3a755abc69140f8c769a154e80008009cbe87f6a84869e61f4fdc319752668e2",
+  "oracle_sha256": "a24b6338c03d47f7cc09b7c6885a490b90a0acb1bcca0dd6ac087272d58e5a91",
+  "diff_sha256": "e5bb0eb46fd912d5650b9965046792362eff0d4e81b95b46a3f7ec1ed839ab3e"
+}

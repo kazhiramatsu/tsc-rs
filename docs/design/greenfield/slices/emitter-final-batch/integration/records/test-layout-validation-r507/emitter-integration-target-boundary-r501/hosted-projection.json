@@ -1,0 +1,114 @@
+{
+  "scope": "Static existing invocation projection only, no execution claim",
+  "crates": [
+    {
+      "crate": "compiler",
+      "total": 33,
+      "hosted": [
+        "bundle_metadata_t1_contract",
+        "contracts",
+        "decorator_binding_pipeline_contract",
+        "decorator_super_contract",
+        "emitter_final_batch",
+        "emitter_final_rows",
+        "emitter_final_universe",
+        "h2_5h_parameter_temporaries",
+        "h2_5h_utf16_literal_witnesses",
+        "h2_5h_utf16_original_rows_complete",
+        "h2_6a_map_option_projection",
+        "h2_7d_bundle_program",
+        "h2_7d_bundle_sinks",
+        "h2_7d_declaration_bundles",
+        "h2_7d_module_identities",
+        "h2_7e_declaration_map_apis",
+        "h2_7e_declaration_maps",
+        "h2_7e_original_corpus",
+        "h2_8a_declaration_comment_ranges",
+        "h2_8a_declaration_specifiers",
+        "h2_8a_jsdoc_return",
+        "h2_8a_original_corpus",
+        "h2_8a_prologue_only_detached_comments",
+        "h2_8a_require_rewrite",
+        "h2_8a_utf16_identity_recovery_controls",
+        "h2_8a_utf16_literal_recovery_corpus",
+        "h2_8a_utf16_review_fix_controls",
+        "h2_8a_utf16_tagged_template_controls",
+        "literal_update_pipeline_contract",
+        "post_t1_residuals_contract",
+        "transpile_routes_contract"
+      ],
+      "not_directly_hosted": [
+        "h2_5h_utf16_literal_rows",
+        "h2_7d_original_corpus"
+      ],
+      "added_since_base": [
+        "crates/compiler/tests/emitter_final_batch.rs",
+        "crates/compiler/tests/emitter_final_rows.rs",
+        "crates/compiler/tests/emitter_final_universe.rs"
+      ]
+    },
+    {
+      "crate": "emitter",
+      "total": 22,
+      "hosted": [
+        "class_header_token_metadata_contract",
+        "comma_argument_factory_contract",
+        "comma_list_printer_contract",
+        "compact_body_comments_contract",
+        "contracts",
+        "decorator_binding_contract",
+        "decorator_super_direct_contract",
+        "ellipsis_comment_metadata_contract",
+        "emit_pipeline_phases_contract",
+        "import_type_attributes_contract",
+        "list_comment_flags_contract",
+        "list_format_flags_contract",
+        "literal_parent_provenance_contract",
+        "literal_update_contract",
+        "literal_value_provenance_contract",
+        "mapped_type_members_contract",
+        "printer_failure_contract",
+        "source_comment_topology_contract",
+        "string_literal_identifier_source_contract",
+        "token_comment_phase_metadata_contract",
+        "utf16_literal_escaping_contract",
+        "utf16_writer_contract"
+      ],
+      "not_directly_hosted": [],
+      "added_since_base": []
+    },
+    {
+      "crate": "program",
+      "total": 7,
+      "hosted": [
+        "contracts",
+        "h2_7d_bundle_source_facts",
+        "host_platform_smoke_contract",
+        "resolution_cache_contract",
+        "utf16_config_paths",
+        "utf16_module_paths",
+        "utf16_raw_source_boundary"
+      ],
+      "not_directly_hosted": [],
+      "added_since_base": []
+    },
+    {
+      "crate": "syntax",
+      "total": 8,
+      "hosted": [
+        "emitter_recovery",
+        "entity_names",
+        "new_meta_property_name",
+        "owned_literal_values",
+        "recovery_provenance",
+        "scanner_escape_diagnostics",
+        "template_escape_flags",
+        "template_flags"
+      ],
+      "not_directly_hosted": [],
+      "added_since_base": [
+        "crates/syntax/tests/emitter_recovery.rs"
+      ]
+    }
+  ]
+}

@@ -86,7 +86,7 @@
       ],
       "properties": {
         "production_boundary_omissions": { "const": 0 },
-        "absence_proofs": { "$ref": "#/$defs/positive_integer" },
+        "absence_proofs": { "$ref": "#/$defs/nonnegative_integer" },
         "option_projection_omissions": { "$ref": "#/$defs/nonnegative_integer" },
         "explicit_checker_emit_elisions": { "$ref": "#/$defs/positive_integer" },
         "existing_prerequisites": { "$ref": "#/$defs/positive_integer" }
@@ -124,7 +124,7 @@
         },
         "absence_proofs": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "items": { "$ref": "#/$defs/absence_proof" }
         }
       }

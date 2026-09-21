@@ -1,0 +1,35 @@
+{
+  "cases": 488,
+  "artifacts": [
+    {
+      "source": "scripts/observe-emitter-r168-corpus-controls.mjs",
+      "path": "observe-emitter-r168-corpus-controls.mjs",
+      "sha256": "cc2efd43c4eb3f5b2f73209957c506e3eabd6599cd701f81bb5307686a993853"
+    },
+    {
+      "source": "crates/compiler/tests/fixtures/emitter-r168-corpus-controls.json",
+      "path": "emitter-r168-corpus-controls.json.gz",
+      "sha256": "0b4a9d661af7e4d466ee9c731a6b5c91693d924af833c31933b15fadefc1052b"
+    },
+    {
+      "source": "docs/design/greenfield/slices/emitter-final-batch/integration/records/local/escaped-default-oracle-r193.json",
+      "path": "escaped-default-oracle-r193.json",
+      "sha256": "6b0d7617bb6623e069fdde2138a6e65ef5cd86aad39b3352c282e8ab0db9d7ac"
+    },
+    {
+      "source": "docs/design/greenfield/slices/emitter-final-batch/integration/records/local/escaped-default-oracle-r193.log",
+      "path": "escaped-default-oracle-r193.log.gz",
+      "sha256": "fad9a5ff3a50dd272eb405a42c101856d9e2ae18365275c618e3d8dbe51e2575"
+    },
+    {
+      "source": "docs/design/greenfield/slices/emitter-final-batch/integration/records/local/witness-registration-r197.json",
+      "path": "witness-registration-r197.json",
+      "sha256": "3923bd0d22e7a2b2ed6bf43bcd2ff3e5b51995892d991903f7a547af0c8caf72"
+    },
+    {
+      "source": "docs/design/greenfield/slices/emitter-final-batch/integration/records/local/witness-registration-r197.log",
+      "path": "witness-registration-r197.log.gz",
+      "sha256": "09f04f301640ac120bb7356404771bd55a183b41da101deb55e9271584ad54db"
+    }
+  ]
+}

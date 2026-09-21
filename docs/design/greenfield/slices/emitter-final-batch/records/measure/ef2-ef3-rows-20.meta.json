@@ -1,0 +1,15 @@
+{
+  "name": "ef2-ef3-rows-20",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 7,
+  "env": [
+    "TSC_RS_EMITTER_FINAL_CAPTURE_DIR=/private/tmp/claude-501/-Users-hiramatsu-dev-tsc-rs/01907deb-0413-43b0-9dc0-4f5a56bb8a5f/scratchpad/capture/ef2-ef3"
+  ],
+  "argv": "cargo test -p tsc-rs-compiler --test emitter_final_rows -- --nocapture --test-threads=1",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T07:10:34Z",
+  "seconds": 19,
+  "exit": 0,
+  "log_sha256": "43eff788abf819d9886de5682b15419d68c346efe9e05af3e12a6217890f8068",
+  "log_bytes": 13512
+}

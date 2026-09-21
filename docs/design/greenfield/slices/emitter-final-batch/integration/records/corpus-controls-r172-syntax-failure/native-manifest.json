@@ -1,0 +1,11 @@
+{
+  "head": "e50719c506138858577342b4fce5c2b86016de24",
+  "qualified": false,
+  "steps": [
+    {
+      "label": "corpus-syntax-r172",
+      "exit": 101
+    }
+  ],
+  "artifacts": []
+}

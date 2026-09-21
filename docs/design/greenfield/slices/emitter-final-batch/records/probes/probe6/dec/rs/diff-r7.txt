@@ -1,0 +1,10 @@
+13,16c13,16
+<         Foo_2 = Foo;
+<         Foo.func = function () { return new Foo_2(); };
+<         var Foo_2;
+<         Foo = Foo_2 = __decorate([
+---
+>         Foo_1 = Foo;
+>         Foo.func = function () { return new Foo_1(); };
+>         var Foo_1;
+>         Foo = Foo_1 = __decorate([

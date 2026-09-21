@@ -1,0 +1,11 @@
+# r157 residuals and r160 repair candidate
+
+The immutable r157 binary produced 392 exact commands twice and 12 failures from 404 inputs. Full captures, raw exits and the blocked r158 follow-up are retained in `../records/variable-producer-r157-complete/manifest.json`; `r157-failure-summary.json` records the failing IDs. The r159 ledger preflight used a previously built tool and is not final qualification.
+
+Three causes overlap in those 12 failures. VariableStatement invoked a boundary-union comment collector before its semicolon, admitting comments from following lines. CommonJS appended-export lookup observed an ES2015 generated spelling before TypeScript would substitute it, and its cloned value retained suppression flags that TypeScript's late substitution discards. Ordinary noCheck declaration emission omitted the linked-alias visibility preparation performed by TypeScript.
+
+The candidate changes that statement's call to the existing same-line trailing phase; shares one bounded stand-in-to-name lookup between the two actual consumers; preserves the generated export value and its unsuppressed comments/maps; and adds the noCheck preparation condition without enabling source checking. Dead private wrappers are removed. No scanner/recovery-admission change is made after d5ceab6e6, so the r151 successor snapshot and selection remain applicable; final native command comparison is still required.
+
+Actual Claude Opus rounds 139 and 140 reviewed these paths. Round 140 corrected its earlier mistaken claim that the removed comment wrapper's callee had other callers; the sole unused callee is also removed. Review is not runtime qualification. The 404 original observations remain unchanged. Semicolon, alias, declaration-visibility and a separate for-of producer add 104 commands (508 total), all with maps, diagnostics, callback metadata and command status. The intermediate 500-case observation is also archived before adding the final for-of control.
+
+The live KNOWN36 and transpile KNOWN8 remain intact pending the full comparison. Both historical sets are saved independently so later retirement cannot remove their strict rejection guards. The future CST/AST relation-table proposal remains a separate design investigation.

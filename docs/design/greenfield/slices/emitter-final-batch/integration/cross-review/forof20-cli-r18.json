@@ -1,0 +1,33 @@
+{
+  "kind": "supplemental-cli-reproducer-not-original-command-proof",
+  "source": "for (let v of []) {\n    let v;\n    for (let v of [v]) {\n        const v;\n    }\n}",
+  "config": {
+    "compilerOptions": {
+      "target": "es5",
+      "module": "commonjs",
+      "strict": false,
+      "alwaysStrict": true,
+      "ignoreDeprecations": "6.0",
+      "types": []
+    },
+    "files": [
+      "main.ts"
+    ]
+  },
+  "runs": [
+    {
+      "kind": "typescript",
+      "exit": 2,
+      "stdout": "main.ts(3,20): error TS2448: Block-scoped variable 'v' used before its declaration.\nmain.ts(4,15): error TS1155: 'const' declarations must be initialized.\n",
+      "stderr": "",
+      "javascript": "\"use strict\";\nfor (var _i = 0, _a = []; _i < _a.length; _i++) {\n    var v = _a[_i];\n    var v_1;\n    for (var _b = 0, _c = [v_2]; _b < _c.length; _b++) {\n        var v_2 = _c[_b];\n        var v_3;\n    }\n}\n"
+    },
+    {
+      "kind": "native",
+      "exit": 2,
+      "stdout": "main.ts(3,20): error TS2448: Block-scoped variable 'v' used before its declaration.\nmain.ts(4,15): error TS1155: 'const' declarations must be initialized.\n",
+      "stderr": "",
+      "javascript": "\"use strict\";\nfor (var _i = 0, _a = []; _i < _a.length; _i++) {\n    var v = _a[_i];\n    var v_1;\n    for (var _b = 0, _c = [v_3]; _b < _c.length; _b++) {\n        var v_3 = _c[_b];\n        var v_2;\n    }\n}\n"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "head": "32b6dca3a47b3e61f9d70eb912724eb09fcf1f1f",
+  "parent": "2df8d1cd0bae5a26efd1d4268bab4cc7cfd9cc12",
+  "file_pairs": {
+    "crates/syntax/src/recovery.rs": [
+      "2057b4a631a0a9aa48faa168cc7fa5ef391cd6a5091933d1bcfb4f9be7686e17",
+      "27eb7dbc0d144d72c5ceffe58ad7fd701b72c4e8e8f83038c06d757eaaa36085"
+    ],
+    "crates/syntax/src/recovery/context.rs": [
+      "c1e18d476453ff4ce90172b009310d0c160771190509583d3436d1e6f8e9aaa4",
+      "9986b93f8201e7c193563da7d09ca8965c1ff217de06e83c9a8fab42a11afa76"
+    ],
+    "crates/syntax/tests/unit/parser/recovery.rs": [
+      "b33aec7a9270d1563c3b4667cf053ad9469333869fe92335694fd64ef8b4f92e",
+      "29919a1c99f77e94ceb2b519b6263606a3d6744b2164fe367c5ae4a58293f7e8"
+    ]
+  }
+}

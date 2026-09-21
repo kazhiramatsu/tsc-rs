@@ -1,0 +1,25 @@
+{
+  "results": [
+    {
+      "label": "live-anchor-final-controls",
+      "exit": 0
+    },
+    {
+      "label": "host-resolution-final",
+      "exit": 0
+    },
+    {
+      "label": "cli-library-final",
+      "exit": 0
+    },
+    {
+      "label": "cli-option-commands-final",
+      "exit": 0
+    },
+    {
+      "label": "cli-diagnostic-order-final",
+      "exit": 0
+    }
+  ],
+  "complete": true
+}

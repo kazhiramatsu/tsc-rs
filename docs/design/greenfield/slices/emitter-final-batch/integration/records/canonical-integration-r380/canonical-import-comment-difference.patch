@@ -1,0 +1,31 @@
+diff --git a/Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/emitter/src/printer.rs b/crates/emitter/src/printer.rs
+index f7431af27..bbbea9d0a 100644
+--- a/Users/hiramatsu/dev/tsc-rs-emitter-final-leading-binding-prototype/crates/emitter/src/printer.rs
++++ b/crates/emitter/src/printer.rs
+@@ -3916,11 +3916,21 @@ impl Printer {
+                         .node_ref(node.source(), clause_id)
+                         .ok_or(PrinterError::UnknownStatement(clause_id.0))?;
+                     writer.write_space(" ");
+-                    let prefix = self.token_owned_child_prefix(
+-                        transformation,
+-                        import_keyword,
+-                        Some(clause),
+-                    )?;
++                    // After TypeScript erases import modifiers, the keyword's
++                    // arithmetic source end no longer abuts the clause. tsc
++                    // visits the clause's leading comments independently.
++                    let modifiers_erased = data.modifiers.is_none()
++                        && matches!(
++                            &transformation.arena().node(
++                                transformation.arena().get_original_node(node)
++                            )?.data,
++                            NodeData::ImportDeclaration(original) if original.modifiers.is_some()
++                        );
++                    let prefix = if modifiers_erased {
++                        None
++                    } else {
++                        self.token_owned_child_prefix(transformation, import_keyword, Some(clause))?
++                    };
+                     self.emit_leading_comments_for_node_worker(
+                         transformation,
+                         clause,

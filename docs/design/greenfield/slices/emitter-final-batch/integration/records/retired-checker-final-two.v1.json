@@ -1,0 +1,157 @@
+{
+  "schema": 1,
+  "kind": "retired-checker-known-native",
+  "proof": "local/audit-checker-known-r2.json",
+  "proof_log_sha256": "1a899015539bfc936d2ef1395032abfa58fb0c71ab39525c1340d35866def349",
+  "retirement_condition": "Both rows matched the unchanged complete TypeScript command observations in two independent native executions. The run failed only its stale-KNOWN assertion.",
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker: literal type display in TS2322 message",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+              "start": 244,
+              "length": 4,
+              "message": "Type 'number' is not assignable to type 'string'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+                  "start": 140,
+                  "length": 4,
+                  "message": "The expected type comes from property 'prop' which is declared here on type '{ prop: string; }'",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+              "start": 299,
+              "length": 4,
+              "message": "Type 'string' is not assignable to type '\"literal\"'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/.src/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+                  "start": 140,
+                  "length": 4,
+                  "message": "The expected type comes from property 'prop' which is declared here on type '{ prop: string; } & { prop: \"literal\"; }'",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/relationComplexityError.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker: TS2859 relation complexity budget",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/relationComplexityError.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/relationComplexityError.ts",
+              "start": 224,
+              "length": 1,
+              "message": "Type 'T1 & T2' is not assignable to type 'T1'.",
+              "related_information": null
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/relationComplexityError.ts",
+              "start": 278,
+              "length": 1,
+              "message": "Type 'T1 & T2' is not assignable to type 'T1 | null'.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "head": "5bc9fc0fd60710667efee8d4abeccccae3faa5bd",
+  "qualified": false,
+  "files": [
+    {
+      "path": "class-arrow-recovery-test-r231.json",
+      "sha256": "0a4e742bbb0f478e9ada3c8c10f13fc502c1867cdf58beee169854cec8f2c449"
+    },
+    {
+      "path": "class-arrow-recovery-test-r231.log.gz",
+      "sha256": "4f7f9ddc65167c8b7e98460b2bf12f9dbf031f4664a46bb36e004e079d09b736"
+    },
+    {
+      "path": "final-format-r231.json",
+      "sha256": "b2bbf46e8f11155f152327e6daa517b6e01d8698dcb9379b55ebd225d96eebac"
+    },
+    {
+      "path": "final-format-r231.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "final-prewalk-validation-pipeline-r231.json",
+      "sha256": "87fd8971ef038fcc72960544728cafda12fff83dd763d3936199d78ed78647e3"
+    },
+    {
+      "path": "final-prewalk-validation-pipeline-r231.log.gz",
+      "sha256": "f505174802d9809ebe1c6baa8683a5d7e1e7597139927925d76d5e40ad81d872"
+    },
+    {
+      "path": "final-workspace-clippy-r231.json",
+      "sha256": "4a9a26d801609451eb0ff84fca672d0691e37dfb194e8c89ddd765eacc4b8a60"
+    },
+    {
+      "path": "final-workspace-clippy-r231.log.gz",
+      "sha256": "1201076170d15b71f06672c5aa10c608d909ce342019b6163e801772a47025f5"
+    },
+    {
+      "path": "emitter-final-prewalk-validation-r231.py",
+      "sha256": "173f095ac6327b6a1c747495a80ace5603bcd21dbc958550047a8bf2548d5374"
+    },
+    {
+      "path": "pipeline-manifest.json",
+      "sha256": "d9e7c81f1e40defa5a51a41b06dff421e82a3184c2ecb0ef776fd86c878b7a13"
+    }
+  ],
+  "result": "fmt0;2syntaxunit testsPASS;clippy101 on unhandled EscapedKeywordConsumed in syntax emitter_recovery test serializer. Static check not executed."
+}

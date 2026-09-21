@@ -1,0 +1,225 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "tracked_clean": false,
+  "candidate_diff_sha256": "82910820655eefba83b1c578ef84eed1fa3452fef229a59d0d3d6c0955d03c9f",
+  "qualified": false,
+  "scope": "Reviewed import/export producer and printer corrections: whole emitter, previously failingM4/token/ellipsis, all affected helper/export/context commands, bothsource-map witness lanes, UTF16 boundaries and all H2.1a acceptance tests, workspaceclippy. Unsplit finalCI remainsmandatory. No temporary selectors or modified comparators.",
+  "steps": [
+    {
+      "label": "module-validation-format-r422",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 12.78393508400768,
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "test_summaries": [],
+      "passed_tests": 0,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    },
+    {
+      "label": "module-validation-emitter-all-r422",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 179.0418917920906,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-emitter",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          515,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          452,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          0
+        ],
+        [
+          18,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 1020,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    },
+    {
+      "label": "module-validation-m4-r422",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 101.57310787495226,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_7a_m4_controls::",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          4,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 4,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    },
+    {
+      "label": "module-validation-token-r422",
+      "exit": 101,
+      "checks_passed": false,
+      "seconds": 370.8931873750407,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8a_token_comment_phases::",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          0,
+          1,
+          0
+        ]
+      ],
+      "passed_tests": 0,
+      "expected_complete_commands": 409,
+      "exact_x2_lines": 407
+    }
+  ]
+}

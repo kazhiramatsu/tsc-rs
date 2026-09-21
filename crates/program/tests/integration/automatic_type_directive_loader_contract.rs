@@ -488,7 +488,7 @@ fn wildcard_manifest_failure_precedes_the_hidden_directory_filter() {
     let ProgramLoadError::Host { source, .. } = error else {
         unreachable!("kind identifies the host variant");
     };
-    assert_eq!(source, manifest_failure);
+    assert_eq!(*source, manifest_failure);
 }
 
 #[test]
@@ -529,7 +529,7 @@ fn unusual_explicit_names_reach_primary_root_probes_before_becoming_misses() {
     let ProgramLoadError::Resolution { source, .. } = error else {
         unreachable!("kind identifies the resolution variant");
     };
-    assert_eq!(source, ResolutionError::Host(primary_failure));
+    assert_eq!(*source, ResolutionError::Host(primary_failure));
 }
 
 #[test]
@@ -605,7 +605,7 @@ fn every_automatic_resolution_precedes_the_first_target_and_library_read() {
             .map(|value| value.as_str().expect("scalar legacy option observation")),
         Some("second")
     );
-    assert_eq!(source, ResolutionError::Host(second_resolution));
+    assert_eq!(*source, ResolutionError::Host(second_resolution));
 }
 
 #[test]
@@ -765,6 +765,4 @@ fn library_prefix_publication_remaps_root_and_automatic_type_target_ids() {
     assert!(!target.is_external_library_import());
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;

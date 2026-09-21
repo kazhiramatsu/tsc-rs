@@ -1,0 +1,212 @@
+{
+  "source_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "qualified": false,
+  "scope": "Format and workspace all-targets Clippy; six full compiler test targets, full harness contracts and xtask bin tests, baseline example build and static walk preconditions. This is prewalk validation, not final unsplit CI or canonical walk. All raw failures/ignored counts remain visible; no successful raw command capture archive is claimed for default in-memory fixture comparators.",
+  "results": [
+    {
+      "label": "baseline-example-build-r244",
+      "exit": 0,
+      "seconds": 615.635,
+      "libtest_summaries": [],
+      "scope_summaries": []
+    },
+    {
+      "label": "compiler-affected-targets-r244",
+      "exit": 101,
+      "seconds": 15248.311,
+      "libtest_summaries": [
+        "test result: FAILED. 464 passed; 8 failed; 16 ignored; 0 measured; 0 filtered out; finished in 14598.63s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.69s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.43s",
+        "test result: ok. 3 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 82.50s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 73.96s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 163.09s"
+      ],
+      "scope_summaries": [
+        "async-arrow body ranges recovery SUMMARY exact=372 failed=0 selected=372",
+        "Await flag commands SUMMARY exact=690 failed=0 selected=690",
+        "Recovery boundary SUMMARY exact=320 failed=0 selected=320",
+        "empty-block comments SUMMARY exact=72 failed=0 selected=72",
+        "export destructuring comments SUMMARY exact=1130 failed=0 selected=1130",
+        "Recovery boundary SUMMARY exact=122 failed=0 selected=122",
+        "Recovery boundary SUMMARY exact=132 failed=0 selected=132",
+        "Recovery boundary SUMMARY exact=108 failed=0 selected=108",
+        "Recovery boundary SUMMARY exact=10 failed=0 selected=10",
+        "Recovery boundary SUMMARY exact=3 failed=0 selected=3",
+        "Recovery boundary SUMMARY exact=58 failed=0 selected=58",
+        "Recovery boundary SUMMARY exact=4 failed=0 selected=4",
+        "Recovery boundary SUMMARY exact=9 failed=0 selected=9",
+        "Recovery boundary SUMMARY exact=12 failed=0 selected=12",
+        "Recovery boundary SUMMARY exact=24 failed=0 selected=24",
+        "Recovery boundary SUMMARY exact=176 failed=0 selected=176",
+        "Recovery boundary SUMMARY exact=1080 failed=0 selected=1080",
+        "Recovery boundary SUMMARY exact=344 failed=0 selected=344",
+        "Recovery boundary SUMMARY exact=70 failed=0 selected=70",
+        "Recovery boundary SUMMARY exact=288 failed=0 selected=288",
+        "Recovery boundary SUMMARY exact=18 failed=0 selected=18",
+        "Recovery boundary SUMMARY exact=88 failed=0 selected=88",
+        "Recovery boundary SUMMARY exact=774 failed=0 selected=774",
+        "System binding publication SUMMARY exact=1044 failed=0 selected=1044",
+        "Recovery boundary SUMMARY exact=145 failed=0 selected=145",
+        "Recovery boundary SUMMARY exact=508 failed=0 selected=508",
+        "context recovery SUMMARY exact=432 failed=0 selected=432",
+        "external helper imports SUMMARY exact=539 known=0 failed=12 selected=551",
+        "missing-await recovery SUMMARY exact=60 failed=0 selected=60",
+        "missing-declaration binding SUMMARY exact=60 failed=0 selected=60",
+        "missing-declaration effects SUMMARY exact=144 failed=0 selected=144",
+        "missing-declaration recovery SUMMARY exact=72 failed=0 selected=72",
+        "missing-declaration scripts SUMMARY exact=150 failed=0 selected=150",
+        "parameter-gap recovery SUMMARY exact=78 failed=0 selected=78",
+        "statement-gap recovery SUMMARY exact=228 failed=0 selected=228",
+        "emitter final rows SUMMARY exact=21 known=0 failed=0 selected=21"
+      ]
+    },
+    {
+      "label": "final-format-r244",
+      "exit": 0,
+      "seconds": 13.864,
+      "libtest_summaries": [],
+      "scope_summaries": []
+    },
+    {
+      "label": "final-prewalk-validation-pipeline-r244",
+      "exit": 1,
+      "seconds": 16866.136,
+      "libtest_summaries": [
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 163.09s",
+        "test result: ok. 85 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 100.30s",
+        "test result: FAILED. 310 passed; 4 failed; 5 ignored; 0 measured; 0 filtered out; finished in 771.21s"
+      ],
+      "scope_summaries": []
+    },
+    {
+      "label": "final-static-preflight-r244",
+      "exit": 0,
+      "seconds": 10.736,
+      "libtest_summaries": [],
+      "scope_summaries": []
+    },
+    {
+      "label": "final-workspace-clippy-r244",
+      "exit": 0,
+      "seconds": 0.529,
+      "libtest_summaries": [],
+      "scope_summaries": []
+    },
+    {
+      "label": "harness-all-contracts-r244",
+      "exit": 0,
+      "seconds": 161.112,
+      "libtest_summaries": [
+        "test result: ok. 85 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 100.30s"
+      ],
+      "scope_summaries": []
+    },
+    {
+      "label": "xtask-tests-r244",
+      "exit": 101,
+      "seconds": 796.672,
+      "libtest_summaries": [
+        "test result: FAILED. 310 passed; 4 failed; 5 ignored; 0 measured; 0 filtered out; finished in 771.21s"
+      ],
+      "scope_summaries": []
+    }
+  ],
+  "files": [
+    {
+      "path": "baseline-example-build-r244.json",
+      "sha256": "ec50d68ddfbacb275c79c33cd2ffb473bab9373983a73c670dc879d5110aa284",
+      "bytes": 758
+    },
+    {
+      "path": "baseline-example-build-r244.log.gz",
+      "sha256": "e70f5ce54c6341f9edd47dd0d0446552a46a7a7255a0ea706e49789b21518899",
+      "bytes": 347
+    },
+    {
+      "path": "compiler-affected-targets-r244.json",
+      "sha256": "935a3bbaa46ee739e97c66e9d18ca0bf82cfd16d9ce6863a99fcd7adfffdc65f",
+      "bytes": 1047
+    },
+    {
+      "path": "compiler-affected-targets-r244.log.gz",
+      "sha256": "36cfa4ea626e28eefdb334ab6400c2b0ccabd162646e7f9e5dd13cb676c06e0b",
+      "bytes": 98423
+    },
+    {
+      "path": "final-format-r244.json",
+      "sha256": "e87a5e43a167b2c752d7c46054a3c7bfc4bb8eda32a6fc3929f103f045776766",
+      "bytes": 690
+    },
+    {
+      "path": "final-format-r244.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "final-prewalk-validation-pipeline-r244.json",
+      "sha256": "62edd4251cc5f4108a6bdf07c7eddecd684e34deccf06bc4d3b3d8c3e25c5da8",
+      "bytes": 703
+    },
+    {
+      "path": "final-prewalk-validation-pipeline-r244.log.gz",
+      "sha256": "db282c7841549775823dcfbcebea28f6f477e397c4cad4d2002b8792c8e9f32d",
+      "bytes": 4245
+    },
+    {
+      "path": "final-static-preflight-r244.json",
+      "sha256": "084fdff7e31bb00e66d9c5b5f50ca5fb9c13f67fad91cd842696959190def6e2",
+      "bytes": 682
+    },
+    {
+      "path": "final-static-preflight-r244.log.gz",
+      "sha256": "ca0c3b09b55585de319263c926c4cac15acd69bd974fd79546fea00e0d00775e",
+      "bytes": 152
+    },
+    {
+      "path": "final-workspace-clippy-r244.json",
+      "sha256": "934718f05ee3a8c55e2a31ebc7eefeff3f85e98a9c7e7249ba75251f78439d95",
+      "bytes": 751
+    },
+    {
+      "path": "final-workspace-clippy-r244.log.gz",
+      "sha256": "65af10c8fb8654473cb771dd5ebce119306f5c7d2ca53f5eafcc04b1f82801c5",
+      "bytes": 91
+    },
+    {
+      "path": "harness-all-contracts-r244.json",
+      "sha256": "731c83b0527e9a4af8abf0491e949b69740d1bccacf5d3426016db1c5c9193b6",
+      "bytes": 790
+    },
+    {
+      "path": "harness-all-contracts-r244.log.gz",
+      "sha256": "0db89f8779413184e405c2de82974f86685017d997197713cba0804a0290cb45",
+      "bytes": 2107
+    },
+    {
+      "path": "xtask-tests-r244.json",
+      "sha256": "184a8aed1959736aa3dcdbf73431ba88c0e8cf311db82b0abbebf4b1c1245668",
+      "bytes": 786
+    },
+    {
+      "path": "xtask-tests-r244.log.gz",
+      "sha256": "e3855434660bbee7168c383a1ec4e81d9d31fb81bfd7c781be858fbc516a3564",
+      "bytes": 9130
+    },
+    {
+      "path": "pipeline-manifest.json",
+      "sha256": "4335bab9b6d7087f4a18786b39f468663e05a870f24b4d1f2d3c34de07889c6c",
+      "bytes": 606
+    },
+    {
+      "path": "emitter-final-prewalk-validation-r244.py",
+      "sha256": "a287e5a4934c76bd30349937f8b69ea864663517c41ad8556bdf840dbc939e27",
+      "bytes": 2220
+    },
+    {
+      "path": "archive-emitter-prewalk-r244.py",
+      "sha256": "03b22105ce588bace8869201ca5905d84d0986dbcd86e88096efa46a346d6b31",
+      "bytes": 2642
+    }
+  ]
+}

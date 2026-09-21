@@ -1,0 +1,427 @@
+[
+  {
+    "path": "crates/compiler/tests/integration/automatic_type_directive_session_contract.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:1:#[path = \"integration/automatic_type_directive_session_contract.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/declaration_transformer_replay_decision_equal.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:7:#[path = \"integration/declaration_transformer_replay_decision_equal.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/emit_session_contract.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:9:#[path = \"integration/emit_session_contract.rs\"]",
+      "crates/harness/tests/integration/h2_1a_profile.rs:19:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_1b_profile.rs:18:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_1c_profile.rs:18:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_1d_profile.rs:18:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_1e_profile.rs:18:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_2a_profile.rs:19:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_2b_profile.rs:19:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_2c_profile.rs:19:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_2d_profile.rs:19:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_3a_profile.rs:20:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_3b_profile.rs:20:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "crates/harness/tests/integration/h2_3c_profile.rs:20:    \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "docs/design/greenfield/slices/emitter-final-batch/integration/records/known-retirement-r222-r223/applied/scripts/emitter_final_witnesses.py:231:        \"crates/compiler/tests/integration/emit_session_contract.rs\",",
+      "scripts/emitter_final_witnesses.py:231:        \"crates/compiler/tests/integration/emit_session_contract.rs\","
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/filesystem_loader_contract.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:15:#[path = \"integration/filesystem_loader_contract.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h1_emit_qualification_contract.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:19:#[path = \"integration/h1_emit_qualification_contract.rs\"]",
+      "crates/harness/tests/integration/h2_3b_profile.rs:21:    \"crates/compiler/tests/integration/h1_emit_qualification_contract.rs\",",
+      "crates/harness/tests/integration/h2_3c_profile.rs:21:    \"crates/compiler/tests/integration/h1_emit_qualification_contract.rs\","
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h1_memory_emit_oracle_contract.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;",
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:23:#[path = \"integration/h1_memory_emit_oracle_contract.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_5h_static_this_super_rows.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:29:#[path = \"integration/h2_5h_static_this_super_rows.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_5h_static_this_super_witnesses.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:31:#[path = \"integration/h2_5h_static_this_super_witnesses.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_7b_m2_controls.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:41:#[path = \"integration/h2_7b_m2_controls.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_7b_w1_controls.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:43:#[path = \"integration/h2_7b_w1_controls.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_7b_w2_write_census.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;",
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:47:#[path = \"integration/h2_7b_w2_write_census.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_7b_w2a_controls.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:49:#[path = \"integration/h2_7b_w2a_controls.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_7b_w2b_controls.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:51:#[path = \"integration/h2_7b_w2b_controls.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_7b_w3a_controls.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:53:#[path = \"integration/h2_7b_w3a_controls.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_7b_w3b_controls.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:55:#[path = \"integration/h2_7b_w3b_controls.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_7b_w4b_controls.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:59:#[path = \"integration/h2_7b_w4b_controls.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_7b_w4i_controls.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:61:#[path = \"integration/h2_7b_w4i_controls.rs\"]",
+      "crates/compiler/tests/integration/h2_7b_w2b_controls.rs:581:// their full frozen controls live in `h2_7b_w4i_controls.rs`; these w2"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:269:#[path = \"integration/h2_8a_decorator_next_witnesses.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_8a_decorator_super.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      ".github/ci/replay.py:68:    \"crates/compiler/tests/integration/h2_8a_decorator_super.rs\",",
+      "crates/compiler/tests/decorator_super_contract.rs:9:#[path = \"integration/h2_8a_decorator_super.rs\"]",
+      "scripts/decorator-super-receipt.py:65:    tests = ['crates/compiler/tests/decorator_super_contract.rs', 'crates/compiler/tests/integration/h2_8a_decorator_super.rs',"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:266:#[path = \"integration/h2_8a_ellipsis_comment_owners.rs\"]",
+      "scripts/check-ellipsis-comment-owners-readiness.py:129:test = (ROOT / 'crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs').read_text()"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_8a_import_helpers.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:260:#[path = \"integration/h2_8a_import_helpers.rs\"]",
+      "docs/design/greenfield/slices/emitter-final-batch/integration/records/known-retirement-r222-r223/applied/scripts/emitter_final_witnesses.py:200:                \"crates/compiler/tests/integration/h2_8a_import_helpers.rs\",",
+      "docs/design/greenfield/slices/emitter-final-batch/integration/records/known-retirement-r222-r223/applied/scripts/emitter_final_witnesses.py:203:                \"crates/compiler/tests/integration/h2_8a_import_helpers.rs\"},",
+      "docs/design/greenfield/slices/emitter-final-batch/integration/records/known-retirement-r222-r223/applied/scripts/emitter_final_witnesses.py:240:        \"crates/compiler/tests/integration/h2_8a_import_helpers.rs\", \"scripts/observe-import-helpers.mjs\",",
+      "scripts/check-import-helpers-readiness.py:74:test = (ROOT / 'crates/compiler/tests/integration/h2_8a_import_helpers.rs').read_text()",
+      "scripts/emitter_final_witnesses.py:200:                \"crates/compiler/tests/integration/h2_8a_import_helpers.rs\",",
+      "scripts/emitter_final_witnesses.py:203:                \"crates/compiler/tests/integration/h2_8a_import_helpers.rs\"},",
+      "scripts/emitter_final_witnesses.py:240:        \"crates/compiler/tests/integration/h2_8a_import_helpers.rs\", \"scripts/observe-import-helpers.mjs\","
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_8a_object_property_owners.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:274:#[path = \"integration/h2_8a_object_property_owners.rs\"]",
+      "scripts/check-object-property-owners-readiness.py:89:test = (ROOT / 'crates/compiler/tests/integration/h2_8a_object_property_owners.rs').read_text()"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_8a_package_output_inputs.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;",
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:139:#[path = \"integration/h2_8a_package_output_inputs.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      ".github/ci/replay.py:159:        if file == \"crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs\":",
+      "crates/compiler/tests/contracts.rs:271:#[path = \"integration/h2_8a_retained_accessor_owners.rs\"]",
+      "docs/design/greenfield/slices/plan-base/inventory.py:343:                 \"crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs\","
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/h2_8a_token_comment_phases.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:263:#[path = \"integration/h2_8a_token_comment_phases.rs\"]",
+      "scripts/check-token-comment-phases-readiness.py:109:test = (ROOT / 'crates/compiler/tests/integration/h2_8a_token_comment_phases.rs').read_text()"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/library_loader_session_contract.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:67:#[path = \"integration/library_loader_session_contract.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/original_path_session_contract.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:71:#[path = \"integration/original_path_session_contract.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/preserve_symlinks_session_contract.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:73:#[path = \"integration/preserve_symlinks_session_contract.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/source_map_band_probe.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:77:#[path = \"integration/source_map_band_probe.rs\"]",
+      "crates/compiler/tests/h2_6a_map_option_projection.rs:4:#[path = \"integration/source_map_band_probe.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/source_map_emit_witness_contract.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:79:#[path = \"integration/source_map_emit_witness_contract.rs\"]",
+      "docs/design/greenfield/slices/emitter-final-batch/integration/records/known-retirement-r222-r223/applied/scripts/emitter_final_witnesses.py:229:        \"crates/compiler/tests/integration/source_map_emit_witness_contract.rs\",",
+      "scripts/emitter_final_witnesses.py:229:        \"crates/compiler/tests/integration/source_map_emit_witness_contract.rs\","
+    ]
+  },
+  {
+    "path": "crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs",
+    "declarations": [
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;",
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;"
+    ],
+    "root_references": [
+      "crates/compiler/tests/contracts.rs:83:#[path = \"integration/upstream_no_emit_harness_contract.rs\"]",
+      "crates/harness/tests/integration/h2_1c_profile.rs:20:    \"crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs\",",
+      "crates/harness/tests/integration/h2_1d_profile.rs:20:    \"crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs\",",
+      "crates/harness/tests/integration/h2_1e_profile.rs:20:    \"crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs\",",
+      "crates/harness/tests/integration/h2_2a_profile.rs:21:    \"crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs\",",
+      "crates/harness/tests/integration/h2_2b_profile.rs:21:    \"crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs\",",
+      "crates/harness/tests/integration/h2_2c_profile.rs:21:    \"crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs\",",
+      "crates/harness/tests/integration/h2_2d_profile.rs:21:    \"crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs\",",
+      "crates/harness/tests/integration/h2_3a_profile.rs:22:    \"crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs\",",
+      "crates/harness/tests/integration/h2_3b_profile.rs:23:    \"crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs\",",
+      "crates/harness/tests/integration/h2_3c_profile.rs:23:    \"crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs\","
+    ]
+  },
+  {
+    "path": "crates/harness/tests/integration/module_suffixes_oracle_contract.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;",
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      "crates/harness/tests/contracts.rs:45:#[path = \"integration/module_suffixes_oracle_contract.rs\"]"
+    ]
+  },
+  {
+    "path": "crates/harness/tests/integration/upstream_execution_plan.rs",
+    "declarations": [
+      "#[path = \"../../../host/tests/support/scalar_path.rs\"]",
+      "mod utf16_scalar_path;",
+      "use utf16_scalar_path::ScalarTestPath as _;",
+      "#[path = \"../../../program/tests/support/scalar_json.rs\"]",
+      "mod utf16_scalar_json;",
+      "use utf16_scalar_json::observe as scalar_json;"
+    ],
+    "root_references": [
+      "crates/harness/tests/contracts.rs:51:#[path = \"integration/upstream_execution_plan.rs\"]"
+    ]
+  }
+]

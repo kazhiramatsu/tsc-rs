@@ -1,0 +1,63 @@
+{
+  "partial": true,
+  "head": "d74ca0fbc092dfc65f02dc5987b1683d0648274c",
+  "differences": [
+    {
+      "case_id": "emitter-r107-declaration-comments/declaration-comment/es5/amd/remove-false/module-bundle",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/bundle.js",
+        "/project/bundle.d.ts"
+      ]
+    },
+    {
+      "case_id": "emitter-r107-declaration-comments/declaration-comment/es2017/none/remove-false/script-bundle",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/bundle.d.ts"
+      ]
+    },
+    {
+      "case_id": "emitter-r107-declaration-comments/declaration-comment/es5/commonjs/remove-false/module-per-file",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js",
+        "/project/out/main.d.ts"
+      ]
+    },
+    {
+      "case_id": "emitter-r109-token-neighbours/token-neighbours/es2020/preserve/remove-false/do-nonblock-same",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r109-token-neighbours/token-neighbours/es2020/preserve/remove-false/do-nonblock-both",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    }
+  ]
+}

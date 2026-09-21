@@ -1,0 +1,11 @@
+{
+  "scope": "Internal printer factory controls only, not compiler command/source admission. Canonical TypeScript6.0.3 twice; original8 rowsexact unchanged;2synthetic MetaProperty rows added. Nativequalificationpending.",
+  "oracle_exit": 0,
+  "fixture_sha256": "dfcb2e4ba57e1d5bde50e7758658720c8cf1c09dd7e3004f32536b8c4130505d",
+  "observer_sha256": "44e1804d15f8e117aafebd1c8008b9dabf31e0ea6939fffd5b9d62a295a14799",
+  "new_rows": [
+    "new-target/synthetic",
+    "import-meta/synthetic"
+  ],
+  "qualified_native": false
+}

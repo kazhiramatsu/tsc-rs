@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "repetitions": 2,
+  "artifacts": [
+    {
+      "path": "crates/compiler/tests/fixtures/h2_8c_transpile/inputs.v1.json",
+      "unchanged_cases": 287,
+      "added_cases": 4,
+      "before_sha256": "cfec84eebb013708d458e7841ffcef262d95519b094a5b9381ae8f5e66967573",
+      "after_sha256": "cfae93399067b33cdde53668218c5730dac7c6d3cdf336ac06235775e65939d0"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2_8c_transpile/expected.v1.json",
+      "unchanged_cases": 287,
+      "added_cases": 4,
+      "before_sha256": "ebd10a1122f6a311a38cccab46cb538313a0c792b1187064b14b9130d5e66819",
+      "after_sha256": "e935b81b9024dca02f02f7c27183b9e943fdf3dd38d28e44b50a71ef359e6d3c"
+    }
+  ]
+}

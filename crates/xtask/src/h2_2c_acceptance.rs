@@ -613,6 +613,19 @@ pub(crate) fn parse_prepared_source(
     path: &str,
     lower_path: &str,
 ) -> SourceFile {
+    parse_source_file_from_snapshot(
+        path.to_owned(),
+        Arc::clone(source.snapshot()),
+        prepared_parse_options(options, source, lower_path),
+        None,
+    )
+}
+
+pub(crate) fn prepared_parse_options(
+    options: &CompilerOptions,
+    source: &PreparedSourceFile,
+    lower_path: &str,
+) -> ParseOptions {
     let javascript_file = [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
         .any(|extension| lower_path.ends_with(extension));
@@ -636,19 +649,14 @@ pub(crate) fn parse_prepared_source(
         };
     let detect_external_module_from_jsx =
         !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
-    parse_source_file_from_snapshot(
-        path.to_owned(),
-        Arc::clone(source.snapshot()),
-        ParseOptions {
-            script_target: options.emit_script_target(),
-            language_variant,
-            javascript_file,
-            force_external_module,
-            detect_external_module_from_jsx,
-            ..ParseOptions::default()
-        },
-        None,
-    )
+    ParseOptions {
+        script_target: options.emit_script_target(),
+        language_variant,
+        javascript_file,
+        force_external_module,
+        detect_external_module_from_jsx,
+        ..ParseOptions::default()
+    }
 }
 
 pub(crate) fn is_declaration_file_path(lower_path: &str) -> bool {
@@ -5403,6 +5411,16 @@ fn write_h2_6c_divergence_manifest(
     workspace: &Path,
     diverging: &[(String, H2VectorDivergence)],
 ) -> Result<(), Box<dyn Error>> {
+    let path = workspace.join(H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH);
+    if diverging.is_empty() {
+        match fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        println!("H2.6c divergence manifest retired: 0 entries");
+        return Ok(());
+    }
     let cases = diverging
         .iter()
         .map(|(case_id, divergence)| {
@@ -5421,10 +5439,7 @@ fn write_h2_6c_divergence_manifest(
         .collect::<Vec<_>>();
     let body = serde_json::json!({ "schema": 1, "cases": cases });
     let rendered = format!("{}\n", serde_json::to_string_pretty(&body)?);
-    fs::write(
-        workspace.join(H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH),
-        rendered,
-    )?;
+    fs::write(path, rendered)?;
     println!(
         "H2.6c divergence manifest written: {} entries (owner {H2_6C_DIVERGENCE_OWNER})",
         diverging.len()

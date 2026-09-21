@@ -53,6 +53,16 @@ reviewSpecs.push(printNodeSpec('review/nested-comments-with-trivia', {
   emit_flags:[{target:'s0',path:'expression',flags:ts.EmitFlags.NoNestedComments}],
   ops:[{target:'s0',printer:'fresh'},{target:'s0',fault:identifierFault('before',2)},{target:'s0'},{target:'s1'}]
 }));
+// A function body's own detached head/tail surround its suppression extent.
+// Failure in the callback must keep that extent active on the shared printer.
+reviewSpecs.push(printNodeSpec('review/function-body-sticky-comments', {
+  sources:[{name:'main.ts',text:'function f() {\r\n// head\r\n\r\nx(/* inner */);\r\n// tail\r\n}\r\n// next\r\ng(/* next arg */);\r\n'}],
+  tracked:[K.SourceFile,K.ExpressionStatement,K.Identifier],
+  targets:files=>{ts.setEmitFlags(files[0].statements[0].body,ts.EmitFlags.NoNestedComments);return targets(files);},
+  emit_flags:[{target:'s0',path:'body',flags:ts.EmitFlags.NoNestedComments}],
+  ops:[{...select('printFile'),printer:'fresh'},select('printFile'),select('printFile'),
+    {target:'s0',fault:identifierFault('before',2)},select('printFile'),select('printFile'),{target:'s1'}]
+}));
 for (const phase of ['success', 'before']) {
   reviewSpecs.push(printNodeSpec('review/bundled-helpers/' + phase, {
     sources:[{name:'main.ts',text:'a(1);\r\nb(2);\r\n'},{name:'other.ts',text:'c(3);\r\nd(4);\r\n'}],
@@ -79,7 +89,7 @@ const cases = reviewSpecs.map(spec => {
   const {targets,...input} = spec;
   return {...input,typescript_observation:first};
 });
-assert.equal(cases.length,21);
+assert.equal(cases.length,22);
 const output = 'crates/emitter/tests/fixtures/printer-failure-review.json';
 const rendered = JSON.stringify({version:1,typescript:ts.version,repetitions:2,
   route:'printer-failure-review-controls',submitted_observer_sha256:SUBMITTED_SHA,

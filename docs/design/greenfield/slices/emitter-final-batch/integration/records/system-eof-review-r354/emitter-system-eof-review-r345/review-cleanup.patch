@@ -1,0 +1,98 @@
+--- a/crates/emitter/src/printer.rs
++++ b/crates/emitter/src/printer.rs
+@@ -1015,6 +1015,7 @@
+         positions: &PositionIndex,
+     ) -> Option<Self> {
+         SourceBytePosition::new(raw_anchor, positions).ok()?;
++        // Source slice ends use bytes; map columns use UTF-16 units.
+         let end = token_start.checked_add(spelling.len())?;
+         if let Some(range) = u32::try_from(end)
+             .ok()
+@@ -6870,10 +6871,11 @@
+                 let colon_map_default =
+                     if single_line_statement && writer.has_source_map_recording() {
+                         match colon_cursor.source_position() {
+-                            Some((cursor_source, position)) => self.token_map_range_at(
++                            Some((cursor_source, position)) => self.token_map_range_spanning(
+                                 transformation,
+                                 cursor_source,
+                                 position.value(),
++                                ":",
+                                 writer,
+                             )?,
+                             None => None,
+@@ -6937,10 +6939,11 @@
+                 let colon_map_default =
+                     if single_line_statement && writer.has_source_map_recording() {
+                         match default_keyword.cursor().source_position() {
+-                            Some((cursor_source, position)) => self.token_map_range_at(
++                            Some((cursor_source, position)) => self.token_map_range_spanning(
+                                 transformation,
+                                 cursor_source,
+                                 position.value(),
++                                ":",
+                                 writer,
+                             )?,
+                             None => None,
+@@ -8146,7 +8149,7 @@
+                 } else {
+                     let open_default = match block_source_start {
+                         Some(start) => {
+-                            self.token_map_range_at(transformation, node.source(), start, writer)?
++                            self.token_map_range_spanning(transformation, node.source(), start, "{", writer)?
+                         }
+                         None => None,
+                     };
+@@ -8489,7 +8492,7 @@
+                 let close_default = match statement_list_end {
+                     Some(end) => match u32::try_from(end) {
+                         Ok(end) => {
+-                            self.token_map_range_at(transformation, node.source(), end, writer)?
++                            self.token_map_range_spanning(transformation, node.source(), end, "}", writer)?
+                         }
+                         Err(_) => None,
+                     },
+@@ -8634,7 +8637,7 @@
+             }
+         };
+         let open_default = match case_block_start {
+-            Some(start) => self.token_map_range_at(transformation, source, start, writer)?,
++            Some(start) => self.token_map_range_spanning(transformation, source, start, "{", writer)?,
+             None => None,
+         };
+         self.record_brace_write(
+@@ -8710,7 +8713,7 @@
+             writer.decrease_indent();
+         }
+         let close_default = match clause_list_end.and_then(|end| u32::try_from(end).ok()) {
+-            Some(end) => self.token_map_range_at(transformation, source, end, writer)?,
++            Some(end) => self.token_map_range_spanning(transformation, source, end, "}", writer)?,
+             None => None,
+         };
+         self.record_brace_write(
+@@ -18835,22 +18838,9 @@
+         }
+     }
+ 
+-    /// A one-token default range anchored at a raw source position: the
+-    /// span from the raw anchor to one byte past its skip-trivia'd token
+-    /// start (upstream `writeToken`'s returned continuation). `None` when
+-    /// the anchor cannot form a valid range.
+-    fn token_map_range_at(
+-        &self,
+-        transformation: &TransformationResult<'_>,
+-        source: TransformSourceId,
+-        raw_anchor: u32,
+-        writer: &TextWriter,
+-    ) -> Result<Option<TokenMapDefault>, PrinterError> {
+-        self.token_map_range_spanning(transformation, source, raw_anchor, "}", writer)
+-    }
+-
+-    /// As `token_map_range_at` for a token of a known spelling
+-    /// (upstream `writeToken`'s `pos + tokenString.length` continuation).
++    /// A token default anchored at a raw source position. The Before
++    /// side skips trivia; the After side follows the token's spelling.
++    /// At EOF that continuation is a map column, not a source byte range.
+     fn token_map_range_spanning(
+         &self,
+         transformation: &TransformationResult<'_>,

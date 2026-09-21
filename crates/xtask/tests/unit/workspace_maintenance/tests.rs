@@ -99,13 +99,103 @@ impl Drop for TempWorkspace {
     }
 }
 
+fn install_frozen_layout_fixture(workspace: &TempWorkspace) {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let contract: serde_json::Value = serde_json::from_str(FROZEN_TEST_LAYOUT).unwrap();
+    workspace.write(
+        "crates/xtask/Cargo.toml",
+        "[package]\nname = \"frozen-layout-fixture\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\n[package.metadata.tsc-rs]\nrole = \"frozen-layout\"\n",
+    );
+    workspace.write("crates/xtask/src/lib.rs", "");
+    workspace.write("crates/xtask/tests/.keep", "");
+    workspace.write(
+        FROZEN_TEST_SOURCE,
+        &fs::read_to_string(root.join(FROZEN_TEST_SOURCE)).unwrap(),
+    );
+    workspace.write(
+        contract["coupling_source"].as_str().unwrap(),
+        contract["coupling_expression"].as_str().unwrap(),
+    );
+}
+
+#[test]
+fn frozen_census_layout_exception_rejects_drift_and_does_not_cover_other_sources() {
+    let workspace = TempWorkspace::new("frozen-layout-boundary");
+    workspace.write(
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"crates/xtask\"]\nresolver = \"2\"\n",
+    );
+    install_frozen_layout_fixture(&workspace);
+    let catalog = WorkspaceCatalog::discover(workspace.path()).unwrap();
+    audit_unit_test_layout(&catalog).unwrap();
+    let frozen_path = workspace.path().join(FROZEN_TEST_SOURCE);
+    let original = fs::read_to_string(&frozen_path).unwrap();
+    let contract: serde_json::Value = serde_json::from_str(FROZEN_TEST_LAYOUT).unwrap();
+    for changed in [
+        format!("{original}\n"),
+        original.replace("mod tests {", "mod renamed_tests {"),
+        format!("{original}\n#[cfg(test)]\nmod extra {{}}\n"),
+    ] {
+        fs::write(&frozen_path, changed).unwrap();
+        assert!(audit_unit_test_layout(&catalog)
+            .unwrap_err()
+            .to_string()
+            .contains("frozen census producer changed"));
+    }
+    workspace.write(
+        FROZEN_TEST_SOURCE,
+        "#[cfg(test)]\n#[path = \"../tests/unit/recovery_parse_snapshot/tests.rs\"]\nmod tests;\n",
+    );
+    assert!(audit_unit_test_layout(&catalog)
+        .unwrap_err()
+        .to_string()
+        .contains("frozen layout exception no longer needed"));
+    fs::write(&frozen_path, &original).unwrap();
+    workspace.write("crates/xtask/src/other.rs", &original);
+    assert!(audit_unit_test_layout(&catalog)
+        .unwrap_err()
+        .to_string()
+        .contains("other.rs:380 defines tests inline"));
+    fs::remove_file(workspace.path().join("crates/xtask/src/other.rs")).unwrap();
+    workspace.write(contract["coupling_source"].as_str().unwrap(), "");
+    assert!(audit_unit_test_layout(&catalog)
+        .unwrap_err()
+        .to_string()
+        .contains("frozen census coupling removed"));
+    install_frozen_layout_fixture(&workspace);
+    fs::remove_file(&frozen_path).unwrap();
+    assert!(audit_unit_test_layout(&catalog)
+        .unwrap_err()
+        .to_string()
+        .contains("missing source"));
+    install_frozen_layout_fixture(&workspace);
+    audit_unit_test_layout(&catalog).unwrap();
+    // The pinned file can remain on disk while Cargo stops enumerating its crate.
+    workspace.write(
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"other\"]\nresolver = \"2\"\n",
+    );
+    workspace.write(
+        "other/Cargo.toml",
+        "[package]\nname = \"unrelated-layout-fixture\"\nversion = \"0.0.0\"\nedition = \"2021\"\n[package.metadata.tsc-rs]\nrole = \"other\"\n",
+    );
+    workspace.write("other/src/lib.rs", "");
+    workspace.write("other/tests/.keep", "");
+    let catalog_without_frozen_crate = WorkspaceCatalog::discover(workspace.path()).unwrap();
+    assert!(audit_unit_test_layout(&catalog_without_frozen_crate)
+        .unwrap_err()
+        .to_string()
+        .contains("frozen layout source was not scanned"));
+}
+
 #[test]
 fn unit_test_layout_reports_all_violations_in_stable_order() {
     let workspace = TempWorkspace::new("all-layout-violations");
     workspace.write(
         "Cargo.toml",
-        "[workspace]\nmembers = [\"first-package\", \"second-package\"]\nresolver = \"2\"\n",
+        "[workspace]\nmembers = [\"first-package\", \"second-package\", \"crates/xtask\"]\nresolver = \"2\"\n",
     );
+    install_frozen_layout_fixture(&workspace);
     for (directory, package, role) in [
         ("first-package", "audit-fixture-first", "alpha"),
         ("second-package", "audit-fixture-second", "beta"),
@@ -646,4 +736,126 @@ fn automation_selector_skips_binary_script_artifacts() {
         automation_selector_in_bytes(format!("cargo test {PACKAGE_SHORT_FLAG} xtask").as_bytes()),
         Some(PACKAGE_SHORT_FLAG.to_owned())
     );
+}
+
+#[test]
+fn direct_test_target_roster_rejects_drift_and_does_not_select_execution() {
+    let workspace = TempWorkspace::new("direct-test-target-roster");
+    workspace.write(
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"crates/alpha\", \"crates/beta\"]\nresolver = \"2\"\n",
+    );
+    for name in ["alpha", "beta"] {
+        workspace.write(
+            &format!("crates/{name}/Cargo.toml"),
+            &format!("[package]\nname = \"target-roster-{name}\"\nversion = \"0.0.0\"\nedition = \"2021\"\n[package.metadata.tsc-rs]\nrole = \"{name}\"\n"),
+        );
+        workspace.write(&format!("crates/{name}/src/lib.rs"), "");
+        workspace.write(&format!("crates/{name}/tests/contracts.rs"), "");
+    }
+    for name in ["first.rs", "second.rs", "third.rs"] {
+        workspace.write(&format!("crates/alpha/tests/{name}"), "");
+    }
+    let catalog = WorkspaceCatalog::discover(workspace.path()).unwrap();
+    let original = serde_json::json!({
+        "schema": 1,
+        "declared_target_count": 4,
+        "crates": [{"directory": "crates/alpha", "count": 4,
+                    "targets": ["contracts.rs", "first.rs", "second.rs", "third.rs"]}]
+    });
+    let check =
+        |value: &serde_json::Value| audit_integration_test_targets(&catalog, &value.to_string());
+    check(&original).unwrap();
+    workspace.write("crates/alpha/tests/unit/nested.rs", "");
+    workspace.write("crates/alpha/tests/directory.rs/nested.rs", "");
+    check(&original).unwrap();
+    // Removing or renaming a file cannot silently remove a test from the gate.
+    let first = workspace.path().join("crates/alpha/tests/first.rs");
+    fs::remove_file(&first).unwrap();
+    assert!(check(&original)
+        .unwrap_err()
+        .to_string()
+        .contains("missing"));
+    workspace.write("crates/alpha/tests/renamed.rs", "");
+    let error = check(&original).unwrap_err().to_string();
+    assert!(error.contains("first.rs") && error.contains("renamed.rs"));
+    fs::remove_file(workspace.path().join("crates/alpha/tests/renamed.rs")).unwrap();
+    fs::write(&first, "").unwrap();
+    workspace.write("crates/alpha/tests/extra.rs", "");
+    assert!(check(&original)
+        .unwrap_err()
+        .to_string()
+        .contains("unregistered"));
+    fs::remove_file(workspace.path().join("crates/alpha/tests/extra.rs")).unwrap();
+    // An entry for another crate cannot widen the default two-target rule.
+    for name in ["first.rs", "second.rs"] {
+        workspace.write(&format!("crates/beta/tests/{name}"), "");
+    }
+    assert!(check(&original)
+        .unwrap_err()
+        .to_string()
+        .contains("unregistered direct integration targets"));
+    for name in ["first.rs", "second.rs"] {
+        fs::remove_file(workspace.path().join(format!("crates/beta/tests/{name}"))).unwrap();
+    }
+    let mut mutations = Vec::new();
+    let mut duplicate = original.clone();
+    duplicate["crates"][0]["targets"][1] = serde_json::json!("contracts.rs");
+    mutations.push((duplicate, "duplicate test-target name"));
+    let mut count = original.clone();
+    count["crates"][0]["count"] = serde_json::json!(3);
+    mutations.push((count, "roster count changed"));
+    let mut total = original.clone();
+    total["declared_target_count"] = serde_json::json!(5);
+    mutations.push((total, "roster total changed"));
+    let mut stale = original.clone();
+    stale["crates"][0]["targets"][1] = serde_json::json!("retired.rs");
+    mutations.push((stale, "missing"));
+    let mut unknown = original.clone();
+    let mut entry = original["crates"][0].clone();
+    entry["directory"] = serde_json::json!("crates/removed");
+    unknown["crates"].as_array_mut().unwrap().push(entry);
+    unknown["declared_target_count"] = serde_json::json!(8);
+    mutations.push((unknown, "outside the workspace"));
+    let mut duplicate_crate = original.clone();
+    duplicate_crate["crates"]
+        .as_array_mut()
+        .unwrap()
+        .push(original["crates"][0].clone());
+    duplicate_crate["declared_target_count"] = serde_json::json!(8);
+    mutations.push((duplicate_crate, "duplicate test-target crate"));
+    let mut small = original.clone();
+    small["crates"][0]["targets"] = serde_json::json!(["contracts.rs", "first.rs"]);
+    small["crates"][0]["count"] = serde_json::json!(2);
+    small["declared_target_count"] = serde_json::json!(2);
+    mutations.push((small, "retire test-target roster entry"));
+    let mut traversal = original.clone();
+    traversal["crates"][0]["targets"][1] = serde_json::json!("../first.rs");
+    mutations.push((traversal, "invalid direct test-target name"));
+    let mut bad_directory = original.clone();
+    bad_directory["crates"][0]["directory"] = serde_json::json!("crates/../alpha");
+    mutations.push((bad_directory, "invalid test-target crate directory"));
+    for (value, expected) in mutations {
+        let error = check(&value).unwrap_err().to_string();
+        assert!(error.contains(expected), "{expected}: {error}");
+    }
+    // Retirement is required when a formerly split crate returns to two targets.
+    for name in ["second.rs", "third.rs"] {
+        fs::remove_file(workspace.path().join(format!("crates/alpha/tests/{name}"))).unwrap();
+    }
+    assert!(check(&original)
+        .unwrap_err()
+        .to_string()
+        .contains("retire test-target roster entry"));
+    check(&serde_json::json!({"schema": 1, "declared_target_count": 0, "crates": []})).unwrap();
+    for name in ["second.rs", "third.rs"] {
+        workspace.write(&format!("crates/alpha/tests/{name}"), "");
+    }
+    fs::remove_dir_all(workspace.path().join("crates/beta/tests")).unwrap();
+    let error = check(&original).unwrap_err().to_string();
+    assert!(error.contains("target-roster-beta") && error.contains("tests/ directory"));
+    workspace.write("crates/beta/tests/contracts.rs", "");
+    fs::remove_dir_all(workspace.path().join("crates/alpha/tests")).unwrap();
+    let error = check(&original).unwrap_err().to_string();
+    assert!(error.contains("target-roster-alpha") && error.contains("tests/ directory"));
 }

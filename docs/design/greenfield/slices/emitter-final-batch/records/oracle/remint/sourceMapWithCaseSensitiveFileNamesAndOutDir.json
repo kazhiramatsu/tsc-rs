@@ -1,0 +1,64 @@
+{
+ "old": {
+  "host_use_case_sensitive_file_names": true,
+  "writes": [
+   {
+    "path": "/.src/testfiles/app.js.map",
+    "sha256": "1a956f29a6a4c227179ad8ed247ba923c453a51aba7075678429498c7e62bdd3",
+    "bom": false,
+    "text": "{\"version\":3,\"file\":\"app.js\",\"sourceRoot\":\"\",\"sources\":[\"../testFiles/app.ts\"],\"names\":[],\"mappings\":\";AAAA,gFAAgF;AAChF,wIAAwI;AACxI,MAAM,CAAC;CACN\"}"
+   },
+   {
+    "path": "/.src/testfiles/app.js",
+    "sha256": "e2e1f559f8e5c74e9b7f580c66cb3284a2ae6752f5991381162843363e5f5e1f",
+    "bom": false,
+    "text": "\"use strict\";\r\n// Note in the out result we are using same folder name only different in casing\r\n// Since this is case sensitive, the folders are different and hence the relative paths in sourcemap shouldn't be just app.ts or app2.ts\r\nclass c {\r\n}\r\n//# sourceMappingURL=app.js.map"
+   },
+   {
+    "path": "/.src/testfiles/app2.js.map",
+    "sha256": "3cc5edef8d3e68017eede5494177eb39e1fb6795cdd101919c80b71eaed95b7b",
+    "bom": false,
+    "text": "{\"version\":3,\"file\":\"app2.js\",\"sourceRoot\":\"\",\"sources\":[\"../testFiles/app2.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC;CACN\"}"
+   },
+   {
+    "path": "/.src/testfiles/app2.js",
+    "sha256": "cb5ea6d5102313b5b1b517565ebf3adee2989825c8631fb512d30c678f4e8b05",
+    "bom": false,
+    "text": "\"use strict\";\r\nclass d {\r\n}\r\n//# sourceMappingURL=app2.js.map"
+   }
+  ],
+  "diagnostics": [],
+  "exit": 0
+ },
+ "new": {
+  "host_use_case_sensitive_file_names": true,
+  "writes": [
+   {
+    "path": "/.src/testfiles/app.js.map",
+    "sha256": "1a956f29a6a4c227179ad8ed247ba923c453a51aba7075678429498c7e62bdd3",
+    "bom": false,
+    "text": "{\"version\":3,\"file\":\"app.js\",\"sourceRoot\":\"\",\"sources\":[\"../testFiles/app.ts\"],\"names\":[],\"mappings\":\";AAAA,gFAAgF;AAChF,wIAAwI;AACxI,MAAM,CAAC;CACN\"}"
+   },
+   {
+    "path": "/.src/testfiles/app.js",
+    "sha256": "e2e1f559f8e5c74e9b7f580c66cb3284a2ae6752f5991381162843363e5f5e1f",
+    "bom": false,
+    "text": "\"use strict\";\r\n// Note in the out result we are using same folder name only different in casing\r\n// Since this is case sensitive, the folders are different and hence the relative paths in sourcemap shouldn't be just app.ts or app2.ts\r\nclass c {\r\n}\r\n//# sourceMappingURL=app.js.map"
+   },
+   {
+    "path": "/.src/testfiles/app2.js.map",
+    "sha256": "3cc5edef8d3e68017eede5494177eb39e1fb6795cdd101919c80b71eaed95b7b",
+    "bom": false,
+    "text": "{\"version\":3,\"file\":\"app2.js\",\"sourceRoot\":\"\",\"sources\":[\"../testFiles/app2.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC;CACN\"}"
+   },
+   {
+    "path": "/.src/testfiles/app2.js",
+    "sha256": "cb5ea6d5102313b5b1b517565ebf3adee2989825c8631fb512d30c678f4e8b05",
+    "bom": false,
+    "text": "\"use strict\";\r\nclass d {\r\n}\r\n//# sourceMappingURL=app2.js.map"
+   }
+  ],
+  "diagnostics": [],
+  "exit": 0
+ }
+}

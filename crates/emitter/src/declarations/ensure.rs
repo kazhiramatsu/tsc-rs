@@ -526,7 +526,7 @@ impl DeclarationTransformer<'_> {
     }
 
     /// tsc-port: isInternalDeclaration @6.0.3
-    /// tsc-hash: 7fdbd2e51d45123d55f9bb853fca15c01ed2e5617132b52c0123dec8185abf5a
+    /// tsc-hash: 3e1b98d86bb506e3f4872db0df95ea1ed6a01c7c1d96cb3efff95a6cd8a64324
     /// tsc-span: _tsc.js:12601-12635
     fn is_internal_declaration(
         &self,
@@ -1038,7 +1038,7 @@ fn identifier_text(cx: &TransformationContext, node: TransformNode) -> Option<St
 }
 
 /// tsc-port: hasInternalAnnotation @6.0.3
-/// tsc-hash: 9a540f5672edcd18339325a49050200afe83301896d5fb40bad9c7aae7c88d46
+/// tsc-hash: 10ecef0975520c3df35a68b6161e91ce323d5483020da105f0ea2c041e7a7a02
 /// tsc-span: _tsc.js:12597-12600
 fn has_internal_annotation(text: &str, start: usize, end: usize) -> bool {
     text[start..end].contains("@internal")

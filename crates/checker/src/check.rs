@@ -4756,7 +4756,9 @@ impl<'a> CheckerState<'a> {
                 /*report_errors*/ true,
                 Some(error_node),
             )? {
-                crate::engine::ExcessPropertyOutcome::UnknownProperty { diagnostic } => diagnostic,
+                crate::engine::ExcessPropertyOutcome::UnknownProperty { diagnostic } => {
+                    diagnostic.map(|diagnostic| *diagnostic)
+                }
                 _ => None,
             },
         )
@@ -5482,7 +5484,7 @@ impl<'a> CheckerState<'a> {
     /// TypeNode recovery boundary.
     fn reused_initializer_expression_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
         match self.display_clone_expression_text_at_line_start(node, false)? {
-            Some(text) => Ok(text.into()),
+            Some(text) => Ok(text),
             None => {
                 self.slice_reuse_had_error = true;
                 Ok(JsString::new())
@@ -6008,6 +6010,9 @@ impl<'a> CheckerState<'a> {
     /// getNameOfSymbolFromNameType (55523-55539): declarationless and
     /// early-bound computed symbols retain the literal/unique-symbol name
     /// that produced them instead of exposing their internal escaped key.
+    /// tsc-port: createTypeChecker.getNameOfSymbolFromNameType @6.0.3
+    /// tsc-hash: f499724c3f5c9e776aaed901cfc7531d0c6d73d9d048a13ea76880cacec9fc3c
+    /// tsc-span: _tsc.js:55523-55540
     pub(crate) fn symbol_name_from_name_type_slice(
         &self,
         symbol: SymbolId,
@@ -8415,6 +8420,42 @@ impl<'a> CheckerState<'a> {
     /// getWithAlternativeContainers' firstVariableMatch owns that
     /// bridge. The class-expression-assignment candidates arm
     /// (50003-50009) cannot match the admitted declarations here.
+    /// The container of a class expression on the right of
+    /// `<access expression> = class …` (getContainersOfSymbol's
+    /// class-expression candidate).
+    fn class_expression_assignment_container(
+        &mut self,
+        parent: NodeId,
+    ) -> CheckResult<Option<SymbolId>> {
+        let NodeData::BinaryExpression(binary) = self.data_of(parent) else {
+            return Ok(None);
+        };
+        let (Some(operator), Some(left)) = (binary.operator_token, binary.left) else {
+            return Ok(None);
+        };
+        if self.kind_of(operator) != SyntaxKind::EqualsToken {
+            return Ok(None);
+        }
+        let receiver = match self.data_of(left) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        let Some(receiver) = receiver else {
+            return Ok(None);
+        };
+        let source = self.binder.source_of_node(parent);
+        if !node_util::is_entity_name_expression(source, receiver) {
+            return Ok(None);
+        }
+        if tsc_binder::assignment::is_module_exports_access_expression(source, left)
+            || tsc_binder::assignment::is_exports_identifier(source, receiver)
+        {
+            return Ok(self.node_symbol(source.root));
+        }
+        self.get_resolved_symbol(receiver)
+    }
+
     fn containers_of_symbol_slice(
         &mut self,
         symbol: SymbolId,
@@ -8456,6 +8497,17 @@ impl<'a> CheckerState<'a> {
                             candidates.push(module_symbol);
                         }
                     }
+                }
+                continue;
+            }
+            // `isClassExpression(d) && isBinaryExpression(d.parent) && … =`
+            // with an access-expression left over an entity name: a class
+            // assigned to `module.exports`/`exports.x` is contained by the
+            // source file; any other receiver contributes its resolved
+            // symbol (getContainersOfSymbol, _tsc.js:49999-50007).
+            if self.kind_of(declaration) == SyntaxKind::ClassExpression {
+                if let Some(candidate) = self.class_expression_assignment_container(parent)? {
+                    candidates.push(candidate);
                 }
             }
         }
@@ -11957,7 +12009,7 @@ impl<'a> CheckerState<'a> {
         let (mut text, kind) = self.symbol_to_type_face_at_slice(symbol, meaning, enclosing)?;
         if !type_arguments.is_empty() {
             text.push('<');
-            text.push_js((&crate::join_js_texts(&type_arguments, ", ")).into());
+            text.push_js((&crate::join_js_texts(type_arguments, ", ")).into());
             text.push('>');
         }
         Ok(Some((text, kind)))
@@ -13076,7 +13128,7 @@ impl<'a> CheckerState<'a> {
         nodes: Vec<NodeId>,
     ) -> CheckResult<JsString> {
         match self.display_clone_parameter_nodes_text(nodes)? {
-            Some(text) => Ok(text.into()),
+            Some(text) => Ok(text),
             None => {
                 self.slice_reuse_had_error = true;
                 Ok(JsString::new())
@@ -13410,7 +13462,7 @@ impl<'a> CheckerState<'a> {
         expression: NodeId,
     ) -> CheckResult<JsString> {
         match self.display_clone_computed_property_expression_text(expression)? {
-            Some(text) => Ok(text.into()),
+            Some(text) => Ok(text),
             None => {
                 self.slice_reuse_had_error = true;
                 Ok(JsString::new())
@@ -13940,6 +13992,13 @@ pub(crate) fn can_use_property_access_slice<'n>(
 
 /// createExpressionFromSymbolChain's stripQuotes + `/\\./g` unescape
 /// (53368-53371).
+/// tsc-port: stripQuotes @6.0.3
+/// tsc-hash: 4673cbaa5c93e9e8bab885c7105082659bff78533e932a123e9d4c5a51fe5e63
+/// tsc-span: _tsc.js:16340-16346
+/// tsc-port: createTypeChecker.createNodeBuilder.symbolToExpression.createExpressionFromSymbolChain @6.0.3
+/// tsc-hash: a1d9b416b5bf0ea54c37c3efe9002c65fa36dba915643ac6cb3477d84438ffd5
+/// tsc-span: _tsc.js:53368-53368
+/// Reference scope: stripQuotes(...).replace(/\\./g) literal; prose 53368-53371 overstated.
 pub(crate) fn strip_symbol_name_quotes_slice<'n>(
     name: impl Into<tsc_types::JsStr<'n>>,
 ) -> JsString {

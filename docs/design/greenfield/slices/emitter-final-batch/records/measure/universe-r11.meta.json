@@ -1,0 +1,27 @@
+{
+  "name": "universe-r11",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "env",
+    "TSC_RS_EMITTER_FINAL_FAILURE_DIR=$S/universe-failures-r11",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "emitter_final_universe",
+    "universe_rows",
+    "--",
+    "--nocapture"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T06:49:26Z",
+  "seconds": 666,
+  "exit": 0,
+  "log_sha256": "c7893a054a34d824fe352df28de45d13c61585412a4993f544deec6b71fc8644",
+  "log_bytes": 31367
+}

@@ -1,0 +1,415 @@
+{
+  "partial": true,
+  "head": "663da193844047b951bb9035787e914d7372831f",
+  "differences": [
+    {
+      "case_id": "emitter-r95-neighbours/for-await/es5/commonjs/remove-false/comments",
+      "changed_fields": [
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-neighbours/for-await/es5/esnext/remove-false/comments",
+      "changed_fields": [
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-neighbours/for-await/es2015/commonjs/remove-false/comments",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-neighbours/for-await/es2015/esnext/remove-false/comments",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-neighbours/for-await/es2017/commonjs/remove-false/comments",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-neighbours/for-await/es2017/esnext/remove-false/comments",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-call-boundaries/callee/es5/esnext/remove-false/call-statement",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": []
+    },
+    {
+      "case_id": "emitter-r95-call-boundaries/callee/es5/esnext/remove-false/access-statement",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": []
+    },
+    {
+      "case_id": "emitter-r95-call-boundaries/callee/es5/esnext/remove-false/optional-callee",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": []
+    },
+    {
+      "case_id": "emitter-r95-call-boundaries/callee/es5/esnext/remove-false/nested-callee",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": []
+    },
+    {
+      "case_id": "emitter-r95-call-boundaries/callee/es2015/esnext/remove-false/call-statement",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": []
+    },
+    {
+      "case_id": "emitter-r95-call-boundaries/callee/es2015/esnext/remove-false/access-statement",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": []
+    },
+    {
+      "case_id": "emitter-r95-call-boundaries/callee/es2015/esnext/remove-false/spread",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": []
+    },
+    {
+      "case_id": "emitter-r95-call-boundaries/callee/es2015/esnext/remove-false/optional-callee",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": []
+    },
+    {
+      "case_id": "emitter-r95-call-boundaries/callee/es2015/esnext/remove-false/nested-callee",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": []
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es5/commonjs/remove-false/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es5/commonjs/remove-false/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es5/commonjs/remove-true/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es5/commonjs/remove-true/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es5/esnext/remove-false/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es5/esnext/remove-false/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es5/esnext/remove-true/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es5/esnext/remove-true/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2015/commonjs/remove-false/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2015/commonjs/remove-false/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2015/commonjs/remove-true/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2015/commonjs/remove-true/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2015/esnext/remove-false/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2015/esnext/remove-false/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2015/esnext/remove-true/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2015/esnext/remove-true/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2017/commonjs/remove-false/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2017/commonjs/remove-false/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2017/commonjs/remove-true/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2017/commonjs/remove-true/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2017/esnext/remove-false/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2017/esnext/remove-false/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2017/esnext/remove-true/object-rest-block",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    },
+    {
+      "case_id": "emitter-r95-wrapper-rest/for-await/es2017/esnext/remove-true/object-rest-single",
+      "changed_fields": [
+        "emit_result",
+        "writes"
+      ],
+      "error": null,
+      "non_map_write_changes": [
+        "/project/out/main.js"
+      ]
+    }
+  ]
+}

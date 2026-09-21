@@ -1,0 +1,26 @@
+[package]
+name = "leading-binding-parse-replay"
+version = "0.0.0"
+edition = "2021"
+
+[workspace]
+
+[[bin]]
+name = "leading-binding-parse-replay"
+path = "/Users/hiramatsu/dev/tsc-rs-emitter-final-escaped-keyword-proof/scripts/replay-recovery-parse.rs"
+
+[dependencies]
+base64 = "0.22"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sha2 = "0.10"
+tsc-syntax = { package = "tsc-rs-syntax", path = "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax" }
+tsc-types = { package = "tsc-rs-types", path = "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/types" }
+tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/diagnostics" }
+
+[features]
+current-recovery-profiles = []
+
+[profile.dev]
+opt-level = 3
+debug = 0
+incremental = false

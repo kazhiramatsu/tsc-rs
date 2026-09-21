@@ -1,0 +1,13 @@
+{
+  "name": "emitter-lib-r6",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 21,
+  "env": [],
+  "argv": "cargo test -p tsc-rs-emitter --lib",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T08:27:48Z",
+  "seconds": 118,
+  "exit": 0,
+  "log_sha256": "eff1f7f3add73e28825921ad32c1d71d3c2320faa5203f5d503e1a30561da67e",
+  "log_bytes": 42432
+}

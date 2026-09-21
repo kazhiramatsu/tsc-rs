@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "scripts/compare-project-command-supplement.py",
+    "--native",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-project-supplement-r144/native.json",
+    "--oracle",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-project-supplement-r144/oracle.json",
+    "--out",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-project-supplement-r144/comparison.json"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-project-projection-prep",
+  "started_at": "2026-09-19T11:22:17.885499+00:00",
+  "head": "d345e83c47444a216a7806344250e7e59ffeda27",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 0.441,
+  "log_sha256": "71758683aa755cef745ebab4b9b7bb2125e93006f829a064a56b55af09bfff0f",
+  "log_bytes": 67
+}

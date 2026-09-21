@@ -1,0 +1,8 @@
+60c60
+<     let _classDecorators = [(_a = ns).dec /* t11 */.bind(_a)];
+---
+>     let _classDecorators = [(_a = ns).dec.bind(_a)];
+70c70
+<             _m_decorators = [(_b = ns).dec /* t12 */.bind(_b)];
+---
+>             _m_decorators = [(_b = ns).dec.bind(_b)];

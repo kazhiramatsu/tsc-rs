@@ -1,0 +1,17 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "files": [
+    {
+      "path": "crates/xtask/src/h2_1a_acceptance.rs",
+      "before": "f4b0e0cbe6bc48c1acddf2e4b64287b138fe23ef5bcab1b74acedb06ca0c16e7",
+      "after": "4883437d633c1d2f2b2a0e58b75002dc4e07322f1de288868f570fc927da9e3e"
+    },
+    {
+      "path": "crates/xtask/tests/unit/h2_1a_acceptance/tests.rs",
+      "before": "73f825a8509625c5e5a3beccf3507c226a3d8c1140f347b6252ac29acc920b0d",
+      "after": "3c0fadc5851bfab0c4411b178d2573c7788cca43c7d897d5a47d0958891e5c8a"
+    }
+  ],
+  "provenance": "/tmp/emitter-decorator-provenance-r428/manifest.json",
+  "qualified": false
+}

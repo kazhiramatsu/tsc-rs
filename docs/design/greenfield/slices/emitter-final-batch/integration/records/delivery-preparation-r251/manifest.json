@@ -1,0 +1,112 @@
+{
+  "source_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "qualification_claim": false,
+  "scope": "Read-only preparation for the18delegated Markdown validation rows. No lifecycle promoted and no profile refreshed. Opus167 validates isolation and24artifact-table plan; selected TypeScript declarations have exact lexical/range/body identities. Final V/M/full-CI/hosted checks still required.",
+  "corrections": [
+    "The24profile candidates are22H2runtime profiles+1H2transition+1historicalH1emit profile. Opus prose counts them ambiguously. Current H2runtime hashes must match V after the canonical walk; H1emit remains historical.",
+    "r247query failed on a property-assigned arrow name. r248uses officialH1 parentproperty/variable naming and verifies46existingbodyhashes; r249adds missing actualowners and uniquely resolves every selected18rowidentity. Four initially guessed names remain empty only in rawcandidatequeries; noselectedrowuses them.",
+    "Owner identities are primary routing declarations plus bounded branch evidence, not a complete closure claim. Recompute body hashes from V using UTF16 offsets and verify pinned sourceSHA before D."
+  ],
+  "files": [
+    {
+      "path": "cross-review/round167-opus.md",
+      "sha256": "a30814572b03297a400d7967dcfb14404081ca30781e5fa28ae591c4d7ff74ed",
+      "bytes": 9279
+    },
+    {
+      "path": "cross-review/round167-opus.meta.json",
+      "sha256": "5531030759a1bca687cd0c03d5aea06d1aeee0a53e48670160ed0733ef29d71b",
+      "bytes": 2373
+    },
+    {
+      "path": "cross-review/round167-request.md",
+      "sha256": "9683103da4db03b01f6dfb1d408530a106236b0be78c652abad90a891c6452b6",
+      "bytes": 3643
+    },
+    {
+      "path": "emitter-delivery-owners-prepare-r247.py",
+      "sha256": "24e0906118d8951591890dad1d0357bbe77bd8fa33ac46afedbd2e4a7c64a60c",
+      "bytes": 3105
+    },
+    {
+      "path": "emitter-delivery-owners-candidates-r247.json",
+      "sha256": "3a616b698729b5a539489e0fe8aa1cc6d8a05b894cbdcb7c121ee884db9d7cee",
+      "bytes": 43706
+    },
+    {
+      "path": "emitter-delivery-owner-identities-r247.mjs",
+      "sha256": "be778345b15f77e828942294d81bdc30d02831aad2eaff541251995b5e6bbb13",
+      "bytes": 2745
+    },
+    {
+      "path": "emitter-delivery-owner-identities-r248.mjs",
+      "sha256": "ad38669caedac81fa036c6e6b315afff3f2e13c585fea2a88b2348d32188bc38",
+      "bytes": 3046
+    },
+    {
+      "path": "emitter-delivery-owner-identities-r248.json",
+      "sha256": "94aa0031f576bc2d324806d4539b79bcc38aeffd977bde229ae433f276225461",
+      "bytes": 54716
+    },
+    {
+      "path": "emitter-delivery-owner-selections-r249.py",
+      "sha256": "4c8c51d259340af77efff08276523f095ee8e3a66c871db5d4f5c1629261c00e",
+      "bytes": 4503
+    },
+    {
+      "path": "emitter-delivery-owner-selections-r249.json",
+      "sha256": "83196939922106359ea8a4af2e4c8bc4bf1e2c3c5badd366065dcc9ab27b963c",
+      "bytes": 6823
+    },
+    {
+      "path": "emitter-delivery-owner-identities-r249.mjs",
+      "sha256": "9c73637cf832260a77ec677331c3f42a52002b9d6790c860a90458d31a793563",
+      "bytes": 3732
+    },
+    {
+      "path": "emitter-delivery-owner-identities-r249.json",
+      "sha256": "32f07f96120d68356a53d83f99a89da7bffcf70851c173770ac24210d2e72f94",
+      "bytes": 142414
+    },
+    {
+      "path": "emitter-delivery-proof-matrix-r250.py",
+      "sha256": "5339f1d93f4d9cd01e81fd0aa4673bb1b3b1011e6323f9cc53f6d035fd4295a6",
+      "bytes": 5923
+    },
+    {
+      "path": "emitter-delivery-proof-matrix-r250.json",
+      "sha256": "4a7bc596e23b630935b14a35b58f825ac22042066835b12a7cdb06fb63103748",
+      "bytes": 6762
+    },
+    {
+      "path": "local/delivery-owner-identities-r247.json",
+      "sha256": "e37e9b7a3e0899aa84e34b1c4e22e5e2a3d46f9bf74c6630288e6a10ebea8223",
+      "bytes": 696
+    },
+    {
+      "path": "local/delivery-owner-identities-r247.log.gz",
+      "sha256": "045af25734cf35881d679e5259a5671d198a03017072d0c95c0c0f75c0cf2fe2",
+      "bytes": 251
+    },
+    {
+      "path": "local/delivery-owner-identities-r248.json",
+      "sha256": "b16cc4d129db7a2d3ca369cb4a68db9dbd912a699b5539ab44f2502c2ca38b59",
+      "bytes": 696
+    },
+    {
+      "path": "local/delivery-owner-identities-r248.log.gz",
+      "sha256": "5f2d57b5f072006e8e93d4e9eb32b90e38156887c4670d7628a9344fda04c1e6",
+      "bytes": 201
+    },
+    {
+      "path": "local/delivery-owner-identities-r249.json",
+      "sha256": "fa3303a2ecbae77893c9d6f19143c5ab67c94f8b96ee85de980d548aef015c57",
+      "bytes": 696
+    },
+    {
+      "path": "local/delivery-owner-identities-r249.log.gz",
+      "sha256": "f06d28016f3ea3bc61536d7d8445dbe408acf9f5a34f51e0625265252e1dffa4",
+      "bytes": 202
+    }
+  ]
+}
