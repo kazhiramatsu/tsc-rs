@@ -87,7 +87,8 @@ previously appeared here and remain in historical packets.
    `ratchets/STAGE` only when its milestone closes. Neither is updated merely to
    obtain a successful validation result.
 7. **Markdown-only changes:** when all changed paths relative to the trusted
-   base end in `.md` and README's generated `STATUS` block is unchanged, run
+   base end in `.md` and the generated `STATUS` block in
+   `docs/verification-status.md` (historically `README.md`) is unchanged, run
    no local Cargo/Node/full-corpus CI. Review the rendered diff, run
    `git diff --check`, and verify changed relative links/anchors and generated
    block boundaries. Simple process/docs-only changes may land directly on
