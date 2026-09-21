@@ -1,0 +1,37 @@
+[
+  {
+    "path": "ratchets/host-resolution.v1.json",
+    "sha256": "2bf76d7f5a8c6aef1de53242fc9d6b6d6f9df8ddfec2076d03feefe44de57e8e",
+    "unchanged": true
+  },
+  {
+    "path": "crates/program/src/module_resolution.rs",
+    "sha256": "05b837d4848887c0a21de89d38da77154671b8fc2424875b1a1dc4dd34140ab6",
+    "unchanged": true
+  },
+  {
+    "path": "crates/compiler/src/cli.rs",
+    "sha256": "e63efeba593dd865a8bc2b46748059b370c5b8520a63728005adaac492c9912e",
+    "unchanged": true
+  },
+  {
+    "path": "crates/compiler/src/lib.rs",
+    "sha256": "cfa9c07e7b0e084b8267b5bc9b381bc6f8c1aec1abbfd3d418c53f7e03f365ae",
+    "unchanged": true
+  },
+  {
+    "path": "crates/xtask/src/recovery_parse_snapshot.rs",
+    "sha256": "3ed02323517f463624014157ad811ff7ed2103b3bc18e4b23547ec270fbc1254",
+    "unchanged": true
+  },
+  {
+    "function": "fn validate_authoritative_anchors_at_commit_with_memo(",
+    "bytes_unchanged": true,
+    "sha256": "2994d94e324b60c7cf15677bc670463a51b4e4b913e24a0898acc6d7237ae71b"
+  },
+  {
+    "function": "fn validate_row_transition(",
+    "bytes_unchanged": true,
+    "sha256": "5f466a3f7f02bec6d25631f35fcc18c439f7e29f1ab7df75b203c56a5b6aa62c"
+  }
+]

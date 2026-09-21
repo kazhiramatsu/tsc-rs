@@ -1,5 +1,29 @@
 # Emitter final r11 integration
 
+## 全体テストで検出した残存検証の修復（r611–r612）
+
+[原因と修正範囲](records/native-validator-repair-r612/resolution.md)と
+[元の失敗・独立レビュー・重点検証](records/native-validator-repair-r612/manifest.json)を保存した。
+候補 `fa391cbff` の unsplit local CI r603 は終了 1、21,586.876 秒で未合格。
+96 対象中 94 対象が成功し、compiler の古い ES5 拒否期待値 1 件と、
+conformance の現在の Rust 宣言照合 2 件が失敗した。
+
+CLI の期待値を修復し、H0 の照合は確認済みの 3 宣言だけに限定した対応表を使う。
+この宣言変更は trusted baseline より前から存在した。台帳と過去の closing commit の
+検証は変更せず、元の宣言名が再出現した場合、宣言がない場合、重複やコメント中だけの
+一致は拒否する。Opus 235・236との独立照合を終えた。
+compiler・emitter・program 本体の動作変更はない。
+
+conformance 248 tests、最終対照 5 tests、compiler 11 tests が成功。
+後段と同じ `host-resolution check` も 241 closed / 0 open で成功した。
+既存 CLI の 58 コマンドと診断順序 4 ケースを各 2 回確認し、全 pin surfaces と
+workspace/all-targets clippy も成功した。
+
+Rust の検証ソースを変更したため、下記 r597 は旧ソースの収束証明として保持する。
+修復後の正式 walk、新しい台帳の最終作成、同じ最終候補の full local CI と hosted が
+引き続き必要であり、この重点検証だけでは統合完了としない。
+以下は各時点の記録である。
+
 ## 最終 CI のログ検証修復（r600–r601）
 
 [原因と修正範囲](records/foundation-output-repair-r601/resolution.md)と

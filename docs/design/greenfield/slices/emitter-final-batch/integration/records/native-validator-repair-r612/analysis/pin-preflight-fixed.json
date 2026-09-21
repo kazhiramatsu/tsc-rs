@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "python3",
+    "scripts/walk-preflight.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-21T08:49:58.704445+00:00",
+  "head": "fa391cbff6468032ebd4969734cde9d2b9474237",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "diff_sha256": "bf83193fb2131300ad98ece5c3ea5602f2ffc580123d8230a2bdfc5f20f0015c",
+  "rust_files": 784,
+  "rust_sha256": "401bca72eb687a33533372041744df8511e67d9a5c4c95c9f837358a1eee153d",
+  "exit": 0,
+  "seconds": 1.026,
+  "finished_at": "2026-09-21T08:49:59.814031+00:00",
+  "log_sha256": "e6ada28c38961b2c61d8ec145b567950413d7992d45813d6f451ec06c84f50ad",
+  "log_bytes": 127
+}

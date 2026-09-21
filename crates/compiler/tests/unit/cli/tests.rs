@@ -36,9 +36,16 @@ fn argument_parser_selects_emit_and_the_admitted_target_ladder() {
             .target,
         Some(99)
     );
+    assert_eq!(
+        parse_arguments(&["--target=es5".to_owned()])
+            .expect("the shared target catalog admits ES5")
+            .compiler_options
+            .target,
+        Some(1)
+    );
     assert!(matches!(
-        parse_arguments(&["--target=es5".to_owned()]),
-        Err(CliError::Usage(message)) if message.contains("es2015 through es2025")
+        parse_arguments(&["--target=unknown-target".to_owned()]),
+        Err(CliError::Usage(message)) if message.contains("--target has an unknown value")
     ));
 }
 

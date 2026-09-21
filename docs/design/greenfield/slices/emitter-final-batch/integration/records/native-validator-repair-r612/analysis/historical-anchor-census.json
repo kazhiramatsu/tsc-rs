@@ -1,0 +1,102 @@
+[
+  {
+    "key": [
+      "producer",
+      "tsc-program",
+      "crates/program/src/module_resolution.rs",
+      "pub fn resolve("
+    ],
+    "closing_commit": "c9f78f1729fcfd80e55615d0e7aeb064611519b4",
+    "historical_literal_present": true
+  },
+  {
+    "key": [
+      "producer",
+      "tsc-program",
+      "crates/program/src/module_resolution.rs",
+      "pub fn resolve("
+    ],
+    "closing_commit": "595af54fd73630f0184286de777fc3c2f314e080",
+    "historical_literal_present": true
+  },
+  {
+    "key": [
+      "producer",
+      "tsc-program",
+      "crates/program/src/module_resolution.rs",
+      "pub fn resolve("
+    ],
+    "closing_commit": "fa30fb2a8f0ac244976e18b6e4dc29a545f29430",
+    "historical_literal_present": true
+  },
+  {
+    "key": [
+      "producer",
+      "tsc-program",
+      "crates/program/src/module_resolution.rs",
+      "pub fn resolve("
+    ],
+    "closing_commit": "f6e9fc5f08bbe494ae9feb384f707532446cfa83",
+    "historical_literal_present": true
+  },
+  {
+    "key": [
+      "producer",
+      "tsc-program",
+      "crates/program/src/module_resolution.rs",
+      "pub fn resolve("
+    ],
+    "closing_commit": "e23dc88bf9ac21f7e00df198b52659af1a57c2b7",
+    "historical_literal_present": true
+  },
+  {
+    "key": [
+      "producer",
+      "tsc-program",
+      "crates/program/src/module_resolution.rs",
+      "pub fn resolve("
+    ],
+    "closing_commit": "61346cae13595037948ad13b39722bbc27f657a3",
+    "historical_literal_present": true
+  },
+  {
+    "key": [
+      "producer",
+      "tsc-program",
+      "crates/program/src/module_resolution.rs",
+      "pub fn resolve("
+    ],
+    "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640",
+    "historical_literal_present": true
+  },
+  {
+    "key": [
+      "producer",
+      "tsc-program",
+      "crates/program/src/module_resolution.rs",
+      "pub fn resolve_with_facts("
+    ],
+    "closing_commit": "4ce9055237d4b5ce7280073adb3efe6110a88b1e",
+    "historical_literal_present": true
+  },
+  {
+    "key": [
+      "producer",
+      "tsc-program",
+      "crates/program/src/module_resolution.rs",
+      "pub fn resolve_with_facts("
+    ],
+    "closing_commit": "95f3f1ec2d9db93973723a782810b8dd53b3718c",
+    "historical_literal_present": true
+  },
+  {
+    "key": [
+      "producer",
+      "tsc-program",
+      "crates/program/src/module_resolution.rs",
+      "pub fn resolve_type_reference("
+    ],
+    "closing_commit": "fa30fb2a8f0ac244976e18b6e4dc29a545f29430",
+    "historical_literal_present": true
+  }
+]

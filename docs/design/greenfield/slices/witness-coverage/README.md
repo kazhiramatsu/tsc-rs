@@ -2,7 +2,7 @@
 
 2026-09-17。統合担当：Codex。**最終emitter向けCI予算整備をPR #557で統合。全10 replay job・両gateを含む14 checks成功。**
 対象は `.github/workflows/ci.yml` と `witness.yml` の PR gate。
-[現在の固定台帳](inventory.v39.json)の `source_commit` と `source_sha256` が調査した source を定める。
+[現在の固定台帳](inventory.v40.json)の `source_commit` と `source_sha256` が調査した source を定める。
 
 [最初の台帳 v1](inventory.v1.json) は #528 の merge を調べた履歴として保持する。
 [OPS-COVER-2](emitter-direct/README.md) で10 targetを追加した [v2](inventory.v2.json) も保持する。
@@ -35,12 +35,14 @@ C02 generated-binding はPR #549で統合済み。 direct 156入力と pipeline 
 
 [POST-T1統合](../h2-8a-post-t1-residuals/integration/README.md)で新101入力・2 exact-name testsをpipeline jobへ追加したv23。73 standaloneの入口を棚卸しし、元pipelineの必要値を767 exact /0 knownとする。PR #555の最終候補で全14 checksが成功し、pipeline767 exact、新対照96 exact/5 knownとpacket79 exactを確認。実時間と全logは統合記録に保存した。
 
-## 現在の入口（v39）
+## 現在の入口（v40）
 
 2026-09-21。emitter 最終統合の候補を棚卸しした。hosted の recovery 登録を
 既存 fixture の 788 ケースに同期し、グループ合計は 1,580 ケースとなる。
 foundations は成功時の出力を保持する `--show-output` を使い、テスト名と成功判定の間へのログ混入を防ぐ。
-v38 は変更前の履歴として保持する。以下は設定された入口の件数であり、
+CLI の ES5 対応に残っていたテスト期待値と、H0 台帳の現在の宣言照合を修復した候補へ
+参照を更新した。テスト入口の構成は変えず、v39 は変更前の履歴として保持する。
+以下は設定された入口の件数であり、
 最終候補でのテスト実行完了を表すものではない。
 
 | Cargo の入口 | 個数 |

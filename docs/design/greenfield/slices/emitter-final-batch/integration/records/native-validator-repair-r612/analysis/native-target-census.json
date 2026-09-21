@@ -1,0 +1,491 @@
+{
+  "head": "fa391cbff6468032ebd4969734cde9d2b9474237",
+  "total": 96,
+  "successful_targets": 94,
+  "failed_targets": [
+    "tsc-rs-compiler::tsc_compiler [lib]",
+    "tsc-rs-conformance::tsc_conformance [lib]"
+  ],
+  "targets": [
+    {
+      "target": "tsc-rs-syntax::new_meta_property_name [test]",
+      "seconds": 2.154,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-fuzz::contracts [test]",
+      "seconds": 5.542,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-fuzz::tsc-rs-fuzz-producer [bin]",
+      "seconds": 0.508,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::bundle_metadata_t1_contract [test]",
+      "seconds": 57.952,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-xtask::xtask [bin]",
+      "seconds": 781.22,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_7e_original_corpus [test]",
+      "seconds": 24.454,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_7e_declaration_map_apis [test]",
+      "seconds": 75.615,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_7d_module_identities [test]",
+      "seconds": 51.121,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_8a_jsdoc_return [test]",
+      "seconds": 59.306,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_8a_utf16_literal_recovery_corpus [test]",
+      "seconds": 51.014,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_8a_declaration_specifiers [test]",
+      "seconds": 320.299,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_7d_bundle_sinks [test]",
+      "seconds": 14.943,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::tsc-rs [bin]",
+      "seconds": 0.432,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_7d_bundle_program [test]",
+      "seconds": 78.809,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_5h_utf16_original_rows_complete [test]",
+      "seconds": 5.189,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_5h_utf16_literal_witnesses [test]",
+      "seconds": 110.491,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_8a_utf16_identity_recovery_controls [test]",
+      "seconds": 87.679,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_8a_utf16_review_fix_controls [test]",
+      "seconds": 34.297,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::decorator_binding_pipeline_contract [test]",
+      "seconds": 797.676,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_5h_utf16_literal_rows [test]",
+      "seconds": 4.854,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::emitter_final_universe [test]",
+      "seconds": 3049.292,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_5h_parameter_temporaries [test]",
+      "seconds": 81.639,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_7d_original_corpus [test]",
+      "seconds": 277.735,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_8a_utf16_tagged_template_controls [test]",
+      "seconds": 16.094,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::decorator_super_contract [test]",
+      "seconds": 1055.023,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_7d_declaration_bundles [test]",
+      "seconds": 59.21,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_7e_declaration_maps [test]",
+      "seconds": 145.049,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-fuzz::tsc_fuzz [lib]",
+      "seconds": 5.978,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_8a_declaration_comment_ranges [test]",
+      "seconds": 104.966,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_8a_prologue_only_detached_comments [test]",
+      "seconds": 7.545,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_6a_map_option_projection [test]",
+      "seconds": 78.715,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::emitter_final_batch [test]",
+      "seconds": 123.393,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::contracts [test]",
+      "seconds": 12980.1,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::tsc_compiler [lib]",
+      "seconds": 0.877,
+      "failed": true
+    },
+    {
+      "target": "tsc-rs-compiler::h0_qualification [example]",
+      "seconds": 0.333,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::literal_update_pipeline_contract [test]",
+      "seconds": 21.733,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_8a_original_corpus [test]",
+      "seconds": 1698.168,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_baseline_qualification [example]",
+      "seconds": 0.33,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::post_t1_residuals_contract [test]",
+      "seconds": 201.256,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::h2_8a_require_rewrite [test]",
+      "seconds": 802.013,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::transpile_routes_contract [test]",
+      "seconds": 182.288,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-compiler::emitter_final_rows [test]",
+      "seconds": 16.658,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-conformance::tsc_conformance [lib]",
+      "seconds": 183.308,
+      "failed": true
+    },
+    {
+      "target": "tsc-rs-syntax::template_escape_flags [test]",
+      "seconds": 0.413,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-syntax::emitter_recovery [test]",
+      "seconds": 0.683,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-syntax::tsc_syntax [lib]",
+      "seconds": 0.537,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-syntax::recovery_provenance [test]",
+      "seconds": 0.514,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-syntax::entity_names [test]",
+      "seconds": 0.389,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-syntax::l1_incremental_qualification [example]",
+      "seconds": 0.312,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-syntax::template_flags [test]",
+      "seconds": 0.395,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-syntax::owned_literal_values [test]",
+      "seconds": 0.399,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-syntax::scanner_escape_diagnostics [test]",
+      "seconds": 0.4,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-harness::contracts [test]",
+      "seconds": 100.949,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-oracle::tsc_oracle [lib]",
+      "seconds": 4.304,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-checker::authoritative_external_fact [test]",
+      "seconds": 0.545,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-binder::owned_symbol_names [test]",
+      "seconds": 0.086,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-checker::tsc_checker [lib]",
+      "seconds": 2.426,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::literal_value_provenance_contract [test]",
+      "seconds": 0.563,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-harness::tsc_harness [lib]",
+      "seconds": 4.166,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::compact_body_comments_contract [test]",
+      "seconds": 0.465,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::class_header_token_metadata_contract [test]",
+      "seconds": 0.429,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::source_comment_topology_contract [test]",
+      "seconds": 0.417,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::emit_pipeline_phases_contract [test]",
+      "seconds": 0.427,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::comma_list_printer_contract [test]",
+      "seconds": 0.434,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::utf16_literal_escaping_contract [test]",
+      "seconds": 0.517,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::list_format_flags_contract [test]",
+      "seconds": 0.475,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::literal_update_contract [test]",
+      "seconds": 1.117,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::literal_parent_provenance_contract [test]",
+      "seconds": 0.421,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::utf16_writer_contract [test]",
+      "seconds": 0.499,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::printer_failure_contract [test]",
+      "seconds": 0.904,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::comma_argument_factory_contract [test]",
+      "seconds": 0.528,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::decorator_binding_contract [test]",
+      "seconds": 1.195,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::string_literal_identifier_source_contract [test]",
+      "seconds": 0.409,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::list_comment_flags_contract [test]",
+      "seconds": 0.471,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::token_comment_phase_metadata_contract [test]",
+      "seconds": 0.422,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::import_type_attributes_contract [test]",
+      "seconds": 0.468,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::mapped_type_members_contract [test]",
+      "seconds": 0.521,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::decorator_super_direct_contract [test]",
+      "seconds": 0.78,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::ellipsis_comment_metadata_contract [test]",
+      "seconds": 0.445,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-program::contracts [test]",
+      "seconds": 5.293,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-program::utf16_module_paths [test]",
+      "seconds": 0.47,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-program::utf16_config_paths [test]",
+      "seconds": 0.504,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::contracts [test]",
+      "seconds": 1.921,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-program::utf16_raw_source_boundary [test]",
+      "seconds": 0.468,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-program::h2_7d_bundle_source_facts [test]",
+      "seconds": 26.274,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-program::resolution_cache_contract [test]",
+      "seconds": 5.945,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-program::host_platform_smoke_contract [test]",
+      "seconds": 0.484,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-host::compiler_host_contract [test]",
+      "seconds": 0.07,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-host::filesystem_host_contract [test]",
+      "seconds": 0.103,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-program::tsc_program [lib]",
+      "seconds": 0.198,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-binder::tsc_binder [lib]",
+      "seconds": 0.53,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-types::compiler_option_number_contract [test]",
+      "seconds": 0.029,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-host::tsc_host [lib]",
+      "seconds": 0.551,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-types::tsc_types [lib]",
+      "seconds": 0.14,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-diagnostics::tsc_diagnostics [lib]",
+      "seconds": 0.374,
+      "failed": false
+    },
+    {
+      "target": "tsc-rs-emitter::tsc_emitter [lib]",
+      "seconds": 1.043,
+      "failed": false
+    }
+  ]
+}
