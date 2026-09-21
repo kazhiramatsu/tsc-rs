@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2b-qualification.mjs",
-    "sha256": "77043fc764a2f595d5036c1fa4acfbaa7a1d1d6baa3463dcea578071269f33e6"
+    "sha256": "882679509c2c94868d6a44e084c2e59133540da78a4178b1f54c0fbf3b71b8bf"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2b-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_2a_merge": "c402252a0d9df4ca0f5332c7f64084087fe55886",
     "h2_2a_profile": {
       "path": "ratchets/h2-2a-profile.v1.json",
-      "sha256": "461c6d1599a468a0c00d60ca5baf517f30983f74b2e49e8fc28cbd8b0d7c7ef6"
+      "sha256": "cfcb34f7977618ec197db16021925a472078bc5a3f36414ac9d86e3b3f19ebc6"
     }
   },
   "inputs": {
@@ -48,19 +48,19 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "97cb58eaf2bcc63156b0bcfea80e8420be0ebe5e16eff15afb6d55449d57b025"
+      "sha256": "e9df8117bc2179f3e5c1c24f3b53abaf9ef5c01e3836cdb8a63c99ddc2387906"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "fd2d06988c7f0ed18727f08f8232c55124c0f54a89017b98a6a5430c497796f9"
+      "sha256": "3fddcb23babb181e9d4248b4898587477e68ec67043f2720d013fcea036cb95d"
     },
     "h2_1b_qualification": {
       "path": "ratchets/h2-1b-qualification.v1.json",
-      "sha256": "0cf42f247b9f973ee1af91d68b855362b6556a0462a5b07486859f601b25db55"
+      "sha256": "b980d04b88a1f77798295c89bcd80a656561ab5ca8be306ebc2e67df0193fbc0"
     },
     "h2_2a_qualification": {
       "path": "ratchets/h2-2a-qualification.v1.json",
-      "sha256": "35f29b242a543710a4b9bb2dad4aa9f4b530c4d0a7e3885f685788d7936c6ad3"
+      "sha256": "3228352e6c918413f41e2b216daac440ec502b3b4769646b19c1cffa7b53faee"
     }
   },
   "execution_contract": {
@@ -7217,5 +7217,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "ce16532b094d7406a54ec8d4930ca93d375fbccbb5a886dabaf038823bd16873"
+  "qualification_fingerprint_sha256": "7a64ee06182f3b0c6239edafe3e8008ff124853ad4f85eba7e8441ee6995c90a"
 }

@@ -42,8 +42,8 @@
     "file_count": 298,
     "rust_source_files": 283,
     "cargo_manifests": 15,
-    "bytes": 21614213,
-    "tree_sha256": "5cfb068f80b470bdabe39ed94137a9f15db7c1e63418a42e073de63d521857a1"
+    "bytes": 21614354,
+    "tree_sha256": "f095e231d225d76910754f52dc97ddf452b9864fdd627b9636831ebad1130fc4"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -304,7 +304,7 @@
         "column": 1,
         "text": "pub struct TransformArena {",
         "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
-        "file_sha256": "df74bfd5a316f8b890785e9d4e0ad6cc8a1a2673dd4106a7724bd9b436744af9"
+        "file_sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef"
       },
       {
         "id": "emitter-node-factory",
@@ -313,7 +313,7 @@
         "column": 1,
         "text": "pub struct NodeFactory<'arena> {",
         "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
-        "file_sha256": "df74bfd5a316f8b890785e9d4e0ad6cc8a1a2673dd4106a7724bd9b436744af9"
+        "file_sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef"
       },
       {
         "id": "emitter-transform-flags",
@@ -831,5 +831,5 @@
     ],
     "absence_proofs": []
   },
-  "inventory_fingerprint_sha256": "e97abd64eea8320943730dbfc8e8ff0f47f2a4a31e48cd9ac46138422e80d541"
+  "inventory_fingerprint_sha256": "37720ae1570ba6da316bb64648ac3e5437d0b4788841b10b32364fbb26ecfd8c"
 }

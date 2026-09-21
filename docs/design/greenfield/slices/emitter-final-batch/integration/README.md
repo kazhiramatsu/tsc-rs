@@ -1,5 +1,37 @@
 # Emitter final r11 integration
 
+## 修復後の正式生成チェーンの完了（r596–r597）
+
+[収束証明](records/canonical-walk-r597/certificate.json)と
+[全実行記録](records/canonical-walk-r597/manifest.json)を保存した。
+Rust source `5a4c705c89680ee3da4ebbb5dfe8ec5620ff00af` を固定した正式 walk は
+終了 0、所要 13,522.593 秒。通常の 75 段を 3 巡し、再生成した段は
+66 → 7 → 0。3 巡目は全段が変更なしで通過した。各巡の 225 個のログも保存した。
+
+開始前の H2.5g 全体検証は 9,027 件を分類し、native 対象 8,511 件が各 2 回 exact。
+既存の H2.8a 6 件と H2.9 510 件は分類済みの deferred であり、この native exact 件数に
+含めない。1 巡目の qualification check は古い pin により観測記録の発行前に失敗し、
+正式 writer が 9,027 件を再利用した。2・3 巡目の check は全件の再利用条件を検査し、
+有効な receipt に一致、再採取 0 で成功した。
+
+1 巡目末に 5 つの command fixture を元の observer で再生成した。
+217・1,798・1・68・4 件の完全なケース内容は不変で、許可した親 hash と
+parameter selection の参照情報だけを更新した。2・3 巡目は追加の fixture 更新なし。
+[生成物の差分検査](records/canonical-walk-r597/generated-diff-review.json)と
+[全 JSON 差分](records/canonical-walk-r597/generated-diff-leaves.json)に、120 ファイルの
+確認結果を記録した。44 個の oracle source は hash literal のみ、75 個の JSON は
+507 個の hash 値とソース容量の記録 1 個のみが変わり、ケース・観測・集計値は不変。
+圧縮した PLAN-BASE fixture も、展開した全内容を比較している。
+
+最後の 16 owner-control scripts、source map の 31 ケース各 2 回の TypeScript 観測、
+固定 D/E の 323 ケース各 2 回の TypeScript 観測と現在の 325 入力の照合が成功した。
+固定 D/E の 3 artifact と recovery snapshot source は元の bytes を保持している。
+全 pin surfaces、検証器 66 tests、27 contracts と FCI（45 envelopes / 42 ready）も成功した。
+
+今回の最終 Rust bytes に対する生成チェーンは完了した。
+最終候補での unsplit local CI、hosted checks、merge は引き続き必要。
+以下は各時点の修復・検証記録であり、旧候補の結果を今回の最終検証へ代用しない。
+
 ## hosted で検出した残件の修復（r578–r594）
 
 [失敗ログ・修復・検証の記録](records/hosted-reference-repair-r594/manifest.json)と
@@ -20,9 +52,9 @@ source map とコメントを含む 140 件の完全な command 比較で確認�
 
 生成チェーンの途中で親 hash が再び変わる依存関係も確認した。
 全段の処理後に、上記 5 fixture の古い参照だけを元の observer で更新し、
-次の通常巡回で profile を検査する限定処理を追加する。hash 以外の内容が
+次の通常巡回で profile を検査する限定処理を追加した。hash 以外の内容が
 変わる場合や生成に失敗する場合は、保存した 6 ファイルを復元して停止する。
-生成順序と拒否・復元のテスト、Opus の実装レビューを記録する。
+生成順序と拒否・復元のテスト、Opus の実装レビューを記録した。
 
 この修正は Rust 本体と profile の runtime inputs に及ぶため、以下の r561 の
 収束証明は過去の候補に対する記録である。今回の最終 bytes に対する正式な

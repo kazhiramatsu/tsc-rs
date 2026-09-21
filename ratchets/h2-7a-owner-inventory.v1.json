@@ -21,7 +21,7 @@
     "option_owner": {
       "source": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "9d8ff0187f3ec2a056ba0e19295fb8327c5eba347e470a8ddcaeaaab6ab4c65c"
+        "sha256": "f047501eb9149936c607161b96ff5e2bb52fff84e4318ffae24a8a4e572adc10"
       },
       "span": {
         "start_line": 448,
@@ -40,7 +40,7 @@
       },
       "factory": {
         "path": "crates/emitter/src/factory.rs",
-        "sha256": "df74bfd5a316f8b890785e9d4e0ad6cc8a1a2673dd4106a7724bd9b436744af9"
+        "sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef"
       },
       "resolver": {
         "path": "crates/emitter/src/resolver.rs",
@@ -22936,5 +22936,5 @@
       "partition": null
     }
   ],
-  "inventory_fingerprint_sha256": "5041decb6134c52afdaa7494e6eeffe8c1d0eb321ef3b6301cabc324e5778d8a"
+  "inventory_fingerprint_sha256": "4869d9eaef8eb2ad715b4c86ca7c9d4d285897349cc2effb338561a33e85c023"
 }

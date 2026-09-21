@@ -16,7 +16,7 @@
     },
     {
       "path": "ratchets/h2-8a-candidates.v1.json",
-      "sha256": "eb65ac21c10095934a40ed850dc2d84b546c41335a30a88471e84ed5777c6869"
+      "sha256": "d11e5802fb79e65036689273171f277ca476814f3e7e319f582c35d4a3dea6db"
     },
     {
       "path": "crates/oracle/h2-8a-candidates.mjs",

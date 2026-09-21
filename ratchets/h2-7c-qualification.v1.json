@@ -20,11 +20,11 @@
     },
     {
       "path": "ratchets/h2-7b-qualification.v1.json",
-      "sha256": "5701f868c527d2769aaee31ca2d715d6a52877aa63702117acd05085d8740fc3"
+      "sha256": "71bad56ffc0bb5de95cd20fc1b15297e3b9d40750ffd999154955286ad616167"
     },
     {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "6e838d0c4702ca360869040da41c3f2c875c6ad48c02d28cfba2d7e9e9538449"
+      "sha256": "55f00c57e7226da1220b93773c106e1626526d2b2ffff8b9d4e5b0ef1d288c7a"
     },
     {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -11714,5 +11714,5 @@
     "adjacent_ordinary_api_references": 37,
     "adjacent_ordinary_api_owner": "H2.8d"
   },
-  "qualification_fingerprint_sha256": "8165bf51877557a60766e91fce9068de81ecfa1003a019b9dc96b91ef947a0bf"
+  "qualification_fingerprint_sha256": "d28c18623490d553a02bd482680d340314f3f99609d2266d4d9d8faa729f6b43"
 }

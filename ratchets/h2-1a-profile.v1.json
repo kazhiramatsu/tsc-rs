@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-1a-profile.mjs",
-    "sha256": "50043d022adc1cbe2d382fde791f1177d00e776e474c0e5471a9017898a0346d"
+    "sha256": "6b1044c23310a467dd55fe8ec3ba7aab434a3a0694cf488ea87f3029b86e08a6"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-1a-profile.schema.json",
@@ -28,7 +28,7 @@
     "historical": {
       "profile_transition": {
         "path": "ratchets/h2-profile-transition.v1.json",
-        "sha256": "af0ef502d102d44d9b0465ad7d3827f2effab74748669e38e7cc302d0942393c"
+        "sha256": "e8e71c347ca31933778ef44f2c5718b62b957c888037cf6eb16fea0595fb0687"
       },
       "runtime_baseline": {
         "path": "ratchets/h2-runtime-baseline.v1.json",
@@ -36,7 +36,7 @@
       },
       "transition_generator": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "9d8ff0187f3ec2a056ba0e19295fb8327c5eba347e470a8ddcaeaaab6ab4c65c"
+        "sha256": "f047501eb9149936c607161b96ff5e2bb52fff84e4318ffae24a8a4e572adc10"
       },
       "baseline_generator": {
         "path": "crates/oracle/h2-baseline.mjs",
@@ -55,7 +55,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-1a-qualification.v1.json",
-    "sha256": "fd2d06988c7f0ed18727f08f8232c55124c0f54a89017b98a6a5430c497796f9"
+    "sha256": "3fddcb23babb181e9d4248b4898587477e68ec67043f2720d013fcea036cb95d"
   },
   "runtime_inputs": [
     {
@@ -157,7 +157,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "6bbfc47c499a01d32be8e97b42cd68d1919431a71f530112dfef6f5a0d89582b"
+      "sha256": "f93d5127f23bf96a4b2c8f463aa6fc278727c3057f460e22eb95ee7354e3155a"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -180,5 +180,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "2329e8dd7639c2e31222a91ef48de6e952a7e92d419cd09ea5666a6910d5134e"
+  "profile_fingerprint_sha256": "818c59accbbf4f8e253242e69eb6b245727845f21b16585954e35f859974996a"
 }

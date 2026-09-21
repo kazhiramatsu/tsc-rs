@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "env",
+    "PRE_SUITE=cargo xtask acceptance-slice h2-5g",
+    "bash",
+    "scripts/chain-walk.sh"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T22:07:17.693040+00:00",
+  "head": "5a4c705c89680ee3da4ebbb5dfe8ec5620ff00af",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 13522.593,
+  "log_sha256": "aa935e5378b2d9fe6700b44cfef203fa5bae3a6cab7e4466d0caa1ba8222f601",
+  "log_bytes": 18536
+}

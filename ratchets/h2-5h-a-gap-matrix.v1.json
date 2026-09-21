@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "80b9f7fefff764c260cf7f7c32f8efcbc6ccffd813ce7741f926b6a581e4f405"
+      "sha256": "1f96264faa7eeadc1216dd8be9eb901b8cbd9d926dd282539d175c216c08c33e"
     },
-    "owner_graph_fingerprint_sha256": "ab164f9d796574bac368ba5b9c48979ac1777486d73706f42a76cc2c10632e2d",
+    "owner_graph_fingerprint_sha256": "0257a647d894abdcf04ebe79c49928a547574121f863035d6df5f2166791e654",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "6d0a6bf4924f3064efb39e64fdf2c01522f17faa54a904945ea5897bca3e9028"
@@ -126,7 +126,7 @@
           "symbol": "pub fn create_node",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "df74bfd5a316f8b890785e9d4e0ad6cc8a1a2673dd4106a7724bd9b436744af9"
+            "sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef"
           }
         },
         {
@@ -134,13 +134,13 @@
           "symbol": "pub fn create_node_array",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "df74bfd5a316f8b890785e9d4e0ad6cc8a1a2673dd4106a7724bd9b436744af9"
+            "sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef"
           }
         }
       ],
       "absences": [],
       "note": null,
-      "capability_fingerprint_sha256": "6a6d68c526480a512e2542f47295697b34d310a39ade5582a7cbeed36f888f48"
+      "capability_fingerprint_sha256": "9940e0cd7cda926f493d1479e4b014d1a0430f49d70299d49890fc2bace030de"
     },
     {
       "index": 3,
@@ -160,7 +160,7 @@
           "symbol": "pub fn propagate_child_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "df74bfd5a316f8b890785e9d4e0ad6cc8a1a2673dd4106a7724bd9b436744af9"
+            "sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef"
           }
         },
         {
@@ -168,7 +168,7 @@
           "symbol": "fn classify_created_node_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "df74bfd5a316f8b890785e9d4e0ad6cc8a1a2673dd4106a7724bd9b436744af9"
+            "sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef"
           }
         },
         {
@@ -176,7 +176,7 @@
           "symbol": "fn classify_created_token_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "df74bfd5a316f8b890785e9d4e0ad6cc8a1a2673dd4106a7724bd9b436744af9"
+            "sha256": "9004b86073c8c2ecf7cf426be2dca5c10563ec261c0e03a645867cf1875f26ef"
           }
         },
         {
@@ -190,7 +190,7 @@
       ],
       "absences": [],
       "note": "B-1 landed the EA-GAP-FLAGS postorder classifier: per-created-kind facet tables ported from the owner-called creators, aggregated through propagate_child_flags; the eight TransformFlags facets of the nine-facet qualification surface carry table contracts (the ninth is the resolver-side NodeCheckFlags fact)",
-      "capability_fingerprint_sha256": "fb66c368cfcdc64eb01410cf94e8bd19f76cfe80446f2df8dca62c55d0043229"
+      "capability_fingerprint_sha256": "871c675eb8d3c0b71299f97555ff4064e5f7eb332e3430adc6c3822d27addbd6"
     },
     {
       "index": 4,
@@ -750,5 +750,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "a8e3c004c3981e5c4a33e3a837023e8ad0401680eb31c149bf8424adab4adcaa"
+  "gap_matrix_fingerprint_sha256": "259412527832202942c39040ba30103806d91af92d5f558f44dcc735a774c4a1"
 }

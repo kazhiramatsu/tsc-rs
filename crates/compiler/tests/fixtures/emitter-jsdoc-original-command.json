@@ -9,7 +9,7 @@
       "case_id": "typescript-6.0.3/compiler/declarationEmitRetainsJsdocyComments.ts#default",
       "suite": "compiler",
       "universe": "ratchets/h2-7b-qualification.v1.json",
-      "artifact_sha256": "5701f868c527d2769aaee31ca2d715d6a52877aa63702117acd05085d8740fc3"
+      "artifact_sha256": "71bad56ffc0bb5de95cd20fc1b15297e3b9d40750ffd999154955286ad616167"
     }
   ],
   "repetitions": 2,
