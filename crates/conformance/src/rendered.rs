@@ -232,7 +232,7 @@ pub fn run_t4_report(options: &T4ReportOptions) -> ConformanceResult<T4Report> {
     let fixtures = select_fixtures(&selection)?;
     let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");
     let goldens_root = options.workspace.join("goldens");
-    let mut scope = ScopeManifest::load(&options.workspace.join("m8-scope.json"))?;
+    let mut scope = ScopeManifest::load(&options.workspace.join("ratchets/m8/m8-scope.json"))?;
     let temp_tree = TemporaryTree::create(super::temp_root("tsc-rs-rendered-output-report"))?;
     let pool = OraclePool::new_render_only();
     super::ratchet::verify_launched_render_node(&options.workspace, &pool)?;

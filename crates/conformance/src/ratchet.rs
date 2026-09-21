@@ -2147,6 +2147,27 @@ pub fn git_blob_optional(
     rel: &str,
 ) -> ConformanceResult<Option<Vec<u8>>> {
     let paths = WorkspaceHistoryPaths::new(rel)?;
+    if let Some((old, current)) = crate::artifact_paths::relocation(&paths.current) {
+        let current_bytes = git_workspace_blob_optional(root, commit, current)?;
+        let old_bytes = git_workspace_blob_optional(root, commit, old)?;
+        return match (current_bytes, old_bytes) {
+            (Some(_), Some(_)) => Err(format!(
+                "ambiguous verification artifact at {commit}: both {current} and {old} exist"
+            )
+            .into()),
+            (Some(bytes), None) | (None, Some(bytes)) => Ok(Some(bytes)),
+            (None, None) => Ok(None),
+        };
+    }
+    git_workspace_blob_optional(root, commit, rel)
+}
+
+fn git_workspace_blob_optional(
+    root: &Path,
+    commit: &str,
+    rel: &str,
+) -> ConformanceResult<Option<Vec<u8>>> {
+    let paths = WorkspaceHistoryPaths::new(rel)?;
     let tree = git(
         root,
         &["ls-tree", "-z", commit, "--", &paths.current, &paths.legacy],
@@ -3941,7 +3962,7 @@ fn verify_ratchet_summaries(
 /// `ratchet check` owns those heavier gates. It does decode and
 /// validate both current artifacts, verifies their pair pins, requires
 /// the atomic T1-T3 comparator state, and proves the three
-/// `ratchet.toml` summaries are derived exactly from the accepted
+/// `ratchets/ratchet.toml` summaries are derived exactly from the accepted
 /// bucket sets. Thus hand-writing nonzero TOML counts cannot make the
 /// completion consumer report the tier schema active.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -3977,7 +3998,7 @@ pub fn verify_tier_1_through_3_activation(
     let view_counts = view_counts(&matches.views);
     let tier_counts = all_view_tier_counts(&matches.views);
     verify_ratchet_summaries(
-        &workspace.join("ratchet.toml"),
+        &workspace.join("ratchets/ratchet.toml"),
         &view_counts,
         &inputs.totals,
         Some(tier_counts),
@@ -4026,7 +4047,7 @@ pub fn verify_t4_activation(workspace: &Path) -> ConformanceResult<T4Activation>
     let matched_cases = all_view_t4_count(&matches.views);
     let total_cases = total_case_count(&inputs);
     verify_ratchet_summaries(
-        &workspace.join("ratchet.toml"),
+        &workspace.join("ratchets/ratchet.toml"),
         &view_counts(&matches.views),
         &inputs.totals,
         Some(all_view_tier_counts(&matches.views)),
@@ -4116,7 +4137,7 @@ pub(crate) fn verify_accepted_pair_history_with_proof(
 
 /// `cargo xtask ratchet check [--baseline <ref>]`: verify both
 /// artifacts against the current tree (vendor pins, fixture bytes,
-/// expansion, golden oracle records, ratchet.toml derived summaries)
+/// expansion, golden oracle records, ratchets/ratchet.toml derived summaries)
 /// and their full append-only lineage; with `--baseline`, also the
 /// trusted PR-base direct compare.
 pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> {
@@ -4132,7 +4153,7 @@ pub fn check_with_history_proof(
 ) -> ConformanceResult<AcceptedPairHistoryProof> {
     let (matches, matches_bytes, inputs, inputs_bytes) = verify_current_pair(workspace)?;
 
-    // ratchet.toml counts are derived summaries of the artifact, never
+    // ratchets/ratchet.toml counts are derived summaries of the artifact, never
     // an independent authority.
     let counts = view_counts(&matches.views);
     let comparator_state = comparator_state(&inputs.comparators)?;
@@ -4140,7 +4161,7 @@ pub fn check_with_history_proof(
     let t4_counts = t4_active(comparator_state)
         .then(|| (all_view_t4_count(&matches.views), total_case_count(&inputs)));
     verify_ratchet_summaries(
-        &workspace.join("ratchet.toml"),
+        &workspace.join("ratchets/ratchet.toml"),
         &counts,
         &inputs.totals,
         tier_counts,
@@ -4236,7 +4257,7 @@ pub fn check_with_history_proof(
 
 /// `cargo xtask ratchet update [--transition universe-transition]`:
 /// measure the full corpus, refuse any removal, and write both
-/// artifacts plus the ratchet.toml derived summaries. Additions only.
+/// artifacts plus the ratchets/ratchet.toml derived summaries. Additions only.
 pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<()> {
     if let Some(transition) = transition {
         if ![
@@ -4493,7 +4514,7 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         tsc_js_sha256: vendor.tsc_js_sha256,
     };
     let counts = view_counts(&run.sets);
-    let ratchet_path = workspace.join("ratchet.toml");
+    let ratchet_path = workspace.join("ratchets/ratchet.toml");
     // Render and validate every required summary section before either
     // artifact changes. Missing fields are repaired in the rendered
     // value; a missing/duplicate section is an error with no mutation.
@@ -4510,7 +4531,7 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
             verify_lineage::<MatchesArtifact>(&git_root, &matches_rel, existing_bytes)?;
             verify_committed_artifact_pairs(&git_root, &matches_rel, &inputs_rel)?;
             // Still self-heal a missing working input or drifted
-            // ratchet.toml before declaring the state current. Treat
+            // ratchets/ratchet.toml before declaring the state current. Treat
             // those repairs as one transaction so a summary failure
             // cannot leave only the input artifact changed.
             let mut updates = Vec::new();

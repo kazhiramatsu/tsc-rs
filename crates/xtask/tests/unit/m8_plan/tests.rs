@@ -254,4 +254,36 @@ fn historical_plan_inputs_follow_the_workspace_promotion() {
         serde_json::from_slice::<Value>(&review_bytes).unwrap(),
         review
     );
+    assert_eq!(
+        plan_at(
+            &repo.0,
+            &commit,
+            &repo.0.join("ratchets/m8/m8-owner-plan.json")
+        )
+        .unwrap(),
+        plan
+    );
+}
+
+#[test]
+fn frozen_review_input_resolves_relocated_bytes_without_rewriting_the_record() {
+    let repo = TempRepo::new("relocated-review");
+    let relative = "m8-owner-plan-review.json";
+    let current = repo.0.join("ratchets/m8/m8-owner-plan-review.json");
+    fs::create_dir_all(current.parent().unwrap()).unwrap();
+    fs::write(&current, b"frozen review").unwrap();
+    let plan =
+        json!({"review_input": {"path": relative, "sha256": sha256_file(&current).unwrap()}});
+    verify_review_input(&repo.0, &plan).unwrap();
+    assert_eq!(plan["review_input"]["path"], relative);
+    fs::write(repo.0.join(relative), b"frozen review").unwrap();
+    fs::write(&current, b"changed review").unwrap();
+    assert!(verify_review_input(&repo.0, &plan).is_err());
+    fs::remove_file(&current).unwrap();
+    assert!(verify_review_input(&repo.0, &plan).is_err());
+    assert!(safe_workspace_path(&repo.0, "../m8-owner-plan-review.json", "test").is_err());
+    assert_eq!(
+        safe_workspace_path(&repo.0, "unrelated/m8-owner-plan-review.json", "test").unwrap(),
+        repo.0.join("unrelated/m8-owner-plan-review.json")
+    );
 }

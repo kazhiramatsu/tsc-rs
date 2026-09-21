@@ -16,8 +16,8 @@ use tsc_diagnostics::{
     format_diagnostics_with_context, Diagnostic, FormatDiagnosticsHost, MessageChain, RelatedInfo,
 };
 
-const CONFIG_REL: &str = "m8-evidence.json";
-const INVENTORY_REL: &str = "m8-emitter-inventory.json";
+const CONFIG_REL: &str = "ratchets/m8/m8-evidence.json";
+const INVENTORY_REL: &str = "ratchets/m8/m8-emitter-inventory.json";
 const ARTIFACT_SCHEMA: u32 = 2;
 const PRODUCER_VERSION: &str = "m8-evidence-v2";
 const CI_RECEIPT_FILE: &str = "ci-conformance-receipt.json";
@@ -2510,37 +2510,44 @@ pub(crate) fn verify_for_readiness(
 fn read_config(workspace: &Path) -> Result<EvidenceConfig, Box<dyn Error>> {
     let config: EvidenceConfig = read_json(&workspace.join(CONFIG_REL))?;
     if config.schema != 2 {
-        return Err("m8-evidence.json must be schema 2".into());
+        return Err("ratchets/m8/m8-evidence.json must be schema 2".into());
     }
     if config.runtime_coverage.max_workers == 0 {
-        return Err("m8-evidence.json runtime_coverage.max_workers must be at least 1".into());
+        return Err(
+            "ratchets/m8/m8-evidence.json runtime_coverage.max_workers must be at least 1".into(),
+        );
     }
     if config.runtime_coverage.programs_per_process == 0 {
         return Err(
-            "m8-evidence.json runtime_coverage.programs_per_process must be at least 1".into(),
+            "ratchets/m8/m8-evidence.json runtime_coverage.programs_per_process must be at least 1"
+                .into(),
         );
     }
     if config.runtime_coverage.max_lib_cache_buckets == 0 {
         return Err(
-            "m8-evidence.json runtime_coverage.max_lib_cache_buckets must be at least 1".into(),
+            "ratchets/m8/m8-evidence.json runtime_coverage.max_lib_cache_buckets must be at least 1".into(),
         );
     }
     if config.runtime_coverage.diagnostic_canary_programs == 0 {
         return Err(
-            "m8-evidence.json runtime_coverage.diagnostic_canary_programs must be at least 1"
+            "ratchets/m8/m8-evidence.json runtime_coverage.diagnostic_canary_programs must be at least 1"
                 .into(),
         );
     }
     if config.workspace_tests.max_workers == 0 {
-        return Err("m8-evidence.json workspace_tests.max_workers must be at least 1".into());
+        return Err(
+            "ratchets/m8/m8-evidence.json workspace_tests.max_workers must be at least 1".into(),
+        );
     }
     if config.conformance_runner.max_workers == 0 {
-        return Err("m8-evidence.json conformance_runner.max_workers must be at least 1".into());
+        return Err(
+            "ratchets/m8/m8-evidence.json conformance_runner.max_workers must be at least 1".into(),
+        );
     }
     Ok(config)
 }
 
-/// The reviewed local workspace-test worker ceiling from `m8-evidence.json`.
+/// The reviewed local workspace-test worker ceiling from `ratchets/m8/m8-evidence.json`.
 /// tsrs-native: gate-policy accessor; no tsc counterpart.
 pub(crate) fn workspace_test_worker_ceiling(workspace: &Path) -> Result<usize, Box<dyn Error>> {
     Ok(read_config(workspace)?.workspace_tests.max_workers)
@@ -2913,9 +2920,9 @@ fn performance_fingerprint(workspace: &Path) -> Result<Fingerprint, Box<dyn Erro
             "Cargo.toml",
             "Cargo.lock",
             "rust-toolchain.toml",
-            "ratchet.toml",
-            "m8-scope.json",
-            "diag-families.json",
+            "ratchets/ratchet.toml",
+            "ratchets/m8/m8-scope.json",
+            "ratchets/diag-families.json",
             "ratchets/oracle-inputs.v1.json.zst",
             "ratchets/conformance-matches.v1.json.zst",
             "pins/recovery.json",

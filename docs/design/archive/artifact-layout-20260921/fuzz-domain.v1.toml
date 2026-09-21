@@ -2,12 +2,12 @@ schema = 1
 status = "draft"
 
 [[source_references]]
-path = "ratchets/m8/m8-evidence.json"
+path = "m8-evidence.json"
 sha256 = "ad59d232144e8bd9543be9ebc1494d300addb7f4fb8990a492b88b096aaf232b"
 
 [[source_references]]
 path = "crates/xtask/src/m8_evidence.rs"
-sha256 = "f38a48f45d859a6c636fb00c8aeecac35ae6580e4f52cf6204b16e9656b7f771"
+sha256 = "56ff4cfdc08a4a2212ac095e344a20937046a66f70d6a02486967829d5482c1d"
 
 [[source_references]]
 path = "crates/harness/src/lib.rs"

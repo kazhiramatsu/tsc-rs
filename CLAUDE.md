@@ -12,6 +12,12 @@ emitter architecture, the post-H1 schedule, and the selected slice packet in
 that order. The retained greenfield M-stage guides are historical lineage, not
 current H2 implementation maps.
 
+Repository-owned verification artifacts belong under `ratchets/`, with M8
+files in `ratchets/m8/`; see [the location guide](ratchets/README.md). Keep new
+project-specific generated data out of the repository root. Historical
+records retain their original paths and hashes; relocating a file does not
+authorize regenerating or requalifying those records.
+
 ## Current verification policy
 
 The user retired the former full local CI and reference-hash chain walk on
@@ -77,8 +83,8 @@ previously appeared here and remain in historical packets.
    comparable expansion of scope may need approval. Ordinary authorized
    implementation, focused evidence updates, PR creation, CI fixes and
    successful PR merges do not. Existing user authorization takes priority.
-6. Change `ratchet.toml` only with a reviewed accepted-state change; change
-   `STAGE` only when its milestone closes. Neither is updated merely to
+6. Change `ratchets/ratchet.toml` only with a reviewed accepted-state change; change
+   `ratchets/STAGE` only when its milestone closes. Neither is updated merely to
    obtain a successful validation result.
 7. **Markdown-only changes:** when all changed paths relative to the trusted
    base end in `.md` and README's generated `STATUS` block is unchanged, run
@@ -202,7 +208,7 @@ independent task, not merely an available agent slot.
   `cargo xtask ratchet update` re-measures and adds identities only
   (never run it to "fix" a regression — fix the regression)
 - Exact scope (A2): `cargo xtask scope audit [--baseline origin/main]`
-  verifies `m8-scope.json` schema-2 identities against goldens, the
+  verifies `ratchets/m8/m8-scope.json` schema-2 identities against goldens, the
   duplicate-bucket canaries (68/65), the Node/Rust canonical-encoder
   cross-check (`crates/oracle/identity.mjs`), band-pin/global-freeze
   anchors, and tombstone standing proofs
@@ -213,15 +219,15 @@ independent task, not merely an available agent slot.
   open/closed/lapsed transitions, including historical T0--T4 evidence for
   every row carrying closure provenance
 - Family map (A5): `cargo xtask families check [--baseline
-  origin/main]` verifies `diag-families.json` — every corpus-exercised
+  origin/main]` verifies `ratchets/diag-families.json` — every corpus-exercised
   non-2XXX (code, pass) row mapped exactly once, canary existence,
   freeze/universe-extension anchors, trusted-base compare;
   `cargo xtask families report` writes the per-family supported
   rollup (`target/families/report.json`) from one full gating
   band=all run (`--verify` re-checks a stored report's input
   fingerprints)
-- Escape expiry audit: `cargo xtask escapes --stale $(cat STAGE)`
-  (also verifies `escapes.toml`; after adding/retiring an escape run
+- Escape expiry audit: `cargo xtask escapes --stale $(cat ratchets/STAGE)`
+  (also verifies `ratchets/escapes.toml`; after adding/retiring an escape run
   `cargo xtask escapes --write-manifest` — the manifest diff is the
   review surface)
 - Symbol audit vs oracle (full corpus): `cargo xtask symbol-diff

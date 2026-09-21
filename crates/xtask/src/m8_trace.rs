@@ -23,7 +23,7 @@ struct TraceArgs {
 pub(crate) fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = parse_args(args)?;
     let workspace = find_workspace_root()?;
-    let inventory = workspace.join("m8-emitter-inventory.json");
+    let inventory = workspace.join("ratchets/m8/m8-emitter-inventory.json");
     let bundle = workspace.join("vendor/typescript-6.0.3/lib/_tsc.js");
     let instrumenter = workspace.join("crates/oracle/trace-instrument.mjs");
     let driver = workspace.join("crates/oracle/trace-driver.mjs");
