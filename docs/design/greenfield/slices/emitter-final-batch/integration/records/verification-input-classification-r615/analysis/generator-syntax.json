@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "node",
+    "--check",
+    "crates/oracle/h2-5g-profile.mjs"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-21T09:13:36.027117+00:00",
+  "head": "09d98a925f9d012b0cd280e7a880691fbcd5e4ed",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "diff_sha256": "be29441506ee067f7b65f92c8c69f22ed9b1113ee3b7f041831fc4a8e43910fc",
+  "rust_files": 784,
+  "rust_sha256": "2250a4976d0c6b7ecbfec7bf6d9caa022bca2673863d0595fd7f8e8ec9bb4b84",
+  "exit": 0,
+  "seconds": 0.032,
+  "finished_at": "2026-09-21T09:13:36.126739+00:00",
+  "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "log_bytes": 0
+}

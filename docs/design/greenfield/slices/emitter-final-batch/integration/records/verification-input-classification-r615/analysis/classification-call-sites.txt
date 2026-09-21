@@ -1,0 +1,5 @@
+crates/conformance/src/lib.rs:39:    check_host_resolution_registry, check_host_resolution_registry_with_history_proof,
+crates/conformance/src/lib.rs:40:    draft_host_resolution_registry, HOST_RESOLUTION_REL_PATH,
+crates/xtask/src/main.rs:4936:    tsc_conformance::check_host_resolution_registry_with_history_proof(
+crates/xtask/src/host_resolution.rs:14:    tsc_conformance::draft_host_resolution_registry(&workspace, &out)
+crates/xtask/src/host_resolution.rs:20:    tsc_conformance::check_host_resolution_registry(&workspace, baseline.as_deref())

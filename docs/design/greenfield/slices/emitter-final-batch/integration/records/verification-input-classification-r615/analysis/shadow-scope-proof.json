@@ -1,0 +1,42 @@
+{
+  "scope": "Read-only exact two-file gate-tooling classification; no runtime roster or delivery guard change",
+  "source_before_sha256": "e8718f8217cf7a0f8f1416a67632bf14d7d4aac8ecb9088403f106dba5fc633d",
+  "source_after_sha256": "c870900e185ea22e3dd26ac7571b12961ff73e02105f89d9a9752eab54127ed4",
+  "old_shadow_count": 80,
+  "new_shadow_count": 82,
+  "added_shadow_paths": [
+    "crates/conformance/src/host_resolution.rs",
+    "crates/conformance/tests/unit/host_resolution/tests.rs"
+  ],
+  "runtime_input_count": 920,
+  "runtime_array_byte_identical": true,
+  "runtime_profile_sha256": "2e3ae8baf3c449c66ad58aaee6e681dde06b797b9aa89eef356304faf3c1d496",
+  "schema_unchanged": true,
+  "original_delivery_helpers": [
+    {
+      "path": "emitter-final-ci-run-r530.py",
+      "sha256": "68656686b126925474d7a10b4ef3acfee02e99f1095a4cea8805f42d9131830b",
+      "historical_bytes_unchanged": true
+    },
+    {
+      "path": "emitter-delivery-final-input-audit-r530.py",
+      "sha256": "ea675b1678e3a07c82167484b55142037b8273b9265d8685e340141eb2133b17",
+      "historical_bytes_unchanged": true
+    },
+    {
+      "path": "emitter-delivery-draft-r530.py",
+      "sha256": "ef1e29167a09f2a7d50a192ee5196697ec741552fc079e010c01111279543c87",
+      "historical_bytes_unchanged": true
+    },
+    {
+      "path": "delivery_receipt_checks.py",
+      "sha256": "c5da71446ee7e8a5f1d9eaf6b78e017e1e9365f4d1eadc958aa1bc5949eca255",
+      "historical_bytes_unchanged": true
+    },
+    {
+      "path": "test_delivery_receipt_checks.py",
+      "sha256": "fc56efc8c22197e500701f04c7ff74a042b9efb8b7325d78dac62d8041f42ddf",
+      "historical_bytes_unchanged": true
+    }
+  ]
+}

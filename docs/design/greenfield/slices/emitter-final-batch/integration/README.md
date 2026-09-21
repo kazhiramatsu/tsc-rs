@@ -1,5 +1,13 @@
 # Emitter final r11 integration
 
+## H0 検証ソースの分類（r615）
+
+正式 walk r613 は生成前に未登録ソースを検出して停止した。
+[Opus 237との確認と修正記録](records/verification-input-classification-r615/resolution.md)に従い、
+H0 検証器と unit tests の 2 ファイルを既存の検証用分類へ登録した。
+実行入力 920 件・順序・スキーマ・最終検証 helper は不変。
+事前条件と pin 検査は成功し、生成物の更新を新しい正式 walk で行う。
+
 ## 全体テストで検出した残存検証の修復（r611–r612）
 
 [原因と修正範囲](records/native-validator-repair-r612/resolution.md)と
