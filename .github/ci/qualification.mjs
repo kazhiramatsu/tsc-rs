@@ -2220,11 +2220,19 @@ function git(...args) {
 }
 
 function statusBlock(commit) {
-  const readme = execFileSync("git", ["show", `${commit}:README.md`], { cwd: workspace, encoding: "utf8" });
-  const begins = [...readme.matchAll(/<!-- STATUS:BEGIN /gu)];
-  const ends = [...readme.matchAll(/<!-- STATUS:END -->/gu)];
-  if (begins.length !== 1 || ends.length !== 1 || begins[0].index >= ends[0].index) throw new Error("invalid README status block");
-  return readme.slice(begins[0].index, ends[0].index + ends[0][0].length);
+  const paths = ["docs/verification-status.md", "README.md"];
+  const existing = new Set(git("ls-tree", "--name-only", commit, "--", ...paths).split("\n"));
+  const blocks = [];
+  for (const path of paths.filter(path => existing.has(path))) {
+    const text = execFileSync("git", ["show", `${commit}:${path}`], { cwd: workspace, encoding: "utf8" });
+    const begins = [...text.matchAll(/<!-- STATUS:BEGIN /gu)];
+    const ends = [...text.matchAll(/<!-- STATUS:END -->/gu)];
+    if (path === "README.md" && begins.length === 0 && ends.length === 0) continue;
+    if (begins.length !== 1 || ends.length !== 1 || begins[0].index >= ends[0].index) throw new Error(`invalid status block in ${path}`);
+    blocks.push(text.slice(begins[0].index, ends[0].index + ends[0][0].length));
+  }
+  if (blocks.length !== 1) throw new Error("expected exactly one verification status block");
+  return blocks[0];
 }
 
 function changedPaths(baseSha, headSha) {

@@ -9184,8 +9184,8 @@ fn ci_semantic_gates(
         || ci_semantic_evidence(&workspace, baseline),
     )?;
     // E2 current-documentation gate: readiness above produces the
-    // same-workspace report consumed by the generated README block. Bind that
-    // report again so an interrupted run cannot reuse the final check after
+    // same-workspace report consumed by the internal verification-status block.
+    // Bind that report again so an interrupted run cannot reuse the final check after
     // the target artifact has been removed or replaced.
     resume.run_phase(
         "readme-status",
@@ -9326,8 +9326,8 @@ struct ReadmeStatusFamily {
 }
 
 /// `cargo xtask readme-status [--check]`: regenerate (or, with
-/// `--check`, verify) the top-level README's generated status block.
-/// E2 contract: README numbers are never hand-written — they render
+/// `--check`, verify) docs/verification-status.md's generated status block.
+/// E2 contract: status numbers are never hand-written — they render
 /// from the checked-in accepted state (`ratchets/ratchet.toml` summaries,
 /// which `ratchet check` verifies against the artifacts on every
 /// gate run), the STAGE marker, the frozen family map, and the
@@ -9347,7 +9347,9 @@ fn readme_status(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error
     let updated = splice_readme_status(&readme, &block)?;
     if check {
         if readme != updated {
-            return Err("README.md status block is stale; run `cargo xtask readme-status`".into());
+            return Err(
+                "docs/verification-status.md is stale; run `cargo xtask readme-status`".into(),
+            );
         }
         println!("readme-status ok: {}", readme_path.display());
     } else if readme == updated {
@@ -9360,7 +9362,7 @@ fn readme_status(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error
 }
 
 fn readme_path_for_workspace(workspace: &Path) -> Result<PathBuf, Box<dyn Error>> {
-    Ok(git_repository_root(workspace)?.join("README.md"))
+    Ok(git_repository_root(workspace)?.join("docs/verification-status.md"))
 }
 
 fn read_ratchet_count(workspace: &Path, section: &str, key: &str) -> Result<usize, Box<dyn Error>> {

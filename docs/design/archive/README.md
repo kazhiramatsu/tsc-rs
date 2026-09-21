@@ -13,6 +13,10 @@ tag to run any command or path these documents mention.
 
 ## Historical greenfield records
 
+- [README before the user guide](readme-before-user-guide-20260921.md): the
+  original developer-facing README, preserved on 2026-09-21 when the root
+  README became a build and command-line guide. Its commands and status are
+  historical; current verification follows the repository CLAUDE.md.
 - [M5/M6 test selections](milestone-canaries/README.md): the original root
   canary lists, preserved byte-for-byte; they do not select current CI jobs.
 - [Artifact relocation records](artifact-layout-20260921/README.md): original
