@@ -1,0 +1,17 @@
+{
+  "baseline": "5b28906cf5544c63bb55f4c97e40f714672fd722",
+  "changed_paths": [
+    ".github/ci/plans/h2-5g.v1.json",
+    ".github/ci/qualification-policy.v2.json",
+    ".github/ci/test_replay.py",
+    "docs/design/greenfield/slices/witness-coverage/README.md",
+    "docs/design/greenfield/slices/witness-coverage/inventory.py",
+    "scripts/foundation_witnesses.py"
+  ],
+  "no_crates_ratchets_contract_changes": true,
+  "converged_crates_sha256": "c49ae53fc3ed1c838323fbf1f9c5b1850332a158fb72301258dfcc015c3f68aa",
+  "rust_files": 784,
+  "walk_certificate_matches": true,
+  "patch_sha256": "30dda099bf53821eed7e602053bf16fcc454fc918780d833371fe8e89a8e2c7e",
+  "patch_bytes": 9098
+}

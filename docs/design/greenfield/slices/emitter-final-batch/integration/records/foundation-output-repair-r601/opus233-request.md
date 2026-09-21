@@ -1,0 +1,19 @@
+Please independently review this bounded final-integration repair. READ ONLY: do not modify files, mint evidence, run Cargo tests/builds, or launch a walk. The canonical exact-V local CI is still in flight and will be stopped before any edits/builds. Give a concrete lowest-impact recommendation and any blocking issues.
+
+Canonical /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep is tracked-clean at V 5b28906cf5544c63bb55f4c97e40f714672fd722. The repaired Rust source5a4c completed the official r596 walk: full native H25g pre-suite8511exactx2/9027classified, all75rungs clean on round3, all16ownercontrols/31mapTSx2/frozen323TSx2/current325inputs/allpins/66tests/27contracts green. W284174 then static inventoryv38 V. Archive integration/records/canonical-walk-r597/certificate.json. Do not assume these mean final fullCI/hosted green.
+
+New actual hosted foundations job106190560627 (run35552763555) failed. Raw job log /tmp/emitter-final-hosted-failure-r600/foundations-job.log, normalized log samefolder/foundations-normalized.log, exact read-only reproduction parser-reproduction.json. Both Rust emitter_recovery tests succeeded (2passed,0failed/ignored/filtered) but verify_output recognized zero inline names. With --nocapture --test-threads=1, actual output is:
+ test await_reparse_respects_factory_child_and_name_boundaries ... await flag boundary SUMMARY exact=285 failed=0 selected=285
+ ok
+ test original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts ... emitter recovery syntax SUMMARY exact=36 failed=0 selected=36
+ context recovery syntax cases:788 expected admission=true
+ context recovery syntax refused_cases:72 expected admission=false
+ ok
+ test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; ...
+The existing scripts/foundation_witnesses.py verify_output only accepts ^test NAME ... ok$ single lines. It derives exact expectednames from bounded declarations and checks target uniqueness/names/count/zeroignored/zerofiltered. .github/ci/test_replay.py has strict negative controls. Thus no compiler output failure demonstrated; this is libtest stdout interleaving at the verifier boundary.
+
+Candidate: change ONLY foundation command() libtest flag --nocapture to --show-output, retaining serial full targets, exactname/summary checks, all observers, and successful-test diagnostics. Keep verification strict instead of teaching it to ambiguously associate arbitrary stdout with a later bare ok. Review whether --show-output is appropriate/stable for Rust1.93 libtest and whether current strict parser needs any narrowly required adjustment. Alternative proposals welcome with concrete rationale. We will run the actual failing syntax batch and complete17foundation suites at fixed Rust, plus meaningful positive/negative output controls (not just self-fulfilling flag assertions).
+
+Dependency read-only scan found foundation_witnesses.py and test_replay.py in qualification-policy.v2.json raw_source_inputs (lines59–60), but neither appears in ANY current profile runtime_inputs. Expected repair surfaces: foundation_witnesses.py, test_replay.py, those2exact policyhashes, inventory generator/readme versionv39 +NEWv39 generated LAST, and records/docs. Rust/oracle generators/ratchets/fixtures/frozenDE/recovery snapshot remain byte-identical. Does the current r597 Rust/chain certificate remain valid with focused planner/pin/policy/contract tests and NEW final-head unsplitCI/hosted (precedent catalog-repairr573), without re-running the entire3.75h walk? Identify any overlooked hash/qualification dependencies; never recommend bypassing gates or weakening counts/criteria.
+
+Please also note what actual proof is needed before applying/merging. Earlier failures/cancelledCI will be preserved and never counted as full success.

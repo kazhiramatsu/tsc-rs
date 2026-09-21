@@ -1,5 +1,25 @@
 # Emitter final r11 integration
 
+## 最終 CI のログ検証修復（r600–r601）
+
+[原因と修正範囲](records/foundation-output-repair-r601/resolution.md)と
+[失敗・修復・検証の記録](records/foundation-output-repair-r601/manifest.json)を保存した。
+候補 `5b28906cf` の hosted foundations は native テスト成功後にログ検証で失敗した。
+`--nocapture` が成功行を分断することを同じ実行で再現し、成功判定を変更せず
+`--show-output` へ切り替えた。全17対象・49 native tests、88 planner tests が成功。
+元の失敗ログと偽の成功行は引き続き拒否される。
+
+追加確認で見つかった FCI の shadow membership plan は、過去の資格付け入力を
+Git から回収し、9,027件のケース順序・分類・全分割結果が現在と同じことを確認した上で、
+生成物を指すハッシュ1個だけ更新した。ケース集合と判定器は不変。
+Node 94 tests、27 contracts、FCI 45 envelopes / 42 ready が成功した。
+Opus 233・234との独立照合も保存している。
+
+Rust 784ファイルと920実行入力は変わらず、下記 r597 の収束証明は有効。
+旧候補の local CI は明示的に停止し、終了 -15・未合格として記録した。
+修正後の新候補で unsplit local CI 全18 phases と hosted checks を実行し、
+両方が成功してからマージする。以下は各時点の記録として保持する。
+
 ## 修復後の正式生成チェーンの完了（r596–r597）
 
 [収束証明](records/canonical-walk-r597/certificate.json)と

@@ -1,0 +1,5 @@
+{
+  "only_case_id_source_sha256_changed": true,
+  "old_source_refused_by_current_plan": true,
+  "checker_and_test_unchanged": true
+}

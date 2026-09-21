@@ -1,0 +1,23 @@
+{
+  "head": "5b28906cf5544c63bb55f4c97e40f714672fd722",
+  "suite": [
+    "syntax-entity-names",
+    "syntax-meta-property",
+    "syntax-literal-values",
+    "syntax-recovery",
+    "syntax-emitter-recovery",
+    "syntax-scanner-escapes",
+    "syntax-template-escapes",
+    "syntax-template-flags"
+  ],
+  "error": "emitter_recovery: missing, ignored, filtered or substituted foundation tests",
+  "expected_names": [
+    "await_reparse_respects_factory_child_and_name_boundaries",
+    "original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts"
+  ],
+  "recognized_inline_names": [],
+  "raw_success_summary": [
+    "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s"
+  ],
+  "scope": "Read-only parser reproduction from actual completed hosted job log; no native tests executed"
+}

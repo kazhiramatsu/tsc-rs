@@ -104,7 +104,9 @@ def command(suites):
     argv = ["cargo", "test", "--manifest-path", f"crates/{next(iter(crates))}/Cargo.toml"]
     for suite in suites:
         argv.extend(("--test", SUITES[suite]["target"]))
-    return [*argv, "--", "--nocapture", "--test-threads=1"]
+    # Preserve whole libtest status lines while retaining successful-test logs.
+    # With --nocapture, a test's diagnostics split `test NAME ... ok` in two.
+    return [*argv, "--", "--show-output", "--test-threads=1"]
 
 
 def verify_output(suites, output):

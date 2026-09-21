@@ -263,6 +263,42 @@ class FoundationTests(unittest.TestCase):
                 self.assertEqual(witness.main([suite, "--all", "--dry-run"]), 0)
                 run.assert_not_called()
 
+    def test_foundation_captured_success_logs_preserve_exact_membership(self):
+        foundation = witness.foundation_witnesses
+        suites = ["syntax-emitter-recovery"]
+        output = self.output(suites).replace("test result:",
+            "successes:\n\n---- await_reparse_respects_factory_child_and_name_boundaries stdout ----\n"
+            "await flag boundary SUMMARY exact=285 failed=0 selected=285\n\n"
+            "---- original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts stdout ----\n"
+            "emitter recovery syntax SUMMARY exact=36 failed=0 selected=36\n"
+            "context recovery syntax cases: 788 expected admission=true\n"
+            "context recovery syntax refused_cases: 72 expected admission=false\n\n"
+            "successes:\n    await_reparse_respects_factory_child_and_name_boundaries\n"
+            "    original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts\n\n"
+            "test result:")
+        self.assertEqual(foundation.verify_output(suites, output), 2)
+        self.assertEqual(foundation.command(suites)[-3:], ["--", "--show-output", "--test-threads=1"])
+        with self.assertRaises(ValueError):
+            foundation.verify_output(suites, output.replace("successes:\n", "successes:\ntest fake ... ok\n", 1))
+
+    def test_foundation_interleaved_success_diagnostics_still_fail_closed(self):
+        foundation = witness.foundation_witnesses
+        suites = ["syntax-emitter-recovery"]
+        # Shape observed in the failed hosted foundations job: native exit 0,
+        # but --nocapture separates both status prefixes from their final ok.
+        output = self.output(suites).replace(
+            "test await_reparse_respects_factory_child_and_name_boundaries ... ok",
+            "test await_reparse_respects_factory_child_and_name_boundaries ... "
+            "await flag boundary SUMMARY exact=285 failed=0 selected=285\nok"
+        ).replace(
+            "test original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts ... ok",
+            "test original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts ... "
+            "emitter recovery syntax SUMMARY exact=36 failed=0 selected=36\n"
+            "context recovery syntax cases: 788 expected admission=true\n"
+            "context recovery syntax refused_cases: 72 expected admission=false\nok")
+        with self.assertRaisesRegex(ValueError, "emitter_recovery: missing, ignored, filtered or substituted"):
+            foundation.verify_output(suites, output)
+
     def test_foundation_batches_selected_targets_and_checks_oracles_first(self):
         foundation = witness.foundation_witnesses
         suites = ["syntax-entity-names", "syntax-template-flags"]
