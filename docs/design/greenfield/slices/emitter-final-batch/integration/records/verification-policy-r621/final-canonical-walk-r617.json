@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "env",
+    "PRE_SUITE=cargo test -p tsc-rs-compiler --lib -- --test-threads=1 && cargo test -p tsc-rs-conformance --lib host_resolution::tests:: -- --test-threads=1 && cargo xtask host-resolution check --baseline 3b1f5fe87fd31e3b303bb44bd257342735452ed9",
+    "bash",
+    "scripts/chain-walk.sh"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-21T09:16:45.247686+00:00",
+  "head": "bb53e22eb24afc539b818120debd4bbd0656fd9d",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": -15,
+  "seconds": 4138.659,
+  "log_sha256": "9747406df0039251da3f045d90225fe5ffa01d43167093f1e5f6b856db0be999",
+  "log_bytes": 15341
+}

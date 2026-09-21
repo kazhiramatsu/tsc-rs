@@ -6,11 +6,23 @@ The map retains their invariants, current Rust owners, evidence references and
 TypeScript owner mapping. Its qualification and delivery rules apply here
 without exception. This record is not a generator or profile input.
 
-All entries are pending final qualification. Candidate audits and focused
-results are recorded in the [integration report](README.md) and
-[residual audit](residual-audit.md); they do not replace the complete gate at a
-clean immutable final validation ref. Earlier dated qualifications remain
-historical and do not qualify changed behavior.
+All entries remain `active-unqualified`. Candidate audits, focused results and
+current integration status are recorded in the [integration report](README.md)
+and [residual audit](residual-audit.md). The current execution policy uses
+focused local checks and selected hosted jobs; the retired full local CI and
+hash-chain walk are not final-integration prerequisites. This corrects the
+former execution recipe, not the profile qualification criteria below.
+Earlier dated qualifications remain historical and do not qualify changed
+behavior.
+
+The compiler CLI unit-test repair in `09d98a925` changed
+`crates/compiler/tests/unit/cli/tests.rs`, a bound input of the frozen
+H2.5a–H2.5g profiles. Their byte-identity precondition is not met. Keep all 18
+entries unqualified and report current focused/hosted integration evidence
+separately. Do not restore a wrong assertion to match a historical hash or
+reinterpret hosted success as a new profile freeze. Any future profile
+qualification is a separately scoped operation, not a pending routine merge
+gate.
 
 Before promotion, record the final validation ref, date, bounded tests and
 TypeScript owner identities for each entry, plus the profile-bound path/hash
@@ -23,16 +35,17 @@ H2.5h disposition table's last update without corresponding table entries.
 The generator now accounts for those rows and the new `E-RECOVERY-FACTS` row,
 retaining all 45 prior entries. These dispositions describe applicability to
 the historical H2.5h target owner graph; they do not promote any current row
-or establish new runtime compatibility. The canonical walk must regenerate
-the affected lineage before final qualification.
+or establish new runtime compatibility. The affected historical lineage has
+not been qualified against the repaired current source.
 
 The checker return-type correction follows TypeScript's
 `getReturnTypeOfSignature` (`_tsc.js:59815`): a missing parsed function body
 infers `any`, while a real empty body still infers `void`. It uses the existing
 resolver/query boundary and changes no architecture owner or public method
-shape. Its evidence must include the declaration/map commands, strict
-no-false-2322 control, checker regressions and the final conformance gate.
-Those final gates are pending.
+shape. Its bounded evidence includes declaration/map commands, the strict
+no-false-2322 control and checker regressions. Final selected hosted results
+belong to the exact integration candidate; see the integration report for
+their status. They do not change the profile qualification limitation above.
 
 ## E-ENTRY
 

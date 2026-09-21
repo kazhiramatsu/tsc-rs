@@ -1,12 +1,41 @@
 # Emitter final r11 integration
 
+## 現在の統合手順（2026-09-21、r621）
+
+現在の方針は [PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) と
+[post-H1 schedule](../../../post-h1-completion-slices.md) にある、重点ローカル検証と
+関連する hosted acceptance / witness jobs である。最終統合も例外ではない。
+以前の全体ローカル CI と参照ハッシュの chain walk を必須とした判断は誤りだった。
+`CLAUDE.md` を訂正し、下記の過去記録にある「次に walk / full local CI が必要」
+という予定は撤回する。過去の実行結果・失敗・証拠自体は変更しない。
+
+[方針訂正と Opus 238 のレビュー](records/verification-policy-r621/resolution.md)に従い、
+r617 を終了 -15・未合格として停止した。生成途中の 112 ファイルを外部に保全して
+開始時点へ復元し、既存の未追跡 92 ファイルと実装修正を保持した。
+H0 検証器を shadow に分類する r615 の分析は保持するが、再生成だけのために加えた
+generator の 4 行は戻した。generator は歴史的 profile が記録する元の bytes に一致する。
+現在の hosted 実行はこの分類変更を必要としない。
+
+r612 の正しい ES5 テスト期待値と限定的な H0 宣言照合の修復は保持する。
+重点検証の成功は下記の実行範囲に限る。新しい最終候補を同じ PR #561 に送り、
+選択された hosted jobs の成功をその候補で確認してから merge commit で統合する。
+旧候補 `fa391cbff` の hosted 26 checks 成功は履歴であり、新候補の結果には代用しない。
+
+[architecture validation](architecture-validation.md) の 18 行は `active-unqualified` を維持する。
+CLI unit test の修復により H2.5a–H2.5g の固定 profile 入力との byte 一致条件を満たさず、
+現在の profile qualification は主張できない。正しいテストを戻したり、資格付け条件を
+緩和したりして一致を作らない。現在の手順による統合完了と、歴史的 profile の資格付けは
+区別して報告する。CST/AST の分離と性能比較は引き続き統合後の作業である。
+
+以下は各時点の記録であり、古い手順を再開する指示ではない。
+
 ## H0 検証ソースの分類（r615）
 
 正式 walk r613 は生成前に未登録ソースを検出して停止した。
 [Opus 237との確認と修正記録](records/verification-input-classification-r615/resolution.md)に従い、
 H0 検証器と unit tests の 2 ファイルを既存の検証用分類へ登録した。
 実行入力 920 件・順序・スキーマ・最終検証 helper は不変。
-事前条件と pin 検査は成功し、生成物の更新を新しい正式 walk で行う。
+事前条件と pin 検査は成功した。その後 r621 で方針を訂正し、分類の適用は撤回した。
 
 ## 全体テストで検出した残存検証の修復（r611–r612）
 
@@ -28,8 +57,8 @@ conformance 248 tests、最終対照 5 tests、compiler 11 tests が成功。
 workspace/all-targets clippy も成功した。
 
 Rust の検証ソースを変更したため、下記 r597 は旧ソースの収束証明として保持する。
-修復後の正式 walk、新しい台帳の最終作成、同じ最終候補の full local CI と hosted が
-引き続き必要であり、この重点検証だけでは統合完了としない。
+残る通常の統合検証は、入口台帳の更新と同じ最終候補の関連 hosted jobs である。
+正式 walk と full local CI を再実行するという当時の予定は、上記 r621 で撤回した。
 以下は各時点の記録である。
 
 ## 最終 CI のログ検証修復（r600–r601）

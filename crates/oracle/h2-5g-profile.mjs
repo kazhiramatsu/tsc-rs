@@ -1057,10 +1057,6 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/conformance/src/ratchet.rs",
   "crates/conformance/tests/unit/bounded_pipeline/tests.rs",
   "crates/conformance/tests/unit/lib/tests.rs",
-  // H0 registry validation belongs to the semantic CI phase; the fixed H2.5g
-  // acceptance command does not call it or compile its outlined unit tests.
-  "crates/conformance/src/host_resolution.rs",
-  "crates/conformance/tests/unit/host_resolution/tests.rs",
   // Recovery-census gate infrastructure over the diagnostic corpus.
   "crates/xtask/src/recovery_census.rs",
   // Workspace-audit maintenance rules (the CS-6 permanent
