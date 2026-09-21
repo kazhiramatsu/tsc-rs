@@ -1,5 +1,10 @@
 # new-CI Phase 0 — current-oracle shadow packet (lane 3)
 
+Implementation status (2026-09-21): the standalone `new-ci/` prototype has
+been removed. This packet is retained as design history; the proposed adapter
+is not current CI. See the [prototype archive](../archive/new-ci/README.md)
+for preserved documents, evidence and the source recovery commit.
+
 Status: **NORMATIVE DESIGN** for amendment item 3's pre-H2.9 maximum. Parent
 authority is `new-ci-evidence-dag.md`; completed M1-M3 is consumed, not redesigned.
 
