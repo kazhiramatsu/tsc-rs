@@ -9,7 +9,9 @@
 
 前提は[TS7の方向](typescript-7-direction.md)、
 実装済みの入口は[固定参照の実行手順](typescript-7-workflow.md)、
-実行順は[残作業台帳](remaining-completion-slices.md)。
+実行順は[emitter後ロードマップ](post-emitter-roadmap.md)、
+最初の依頼案は[移行基盤batch](slices/post-emitter-foundation-batch/README.md)。
+[残作業台帳](remaining-completion-slices.md)のIDと既存の完了記録を引き継ぐ。
 
 ## 参照は7.1、実装は既存機能の不足を優先する
 
