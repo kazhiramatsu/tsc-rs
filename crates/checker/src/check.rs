@@ -201,9 +201,17 @@ impl<'a> CheckerState<'a> {
         }
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
-        let is_unused_source_file_owner = self.is_effective_external_module(root)
-            || self.is_in_js_file(root)
-                && self.binder.is_external_or_common_js_module_of_node(root);
+        // The unused-identifier pass publishes errors only under
+        // noUnusedLocals / noUnusedParameters; otherwise its rows are
+        // suggestions, which only getSuggestionDiagnostics consumers read
+        // (crate::unused_identifier_suggestions).
+        let unused_pass_wanted = self.options.no_unused_locals == Some(true)
+            || self.options.no_unused_parameters == Some(true)
+            || crate::unused_identifier_suggestions();
+        let is_unused_source_file_owner = unused_pass_wanted
+            && (self.is_effective_external_module(root)
+                || self.is_in_js_file(root)
+                    && self.binder.is_external_or_common_js_module_of_node(root));
         if is_unused_source_file_owner {
             self.register_for_unused_identifiers_check(root);
         }
@@ -213,7 +221,9 @@ impl<'a> CheckerState<'a> {
         // checkExternalModuleExports and the four collision drains.
         // The Rust checker projects its suggestion rows from the same
         // drain; no later collision worker records identifier uses.
-        self.check_registered_unused_identifiers(root);
+        if unused_pass_wanted {
+            self.check_registered_unused_identifiers(root);
+        }
         if !is_declaration_file {
             self.check_potential_unchecked_renamed_binding_elements_in_types();
         }
@@ -3788,7 +3798,7 @@ impl<'a> CheckerState<'a> {
             if self.binder.symbol(symbol).declarations.len() > 1
                 && !self
                     .links
-                    .read_symbol(symbol, |links| links.type_parameters_checked)
+                    .read_symbol(symbol, |links| links.cold().type_parameters_checked)
             {
                 self.links
                     .set_symbol_type_parameters_checked(self.speculation_depth, symbol);
@@ -4757,7 +4767,7 @@ impl<'a> CheckerState<'a> {
             st: self,
             relation,
             maybe_keys: Vec::new(),
-            maybe_keys_set: std::collections::HashSet::new(),
+            maybe_keys_set: rustc_hash::FxHashSet::default(),
             source_stack: Vec::new(),
             target_stack: Vec::new(),
             maybe_count: 0,
@@ -9065,7 +9075,9 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::MAPPED)
             && (self.is_generic_mapped_type_state(ty)?
-                || self.links.read_ty(ty, |links| links.mapped_contains_error))
+                || self
+                    .links
+                    .read_ty(ty, |links| links.cold().mapped_contains_error))
         {
             return self.mapped_type_to_string_slice_node(ty, fully_qualified);
         }
@@ -9314,7 +9326,7 @@ impl<'a> CheckerState<'a> {
         if let Some(&last) = self.slice_reverse_mapped_stack.last() {
             let property_type = self
                 .links
-                .read_symbol(last, |links| links.property_type)
+                .read_symbol(last, |links| links.cold().property_type)
                 .expect("reverse-mapped properties carry propertyType");
             if !self
                 .tables
@@ -9329,6 +9341,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let mapped_type = links
+            .cold()
             .mapped_type
             .expect("reverse-mapped properties carry mappedType");
         let mapped_symbol = self.tables.type_of(mapped_type).symbol;
@@ -9339,7 +9352,7 @@ impl<'a> CheckerState<'a> {
             .all(|&stacked| {
                 let mapped = self
                     .links
-                    .read_symbol(stacked, |links| links.mapped_type)
+                    .read_symbol(stacked, |links| links.cold().mapped_type)
                     .expect("reverse-mapped properties carry mappedType");
                 self.tables.type_of(mapped).symbol == mapped_symbol
             })
@@ -9878,15 +9891,15 @@ impl<'a> CheckerState<'a> {
             )?);
         }
         if data.labeled_element_declarations.is_some() {
-            let mut unique: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let mut unique: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
             let mut duplicates = Vec::new();
             for (i, name) in names.iter().enumerate() {
                 if !unique.insert(name.clone()) {
                     duplicates.push(i);
                 }
             }
-            let mut counters: std::collections::HashMap<String, usize> =
-                std::collections::HashMap::new();
+            let mut counters: rustc_hash::FxHashMap<String, usize> =
+                rustc_hash::FxHashMap::default();
             for i in duplicates {
                 let base = names[i].clone();
                 let mut counter = counters.get(&base).copied().unwrap_or(1);

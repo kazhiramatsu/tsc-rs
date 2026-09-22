@@ -50,7 +50,7 @@ fn implements_reuse_restores_synthetic_scope_after_success_and_factory_error() {
                 None,
                 |checker, arena, target, context| {
                     for kind in [SyntaxKind::ModuleDeclaration, SyntaxKind::Block] {
-                        let conflicting_locals = HashMap::from([(
+                        let conflicting_locals = HashMap::from_iter([(
                             tsc_types::EscapedName::from_escaped_value("A".into()),
                             foo,
                         )]);
@@ -646,7 +646,7 @@ fn unused_name_mangling_is_stable_for_colliding_authoring_names() {
                 |checker, arena, target, context| {
                     context
                         .used_symbol_names
-                        .get_or_insert_with(HashSet::new)
+                        .get_or_insert_with(HashSet::default)
                         .insert("Taken".to_owned());
                     let mut serializer = StatementSerializer::new(checker, arena, target, context);
                     assert_eq!(serializer.get_unused_name("Taken", None), "Taken_1");

@@ -1828,8 +1828,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         let mut source_discriminant_types: Vec<Vec<TypeId>> =
             Vec::with_capacity(source_properties_filtered.len());
-        let mut excluded_properties: std::collections::HashSet<EscapedName> =
-            std::collections::HashSet::new();
+        let mut excluded_properties: rustc_hash::FxHashSet<EscapedName> =
+            rustc_hash::FxHashSet::default();
         for &source_property in &source_properties_filtered {
             let source_property_type = self.st.get_non_missing_type_of_symbol(source_property)?;
             source_discriminant_types.push(
@@ -2255,7 +2255,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     fn exclude_properties(
         &self,
         properties: Vec<SymbolId>,
-        excluded_properties: Option<&std::collections::HashSet<EscapedName>>,
+        excluded_properties: Option<&rustc_hash::FxHashSet<EscapedName>>,
     ) -> Vec<SymbolId> {
         let Some(excluded) = excluded_properties else {
             return properties;
@@ -2278,7 +2278,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-        excluded_properties: Option<&std::collections::HashSet<EscapedName>>,
+        excluded_properties: Option<&rustc_hash::FxHashSet<EscapedName>>,
         optionals_only: bool,
         report_errors: bool,
         intersection_state: IntersectionState,
@@ -2873,7 +2873,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-        excluded_properties: Option<&std::collections::HashSet<EscapedName>>,
+        excluded_properties: Option<&rustc_hash::FxHashSet<EscapedName>>,
     ) -> CheckResult<Ternary> {
         if !(self.flags(source).intersects(TypeFlags::OBJECT)
             && self.flags(target).intersects(TypeFlags::OBJECT))
@@ -4626,7 +4626,7 @@ impl<'a> CheckerState<'a> {
                     && self
                         .links
                         .read_symbol(module_symbol, |links| {
-                            links.type_only_export_star_map.clone()
+                            links.cold().type_only_export_star_map.clone()
                         })
                         .as_ref()
                         .is_some_and(|map| map.contains_key(name.as_bytes()))
@@ -4914,7 +4914,7 @@ impl<'a> CheckerState<'a> {
             st: self,
             relation,
             maybe_keys: Vec::new(),
-            maybe_keys_set: std::collections::HashSet::new(),
+            maybe_keys_set: rustc_hash::FxHashSet::default(),
             source_stack: Vec::new(),
             target_stack: Vec::new(),
             maybe_count: 0,
@@ -5895,7 +5895,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(cached) = self
             .links
-            .read_symbol(prop, |links| links.is_discriminant_property)
+            .read_symbol(prop, |links| links.cold().is_discriminant_property)
         {
             return Ok(cached);
         }
@@ -6159,7 +6159,7 @@ impl<'a> CheckerState<'a> {
         if self.get_check_flags(prop).intersects(CheckFlags::SYNTHETIC) {
             let containing = self
                 .links
-                .read_symbol(prop, |links| links.containing_type)
+                .read_symbol(prop, |links| links.cold().containing_type)
                 .expect("synthetic properties carry their containing type");
             let name = self.binder.symbol(prop).escaped_name.clone();
             let types = match &self.tables.type_of(containing).data {
@@ -6268,7 +6268,7 @@ impl<'a> CheckerState<'a> {
             from_method: source.from_method,
             target: source.target,
             mapper: source.mapper,
-            instantiations: std::collections::HashMap::new(),
+            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,
@@ -6366,7 +6366,7 @@ impl<'a> CheckerState<'a> {
             st: self,
             relation,
             maybe_keys: Vec::new(),
-            maybe_keys_set: std::collections::HashSet::new(),
+            maybe_keys_set: rustc_hash::FxHashSet::default(),
             source_stack: Vec::new(),
             target_stack: Vec::new(),
             maybe_count: 0,
@@ -7010,7 +7010,7 @@ impl<'a> CheckerState<'a> {
             from_method: left_data.from_method,
             target: None,
             mapper,
-            instantiations: std::collections::HashMap::new(),
+            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,

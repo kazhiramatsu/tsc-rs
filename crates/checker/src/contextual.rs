@@ -1052,8 +1052,11 @@ impl<'a> CheckerState<'a> {
                 // those get the LHS type.
                 let ty = self.get_contextual_type(binary, context_flags)?;
                 if Some(node) == right {
-                    let has_pattern =
-                        ty.is_some_and(|t| self.links.read_ty(t, |links| links.pattern).is_some());
+                    let has_pattern = ty.is_some_and(|t| {
+                        self.links
+                            .read_ty(t, |links| links.cold().pattern)
+                            .is_some()
+                    });
                     let no_context_non_expando =
                         ty.is_none() && !self.is_defaulted_expando_initializer(binary);
                     if has_pattern || no_context_non_expando {
@@ -3119,7 +3122,7 @@ impl<'a> CheckerState<'a> {
             from_method: self.signature_of(left).from_method,
             target: None,
             mapper,
-            instantiations: std::collections::HashMap::new(),
+            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,

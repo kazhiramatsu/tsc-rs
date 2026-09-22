@@ -102,7 +102,7 @@ fn binding_pattern_initializers_get_the_pattern_type() {
                 .expect("in slice")
                 .expect("pattern contextual type");
             let pattern = find_node(state, SyntaxKind::ObjectBindingPattern, None);
-            assert_eq!(state.links.ty(contextual).pattern, Some(pattern));
+            assert_eq!(state.links.ty(contextual).cold().pattern, Some(pattern));
             let member = state
                 .get_type_of_property_of_type(contextual, "a")
                 .expect("in slice")

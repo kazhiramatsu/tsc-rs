@@ -12,7 +12,7 @@
 //! reporting adapter needed to retain tsc's final source location for
 //! object-literal and JSX diagnostics.
 
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticMessage, JsString, MessageChain, RelatedInfo,
@@ -567,7 +567,7 @@ impl<'a> CheckerState<'a> {
                     .intersects(ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS)
                 {
                     self.links
-                        .read_ty(ty, |links| links.cached_equivalent_base_type)
+                        .read_ty(ty, |links| links.cold().cached_equivalent_base_type)
                 } else {
                     None
                 },
@@ -780,7 +780,7 @@ impl<'a> CheckerState<'a> {
             st: self,
             relation,
             maybe_keys: Vec::new(),
-            maybe_keys_set: HashSet::new(),
+            maybe_keys_set: HashSet::default(),
             source_stack: Vec::new(),
             target_stack: Vec::new(),
             maybe_count: 0,
@@ -965,7 +965,7 @@ impl<'a> CheckerState<'a> {
             st: self,
             relation,
             maybe_keys: Vec::new(),
-            maybe_keys_set: HashSet::new(),
+            maybe_keys_set: HashSet::default(),
             source_stack: Vec::new(),
             target_stack: Vec::new(),
             maybe_count: 0,
@@ -4212,8 +4212,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         name: &EscapedName,
-    ) -> CheckResult<Option<std::collections::HashMap<TypeId, TypeId>>> {
-        let mut map = std::collections::HashMap::new();
+    ) -> CheckResult<Option<rustc_hash::FxHashMap<TypeId, TypeId>>> {
+        let mut map = rustc_hash::FxHashMap::default();
         let mut count = 0usize;
         let object_like = TypeFlags::from_bits(
             TypeFlags::OBJECT.bits()

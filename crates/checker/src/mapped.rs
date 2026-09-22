@@ -157,7 +157,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_modifiers_type.resolved())
+            .read_ty(ty, |links| links.cold().mapped_modifiers_type.resolved())
         {
             return Ok(cached);
         }
@@ -197,7 +197,7 @@ impl<'a> CheckerState<'a> {
         };
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_modifiers_type.resolved())
+            .read_ty(ty, |links| links.cold().mapped_modifiers_type.resolved())
         {
             return Ok(cached);
         }
@@ -562,7 +562,7 @@ impl<'a> CheckerState<'a> {
                     .expect("mapped property has nameType");
                 let existing_key = self
                     .links
-                    .read_symbol(existing, |links| links.key_type)
+                    .read_symbol(existing, |links| links.cold().key_type)
                     .expect("mapped property has keyType");
                 let union_name = self
                     .get_union_type_ex(&[existing_name, prop_name_type], UnionReduction::Literal)?;
@@ -699,7 +699,7 @@ impl<'a> CheckerState<'a> {
         }
         let mapped_type = self
             .links
-            .read_symbol(symbol, |links| links.mapped_type)
+            .read_symbol(symbol, |links| links.cold().mapped_type)
             .expect("Mapped check flag implies links.mappedType");
         if !self.push_type_resolution(
             ResolutionTarget::Symbol(symbol),
@@ -715,7 +715,7 @@ impl<'a> CheckerState<'a> {
             let template_type = state.get_template_type_from_mapped_type(target)?;
             let key_type = state
                 .links
-                .read_symbol(symbol, |links| links.key_type)
+                .read_symbol(symbol, |links| links.cold().key_type)
                 .expect("mapped property has keyType");
             let type_parameter = state.get_type_parameter_from_mapped_type(mapped_type)?;
             let mapper = state.append_type_mapping(mapped.mapper, type_parameter, key_type);
@@ -770,14 +770,14 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_apparent_type_of_mapped_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_apparent_type.resolved())
+            .read_ty(ty, |links| links.cold().mapped_apparent_type.resolved())
         {
             return Ok(cached);
         }
         let resolved = self.get_resolved_apparent_type_of_mapped_type(ty)?;
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_apparent_type.resolved())
+            .read_ty(ty, |links| links.cold().mapped_apparent_type.resolved())
         {
             return Ok(cached);
         }

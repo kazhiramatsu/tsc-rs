@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use tsc_emitter::{EmitNodeBuilderFlags, SourceFileId, TransformArena};
 use tsc_syntax::{Node, NodeData, NodeId, SyntaxKind};
@@ -146,7 +146,7 @@ fn binding_name_clones_keep_origins_without_mapping_parsed_child_ranges() {
                 context,
             )?;
             let mut pending = vec![name.node()];
-            let mut kinds = HashSet::new();
+            let mut kinds = HashSet::default();
             while let Some(id) = pending.pop() {
                 let current = TransformNode::new(target, id);
                 let record = arena.node(current).unwrap();
@@ -513,12 +513,12 @@ fn scope_and_recovery_boundary_restore_owned_context_state() {
             let original_name = create_identifier(arena, target, "T")?;
             context.mapper = Some(MapperId(7));
             context.must_create_type_parameter_symbol_list = false;
-            context.type_parameter_symbol_list = Some(HashSet::from([SymbolId(11)]));
+            context.type_parameter_symbol_list = Some(HashSet::from_iter([SymbolId(11)]));
             context.must_create_type_parameters_names_lookups = false;
-            context.type_parameter_names = Some(HashMap::from([(TypeId(12), original_name)]));
-            context.type_parameter_names_by_text = Some(HashSet::from(["T".to_owned()]));
+            context.type_parameter_names = Some(HashMap::from_iter([(TypeId(12), original_name)]));
+            context.type_parameter_names_by_text = Some(HashSet::from_iter(["T".to_owned()]));
             context.type_parameter_names_by_text_next_name_count =
-                Some(HashMap::from([("T".to_owned(), 2)]));
+                Some(HashMap::from_iter([("T".to_owned(), 2)]));
             let restore = enter_new_scope(context, None, None, None, None, Some(MapperId(8)));
             assert_eq!(context.mapper, Some(MapperId(8)));
             // Copy-on-write (:52692+): entering a scope arms the
@@ -527,7 +527,7 @@ fn scope_and_recovery_boundary_restore_owned_context_state() {
             assert!(context.must_create_type_parameter_symbol_list);
             assert_eq!(
                 context.type_parameter_symbol_list.as_ref(),
-                Some(&HashSet::from([SymbolId(11)]))
+                Some(&HashSet::from_iter([SymbolId(11)]))
             );
             assert!(context.must_create_type_parameters_names_lookups);
             assert!(context.type_parameter_names.is_some());
@@ -536,7 +536,7 @@ fn scope_and_recovery_boundary_restore_owned_context_state() {
             assert!(!context.must_create_type_parameter_symbol_list);
             assert_eq!(
                 context.type_parameter_symbol_list.as_ref(),
-                Some(&HashSet::from([SymbolId(11)]))
+                Some(&HashSet::from_iter([SymbolId(11)]))
             );
             assert!(!context.must_create_type_parameters_names_lookups);
             assert_eq!(

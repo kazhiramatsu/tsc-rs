@@ -59,7 +59,7 @@ pub(crate) struct SyntheticModuleScopeRestore {
     enclosing_declaration: Option<tsc_syntax::NodeId>,
     enclosing_declaration_is_synthetic: bool,
     synthetic_scope_locals:
-        Option<std::collections::HashMap<tsc_types::EscapedName, tsc_binder::SymbolId>>,
+        Option<rustc_hash::FxHashMap<tsc_types::EscapedName, tsc_binder::SymbolId>>,
     synthetic_scope_kind: Option<tsc_syntax::SyntaxKind>,
 }
 
@@ -262,14 +262,14 @@ pub(crate) struct SyntacticScopeCleanup {
     enclosing_declaration_is_synthetic: bool,
     mapper: Option<tsc_types::MapperId>,
     must_create_type_parameter_symbol_list: bool,
-    type_parameter_symbol_list: Option<std::collections::HashSet<tsc_binder::SymbolId>>,
+    type_parameter_symbol_list: Option<rustc_hash::FxHashSet<tsc_binder::SymbolId>>,
     must_create_type_parameters_names_lookups: bool,
     type_parameter_names:
-        Option<std::collections::HashMap<tsc_types::TypeId, tsc_emitter::TransformNode>>,
-    type_parameter_names_by_text: Option<std::collections::HashSet<String>>,
-    type_parameter_names_by_text_next_name_count: Option<std::collections::HashMap<String, u32>>,
+        Option<rustc_hash::FxHashMap<tsc_types::TypeId, tsc_emitter::TransformNode>>,
+    type_parameter_names_by_text: Option<rustc_hash::FxHashSet<String>>,
+    type_parameter_names_by_text_next_name_count: Option<rustc_hash::FxHashMap<String, u32>>,
     synthetic_scope_locals:
-        Option<std::collections::HashMap<tsc_types::EscapedName, tsc_binder::SymbolId>>,
+        Option<rustc_hash::FxHashMap<tsc_types::EscapedName, tsc_binder::SymbolId>>,
     synthetic_scope_kind: Option<tsc_syntax::SyntaxKind>,
     reuses_synthetic_scope: bool,
     first_new_parameter_local: Option<tsc_types::EscapedName>,

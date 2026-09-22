@@ -473,6 +473,7 @@ fn symbol_cache_hits_by_context_and_misses_by_resolution_mode() {
             state
                 .links
                 .symbol(symbol)
+                .cold()
                 .specifier_cache
                 .as_ref()
                 .map(BTreeMap::len),

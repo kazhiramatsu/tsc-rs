@@ -33,7 +33,7 @@
 //! completeness of that list is the guard's correctness argument and is
 //! reviewed, not assumed.
 
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 use std::hash::{Hash, Hasher};
 
 use tsc_diagnostics::{Diagnostic, JsString, MessageChain};
@@ -208,6 +208,13 @@ pub(crate) struct DisplayMarks {
 impl DisplayMarks {
     pub fn is_empty(&self) -> bool {
         self.texts.is_empty() && self.chains.is_empty()
+    }
+
+    /// Number of recorded observations (texts and chains); grows
+    /// monotonically, so a later value larger than an earlier one means the
+    /// checker rendered order-sensitive display text in between.
+    pub fn len(&self) -> usize {
+        self.texts.len() + self.chains.len()
     }
 
     pub const fn reasons(&self) -> u32 {

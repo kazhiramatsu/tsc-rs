@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
@@ -404,8 +405,9 @@ struct BasicModuleSpecifierHost {
 impl BasicModuleSpecifierHost {
     fn new(checker: &CheckerState<'_>) -> Self {
         let current_directory = checker.host_current_directory.clone();
-        let mut files = HashMap::new();
-        let mut modes = HashMap::with_capacity(checker.binder.file_count());
+        let mut files = HashMap::default();
+        let mut modes =
+            HashMap::with_capacity_and_hasher(checker.binder.file_count(), Default::default());
         for index in 0..checker.binder.file_count() {
             let source = checker.binder.source(index);
             let normalized =
@@ -2526,9 +2528,9 @@ pub(crate) struct ClonedNodeBuilderContextRestore {
     must_create_type_parameter_symbol_list: bool,
     must_create_type_parameters_names_lookups: bool,
     type_parameter_names: Option<HashMap<TypeId, TransformNode>>,
-    type_parameter_names_by_text: Option<std::collections::HashSet<String>>,
+    type_parameter_names_by_text: Option<rustc_hash::FxHashSet<String>>,
     type_parameter_names_by_text_next_name_count: Option<HashMap<String, u32>>,
-    type_parameter_symbol_list: Option<std::collections::HashSet<SymbolId>>,
+    type_parameter_symbol_list: Option<rustc_hash::FxHashSet<SymbolId>>,
 }
 
 /// tsc-port: cloneNodeBuilderContext @6.0.3
@@ -2767,7 +2769,7 @@ pub(crate) fn set_text_range2(
         .metadata(range)
         .and_then(|metadata| metadata.original());
     let mut contains_location = false;
-    let mut seen = HashSet::new();
+    let mut seen = HashSet::default();
     while let Some(node) = original {
         if node == location {
             contains_location = true;

@@ -26,7 +26,16 @@ pub const MAX_CHECKERS: usize = 8;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CheckerBudget {
     checkers: NonZeroUsize,
+    /// Leak every checker state instead of dropping it (the CLI's one-shot
+    /// process exits right after publishing; tearing down the links tables,
+    /// type tables and transient symbols was ~5 % of its sampled ticks).
+    leak_states: bool,
 }
+
+/// The automatic budget's cap: tsgo's default checker count. More shards
+/// currently cost more duplicated per-checker work than they save on this
+/// machine (W measurements: 8 checkers were slower than 4 on scale256).
+const AUTOMATIC_CHECKERS_CAP: usize = 4;
 
 impl Default for CheckerBudget {
     /// The API default: one checker.
@@ -41,6 +50,7 @@ impl CheckerBudget {
     pub const fn serial() -> Self {
         Self {
             checkers: NonZeroUsize::MIN,
+            leak_states: false,
         }
     }
 
@@ -58,7 +68,30 @@ impl CheckerBudget {
                 Some(value) => value,
                 None => NonZeroUsize::MIN,
             },
+            leak_states: false,
         }
+    }
+
+    /// Whether checker states are leaked at the end of the check instead of
+    /// dropped; only a process that exits right afterwards should set this.
+    pub const fn with_leaked_states(mut self, leak: bool) -> Self {
+        self.leak_states = leak;
+        self
+    }
+
+    pub const fn leaks_states(self) -> bool {
+        self.leak_states
+    }
+
+    /// The CLI default: one checker per available hardware thread, capped
+    /// at tsgo's default of four (and, at partition time, by the file
+    /// count). `TSRS_CHECKERS` pins another count.
+    pub fn automatic() -> Self {
+        let available = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
+        Self::new(
+            NonZeroUsize::new(available.clamp(1, AUTOMATIC_CHECKERS_CAP))
+                .expect("at least one checker"),
+        )
     }
 
     pub const fn checkers(self) -> usize {

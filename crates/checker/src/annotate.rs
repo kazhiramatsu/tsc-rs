@@ -2,6 +2,7 @@
 //! getTypeFromTypeNode dispatch plus the declared class/interface,
 //! alias, mapped, conditional, tuple, and JSDoc paths it feeds.
 
+use std::sync::Arc;
 use tsc_binder::{node_util, InternalSymbolName, SymbolId};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, JsStr, JsString};
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
@@ -19,25 +20,31 @@ use crate::state::{
 };
 use tsc_types::perf::{self, PerfCounter};
 
+/// An owned symbol table from a shared handle: the copy is skipped when the
+/// handle is the only one (a fresh table), and taken otherwise.
+fn owned_symbol_table(table: Arc<tsc_binder::SymbolTable>) -> tsc_binder::SymbolTable {
+    Arc::try_unwrap(table).unwrap_or_else(|shared| (*shared).clone())
+}
+
 impl<'a> CheckerState<'a> {
     // ---- node helpers ----
 
     /// tsrs-native: typed arena projection for tsc's direct
     /// `node.kind` property access.
     pub(crate) fn kind_of(&self, node: NodeId) -> SyntaxKind {
-        self.binder.source_of_node(node).arena.node(node).kind
+        self.binder.node_record(node).kind
     }
 
     /// tsrs-native: typed arena projection for tsc's direct node
     /// payload access.
     pub(crate) fn data_of(&self, node: NodeId) -> &'a NodeData {
-        &self.binder.source_of_node(node).arena.node(node).data
+        &self.binder.node_record(node).data
     }
 
     /// tsrs-native: typed arena projection for tsc's direct
     /// `node.parent` property access.
     pub(crate) fn parent_of(&self, node: NodeId) -> Option<NodeId> {
-        self.binder.source_of_node(node).arena.node(node).parent
+        self.binder.node_record(node).parent
     }
 
     /// tsrs-native: NodeArray arena projection; tsc arrays are direct
@@ -1351,7 +1358,7 @@ impl<'a> CheckerState<'a> {
             if let Some(symbol) = symbol {
                 if let Some(cached) = self
                     .links
-                    .read_symbol(symbol, |links| links.unique_es_symbol_type)
+                    .read_symbol(symbol, |links| links.cold().unique_es_symbol_type)
                 {
                     return Ok(cached);
                 }
@@ -2726,7 +2733,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_type_parameter.resolved())
+            .read_ty(ty, |links| links.cold().mapped_type_parameter.resolved())
         {
             return Ok(cached);
         }
@@ -2741,7 +2748,7 @@ impl<'a> CheckerState<'a> {
         let resolved = self.get_declared_type_of_type_parameter(symbol);
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_type_parameter.resolved())
+            .read_ty(ty, |links| links.cold().mapped_type_parameter.resolved())
         {
             return Ok(cached);
         }
@@ -2759,7 +2766,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_constraint_type.resolved())
+            .read_ty(ty, |links| links.cold().mapped_constraint_type.resolved())
         {
             return Ok(cached);
         }
@@ -2769,7 +2776,7 @@ impl<'a> CheckerState<'a> {
             .unwrap_or(self.tables.intrinsics.error);
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_constraint_type.resolved())
+            .read_ty(ty, |links| links.cold().mapped_constraint_type.resolved())
         {
             return Ok(cached);
         }
@@ -2787,7 +2794,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<TypeId>> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_name_type.resolved())
+            .read_ty(ty, |links| links.cold().mapped_name_type.resolved())
         {
             return Ok(cached);
         }
@@ -2806,7 +2813,7 @@ impl<'a> CheckerState<'a> {
         };
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_name_type.resolved())
+            .read_ty(ty, |links| links.cold().mapped_name_type.resolved())
         {
             return Ok(cached);
         }
@@ -2842,7 +2849,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_template_type_from_mapped_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_template_type.resolved())
+            .read_ty(ty, |links| links.cold().mapped_template_type.resolved())
         {
             return Ok(cached);
         }
@@ -2869,7 +2876,7 @@ impl<'a> CheckerState<'a> {
         };
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.mapped_template_type.resolved())
+            .read_ty(ty, |links| links.cold().mapped_template_type.resolved())
         {
             return Ok(cached);
         }
@@ -4514,7 +4521,7 @@ impl<'a> CheckerState<'a> {
             .type_of(target)
             .symbol
             .expect("class/interface targets carry their declaring symbol");
-        let members = self.get_members_of_symbol(symbol)?;
+        let members = owned_symbol_table(self.get_members_of_symbol(symbol)?);
         let properties = self.get_named_members(&members)?;
         // tsc resolveDeclaredMembers publishes declaredProperties
         // FIRST and fills signatures/index infos into the type in
@@ -4595,7 +4602,7 @@ impl<'a> CheckerState<'a> {
             members = match source_symbol {
                 Some(symbol) => {
                     members_are_live_table = true;
-                    self.get_members_of_symbol(symbol)?
+                    owned_symbol_table(self.get_members_of_symbol(symbol)?)
                 }
                 None => {
                     let declared = self.members_of(source).properties.clone();
@@ -4753,14 +4760,14 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_members_of_symbol(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult<tsc_binder::SymbolTable> {
+    ) -> CheckResult<Arc<tsc_binder::SymbolTable>> {
         if self
             .symbol_flags(symbol)
             .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
         {
             return self.get_resolved_members_of_symbol(symbol);
         }
-        Ok(self.symbol_members(symbol).clone())
+        Ok(Arc::new(self.symbol_members(symbol).clone()))
     }
 
     /// tsc-port: getResolvedMembersOrExportsOfSymbol @6.0.3
@@ -4779,7 +4786,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         is_static: bool,
-    ) -> CheckResult<tsc_binder::SymbolTable> {
+    ) -> CheckResult<Arc<tsc_binder::SymbolTable>> {
         let cached = if is_static {
             self.links
                 .read_symbol(symbol, |links| links.resolved_exports.resolved())
@@ -4790,24 +4797,26 @@ impl<'a> CheckerState<'a> {
         if let Some(resolved) = cached {
             return Ok(resolved);
         }
-        let early = if !is_static {
-            self.symbol_members(symbol).clone()
+        // One copy of the binder table per container symbol; every later
+        // reader and the links slot share it (tsc stores the same object).
+        let early: Arc<tsc_binder::SymbolTable> = if !is_static {
+            Arc::new(self.symbol_members(symbol).clone())
         } else if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
-            self.get_exports_of_module_worker(symbol)?.0
+            Arc::new(self.get_exports_of_module_worker(symbol)?.0)
         } else {
-            self.binder.symbol(symbol).exports.clone()
+            Arc::new(self.binder.symbol(symbol).exports.clone())
         };
         if is_static {
             self.links.set_symbol_resolved_exports_late_bind(
                 self.speculation_depth,
                 symbol,
-                early.clone(),
+                Arc::clone(&early),
             );
         } else {
             self.links.set_symbol_resolved_members_late_bind(
                 self.speculation_depth,
                 symbol,
-                early.clone(),
+                Arc::clone(&early),
             );
         }
         // Members whose lateBindMember pre-write happens in THIS frame
@@ -4817,7 +4826,7 @@ impl<'a> CheckerState<'a> {
         let mut freshly_bound: Vec<NodeId> = Vec::new();
         let result = (|state: &mut Self,
                        freshly_bound: &mut Vec<NodeId>|
-         -> CheckResult<tsc_binder::SymbolTable> {
+         -> CheckResult<Arc<tsc_binder::SymbolTable>> {
             let mut late = tsc_binder::SymbolTable::default();
             let declarations = state.binder.symbol(symbol).declarations.clone();
             for declaration in declarations {
@@ -4868,9 +4877,9 @@ impl<'a> CheckerState<'a> {
                 .binder
                 .symbol(assignment_owner)
                 .assignment_declaration_members
-                .values()
-                .copied()
-                .collect::<Vec<_>>();
+                .as_deref()
+                .map(|members| members.values().copied().collect::<Vec<_>>())
+                .unwrap_or_default();
             for member in assignments {
                 let assignment_kind = tsc_binder::get_assignment_declaration_kind(
                     state.binder.source_of_node(member),
@@ -4902,8 +4911,8 @@ impl<'a> CheckerState<'a> {
             // tables run through mergeSymbolTable — entries hop
             // through getMergedSymbol, and a key collision merges via
             // mergeSymbol (5.8d machinery).
-            let mut resolved = if early.is_empty() {
-                late
+            let mut resolved: Arc<tsc_binder::SymbolTable> = if early.is_empty() {
+                Arc::new(late)
             } else if late.is_empty() {
                 early
             } else {
@@ -4917,14 +4926,14 @@ impl<'a> CheckerState<'a> {
                     };
                     combined.insert(name.clone(), merged);
                 }
-                combined
+                Arc::new(combined)
             };
             if state
                 .symbol_flags(symbol)
                 .intersects(SymbolFlags::TRANSIENT)
                 && state
                     .links
-                    .read_symbol(symbol, |links| links.cjs_export_merged)
+                    .read_symbol(symbol, |links| links.cold().cjs_export_merged)
                     .is_some()
             {
                 for declaration in state.binder.symbol(symbol).declarations.clone() {
@@ -4941,13 +4950,15 @@ impl<'a> CheckerState<'a> {
                             .read_symbol(original, |links| links.resolved_members.resolved())
                     };
                     if let Some(table) = table {
-                        for (name, member) in table {
-                            let member = match resolved.get(&name).copied() {
+                        for (name, &member) in table.iter() {
+                            let member = match resolved.get(name).copied() {
                                 None => member,
                                 Some(existing) if existing == member => continue,
                                 Some(existing) => state.merge_symbol(existing, member, false),
                             };
-                            resolved.insert(name, member);
+                            // A merged table is a new object; the shared
+                            // early table stays as the other readers saw it.
+                            Arc::make_mut(&mut resolved).insert(name.clone(), member);
                         }
                     }
                 }
@@ -4969,13 +4980,13 @@ impl<'a> CheckerState<'a> {
                     self.links.set_symbol_resolved_exports_late_bind(
                         self.speculation_depth,
                         symbol,
-                        resolved.clone(),
+                        Arc::clone(&resolved),
                     );
                 } else {
                     self.links.set_symbol_resolved_members_late_bind(
                         self.speculation_depth,
                         symbol,
-                        resolved.clone(),
+                        Arc::clone(&resolved),
                     );
                 }
                 Ok(resolved)
@@ -5000,7 +5011,7 @@ impl<'a> CheckerState<'a> {
     fn get_resolved_members_of_symbol(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult<tsc_binder::SymbolTable> {
+    ) -> CheckResult<Arc<tsc_binder::SymbolTable>> {
         self.get_resolved_members_or_exports_of_symbol(symbol, /*is_static*/ false)
     }
 
@@ -5292,7 +5303,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_exports_of_symbol(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult<tsc_binder::SymbolTable> {
+    ) -> CheckResult<Arc<tsc_binder::SymbolTable>> {
         if self
             .symbol_flags(symbol)
             .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
@@ -5303,12 +5314,12 @@ impl<'a> CheckerState<'a> {
         // table lives on CheckerState, not on the binder symbol; the
         // module walk below would answer the empty binder table.
         if symbol == self.global_this_symbol {
-            return Ok(self.globals.clone());
+            return Ok(Arc::new(self.globals.clone()));
         }
         if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
             return self.get_exports_of_module(symbol);
         }
-        Ok(self.binder.symbol(symbol).exports.clone())
+        Ok(Arc::new(self.binder.symbol(symbol).exports.clone()))
     }
 
     /// getMembersOfDeclaration (19010-ish): the member lists a
@@ -6364,7 +6375,7 @@ impl<'a> CheckerState<'a> {
                 from_method: false,
                 target: None,
                 mapper: None,
-                instantiations: std::collections::HashMap::new(),
+                instantiations: rustc_hash::FxHashMap::default(),
                 erased_signature_cache: None,
                 canonical_signature_cache: None,
                 base_signature_cache: None,
@@ -7192,7 +7203,7 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(SymbolFlags::TYPE_LITERAL) {
                 active_id =
                     Some(state.publish_anonymous_members_stage(ty, ResolvedMembers::default()));
-                let members = state.get_members_of_symbol(symbol)?;
+                let members = owned_symbol_table(state.get_members_of_symbol(symbol)?);
                 let properties = state.get_named_members(&members)?;
                 let call_signatures = state
                     .get_signatures_of_symbol(members.get(InternalSymbolName::CALL).copied())?;
@@ -7213,7 +7224,7 @@ impl<'a> CheckerState<'a> {
             // target/TypeLiteral heads (enums, namespaces, globalThis
             // included) — no flags gate.
             {
-                let mut members = state.get_exports_of_symbol(symbol)?;
+                let mut members = owned_symbol_table(state.get_exports_of_symbol(symbol)?);
                 // 58343-58352: globalThis members drop block-scoped
                 // bindings and purely-ambient value modules.
                 if symbol == state.global_this_symbol {
@@ -7764,10 +7775,13 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         }
         let parent = links
+            .cold()
             .deferral_parent
             .expect("DeferredType implies links.deferral_parent");
         let constituents = links
+            .cold()
             .deferral_constituents
+            .clone()
             .expect("DeferredType implies links.deferral_constituents");
         let ty = if self.tables.flags_of(parent).intersects(TypeFlags::UNION) {
             self.get_union_type_ex(&constituents, UnionReduction::Literal)?
@@ -7794,12 +7808,15 @@ impl<'a> CheckerState<'a> {
         let resolved = self
             .infer_reverse_mapped_type(
                 links
+                    .cold()
                     .property_type
                     .expect("reverse mapped symbol carries propertyType"),
                 links
+                    .cold()
                     .mapped_type
                     .expect("reverse mapped symbol carries mappedType"),
                 links
+                    .cold()
                     .constraint_type
                     .expect("reverse mapped symbol carries constraintType"),
             )?
@@ -9542,10 +9559,9 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        if let Some(cached) = self
-            .links
-            .read_symbol(symbol, |links| links.is_constructor_declared_property)
-        {
+        if let Some(cached) = self.links.read_symbol(symbol, |links| {
+            links.cold().is_constructor_declared_property
+        }) {
             return Ok(cached);
         }
         self.links.set_symbol_is_constructor_declared_property(
@@ -9689,7 +9705,7 @@ impl<'a> CheckerState<'a> {
             from_method: source.from_method,
             target: None,
             mapper: None,
-            instantiations: std::collections::HashMap::new(),
+            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,
@@ -10763,7 +10779,7 @@ impl<'a> CheckerState<'a> {
             from_method: self.kind_of(declaration) == SyntaxKind::MethodSignature,
             target: None,
             mapper: None,
-            instantiations: std::collections::HashMap::new(),
+            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,

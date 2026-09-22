@@ -10,7 +10,7 @@
 //! holes; cached documents retain their leases when Program order changes.
 //! Checker transient symbols use the tagged high half of `SymbolId`.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -306,7 +306,7 @@ impl DocumentRegistry {
     pub fn new(namespace: impl Into<String>) -> Self {
         Self {
             namespace: namespace.into(),
-            entries: HashMap::new(),
+            entries: HashMap::default(),
             next_generation: 0,
         }
     }
@@ -952,8 +952,96 @@ pub struct ProgramBinder<'a> {
     /// Validated last-owner hint for `symbol_owners`, same protocol as
     /// `node_owner_hint`.
     symbol_owner_hint: AtomicUsize,
+    /// Direct id → file routing for nodes and persistent symbols: one load
+    /// instead of a hinted interval search (tsc carries object identity).
+    node_files: DenseOwners,
+    symbol_files: DenseOwners,
+    /// Each node interval's records (aligned with `node_owners`): the
+    /// interval start and the owning file's arena slice, so a hinted lookup
+    /// reaches the record with one range check and one index.
+    node_routes: Vec<NodeRoute<'a>>,
     /// Checker-side symbols (tsc createSymbol 47652 adds Transient).
     transient: SymbolArena,
+}
+
+/// One node interval's records: the interval start and the owning file's
+/// parsed nodes (`nodes.len()` is the interval length).
+#[derive(Clone, Copy, Debug)]
+struct NodeRoute<'a> {
+    start: u32,
+    nodes: &'a [tsc_syntax::Node],
+}
+
+/// Page-table routing over sorted, disjoint owner intervals: `id >>
+/// OWNER_PAGE_SHIFT` selects a page whose entry is the index of the first
+/// interval ending after the page starts; a short in-order scan from there
+/// (a page holds a handful of small files at most) finds the owner. The
+/// table is a few thousand entries for a large program, so a lookup stays
+/// in L1 instead of touching a per-id table (tsc carries object identity).
+/// Built only when the covered id range is not much larger than the
+/// intervals; a pathological sparse domain keeps the interval search.
+#[derive(Debug, Default)]
+struct DenseOwners {
+    first_page: u32,
+    pages: Box<[u32]>,
+    owners: Vec<ArenaOwner>,
+}
+
+const NO_OWNER: u32 = u32::MAX;
+const OWNER_PAGE_SHIFT: u32 = 8;
+
+impl DenseOwners {
+    fn build(owners: &[ArenaOwner]) -> Self {
+        let (Some(first), Some(last)) = (owners.first(), owners.last()) else {
+            return Self::default();
+        };
+        let first_page = first.start >> OWNER_PAGE_SHIFT;
+        let last_page = last.end.saturating_sub(1) >> OWNER_PAGE_SHIFT;
+        let page_count = (u64::from(last_page) - u64::from(first_page) + 1) as usize;
+        if page_count > owners.len().saturating_mul(64).saturating_add(1 << 16) {
+            return Self::default();
+        }
+        let mut pages = vec![NO_OWNER; page_count].into_boxed_slice();
+        let mut owner_index = 0usize;
+        for (offset, entry) in pages.iter_mut().enumerate() {
+            let page_start = (u64::from(first_page) + offset as u64) << OWNER_PAGE_SHIFT;
+            while owner_index < owners.len() && u64::from(owners[owner_index].end) <= page_start {
+                owner_index += 1;
+            }
+            *entry = if owner_index < owners.len() {
+                u32::try_from(owner_index).expect("program file count fits u32")
+            } else {
+                NO_OWNER
+            };
+        }
+        Self {
+            first_page,
+            pages,
+            owners: owners.to_vec(),
+        }
+    }
+
+    /// The index (into the interval list the table was built from) of the
+    /// interval owning `id`.
+    #[inline]
+    fn lookup_index(&self, id: u32) -> Option<usize> {
+        let page = (id >> OWNER_PAGE_SHIFT).checked_sub(self.first_page)? as usize;
+        let mut index = *self.pages.get(page)? as usize;
+        loop {
+            let owner = self.owners.get(index)?;
+            if id < owner.start {
+                return None;
+            }
+            if id < owner.end {
+                return Some(index);
+            }
+            index += 1;
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.pages.is_empty()
+    }
 }
 
 fn validate_owner_intervals(
@@ -1151,6 +1239,15 @@ impl<'a> ProgramBinder<'a> {
         }
 
         let sources = file_entries.iter().map(ProgramEntry::source).collect();
+        let node_files = DenseOwners::build(&node_owners);
+        let symbol_files = DenseOwners::build(&symbol_owners);
+        let node_routes = node_owners
+            .iter()
+            .map(|owner| NodeRoute {
+                start: owner.start,
+                nodes: file_entries[owner.file].source().arena.nodes(),
+            })
+            .collect::<Vec<_>>();
         Ok(Self {
             file_entries,
             sources,
@@ -1161,6 +1258,9 @@ impl<'a> ProgramBinder<'a> {
             array_owner_hint: AtomicUsize::new(0),
             symbol_owners,
             symbol_owner_hint: AtomicUsize::new(0),
+            node_files,
+            symbol_files,
+            node_routes,
             transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
         })
     }
@@ -1216,7 +1316,56 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: validation for Rust's source-token/node-id pair.
     #[inline]
     pub(crate) fn try_file_index_of_node(&self, node: NodeId) -> Option<usize> {
-        Self::try_owner_file_with_hint(&self.node_owners, node.0, &self.node_owner_hint)
+        self.node_owner_index(node.0)
+            .map(|index| self.node_owners[index].file)
+    }
+
+    /// The node interval owning `id`: the last hit first (a checker's
+    /// lookups run inside one file for long stretches), then the page table
+    /// (or the interval search for a sparse domain).
+    #[inline]
+    fn node_owner_index(&self, id: u32) -> Option<usize> {
+        let hint = self.node_owner_hint.load(Ordering::Relaxed);
+        if let Some(owner) = self.node_owners.get(hint) {
+            if owner.start <= id && id < owner.end {
+                return Some(hint);
+            }
+        }
+        let index = if self.node_files.is_empty() {
+            Self::try_owner_index(&self.node_owners, id)?
+        } else {
+            self.node_files.lookup_index(id)?
+        };
+        self.node_owner_hint.store(index, Ordering::Relaxed);
+        Some(index)
+    }
+
+    /// The parsed record of `node` (tsc's direct object access): routed to
+    /// its file's node slice and indexed there.
+    #[inline]
+    pub fn node_record(&self, node: NodeId) -> &'a tsc_syntax::Node {
+        // The hinted route answers a run of lookups inside one file with one
+        // range check (the slice bound is the interval end) and one index.
+        let hint = self.node_owner_hint.load(Ordering::Relaxed);
+        if let Some(route) = self.node_routes.get(hint) {
+            if let Some(record) = node
+                .0
+                .checked_sub(route.start)
+                .and_then(|offset| route.nodes.get(offset as usize))
+            {
+                return record;
+            }
+        }
+        self.node_record_routed(node)
+    }
+
+    #[cold]
+    fn node_record_routed(&self, node: NodeId) -> &'a tsc_syntax::Node {
+        let index = self
+            .node_owner_index(node.0)
+            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.0));
+        let route = &self.node_routes[index];
+        &route.nodes[(node.0 - route.start) as usize]
     }
 
     /// tsrs-native: multi-file arena routing for a numeric NodeId; tsc
@@ -1272,11 +1421,14 @@ impl<'a> ProgramBinder<'a> {
     }
 
     fn try_owner_file(owners: &[ArenaOwner], id: u32) -> Option<usize> {
+        Self::try_owner_index(owners, id).map(|index| owners[index].file)
+    }
+
+    fn try_owner_index(owners: &[ArenaOwner], id: u32) -> Option<usize> {
         let index = owners
             .partition_point(|owner| owner.start <= id)
             .checked_sub(1)?;
-        let owner = owners[index];
-        (id < owner.end).then_some(owner.file)
+        (id < owners[index].end).then_some(index)
     }
 
     #[inline]
@@ -1284,12 +1436,25 @@ impl<'a> ProgramBinder<'a> {
         if id.0 & TRANSIENT_SYMBOL_BIT != 0 {
             return Err(());
         }
-        Ok(
-            Self::try_owner_file_with_hint(&self.symbol_owners, id.0, &self.symbol_owner_hint)
-                .unwrap_or_else(|| {
-                    Self::owner_file(&self.symbol_owners, id.0, "persistent SymbolId")
-                }),
-        )
+        let hint = self.symbol_owner_hint.load(Ordering::Relaxed);
+        if let Some(owner) = self.symbol_owners.get(hint) {
+            if owner.start <= id.0 && id.0 < owner.end {
+                return Ok(owner.file);
+            }
+        }
+        let index = if self.symbol_files.is_empty() {
+            Self::try_owner_index(&self.symbol_owners, id.0)
+        } else {
+            self.symbol_files.lookup_index(id.0)
+        }
+        .unwrap_or_else(|| {
+            panic!(
+                "persistent SymbolId {} is outside every program arena",
+                id.0
+            )
+        });
+        self.symbol_owner_hint.store(index, Ordering::Relaxed);
+        Ok(self.symbol_owners[index].file)
     }
 
     /// tsrs-native: routes a numeric SymbolId to its binder or

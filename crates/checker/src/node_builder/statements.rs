@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use tsc_binder::assignment::{get_assignment_declaration_kind, AssignmentDeclarationKind};
 use tsc_binder::{node_util, SymbolId, SymbolTable};
@@ -653,7 +654,7 @@ pub(crate) fn symbol_table_to_declaration_statements(
     // upstream; primitive accumulator writes do not escape to `oldcontext`.
     let old_approximate_length = context.approximate_length;
     context.used_symbol_names = Some(old_used.clone().unwrap_or_default());
-    context.remapped_symbol_names = Some(HashMap::new());
+    context.remapped_symbol_names = Some(HashMap::default());
     context.remapped_symbol_references = Some(old_references.clone().unwrap_or_default());
     let statement_tracker_restore = context.tracker.begin_statement_tracking();
 
@@ -701,9 +702,9 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             target,
             context,
             results: Vec::new(),
-            visited_symbols: HashSet::new(),
+            visited_symbols: HashSet::default(),
             deferred_privates_stack: Vec::new(),
-            emitted_parse_statements: HashSet::new(),
+            emitted_parse_statements: HashSet::default(),
         }
     }
 
@@ -1050,7 +1051,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             }
         }
 
-        let mut removed = HashSet::new();
+        let mut removed = HashSet::default();
         let mut additions = Vec::new();
         if local.len() > 1 {
             let mut elements = Vec::new();
@@ -1702,7 +1703,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     let previous = self
                         .context
                         .remapped_symbol_references
-                        .get_or_insert_with(HashMap::new)
+                        .get_or_insert_with(HashMap::default)
                         .insert(type_symbol, symbol);
                     let serialized = self.serialize_symbol_worker(
                         type_symbol,
@@ -2495,7 +2496,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             .get_exports_of_symbol(symbol)
             .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
         let mut members = Vec::new();
-        let mut seen = HashSet::new();
+        let mut seen = HashSet::default();
         for member in exports.values().copied() {
             if seen.insert(member)
                 && self.is_namespace_member(member)
@@ -5536,12 +5537,12 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         }
         self.context
             .used_symbol_names
-            .get_or_insert_with(HashSet::new)
+            .get_or_insert_with(HashSet::default)
             .insert(input.clone());
         if let Some(symbol) = symbol {
             self.context
                 .remapped_symbol_names
-                .get_or_insert_with(HashMap::new)
+                .get_or_insert_with(HashMap::default)
                 .insert(symbol, input.clone());
         }
         input
@@ -5622,7 +5623,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         let name = self.get_name_candidate_worker(symbol, local_name);
         self.context
             .remapped_symbol_names
-            .get_or_insert_with(HashMap::new)
+            .get_or_insert_with(HashMap::default)
             .insert(symbol, name.clone());
         name
     }

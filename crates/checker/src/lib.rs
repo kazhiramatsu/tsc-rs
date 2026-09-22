@@ -149,8 +149,27 @@ use tsc_diagnostics::{
 use tsc_program::WorkerBudget;
 
 pub use crate::shard::{CheckerBudget, MAX_CHECKERS};
+
+/// Whether checkSourceFile runs the unused-identifier pass when neither
+/// `noUnusedLocals` nor `noUnusedParameters` turns its rows into errors.
+/// tsc computes those rows only for getSuggestionDiagnostics, which the
+/// command line never requests; the API keeps them on for the harnesses that
+/// compare suggestion rows.
+static UNUSED_IDENTIFIER_SUGGESTIONS: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(true);
+
+/// Process-wide switch for the unused-identifier suggestion pass (see
+/// [`unused_identifier_suggestions`]). A command-line process sets it once
+/// before checking; library consumers leave it on.
+pub fn set_unused_identifier_suggestions(enabled: bool) {
+    UNUSED_IDENTIFIER_SUGGESTIONS.store(enabled, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn unused_identifier_suggestions() -> bool {
+    UNUSED_IDENTIFIER_SUGGESTIONS.load(std::sync::atomic::Ordering::Relaxed)
+}
 use tsc_types::perf::{self, PerfCounter};
-use tsc_types::{IdentityDomain, JsStr, JsString};
+use tsc_types::{IdentityDomain, IdentityLease, JsStr, JsString};
 
 use crate::emit::CheckerSession;
 
@@ -278,10 +297,12 @@ impl InputFile {
     /// adopted tree is relocated into `identity_domain` exactly as a fresh
     /// base-0 parse would be. Any other case returns `None` and the caller
     /// parses.
-    fn adopt_preparsed_source(
+    /// The loader's parse of this exact snapshot at local identities, when
+    /// it is provably the parse this session would perform. The caller
+    /// leases its identities in program order and relocates it.
+    fn take_preparsed_source(
         &self,
         options: &tsc_syntax::ParseOptions,
-        identity_domain: &IdentityDomain,
     ) -> Option<tsc_syntax::SourceFile> {
         let preparsed = self.preparsed_syntax.take()?;
         let expected = tsc_syntax::ParseOptions {
@@ -295,9 +316,7 @@ impl InputFile {
         {
             return None;
         }
-        let mut source = preparsed.into_source();
-        source.relocate_into_identity_domain(identity_domain).ok()?;
-        Some(source)
+        Some(preparsed.into_source())
     }
 
     /// tsrs-native: expose the shared L0 snapshot owner without its private
@@ -457,7 +476,7 @@ pub enum AuthoritativeModuleLookupFailure {
 /// Object-safe host boundary used only by the authoritative production
 /// entry. Legacy checker entries install no provider and retain their
 /// existing in-memory heuristic resolver.
-pub trait AuthoritativeModuleProvider {
+pub trait AuthoritativeModuleProvider: Sync {
     fn resolve_module(
         &self,
         request: AuthoritativeModuleRequest<'_>,
@@ -931,7 +950,7 @@ fn is_plain_js_file(
 fn preceding_comment_directive_line(
     text: &str,
     byte_line_starts: &[usize],
-    directive_lines: &std::collections::HashSet<usize>,
+    directive_lines: &rustc_hash::FxHashSet<usize>,
     positions: &tsc_diagnostics::PositionIndex,
     diagnostic_start: u32,
 ) -> Option<usize> {
@@ -958,7 +977,7 @@ fn preceding_comment_directive_line(
 fn filter_by_comment_directives_and_mark_used(
     source: &tsc_syntax::SourceFile,
     diagnostics: impl Iterator<Item = tsc_diagnostics::Diagnostic>,
-    mut used_directive_lines: Option<&mut std::collections::HashSet<usize>>,
+    mut used_directive_lines: Option<&mut rustc_hash::FxHashSet<usize>>,
 ) -> Vec<tsc_diagnostics::Diagnostic> {
     // getMergedBindAndCheckDiagnostics (123744): no directives, no
     // filtering.
@@ -976,7 +995,7 @@ fn filter_by_comment_directives_and_mark_used(
             Err(insert) => insert.saturating_sub(1),
         }
     };
-    let directive_lines: std::collections::HashSet<usize> = source
+    let directive_lines: rustc_hash::FxHashSet<usize> = source
         .comment_directives
         .iter()
         .map(|directive| line_of_byte(directive.end as usize))
@@ -1022,7 +1041,7 @@ fn filter_by_comment_directives_and_mark_used(
 fn mark_comment_directives_for_partial_ranges(
     source: &tsc_syntax::SourceFile,
     partial_ranges: &[(u32, u32)],
-    used_directive_lines: &mut std::collections::HashSet<usize>,
+    used_directive_lines: &mut rustc_hash::FxHashSet<usize>,
 ) {
     if source.comment_directives.is_empty() || partial_ranges.is_empty() {
         return;
@@ -1035,7 +1054,7 @@ fn mark_comment_directives_for_partial_ranges(
             Err(insert) => insert.saturating_sub(1),
         }
     };
-    let directive_lines: std::collections::HashSet<usize> = source
+    let directive_lines: rustc_hash::FxHashSet<usize> = source
         .comment_directives
         .iter()
         .map(|directive| line_of_byte(directive.end as usize))
@@ -1061,7 +1080,7 @@ fn mark_comment_directives_for_partial_ranges(
 
 fn unused_expect_error_diagnostics(
     source: &tsc_syntax::SourceFile,
-    used_directive_lines: &std::collections::HashSet<usize>,
+    used_directive_lines: &rustc_hash::FxHashSet<usize>,
 ) -> Vec<tsc_diagnostics::Diagnostic> {
     use tsc_syntax::CommentDirectiveKind;
 
@@ -1272,7 +1291,7 @@ fn missing_path_reference_diagnostics<'cwd, 'a>(
     if options.no_resolve == Some(true) {
         return Vec::new();
     }
-    let known_paths: std::collections::HashSet<JsString> = host_files.collect();
+    let known_paths: rustc_hash::FxHashSet<JsString> = host_files.collect();
     let mut diagnostics = Vec::new();
     for source in sources {
         let source_path =
@@ -1368,7 +1387,7 @@ pub fn prepare_authoritative_harness_lib_bundle(
     if std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_some_and(|value| value == "0") {
         return None;
     }
-    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
+    let fixture_names: rustc_hash::FxHashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
         .map(|file| file.name.as_js())
@@ -1469,7 +1488,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
     let current_directory = current_directory.into();
     observe_phase(CheckPhase::Parse);
 
-    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
+    let fixture_names: rustc_hash::FxHashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
         .map(|file| file.name.as_js())
@@ -1484,8 +1503,12 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
         // so repeated disabled-cache calls do not leak one bundle each.
         let bundle_options = lib_bundle_options(options);
         let identity_domain = IdentityDomain::ephemeral();
-        let (lib_sources, lib_work) =
-            parse_lib_sources(&effective_libs, &bundle_options, &identity_domain);
+        let (lib_sources, lib_work) = parse_lib_sources(
+            &effective_libs,
+            &bundle_options,
+            &identity_domain,
+            WorkerBudget::serial(),
+        );
         let lib_binders = bind_lib_sources(
             &lib_sources,
             &bundle_options,
@@ -1556,7 +1579,7 @@ pub fn check_program_with_owned_libs_at<'cwd>(
     current_directory: impl Into<JsStr<'cwd>>,
 ) -> CheckResult {
     let current_directory = current_directory.into();
-    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
+    let fixture_names: rustc_hash::FxHashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
         .map(|file| file.name.as_js())
@@ -1567,8 +1590,12 @@ pub fn check_program_with_owned_libs_at<'cwd>(
         .collect();
     let bundle_options = lib_bundle_options(options);
     let identity_domain = IdentityDomain::ephemeral();
-    let (lib_sources, lib_work) =
-        parse_lib_sources(&effective_libs, &bundle_options, &identity_domain);
+    let (lib_sources, lib_work) = parse_lib_sources(
+        &effective_libs,
+        &bundle_options,
+        &identity_domain,
+        WorkerBudget::serial(),
+    );
     let lib_binders = bind_lib_sources(
         &lib_sources,
         &bundle_options,
@@ -1929,6 +1956,47 @@ pub fn check_program_with_authoritative_modules_at_with_checkers<'cwd>(
         DiagnosticSchedule::Eager,
         workers,
         checkers,
+        None,
+    )
+}
+
+/// [`check_program_with_authoritative_modules_at_with_checkers`] for an
+/// emitting session: every shard emits the files it checked with its own
+/// checker once the coordinator has gated the merged diagnostics; the caller
+/// receives the products through `sharded_emit.emissions` and writes them in
+/// Program order. A flagged order-sensitive run replays check and emit
+/// serially with one checker.
+/// tsrs-native: tsgo's per-checker emit over the shared immutable snapshot.
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_for_emit_with_checkers<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    factory: &dyn AuthoritativeModuleProviderFactory,
+    workers: WorkerBudget,
+    checkers: CheckerBudget,
+    sharded_emit: &mut ShardedEmit<'_>,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
+    check_program_with_authoritative_modules_at_cache_mode_with_source(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        AuthoritativeProviderSource::PerChecker(factory),
+        false,
+        None,
+        None,
+        LibraryPrefixCompletion::Complete,
+        DiagnosticSchedule::Eager,
+        workers,
+        checkers,
+        Some(sharded_emit),
     )
 }
 
@@ -1963,6 +2031,7 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
         diagnostic_schedule,
         workers,
         CheckerBudget::serial(),
+        None,
     )
 }
 
@@ -1982,6 +2051,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
     diagnostic_schedule: DiagnosticSchedule,
     workers: WorkerBudget,
     checkers: CheckerBudget,
+    sharded_emit: Option<&mut ShardedEmit<'_>>,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     perf::add(
@@ -1990,7 +2060,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
     );
     validate_authoritative_metadata(libs, lib_metadata, "library")?;
     validate_authoritative_metadata(files, file_metadata, "program")?;
-    let mut seen_tokens = std::collections::HashSet::new();
+    let mut seen_tokens = rustc_hash::FxHashSet::default();
     for source in lib_metadata.iter().chain(file_metadata) {
         if !seen_tokens.insert(source.token) {
             return Err(AuthoritativeModuleFailure::InvalidMetadata {
@@ -2002,7 +2072,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
         }
     }
 
-    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
+    let fixture_names: rustc_hash::FxHashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
         .map(|file| file.name.as_js())
@@ -2071,7 +2141,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
         let bundle_options = lib_bundle_options(options);
         let identity_domain = IdentityDomain::ephemeral();
         let (lib_sources, lib_work) =
-            parse_lib_sources(&effective_libs, &bundle_options, &identity_domain);
+            parse_lib_sources(&effective_libs, &bundle_options, &identity_domain, workers);
         let lib_binders =
             bind_lib_sources(&lib_sources, &bundle_options, &identity_domain, workers);
         let lib_data = binders_into_data(lib_binders);
@@ -2105,6 +2175,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
                 ProgramFileFacts::DEFAULT_LIBRARY,
                 workers,
                 checkers,
+                sharded_emit,
             )
         } else {
             check_program_with_prebound_libs_at_observed(
@@ -2169,11 +2240,11 @@ fn validate_authoritative_metadata(
 #[derive(Clone)]
 struct HostFacts {
     current_directory: JsString,
-    file_paths: std::collections::HashSet<JsString>,
-    input_snapshots: std::collections::HashMap<JsString, Arc<TextSnapshot>>,
-    package_json_module_types: std::collections::HashMap<JsString, state::PackageJsonModuleType>,
-    package_json_values: std::collections::HashMap<JsString, tsc_program::JsonValue>,
-    package_json_names: std::collections::HashMap<JsString, JsString>,
+    file_paths: rustc_hash::FxHashSet<JsString>,
+    input_snapshots: rustc_hash::FxHashMap<JsString, Arc<TextSnapshot>>,
+    package_json_module_types: rustc_hash::FxHashMap<JsString, state::PackageJsonModuleType>,
+    package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue>,
+    package_json_names: rustc_hash::FxHashMap<JsString, JsString>,
 }
 
 /// Stage-1 output of the check driver: parsed (or adopted) fixture sources
@@ -2190,6 +2261,41 @@ struct ParsedProgramInputs {
 /// the loader's parse, missing-path-reference diagnostics and the host facts.
 /// tsrs-native: extracted from the one-shot driver so that W2 can run one
 /// parse/bind and many checker states over the same snapshot.
+/// A program source between its identity lease (taken in program order on
+/// the calling thread) and its rewrite into the leased ranges (on a worker).
+enum PendingProgramSource {
+    Ready(tsc_syntax::SourceFile),
+    Leased(tsc_syntax::SourceFile, IdentityLease, IdentityLease),
+}
+
+impl PendingProgramSource {
+    fn weight(&self) -> usize {
+        match self {
+            Self::Ready(_) => 0,
+            Self::Leased(source, _, _) => source.arena.nodes().len(),
+        }
+    }
+
+    fn source_mut(&mut self) -> &mut tsc_syntax::SourceFile {
+        match self {
+            Self::Ready(source) | Self::Leased(source, _, _) => source,
+        }
+    }
+
+    fn relocate(self) -> tsc_syntax::SourceFile {
+        match self {
+            Self::Ready(source) => source,
+            Self::Leased(mut source, node_lease, array_lease) => {
+                source
+                    .relocate_with_leases(node_lease, array_lease)
+                    .expect("source identity relocation failed");
+                source
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn parse_program_inputs(
     libs: &[InputFile],
     files: &[InputFile],
@@ -2198,11 +2304,12 @@ fn parse_program_inputs(
     identity_domain: &IdentityDomain,
     authoritative_run: Option<&AuthoritativeRun<'_>>,
     work_counters: &mut CheckWorkCounters,
+    workers: WorkerBudget,
 ) -> ParsedProgramInputs {
     // getImpliedNodeFormatForFileWorker's package-scope input. Build it
     // before parsing because getSetExternalModuleIndicator's Auto mode
     // consults the implied format while SourceFiles are created.
-    let host_package_json_module_types: std::collections::HashMap<
+    let host_package_json_module_types: rustc_hash::FxHashMap<
         tsc_types::JsString,
         state::PackageJsonModuleType,
     > = files
@@ -2233,7 +2340,7 @@ fn parse_program_inputs(
         .collect();
     // Fixture-file shadowing (unchanged from the libless world): a
     // later file with the same name shadows an earlier one entirely.
-    let mut last_index_by_name = std::collections::HashMap::new();
+    let mut last_index_by_name = rustc_hash::FxHashMap::default();
     for (index, file) in files.iter().enumerate() {
         if file.host_only {
             continue;
@@ -2245,7 +2352,8 @@ fn parse_program_inputs(
     // leases from the same domain as the library prefix. JSON files remain in
     // that same program: the binder publishes their root value as the
     // module's default/export= property.
-    let mut program_sources: Vec<Arc<tsc_syntax::SourceFile>> = Vec::new();
+    let serial_started = std::time::Instant::now();
+    let mut pending_sources: Vec<PendingProgramSource> = Vec::new();
     let mut authoritative_program_metadata = Vec::new();
     let mut authoritative_file_index = 0;
     for (index, file) in files.iter().enumerate() {
@@ -2283,7 +2391,7 @@ fn parse_program_inputs(
             )
             .expect("JSON source identity allocation failed");
             work_counters.record_parse(file.text().len());
-            program_sources.push(Arc::new(source_file));
+            pending_sources.push(PendingProgramSource::Ready(source_file));
             continue;
         }
         // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds.
@@ -2374,34 +2482,58 @@ fn parse_program_inputs(
                 .js_doc_parsing_mode
                 .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
         };
-        let mut source_file = match file.adopt_preparsed_source(&parse_options, identity_domain) {
+        // An adopted tree takes its identity lease here, in program order,
+        // and is rewritten on a worker below; a fresh parse allocates in
+        // the domain directly, in the same order.
+        let mut pending = match file.take_preparsed_source(&parse_options) {
             Some(source_file) => {
                 work_counters.record_adoption();
-                source_file
+                let (node_lease, array_lease) = source_file
+                    .lease_identities(identity_domain)
+                    .expect("source identity allocation failed");
+                PendingProgramSource::Leased(source_file, node_lease, array_lease)
             }
             None => {
                 work_counters.record_parse(file.text().len());
-                tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
-                    file.name.clone(),
-                    Arc::clone(file.snapshot()),
-                    parse_options,
-                    None,
-                    identity_domain,
+                PendingProgramSource::Ready(
+                    tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                        file.name.clone(),
+                        Arc::clone(file.snapshot()),
+                        parse_options,
+                        None,
+                        identity_domain,
+                    )
+                    .expect("source identity allocation failed"),
                 )
-                .expect("source identity allocation failed")
             }
         };
         // transpileWorker (typescript.js:146099-146104) assigns the API
         // moduleName / renamedDependencies to the created SourceFile before
         // createProgram; the parsed pragma value is overridden.
+        let source_file = pending.source_mut();
         if let Some(module_name) = &file.module_name {
             source_file.module_name = Some(module_name.clone());
         }
         if !file.renamed_dependencies.is_empty() {
             source_file.renamed_dependencies = file.renamed_dependencies.clone();
         }
-        program_sources.push(Arc::new(source_file));
+        pending_sources.push(pending);
     }
+    tsc_types::trace::mark(
+        "checker: adopt (serial: parse options, leases)",
+        serial_started,
+    );
+    let rewrite_started = std::time::Instant::now();
+    let program_sources: Vec<Arc<tsc_syntax::SourceFile>> = workers
+        .map_ordered(
+            pending_sources,
+            PendingProgramSource::weight,
+            PendingProgramSource::relocate,
+        )
+        .into_iter()
+        .map(Arc::new)
+        .collect();
+    tsc_types::trace::mark("checker: adopt (parallel rewrite)", rewrite_started);
 
     let host_current_directory = resolve_host_current_directory(current_directory);
     let program_diagnostics = missing_path_reference_diagnostics(
@@ -2426,7 +2558,7 @@ fn parse_program_inputs(
             )
         })
         .collect();
-    let package_json_values: std::collections::HashMap<JsString, tsc_program::JsonValue> = files
+    let package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue> = files
         .iter()
         .filter_map(|file| {
             let file_name = file
@@ -2588,7 +2720,7 @@ fn syntactic_file_rows(
 struct LedgerSnapshot {
     rows: Vec<Diagnostic>,
     globals_by_file: Vec<Vec<Diagnostic>>,
-    partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32)>>,
+    partially_checked_ranges: rustc_hash::FxHashMap<usize, Vec<(u32, u32)>>,
 }
 
 impl LedgerSnapshot {
@@ -2641,30 +2773,87 @@ const _: () = {
     assert_send::<HostFacts>();
 };
 
-/// Run one checker shard on the calling thread: construct its provider,
-/// `ProgramBinder` and `CheckerState` over the shared immutable snapshot,
-/// check its fixture files in Program order, snapshot the ledger, then (for
-/// a complete library prefix) check its library files in Program order, and
-/// return owned results. Every checker object is constructed and dropped on
-/// this thread; the source ASTs are borrowed from the snapshot, never copied.
-/// tsrs-native: the per-checker body of tsgo's checker pool.
+/// One checker shard's emit products plus the evidence the driver merges.
+/// Produced on the shard's thread by the caller's emit closure.
+pub struct ShardEmission {
+    pub units: Vec<tsc_emitter::UnitEmission>,
+    pub counters: tsc_emitter::H2ActivityCounters,
+    /// H2.8c evidence: source files whose checkSourceFileWorker body ran in
+    /// this shard by the end of its emit.
+    pub checked_source_files: u32,
+}
+
+/// The per-shard emit protocol of the sharded driver.
+/// tsrs-native: tsgo shape — every checker emits the files it checked, and
+/// the coordinator publishes the outputs in Program order. The coordinator
+/// decides once, after the merged diagnostics exist, whether any shard emits
+/// (handleNoEmitOptions and driver-level refusals); each shard then runs the
+/// caller's closure with its own live checker session. Outputs are handed
+/// back through [`emissions`](Self::emissions); nothing is written by the
+/// shards themselves.
+pub struct ShardedEmit<'op> {
+    /// Coordinator decision after the merged diagnostics are known: `true`
+    /// runs the per-shard emit, `false` releases the shards without one.
+    pub gate: &'op mut dyn FnMut(&ProgramSnapshot, &CheckResult) -> bool,
+    /// Runs once after every shard has checked, with every shard's checker
+    /// session and the Program file indices each shard checked (Program
+    /// order, index-aligned with the sessions). The caller schedules each
+    /// planned unit on its worker budget against the session of the shard
+    /// that checked the unit's source.
+    pub emit: ShardEmitClosure<'op>,
+    /// Filled by the driver: `None` when the gate refused (or no checker
+    /// ran), otherwise every shard's products (a serial replay yields one).
+    pub emissions: Option<Result<Vec<ShardEmission>, tsc_emitter::UnitEmitError>>,
+}
+
+type ShardEmitClosure<'op> = &'op (dyn Fn(
+    &ProgramSnapshot,
+    &[CheckerSession<'_>],
+    &[Vec<usize>],
+) -> Result<Vec<ShardEmission>, tsc_emitter::UnitEmitError>
+          + Sync);
+
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<ShardEmission>();
+};
+
+/// Run one checker shard on the calling thread: construct its `ProgramBinder`
+/// and `CheckerState` over the shared immutable snapshot with the provider the
+/// coordinator created for it, initialize, check the shard's files, and
+/// report the ledger snapshots. With `keep_state` the checked state is
+/// returned for the coordinator's emit pool; otherwise it is dropped (or
+/// leaked for a one-shot process).
 #[allow(clippy::too_many_arguments)]
-fn run_checker_shard(
-    snapshot: &ProgramSnapshot,
-    options: &CompilerOptions,
-    factory: &dyn AuthoritativeModuleProviderFactory,
+fn run_checker_shard<'a>(
+    shard_index: usize,
+    snapshot: &'a ProgramSnapshot,
+    options: &'a CompilerOptions,
+    provider: &'a dyn AuthoritativeModuleProvider,
     metadata: &[AuthoritativeSourceMetadata],
     host: HostFacts,
     files: &[usize],
     lib_count: usize,
     complete_library_prefix: bool,
-) -> ShardOutput {
-    let provider = factory.provider();
-    let mut state = init_checker_state(snapshot, options, Some((&*provider, metadata)), host);
+    keep_state: bool,
+    leak_state: bool,
+) -> (ShardOutput, Option<state::CheckerState<'a>>) {
+    let shard_started = std::time::Instant::now();
+    let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
     // W2c: every type created from here on is shard-local; the guard records
     // order-consuming operations over two or more of them.
     let init_boundary = state.tables.len();
     state.order_guard.arm(init_boundary);
+    if tsc_types::trace::enabled() {
+        tsc_types::trace::mark(
+            &format!(
+                "shard {shard_index}: init ({init_boundary} types, {} files)",
+                files.len()
+            ),
+            shard_started,
+        );
+    }
+    let shard_started = std::time::Instant::now();
     // Shared-AST invariant: the shard's binder borrows the snapshot's
     // documents (pointer-identical sources); it never copies a tree.
     debug_assert!(files
@@ -2704,7 +2893,17 @@ fn run_checker_shard(
         .collect();
     let failure = state.take_authoritative_module_failure();
     let complete = LedgerSnapshot::take(&state, &globals_by_file);
-    ShardOutput {
+    if tsc_types::trace::enabled() {
+        tsc_types::trace::mark(
+            &format!(
+                "shard {shard_index}: check ({} types, {} symbol links)",
+                state.tables.len(),
+                state.links.symbol_len()
+            ),
+            shard_started,
+        );
+    }
+    let output = ShardOutput {
         fixture,
         complete,
         init_globals,
@@ -2716,7 +2915,14 @@ fn run_checker_shard(
         thread: std::thread::current().id(),
         #[cfg(debug_assertions)]
         checked_files,
+    };
+    if keep_state {
+        return (output, Some(state));
     }
+    if leak_state {
+        std::mem::forget(state);
+    }
+    (output, None)
 }
 
 /// Merge the shards' ledgers in Program order into the same observations the
@@ -2769,9 +2975,9 @@ fn merge_shard_outputs(
     // Rows by owning file, in (shard, publication) order.
     fn rows_by_file<'o>(
         ledgers: impl Iterator<Item = &'o LedgerSnapshot>,
-    ) -> std::collections::HashMap<&'o JsString, Vec<&'o Diagnostic>> {
-        let mut by_file: std::collections::HashMap<&JsString, Vec<&Diagnostic>> =
-            std::collections::HashMap::new();
+    ) -> rustc_hash::FxHashMap<&'o JsString, Vec<&'o Diagnostic>> {
+        let mut by_file: rustc_hash::FxHashMap<&JsString, Vec<&Diagnostic>> =
+            rustc_hash::FxHashMap::default();
         for ledger in ledgers {
             for row in &ledger.rows {
                 if let Some(file_name) = row.file_name.as_ref() {
@@ -2794,7 +3000,7 @@ fn merge_shard_outputs(
         )
     };
     let assemble = |file: usize,
-                    rows: &std::collections::HashMap<&JsString, Vec<&Diagnostic>>,
+                    rows: &rustc_hash::FxHashMap<&JsString, Vec<&Diagnostic>>,
                     ledger: fn(&ShardOutput) -> &LedgerSnapshot|
      -> DiagnosticList {
         let document = snapshot.document(file);
@@ -2892,10 +3098,12 @@ fn merge_shard_outputs(
     })
 }
 
-/// The sharded no-emit driver: stages 1–2 once (parse/adopt, bind, snapshot),
-/// then one checker state per shard on scoped threads over the shared
-/// immutable snapshot, then the Program-order merge. Equivalent to the serial
-/// driver's fixture projection and whole-Program assembly.
+/// The sharded driver: stages 1–2 once (parse/adopt, bind, snapshot), then
+/// one checker state per shard on scoped threads over the shared immutable
+/// snapshot, then the Program-order merge. Equivalent to the serial driver's
+/// fixture projection and whole-Program assembly. With `sharded_emit`, every
+/// shard keeps its checker alive after reporting and emits its own files once
+/// the coordinator has gated the merged diagnostics (tsgo's per-checker emit).
 /// tsrs-native: tsgo checker pool shape; tsc has one checker.
 #[allow(clippy::too_many_arguments)]
 fn check_program_with_prebound_libs_sharded<'cwd>(
@@ -2913,8 +3121,10 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     lib_facts: ProgramFileFacts,
     workers: WorkerBudget,
     checkers: CheckerBudget,
+    mut sharded_emit: Option<&mut ShardedEmit<'_>>,
 ) -> CheckExecution {
     let current_directory = current_directory.into();
+    let phase_started = std::time::Instant::now();
     let ParsedProgramInputs {
         program_sources,
         authoritative_program_metadata,
@@ -2928,7 +3138,9 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         identity_domain,
         Some(run),
         &mut work_counters,
+        workers,
     );
+    tsc_types::trace::mark("checker: parse/adopt program sources", phase_started);
 
     let lib_count = lib_documents.len();
     let mut document_store = EphemeralDocumentStore::with_documents(
@@ -2936,6 +3148,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         lib_documents.iter().cloned(),
     );
     observe_phase(CheckPhase::Bind);
+    let phase_started = std::time::Instant::now();
     let bind_data =
         bind_sources_in_program_order(&program_sources, options, identity_domain, workers);
     for (source_file, data) in program_sources.iter().zip(bind_data) {
@@ -2944,6 +3157,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             .publish(Arc::clone(source_file), data)
             .expect("completed bind must belong to the ephemeral document domain");
     }
+    tsc_types::trace::mark("checker: bind program sources", phase_started);
     observe_phase(CheckPhase::Check);
 
     if lib_documents.is_empty() && program_sources.is_empty() {
@@ -2959,6 +3173,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             authoritative_failure: None,
         };
     }
+    let phase_started = std::time::Instant::now();
 
     let mut file_facts = vec![lib_facts; lib_count];
     file_facts.resize(
@@ -2995,6 +3210,13 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         hosts.push(std::sync::Mutex::new(Some(host.clone())));
     }
     hosts.insert(0, std::sync::Mutex::new(Some(host)));
+    let emit_closure: Option<ShardEmitClosure<'_>> = sharded_emit.as_ref().map(|emit| emit.emit);
+    let coordinate = emit_closure.is_some();
+    // One provider per shard, owned here so a checked state (which borrows
+    // its provider) can outlive its shard's thread for the emit pool.
+    let providers = (0..shard_count)
+        .map(|_| factory.provider())
+        .collect::<Vec<_>>();
     let run_shard = |shard_index: usize| {
         let host = hosts[shard_index]
             .lock()
@@ -3002,69 +3224,97 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             .take()
             .expect("each shard takes its host facts once");
         run_checker_shard(
+            shard_index,
             &snapshot,
             options,
-            factory,
+            &*providers[shard_index],
             &metadata,
             host,
             &assignment[shard_index],
             lib_count,
             complete_library_prefix,
+            coordinate,
+            checkers.leaks_states(),
         )
     };
-    let outputs = std::thread::scope(|scope| {
-        let handles = (1..shard_count)
-            .map(|shard_index| {
-                std::thread::Builder::new()
-                    .name(format!("tsc-rs-checker-{shard_index}"))
-                    .stack_size(tsc_program::WORKER_STACK_BYTES)
-                    .spawn_scoped(scope, move || run_shard(shard_index))
-            })
-            .collect::<Vec<_>>();
-        let mut outputs = Vec::with_capacity(shard_count);
-        outputs.push(run_shard(0));
-        for (shard_index, handle) in handles.into_iter().enumerate() {
-            outputs.push(match handle {
-                Ok(handle) => handle
+    #[allow(clippy::large_enum_variant)]
+    enum ShardedRun {
+        Merged(CheckExecution),
+        Replay(u32),
+    }
+    let sharded = std::thread::scope(|scope| {
+        let mut handles = Vec::with_capacity(shard_count);
+        let mut results: Vec<Option<(ShardOutput, Option<state::CheckerState<'_>>)>> =
+            (0..shard_count).map(|_| None).collect();
+        // The coordinator runs shard 0 itself; the others run on scoped
+        // threads. A refused thread is not an error: the coordinator runs
+        // that shard too, with the untouched host facts of its slot.
+        for (shard_index, slot) in results.iter_mut().enumerate().skip(1) {
+            match std::thread::Builder::new()
+                .name(format!("tsc-rs-checker-{shard_index}"))
+                .stack_size(tsc_program::WORKER_STACK_BYTES)
+                .spawn_scoped(scope, move || run_shard(shard_index))
+            {
+                Ok(handle) => handles.push((shard_index, handle)),
+                Err(_) => *slot = Some(run_shard(shard_index)),
+            }
+        }
+        results[0] = Some(run_shard(0));
+        for (shard_index, handle) in handles {
+            results[shard_index] = Some(
+                handle
                     .join()
                     .unwrap_or_else(|payload| std::panic::resume_unwind(payload)),
-                // A refused thread is not an error: the coordinator runs the
-                // shard with the untouched host facts of its slot.
-                Err(_) => run_shard(shard_index + 1),
-            });
+            );
         }
-        outputs
-    });
-    // W2c: a shard that consumed the order of two shard-local types may have
-    // diverged from the serial checker (text or semantics); discard every
-    // shard result and replay the whole check serially over the same
-    // snapshot (parse and bind are not repeated).
-    let mut order_reasons = outputs
-        .iter()
-        .fold(0u32, |acc, output| acc | output.order_reasons);
-    // The guard's exemption for pre-guard ids assumes every shard ran the
-    // same deterministic initialization; verify it instead of assuming.
-    if outputs
-        .iter()
-        .any(|output| output.init_boundary != outputs[0].init_boundary)
-    {
-        debug_assert!(false, "shard initialization type counts differ");
-        order_reasons |= crate::order_guard::OrderReason::INIT_DIVERGENCE.bits();
-    }
-    let threads = outputs
-        .iter()
-        .map(|output| output.thread)
-        .collect::<std::collections::HashSet<_>>();
-    work_counters.record_checker_shards(outputs.len() as u64, threads.len() as u64);
-    perf::add(PerfCounter::CheckerShardsRun, outputs.len() as u64);
-    perf::add(PerfCounter::CheckerShardThreads, threads.len() as u64);
-    let replay_reasons = if order_reasons != 0 {
-        drop(outputs);
-        order_reasons
-    } else {
+        let mut outputs = Vec::with_capacity(shard_count);
+        let mut states = Vec::with_capacity(shard_count);
+        for result in results {
+            let (output, state) = result.expect("every shard reports exactly once");
+            outputs.push(output);
+            states.extend(state);
+        }
+        tsc_types::trace::mark("checker: shards checked", phase_started);
+        let phase_started = std::time::Instant::now();
+        let dispose_states = |states: Vec<state::CheckerState<'_>>| {
+            if checkers.leaks_states() {
+                // The one-shot process exits right after publishing.
+                for state in states {
+                    std::mem::forget(state);
+                }
+            }
+        };
+        // W2c: a shard that consumed the order of two shard-local types may
+        // have diverged from the serial checker (text or semantics); discard
+        // every shard result and replay the whole check serially over the
+        // same snapshot (parse and bind are not repeated).
+        let mut order_reasons = outputs
+            .iter()
+            .fold(0u32, |acc, output| acc | output.order_reasons);
+        // The guard's exemption for pre-guard ids assumes every shard ran the
+        // same deterministic initialization; verify it instead of assuming.
+        if outputs
+            .iter()
+            .any(|output| output.init_boundary != outputs[0].init_boundary)
+        {
+            debug_assert!(false, "shard initialization type counts differ");
+            order_reasons |= crate::order_guard::OrderReason::INIT_DIVERGENCE.bits();
+        }
+        let threads = outputs
+            .iter()
+            .map(|output| output.thread)
+            .collect::<rustc_hash::FxHashSet<_>>();
+        work_counters.record_checker_shards(outputs.len() as u64, threads.len() as u64);
+        perf::add(PerfCounter::CheckerShardsRun, outputs.len() as u64);
+        perf::add(PerfCounter::CheckerShardThreads, threads.len() as u64);
+        if order_reasons != 0 {
+            drop(outputs);
+            dispose_states(states);
+            return ShardedRun::Replay(order_reasons);
+        }
         // W2e: the merge itself decides whether a display-class mark reached
         // a published row; only then is the sharded result discarded.
-        match merge_shard_outputs(
+        let execution = match merge_shard_outputs(
             &snapshot,
             lib_count,
             options,
@@ -3074,16 +3324,82 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             collect_global_diagnostics,
             work_counters,
         ) {
-            Ok(execution) => return execution,
-            Err(marked_reasons) => marked_reasons,
+            Ok(execution) => execution,
+            Err(marked_reasons) => {
+                dispose_states(states);
+                return ShardedRun::Replay(marked_reasons);
+            }
+        };
+        tsc_types::trace::mark("checker: merge shard diagnostics", phase_started);
+        let Some(sharded_emit) = sharded_emit.as_deref_mut() else {
+            dispose_states(states);
+            return ShardedRun::Merged(execution);
+        };
+        if execution.authoritative_failure.is_some()
+            || !(sharded_emit.gate)(&snapshot, &execution.result)
+        {
+            dispose_states(states);
+            return ShardedRun::Merged(execution);
         }
+        let phase_started = std::time::Instant::now();
+        if states.len() != shard_count {
+            dispose_states(states);
+            return ShardedRun::Replay(crate::order_guard::OrderReason::INIT_DIVERGENCE.bits());
+        }
+        // Every checked state becomes a session; the caller's emit pool runs
+        // each planned unit against the resolver of the shard that checked
+        // it. Emit may create shard-local types (declaration rendering, lazy
+        // resolver queries): an order-consuming operation or a new display
+        // mark discards the products in favour of the serial replay.
+        let marks_before = states
+            .iter()
+            .map(|state| state.order_guard.marks().len())
+            .collect::<Vec<_>>();
+        let sessions = states
+            .into_iter()
+            .map(|state| {
+                CheckerSession::from_checked_state(state).with_program_diagnostics(
+                    program_diagnostics.clone(),
+                    execution.result.program_semantic_diagnostics.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let emitted = (sharded_emit.emit)(&snapshot, &sessions, &assignment);
+        tsc_types::trace::mark("checker: shards emitted", phase_started);
+        let mut emit_reasons = 0u32;
+        let mut states = Vec::with_capacity(sessions.len());
+        for (session, before) in sessions.into_iter().zip(marks_before) {
+            let state = session.into_state();
+            emit_reasons |= state.order_guard.reasons();
+            if state.order_guard.marks().len() > before {
+                emit_reasons |= crate::order_guard::OrderReason::INIT_DIVERGENCE.bits();
+            }
+            states.push(state);
+        }
+        dispose_states(states);
+        if emit_reasons != 0 {
+            return ShardedRun::Replay(emit_reasons);
+        }
+        sharded_emit.emissions = Some(emitted);
+        ShardedRun::Merged(execution)
+    });
+    let replay_reasons = match sharded {
+        ShardedRun::Merged(execution) => {
+            if checkers.leaks_states() {
+                // The one-shot process exits right after publishing: the
+                // shared documents go with the leaked checker states.
+                std::mem::forget(snapshot);
+            }
+            return execution;
+        }
+        ShardedRun::Replay(reasons) => reasons,
     };
     work_counters.record_serial_replay(replay_reasons);
     perf::add(PerfCounter::CheckerSerialReplays, 1);
     crate::order_guard::count_replay_reasons(replay_reasons);
     drop(hosts);
     let provider = factory.provider();
-    check_snapshot_serially(
+    let execution = check_snapshot_serially(
         &snapshot,
         lib_count,
         options,
@@ -3094,15 +3410,23 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         collect_global_diagnostics,
         complete_library_prefix,
         work_counters,
-    )
+        sharded_emit,
+        checkers.leaks_states(),
+    );
+    drop(provider);
+    if checkers.leaks_states() {
+        std::mem::forget(snapshot);
+    }
+    execution
 }
 
 /// The serial check over an existing snapshot (stages 3–5 of the serial
-/// driver, eager schedule, no emit callback). The serial driver delegates
-/// its authoritative eager no-emit path here and the sharded driver replays
-/// a flagged run through it, so the two cannot drift in check order or
-/// assembly; the legacy fixture-only, on-demand and emit-callback paths keep
-/// the serial driver's inline sequence.
+/// driver, eager schedule). The serial driver delegates its authoritative
+/// eager no-emit path here and the sharded driver replays a flagged run
+/// through it, so the two cannot drift in check order or assembly; the legacy
+/// fixture-only, on-demand and emit-callback paths keep the serial driver's
+/// inline sequence. A replayed emitting run emits every file with this one
+/// checker through the same per-shard protocol.
 #[allow(clippy::too_many_arguments)]
 fn check_snapshot_serially(
     snapshot: &ProgramSnapshot,
@@ -3118,6 +3442,8 @@ fn check_snapshot_serially(
     collect_global_diagnostics: bool,
     complete_library_prefix: bool,
     work_counters: CheckWorkCounters,
+    sharded_emit: Option<&mut ShardedEmit<'_>>,
+    leak_state: bool,
 ) -> CheckExecution {
     let mut state = init_checker_state(snapshot, options, authoritative, host);
     let global_diagnostics = if collect_global_diagnostics {
@@ -3184,14 +3510,39 @@ fn check_snapshot_serially(
     tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
     let partial_checks = state.partial_check_records.clone();
     let authoritative_failure = state.take_authoritative_module_failure();
+    let result = assemble_check_result(
+        &file_diagnostics,
+        Some(&diagnostics),
+        &global_diagnostics,
+        &partial_checks,
+        work_counters,
+    );
+    let state = match sharded_emit {
+        Some(sharded_emit) if authoritative_failure.is_none() => {
+            if (sharded_emit.gate)(snapshot, &result) {
+                let every_file = (0..all_program_file_ids.len()).collect::<Vec<_>>();
+                let session = CheckerSession::from_checked_state(state).with_program_diagnostics(
+                    program_diagnostics.to_vec(),
+                    result.program_semantic_diagnostics.clone(),
+                );
+                let emitted = (sharded_emit.emit)(
+                    snapshot,
+                    std::slice::from_ref(&session),
+                    std::slice::from_ref(&every_file),
+                );
+                sharded_emit.emissions = Some(emitted);
+                session.into_state()
+            } else {
+                state
+            }
+        }
+        _ => state,
+    };
+    if leak_state {
+        std::mem::forget(state);
+    }
     CheckExecution {
-        result: assemble_check_result(
-            &file_diagnostics,
-            Some(&diagnostics),
-            &global_diagnostics,
-            &partial_checks,
-            work_counters,
-        ),
+        result,
         authoritative_failure,
     }
 }
@@ -3236,6 +3587,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         identity_domain,
         authoritative_run,
         &mut work_counters,
+        workers,
     );
 
     // The production H0 path publishes through a direct, session-owned store.
@@ -3332,6 +3684,8 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 collect_global_diagnostics,
                 run.library_prefix == LibraryPrefixCompletion::Complete,
                 work_counters,
+                None,
+                false,
             );
         }
         let mut state = init_checker_state(
@@ -3605,7 +3959,7 @@ fn semantic_diagnostics_for_file_rows(
     if plain_js {
         bind_and_check.retain(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()));
     } else {
-        let mut used_directive_lines = std::collections::HashSet::new();
+        let mut used_directive_lines = rustc_hash::FxHashSet::default();
         bind_and_check = filter_by_comment_directives_and_mark_used(
             source,
             bind_and_check.into_iter(),
@@ -3824,7 +4178,7 @@ fn lib_bundle_with_fingerprint(
     options: &CompilerOptions,
     fingerprint: impl Fn(&str) -> u64,
 ) -> &'static LibBundle {
-    use std::collections::HashMap;
+    use rustc_hash::FxHashMap as HashMap;
     use std::sync::{Arc, Mutex, OnceLock};
 
     type Key = (Vec<(JsString, u64)>, CompilerOptions);
@@ -3842,7 +4196,7 @@ fn lib_bundle_with_fingerprint(
             .collect(),
         bundle_options.clone(),
     );
-    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::default()));
     let bucket = {
         let mut cache = cache.lock().expect("lib bundle cache");
         Arc::clone(
@@ -3889,7 +4243,8 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
     // Binder borrows its CompilerOptions for the bundle's lifetime.
     let options: &'static CompilerOptions = Box::leak(Box::new(options.clone()));
     let identity_domain = IdentityDomain::reclaiming();
-    let (sources, _lib_work) = parse_lib_sources(libs, options, &identity_domain);
+    let (sources, _lib_work) =
+        parse_lib_sources(libs, options, &identity_domain, WorkerBudget::serial());
     let binders = bind_lib_sources(&sources, options, &identity_domain, WorkerBudget::serial());
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
@@ -3907,7 +4262,8 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
 fn build_owned_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> OwnedHarnessLibBundle {
     let options = lib_bundle_options(options);
     let identity_domain = IdentityDomain::reclaiming();
-    let (sources, _lib_work) = parse_lib_sources(libs, &options, &identity_domain);
+    let (sources, _lib_work) =
+        parse_lib_sources(libs, &options, &identity_domain, WorkerBudget::serial());
     let binders = bind_lib_sources(&sources, &options, &identity_domain, WorkerBudget::serial());
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
@@ -3926,9 +4282,10 @@ fn parse_lib_sources(
     libs: &[&InputFile],
     options: &CompilerOptions,
     identity_domain: &IdentityDomain,
+    workers: WorkerBudget,
 ) -> (Vec<tsc_syntax::SourceFile>, LibParseWork) {
     let mut work = LibParseWork::default();
-    let mut sources: Vec<tsc_syntax::SourceFile> = Vec::new();
+    let mut pending: Vec<PendingProgramSource> = Vec::new();
     for lib in libs {
         let parse_options = tsc_syntax::ParseOptions {
             script_target: options.emit_script_target(),
@@ -3938,16 +4295,21 @@ fn parse_lib_sources(
             detect_external_module_from_jsx: false,
             node_id_base: 0,
             node_array_id_base: 0,
-            js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,
+            js_doc_parsing_mode: lib
+                .js_doc_parsing_mode
+                .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
         };
-        sources.push(
-            match lib.adopt_preparsed_source(&parse_options, identity_domain) {
-                Some(source) => {
-                    work.adopted += 1;
-                    source
-                }
-                None => {
-                    work.parsed += 1;
+        pending.push(match lib.take_preparsed_source(&parse_options) {
+            Some(source) => {
+                work.adopted += 1;
+                let (node_lease, array_lease) = source
+                    .lease_identities(identity_domain)
+                    .expect("library source identity allocation failed");
+                PendingProgramSource::Leased(source, node_lease, array_lease)
+            }
+            None => {
+                work.parsed += 1;
+                PendingProgramSource::Ready(
                     tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
                         lib.name.clone(),
                         Arc::clone(lib.snapshot()),
@@ -3955,11 +4317,16 @@ fn parse_lib_sources(
                         None,
                         identity_domain,
                     )
-                    .expect("library source identity allocation failed")
-                }
-            },
-        );
+                    .expect("library source identity allocation failed"),
+                )
+            }
+        });
     }
+    let sources = workers.map_ordered(
+        pending,
+        PendingProgramSource::weight,
+        PendingProgramSource::relocate,
+    );
     (sources, work)
 }
 
@@ -3972,17 +4339,44 @@ fn bind_lib_sources<'a>(
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
 ) -> Vec<tsc_binder::Binder<'a>> {
-    let mut binders = workers.map_ordered(
+    let binders = workers.map_ordered(
         (0..sources.len()).collect(),
         |&index| sources[index].text().len(),
         |index| tsc_binder::Binder::bind_local(&sources[index], options),
     );
-    for binder in &mut binders {
-        binder
-            .relocate_into_identity_domain(identity_domain)
-            .expect("library bind identity allocation failed");
-    }
-    binders
+    relocate_binders_in_program_order(binders, identity_domain, workers)
+}
+
+/// Lease every bind's identities in program order on the calling thread
+/// (the order-dependent step), then rewrite the binds into their ranges on
+/// the budget's workers. The result is identical to relocating each bind in
+/// turn: a bind's ranges depend only on the leases taken before it.
+fn relocate_binders_in_program_order<'a>(
+    binders: Vec<tsc_binder::Binder<'a>>,
+    identity_domain: &IdentityDomain,
+    workers: WorkerBudget,
+) -> Vec<tsc_binder::Binder<'a>> {
+    let lease_started = std::time::Instant::now();
+    let leased = binders
+        .into_iter()
+        .map(|binder| {
+            let leases = binder
+                .lease_identities(identity_domain)
+                .expect("bind identity allocation failed");
+            (binder, leases)
+        })
+        .collect::<Vec<_>>();
+    tsc_types::trace::mark("checker: bind leases (serial)", lease_started);
+    workers.map_ordered(
+        leased,
+        |(binder, _)| binder.source_text_len(),
+        |(mut binder, (symbol_lease, serial_lease))| {
+            binder
+                .relocate_with_leases(identity_domain, symbol_lease, serial_lease)
+                .expect("bind identity relocation failed");
+            binder
+        },
+    )
 }
 
 /// Bind every Program source at local identities on the budget's scoped
@@ -3998,20 +4392,23 @@ fn bind_sources_in_program_order(
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
 ) -> Vec<BindData> {
+    let phase_started = std::time::Instant::now();
     let binders = workers.map_ordered(
         (0..sources.len()).collect(),
         |&index| sources[index].text().len(),
         |index| tsc_binder::Binder::bind_local(sources[index].as_ref(), options),
     );
-    binders
+    tsc_types::trace::mark("checker: bind (parallel, local identities)", phase_started);
+    let phase_started = std::time::Instant::now();
+    let data = relocate_binders_in_program_order(binders, identity_domain, workers)
         .into_iter()
-        .map(|mut binder| {
-            binder
-                .relocate_into_identity_domain(identity_domain)
-                .expect("bind identity allocation failed");
-            binder.into_bind_data()
-        })
-        .collect()
+        .map(tsc_binder::Binder::into_bind_data)
+        .collect();
+    tsc_types::trace::mark(
+        "checker: bind relocation (leases serial, rewrite parallel)",
+        phase_started,
+    );
+    data
 }
 
 /// Consume completed bind workers into immutable document handles. The

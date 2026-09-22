@@ -7,6 +7,7 @@
 //! checkAndReportErrorFor* alternates are M8 rows, ledgered at
 //! on_failed_to_resolve_symbol.
 
+use std::sync::Arc;
 use tsc_binder::node_util::{
     self, body_of, get_immediately_invoked_function_expression, has_syntactic_modifier,
     is_function_like_declaration_kind, is_function_like_kind, is_part_of_parameter_declaration,
@@ -2400,7 +2401,7 @@ impl<'a> CheckerState<'a> {
                 // globalThisSymbol's exports ARE the merged globals
                 // table (initializeTypeChecker 46492 aliases them).
                 let exports = if namespace == self.global_this_symbol {
-                    self.globals.clone()
+                    Arc::new(self.globals.clone())
                 } else {
                     self.get_exports_of_symbol(namespace)?
                 };
@@ -2416,7 +2417,7 @@ impl<'a> CheckerState<'a> {
                 {
                     let resolved_namespace = self.resolve_alias(namespace)?;
                     let alias_exports = if resolved_namespace == self.global_this_symbol {
-                        self.globals.clone()
+                        Arc::new(self.globals.clone())
                     } else {
                         self.get_exports_of_symbol(resolved_namespace)?
                     };

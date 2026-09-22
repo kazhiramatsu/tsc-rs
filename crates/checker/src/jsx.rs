@@ -1393,7 +1393,7 @@ impl<'a> CheckerState<'a> {
             from_method: false,
             target: None,
             mapper: None,
-            instantiations: std::collections::HashMap::new(),
+            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,
@@ -2285,7 +2285,7 @@ impl<'a> CheckerState<'a> {
             NodeData::JsxAttributes(data) => data.properties,
             _ => None,
         });
-        let mut seen: std::collections::HashMap<String, bool> = std::collections::HashMap::new();
+        let mut seen: rustc_hash::FxHashMap<String, bool> = rustc_hash::FxHashMap::default();
         for attr in self.nodes_of(properties) {
             if self.kind_of(attr) == SyntaxKind::JsxSpreadAttribute {
                 continue;

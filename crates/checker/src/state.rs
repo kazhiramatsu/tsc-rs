@@ -162,7 +162,7 @@ pub struct Signature {
     pub mapper: Option<MapperId>,
     /// tsc signature.instantiations (getSignatureInstantiationWithout
     /// FillingInTypeArguments 59903), keyed by getTypeListId.
-    pub instantiations: std::collections::HashMap<String, SignatureId>,
+    pub instantiations: rustc_hash::FxHashMap<String, SignatureId>,
     /// tsc signature.erasedSignatureCache (getErasedSignature 59927).
     pub erased_signature_cache: Option<SignatureId>,
     /// tsc signature.canonicalSignatureCache (getCanonicalSignature
@@ -270,10 +270,11 @@ pub(crate) struct InProgressMappedType {
 pub struct CheckerState<'a> {
     pub binder: ProgramBinder<'a>,
     pub options: &'a CompilerOptions,
-    /// Hook-less, session-owned substrate for checker display
-    /// nodes. Sources are mounted lazily by [`Self::emit_display_target`].
-    pub(crate) emit_display:
-        Option<std::rc::Rc<std::cell::RefCell<tsc_emitter::TransformationResult<'static>>>>,
+    /// Hook-less, session-owned substrate for checker display nodes: the
+    /// arena is retained between uses and wrapped into a transformation
+    /// result for each print by [`Self::with_emit_display`]. Sources are
+    /// mounted lazily by [`Self::emit_display_target`].
+    pub(crate) emit_display: Option<tsc_emitter::TransformArena>,
     pub(crate) emit_display_sources:
         std::collections::BTreeMap<usize, tsc_emitter::TransformSourceId>,
     pub tables: TypeTables,
@@ -289,7 +290,7 @@ pub struct CheckerState<'a> {
     /// checker-key §1.5: five per-relation caches + enumRelation.
     pub relations: RelationCaches,
     /// tsc subtypeReductionCache (47000), list-id keyed.
-    pub subtype_reduction_cache: std::collections::HashMap<String, Vec<tsc_types::TypeId>>,
+    pub subtype_reduction_cache: rustc_hash::FxHashMap<String, Vec<tsc_types::TypeId>>,
     /// greenfield §4.3: all links writes assert this is zero.
     pub speculation_depth: u32,
     /// Order-sensitivity guard (slice W2c): armed only by the sharded driver;
@@ -397,7 +398,7 @@ pub struct CheckerState<'a> {
     /// TypeNode's else arm calls createTypeNodeFromObjectType direct);
     /// the slice guards both — divergence is observable only on a
     /// symbol-less self-containing type, which cannot be constructed.
-    pub(crate) slice_visited_types: std::collections::HashSet<TypeId>,
+    pub(crate) slice_visited_types: rustc_hash::FxHashSet<TypeId>,
     /// nodeBuilder context.inferTypeParameters. Conditional-type
     /// rendering installs the root's infer parameters only while its
     /// extends type is serialized; the type-parameter arm uses this
@@ -458,7 +459,7 @@ pub struct CheckerState<'a> {
     /// entry saves and restores this bit.
     pub(crate) slice_display_clone_at_line_start: bool,
     /// tsc markerTypes (47005): ids of createMarkerType results.
-    pub(crate) marker_types: std::collections::HashSet<TypeId>,
+    pub(crate) marker_types: rustc_hash::FxHashSet<TypeId>,
     /// tsc inVarianceComputation (47422).
     pub(crate) in_variance_computation: bool,
     /// tsc outofbandVarianceMarkerHandler (47113) — the save/replace
@@ -472,7 +473,7 @@ pub struct CheckerState<'a> {
     /// tsc activeTypeMappers/activeTypeMappersCaches/activeTypeMappersCount
     /// (47412-47414): the instantiation cache stack.
     pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
-    pub(crate) active_type_mappers_caches: Vec<std::collections::HashMap<String, TypeId>>,
+    pub(crate) active_type_mappers_caches: Vec<rustc_hash::FxHashMap<String, TypeId>>,
     /// tsc instantiationDepth/instantiationCount (46451-46452); the
     /// count resets at tsc's three entry points — checkExpression,
     /// checkSourceElement, checkDeferredNode (wired at 5.4/5.5).
@@ -513,22 +514,22 @@ pub struct CheckerState<'a> {
     /// consults them. Entries are strictly scoped to an in-progress
     /// ReduceLabel arm (restored on exit AND on unwind).
     pub(crate) reduce_label_overrides:
-        std::collections::HashMap<(usize, tsc_binder::flow::FlowId), Vec<tsc_binder::flow::FlowId>>,
+        rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), Vec<tsc_binder::flow::FlowId>>,
     /// tsc evolvingArrayTypes (70079): elementType→evolving-array memo
     /// (tsc indexes a sparse array by elementType.id).
-    pub(crate) evolving_array_types: std::collections::HashMap<TypeId, TypeId>,
+    pub(crate) evolving_array_types: rustc_hash::FxHashMap<TypeId, TypeId>,
     /// tsc EvolvingArrayType.finalArrayType (getFinalArrayType 70091):
     /// evolving→final memo — the arena Type is immutable once minted,
     /// so the per-type lazy slot lives here.
-    pub(crate) final_array_types: std::collections::HashMap<TypeId, TypeId>,
+    pub(crate) final_array_types: rustc_hash::FxHashMap<TypeId, TypeId>,
     /// tsc flowLoopCaches (47428): per-loop-label finalized-fixpoint
     /// memo, `getFlowNodeId(flow)` → (flow-cache-key → type). FlowIds
     /// are per-file arena indices here, so (file, FlowId) is the
     /// stable identity tsc's lazily assigned flow.id provides. Lives
     /// across queries (never trimmed), like tsc's.
-    pub(crate) flow_loop_caches: std::collections::HashMap<
+    pub(crate) flow_loop_caches: rustc_hash::FxHashMap<
         (usize, tsc_binder::flow::FlowId),
-        std::collections::HashMap<tsc_types::JsString, TypeId>,
+        rustc_hash::FxHashMap<tsc_types::JsString, TypeId>,
     >,
     /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
     /// single-entry reachability memo — the immediately previous
@@ -543,13 +544,11 @@ pub struct CheckerState<'a> {
     /// memo (a getFlowNodeId-indexed sparse array there; (file, FlowId)
     /// here like flowLoopCaches). Lives across queries. Err unwinds
     /// leave it unwritten — no undecided verdict outlives its walk.
-    pub(crate) flow_node_reachable:
-        std::collections::HashMap<(usize, tsc_binder::flow::FlowId), bool>,
+    pub(crate) flow_node_reachable: rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), bool>,
     /// tsc flowNodePostSuper (47435): the per-SHARED-node memo for
     /// constructor `super()` ordering. Like flowNodeReachable, the
     /// stable key is the owning file plus its arena-local FlowId.
-    pub(crate) flow_node_post_super:
-        std::collections::HashMap<(usize, tsc_binder::flow::FlowId), bool>,
+    pub(crate) flow_node_post_super: rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), bool>,
     /// tsc withinUnreachableCode (46457): once one 7027 range is
     /// reported, elements checked INSIDE it stay silent; saved and
     /// restored by check_source_element like currentNode.
@@ -557,7 +556,7 @@ pub struct CheckerState<'a> {
     /// tsc reportedUnreachableNodes (46458): statements already
     /// covered by an aggregated 7027 range; cleared per checked file
     /// (86985's `= void 0`).
-    pub(crate) reported_unreachable_nodes: std::collections::HashSet<NodeId>,
+    pub(crate) reported_unreachable_nodes: rustc_hash::FxHashSet<NodeId>,
     /// tsrs-native: number of source files whose checkSourceFileWorker body
     /// ran (not skipped by skipTypeChecking and not already TypeChecked).
     /// H2.8c evidence counter; never consulted by checking itself.
@@ -573,7 +572,7 @@ pub struct CheckerState<'a> {
     /// so it lives here instead of the clone-on-read NodeLinks; the JS
     /// Set's visit-inserts-during-forEach semantics are reproduced by
     /// index iteration over the IndexSet.
-    pub(crate) deferred_nodes: std::collections::HashMap<NodeId, indexmap::IndexSet<NodeId>>,
+    pub(crate) deferred_nodes: rustc_hash::FxHashMap<NodeId, indexmap::IndexSet<NodeId>>,
 
     // ---- M4 5.8a: checkSourceFileWorker's per-file accumulators ----
     // tsc potential*Collisions + potentialUnusedRenamedBindingElements
@@ -599,7 +598,7 @@ pub struct CheckerState<'a> {
     /// set lookup: a Vec `contains` probe per registration was quadratic
     /// in the number of declarations of one file.
     pub(crate) potentially_unused_identifiers:
-        std::collections::HashMap<NodeId, indexmap::IndexSet<NodeId, rustc_hash::FxBuildHasher>>,
+        rustc_hash::FxHashMap<NodeId, indexmap::IndexSet<NodeId, rustc_hash::FxBuildHasher>>,
     /// tsc deferredGlobalDisposableType (60882) — emptyObjectType memo
     /// on miss, like the Promise pair above.
     pub(crate) deferred_global_disposable_type: Option<TypeId>,
@@ -625,7 +624,7 @@ pub struct CheckerState<'a> {
     /// materialization stays lazy (the documented 5.0 deviation). The
     /// lazy getters consult this memo instead of re-probing — one
     /// resolveName-with-message per name per program, like tsc.
-    pub(crate) init_global_type_probes: std::collections::HashMap<&'static str, Option<SymbolId>>,
+    pub(crate) init_global_type_probes: rustc_hash::FxHashMap<&'static str, Option<SymbolId>>,
     /// tsc deferredGlobalNonNullableTypeAlias: None = uncomputed,
     /// Some(None) = miss (unknownSymbol memo), Some(Some(_)) = alias.
     pub(crate) deferred_global_non_nullable_type_alias: Option<Option<SymbolId>>,
@@ -649,7 +648,7 @@ pub struct CheckerState<'a> {
     pub(crate) widening_contexts: Vec<WideningContext>,
     /// tsc undefinedProperties (47426): the per-checker
     /// getUndefinedProperty cache keyed by escaped name.
-    pub(crate) undefined_properties: std::collections::HashMap<tsc_types::EscapedName, SymbolId>,
+    pub(crate) undefined_properties: rustc_hash::FxHashMap<tsc_types::EscapedName, SymbolId>,
 
     // ---- M4 5.5: expression-checking state ----
     /// tsc typeofType (47100): union of the typeofNEFacts key literals
@@ -698,9 +697,9 @@ pub struct CheckerState<'a> {
     /// (46991-46992). The value's None is the stored JS `undefined`
     /// verdict and is distinct from an absent key.
     pub(crate) reverse_homomorphic_mapped_cache:
-        std::collections::HashMap<(TypeId, TypeId, TypeId), Option<TypeId>>,
+        rustc_hash::FxHashMap<(TypeId, TypeId, TypeId), Option<TypeId>>,
     pub(crate) reverse_mapped_cache:
-        std::collections::HashMap<(TypeId, TypeId, TypeId), Option<TypeId>>,
+        rustc_hash::FxHashMap<(TypeId, TypeId, TypeId), Option<TypeId>>,
     /// tsc reverseMappedSourceStack / reverseMappedTargetStack /
     /// reverseExpandingFlags (46993-46995).
     pub(crate) reverse_mapped_source_stack: Vec<TypeId>,
@@ -709,7 +708,7 @@ pub struct CheckerState<'a> {
     /// tsc cachedTypes (47415): the string-keyed side cache
     /// (getCachedType/setCachedType 47484-47490) — `B{typeId}` literal-
     /// base unions, `D{nodeId},{typeId}` object-literal discrimination.
-    pub(crate) cached_types: std::collections::HashMap<String, TypeId>,
+    pub(crate) cached_types: rustc_hash::FxHashMap<String, TypeId>,
 
     // ---- M5 flow state ----
     /// tsc flowLoopStart (47396): the loop-label fixpoint stack cursor;
@@ -727,7 +726,7 @@ pub struct CheckerState<'a> {
     /// side table — live since 6.3 (the loop-label back-edge walk
     /// clears it; getTypeOfExpression writes it once
     /// flowInvocationCount moves).
-    pub(crate) flow_type_cache: Option<std::collections::HashMap<NodeId, TypeId>>,
+    pub(crate) flow_type_cache: Option<rustc_hash::FxHashMap<NodeId, TypeId>>,
     /// tsc flowInvocationCount (47400).
     pub(crate) flow_invocation_count: u32,
     /// tsc inlineLevel (46453): the const-variable guard-inlining
@@ -738,22 +737,22 @@ pub struct CheckerState<'a> {
     /// tsc links.switchTypes (getSwitchClauseTypes 69938) — state-side
     /// (links writes are speculation-guarded; this cache is a stable
     /// per-switch type list, written only on full success).
-    pub(crate) switch_types_cache: std::collections::HashMap<NodeId, Vec<TypeId>>,
+    pub(crate) switch_types_cache: rustc_hash::FxHashMap<NodeId, Vec<TypeId>>,
     /// tsc links.isExhaustive settled verdicts (isExhaustiveSwitchStatement
     /// 78920) — state-side for the same reason.
-    pub(crate) exhaustive_switch_cache: std::collections::HashMap<NodeId, bool>,
+    pub(crate) exhaustive_switch_cache: rustc_hash::FxHashMap<NodeId, bool>,
     /// tsc links.isExhaustive === 0 (the in-progress marker): a
     /// re-entrant computation of the same switch settles FALSE (the
     /// cycle protocol); unwound entries are removed before the error
     /// escapes (the unwind invariant).
-    pub(crate) exhaustive_switch_computing: std::collections::HashSet<NodeId>,
+    pub(crate) exhaustive_switch_computing: rustc_hash::FxHashSet<NodeId>,
     /// tsc links.effectsSignature (getEffectsSignature 70195) —
     /// state-side; None IS the memoized unknownSignature verdict.
-    pub(crate) effects_signature_cache: std::collections::HashMap<NodeId, Option<SignatureId>>,
+    pub(crate) effects_signature_cache: rustc_hash::FxHashMap<NodeId, Option<SignatureId>>,
     /// tsc signature.resolvedTypePredicate (getTypePredicateOfSignature
     /// 59765) — state-side; None IS the memoized noTypePredicate.
     pub(crate) resolved_type_predicates:
-        std::collections::HashMap<SignatureId, Option<crate::narrow::TypePredicate>>,
+        rustc_hash::FxHashMap<SignatureId, Option<crate::narrow::TypePredicate>>,
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
@@ -798,7 +797,7 @@ pub struct CheckerState<'a> {
     /// from unused @ts-expect-error diagnostics — the
     /// preceding-directive-only rule (the mapped-type
     /// blanket-exemption pin).
-    pub(crate) partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32)>>,
+    pub(crate) partially_checked_ranges: rustc_hash::FxHashMap<usize, Vec<(u32, u32)>>,
     /// tsrs-native: call-like nodes whose getResolvedSignature frame
     /// unwound with CheckAbort and left the resolved_signature slot
     /// Vacant. check_deferred_node's containment skip keys on this to
@@ -807,7 +806,7 @@ pub struct CheckerState<'a> {
     /// which is fully re-resolvable and must keep its deferred checks.
     /// A stale entry whose slot later resolves is inert (the skip
     /// requires the slot to still be Vacant).
-    pub(crate) contained_call_resolutions: std::collections::HashSet<NodeId>,
+    pub(crate) contained_call_resolutions: rustc_hash::FxHashSet<NodeId>,
     /// Public audit records for explicit partial-model containment
     /// events. Unlike the byte ranges above, these use
     /// diagnostic-compatible UTF-16 coordinates. Oracle-crash aborts
@@ -815,7 +814,7 @@ pub struct CheckerState<'a> {
     pub(crate) partial_check_records: Vec<crate::PartialCheck>,
     /// Literal operands whose `satisfies` elaboration already emitted
     /// an inner diagnostic. Re-checks must not add the outer 1360.
-    pub(crate) elaborated_satisfies_expressions: std::collections::HashSet<NodeId>,
+    pub(crate) elaborated_satisfies_expressions: rustc_hash::FxHashSet<NodeId>,
 
     // ---- M4 5.0: the global environment (initializeTypeChecker) ----
     /// tsc `globals` (46488): non-module file locals merged in program
@@ -836,28 +835,27 @@ pub struct CheckerState<'a> {
     /// tsc unresolvedSymbols (47008): full entity-name path to the
     /// synthetic TypeAlias symbol used to preserve a missing written
     /// name after resolveEntityName has reported it.
-    pub(crate) unresolved_symbols: std::collections::HashMap<String, SymbolId>,
+    pub(crate) unresolved_symbols: rustc_hash::FxHashMap<String, SymbolId>,
     /// tsc errorTypes (47009): alias identity (symbol + written type
     /// arguments) to the per-reference error intrinsic. These remain
     /// Any-like semantically while typeToString prints the alias face.
-    pub(crate) error_types: std::collections::HashMap<String, TypeId>,
+    pub(crate) error_types: rustc_hash::FxHashMap<String, TypeId>,
     /// tsc patternAmbientModules (initializeTypeChecker 88754-88756).
     pub pattern_ambient_modules: Vec<(tsc_types::JsString, tsc_types::JsString, SymbolId)>,
     /// tsc patternAmbientModuleAugmentations (mergeModuleAugmentation
     /// 47865): augmentation name → the unidirectionally-merged symbol.
-    pub pattern_ambient_module_augmentations:
-        std::collections::HashMap<tsc_types::JsString, SymbolId>,
+    pub pattern_ambient_module_augmentations: rustc_hash::FxHashMap<tsc_types::JsString, SymbolId>,
     /// Module augmentations whose targets sat in the resolver's
     /// Suppressed band (node_modules/baseUrl machinery). Receiver
     /// provenance plus the augmentation container's own resolved
     /// members/index infos scope downstream property-miss containment.
     pub unresolved_module_augmentations:
-        std::collections::HashMap<Vec<tsc_types::EscapedName>, Vec<UnresolvedModuleAugmentation>>,
+        rustc_hash::FxHashMap<Vec<tsc_types::EscapedName>, Vec<UnresolvedModuleAugmentation>>,
     /// Nearest visible node_modules package root for one augmentation
     /// source and package name. Package discovery is host-wide, so cache
     /// it outside the property-miss hot path after the first lookup.
     pub(crate) unresolved_package_root_cache: std::cell::RefCell<
-        std::collections::HashMap<
+        rustc_hash::FxHashMap<
             (tsc_types::JsString, tsc_types::JsString),
             Option<tsc_types::JsString>,
         >,
@@ -866,7 +864,7 @@ pub struct CheckerState<'a> {
     /// index — the host.getResolvedModule seam's lookup table
     /// (program-and-modules.md §2; later files shadow earlier
     /// same-name entries like the program layer's last-index-by-name).
-    pub program_path_index: std::collections::HashMap<tsc_types::JsString, usize>,
+    pub program_path_index: rustc_hash::FxHashMap<tsc_types::JsString, usize>,
     /// Per-Program-file memo of getImpliedNodeFormatForFile /
     /// getImpliedNodeFormatForEmit results. Both are pure functions of the
     /// file name, the installed authoritative metadata, the package-scope
@@ -883,7 +881,7 @@ pub struct CheckerState<'a> {
     pub(crate) authoritative_module_provider: Option<&'a dyn crate::AuthoritativeModuleProvider>,
     pub(crate) authoritative_source_tokens: Vec<crate::AuthoritativeSourceToken>,
     pub(crate) authoritative_source_index_by_token:
-        std::collections::HashMap<crate::AuthoritativeSourceToken, usize>,
+        rustc_hash::FxHashMap<crate::AuthoritativeSourceToken, usize>,
     pub(crate) authoritative_source_may_be_emitted: Vec<bool>,
     pub(crate) authoritative_implied_node_formats: Vec<Option<crate::AuthoritativeResolutionMode>>,
     pub(crate) authoritative_implied_node_formats_for_emit:
@@ -896,13 +894,11 @@ pub struct CheckerState<'a> {
     /// including files the program layer drops (.json bodies, .js
     /// without allowJs) — the resolver's suppression probes read this
     /// set to decide whether a miss is tsc-undecidable (FP=0 rule).
-    pub host_file_paths: std::collections::HashSet<tsc_types::JsString>,
+    pub host_file_paths: rustc_hash::FxHashSet<tsc_types::JsString>,
     /// Exact input text for host reads, including host-only package manifests.
     /// Do not reconstruct a readFile result from parsed JSON or source membership.
-    pub(crate) host_input_snapshots: std::collections::HashMap<
-        tsc_types::JsString,
-        std::sync::Arc<tsc_diagnostics::TextSnapshot>,
-    >,
+    pub(crate) host_input_snapshots:
+        rustc_hash::FxHashMap<tsc_types::JsString, std::sync::Arc<tsc_diagnostics::TextSnapshot>>,
     /// tsrs-native: the harness ProgramJson `cwd` (tsc
     /// host.getCurrentDirectory). The oracle host absolutizes every
     /// program fileName against it (program-host.mjs
@@ -920,33 +916,32 @@ pub struct CheckerState<'a> {
     /// createModeMismatchDetails distinguishes a missing value from
     /// any explicit value.
     pub(crate) host_package_json_module_types:
-        std::collections::HashMap<tsc_types::JsString, PackageJsonModuleType>,
+        rustc_hash::FxHashMap<tsc_types::JsString, PackageJsonModuleType>,
     /// Normalized package.json path → parsed host JSON. The
     /// resolver seam reads `exports`/`imports` targets and must retain
     /// object insertion order because Node condition objects are
     /// first-match, not unordered maps.
     pub(crate) host_package_json_values:
-        std::collections::HashMap<tsc_types::JsString, tsc_program::JsonValue>,
+        rustc_hash::FxHashMap<tsc_types::JsString, tsc_program::JsonValue>,
     /// Normalized package.json path → its non-empty `"name"` field.
     /// Bare self-name imports are undecidable only inside a matching
     /// package scope; an unrelated package.json must not hide 2307.
-    pub host_package_json_names:
-        std::collections::HashMap<tsc_types::JsString, tsc_types::JsString>,
+    pub host_package_json_names: rustc_hash::FxHashMap<tsc_types::JsString, tsc_types::JsString>,
     /// checkExternalEmitHelpers' per-source resolveHelpersModule memo.
     /// `None` is a cached missing or provenance-suppressed `tslib`;
     /// the first definite miss has already emitted 2354.
-    pub(crate) external_helpers_modules: std::collections::HashMap<NodeId, Option<SymbolId>>,
+    pub(crate) external_helpers_modules: rustc_hash::FxHashMap<NodeId, Option<SymbolId>>,
     /// tsc SymbolLinks.requestedExternalEmitHelpers, kept checker-local
     /// because binder symbols are shared by cached lib bundles.
-    pub(crate) requested_external_emit_helpers: std::collections::HashMap<SymbolId, u32>,
+    pub(crate) requested_external_emit_helpers: rustc_hash::FxHashMap<SymbolId, u32>,
     /// Per-source getJsxNamespaceContainerForImplicitImport cache.
     /// `Some(None)` records an attempted miss so repeated JSX nodes do
     /// not duplicate the runtime-module diagnostic.
-    pub(crate) jsx_implicit_import_containers: std::collections::HashMap<usize, Option<SymbolId>>,
+    pub(crate) jsx_implicit_import_containers: rustc_hash::FxHashMap<usize, Option<SymbolId>>,
     /// tsc `node.jsDoc.jsDocCache` (getJSDocTagsWorker): effective,
     /// ownership-filtered tags are syntax-stable and computed once per
     /// host. The checker keeps the cache outside the immutable arena.
-    pub(crate) jsdoc_tag_cache: std::cell::RefCell<std::collections::HashMap<NodeId, Vec<NodeId>>>,
+    pub(crate) jsdoc_tag_cache: std::cell::RefCell<rustc_hash::FxHashMap<NodeId, Vec<NodeId>>>,
     /// Lazy getGlobal*Type memos (deferredGlobal* pattern 60679 for the
     /// deferred ones; the core init block 88788+ is deliberately LAZY
     /// here — m4-checker-skeleton-steps.md 5.0 — so each global starts
@@ -955,7 +950,7 @@ pub struct CheckerState<'a> {
     /// tsc decoratorContextOverrideTypeCache (78504): the per-shape
     /// `{name, private, static}` anonymous-type intern keyed by
     /// `{p|P}{s|S}{nameType.id}`.
-    pub(crate) decorator_context_override_type_cache: std::collections::HashMap<String, TypeId>,
+    pub(crate) decorator_context_override_type_cache: rustc_hash::FxHashMap<String, TypeId>,
 
     // ---- M6 7.5: the parked RelationFrame loan ----
     /// tsrs-native home of tsc's isRelatedToWorker closure frame
@@ -978,14 +973,14 @@ pub struct CheckerState<'a> {
     /// tsc mergedSymbols (recordMergedSymbol 47689): source →
     /// merge-target, per checker. A side map — NOT a symbol field —
     /// so shared (cached) lib binders stay immutable across programs.
-    pub(crate) merged_symbols: std::collections::HashMap<SymbolId, SymbolId>,
+    pub(crate) merged_symbols: rustc_hash::FxHashMap<SymbolId, SymbolId>,
     /// The reverse index (target → sources) for the stage-3.4c
     /// expando-record consults: the record lives on per-file binder
     /// symbols, and amalgamated-duplicate merging clones them into
     /// fresh program symbols, so a merged symbol consults its merge
     /// sources (tsc needs no equivalent — it binds expando members
     /// into the symbol table itself).
-    pub(crate) merged_symbol_sources: std::collections::HashMap<SymbolId, Vec<SymbolId>>,
+    pub(crate) merged_symbol_sources: rustc_hash::FxHashMap<SymbolId, Vec<SymbolId>>,
 
     // ---- M4 5.0: cross-file duplicate grouping ----
     /// tsc amalgamatedDuplicates (initializeTypeChecker 88736; flushed
@@ -1032,7 +1027,7 @@ impl<'a> CheckerState<'a> {
         }
 
         let mut tokens = Vec::with_capacity(metadata.len());
-        let mut source_index_by_token = std::collections::HashMap::new();
+        let mut source_index_by_token = rustc_hash::FxHashMap::default();
         let mut source_may_be_emitted = Vec::with_capacity(metadata.len());
         let mut implied_node_formats = Vec::with_capacity(metadata.len());
         let mut implied_node_formats_for_emit = Vec::with_capacity(metadata.len());
@@ -1107,25 +1102,34 @@ impl<'a> CheckerState<'a> {
         Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options)
     }
 
-    /// Lazily construct the hook-less result that owns checker-built display
-    /// nodes for the lifetime of this checker session.
-    /// tsrs-native: lazily created hook-less TransformationResult owning checker-built display nodes.
-    pub(crate) fn emit_display_result(
+    /// Run `operation` over the hook-less result that owns the checker-built
+    /// display nodes. The arena persists for the session; each use wraps it
+    /// (no roots, no transformers) and takes it back afterwards.
+    /// tsrs-native: hook-less TransformationResult owning checker-built display nodes.
+    pub(crate) fn with_emit_display<R>(
         &mut self,
-    ) -> std::rc::Rc<std::cell::RefCell<tsc_emitter::TransformationResult<'static>>> {
-        self.emit_display
-            .get_or_insert_with(|| {
-                std::rc::Rc::new(std::cell::RefCell::new(
-                    tsc_emitter::transform_nodes(
-                        tsc_emitter::TransformArena::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        true,
-                    )
-                    .expect("hook-less checker display transform must initialize"),
-                ))
-            })
-            .clone()
+        operation: impl FnOnce(&mut tsc_emitter::TransformationResult<'static>) -> R,
+    ) -> R {
+        let mut display = self.take_emit_display();
+        let result = operation(&mut display);
+        self.restore_emit_display(display);
+        result
+    }
+
+    /// The display result wrapped around the retained arena, detached from
+    /// the state so a builder can use the arena and the checker together;
+    /// [`Self::restore_emit_display`] returns the arena afterwards.
+    pub(crate) fn take_emit_display(&mut self) -> tsc_emitter::TransformationResult<'static> {
+        let arena = self.emit_display.take().unwrap_or_default();
+        tsc_emitter::transform_nodes(arena, Vec::new(), Vec::new(), true)
+            .expect("hook-less checker display transform must initialize")
+    }
+
+    pub(crate) fn restore_emit_display(
+        &mut self,
+        display: tsc_emitter::TransformationResult<'static>,
+    ) {
+        self.emit_display = Some(display.into_arena());
     }
 
     /// Mount one binder source into the checker display arena on first use.
@@ -1138,17 +1142,18 @@ impl<'a> CheckerState<'a> {
             return target;
         }
         assert!(file_index < self.binder.file_count());
-        let display = self.emit_display_result();
-        let target = display
-            .borrow_mut()
-            .arena_mut()
-            .expect("checker display result remains live")
-            .add_source(
-                self.binder.source(file_index),
-                Some(tsc_program::SourceFileId::from_raw(
-                    u32::try_from(file_index).expect("checker source index exceeds u32"),
-                )),
-            );
+        let source = self.binder.source(file_index);
+        let target = self.with_emit_display(|display| {
+            display
+                .arena_mut()
+                .expect("checker display result remains live")
+                .add_source(
+                    source,
+                    Some(tsc_program::SourceFileId::from_raw(
+                        u32::try_from(file_index).expect("checker source index exceeds u32"),
+                    )),
+                )
+        });
         self.emit_display_sources.insert(file_index, target);
         target
     }
@@ -1203,7 +1208,7 @@ impl<'a> CheckerState<'a> {
             speculative_signature_return_writes: Vec::new(),
             members: Vec::new(),
             relations: RelationCaches::default(),
-            subtype_reduction_cache: std::collections::HashMap::new(),
+            subtype_reduction_cache: rustc_hash::FxHashMap::default(),
             speculation_depth: 0,
             order_guard: crate::order_guard::OrderGuard::default(),
             checked_source_files: 0,
@@ -1242,7 +1247,7 @@ impl<'a> CheckerState<'a> {
             marker_super_type_for_check: TypeId(0),
             marker_sub_type_for_check: TypeId(0),
             variance_type_parameter: None,
-            slice_visited_types: std::collections::HashSet::new(),
+            slice_visited_types: rustc_hash::FxHashSet::default(),
             slice_infer_type_parameters: Vec::new(),
             slice_approximate_length: 0,
             slice_max_truncation_length: 160,
@@ -1255,7 +1260,7 @@ impl<'a> CheckerState<'a> {
             slice_reuse_visit_depth: 0,
             slice_display_clone_indent: 0,
             slice_display_clone_at_line_start: false,
-            marker_types: std::collections::HashSet::new(),
+            marker_types: rustc_hash::FxHashSet::default(),
             in_variance_computation: false,
             variance_handler_stack: Vec::new(),
             active_type_mappers: Vec::new(),
@@ -1268,36 +1273,36 @@ impl<'a> CheckerState<'a> {
             mapped_types_in_progress: Vec::new(),
             flow_analysis_disabled: false,
             shared_flow: Vec::new(),
-            reduce_label_overrides: std::collections::HashMap::new(),
-            evolving_array_types: std::collections::HashMap::new(),
-            final_array_types: std::collections::HashMap::new(),
-            flow_loop_caches: std::collections::HashMap::new(),
+            reduce_label_overrides: rustc_hash::FxHashMap::default(),
+            evolving_array_types: rustc_hash::FxHashMap::default(),
+            final_array_types: rustc_hash::FxHashMap::default(),
+            flow_loop_caches: rustc_hash::FxHashMap::default(),
             last_flow_node: None,
             last_flow_node_reachable: false,
-            flow_node_reachable: std::collections::HashMap::new(),
-            flow_node_post_super: std::collections::HashMap::new(),
+            flow_node_reachable: rustc_hash::FxHashMap::default(),
+            flow_node_post_super: rustc_hash::FxHashMap::default(),
             within_unreachable_code: false,
-            reported_unreachable_nodes: std::collections::HashSet::new(),
+            reported_unreachable_nodes: rustc_hash::FxHashSet::default(),
             current_node: None,
-            deferred_nodes: std::collections::HashMap::new(),
+            deferred_nodes: rustc_hash::FxHashMap::default(),
             potential_this_collisions: Vec::new(),
             potential_new_target_collisions: Vec::new(),
             potential_weak_map_set_collisions: Vec::new(),
             potential_reflect_collisions: Vec::new(),
             potential_unused_renamed_binding_elements_in_types: Vec::new(),
-            potentially_unused_identifiers: std::collections::HashMap::new(),
+            potentially_unused_identifiers: rustc_hash::FxHashMap::default(),
             deferred_global_disposable_type: None,
             deferred_global_async_disposable_type: None,
             deferred_global_extract_symbol: None,
             suggestion_count: 0,
-            init_global_type_probes: std::collections::HashMap::new(),
+            init_global_type_probes: rustc_hash::FxHashMap::default(),
             deferred_global_non_nullable_type_alias: None,
             deferred_global_record_symbol: None,
             deferred_global_awaited_symbol: None,
             awaited_type_stack: Vec::new(),
             deferred_global_omit_symbol: None,
             widening_contexts: Vec::new(),
-            undefined_properties: std::collections::HashMap::new(),
+            undefined_properties: rustc_hash::FxHashMap::default(),
             typeof_type: TypeId(0),
             contextual_binding_patterns: Vec::new(),
             contextual_type_nodes: Vec::new(),
@@ -1307,22 +1312,22 @@ impl<'a> CheckerState<'a> {
             inference_contexts: Vec::new(),
             inference_context_arena: Vec::new(),
             inference_info_arena: Vec::new(),
-            reverse_homomorphic_mapped_cache: std::collections::HashMap::new(),
-            reverse_mapped_cache: std::collections::HashMap::new(),
+            reverse_homomorphic_mapped_cache: rustc_hash::FxHashMap::default(),
+            reverse_mapped_cache: rustc_hash::FxHashMap::default(),
             reverse_mapped_source_stack: Vec::new(),
             reverse_mapped_target_stack: Vec::new(),
             reverse_expanding_flags: ExpandingFlags::NONE,
-            cached_types: std::collections::HashMap::new(),
+            cached_types: rustc_hash::FxHashMap::default(),
             flow_loop_start: 0,
             flow_loop_stack: Vec::new(),
             flow_type_cache: None,
             flow_invocation_count: 0,
             inline_level: 0,
-            switch_types_cache: std::collections::HashMap::new(),
-            exhaustive_switch_cache: std::collections::HashMap::new(),
-            exhaustive_switch_computing: std::collections::HashSet::new(),
-            effects_signature_cache: std::collections::HashMap::new(),
-            resolved_type_predicates: std::collections::HashMap::new(),
+            switch_types_cache: rustc_hash::FxHashMap::default(),
+            exhaustive_switch_cache: rustc_hash::FxHashMap::default(),
+            exhaustive_switch_computing: rustc_hash::FxHashSet::default(),
+            effects_signature_cache: rustc_hash::FxHashMap::default(),
+            resolved_type_predicates: rustc_hash::FxHashMap::default(),
             diagnostics: DiagnosticSink::default(),
             visible_global_diagnostics: Vec::new(),
             tsc_eager_diagnostics: Vec::new(),
@@ -1330,40 +1335,40 @@ impl<'a> CheckerState<'a> {
             completed_contextual_diagnostics: Vec::new(),
             completed_contextual_visible_global_diagnostics: Vec::new(),
             tsc_eager_iteration_capture_depth: 0,
-            partially_checked_ranges: std::collections::HashMap::new(),
-            contained_call_resolutions: std::collections::HashSet::new(),
+            partially_checked_ranges: rustc_hash::FxHashMap::default(),
+            contained_call_resolutions: rustc_hash::FxHashSet::default(),
             partial_check_records: Vec::new(),
-            elaborated_satisfies_expressions: std::collections::HashSet::new(),
+            elaborated_satisfies_expressions: rustc_hash::FxHashSet::default(),
             globals: SymbolTable::default(),
             undefined_symbol,
             global_this_symbol,
             arguments_symbol,
             require_symbol,
             unknown_symbol,
-            unresolved_symbols: std::collections::HashMap::new(),
-            error_types: std::collections::HashMap::new(),
+            unresolved_symbols: rustc_hash::FxHashMap::default(),
+            error_types: rustc_hash::FxHashMap::default(),
             pattern_ambient_modules: Vec::new(),
-            pattern_ambient_module_augmentations: std::collections::HashMap::new(),
-            unresolved_module_augmentations: std::collections::HashMap::new(),
+            pattern_ambient_module_augmentations: rustc_hash::FxHashMap::default(),
+            unresolved_module_augmentations: rustc_hash::FxHashMap::default(),
             unresolved_package_root_cache: Default::default(),
-            program_path_index: std::collections::HashMap::new(),
+            program_path_index: rustc_hash::FxHashMap::default(),
             implied_node_format_memo: std::cell::RefCell::new(Vec::new()),
             authoritative_module_provider: None,
             authoritative_source_tokens: Vec::new(),
-            authoritative_source_index_by_token: std::collections::HashMap::new(),
+            authoritative_source_index_by_token: rustc_hash::FxHashMap::default(),
             authoritative_source_may_be_emitted: Vec::new(),
             authoritative_implied_node_formats: Vec::new(),
             authoritative_implied_node_formats_for_emit: Vec::new(),
             authoritative_module_failure: std::cell::OnceCell::new(),
-            host_file_paths: std::collections::HashSet::new(),
-            host_input_snapshots: std::collections::HashMap::new(),
+            host_file_paths: rustc_hash::FxHashSet::default(),
+            host_input_snapshots: rustc_hash::FxHashMap::default(),
             host_current_directory: "/".into(),
-            host_package_json_module_types: std::collections::HashMap::new(),
-            host_package_json_values: std::collections::HashMap::new(),
-            host_package_json_names: std::collections::HashMap::new(),
-            external_helpers_modules: std::collections::HashMap::new(),
-            requested_external_emit_helpers: std::collections::HashMap::new(),
-            jsx_implicit_import_containers: std::collections::HashMap::new(),
+            host_package_json_module_types: rustc_hash::FxHashMap::default(),
+            host_package_json_values: rustc_hash::FxHashMap::default(),
+            host_package_json_names: rustc_hash::FxHashMap::default(),
+            external_helpers_modules: rustc_hash::FxHashMap::default(),
+            requested_external_emit_helpers: rustc_hash::FxHashMap::default(),
+            jsx_implicit_import_containers: rustc_hash::FxHashMap::default(),
             jsdoc_tag_cache: Default::default(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),
@@ -1372,8 +1377,8 @@ impl<'a> CheckerState<'a> {
             resolution_results: Vec::new(),
             resolution_property_names: Vec::new(),
             resolution_start: 0,
-            merged_symbols: std::collections::HashMap::new(),
-            merged_symbol_sources: std::collections::HashMap::new(),
+            merged_symbols: rustc_hash::FxHashMap::default(),
+            merged_symbol_sources: rustc_hash::FxHashMap::default(),
             amalgamated_duplicates: Some(indexmap::IndexMap::new()),
         };
         // undefinedSymbol.declarations = [] (46490); globalThisSymbol
@@ -1573,7 +1578,7 @@ impl<'a> CheckerState<'a> {
             from_method: false,
             target: None,
             mapper: None,
-            instantiations: std::collections::HashMap::new(),
+            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,

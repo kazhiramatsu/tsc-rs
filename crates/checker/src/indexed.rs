@@ -208,7 +208,7 @@ impl<'a> CheckerState<'a> {
 
     fn is_reducible_intersection(&mut self, ty: TypeId) -> CheckResult<bool> {
         let unique_filled = match self.links.read_ty(ty, |links| {
-            links.unique_literal_filled_instantiation.resolved()
+            links.cold().unique_literal_filled_instantiation.resolved()
         }) {
             Some(cached) => cached,
             None => {
@@ -235,11 +235,12 @@ impl<'a> CheckerState<'a> {
     ) -> TypeId {
         let strings_only = index_flags.intersects(IndexFlags::STRINGS_ONLY);
         let cached = if strings_only {
-            self.links
-                .read_ty(ty, |links| links.resolved_string_index_type.resolved())
+            self.links.read_ty(ty, |links| {
+                links.cold().resolved_string_index_type.resolved()
+            })
         } else {
             self.links
-                .read_ty(ty, |links| links.resolved_index_type.resolved())
+                .read_ty(ty, |links| links.cold().resolved_index_type.resolved())
         };
         if let Some(cached) = cached {
             return cached;
@@ -788,9 +789,9 @@ impl<'a> CheckerState<'a> {
         {
             let links = self.links.ty(ty);
             let slot = if writing {
-                &links.simplified_for_writing
+                &links.cold().simplified_for_writing
             } else {
-                &links.simplified_for_reading
+                &links.cold().simplified_for_reading
             };
             if slot.is_resolving() {
                 // The circular sentinel: mid-flight re-entry reads the

@@ -771,7 +771,7 @@ impl<'a> CheckerState<'a> {
         {
             let containing = self
                 .links
-                .read_symbol(prop, |links| links.containing_type)
+                .read_symbol(prop, |links| links.cold().containing_type)
                 .expect("Synthetic check flag implies containing type");
             let name = self.binder.symbol(prop).escaped_name.clone();
             let constituents: Vec<TypeId> = match &self.tables.type_of(containing).data {
@@ -2443,10 +2443,11 @@ impl<'a> CheckerState<'a> {
         if let crate::links::LinkSlot::Resolved(ty) = links.write_type {
             return Ok(Some(ty));
         }
-        let Some(constituents) = links.deferral_write_constituents else {
+        let Some(constituents) = links.cold().deferral_write_constituents.clone() else {
             return Ok(None);
         };
         let parent = links
+            .cold()
             .deferral_parent
             .expect("DeferredType implies links.deferral_parent");
         let ty = if self.tables.flags_of(parent).intersects(TypeFlags::UNION) {
@@ -4163,7 +4164,7 @@ impl<'a> CheckerState<'a> {
         if self.unresolved_module_augmentations.is_empty() {
             return Ok(false);
         }
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = rustc_hash::FxHashSet::default();
         self.type_may_receive_unresolved_augmentation_property(ty, property_name, &mut seen)
     }
 
@@ -4171,7 +4172,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         property_name: &str,
-        seen: &mut std::collections::HashSet<TypeId>,
+        seen: &mut rustc_hash::FxHashSet<TypeId>,
     ) -> CheckResult<bool> {
         if !seen.insert(ty) {
             return Ok(false);
@@ -4323,7 +4324,7 @@ impl<'a> CheckerState<'a> {
                 });
         let mut path = Vec::new();
         let mut current = Some(symbol);
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = rustc_hash::FxHashSet::default();
         let mut source_module = None;
         while let Some(symbol) = current {
             if !seen.insert(symbol) {
@@ -4348,7 +4349,7 @@ impl<'a> CheckerState<'a> {
     fn symbol_declaration_sources(&self, symbol: SymbolId) -> Vec<JsString> {
         let mut sources = Vec::new();
         let mut current = Some(symbol);
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = rustc_hash::FxHashSet::default();
         while let Some(symbol) = current {
             if !seen.insert(symbol) {
                 break;

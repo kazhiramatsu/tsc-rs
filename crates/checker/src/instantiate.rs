@@ -452,10 +452,9 @@ impl<'a> CheckerState<'a> {
         if unconstrained {
             return tp;
         }
-        if let Some(cached) = self
-            .links
-            .read_ty(tp, |links| links.restrictive_instantiation.resolved())
-        {
+        if let Some(cached) = self.links.read_ty(tp, |links| {
+            links.cold().restrictive_instantiation.resolved()
+        }) {
             return cached;
         }
         let symbol = self.tables.type_of(tp).symbol;
@@ -559,7 +558,7 @@ impl<'a> CheckerState<'a> {
             from_method: source.from_method,
             target: Some(signature),
             mapper: Some(mapper),
-            instantiations: std::collections::HashMap::new(),
+            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,
@@ -1874,7 +1873,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.permissive_instantiation.resolved())
+            .read_ty(ty, |links| links.cold().permissive_instantiation.resolved())
         {
             return Ok(cached);
         }
@@ -1896,10 +1895,9 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(cached) = self
-            .links
-            .read_ty(ty, |links| links.restrictive_instantiation.resolved())
-        {
+        if let Some(cached) = self.links.read_ty(ty, |links| {
+            links.cold().restrictive_instantiation.resolved()
+        }) {
             return Ok(cached);
         }
         let mapper = self.restrictive_mapper;
@@ -1920,7 +1918,7 @@ impl<'a> CheckerState<'a> {
         perf::bump(PerfCounter::MapperScopePushes);
         self.active_type_mappers.push(mapper);
         self.active_type_mappers_caches
-            .push(std::collections::HashMap::new());
+            .push(rustc_hash::FxHashMap::default());
     }
 
     /// tsc-port: popActiveMapper @6.0.3

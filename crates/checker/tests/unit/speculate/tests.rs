@@ -171,9 +171,7 @@ fn mutate_everything(state: &mut CheckerState) {
     state.inference_context_nodes.push(root);
     state.inference_contexts.push(None);
     state.awaited_type_stack.push(string);
-    state
-        .active_type_mappers_caches
-        .push(std::collections::HashMap::new());
+    state.active_type_mappers_caches.push(Default::default());
     state.mapped_types_in_progress.push(InProgressMappedType {
         node: root,
         ty: string,
@@ -422,6 +420,7 @@ fn link_protocols_are_temporary_on_commit_and_rollback() {
         assert!(state
             .links
             .symbol(committed_symbol)
+            .cold()
             .unique_es_symbol_type
             .is_none());
         assert!(matches!(
@@ -453,6 +452,7 @@ fn link_protocols_are_temporary_on_commit_and_rollback() {
         assert!(state
             .links
             .symbol(rolled_back_symbol)
+            .cold()
             .unique_es_symbol_type
             .is_none());
         assert!(matches!(

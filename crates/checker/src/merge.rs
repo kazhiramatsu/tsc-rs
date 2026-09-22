@@ -11,7 +11,7 @@ use tsc_binder::node_util::get_name_of_declaration;
 use tsc_binder::{SymbolId, SymbolTable};
 use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{JsStr, JsString, NodeFlags, SymbolFlags, TypeData, TypeFlags};
+use tsc_types::{EscapedName, JsStr, JsString, NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState};
@@ -189,7 +189,7 @@ impl<'a> CheckerState<'a> {
     /// redirection, exactly like tsc.
     pub(crate) fn merge_js_symbols(&mut self, target: SymbolId, source: SymbolId) -> SymbolId {
         if let Some(inferred) = self.links.read_symbol(source, |links| {
-            links.inferred_class_symbols.get(&target).copied()
+            links.cold().inferred_class_symbols.get(&target).copied()
         }) {
             return inferred;
         }
@@ -786,6 +786,24 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// `merge_into_globals` over borrowed entries (a file's locals listed
+    /// without cloning its table).
+    fn merge_entries_into_globals(
+        &mut self,
+        source: &[(EscapedName, SymbolId)],
+        unidirectional: bool,
+    ) {
+        for (id, source_symbol) in source {
+            let source_symbol = *source_symbol;
+            let target_symbol = self.globals.get(id).copied();
+            let merged = match target_symbol {
+                Some(existing) => self.merge_symbol(existing, source_symbol, unidirectional),
+                None => self.get_merged_symbol(source_symbol),
+            };
+            self.globals.insert(id.clone(), merged);
+        }
+    }
+
     /// tsc-port: addUndefinedToGlobalsOrErrorOnRedeclaration @6.0.3
     /// tsc-hash: 441bb0403861850ce1c4a8190e56d54ee70bfccfb47b247bd784ae08bc8af46c
     /// tsc-span: _tsc.js:47882-47894
@@ -837,8 +855,19 @@ impl<'a> CheckerState<'a> {
             let is_external_module = source.external_module_indicator.is_some()
                 || self.binder.file(index).common_js_module_indicator.is_some();
             if !is_external_module {
-                if let Some(locals) = self.binder.locals_of(source.root).cloned() {
-                    if let Some(&file_global_this) = locals.get("globalThis") {
+                // The binder table is immutable for the session; only its
+                // entries are needed, so borrow them into a list instead of
+                // cloning the whole map per file per checker.
+                let locals = self.binder.locals_of(source.root).map(|locals| {
+                    locals
+                        .iter()
+                        .map(|(name, &symbol)| (name.clone(), symbol))
+                        .collect::<Vec<_>>()
+                });
+                if let Some(locals) = locals {
+                    if let Some(&(_, file_global_this)) =
+                        locals.iter().find(|(name, _)| name.as_js() == "globalThis")
+                    {
                         let declarations =
                             self.binder.symbol(file_global_this).declarations.clone();
                         for declaration in declarations {
@@ -850,7 +879,7 @@ impl<'a> CheckerState<'a> {
                             self.diagnostics.push(diagnostic);
                         }
                     }
-                    self.merge_into_globals(&locals, false);
+                    self.merge_entries_into_globals(&locals, false);
                 }
             }
             // file.jsGlobalAugmentations (88751-88753): top-level

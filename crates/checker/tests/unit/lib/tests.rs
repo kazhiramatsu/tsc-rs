@@ -6992,6 +6992,7 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
             crate::DiagnosticSchedule::Eager,
             tsc_program::WorkerBudget::serial(),
             CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap()),
+            None,
         )
         .expect("authoritative result")
     };
@@ -7169,6 +7170,7 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
             crate::DiagnosticSchedule::Eager,
             tsc_program::WorkerBudget::serial(),
             CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap()),
+            None,
         )
         .expect("authoritative result")
     };
@@ -7413,6 +7415,7 @@ fn assert_order_guard_shape(
             crate::DiagnosticSchedule::Eager,
             tsc_program::WorkerBudget::serial(),
             CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap()),
+            None,
         )
         .expect("authoritative result")
     };
@@ -7557,5 +7560,21 @@ fn order_guard_pins_both_halves_of_the_contextual_this_head() {
         "const f: FAlpha | FBeta = function () {\n    this.beta;\n    return 1;\n};\n",
         &[],
         crate::order_guard::OrderReason::CONTEXTUAL_SIGNATURE,
+    );
+}
+
+#[test]
+fn links_record_sizes_probe() {
+    use std::mem::size_of;
+    eprintln!(
+        "SIZES symbol_links={} node_links={} type_links={} symbol_table={} symbol={} node={} type_data={} diagnostic={}",
+        size_of::<crate::links::SymbolLinks>(),
+        size_of::<crate::links::NodeLinks>(),
+        size_of::<crate::links::TypeLinks>(),
+        size_of::<tsc_binder::SymbolTable>(),
+        size_of::<tsc_binder::Symbol>(),
+        size_of::<tsc_syntax::Node>(),
+        size_of::<tsc_types::TypeData>(),
+        size_of::<tsc_diagnostics::Diagnostic>(),
     );
 }

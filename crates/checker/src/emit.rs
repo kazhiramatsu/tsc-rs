@@ -1,8 +1,8 @@
 //! Checker-owned resolver projection used only while an emitting checker
 //! session remains alive.
 
-use std::cell::RefCell;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 
 use tsc_emitter::{
     EmitConstantValue, EmitEnumMemberValue, EmitExportContainerMode, EmitFunctionProperty,
@@ -22,10 +22,14 @@ static NEXT_EMIT_RESOLVER_SESSION_TOKEN: AtomicU64 = AtomicU64::new(1);
 /// One fresh checker whose semantic links and transient arenas remain alive
 /// while transform and print borrow its narrow [`EmitResolver`] projection.
 /// The session never owns or mutates the immutable [`ProgramSnapshot`].
+/// A checked state behind a mutex: the emit resolver of one checker can be
+/// shared by the emit workers of every file that checker owns (tsgo's shape:
+/// emit runs per file on all cores, each file's resolver queries locking its
+/// checker), and the whole session moves between threads.
 pub struct CheckerSession<'program> {
-    state: RefCell<CheckerState<'program>>,
+    state: Mutex<CheckerState<'program>>,
     session_token: u64,
-    program_diagnostics: RefCell<Option<ProgramDiagnosticContext>>,
+    program_diagnostics: Mutex<Option<ProgramDiagnosticContext>>,
 }
 
 struct ProgramDiagnosticContext {
@@ -49,9 +53,9 @@ impl<'program> CheckerSession<'program> {
     /// tsrs-native: ownership adapter for the H1 checker callback boundary.
     pub fn from_checked_state(state: CheckerState<'program>) -> Self {
         Self {
-            state: RefCell::new(state),
+            state: Mutex::new(state),
             session_token: NEXT_EMIT_RESOLVER_SESSION_TOKEN.fetch_add(1, Ordering::Relaxed),
-            program_diagnostics: RefCell::new(None),
+            program_diagnostics: Mutex::new(None),
         }
     }
 
@@ -61,7 +65,10 @@ impl<'program> CheckerSession<'program> {
         preparation: DiagnosticList,
         semantic: Option<DiagnosticList>,
     ) -> Self {
-        *self.program_diagnostics.borrow_mut() = Some(ProgramDiagnosticContext {
+        *self
+            .program_diagnostics
+            .lock()
+            .expect("checker session diagnostics") = Some(ProgramDiagnosticContext {
             preparation,
             semantic,
         });
@@ -74,7 +81,12 @@ impl<'program> CheckerSession<'program> {
     /// checker.getGlobalDiagnostics' ensurePendingDiagnosticWorkComplete (87133-87136);
     /// cite that difference
     pub fn get_global_diagnostics(&self) -> DiagnosticList {
-        let mut diagnostics = self.state.borrow().visible_global_diagnostics.clone();
+        let mut diagnostics = self
+            .state
+            .lock()
+            .expect("checker session state")
+            .visible_global_diagnostics
+            .clone();
         tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
         diagnostics
     }
@@ -88,8 +100,11 @@ impl<'program> CheckerSession<'program> {
     pub fn get_program_semantic_diagnostics(
         &self,
     ) -> Result<(DiagnosticList, Vec<crate::PartialCheck>), crate::AuthoritativeModuleFailure> {
-        let mut state = self.state.borrow_mut();
-        let mut context = self.program_diagnostics.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
+        let mut context = self
+            .program_diagnostics
+            .lock()
+            .expect("checker session diagnostics");
         let context =
             context
                 .as_mut()
@@ -150,7 +165,7 @@ impl<'program> CheckerSession<'program> {
         &self,
         source: AuthoritativeSourceToken,
     ) -> Result<Vec<crate::PartialCheck>, crate::AuthoritativeModuleFailure> {
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         let index = state
             .authoritative_source_index_by_token
             .get(&source)
@@ -175,7 +190,7 @@ impl<'program> CheckerSession<'program> {
     pub fn prepare_program_emit(
         &self,
     ) -> Result<Vec<crate::PartialCheck>, crate::AuthoritativeModuleFailure> {
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         let files = state.binder.file_ids().collect::<Vec<_>>();
         for file in files {
             state.check_source_file(file.index());
@@ -189,14 +204,17 @@ impl<'program> CheckerSession<'program> {
     /// tsrs-native: H2.8c evidence — how many source files ran the
     /// checkSourceFileWorker body in this session so far.
     pub fn checked_source_files(&self) -> u32 {
-        self.state.borrow().checked_source_files
+        self.state
+            .lock()
+            .expect("checker session state")
+            .checked_source_files
     }
 
     /// Reclaim checker state after the emitter has released its resolver
     /// borrow so the driver can assemble diagnostics and observations.
     /// tsrs-native: ownership adapter after the H1 checker callback boundary.
     pub fn into_state(self) -> CheckerState<'program> {
-        self.state.into_inner()
+        self.state.into_inner().expect("checker session state")
     }
 
     fn with_resolver_node<T>(
@@ -205,7 +223,7 @@ impl<'program> CheckerSession<'program> {
         node: EmitResolverNode,
         operation: impl FnOnce(&mut CheckerState<'program>, tsc_syntax::NodeId) -> CheckResult<T>,
     ) -> Result<T, EmitResolverError> {
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, node)?;
         operation(&mut state, node.node()).map_err(|abort| EmitResolverError::CheckerAborted {
             method,
@@ -225,7 +243,7 @@ impl<'program> CheckerSession<'program> {
             tsc_syntax::NodeId,
         ) -> CheckResult<T>,
     ) -> Result<T, EmitResolverError> {
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, node)?;
         validate_resolver_node(&state, method, location)?;
         operation(&mut state, node.node(), location.node()).map_err(|abort| {
@@ -248,7 +266,7 @@ impl<'program> CheckerSession<'program> {
             SymbolId,
         ) -> CheckResult<T>,
     ) -> Result<T, EmitResolverError> {
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, node)?;
         let symbol = validate_resolver_symbol(&state, self.session_token, method, symbol)?;
         operation(&mut state, node.node(), symbol).map_err(|abort| {
@@ -271,7 +289,11 @@ impl<'program> CheckerSession<'program> {
 /// methods retain the trait's typed unavailable default.
 impl EmitResolver for CheckerSession<'_> {
     fn has_global_name(&self, name: &str) -> Result<bool, EmitResolverError> {
-        Ok(self.state.borrow().emit_has_global_name(name))
+        Ok(self
+            .state
+            .lock()
+            .expect("checker session state")
+            .emit_has_global_name(name))
     }
 
     fn collect_linked_aliases(
@@ -301,7 +323,7 @@ impl EmitResolver for CheckerSession<'_> {
         &self,
         source: tsc_program::SourceFileId,
     ) -> Result<bool, EmitResolverError> {
-        let state = self.state.borrow();
+        let state = self.state.lock().expect("checker session state");
         let source_index = resolver_source_index(
             &state,
             EmitResolverMethod::CanIncludeBindAndCheckDiagnostics,
@@ -542,7 +564,7 @@ impl EmitResolver for CheckerSession<'_> {
         &self,
         source: tsc_program::SourceFileId,
     ) -> Result<(), EmitResolverError> {
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         let index =
             resolver_source_index(&state, EmitResolverMethod::MarkLinkedReferences, source)?;
         let file = state.binder.source(index);
@@ -914,7 +936,7 @@ impl EmitResolver for CheckerSession<'_> {
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
         let method = EmitResolverMethod::CreateTypeOfDeclaration;
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, declaration)?;
         validate_resolver_node(&state, method, enclosing_declaration)?;
         state.emit_create_type_of_declaration(
@@ -944,7 +966,7 @@ impl EmitResolver for CheckerSession<'_> {
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
         let method = EmitResolverMethod::CreateTypeOfDeclarationInExpandoScope;
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, declaration)?;
         validate_resolver_node(&state, method, function)?;
         validate_resolver_node(&state, method, enclosing_declaration)?;
@@ -971,7 +993,7 @@ impl EmitResolver for CheckerSession<'_> {
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
         let method = EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration;
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, signature_declaration)?;
         validate_resolver_node(&state, method, enclosing_declaration)?;
         state.emit_create_return_type_of_signature_declaration(
@@ -996,7 +1018,7 @@ impl EmitResolver for CheckerSession<'_> {
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
         let method = EmitResolverMethod::CreateTypeOfExpression;
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, expression)?;
         validate_resolver_node(&state, method, enclosing_declaration)?;
         state.emit_create_type_of_expression(
@@ -1018,7 +1040,7 @@ impl EmitResolver for CheckerSession<'_> {
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<tsc_emitter::TransformNode, EmitResolverError> {
         let method = EmitResolverMethod::CreateLiteralConstValue;
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, node)?;
         state.emit_create_literal_const_value(arena, target, node.node(), tracker)
     }
@@ -1033,7 +1055,7 @@ impl EmitResolver for CheckerSession<'_> {
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, EmitResolverError> {
         let method = EmitResolverMethod::GetDeclarationStatementsForSourceFile;
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, node)?;
         state.emit_get_declaration_statements_for_source_file(
             arena,
@@ -1056,7 +1078,7 @@ impl EmitResolver for CheckerSession<'_> {
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, EmitResolverError> {
         let method = EmitResolverMethod::CreateLateBoundIndexSignatures;
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, container)?;
         validate_resolver_node(&state, method, enclosing_declaration)?;
         state.emit_create_late_bound_index_signatures(
@@ -1081,7 +1103,7 @@ impl EmitResolver for CheckerSession<'_> {
         verbosity_level: Option<i32>,
         out: Option<&mut tsc_emitter::EmitSymbolExpansionOut>,
     ) -> Result<Vec<tsc_emitter::TransformNode>, EmitResolverError> {
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock().expect("checker session state");
         let resolved = validate_resolver_symbol(
             &state,
             self.session_token,

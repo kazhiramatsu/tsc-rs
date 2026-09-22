@@ -1,7 +1,7 @@
 //! Ordered diagnostic storage with an auxiliary index for exact duplicates.
 
+use rustc_hash::FxHashMap as HashMap;
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 
@@ -62,7 +62,7 @@ impl DiagnosticSink {
             }
         } else {
             let index = self.index.get_or_insert_with(|| {
-                let mut index: HashMap<u64, Vec<usize>> = HashMap::new();
+                let mut index: HashMap<u64, Vec<usize>> = HashMap::default();
                 for (position, row) in self.diagnostics.iter().enumerate() {
                     index.entry(bucket(row)).or_default().push(position);
                 }

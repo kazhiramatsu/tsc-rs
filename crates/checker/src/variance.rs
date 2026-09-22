@@ -82,7 +82,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<VariancesResult> {
         match &self
             .links
-            .read_symbol(symbol, |links| links.variances.clone())
+            .read_symbol(symbol, |links| links.cold().variances.clone())
         {
             LinkSlot::Resolved(list) => return Ok(VariancesResult::Known(list.clone())),
             LinkSlot::Resolving => {

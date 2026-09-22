@@ -397,7 +397,7 @@ impl<'a> CheckerState<'a> {
             NodeData::InterfaceDeclaration(data) => data.members,
             _ => None,
         };
-        let mut names: std::collections::HashSet<JsString> = std::collections::HashSet::new();
+        let mut names: rustc_hash::FxHashSet<JsString> = rustc_hash::FxHashSet::default();
         for member in self.nodes_of(members) {
             if self.kind_of(member) != SyntaxKind::PropertySignature {
                 continue;
@@ -1233,7 +1233,7 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .read_symbol(symbol, |links| links.type_parameters_checked)
+            .read_symbol(symbol, |links| links.cold().type_parameters_checked)
         {
             return Ok(());
         }
@@ -1368,14 +1368,13 @@ impl<'a> CheckerState<'a> {
         const GET_OR_SET_ACCESSOR: u32 = GET_ACCESSOR | SET_ACCESSOR;
         const METHOD: u32 = 8;
         const PRIVATE_STATIC: u32 = 16;
-        let mut instance_names: std::collections::HashMap<EscapedName, u32> = Default::default();
-        let mut static_names: std::collections::HashMap<EscapedName, u32> = Default::default();
-        let mut private_identifiers: std::collections::HashMap<EscapedName, u32> =
-            Default::default();
+        let mut instance_names: rustc_hash::FxHashMap<EscapedName, u32> = Default::default();
+        let mut static_names: rustc_hash::FxHashMap<EscapedName, u32> = Default::default();
+        let mut private_identifiers: rustc_hash::FxHashMap<EscapedName, u32> = Default::default();
         // addName (81402-81423): the meaning-merge lattice.
         fn add_name(
             state: &mut CheckerState<'_>,
-            names: &mut std::collections::HashMap<EscapedName, u32>,
+            names: &mut rustc_hash::FxHashMap<EscapedName, u32>,
             location: NodeId,
             name: EscapedName,
             meaning: u32,
@@ -2427,7 +2426,7 @@ impl<'a> CheckerState<'a> {
             prop: SymbolId,
             containing_type: TypeId,
         }
-        let mut seen: std::collections::HashMap<EscapedName, SeenEntry> = Default::default();
+        let mut seen: rustc_hash::FxHashMap<EscapedName, SeenEntry> = Default::default();
         let declared_members = self.resolve_declared_members(ty)?;
         for prop in self.members_of(declared_members).properties.clone() {
             let escaped_name = self.binder.symbol(prop).escaped_name.clone();

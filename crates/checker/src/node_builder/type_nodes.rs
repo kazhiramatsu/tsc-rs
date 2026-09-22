@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
@@ -3074,7 +3074,7 @@ fn visit_and_transform_type(
     if let Some((symbol, old)) = depth {
         context
             .symbol_depth
-            .get_or_insert_with(HashMap::new)
+            .get_or_insert_with(HashMap::default)
             .insert(symbol, old + 1);
     }
     context
@@ -3179,7 +3179,7 @@ fn create_type_node_from_object_type(
         && (checker
             .is_generic_mapped_type_state(r#type)
             .map_err(|abort| checker_abort_error(checker, context, abort))?
-            || checker.links.ty(r#type).mapped_contains_error)
+            || checker.links.ty(r#type).cold().mapped_contains_error)
     {
         return create_mapped_type_node_from_type(checker, arena, target, r#type, context);
     }
@@ -4137,12 +4137,17 @@ fn should_use_placeholder_for_property(
     stack.contains(&property)
         || !stack.is_empty()
             && stack.last().is_some_and(|last| {
-                checker.links.symbol(*last).property_type.is_some_and(|ty| {
-                    !checker
-                        .tables
-                        .object_flags_of(ty)
-                        .intersects(ObjectFlags::ANONYMOUS)
-                })
+                checker
+                    .links
+                    .symbol(*last)
+                    .cold()
+                    .property_type
+                    .is_some_and(|ty| {
+                        !checker
+                            .tables
+                            .object_flags_of(ty)
+                            .intersects(ObjectFlags::ANONYMOUS)
+                    })
             })
         || is_deeply_nested_reverse_mapped_type_property(checker, property, stack)
 }
@@ -4162,12 +4167,14 @@ fn is_deeply_nested_reverse_mapped_type_property(
     let property_mapped_symbol = checker
         .links
         .symbol(property)
+        .cold()
         .mapped_type
         .and_then(|ty| checker.tables.type_of(ty).symbol);
     stack.iter().rev().take(DEPTH).all(|entry| {
         checker
             .links
             .symbol(*entry)
+            .cold()
             .mapped_type
             .and_then(|ty| checker.tables.type_of(ty).symbol)
             == property_mapped_symbol
@@ -4409,7 +4416,7 @@ fn add_property_to_element_list(
                     from_method: false,
                     target: None,
                     mapper: None,
-                    instantiations: HashMap::new(),
+                    instantiations: HashMap::default(),
                     erased_signature_cache: None,
                     canonical_signature_cache: None,
                     base_signature_cache: None,
@@ -4461,7 +4468,7 @@ fn add_property_to_element_list(
                     from_method: false,
                     target: None,
                     mapper: None,
-                    instantiations: HashMap::new(),
+                    instantiations: HashMap::default(),
                     erased_signature_cache: None,
                     canonical_signature_cache: None,
                     base_signature_cache: None,
@@ -4795,7 +4802,7 @@ pub(crate) fn map_to_type_nodes(
         }
     }
     let may_have_name_collisions = !has_flag(context, USE_FULLY_QUALIFIED_TYPE);
-    let mut seen_names: HashMap<String, Vec<(TypeId, usize)>> = HashMap::new();
+    let mut seen_names: HashMap<String, Vec<(TypeId, usize)>> = HashMap::default();
     let mut result = Vec::with_capacity(types.len());
     for (index, r#type) in types.iter().copied().enumerate() {
         if check_truncation_length(context) && index + 4 < types.len() {

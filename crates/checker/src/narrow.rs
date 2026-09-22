@@ -3031,7 +3031,7 @@ impl<'a> CheckerState<'a> {
             {
                 let origin = self
                     .links
-                    .read_symbol(symbol, |links| links.synthetic_origin);
+                    .read_symbol(symbol, |links| links.cold().synthetic_origin);
                 if let Some(origin) = origin {
                     if self.get_explicit_type_of_symbol(origin)?.is_some() {
                         return self.get_type_of_symbol(symbol).map(Some);
