@@ -884,8 +884,25 @@ impl<'context> StandardDecoratorVisitor<'context> {
         // discarded-value forms above take their own handlers first
         // (discardedValueVisitor, _tsc.js:99183-99210). Only parsed nodes
         // carry exact flags; a subtree synthesized by an earlier transform is
-        // always walked (see EsNextVisitor::visit).
+        // always walked (see EsNextVisitor::visit). Class elements never take
+        // this shortcut: tsc reaches them through classElementVisitor, which
+        // does not consult shouldVisitNode, and an undecorated member of a
+        // decorated class still receives the pending decorator evaluations
+        // of the members before it (its computed name carries them).
+        let class_element = matches!(
+            kind,
+            SyntaxKind::Constructor
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::ClassStaticBlockDeclaration
+                | SyntaxKind::SemicolonClassElement
+                | SyntaxKind::IndexSignature
+                | SyntaxKind::ComputedPropertyName
+        );
         if !mode_sensitive
+            && !class_element
             && self.context.arena().is_parsed_node(original)?
             && !self.should_visit_node(original)
         {
