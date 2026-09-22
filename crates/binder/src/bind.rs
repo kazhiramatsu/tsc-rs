@@ -1622,6 +1622,7 @@ impl<'a> BinderWorker<'a> {
             self.symbols
                 .symbol_mut(symbol)
                 .assignment_declaration_members
+                .get_or_insert_with(Box::default)
                 .insert(node, node);
         }
     }

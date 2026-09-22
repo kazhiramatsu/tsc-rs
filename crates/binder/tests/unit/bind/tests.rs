@@ -162,8 +162,7 @@ fn module_instance_state_pins() {
              interface I2 {}\n",
     );
     let modules = find_nodes(&source, SyntaxKind::ModuleDeclaration);
-    let state =
-        |id: NodeId| get_module_instance_state(&source, id, &mut std::collections::HashMap::new());
+    let state = |id: NodeId| get_module_instance_state(&source, id, &mut Default::default());
     assert_eq!(state(modules[0]), ModuleInstanceState::NonInstantiated);
     assert_eq!(state(modules[1]), ModuleInstanceState::ConstEnumOnly);
     assert_eq!(state(modules[2]), ModuleInstanceState::Instantiated);
@@ -790,7 +789,13 @@ F[key] = 3;
     assert!(f_symbol.flags.intersects(SymbolFlags::CLASS));
     assert!(f_symbol.members.contains_key("x"));
     assert!(f_symbol.members.contains_key(InternalSymbolName::COMPUTED));
-    assert_eq!(f_symbol.assignment_declaration_members.len(), 2);
+    assert_eq!(
+        f_symbol
+            .assignment_declaration_members
+            .as_deref()
+            .map_or(0, |members| members.len()),
+        2
+    );
     assert!(
         !binder.symbols.symbol(g).members.contains_key("y"),
         "an object-valued local with the same spelling is not a this alias"
