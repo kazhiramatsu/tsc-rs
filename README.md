@@ -207,6 +207,93 @@ settings in a [separate configuration](#declaration-files), so its base
 configuration works for both compilation and type checks. Use
 `tsc-rs --noEmit -p .` to check it, including after adding source maps.
 
+## Type-check from Rust (experimental)
+
+**The Rust API is experimental and still under development. Its interfaces
+may change incompatibly.**
+
+The [complete Rust example](crates/compiler/examples/type_check.rs) reads a
+`tsconfig.json`, forces `noEmit`, and returns diagnostics as JSON without
+writing JavaScript or declaration files. It calls the Rust API directly and
+does not require Node.js.
+
+From the repository root, run it against the included TypeScript example:
+
+```sh
+cargo run --locked --manifest-path crates/compiler/Cargo.toml --example type_check -- \
+  examples/type-check/tsconfig.json vendor/typescript-6.0.3/lib
+```
+
+The arguments are the configuration file and the directory containing
+TypeScript's `lib.*.d.ts` files. This API requires the library directory to
+be available at runtime; the checked-in `vendor/typescript-6.0.3/lib` supplies
+the matching declarations. Replace the first argument with your project's
+configuration file to check it instead. The same
+[configuration restrictions](#configuration-for-type-checks) apply.
+
+The included `main.ts` deliberately assigns `"three"` to a `number`, so the
+example exits with status `1` and reports the following (the absolute file
+path depends on your checkout):
+
+```json
+{
+  "has_errors": true,
+  "diagnostics": [
+    {
+      "code": 2322,
+      "category": "error",
+      "message": "Type 'string' is not assignable to type 'number'.",
+      "file": "/path/to/tsc-rs/examples/type-check/main.ts",
+      "start": 6,
+      "length": 5,
+      "line": 1,
+      "column": 7
+    }
+  ]
+}
+```
+
+`start` and `length` count UTF-16 code units; `start` is zero-based. The
+example converts locations to one-based `line` and `column` values, with
+columns also measured in UTF-16 code units. File and location fields can be
+`null` for diagnostics without a source location. Nested diagnostic
+messages are included in `message`.
+
+Change `"three"` to `3` and rerun to get an empty diagnostic list and exit
+status `0`. TypeScript and configuration errors are returned as JSON with
+exit status `1`. If an unsupported project feature, I/O error, or compiler
+execution failure prevents checking, the example writes the reason to
+stderr and exits with status `2`.
+
+### Use the example in your application
+
+For a Rust application located alongside the `tsc-rs` checkout, add these
+dependencies to its `Cargo.toml`:
+
+```toml
+[dependencies]
+tsc-compiler = { package = "tsc-rs-compiler", path = "../tsc-rs/crates/compiler" }
+tsc-program = { package = "tsc-rs-program", path = "../tsc-rs/crates/program" }
+tsc-host = { package = "tsc-rs-host", path = "../tsc-rs/crates/host" }
+tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "../tsc-rs/crates/diagnostics" }
+serde_json = "1.0"
+```
+
+Copy the [example](crates/compiler/examples/type_check.rs) to your
+application's `src/main.rs`, then run it from that application's directory:
+
+```sh
+cargo run -- ../tsc-rs/examples/type-check/tsconfig.json ../tsc-rs/vendor/typescript-6.0.3/lib
+```
+
+To integrate it into your own code, reuse the example's `check_project`
+function. It returns `Diagnostic` values and the source snapshots used for
+location lookup. Read `diagnostic.code()`, `diagnostic.category()`,
+`diagnostic.message`, `diagnostic.file_name`, `diagnostic.start`, and
+`diagnostic.length` directly, or adapt `diagnostic_json` to your output
+format. TypeScript errors are returned as diagnostics; the function's
+`Err` indicates that the check could not complete.
+
 ## Compile individual files
 
 To try a single file, save this as `hello.ts`:
@@ -313,6 +400,36 @@ tsc-rs -p . --listEmittedFiles
 Compiler settings such as `strict`, `outDir`, `sourceMap`, and `declaration`
 belong in `tsconfig.json`; they are not currently accepted as CLI flags.
 For `--noEmit`, see [configuration for type checks](#configuration-for-type-checks).
+
+## Run CI
+
+CI runs automatically when you open or update a pull request. Check the
+results in the pull request's **Checks** tab.
+
+To run CI manually, open the repository's **Actions** tab, choose **ci** or
+**witnesses**, select **Run workflow**, and choose the branch. Run both
+workflows for complete validation. Select a run to view its progress and
+logs.
+
+Alternatively, with GitHub CLI (`gh`) installed and authenticated to an
+account that can run workflows, run these commands from the cloned
+repository. Replace `your-branch` with a branch already pushed to GitHub:
+
+```sh
+gh workflow run ci.yml --ref your-branch
+gh workflow run witness.yml --ref your-branch
+gh run list --branch your-branch
+```
+
+Use a run ID from the list to watch a workflow or rerun its failed jobs:
+
+```sh
+gh run watch RUN_ID --exit-status
+gh run rerun RUN_ID --failed
+```
+
+Replace `RUN_ID` with the relevant numeric ID. A rerun uses the original
+commit; push fixes to the pull request branch to validate the updated code.
 
 ## Current limitations
 
