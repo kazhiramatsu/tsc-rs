@@ -16,12 +16,18 @@ path = "src/lib.rs"
 name = "tsc-rs"
 path = "src/bin/tsc-rs.rs"
 
+[features]
+# Measurement builds only: aggregate cache/phase counters printed at exit when
+# TSRS_PERF_COUNTERS is set (see crates/types/src/perf.rs).
+perf-counters = ["tsc-checker/perf-counters", "tsc-types/perf-counters"]
+
 [dependencies]
 tsc-checker.workspace = true
 tsc-diagnostics.workspace = true
 tsc-emitter.workspace = true
 tsc-host.workspace = true
 tsc-program.workspace = true
+tsc-types.workspace = true
 
 [dev-dependencies]
 base64 = "0.22"

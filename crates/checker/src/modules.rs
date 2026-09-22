@@ -28,6 +28,7 @@ use tsc_types::{
 use crate::expr::Ancestor;
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState, PackageJsonModuleType};
+use tsc_types::perf::{self, PerfCounter};
 use tsc_types::TypeId;
 
 /// The export-star collision tracker (getExportsOfModuleWorker's
@@ -1628,6 +1629,7 @@ impl<'a> CheckerState<'a> {
         {
             LinkSlot::Resolved(target) => return Ok(target),
             LinkSlot::Resolving => {
+                perf::bump(PerfCounter::SentinelAliasResolving);
                 // Sentinel found ON ENTRY: cycle collapse to unknown.
                 let unknown = self.unknown_symbol;
                 self.links.set_symbol_alias_target(

@@ -19,6 +19,7 @@ use tsc_types::{TypeData, TypeFlags, TypeId, UnionReduction};
 
 use crate::relate::RelationKind;
 use crate::state::{CheckResult, CheckerState};
+use tsc_types::perf::{self, PerfCounter};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: isTypeSubtypeOf @6.0.3
@@ -344,7 +345,9 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(types));
         }
         let id = self.tables.get_type_list_id(&types);
+        perf::bump(PerfCounter::SubtypeReductionLookups);
         if let Some(cached) = self.subtype_reduction_cache.get(&id) {
+            perf::bump(PerfCounter::SubtypeReductionHits);
             return Ok(Some(cached.clone()));
         }
         let mut has_empty_object = false;

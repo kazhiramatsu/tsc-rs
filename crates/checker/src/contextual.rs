@@ -33,6 +33,7 @@ use tsc_types::{
 
 use crate::indexed::is_numeric_literal_name;
 use crate::state::{CheckResult, CheckerState, SignatureId};
+use tsc_types::perf::{self, PerfCounter};
 
 /// One lazy discriminator of discriminateTypeByDiscriminableItems'
 /// contextual callers (73357/73391): tsc passes `[() => type, name]`
@@ -143,7 +144,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4e226620c66910d6b21cfb246af7d8efb7014b85809ff341f1bac1792c0eebff
     /// tsc-span: _tsc.js:47484-47486
     pub(crate) fn get_cached_type(&self, key: &str) -> Option<TypeId> {
-        self.cached_types.get(key).copied()
+        perf::bump(PerfCounter::ContextualCachedTypeLookups);
+        let hit = self.cached_types.get(key).copied();
+        if hit.is_some() {
+            perf::bump(PerfCounter::ContextualCachedTypeHits);
+        }
+        hit
     }
 
     /// tsc-port: setCachedType @6.0.3

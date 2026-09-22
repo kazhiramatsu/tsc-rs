@@ -411,7 +411,27 @@ impl CompilerHost for CliCompilerHost {
 /// Execute the bounded H0/H1 command-line surface.
 pub fn run_cli(args: &[String]) -> CliOutput {
     let mut no_emit_canary = NoEmitCanary::new();
-    match execute(args, &mut no_emit_canary) {
+    let result = execute(args, &mut no_emit_canary);
+    // Measurement builds only (`perf-counters` feature): aggregate counters
+    // are written to the sidecar file named by TSRS_PERF_COUNTERS (one
+    // `name=value` or `name=unwired` line each); stdout/stderr stay exactly
+    // the ordinary CLI streams. Never compiled into candidate binaries.
+    #[cfg(feature = "perf-counters")]
+    if let Some(path) = std::env::var_os("TSRS_PERF_COUNTERS") {
+        let mut report = String::new();
+        for (name, value) in tsc_types::perf::snapshot() {
+            report.push_str(name);
+            report.push('=');
+            match value {
+                Some(value) => report.push_str(&value.to_string()),
+                None => report.push_str("unwired"),
+            }
+            report.push('\n');
+        }
+        // A failed sidecar write must not change the CLI outcome.
+        let _ = std::fs::write(path, report);
+    }
+    match result {
         Ok(output) => output,
         Err(error) => CliOutput {
             stdout: String::new(),

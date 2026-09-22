@@ -27,6 +27,7 @@ use tsc_syntax::NodeId;
 use crate::evaluate::EvalValue;
 use crate::relate::{EnumRelationError, EnumRelationOutcome, RelationKind};
 use crate::state::{CheckResult, CheckerState};
+use tsc_types::perf::{self, PerfCounter};
 
 #[derive(Debug)]
 struct SimpleTypeRelationOutcome {
@@ -187,7 +188,10 @@ impl<'a> CheckerState<'a> {
                 relation,
                 /*ignore_constraints*/ false,
             )?;
+            perf::bump(PerfCounter::RelationLookups);
             if let Some(&related) = self.relations.cache(relation).get(&key) {
+                perf::bump(PerfCounter::RelationEntryFound);
+                perf::bump(PerfCounter::RelationReturnedCached);
                 self.replay_cached_relation_variance_markers(source, related)?;
                 return Ok(related.intersects(RelationComparisonResult::SUCCEEDED));
             }
@@ -1299,6 +1303,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             self.relation,
             /*ignore_constraints*/ false,
         )?;
+        perf::bump(PerfCounter::RelationSets);
         self.st.relations.cache_mut(self.relation).insert(
             id,
             RelationComparisonResult::from_bits(
@@ -3392,7 +3397,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             self.relation,
             /*ignore_constraints*/ false,
         )?;
+        perf::bump(PerfCounter::RelationLookups);
         if let Some(&entry) = self.st.relations.cache(self.relation).get(&id) {
+            perf::bump(PerfCounter::RelationEntryFound);
             // 65739-65741: a failed, non-overflow cached relation is
             // deliberately recomputed in reporting mode so the exact
             // nested error path can be reconstructed.
@@ -3402,7 +3409,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     RelationComparisonResult::COMPLEXITY_OVERFLOW.bits()
                         | RelationComparisonResult::STACK_DEPTH_OVERFLOW.bits(),
                 ));
-            if !replay_failure {
+            if replay_failure {
+                perf::bump(PerfCounter::RelationRecomputedForDiagnostic);
+            } else {
+                perf::bump(PerfCounter::RelationReturnedCached);
                 // 65742-65750: replay the entry's Reports* bits into
                 // the active handler via the reporter mappers.
                 self.st
@@ -3568,6 +3578,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         } else {
+            perf::bump(PerfCounter::RelationSets);
             self.st.relations.cache_mut(self.relation).insert(
                 id,
                 RelationComparisonResult::from_bits(
@@ -3594,6 +3605,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let key = self.maybe_keys[i].clone();
             self.maybe_keys_set.remove(&key);
             if mark_all_as_succeeded {
+                perf::bump(PerfCounter::RelationSets);
                 self.st.relations.cache_mut(self.relation).insert(
                     key,
                     RelationComparisonResult::from_bits(

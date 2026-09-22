@@ -4,6 +4,7 @@ pub mod escaped_name;
 pub mod flags;
 pub mod identity;
 pub mod options;
+pub mod perf;
 pub mod tables;
 pub mod ty;
 mod version;

@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use rustc_hash::FxHashMap;
 use tsc_binder::SymbolId;
 use tsc_syntax::NodeId;
+use tsc_types::perf::{self, PerfCounter};
 use tsc_types::{ConditionalRootId, EscapedName, JsString, TypeId};
 
 use crate::instantiate::MapperId;
@@ -768,27 +769,39 @@ impl LinksTables {
     /// again; public snapshot getters retain their owned-copy semantics.
     #[inline]
     pub(crate) fn read_node<R>(&self, id: NodeId, read: impl FnOnce(&NodeLinks) -> R) -> R {
+        perf::bump(PerfCounter::LinksNodeReads);
         match self.node.get(&id) {
             Some(links) => read(links),
-            None => read(&NodeLinks::default()),
+            None => {
+                perf::bump(PerfCounter::LinksNodeReadAbsent);
+                read(&NodeLinks::default())
+            }
         }
     }
 
     /// tsrs-native: owned projection of an immutable symbol-links field.
     #[inline]
     pub(crate) fn read_symbol<R>(&self, id: SymbolId, read: impl FnOnce(&SymbolLinks) -> R) -> R {
+        perf::bump(PerfCounter::LinksSymbolReads);
         match self.symbol.get(&id) {
             Some(links) => read(links),
-            None => read(&SymbolLinks::default()),
+            None => {
+                perf::bump(PerfCounter::LinksSymbolReadAbsent);
+                read(&SymbolLinks::default())
+            }
         }
     }
 
     /// tsrs-native: owned projection of an immutable type-links field.
     #[inline]
     pub(crate) fn read_ty<R>(&self, id: TypeId, read: impl FnOnce(&TypeLinks) -> R) -> R {
+        perf::bump(PerfCounter::LinksTypeReads);
         match self.ty.get(&id) {
             Some(links) => read(links),
-            None => read(&TypeLinks::default()),
+            None => {
+                perf::bump(PerfCounter::LinksTypeReadAbsent);
+                read(&TypeLinks::default())
+            }
         }
     }
 
@@ -903,6 +916,18 @@ impl LinksTables {
     fn write_slot<T: Clone + std::fmt::Debug>(slot: &mut LinkSlot<T>, next: LinkSlot<T>) {
         match (&*slot, &next) {
             (LinkSlot::Vacant, _) | (LinkSlot::Resolving, LinkSlot::Resolved(_)) => {
+                match (&*slot, &next) {
+                    (LinkSlot::Vacant, LinkSlot::Resolving) => {
+                        perf::bump(PerfCounter::LinksSlotResolvingStarted)
+                    }
+                    (LinkSlot::Resolving, LinkSlot::Resolved(_)) => {
+                        perf::bump(PerfCounter::LinksSlotResolvedFromResolving)
+                    }
+                    (LinkSlot::Vacant, LinkSlot::Resolved(_)) => {
+                        perf::bump(PerfCounter::LinksSlotResolvedDirect)
+                    }
+                    _ => {}
+                }
                 note_resolving_transition(slot.is_resolving(), next.is_resolving());
                 *slot = next;
             }
@@ -1904,6 +1929,7 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             let slot = &mut self.symbol.entry(write.symbol).or_default().type_of_symbol;
+            perf::bump(PerfCounter::LinksSymbolTypeRollbacks);
             note_resolving_transition(slot.is_resolving(), write.previous.is_resolving());
             *slot = write.previous;
         }

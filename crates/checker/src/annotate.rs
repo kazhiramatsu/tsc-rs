@@ -17,6 +17,7 @@ use crate::links::LinkSlot;
 use crate::state::{
     CheckResult, CheckerState, IndexInfo, MembersId, ResolvedMembers, Signature, SignatureId,
 };
+use tsc_types::perf::{self, PerfCounter};
 
 impl<'a> CheckerState<'a> {
     // ---- node helpers ----
@@ -3746,6 +3747,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.declared_type.resolved())
         {
+            perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(cached);
         }
         if !self.push_type_resolution(
@@ -3878,6 +3880,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.declared_type.resolved())
         {
+            perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(cached);
         }
         assert!(
@@ -6168,6 +6171,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<TypeId> {
+        perf::bump(PerfCounter::DeclaredTypeQueries);
         let flags = self.symbol_flags(symbol);
         if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
             return self.get_declared_type_of_class_or_interface(symbol);
@@ -6191,6 +6195,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .read_symbol(symbol, |links| links.declared_type.resolved())
             {
+                perf::bump(PerfCounter::DeclaredTypeHits);
                 return Ok(declared);
             }
             let target = self.resolve_alias(symbol)?;
@@ -6199,6 +6204,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .read_symbol(symbol, |links| links.declared_type.resolved())
             {
+                perf::bump(PerfCounter::DeclaredTypeHits);
                 return Ok(already);
             }
             self.links.set_symbol_declared_type(
@@ -6566,6 +6572,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
+            perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
         if !self.push_type_resolution(
@@ -7702,6 +7709,7 @@ impl<'a> CheckerState<'a> {
     /// Deferred union/intersection properties are forced before every other
     /// synthetic-property flavor, matching tsc's dispatch order.
     pub fn get_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
+        perf::bump(PerfCounter::TypeOfSymbolQueries);
         let check_flags = self.links.read_symbol(symbol, |links| links.check_flags);
         if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {
             return self.get_type_of_symbol_with_deferred_type(symbol);
@@ -7779,6 +7787,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
+            perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
         let links = self.links.symbol(symbol);
@@ -7799,6 +7808,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
+            perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
         self.links
@@ -7814,6 +7824,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
+            perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
         let target = self
@@ -7832,6 +7843,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
+            perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(already);
         }
         self.links.set_symbol_type(
@@ -7914,6 +7926,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
+            perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
         // 56643-56645: Prototype symbols (the class static `prototype`
@@ -7925,6 +7938,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .read_symbol(symbol, |links| links.type_of_symbol.resolved())
             {
+                perf::bump(PerfCounter::TypeOfSymbolHits);
                 return Ok(already);
             }
             self.links.set_symbol_type(
@@ -8870,6 +8884,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .read_symbol(symbol, |links| links.type_of_symbol.resolved())
             {
+                perf::bump(PerfCounter::TypeOfSymbolHits);
                 return Ok(Some(cached));
             }
         }
@@ -9848,6 +9863,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
+            perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
         let type_symbol = self
@@ -10027,6 +10043,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.declared_type.resolved())
         {
+            perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(declared);
         }
         let mut member_type_list: Vec<TypeId> = Vec::new();
@@ -10098,6 +10115,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.declared_type.resolved())
         {
+            perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(declared);
         }
         self.links.set_symbol_declared_type(
@@ -10123,6 +10141,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.declared_type.resolved())
         {
+            perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(declared);
         }
         let parent = self
@@ -10133,6 +10152,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.declared_type.resolved())
         {
+            perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(declared);
         }
         self.links.set_symbol_declared_type(
@@ -10158,6 +10178,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
+            perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
         let declared = self.get_declared_type_of_enum_member(symbol)?;
@@ -10165,6 +10186,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
+            perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
         self.links

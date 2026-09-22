@@ -23,6 +23,7 @@ use tsc_types::{
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState, ResolutionTarget, Signature, SignatureId};
+use tsc_types::perf::{self, PerfCounter};
 
 pub use tsc_types::MapperId;
 
@@ -1544,7 +1545,9 @@ impl<'a> CheckerState<'a> {
             self.tables.get_alias_id(alias_symbol, alias_type_arguments)
         );
         let cache_index = index.unwrap_or(self.active_type_mappers.len() - 1);
+        perf::bump(PerfCounter::MapperCacheLookups);
         if let Some(&cached) = self.active_type_mappers_caches[cache_index].get(&key) {
+            perf::bump(PerfCounter::MapperCacheHits);
             return Ok(cached);
         }
         self.total_instantiation_count += 1;
@@ -1574,6 +1577,7 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
+        perf::bump(PerfCounter::InstantiateTypeWorkerCalls);
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             return self.get_mapped_type(ty, mapper);
@@ -1913,6 +1917,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 2427ee73f242d95460bbfce1cdf64a5dc8ca97c820c33f7dad5bcb5f7b96b500
     /// tsc-span: _tsc.js:73606-73610
     fn push_active_mapper(&mut self, mapper: MapperId) {
+        perf::bump(PerfCounter::MapperScopePushes);
         self.active_type_mappers.push(mapper);
         self.active_type_mappers_caches
             .push(std::collections::HashMap::new());
@@ -2468,7 +2473,9 @@ impl<'a> CheckerState<'a> {
         type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<SignatureId> {
         let key = self.tables.get_type_list_id(type_arguments.unwrap_or(&[]));
+        perf::bump(PerfCounter::SignatureInstantiationLookups);
         if let Some(&existing) = self.signature_of(signature).instantiations.get(&key) {
+            perf::bump(PerfCounter::SignatureInstantiationHits);
             return Ok(existing);
         }
         let instantiation = self.create_signature_instantiation(signature, type_arguments)?;

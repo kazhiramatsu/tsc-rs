@@ -12,6 +12,10 @@ dev-profile-opt-level = 3
 name = "tsc_types"
 path = "src/lib.rs"
 
+[features]
+# Aggregate performance counters (measurement builds only; see src/perf.rs).
+perf-counters = []
+
 [dependencies]
 tsc-diagnostics.workspace = true
 

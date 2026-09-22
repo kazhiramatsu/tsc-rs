@@ -12,6 +12,9 @@ dev-profile-opt-level = 3
 name = "tsc_checker"
 path = "src/lib.rs"
 
+[features]
+perf-counters = ["tsc-types/perf-counters"]
+
 [dependencies]
 indexmap = "2"
 rustc-hash.workspace = true
