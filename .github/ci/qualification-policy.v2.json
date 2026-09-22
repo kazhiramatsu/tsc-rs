@@ -56,7 +56,7 @@
       "scripts/witness.py": "e98c704057beaa64f7b911952f4baa6e3451bad111977376fccfea6fb4be6a01",
       "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
       "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa",
-      ".github/ci/test_replay.py": "99a013ab3f0c5545b4babac489156ba70b6dac1e9925ea09657d629e795bb0c9",
+      ".github/ci/test_replay.py": "241fa2f25d7eea3983fd8bb7c04ff095cfcd384a6b1df2978d8992b806d53139",
       "scripts/foundation_witnesses.py": "d96836287984d1dd6dc095a3004148a84a5c4add2764af330fafc03ccab0928f",
       "scripts/emitter_final_witnesses.py": "3ac4ca2410c779acdb8e04f85bc64e77abcb548f7b5f0203c02cc20733568015"
     }
