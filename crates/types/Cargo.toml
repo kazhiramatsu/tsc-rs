@@ -17,6 +17,7 @@ path = "src/lib.rs"
 perf-counters = []
 
 [dependencies]
+rustc-hash.workspace = true
 tsc-diagnostics.workspace = true
 
 [lints]

@@ -50,6 +50,13 @@ rustc-hash = "2.1"
 # full DWARF/PDB data in every large integration binary. This materially
 # reduces local link and process-startup I/O while leaving dev binaries
 # debuggable under the ordinary profile.
+# Release binaries are what the parity benchmarks and users run: whole-program
+# LTO and a single codegen unit let the cross-crate accessors (arena/binder
+# routing, links tables) inline into their hot callers.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
 [profile.test]
 debug = 0
 
