@@ -6717,8 +6717,13 @@ impl<'a> CheckerState<'a> {
                     text
                 });
             }
+            let text = crate::join_js_texts(&rendered, separator);
+            // W2c/W2e: member order is printed; the rendered text is marked
+            // and counts only if a published diagnostic contains it.
+            self.order_guard
+                .mark_display_text(&text, types.iter().copied());
             return Ok((
-                crate::join_js_texts(&rendered, separator),
+                text,
                 if is_union {
                     SliceTypeNodeKind::Union
                 } else {

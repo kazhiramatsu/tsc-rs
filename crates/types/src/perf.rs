@@ -102,6 +102,23 @@ pub enum PerfCounter {
     TransformUpdateNodeCalls,
     TransformCloneNodeCalls,
     PrinterPlanNodes,
+    // ---- checker sharding (slice W): requested budget, shards run, threads ----
+    CheckerShardsRequested,
+    CheckerShardsRun,
+    CheckerShardThreads,
+    CheckerSerialReplays,
+    CheckerReplayDisplay,
+    CheckerReplayRepresentative,
+    CheckerReplaySubtypeTie,
+    CheckerReplayUnionSignatures,
+    CheckerReplayIntersectionSignatures,
+    CheckerReplayCircularity,
+    CheckerReplayBestMatch,
+    CheckerReplayInitDivergence,
+    CheckerReplayFirstFailure,
+    CheckerReplayContextualSignature,
+    CheckerReplayUnionIndexInfos,
+    CheckerReplayIntersectionLast,
     /// Sentinel: number of counters (not a counter).
     Count,
 }
@@ -171,6 +188,22 @@ pub const WIRED: [bool; COUNT] = [
     false, // transform.update_node_calls (M2)
     false, // transform.clone_node_calls (M2)
     false, // printer.plan_nodes (M2)
+    true,  // checker_shards.requested
+    true,  // checker_shards.run
+    true,  // checker_shards.threads
+    true,  // checker_shards.replays
+    true,  // checker_replay.display
+    true,  // checker_replay.representative
+    true,  // checker_replay.subtype_tie
+    true,  // checker_replay.union_signatures
+    true,  // checker_replay.intersection_signatures
+    true,  // checker_replay.circularity
+    true,  // checker_replay.best_match
+    true,  // checker_replay.init_divergence
+    true,  // checker_replay.first_failure
+    true,  // checker_replay.contextual_signature
+    true,  // checker_replay.union_index_infos
+    true,  // checker_replay.intersection_last
 ];
 
 /// Report names in variant order.
@@ -234,6 +267,22 @@ pub const NAMES: [&str; COUNT] = [
     "transform.update_node_calls",
     "transform.clone_node_calls",
     "printer.plan_nodes",
+    "checker_shards.requested",
+    "checker_shards.run",
+    "checker_shards.threads",
+    "checker_shards.replays",
+    "checker_replay.display",
+    "checker_replay.representative",
+    "checker_replay.subtype_tie",
+    "checker_replay.union_signatures",
+    "checker_replay.intersection_signatures",
+    "checker_replay.circularity",
+    "checker_replay.best_match",
+    "checker_replay.init_divergence",
+    "checker_replay.first_failure",
+    "checker_replay.contextual_signature",
+    "checker_replay.union_index_infos",
+    "checker_replay.intersection_last",
 ];
 
 #[cfg(feature = "perf-counters")]
@@ -311,7 +360,7 @@ mod tests {
         assert_eq!(NAMES.len(), COUNT);
         assert_eq!(WIRED.len(), COUNT);
         assert_eq!(NAMES[0], "links.node.reads");
-        assert_eq!(NAMES[COUNT - 1], "printer.plan_nodes");
+        assert_eq!(NAMES[COUNT - 1], "checker_replay.intersection_last");
     }
 
     #[test]

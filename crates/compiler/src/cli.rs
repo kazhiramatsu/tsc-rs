@@ -37,8 +37,8 @@ use tsc_program::{
 
 use crate::no_emit_canary::NoEmitCanary;
 use crate::{
-    EmitFileSystem, FsOutputSink, H2ActivityCounters, NoEmitActivityCounters, NoEmitWorkCounters,
-    ProgramSession,
+    CheckerBudget, EmitFileSystem, FsOutputSink, H2ActivityCounters, NoEmitActivityCounters,
+    NoEmitWorkCounters, ProgramSession,
 };
 
 mod embedded_libraries {
@@ -75,6 +75,25 @@ fn cli_worker_budget() -> WorkerBudget {
     {
         Some(workers) => WorkerBudget::new(workers),
         None => WorkerBudget::automatic(),
+    }
+}
+
+/// tsrs-native diagnostic control of the CLI's checker budget (see
+/// [`CheckerBudget`]): `TSRS_CHECKERS=<positive integer>` selects that many
+/// checker states for the no-emit whole-Program check (clamped to the module
+/// cap and to the file count); any other value or an unset variable keeps the
+/// serial reference checker. Not a command-line option: the sharded budget
+/// exists for exactness controls and reproducible scaling measurements while
+/// the W slice qualifies it, and every budget must publish identical output.
+const CHECKERS_ENV: &str = "TSRS_CHECKERS";
+
+fn cli_checker_budget() -> CheckerBudget {
+    match std::env::var(CHECKERS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<std::num::NonZeroUsize>().ok())
+    {
+        Some(checkers) => CheckerBudget::new(checkers),
+        None => CheckerBudget::serial(),
     }
 }
 
@@ -1008,6 +1027,7 @@ fn execute_prepared(
     }
     let outcome = ProgramSession::new(prepared)
         .with_worker_budget(cli_worker_budget())
+        .with_checker_budget(cli_checker_budget())
         .run_with_no_emit_canary(
             false,
             tsc_checker::LibraryPrefixCompletion::Complete,

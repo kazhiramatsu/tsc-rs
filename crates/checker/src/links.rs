@@ -199,8 +199,11 @@ pub struct SymbolLinks {
     /// symbol-local map from the inferred target symbol id to that
     /// transient merged symbol. The key is the inferred symbol
     /// itself (not necessarily the incoming target), matching tsc's
-    /// clone-then-publish protocol.
-    pub inferred_class_symbols: HashMap<SymbolId, SymbolId>,
+    /// clone-then-publish protocol. Keyed by compiler-assigned ids and only
+    /// ever probed (never iterated), so the lookup-only hasher applies; the
+    /// std `RandomState` default would touch thread-local keys every time a
+    /// vacant symbol entry is initialized.
+    pub inferred_class_symbols: FxHashMap<SymbolId, SymbolId>,
     /// tsc TransientSymbol links.checkFlags (synthetic union/
     /// intersection properties, createUnionOrIntersectionProperty).
     pub check_flags: tsc_types::CheckFlags,
@@ -621,6 +624,14 @@ pub struct LinksTables {
     node: FxHashMap<NodeId, NodeLinks>,
     symbol: FxHashMap<SymbolId, SymbolLinks>,
     ty: FxHashMap<TypeId, TypeLinks>,
+    // Immutable default records answered by the borrowed `read_*` accessors
+    // on a miss (tsc's "links object with no fields yet"). Built once with
+    // the table so a miss never constructs and drops a full record; they are
+    // never mutated (writes go through the maps' entries), so every reader
+    // observes exactly `Default::default()`.
+    absent_node: NodeLinks,
+    absent_symbol: SymbolLinks,
+    absent_ty: TypeLinks,
     /// Trial-local resolvedSignature protocol writes. Nested call
     /// resolution needs its Resolving sentinel and failure stash while
     /// a candidate is checked. Both rejection and selection restore the
@@ -774,7 +785,7 @@ impl LinksTables {
             Some(links) => read(links),
             None => {
                 perf::bump(PerfCounter::LinksNodeReadAbsent);
-                read(&NodeLinks::default())
+                read(&self.absent_node)
             }
         }
     }
@@ -787,7 +798,7 @@ impl LinksTables {
             Some(links) => read(links),
             None => {
                 perf::bump(PerfCounter::LinksSymbolReadAbsent);
-                read(&SymbolLinks::default())
+                read(&self.absent_symbol)
             }
         }
     }
@@ -800,7 +811,7 @@ impl LinksTables {
             Some(links) => read(links),
             None => {
                 perf::bump(PerfCounter::LinksTypeReadAbsent);
-                read(&TypeLinks::default())
+                read(&self.absent_ty)
             }
         }
     }

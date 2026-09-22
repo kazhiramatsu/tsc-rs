@@ -122,11 +122,13 @@ pub mod modules;
 pub mod narrow;
 mod node_builder;
 pub mod operators;
+pub(crate) mod order_guard;
 mod plain_js_errors;
 pub mod program;
 pub mod relate;
 pub mod relpin;
 pub mod resolve;
+pub mod shard;
 pub mod speculate;
 pub mod spell;
 pub mod state;
@@ -145,6 +147,9 @@ use tsc_diagnostics::{
     Diagnostic, DiagnosticCategory, DiagnosticList, DocumentVersion, TextSnapshot,
 };
 use tsc_program::WorkerBudget;
+
+pub use crate::shard::{CheckerBudget, MAX_CHECKERS};
+use tsc_types::perf::{self, PerfCounter};
 use tsc_types::{IdentityDomain, JsStr, JsString};
 
 use crate::emit::CheckerSession;
@@ -625,6 +630,10 @@ pub struct CheckWorkCounters {
     bound_documents: u64,
     full_text_copies: u64,
     full_text_bytes_copied: u64,
+    checker_shards: u64,
+    checker_threads: u64,
+    checker_serial_replay: u64,
+    checker_replay_reasons: u64,
 }
 
 /// Parse work performed while materializing an owned library prefix.
@@ -665,9 +674,46 @@ impl CheckWorkCounters {
         self.full_text_bytes_copied
     }
 
+    /// tsrs-native: checker states constructed by this invocation (one for
+    /// the serial driver, the effective shard count for the sharded driver).
+    /// Zero means no checker state was constructed (an empty Program).
+    pub const fn checker_shards(self) -> u64 {
+        self.checker_shards
+    }
+
+    /// tsrs-native: distinct threads that ran those checker states; equal
+    /// to `checker_shards` when every shard got its own thread, smaller when
+    /// the coordinator ran a shard after a refused spawn.
+    pub const fn checker_threads(self) -> u64 {
+        self.checker_threads
+    }
+
     fn record_parse(&mut self, text_bytes: usize) {
         self.parsed_documents += 1;
         let _ = text_bytes;
+    }
+
+    fn record_checker_shards(&mut self, shards: u64, threads: u64) {
+        self.checker_shards = shards;
+        self.checker_threads = threads;
+    }
+
+    /// tsrs-native: 1 when a sharded check was discarded and replayed by
+    /// the serial checker because the order-sensitivity guard fired
+    /// (slice W2c); 0 otherwise.
+    pub const fn checker_serial_replay(self) -> u64 {
+        self.checker_serial_replay
+    }
+
+    /// tsrs-native: the union of the guard's reason bits over all shards
+    /// (see `order_guard::OrderReason`); 0 when nothing fired.
+    pub const fn checker_replay_reasons(self) -> u64 {
+        self.checker_replay_reasons
+    }
+
+    fn record_serial_replay(&mut self, reasons: u32) {
+        self.checker_serial_replay = 1;
+        self.checker_replay_reasons = u64::from(reasons);
     }
 
     fn record_adoption(&mut self) {
@@ -688,6 +734,10 @@ impl CheckWorkCounters {
             bound_documents: work.parsed + work.adopted,
             full_text_copies: 0,
             full_text_bytes_copied: 0,
+            checker_shards: 0,
+            checker_threads: 0,
+            checker_serial_replay: 0,
+            checker_replay_reasons: 0,
         }
     }
 }
@@ -1573,8 +1623,29 @@ enum DiagnosticSchedule {
     OnDemand,
 }
 
+/// Constructs one [`AuthoritativeModuleProvider`] per checker state.
+///
+/// Sharded checking runs several checker states on scoped threads; a provider
+/// may keep small mutable caches (the compiler's request plans live in a
+/// `RefCell`), so instead of requiring `Sync` on the provider trait each
+/// shard constructs its own provider through this factory inside its thread.
+/// The factory itself is shared read-only across shards, hence `Sync`.
+/// tsrs-native: per-checker construction seam for the sharded driver.
+pub trait AuthoritativeModuleProviderFactory: Sync {
+    fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_>;
+}
+
+/// Where a checker run obtains its module provider.
+#[derive(Clone, Copy)]
+enum AuthoritativeProviderSource<'a> {
+    /// One caller-owned provider used by the single serial checker state.
+    Shared(&'a dyn AuthoritativeModuleProvider),
+    /// One provider constructed per checker state (serial or sharded).
+    PerChecker(&'a dyn AuthoritativeModuleProviderFactory),
+}
+
 struct AuthoritativeRun<'a> {
-    provider: &'a dyn AuthoritativeModuleProvider,
+    provider: AuthoritativeProviderSource<'a>,
     lib_metadata: Vec<AuthoritativeSourceMetadata>,
     file_metadata: Vec<AuthoritativeSourceMetadata>,
     library_prefix: LibraryPrefixCompletion,
@@ -1818,6 +1889,49 @@ pub fn with_authoritative_modules_at_for_declarations<'cwd>(
     )
 }
 
+/// Run one authoritative no-emit check with an explicit checker budget.
+///
+/// With [`CheckerBudget::serial`] this is exactly
+/// [`check_program_with_authoritative_modules_at_with_workers`] over one
+/// provider constructed by `factory`. With a sharded budget the program files
+/// (library prefix included) are partitioned deterministically over up to
+/// `checkers` checker states, each constructed on its own scoped thread over
+/// the one shared immutable [`ProgramSnapshot`] with its own provider,
+/// type-id domain and caches; only diagnostics and audit records cross
+/// threads and the merged result is assembled in Program order. The
+/// on-demand declaration schedule and the emit callback entries stay serial.
+/// tsrs-native: sharded checker driver (tsgo `--checkers`); tsc has one checker.
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_with_checkers<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    factory: &dyn AuthoritativeModuleProviderFactory,
+    workers: WorkerBudget,
+    checkers: CheckerBudget,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
+    check_program_with_authoritative_modules_at_cache_mode_with_source(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        AuthoritativeProviderSource::PerChecker(factory),
+        false,
+        None,
+        None,
+        LibraryPrefixCompletion::Complete,
+        DiagnosticSchedule::Eager,
+        workers,
+        checkers,
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
 fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
     libs: &[InputFile],
@@ -1834,7 +1948,46 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
     diagnostic_schedule: DiagnosticSchedule,
     workers: WorkerBudget,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    check_program_with_authoritative_modules_at_cache_mode_with_source(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        AuthoritativeProviderSource::Shared(provider),
+        cache_enabled,
+        emit_operation,
+        prepared_owned_bundle,
+        library_prefix,
+        diagnostic_schedule,
+        workers,
+        CheckerBudget::serial(),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    provider: AuthoritativeProviderSource<'_>,
+    cache_enabled: bool,
+    emit_operation: Option<&mut CheckedEmitOperation<'_>>,
+    prepared_owned_bundle: Option<&OwnedHarnessLibBundle>,
+    library_prefix: LibraryPrefixCompletion,
+    diagnostic_schedule: DiagnosticSchedule,
+    workers: WorkerBudget,
+    checkers: CheckerBudget,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
+    perf::add(
+        PerfCounter::CheckerShardsRequested,
+        checkers.checkers() as u64,
+    );
     validate_authoritative_metadata(libs, lib_metadata, "library")?;
     validate_authoritative_metadata(files, file_metadata, "program")?;
     let mut seen_tokens = std::collections::HashSet::new();
@@ -1923,21 +2076,53 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
             bind_lib_sources(&lib_sources, &bundle_options, &identity_domain, workers);
         let lib_data = binders_into_data(lib_binders);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
-        check_program_with_prebound_libs_at_observed(
-            libs,
-            files,
-            options,
-            current_directory,
-            &lib_documents,
-            &identity_domain,
-            CheckWorkCounters::for_owned_libs(lib_work),
-            true,
-            &mut observe_phase,
-            Some(&run),
-            emit_operation,
-            ProgramFileFacts::DEFAULT_LIBRARY,
-            workers,
-        )
+        // Sharding is a property of the eager whole-Program schedule with
+        // per-checker providers; the on-demand schedule and emit callbacks
+        // keep the serial driver.
+        let sharded_factory = match run.provider {
+            AuthoritativeProviderSource::PerChecker(factory)
+                if checkers.is_sharded()
+                    && diagnostic_schedule == DiagnosticSchedule::Eager
+                    && emit_operation.is_none() =>
+            {
+                Some(factory)
+            }
+            _ => None,
+        };
+        if let Some(factory) = sharded_factory {
+            check_program_with_prebound_libs_sharded(
+                libs,
+                files,
+                options,
+                current_directory,
+                &lib_documents,
+                &identity_domain,
+                CheckWorkCounters::for_owned_libs(lib_work),
+                true,
+                &mut observe_phase,
+                &run,
+                factory,
+                ProgramFileFacts::DEFAULT_LIBRARY,
+                workers,
+                checkers,
+            )
+        } else {
+            check_program_with_prebound_libs_at_observed(
+                libs,
+                files,
+                options,
+                current_directory,
+                &lib_documents,
+                &identity_domain,
+                CheckWorkCounters::for_owned_libs(lib_work),
+                true,
+                &mut observe_phase,
+                Some(&run),
+                emit_operation,
+                ProgramFileFacts::DEFAULT_LIBRARY,
+                workers,
+            )
+        }
     };
     match execution.authoritative_failure {
         Some(failure) => Err(failure),
@@ -2363,6 +2548,654 @@ fn check_files_in_order(
     }
 }
 
+/// Syntactic rows for every fixture file of a snapshot, in Program order.
+/// tsc getSyntacticDiagnosticsForFile: JS files prepend the
+/// TypeScript-only-syntax walker output to parser diagnostics.
+fn syntactic_file_rows(
+    snapshot: &ProgramSnapshot,
+    lib_count: usize,
+    options: &CompilerOptions,
+) -> Vec<FileDiagnosticPasses> {
+    snapshot
+        .documents()
+        .iter()
+        .skip(lib_count)
+        .map(|document| {
+            let source = document.source();
+            let mut syntactic = if is_js_file_name(&source.file_name) {
+                js_grammar::get_js_syntactic_diagnostics(source, options.experimental_decorators)
+            } else {
+                Vec::new()
+            };
+            syntactic.extend(source.parse_diagnostics.iter().cloned());
+            tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
+            FileDiagnosticPasses {
+                file_name: source.file_name.clone(),
+                syntactic,
+                semantic: Vec::new(),
+                suggestion: Vec::new(),
+            }
+        })
+        .collect()
+}
+
+/// The diagnostic ledger of one checker state at one moment, plus the
+/// file-attributed rows and partially-checked ranges recorded up to then.
+/// Rows are cloned, not indexed by length: later passes may still edit
+/// earlier rows (category/related-information updates), so the serial
+/// driver's projection boundary needs the rows as they were.
+#[derive(Default)]
+struct LedgerSnapshot {
+    rows: Vec<Diagnostic>,
+    globals_by_file: Vec<Vec<Diagnostic>>,
+    partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32)>>,
+}
+
+impl LedgerSnapshot {
+    fn take(state: &state::CheckerState<'_>, globals_by_file: &[Vec<Diagnostic>]) -> Self {
+        Self {
+            rows: state.diagnostics.iter().cloned().collect(),
+            globals_by_file: globals_by_file.to_vec(),
+            partially_checked_ranges: state.partially_checked_ranges.clone(),
+        }
+    }
+}
+
+/// Everything one checker shard hands back to the coordinating thread.
+/// Owned values only: diagnostics, attribution vectors and audit records.
+/// No `TypeId`, `SymbolId`, signature or mapper identity leaves the shard.
+struct ShardOutput {
+    /// The ledger after the shard's fixture pass (the serial driver's
+    /// per-file projection boundary), before any library-completion check.
+    fixture: LedgerSnapshot,
+    /// The ledger after every pass.
+    complete: LedgerSnapshot,
+    /// The file-less bucket right after checker initialization; identical
+    /// across shards by construction (same snapshot, same init sequence).
+    init_globals: Vec<Diagnostic>,
+    partial_check_records: Vec<PartialCheck>,
+    failure: Option<AuthoritativeModuleFailure>,
+    /// Order-sensitivity guard reasons recorded by this shard (W2c); any
+    /// non-zero value makes the driver replay the whole check serially.
+    order_reasons: u32,
+    /// Type count after this shard's initialization: identical across shards
+    /// by construction (deterministic init over the shared snapshot); the
+    /// driver verifies it and replays on divergence.
+    init_boundary: u32,
+    /// Display-class observations (rendered member lists, order-chosen
+    /// elaborations) of this shard; they matter only if a published
+    /// diagnostic contains them (W2e).
+    display_marks: crate::order_guard::DisplayMarks,
+    /// The thread that ran this shard (participation evidence for the work
+    /// counters and the native controls).
+    thread: std::thread::ThreadId,
+    /// Files whose checkSourceFileWorker body ran in this shard: ownership
+    /// evidence for the debug assertion in the merge (debug builds only).
+    #[cfg(debug_assertions)]
+    checked_files: Vec<usize>,
+}
+
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<ShardOutput>();
+    assert_send::<HostFacts>();
+};
+
+/// Run one checker shard on the calling thread: construct its provider,
+/// `ProgramBinder` and `CheckerState` over the shared immutable snapshot,
+/// check its fixture files in Program order, snapshot the ledger, then (for
+/// a complete library prefix) check its library files in Program order, and
+/// return owned results. Every checker object is constructed and dropped on
+/// this thread; the source ASTs are borrowed from the snapshot, never copied.
+/// tsrs-native: the per-checker body of tsgo's checker pool.
+#[allow(clippy::too_many_arguments)]
+fn run_checker_shard(
+    snapshot: &ProgramSnapshot,
+    options: &CompilerOptions,
+    factory: &dyn AuthoritativeModuleProviderFactory,
+    metadata: &[AuthoritativeSourceMetadata],
+    host: HostFacts,
+    files: &[usize],
+    lib_count: usize,
+    complete_library_prefix: bool,
+) -> ShardOutput {
+    let provider = factory.provider();
+    let mut state = init_checker_state(snapshot, options, Some((&*provider, metadata)), host);
+    // W2c: every type created from here on is shard-local; the guard records
+    // order-consuming operations over two or more of them.
+    let init_boundary = state.tables.len();
+    state.order_guard.arm(init_boundary);
+    // Shared-AST invariant: the shard's binder borrows the snapshot's
+    // documents (pointer-identical sources); it never copies a tree.
+    debug_assert!(files
+        .iter()
+        .all(|&file| std::ptr::eq(state.binder.source(file), snapshot.document(file).source())));
+    let init_globals = state.visible_global_diagnostics.clone();
+    let mut globals_by_file = vec![Vec::new(); state.binder.file_count()];
+    let ids = files
+        .iter()
+        .map(|&file| ProgramFileId::from_raw(u32::try_from(file).expect("program file index")))
+        .collect::<Vec<_>>();
+    let fixtures = ids
+        .iter()
+        .copied()
+        .filter(|id| id.index() >= lib_count)
+        .collect::<Vec<_>>();
+    check_files_in_order(&mut state, &fixtures, &mut globals_by_file);
+    let fixture = LedgerSnapshot::take(&state, &globals_by_file);
+    if complete_library_prefix {
+        // Program order over the shard's files: libraries first; fixtures
+        // already checked above are TypeChecked no-ops, as in the serial
+        // completion pass.
+        check_files_in_order(&mut state, &ids, &mut globals_by_file);
+    }
+    #[cfg(debug_assertions)]
+    let checked_files = ids
+        .iter()
+        .filter(|id| {
+            state
+                .links
+                .read_node(state.binder.source(id.index()).root, |links| {
+                    links.check_flags
+                })
+                .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED)
+        })
+        .map(|id| id.index())
+        .collect();
+    let failure = state.take_authoritative_module_failure();
+    let complete = LedgerSnapshot::take(&state, &globals_by_file);
+    ShardOutput {
+        fixture,
+        complete,
+        init_globals,
+        partial_check_records: std::mem::take(&mut state.partial_check_records),
+        failure,
+        order_reasons: state.order_guard.reasons(),
+        init_boundary: state.order_guard.init_boundary(),
+        display_marks: state.order_guard.marks().clone(),
+        thread: std::thread::current().id(),
+        #[cfg(debug_assertions)]
+        checked_files,
+    }
+}
+
+/// Merge the shards' ledgers in Program order into the same observations the
+/// serial driver publishes: the per-file fixture projection (rows of every
+/// shard at its fixture boundary), the whole-Program list (rows of every
+/// shard after completion), init globals, partial-check records and the
+/// checker work counters. Rows for a file published by ANY shard — including
+/// library completion rows on merged declarations and partially-checked
+/// ranges recorded for another shard's file — are merged BEFORE directive
+/// filtering and unused-directive synthesis.
+#[allow(clippy::too_many_arguments)]
+fn merge_shard_outputs(
+    snapshot: &ProgramSnapshot,
+    lib_count: usize,
+    options: &CompilerOptions,
+    program_diagnostics: &[Diagnostic],
+    mut file_diagnostics: Vec<FileDiagnosticPasses>,
+    mut outputs: Vec<ShardOutput>,
+    collect_global_diagnostics: bool,
+    work_counters: CheckWorkCounters,
+) -> Result<CheckExecution, u32> {
+    let authoritative_failure = outputs.iter_mut().find_map(|output| output.failure.take());
+    debug_assert!(
+        outputs
+            .iter()
+            .all(|output| output.init_globals == outputs[0].init_globals),
+        "checker initialization published different global rows in different shards"
+    );
+    #[cfg(debug_assertions)]
+    {
+        let mut owners = vec![0u8; snapshot.documents().len()];
+        for output in &outputs {
+            for &file in &output.checked_files {
+                owners[file] += 1;
+            }
+        }
+        debug_assert!(
+            owners.iter().all(|&count| count <= 1),
+            "a program file was checked by more than one shard"
+        );
+    }
+    let global_diagnostics = if collect_global_diagnostics {
+        let mut rows = outputs[0].init_globals.clone();
+        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut rows);
+        rows
+    } else {
+        Vec::new()
+    };
+
+    // Rows by owning file, in (shard, publication) order.
+    fn rows_by_file<'o>(
+        ledgers: impl Iterator<Item = &'o LedgerSnapshot>,
+    ) -> std::collections::HashMap<&'o JsString, Vec<&'o Diagnostic>> {
+        let mut by_file: std::collections::HashMap<&JsString, Vec<&Diagnostic>> =
+            std::collections::HashMap::new();
+        for ledger in ledgers {
+            for row in &ledger.rows {
+                if let Some(file_name) = row.file_name.as_ref() {
+                    by_file.entry(file_name).or_default().push(row);
+                }
+            }
+        }
+        by_file
+    }
+    let fixture_rows = rows_by_file(outputs.iter().map(|output| &output.fixture));
+    let complete_rows = rows_by_file(outputs.iter().map(|output| &output.complete));
+    let file_count = snapshot.documents().len();
+    let skip = |file: usize| {
+        should_skip_type_checking_file(
+            snapshot.document(file).source(),
+            snapshot.file_facts(ProgramFileId::from_raw(
+                u32::try_from(file).expect("program file index"),
+            )),
+            options,
+        )
+    };
+    let assemble = |file: usize,
+                    rows: &std::collections::HashMap<&JsString, Vec<&Diagnostic>>,
+                    ledger: fn(&ShardOutput) -> &LedgerSnapshot|
+     -> DiagnosticList {
+        let document = snapshot.document(file);
+        let source = document.source();
+        let empty = Vec::new();
+        let checker_for_file = rows.get(&source.file_name).unwrap_or(&empty);
+        let globals = outputs
+            .iter()
+            .flat_map(|output| ledger(output).globals_by_file[file].iter().cloned())
+            .collect::<Vec<_>>();
+        let ranges = outputs
+            .iter()
+            .flat_map(|output| {
+                ledger(output)
+                    .partially_checked_ranges
+                    .get(&file)
+                    .into_iter()
+                    .flatten()
+                    .copied()
+            })
+            .collect::<Vec<_>>();
+        semantic_diagnostics_for_file_rows(
+            source,
+            &document.data.bind_diagnostics,
+            checker_for_file,
+            (!ranges.is_empty()).then_some(ranges.as_slice()),
+            &globals,
+            program_diagnostics,
+            options,
+        )
+    };
+
+    // Fixture projection: the public per-file getters as observed after the
+    // fixture pass and before library completion.
+    for file in lib_count..file_count {
+        if skip(file) {
+            continue;
+        }
+        let source = snapshot.document(file).source();
+        let result_index = file - lib_count;
+        if let Some(rows) = fixture_rows.get(&source.file_name) {
+            file_diagnostics[result_index].suggestion.extend(
+                rows.iter()
+                    .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Suggestion)
+                    .map(|diagnostic| (*diagnostic).clone()),
+            );
+        }
+        file_diagnostics[result_index].semantic =
+            assemble(file, &fixture_rows, |output| &output.fixture);
+    }
+
+    // Whole-Program getter: every file after completion, one stable
+    // sort/dedupe after flattening (getDiagnosticsHelper's undefined arm).
+    let mut diagnostics = Vec::new();
+    for file in 0..file_count {
+        if skip(file) {
+            continue;
+        }
+        diagnostics.extend(assemble(file, &complete_rows, |output| &output.complete));
+    }
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+    // W2e: a display-class observation counts only when the diagnostic it
+    // formatted is actually published (whole-Program list or a per-file
+    // projection); a discarded elaboration marks nothing.
+    let mut marks = crate::order_guard::DisplayMarks::default();
+    for output in &outputs {
+        marks.extend(&output.display_marks);
+    }
+    if !marks.is_empty() {
+        let published_marked = diagnostics
+            .iter()
+            .chain(
+                file_diagnostics
+                    .iter()
+                    .flat_map(|file| file.semantic.iter().chain(file.suggestion.iter())),
+            )
+            .any(|row| marks.is_marked(row));
+        if published_marked {
+            return Err(marks.reasons());
+        }
+    }
+    let partial_checks = outputs
+        .iter()
+        .flat_map(|output| output.partial_check_records.iter().cloned())
+        .collect::<Vec<_>>();
+    Ok(CheckExecution {
+        result: assemble_check_result(
+            &file_diagnostics,
+            Some(&diagnostics),
+            &global_diagnostics,
+            &partial_checks,
+            work_counters,
+        ),
+        authoritative_failure,
+    })
+}
+
+/// The sharded no-emit driver: stages 1–2 once (parse/adopt, bind, snapshot),
+/// then one checker state per shard on scoped threads over the shared
+/// immutable snapshot, then the Program-order merge. Equivalent to the serial
+/// driver's fixture projection and whole-Program assembly.
+/// tsrs-native: tsgo checker pool shape; tsc has one checker.
+#[allow(clippy::too_many_arguments)]
+fn check_program_with_prebound_libs_sharded<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    lib_documents: &[Arc<BoundDocument>],
+    identity_domain: &IdentityDomain,
+    mut work_counters: CheckWorkCounters,
+    collect_global_diagnostics: bool,
+    observe_phase: &mut impl FnMut(CheckPhase),
+    run: &AuthoritativeRun<'_>,
+    factory: &dyn AuthoritativeModuleProviderFactory,
+    lib_facts: ProgramFileFacts,
+    workers: WorkerBudget,
+    checkers: CheckerBudget,
+) -> CheckExecution {
+    let current_directory = current_directory.into();
+    let ParsedProgramInputs {
+        program_sources,
+        authoritative_program_metadata,
+        program_diagnostics,
+        host,
+    } = parse_program_inputs(
+        libs,
+        files,
+        options,
+        current_directory,
+        identity_domain,
+        Some(run),
+        &mut work_counters,
+    );
+
+    let lib_count = lib_documents.len();
+    let mut document_store = EphemeralDocumentStore::with_documents(
+        identity_domain.clone(),
+        lib_documents.iter().cloned(),
+    );
+    observe_phase(CheckPhase::Bind);
+    let bind_data =
+        bind_sources_in_program_order(&program_sources, options, identity_domain, workers);
+    for (source_file, data) in program_sources.iter().zip(bind_data) {
+        work_counters.record_bind();
+        document_store
+            .publish(Arc::clone(source_file), data)
+            .expect("completed bind must belong to the ephemeral document domain");
+    }
+    observe_phase(CheckPhase::Check);
+
+    if lib_documents.is_empty() && program_sources.is_empty() {
+        // Same observable result as the serial driver for an empty Program:
+        // the whole-Program getter exists and is empty.
+        let global_diagnostics = if collect_global_diagnostics {
+            globals::missing_init_global_type_diagnostics(options)
+        } else {
+            Vec::new()
+        };
+        return CheckExecution {
+            result: assemble_check_result(&[], Some(&[]), &global_diagnostics, &[], work_counters),
+            authoritative_failure: None,
+        };
+    }
+
+    let mut file_facts = vec![lib_facts; lib_count];
+    file_facts.resize(
+        lib_count + program_sources.len(),
+        ProgramFileFacts::ORDINARY,
+    );
+    let snapshot = document_store
+        .into_snapshot_with_file_facts(file_facts)
+        .expect("program snapshot identity allocation failed");
+    let file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
+    let mut metadata = run.lib_metadata.clone();
+    metadata.extend(authoritative_program_metadata.iter().cloned());
+    let complete_library_prefix = run.library_prefix == LibraryPrefixCompletion::Complete;
+
+    // Deterministic partition of every Program file (library prefix
+    // included) by node count; each shard keeps Program order.
+    let weights = snapshot
+        .documents()
+        .iter()
+        .map(|document| document.source().arena.len())
+        .collect::<Vec<_>>();
+    let assignment = shard::partition_files(&weights, checkers.checkers());
+    let shard_count = assignment.len();
+
+    // An owned copy for the serial replay (W2c), taken before any shard slot
+    // exists: the replay never reconstructs host facts from admitted sources
+    // (ignored inputs and package.json manifests matter).
+    let replay_host = host.clone();
+    // One HostFacts per shard in take-once slots: a shard takes its slot on
+    // whichever thread runs it, so a refused spawn leaves the facts for the
+    // coordinator's fallback. The original moves into slot 0.
+    let mut hosts = Vec::with_capacity(shard_count);
+    for _ in 1..shard_count {
+        hosts.push(std::sync::Mutex::new(Some(host.clone())));
+    }
+    hosts.insert(0, std::sync::Mutex::new(Some(host)));
+    let run_shard = |shard_index: usize| {
+        let host = hosts[shard_index]
+            .lock()
+            .expect("host facts slot")
+            .take()
+            .expect("each shard takes its host facts once");
+        run_checker_shard(
+            &snapshot,
+            options,
+            factory,
+            &metadata,
+            host,
+            &assignment[shard_index],
+            lib_count,
+            complete_library_prefix,
+        )
+    };
+    let outputs = std::thread::scope(|scope| {
+        let handles = (1..shard_count)
+            .map(|shard_index| {
+                std::thread::Builder::new()
+                    .name(format!("tsc-rs-checker-{shard_index}"))
+                    .stack_size(tsc_program::WORKER_STACK_BYTES)
+                    .spawn_scoped(scope, move || run_shard(shard_index))
+            })
+            .collect::<Vec<_>>();
+        let mut outputs = Vec::with_capacity(shard_count);
+        outputs.push(run_shard(0));
+        for (shard_index, handle) in handles.into_iter().enumerate() {
+            outputs.push(match handle {
+                Ok(handle) => handle
+                    .join()
+                    .unwrap_or_else(|payload| std::panic::resume_unwind(payload)),
+                // A refused thread is not an error: the coordinator runs the
+                // shard with the untouched host facts of its slot.
+                Err(_) => run_shard(shard_index + 1),
+            });
+        }
+        outputs
+    });
+    // W2c: a shard that consumed the order of two shard-local types may have
+    // diverged from the serial checker (text or semantics); discard every
+    // shard result and replay the whole check serially over the same
+    // snapshot (parse and bind are not repeated).
+    let mut order_reasons = outputs
+        .iter()
+        .fold(0u32, |acc, output| acc | output.order_reasons);
+    // The guard's exemption for pre-guard ids assumes every shard ran the
+    // same deterministic initialization; verify it instead of assuming.
+    if outputs
+        .iter()
+        .any(|output| output.init_boundary != outputs[0].init_boundary)
+    {
+        debug_assert!(false, "shard initialization type counts differ");
+        order_reasons |= crate::order_guard::OrderReason::INIT_DIVERGENCE.bits();
+    }
+    let threads = outputs
+        .iter()
+        .map(|output| output.thread)
+        .collect::<std::collections::HashSet<_>>();
+    work_counters.record_checker_shards(outputs.len() as u64, threads.len() as u64);
+    perf::add(PerfCounter::CheckerShardsRun, outputs.len() as u64);
+    perf::add(PerfCounter::CheckerShardThreads, threads.len() as u64);
+    let replay_reasons = if order_reasons != 0 {
+        drop(outputs);
+        order_reasons
+    } else {
+        // W2e: the merge itself decides whether a display-class mark reached
+        // a published row; only then is the sharded result discarded.
+        match merge_shard_outputs(
+            &snapshot,
+            lib_count,
+            options,
+            &program_diagnostics,
+            file_diagnostics.clone(),
+            outputs,
+            collect_global_diagnostics,
+            work_counters,
+        ) {
+            Ok(execution) => return execution,
+            Err(marked_reasons) => marked_reasons,
+        }
+    };
+    work_counters.record_serial_replay(replay_reasons);
+    perf::add(PerfCounter::CheckerSerialReplays, 1);
+    crate::order_guard::count_replay_reasons(replay_reasons);
+    drop(hosts);
+    let provider = factory.provider();
+    check_snapshot_serially(
+        &snapshot,
+        lib_count,
+        options,
+        &program_diagnostics,
+        file_diagnostics,
+        Some((&*provider, metadata.as_slice())),
+        replay_host,
+        collect_global_diagnostics,
+        complete_library_prefix,
+        work_counters,
+    )
+}
+
+/// The serial check over an existing snapshot (stages 3–5 of the serial
+/// driver, eager schedule, no emit callback). The serial driver delegates
+/// its authoritative eager no-emit path here and the sharded driver replays
+/// a flagged run through it, so the two cannot drift in check order or
+/// assembly; the legacy fixture-only, on-demand and emit-callback paths keep
+/// the serial driver's inline sequence.
+#[allow(clippy::too_many_arguments)]
+fn check_snapshot_serially(
+    snapshot: &ProgramSnapshot,
+    lib_count: usize,
+    options: &CompilerOptions,
+    program_diagnostics: &[Diagnostic],
+    mut file_diagnostics: Vec<FileDiagnosticPasses>,
+    authoritative: Option<(
+        &dyn AuthoritativeModuleProvider,
+        &[AuthoritativeSourceMetadata],
+    )>,
+    host: HostFacts,
+    collect_global_diagnostics: bool,
+    complete_library_prefix: bool,
+    work_counters: CheckWorkCounters,
+) -> CheckExecution {
+    let mut state = init_checker_state(snapshot, options, authoritative, host);
+    let global_diagnostics = if collect_global_diagnostics {
+        let mut rows = state.visible_global_diagnostics.clone();
+        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut rows);
+        rows
+    } else {
+        Vec::new()
+    };
+    let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
+    let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
+    check_files_in_order(
+        &mut state,
+        &program_file_ids,
+        &mut global_checker_diagnostics_by_file,
+    );
+    for &file in &program_file_ids {
+        if state.skip_type_checking_file(file) {
+            continue;
+        }
+        let source_index = file.index();
+        let result_index = source_index - lib_count;
+        let source = state.binder.source(source_index);
+        file_diagnostics[result_index].suggestion.extend(
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| {
+                    diagnostic.file_name.as_ref().map(JsString::as_js)
+                        == Some(source.file_name.as_js())
+                        && diagnostic.category() == DiagnosticCategory::Suggestion
+                })
+                .cloned(),
+        );
+        file_diagnostics[result_index].semantic = semantic_diagnostics_for_program_file(
+            &state,
+            source_index,
+            &global_checker_diagnostics_by_file[source_index],
+            program_diagnostics,
+            options,
+        );
+    }
+    let all_program_file_ids = state.binder.file_ids().collect::<Vec<_>>();
+    if complete_library_prefix {
+        check_files_in_order(
+            &mut state,
+            &all_program_file_ids,
+            &mut global_checker_diagnostics_by_file,
+        );
+    }
+    let mut diagnostics = Vec::new();
+    for &file in &all_program_file_ids {
+        if state.skip_type_checking_file(file) {
+            continue;
+        }
+        diagnostics.extend(semantic_diagnostics_for_program_file(
+            &state,
+            file.index(),
+            &global_checker_diagnostics_by_file[file.index()],
+            program_diagnostics,
+            options,
+        ));
+    }
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+    let partial_checks = state.partial_check_records.clone();
+    let authoritative_failure = state.take_authoritative_module_failure();
+    CheckExecution {
+        result: assemble_check_result(
+            &file_diagnostics,
+            Some(&diagnostics),
+            &global_diagnostics,
+            &partial_checks,
+            work_counters,
+        ),
+        authoritative_failure,
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn check_program_with_prebound_libs_at_observed<'cwd>(
     libs: &[InputFile],
@@ -2456,45 +3289,70 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         let snapshot = document_store
             .into_snapshot_with_file_facts(file_facts)
             .expect("program snapshot identity allocation failed");
-        file_diagnostics = snapshot
-            .documents()
-            .iter()
-            .skip(lib_count)
-            .map(|document| {
-                let source = document.source();
-                // tsc getSyntacticDiagnosticsForFile: JS files prepend the
-                // TypeScript-only-syntax walker output to parser diagnostics.
-                let mut syntactic = if is_js_file_name(&source.file_name) {
-                    js_grammar::get_js_syntactic_diagnostics(
-                        source,
-                        options.experimental_decorators,
-                    )
-                } else {
-                    Vec::new()
-                };
-                syntactic.extend(source.parse_diagnostics.iter().cloned());
-                tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
-                FileDiagnosticPasses {
-                    file_name: source.file_name.clone(),
-                    syntactic,
-                    semantic: Vec::new(),
-                    suggestion: Vec::new(),
-                }
-            })
-            .collect();
+        file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
         let authoritative_metadata = authoritative_run.map(|run| {
             let mut metadata = run.lib_metadata.clone();
             metadata.extend(authoritative_program_metadata.iter().cloned());
             metadata
         });
+        // A per-checker provider source reaching the serial driver
+        // constructs exactly one provider for its one checker state.
+        let checker_provider: Option<Box<dyn AuthoritativeModuleProvider + '_>> = authoritative_run
+            .and_then(|run| match run.provider {
+                AuthoritativeProviderSource::Shared(_) => None,
+                AuthoritativeProviderSource::PerChecker(factory) => Some(factory.provider()),
+            });
+        // The authoritative eager no-emit path (the CLI's noEmit check and
+        // the sharded driver's serial replay) shares one implementation.
+        if let Some(run) = authoritative_run.filter(|run| {
+            run.diagnostic_schedule == DiagnosticSchedule::Eager && emit_operation.is_none()
+        }) {
+            let provider: &dyn AuthoritativeModuleProvider = match run.provider {
+                AuthoritativeProviderSource::Shared(provider) => provider,
+                AuthoritativeProviderSource::PerChecker(_) => checker_provider
+                    .as_deref()
+                    .expect("per-checker provider constructed above"),
+            };
+            work_counters.record_checker_shards(1, 1);
+            perf::add(PerfCounter::CheckerShardsRun, 1);
+            perf::add(PerfCounter::CheckerShardThreads, 1);
+            return check_snapshot_serially(
+                &snapshot,
+                lib_count,
+                options,
+                &program_diagnostics,
+                file_diagnostics,
+                Some((
+                    provider,
+                    authoritative_metadata
+                        .as_deref()
+                        .expect("authoritative metadata assembled above"),
+                )),
+                host,
+                collect_global_diagnostics,
+                run.library_prefix == LibraryPrefixCompletion::Complete,
+                work_counters,
+            );
+        }
         let mut state = init_checker_state(
             &snapshot,
             options,
             authoritative_run
                 .zip(authoritative_metadata.as_deref())
-                .map(|(run, metadata)| (run.provider, metadata)),
+                .map(|(run, metadata)| {
+                    let provider: &dyn AuthoritativeModuleProvider = match run.provider {
+                        AuthoritativeProviderSource::Shared(provider) => provider,
+                        AuthoritativeProviderSource::PerChecker(_) => checker_provider
+                            .as_deref()
+                            .expect("per-checker provider constructed above"),
+                    };
+                    (provider, metadata)
+                }),
             host,
         );
+        work_counters.record_checker_shards(1, 1);
+        perf::add(PerfCounter::CheckerShardsRun, 1);
+        perf::add(PerfCounter::CheckerShardThreads, 1);
         if collect_global_diagnostics {
             global_diagnostics = state.visible_global_diagnostics.clone();
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut global_diagnostics);
@@ -2683,24 +3541,51 @@ fn semantic_diagnostics_for_program_file(
     options: &CompilerOptions,
 ) -> DiagnosticList {
     let source = state.binder.source(source_index);
+    let checker_for_file = state
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
+        })
+        .collect::<Vec<_>>();
+    semantic_diagnostics_for_file_rows(
+        source,
+        &state.binder.file(source_index).bind_diagnostics,
+        &checker_for_file,
+        state
+            .partially_checked_ranges
+            .get(&source_index)
+            .map(Vec::as_slice),
+        global_checker_diagnostics,
+        program_diagnostics,
+        options,
+    )
+}
+
+/// The `getSemanticDiagnosticsForFile` assembly over an explicit row source:
+/// the checker rows owned by `source` (in publication order, from one or
+/// several checker states), the owner's partially-checked ranges, and the
+/// file-less rows attributed to this file. The serial driver passes one
+/// state's rows; the sharded driver passes the merged rows of every shard.
+/// tsrs-native: shared assembly so the two drivers cannot drift.
+#[allow(clippy::too_many_arguments)]
+fn semantic_diagnostics_for_file_rows(
+    source: &tsc_syntax::SourceFile,
+    bind_diagnostics: &[Diagnostic],
+    checker_for_file: &[&Diagnostic],
+    partial_ranges: Option<&[(u32, u32)]>,
+    global_checker_diagnostics: &[Diagnostic],
+    program_diagnostics: &[Diagnostic],
+    options: &CompilerOptions,
+) -> DiagnosticList {
     let javascript_file = is_js_file_name(&source.file_name);
     let directive = check_directive(source.text());
     let plain_js = is_plain_js_file(javascript_file, directive, options);
-    let checker_for_file = state.diagnostics.iter().filter(|diagnostic| {
-        diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
-    });
 
     // getBindAndCheckDiagnosticsForFileNoCache:
     // bind -> check (new globals first) -> checked-JS JSDoc.
     let mut bind_and_check = Vec::new();
-    bind_and_check.extend(
-        state
-            .binder
-            .file(source_index)
-            .bind_diagnostics
-            .iter()
-            .cloned(),
-    );
+    bind_and_check.extend(bind_diagnostics.iter().cloned());
     bind_and_check.extend(
         global_checker_diagnostics
             .iter()
@@ -2709,8 +3594,9 @@ fn semantic_diagnostics_for_program_file(
     );
     bind_and_check.extend(
         checker_for_file
+            .iter()
             .filter(|diagnostic| diagnostic.category() != DiagnosticCategory::Suggestion)
-            .cloned(),
+            .map(|diagnostic| (*diagnostic).clone()),
     );
     if javascript_file && !plain_js {
         bind_and_check.extend(source.js_doc_diagnostics.iter().cloned());
@@ -2725,7 +3611,7 @@ fn semantic_diagnostics_for_program_file(
             bind_and_check.into_iter(),
             Some(&mut used_directive_lines),
         );
-        if let Some(partial_ranges) = state.partially_checked_ranges.get(&source_index) {
+        if let Some(partial_ranges) = partial_ranges {
             mark_comment_directives_for_partial_ranges(
                 source,
                 partial_ranges,

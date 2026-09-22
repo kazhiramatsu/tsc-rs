@@ -6902,3 +6902,660 @@ fn library_related_information_follows_program_membership_across_entry_families(
         assert_eq!(related, if default_library { vec![] } else { vec![6501] });
     }
 }
+
+/// W2: a sharded budget publishes exactly the serial CheckResult over the
+/// same shared snapshot, including cross-file rows (merged-interface
+/// duplicate index signatures reported for both declaring files while the
+/// first declaration's file is checked) and directive synthesis after the
+/// merge (one used and one unused `@ts-expect-error`). The shard runner's
+/// debug assertion checks that every shard borrows pointer-identical source
+/// trees from the snapshot; the work counters record real participation.
+#[test]
+fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
+    struct Provider;
+
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            request: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            panic!(
+                "this program has no module requests: {:?}",
+                request.specifier
+            );
+        }
+    }
+
+    struct Factory;
+
+    impl AuthoritativeModuleProviderFactory for Factory {
+        fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
+            Box::new(Provider)
+        }
+    }
+
+    let libs = [InputFile::new(
+        "/lib.sharded-probe.d.ts".to_owned(),
+        "interface IArguments {}\ninterface Array<T> { length: number; [index: number]: T; }\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+            .to_owned(),
+    )];
+    let files = [
+        InputFile::new(
+            "/left.ts".to_owned(),
+            "interface Merged {\n    [key: string]: number;\n}\n".to_owned(),
+        ),
+        InputFile::new(
+            "/right.ts".to_owned(),
+            "interface Merged {\n    [key: string]: string;\n}\n".to_owned(),
+        ),
+        InputFile::new(
+            "/consumer.ts".to_owned(),
+            "declare const merged: Merged;\n// @ts-expect-error\nconst text: string = merged.anything;\n// @ts-expect-error\nconst fine: number = 1;\n".to_owned(),
+        ),
+    ];
+    let lib_metadata = [AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(0),
+        file_name: libs[0].name.clone(),
+        may_be_emitted: false,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+    }];
+    let file_metadata = files
+        .iter()
+        .enumerate()
+        .map(|(index, file)| AuthoritativeSourceMetadata {
+            token: AuthoritativeSourceToken(index as u32 + 1),
+            file_name: file.name.clone(),
+            may_be_emitted: true,
+            implied_node_format: None,
+            implied_node_format_for_emit: None,
+        })
+        .collect::<Vec<_>>();
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    let run = |checkers: usize| {
+        check_program_with_authoritative_modules_at_cache_mode_with_source(
+            &libs,
+            &files,
+            &lib_metadata,
+            &file_metadata,
+            &options,
+            "/",
+            AuthoritativeProviderSource::PerChecker(&Factory),
+            false,
+            None,
+            None,
+            crate::LibraryPrefixCompletion::Complete,
+            crate::DiagnosticSchedule::Eager,
+            tsc_program::WorkerBudget::serial(),
+            CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap()),
+        )
+        .expect("authoritative result")
+    };
+    let shared = check_program_with_authoritative_modules_at_cache_mode(
+        &libs,
+        &files,
+        &lib_metadata,
+        &file_metadata,
+        &options,
+        "/",
+        &Provider,
+        false,
+        None,
+        None,
+        crate::LibraryPrefixCompletion::Complete,
+        crate::DiagnosticSchedule::Eager,
+        tsc_program::WorkerBudget::serial(),
+    )
+    .expect("shared-provider serial result");
+    let serial = run(1);
+    assert_eq!(serial, shared);
+    assert_eq!(serial.work_counters.checker_shards(), 1);
+    assert_eq!(serial.work_counters.checker_threads(), 1);
+    let program = serial
+        .program_semantic_diagnostics
+        .as_deref()
+        .expect("whole-Program semantics");
+    let owners = |code: u32| {
+        let mut owners = program
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == code)
+            .map(|diagnostic| {
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .and_then(|name| name.as_str().map(str::to_owned))
+                    .unwrap_or_default()
+            })
+            .collect::<Vec<_>>();
+        owners.sort();
+        owners
+    };
+    assert_eq!(owners(2374), ["/left.ts", "/right.ts"], "cross-file rows");
+    assert_eq!(
+        owners(2578),
+        ["/consumer.ts"],
+        "unused directive after merge"
+    );
+    assert!(!program.iter().any(|diagnostic| diagnostic.code() == 2322));
+
+    // Four Program files (one library, three fixtures): budgets above four
+    // clamp to four shards, each with its own thread.
+    for checkers in [2usize, 3, 4, 8] {
+        let sharded = run(checkers);
+        assert_eq!(sharded, serial, "checkers={checkers}");
+        let expected = checkers.min(4) as u64;
+        assert_eq!(
+            sharded.work_counters.checker_shards(),
+            expected,
+            "checkers={checkers}"
+        );
+        assert_eq!(
+            sharded.work_counters.checker_threads(),
+            expected,
+            "checkers={checkers}"
+        );
+        assert_eq!(
+            sharded.work_counters.checker_serial_replay(),
+            0,
+            "checkers={checkers}: no order-consuming operation, no replay"
+        );
+        assert_eq!(
+            sharded.work_counters.parsed_documents(),
+            serial.work_counters.parsed_documents()
+        );
+        assert_eq!(
+            sharded.work_counters.bound_documents(),
+            serial.work_counters.bound_documents()
+        );
+    }
+}
+
+/// W2c: the order-sensitivity guard replays a sharded run whose result could
+/// depend on shard-local type-id order. `LastOf<Alpha | Beta>` infers from the
+/// last signature of an intersection of two shard-local function types; with
+/// `first.ts` touching Beta before Alpha the serial answer is Alpha, so the
+/// assignment to Beta must fail exactly as it does serially at every width.
+/// The intersection-signature site flags every shard that resolves it and the
+/// driver replays the whole check serially over the same snapshot.
+#[test]
+fn order_guard_replays_last_union_member_inference_at_every_width() {
+    struct Provider;
+
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            request: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            panic!(
+                "this program has no module requests: {:?}",
+                request.specifier
+            );
+        }
+    }
+
+    struct Factory;
+
+    impl AuthoritativeModuleProviderFactory for Factory {
+        fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
+            Box::new(Provider)
+        }
+    }
+
+    let padding = (0..80)
+        .map(|i| format!("declare const pad{i}: number;\n"))
+        .collect::<String>();
+    let libs = [InputFile::new(
+        "/lib.order-guard-probe.d.ts".to_owned(),
+        "interface IArguments {}\ninterface Array<T> { length: number; [index: number]: T; }\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+            .to_owned(),
+    )];
+    let files = [
+        // Not checked under skipLibCheck: the declared types are created only
+        // by their consumers, in each consumer's own order.
+        InputFile::new(
+            "/types.d.ts".to_owned(),
+            "interface Alpha {\n    alpha: number;\n}\ninterface Beta {\n    beta: string;\n}\n".to_owned(),
+        ),
+        InputFile::new(
+            "/first.ts".to_owned(),
+            format!("declare const b: Beta;\ndeclare const a: Alpha;\nconst useB = b;\nconst useA = a;\n{padding}"),
+        ),
+        InputFile::new(
+            "/second.ts".to_owned(),
+            "type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;\ntype LastOf<U> = UnionToIntersection<U extends unknown ? () => U : never> extends () => infer R ? R : never;\ndeclare const last: LastOf<Alpha | Beta>;\nconst check: Beta = last;\n".to_owned(),
+        ),
+    ];
+    let lib_metadata = [AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(0),
+        file_name: libs[0].name.clone(),
+        may_be_emitted: false,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+    }];
+    let file_metadata = files
+        .iter()
+        .enumerate()
+        .map(|(index, file)| AuthoritativeSourceMetadata {
+            token: AuthoritativeSourceToken(index as u32 + 1),
+            file_name: file.name.clone(),
+            may_be_emitted: true,
+            implied_node_format: None,
+            implied_node_format_for_emit: None,
+        })
+        .collect::<Vec<_>>();
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        strict: Some(true),
+        skip_lib_check: Some(true),
+        ..CompilerOptions::default()
+    };
+    let run = |checkers: usize| {
+        check_program_with_authoritative_modules_at_cache_mode_with_source(
+            &libs,
+            &files,
+            &lib_metadata,
+            &file_metadata,
+            &options,
+            "/",
+            AuthoritativeProviderSource::PerChecker(&Factory),
+            false,
+            None,
+            None,
+            crate::LibraryPrefixCompletion::Complete,
+            crate::DiagnosticSchedule::Eager,
+            tsc_program::WorkerBudget::serial(),
+            CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap()),
+        )
+        .expect("authoritative result")
+    };
+    let serial = run(1);
+    assert_eq!(serial.work_counters.checker_serial_replay(), 0);
+    let program = serial
+        .program_semantic_diagnostics
+        .as_deref()
+        .expect("whole-Program semantics");
+    let codes = program.iter().map(Diagnostic::code).collect::<Vec<_>>();
+    assert!(
+        codes.contains(&2741) || codes.contains(&2322),
+        "serial run reports the Beta assignment failure: {codes:?}"
+    );
+    for checkers in [2usize, 3, 4] {
+        let sharded = run(checkers);
+        assert_eq!(sharded, serial, "checkers={checkers}");
+        assert_eq!(
+            sharded.work_counters.checker_serial_replay(),
+            1,
+            "checkers={checkers}: the guard must replay"
+        );
+        assert_ne!(
+            sharded.work_counters.checker_replay_reasons()
+                & u64::from(crate::order_guard::OrderReason::INTERSECTION_SIGNATURES.bits()),
+            0,
+            "checkers={checkers}: intersection signature order was consumed"
+        );
+        assert_eq!(
+            sharded.work_counters.checker_shards(),
+            checkers.min(4) as u64
+        );
+    }
+}
+
+// W2f (F42/F60): the order-sensitive shapes observed on root's CLI controls
+// (review/shard-constructor-controls-20260922, shard-alias-diagnostic-control-20260922,
+// shard-contextual-this-controls-20260922) persisted natively as global-script
+// programs over one shared snapshot. The serial result must be the fresh
+// TypeScript 6.0.3 oracle's, recorded from byte-identical inputs by
+// target/benchmarks/fable51-parity-20260922/cases-extra/w2f-oracle-probes/
+// (display file, position, code, message chain, related information), and
+// every sharded width must publish exactly that result through the guard's
+// serial replay with the predicted reason. Both halves of every pair are
+// pinned: the half whose only error an unguarded sharded run would lose and
+// the half where it would gain one.
+const ORDER_GUARD_LIB: &str = "interface IArguments {}\ninterface Array<T> { length: number; [index: number]: T; }\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n";
+const ORDER_GUARD_TYPES: &str = "interface Alpha {\n    alpha: number;\n}\ninterface Beta {\n    beta: string;\n}\ntype Either = Alpha | Beta;\ntype FAlpha = (this: Alpha) => number;\ntype FBeta = (this: Beta) => number;\n";
+const UNION_TO_INTERSECTION: &str = "type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;\n";
+const LAST_CALLABLE: &str = "type LastOf<U> = UnionToIntersection<U extends unknown ? () => U : never> extends () => infer R ? R : never;\n";
+const LAST_CONSTRUCTOR: &str = "type LastCtorOf<U> = UnionToIntersection<U extends unknown ? new () => U : never> extends new () => infer R ? R : never;\n";
+const BETA_DECLARED_HERE: (&str, u32, u32, u32, &str) =
+    ("/types.d.ts", 60, 4, 2728, "'beta' is declared here.");
+const BETA_MISSING_IN_ALPHA: &str =
+    "Property 'beta' is missing in type 'Alpha' but required in type 'Beta'.";
+
+/// One expected diagnostic: display file, start, length, the message chain
+/// (code, text) from the head down, and related information rows
+/// (file, start, length, code, text).
+struct ExpectedDiagnostic {
+    file: &'static str,
+    start: u32,
+    length: u32,
+    chain: &'static [(u32, &'static str)],
+    related: &'static [(&'static str, u32, u32, u32, &'static str)],
+}
+
+type ObservedDiagnostic = (
+    Option<String>,
+    Option<u32>,
+    Option<u32>,
+    Vec<(u32, String)>,
+    Vec<(Option<String>, Option<u32>, Option<u32>, u32, String)>,
+);
+
+fn observe_diagnostic(diagnostic: &Diagnostic) -> ObservedDiagnostic {
+    fn flatten(chain: &tsc_diagnostics::MessageChain, out: &mut Vec<(u32, String)>) {
+        out.push((
+            chain.code,
+            chain.text.as_str().expect("UTF-8 message").to_owned(),
+        ));
+        for next in &chain.next {
+            flatten(next, out);
+        }
+    }
+    let name = |name: &Option<JsString>| {
+        name.as_ref()
+            .map(|name| name.as_str().expect("UTF-8 file name").to_owned())
+    };
+    let mut chain = Vec::new();
+    flatten(&diagnostic.message, &mut chain);
+    (
+        name(&diagnostic.file_name),
+        diagnostic.start,
+        diagnostic.length,
+        chain,
+        diagnostic
+            .related
+            .iter()
+            .map(|related| {
+                (
+                    name(&related.file_name),
+                    related.start,
+                    related.length,
+                    related.message.code,
+                    related
+                        .message
+                        .text
+                        .as_str()
+                        .expect("UTF-8 related message")
+                        .to_owned(),
+                )
+            })
+            .collect(),
+    )
+}
+
+fn expected_diagnostic(expected: &ExpectedDiagnostic) -> ObservedDiagnostic {
+    (
+        Some(expected.file.to_owned()),
+        Some(expected.start),
+        Some(expected.length),
+        expected
+            .chain
+            .iter()
+            .map(|&(code, text)| (code, text.to_owned()))
+            .collect(),
+        expected
+            .related
+            .iter()
+            .map(|&(file, start, length, code, text)| {
+                (
+                    Some(file.to_owned()),
+                    Some(start),
+                    Some(length),
+                    code,
+                    text.to_owned(),
+                )
+            })
+            .collect(),
+    )
+}
+
+fn order_guard_padding() -> String {
+    (0..80)
+        .map(|i| format!("declare const pad{i}: number;\n"))
+        .collect()
+}
+
+/// `first.ts` touches Beta before Alpha so the serial checker creates Beta's
+/// type first; the padding gives the file more partition weight than the
+/// library so every width >= 2 checks `second.ts` on another shard.
+fn first_touching_types() -> String {
+    format!(
+        "declare const b: Beta;\ndeclare const a: Alpha;\nconst useB = b;\nconst useA = a;\n{}",
+        order_guard_padding()
+    )
+}
+
+fn first_touching_signatures() -> String {
+    format!(
+        "const b: FBeta = function () {{ return 1; }};\nconst a: FAlpha = function () {{ return 1; }};\n{}",
+        order_guard_padding()
+    )
+}
+
+fn assert_order_guard_shape(
+    first: &str,
+    second: &str,
+    expected: &[ExpectedDiagnostic],
+    reason: crate::order_guard::OrderReason,
+) {
+    struct Provider;
+
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            request: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            panic!(
+                "this program has no module requests: {:?}",
+                request.specifier
+            );
+        }
+    }
+
+    struct Factory;
+
+    impl AuthoritativeModuleProviderFactory for Factory {
+        fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
+            Box::new(Provider)
+        }
+    }
+
+    let libs = [InputFile::new(
+        "/lib.w2f-probe.d.ts".to_owned(),
+        ORDER_GUARD_LIB.to_owned(),
+    )];
+    let files = [
+        InputFile::new("/types.d.ts".to_owned(), ORDER_GUARD_TYPES.to_owned()),
+        InputFile::new("/first.ts".to_owned(), first.to_owned()),
+        InputFile::new("/second.ts".to_owned(), second.to_owned()),
+    ];
+    let lib_metadata = [AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(0),
+        file_name: libs[0].name.clone(),
+        may_be_emitted: false,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+    }];
+    let file_metadata = files
+        .iter()
+        .enumerate()
+        .map(|(index, file)| AuthoritativeSourceMetadata {
+            token: AuthoritativeSourceToken(index as u32 + 1),
+            file_name: file.name.clone(),
+            may_be_emitted: true,
+            implied_node_format: None,
+            implied_node_format_for_emit: None,
+        })
+        .collect::<Vec<_>>();
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        strict: Some(true),
+        skip_lib_check: Some(true),
+        target: Some(9), // ScriptTarget.ES2022, as in the CLI controls
+        ..CompilerOptions::default()
+    };
+    let run = |checkers: usize| {
+        check_program_with_authoritative_modules_at_cache_mode_with_source(
+            &libs,
+            &files,
+            &lib_metadata,
+            &file_metadata,
+            &options,
+            "/",
+            AuthoritativeProviderSource::PerChecker(&Factory),
+            false,
+            None,
+            None,
+            crate::LibraryPrefixCompletion::Complete,
+            crate::DiagnosticSchedule::Eager,
+            tsc_program::WorkerBudget::serial(),
+            CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap()),
+        )
+        .expect("authoritative result")
+    };
+    let serial = run(1);
+    assert_eq!(serial.work_counters.checker_shards(), 1);
+    assert_eq!(serial.work_counters.checker_serial_replay(), 0);
+    let program = serial
+        .program_semantic_diagnostics
+        .as_deref()
+        .expect("whole-Program semantics");
+    assert_eq!(
+        program.iter().map(observe_diagnostic).collect::<Vec<_>>(),
+        expected.iter().map(expected_diagnostic).collect::<Vec<_>>(),
+        "serial whole-Program diagnostics"
+    );
+    assert!(serial.global_diagnostics.is_empty());
+    assert!(serial.syntactic_diagnostics.is_empty());
+    for checkers in [2usize, 3, 4] {
+        let sharded = run(checkers);
+        assert_eq!(sharded, serial, "checkers={checkers}");
+        assert_eq!(
+            sharded.work_counters.checker_shards(),
+            checkers as u64,
+            "checkers={checkers}: four Program files, one per shard at most"
+        );
+        assert_eq!(
+            sharded.work_counters.checker_serial_replay(),
+            1,
+            "checkers={checkers}: the guard must replay"
+        );
+        assert_ne!(
+            sharded.work_counters.checker_replay_reasons() & u64::from(reason.bits()),
+            0,
+            "checkers={checkers}: expected reason {reason:?} in {:#b}",
+            sharded.work_counters.checker_replay_reasons()
+        );
+        assert_eq!(
+            sharded.work_counters.parsed_documents(),
+            serial.work_counters.parsed_documents()
+        );
+        assert_eq!(
+            sharded.work_counters.bound_documents(),
+            serial.work_counters.bound_documents()
+        );
+    }
+}
+
+#[test]
+fn order_guard_pins_both_halves_of_callable_last_member_inference() {
+    // Serial: LastOf<Alpha | Beta> is Alpha (Beta has the lower type id, so
+    // Alpha's signature is the last intersection member). Assigning to Beta
+    // fails; assigning to Alpha is clean. An unguarded sharded run infers
+    // Beta and would lose the first error and gain one in the second half.
+    let first = first_touching_types();
+    assert_order_guard_shape(
+        &first,
+        &format!("{UNION_TO_INTERSECTION}{LAST_CALLABLE}declare const last: LastOf<Alpha | Beta>;\nconst check: Beta = last;\n"),
+        &[ExpectedDiagnostic {
+            file: "/second.ts",
+            start: 274,
+            length: 5,
+            chain: &[(2741, BETA_MISSING_IN_ALPHA)],
+            related: &[BETA_DECLARED_HERE],
+        }],
+        crate::order_guard::OrderReason::INTERSECTION_SIGNATURES,
+    );
+    assert_order_guard_shape(
+        &first,
+        &format!("{UNION_TO_INTERSECTION}{LAST_CALLABLE}declare const last: LastOf<Alpha | Beta>;\nconst check: Alpha = last;\n"),
+        &[],
+        crate::order_guard::OrderReason::INTERSECTION_SIGNATURES,
+    );
+}
+
+#[test]
+fn order_guard_pins_both_halves_of_constructor_last_member_inference() {
+    // The same inference through construct signatures (`new () => U`), the
+    // shape of root's last-constructor-member-to-{beta,alpha} controls.
+    let first = first_touching_types();
+    assert_order_guard_shape(
+        &first,
+        &format!("{UNION_TO_INTERSECTION}{LAST_CONSTRUCTOR}declare const last: LastCtorOf<Alpha | Beta>;\nconst check: Beta = last;\n"),
+        &[ExpectedDiagnostic {
+            file: "/second.ts",
+            start: 290,
+            length: 5,
+            chain: &[(2741, BETA_MISSING_IN_ALPHA)],
+            related: &[BETA_DECLARED_HERE],
+        }],
+        crate::order_guard::OrderReason::INTERSECTION_SIGNATURES,
+    );
+    assert_order_guard_shape(
+        &first,
+        &format!("{UNION_TO_INTERSECTION}{LAST_CONSTRUCTOR}declare const last: LastCtorOf<Alpha | Beta>;\nconst check: Alpha = last;\n"),
+        &[],
+        crate::order_guard::OrderReason::INTERSECTION_SIGNATURES,
+    );
+}
+
+#[test]
+fn order_guard_pins_the_aliased_union_first_failure_elaboration() {
+    // The outer type prints by its alias name at every width; the nested
+    // member is the first failing union member in type-id order (Beta
+    // serially). The mark travels with the published elaboration chain.
+    assert_order_guard_shape(
+        &first_touching_types(),
+        "declare const either: Either;\nconst n: number = either;\n",
+        &[ExpectedDiagnostic {
+            file: "/second.ts",
+            start: 36,
+            length: 1,
+            chain: &[
+                (2322, "Type 'Either' is not assignable to type 'number'."),
+                (2322, "Type 'Beta' is not assignable to type 'number'."),
+            ],
+            related: &[],
+        }],
+        crate::order_guard::OrderReason::FIRST_FAILURE,
+    );
+}
+
+#[test]
+fn order_guard_pins_both_halves_of_the_contextual_this_head() {
+    // The contextual union signature's head decides `this`: FBeta serially
+    // (its signature was created first), so `this.alpha` fails and
+    // `this.beta` is clean; an unguarded sharded run would swap the halves.
+    let first = first_touching_signatures();
+    assert_order_guard_shape(
+        &first,
+        "const f: FAlpha | FBeta = function () {\n    this.alpha;\n    return 1;\n};\n",
+        &[ExpectedDiagnostic {
+            file: "/second.ts",
+            start: 49,
+            length: 5,
+            chain: &[(2339, "Property 'alpha' does not exist on type 'Beta'.")],
+            related: &[],
+        }],
+        crate::order_guard::OrderReason::CONTEXTUAL_SIGNATURE,
+    );
+    assert_order_guard_shape(
+        &first,
+        "const f: FAlpha | FBeta = function () {\n    this.beta;\n    return 1;\n};\n",
+        &[],
+        crate::order_guard::OrderReason::CONTEXTUAL_SIGNATURE,
+    );
+}

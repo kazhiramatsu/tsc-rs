@@ -1799,6 +1799,11 @@ impl<'a> CheckerState<'a> {
                     TypeData::Intersection { types } => types.to_vec(),
                     _ => unreachable!("intersection flag implies intersection data"),
                 };
+                // W2c: the LAST constituent (by stored order) is folded.
+                self.order_guard.note(
+                    crate::order_guard::OrderReason::INTERSECTION_LAST,
+                    types.iter().copied(),
+                );
                 let last_left = *types.last().expect("intersections are non-empty");
                 if self.is_non_generic_object_type(last_left)?
                     && self.is_non_generic_object_type(right)?

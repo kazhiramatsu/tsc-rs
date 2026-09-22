@@ -17,19 +17,21 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tsc_checker::emit::CheckerSession;
+pub use tsc_checker::CheckerBudget;
 use tsc_checker::{
     check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle,
     check_program_with_authoritative_modules_at_for_emit_with_workers,
     check_program_with_authoritative_modules_at_harness_cached,
+    check_program_with_authoritative_modules_at_with_checkers,
     check_program_with_authoritative_modules_at_with_workers,
     prepare_authoritative_harness_lib_bundle, AuthoritativeModuleFailure,
-    AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
-    AuthoritativeModuleResolution, AuthoritativeModuleResolutionDiagnostic,
-    AuthoritativeNotFoundModule, AuthoritativePackageId, AuthoritativeResolutionDiagnosticModule,
-    AuthoritativeResolutionMode, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
-    AuthoritativeSourceToken, AuthoritativeUntypedModule, CheckResult, InputFile,
-    LibraryPrefixCompletion, OwnedHarnessLibBundle, ProgramSnapshot,
-    UnsupportedAuthoritativeResolution,
+    AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider,
+    AuthoritativeModuleProviderFactory, AuthoritativeModuleRequest, AuthoritativeModuleResolution,
+    AuthoritativeModuleResolutionDiagnostic, AuthoritativeNotFoundModule, AuthoritativePackageId,
+    AuthoritativeResolutionDiagnosticModule, AuthoritativeResolutionMode,
+    AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
+    AuthoritativeUntypedModule, CheckResult, InputFile, LibraryPrefixCompletion,
+    OwnedHarnessLibBundle, ProgramSnapshot, UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{
     gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, JsStr, JsString, MessageChain,
@@ -84,6 +86,12 @@ pub struct ProgramSession {
     /// Worker budget for the checker's scoped per-file binding; serial by
     /// default (see [`WorkerBudget`]). The CLI passes its own budget.
     worker_budget: WorkerBudget,
+    /// Checker budget for the no-emit whole-Program check; one checker by
+    /// default (see [`CheckerBudget`]). Independent of `worker_budget`:
+    /// each additional checker duplicates checker-local state over the one
+    /// shared immutable snapshot. The emit and declaration paths stay serial
+    /// until their coordinated write finalization exists.
+    checker_budget: CheckerBudget,
 }
 
 /// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
@@ -275,6 +283,23 @@ impl ProgramDiagnostics {
 struct PreparedModuleProvider<'a> {
     prepared: &'a PreparedProgram,
     request_plans: RefCell<BTreeMap<SourceFileId, SourceRequestPlan>>,
+}
+
+/// Constructs one [`PreparedModuleProvider`] per checker state over the
+/// shared immutable [`PreparedProgram`]; the provider's request-plan cache is
+/// therefore checker-local and the public provider trait needs no `Sync`.
+/// tsrs-native: the compiler's per-checker provider seam for sharded checking.
+struct PreparedProviderFactory<'a> {
+    prepared: &'a PreparedProgram,
+}
+
+impl AuthoritativeModuleProviderFactory for PreparedProviderFactory<'_> {
+    fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
+        Box::new(PreparedModuleProvider {
+            prepared: self.prepared,
+            request_plans: RefCell::new(BTreeMap::new()),
+        })
+    }
 }
 
 struct PreparedEmitHost<'program> {
@@ -839,6 +864,7 @@ impl ProgramSession {
             emit_route: EmitRouteKind::Program,
             source_api_facts: BTreeMap::new(),
             worker_budget: WorkerBudget::serial(),
+            checker_budget: CheckerBudget::serial(),
         }
     }
 
@@ -860,6 +886,19 @@ impl ProgramSession {
 
     pub fn worker_budget(&self) -> WorkerBudget {
         self.worker_budget
+    }
+
+    /// Select the checker budget for the no-emit whole-Program check.
+    /// The serial default is the exact reference; a sharded budget must
+    /// publish identical diagnostics, which the W controls observe.
+    /// tsrs-native: see [`CheckerBudget`].
+    pub fn with_checker_budget(mut self, checker_budget: CheckerBudget) -> Self {
+        self.checker_budget = checker_budget;
+        self
+    }
+
+    pub fn checker_budget(&self) -> CheckerBudget {
+        self.checker_budget
     }
 
     /// Select an H2.8c research route. Only the emit option admission
@@ -944,6 +983,7 @@ impl ProgramSession {
             emit_route,
             source_api_facts,
             worker_budget,
+            checker_budget: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -1170,6 +1210,7 @@ impl ProgramSession {
             emit_route,
             source_api_facts,
             worker_budget,
+            checker_budget: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1278,6 +1319,7 @@ impl ProgramSession {
             emit_route,
             source_api_facts,
             worker_budget,
+            checker_budget: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -1367,6 +1409,7 @@ impl ProgramSession {
             emit_route,
             source_api_facts,
             worker_budget,
+            checker_budget: _,
         } = self;
         let mut h2_activity = H2ActivityCanary::h2_7e_profile();
         h2_activity.construct_emit_session();
@@ -1594,6 +1637,20 @@ impl ProgramSession {
                 &provider,
                 library_prefix,
             )
+        } else if self.checker_budget.is_sharded() {
+            check_program_with_authoritative_modules_at_with_checkers(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                self.prepared.compiler_options(),
+                &inputs.current_directory,
+                &PreparedProviderFactory {
+                    prepared: &self.prepared,
+                },
+                self.worker_budget,
+                self.checker_budget,
+            )
         } else {
             check_program_with_authoritative_modules_at_with_workers(
                 &inputs.libs,
@@ -1614,6 +1671,10 @@ impl ProgramSession {
             bound_documents: checker_work.bound_documents(),
             full_text_copies: checker_work.full_text_copies(),
             full_text_bytes_copied: checker_work.full_text_bytes_copied(),
+            checker_shards: checker_work.checker_shards(),
+            checker_threads: checker_work.checker_threads(),
+            checker_serial_replay: checker_work.checker_serial_replay(),
+            checker_replay_reasons: checker_work.checker_replay_reasons(),
         };
 
         let preparation = self.prepared.diagnostics();
@@ -1793,6 +1854,10 @@ pub struct NoEmitWorkCounters {
     bound_documents: u64,
     full_text_copies: u64,
     full_text_bytes_copied: u64,
+    checker_shards: u64,
+    checker_threads: u64,
+    checker_serial_replay: u64,
+    checker_replay_reasons: u64,
 }
 
 impl NoEmitWorkCounters {
@@ -1817,6 +1882,29 @@ impl NoEmitWorkCounters {
 
     pub const fn full_text_bytes_copied(self) -> u64 {
         self.full_text_bytes_copied
+    }
+
+    /// Checker states the session constructed (see
+    /// `CheckWorkCounters::checker_shards`): 1 for the serial checker, the
+    /// effective shard count for a sharded budget.
+    pub const fn checker_shards(self) -> u64 {
+        self.checker_shards
+    }
+
+    /// Distinct threads that ran those checker states.
+    pub const fn checker_threads(self) -> u64 {
+        self.checker_threads
+    }
+
+    /// 1 when the sharded check was replayed serially because the
+    /// order-sensitivity guard fired (see `CheckWorkCounters`).
+    pub const fn checker_serial_replay(self) -> u64 {
+        self.checker_serial_replay
+    }
+
+    /// The guard's reason bits (0 when nothing fired).
+    pub const fn checker_replay_reasons(self) -> u64 {
+        self.checker_replay_reasons
     }
 }
 
@@ -2615,6 +2703,10 @@ fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {
         bound_documents: checked.work_counters.bound_documents(),
         full_text_copies: checked.work_counters.full_text_copies(),
         full_text_bytes_copied: checked.work_counters.full_text_bytes_copied(),
+        checker_shards: checked.work_counters.checker_shards(),
+        checker_threads: checked.work_counters.checker_threads(),
+        checker_serial_replay: checked.work_counters.checker_serial_replay(),
+        checker_replay_reasons: checked.work_counters.checker_replay_reasons(),
     }
 }
 

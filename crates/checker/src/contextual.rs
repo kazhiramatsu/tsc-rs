@@ -3226,7 +3226,7 @@ impl<'a> CheckerState<'a> {
             _ => unreachable!("union flag implies payload"),
         };
         let mut signature_list: Vec<SignatureId> = Vec::new();
-        for current in types {
+        for &current in &types {
             if let Some(signature) = self.get_contextual_call_signature(current, node)? {
                 if signature_list.is_empty() {
                     signature_list.push(signature);
@@ -3247,6 +3247,12 @@ impl<'a> CheckerState<'a> {
             0 => None,
             1 => Some(signature_list[0]),
             _ => {
+                // W2c (F44): the head signature (its `this` and return type)
+                // is the FIRST constituent's in stored member order.
+                self.order_guard.note(
+                    crate::order_guard::OrderReason::CONTEXTUAL_SIGNATURE,
+                    types.iter().copied(),
+                );
                 let head = signature_list[0];
                 Some(self.create_union_signature(head, signature_list))
             }

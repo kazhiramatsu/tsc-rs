@@ -443,6 +443,10 @@ impl NodeArena {
         id
     }
 
+    /// The hottest cross-crate accessor of the checker (root's frozen W2e
+    /// profiles): inlined so the two id checks fold into the caller instead
+    /// of an out-of-line call with its own frame. The checks stay.
+    #[inline]
     pub fn node(&self, id: NodeId) -> &Node {
         &self.nodes[self.node_index(id)]
     }
@@ -460,6 +464,7 @@ impl NodeArena {
         &self.nodes
     }
 
+    #[inline]
     pub fn node_array(&self, id: NodeArrayId) -> &NodeArray {
         &self.arrays[self.array_index(id)]
     }
@@ -695,6 +700,7 @@ impl NodeArena {
         }
     }
 
+    #[inline]
     fn node_index(&self, id: NodeId) -> usize {
         assert!(
             id.0 >= self.node_base,
@@ -706,6 +712,7 @@ impl NodeArena {
         index
     }
 
+    #[inline]
     fn array_index(&self, id: NodeArrayId) -> usize {
         assert!(
             id.0 >= self.array_base,

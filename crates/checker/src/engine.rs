@@ -1004,6 +1004,17 @@ impl<'a> CheckerState<'a> {
         // drops diagnostics produced during JSX child elaboration.
         let related = !is_false(result);
         let mut message = checker.error_state.error_info.take();
+        // W2c/W2e: the elaboration chain carries its display-class reasons;
+        // it is marked BEFORE any containing chain wraps it, so a published
+        // diagnostic that nests or relates it is still recognized.
+        let elaboration_reasons =
+            checker.error_state.order_sensitive | checker.st.order_guard.take_structural();
+        if let (Some(chain), true) = (&message, elaboration_reasons != 0) {
+            checker
+                .st
+                .order_guard
+                .mark_chain(chain, elaboration_reasons);
+        }
         let mut used_containing_message_chain = false;
         if let Some(containing) = containing_message_chain {
             if let Some(inner) = message.take() {
@@ -1099,6 +1110,10 @@ pub(crate) struct RelationErrorState {
     should_skip_elaboration: bool,
     /// tsc's closure-local mutable errorNode, owned as a copyable arena id.
     error_node: Option<tsc_syntax::NodeId>,
+    /// W2c display-class order-sensitivity of the elaboration being built;
+    /// saved and reset with the rest of the error state, so a discarded
+    /// branch's displays never reach a published diagnostic.
+    order_sensitive: u32,
 }
 
 fn count_message_chain_breadth(info: &[MessageChain]) -> usize {
@@ -2053,7 +2068,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             source_text = self.st.get_type_name_for_error_display(source)?;
             target_text = self.st.get_type_name_for_error_display(target)?;
         }
-
         let mut generalized_source = source;
         let mut generalized_source_text = source_text.clone();
         if !self.flags(target).intersects(TypeFlags::NEVER)
@@ -3101,7 +3115,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if report_errors {
-            if let Some(best_matching_type) = self.st.get_best_matching_type(source, target)? {
+            let best_matching_type = self.st.get_best_matching_type(source, target)?;
+            // W2c: the best-match choice is part of this walk's elaboration.
+            self.error_state.order_sensitive |= self.st.order_guard.take_structural();
+            if let Some(best_matching_type) = best_matching_type {
                 self.is_related_to(
                     source,
                     best_matching_type,
@@ -3125,7 +3142,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
         let mut result = Ternary::TRUE;
-        for target_type in self.union_members(target) {
+        let target_types = self.union_members(target);
+        for &target_type in &target_types {
             let related = self.is_related_to(
                 source,
                 target_type,
@@ -3134,6 +3152,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 intersection_state,
             )?;
             if !is_true(related) {
+                if report_errors
+                    && self
+                        .st
+                        .order_guard
+                        .two_post_init(target_types.iter().copied())
+                {
+                    // W2c (F40): the first failing member is the one reported
+                    // (display-class, owned by this walk's error state).
+                    self.error_state.order_sensitive |=
+                        crate::order_guard::OrderReason::FIRST_FAILURE.bits();
+                }
                 return Ok(Ternary::FALSE);
             }
             result = ternary_and(result, related);
@@ -3156,7 +3185,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::TRUE);
         }
         let len = source_types.len();
-        for (index, source_type) in source_types.into_iter().enumerate() {
+        for (index, &source_type) in source_types.iter().enumerate() {
             let related = self.is_related_to(
                 source_type,
                 target,
@@ -3167,6 +3196,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if is_true(related) {
                 return Ok(related);
             }
+        }
+        if report_errors
+            && self
+                .st
+                .order_guard
+                .two_post_init(source_types.iter().copied())
+        {
+            // W2c (F40): only the LAST member reports, so the reported
+            // member depends on the stored order (display-class).
+            self.error_state.order_sensitive |=
+                crate::order_guard::OrderReason::FIRST_FAILURE.bits();
         }
         Ok(Ternary::FALSE)
     }
@@ -3239,6 +3279,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 intersection_state,
             )?;
             if !is_true(related) {
+                if report_errors
+                    && self
+                        .st
+                        .order_guard
+                        .two_post_init(source_types.iter().copied())
+                {
+                    // W2c (F40): the elaboration names the FIRST failing
+                    // member, whatever the outer union prints as
+                    // (display-class, owned by this walk's error state).
+                    self.error_state.order_sensitive |=
+                        crate::order_guard::OrderReason::FIRST_FAILURE.bits();
+                }
                 return Ok(Ternary::FALSE);
             }
             result = ternary_and(result, related);
@@ -4248,6 +4300,16 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
     ) -> CheckResult<Option<TypeId>> {
+        // W2c: the first matching constituent of a union target wins
+        // (display-class structural choice; the next published elaboration
+        // adopts it; borrowed member slice, guard and tables are disjoint
+        // fields, no clone).
+        if let TypeData::Union { types, .. } = &self.tables.type_of(target).data {
+            self.order_guard.note_structural(
+                crate::order_guard::OrderReason::BEST_MATCH,
+                types.iter().copied(),
+            );
+        }
         if let Some(matched) = self.find_matching_discriminant_type(source, target)? {
             return Ok(Some(matched));
         }

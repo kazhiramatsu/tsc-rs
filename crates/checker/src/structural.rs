@@ -7055,6 +7055,15 @@ impl<'a> CheckerState<'a> {
                 is_any_base_type_index_info: false,
             });
         }
+        // W2c (#13, refined): the result SET is order-independent (keys
+        // present in every member); only the order of two or more resulting
+        // infos follows the first member's declaration order.
+        if result.len() >= 2 {
+            self.order_guard.note(
+                crate::order_guard::OrderReason::UNION_INDEX_INFOS,
+                types.iter().copied(),
+            );
+        }
         Ok(result)
     }
 
@@ -7096,6 +7105,16 @@ impl<'a> CheckerState<'a> {
             }
             construct_lists.push(self.get_signatures_of_type(t, SignatureKind::Construct)?);
         }
+        // W2c: the synthesized signature lists follow member order (observed
+        // from the lists already computed; no allocation, lazy iterator).
+        self.order_guard.note(
+            crate::order_guard::OrderReason::UNION_SIGNATURES,
+            types
+                .iter()
+                .zip(call_lists.iter().zip(construct_lists.iter()))
+                .filter(|(_, (calls, constructs))| !calls.is_empty() || !constructs.is_empty())
+                .map(|(&member, _)| member),
+        );
         let call_signatures = self.get_union_signatures(&call_lists)?;
         let construct_signatures = self.get_union_signatures(&construct_lists)?;
         let index_infos = self.get_union_index_infos(&types)?;
@@ -7147,9 +7166,15 @@ impl<'a> CheckerState<'a> {
         let mut call_signatures: Vec<SignatureId> = Vec::new();
         let mut construct_signatures: Vec<SignatureId> = Vec::new();
         let mut index_infos: Vec<IndexInfo> = Vec::new();
+        // W2c: count shard-local constituents contributing call or construct
+        // signatures (concatenation order feeds overload choice and `infer`
+        // over the last signatures); no allocation, nothing when disarmed.
+        let mut order_sensitive_contributors = 0u32;
         for (i, &t) in types.iter().enumerate() {
+            let mut contributes = false;
             if !mixin_flags[i] {
                 let mut signatures = self.get_signatures_of_type(t, SignatureKind::Construct)?;
+                contributes |= !signatures.is_empty();
                 if !signatures.is_empty() && mixin_count > 0 {
                     let mut mapped = Vec::with_capacity(signatures.len());
                     for &s in &signatures {
@@ -7166,10 +7191,18 @@ impl<'a> CheckerState<'a> {
                 self.append_signatures(&mut construct_signatures, &signatures)?;
             }
             let calls = self.get_signatures_of_type(t, SignatureKind::Call)?;
+            contributes |= !calls.is_empty();
+            if contributes && self.order_guard.is_post_init(t) {
+                order_sensitive_contributors += 1;
+            }
             self.append_signatures(&mut call_signatures, &calls)?;
             for info in self.get_index_infos_of_type(t)? {
                 self.append_index_info(&mut index_infos, info, /*union*/ false)?;
             }
+        }
+        if order_sensitive_contributors >= 2 {
+            self.order_guard
+                .note_always(crate::order_guard::OrderReason::INTERSECTION_SIGNATURES);
         }
         let id = self.alloc_members(crate::state::ResolvedMembers {
             call_signatures,

@@ -2012,6 +2012,12 @@ fn type_to_type_node_worker(
             TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
             _ => unreachable!("union/intersection flags imply list payload"),
         };
+        // W2c: member order becomes type-node order (declaration text). Kept
+        // run-wide until W3 attaches it to the emitted declaration text.
+        checker.order_guard.note(
+            crate::order_guard::OrderReason::DISPLAY,
+            types.iter().copied(),
+        );
         if flags.intersects(TypeFlags::UNION) {
             types = format_union_types(checker, &types, expanding_enum)
                 .map_err(|abort| checker_abort_error(checker, context, abort))?;

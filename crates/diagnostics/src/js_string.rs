@@ -362,8 +362,37 @@ impl<'a> JsStr<'a> {
         JsString(self.bytes.to_vec())
     }
 
+    /// JavaScript's case-sensitive lexicographic UTF-16 comparison.
+    ///
+    /// Identical canonical WTF-8 bytes encode identical code units, so the
+    /// common byte prefix is skipped with a byte comparison and only the
+    /// suffixes from the sequence containing the first differing byte are
+    /// decoded (both views share that sequence's start because their bytes
+    /// before it are identical). Unequal bytes are never ordered by byte
+    /// value: an astral sequence (`F0..`) sorts below a BMP code unit above
+    /// `U+D7FF` in UTF-16 but above it in UTF-8.
     pub fn cmp_utf16(self, other: JsStr<'_>) -> Ordering {
-        self.code_units().cmp(other.code_units())
+        let (left, right) = (self.bytes, other.bytes);
+        let common = left.iter().zip(right).take_while(|(a, b)| a == b).count();
+        if common == left.len() || common == right.len() {
+            // One side is a byte prefix of the other, hence a code-unit
+            // prefix: the shorter sorts first, equal lengths are equal.
+            return left.len().cmp(&right.len());
+        }
+        let mut start = common;
+        while start > 0 && (left[start] & 0xC0) == 0x80 {
+            start -= 1;
+        }
+        JsStr {
+            bytes: &left[start..],
+        }
+        .code_units()
+        .cmp(
+            JsStr {
+                bytes: &right[start..],
+            }
+            .code_units(),
+        )
     }
 
     pub fn to_string_lossy(self) -> Cow<'a, str> {

@@ -292,6 +292,9 @@ pub struct CheckerState<'a> {
     pub subtype_reduction_cache: std::collections::HashMap<String, Vec<tsc_types::TypeId>>,
     /// greenfield §4.3: all links writes assert this is zero.
     pub speculation_depth: u32,
+    /// Order-sensitivity guard (slice W2c): armed only by the sharded driver;
+    /// records order-consuming operations over shard-local types.
+    pub(crate) order_guard: crate::order_guard::OrderGuard,
     #[cfg(test)]
     pub(crate) speculation_commit_count: u32,
     #[cfg(test)]
@@ -1202,6 +1205,7 @@ impl<'a> CheckerState<'a> {
             relations: RelationCaches::default(),
             subtype_reduction_cache: std::collections::HashMap::new(),
             speculation_depth: 0,
+            order_guard: crate::order_guard::OrderGuard::default(),
             checked_source_files: 0,
             #[cfg(test)]
             speculation_commit_count: 0,
@@ -1781,6 +1785,11 @@ impl<'a> CheckerState<'a> {
         property_name: TypeSystemPropertyName,
     ) -> bool {
         if let Some(cycle_start) = self.find_resolution_cycle_start_index(target, property_name) {
+            // W2c: the resolution event itself is order-sensitive (which
+            // member of the cycle is entered first depends on the checking
+            // order), whether or not a diagnostic is later reported.
+            self.order_guard
+                .note_always(crate::order_guard::OrderReason::CIRCULARITY);
             for result in &mut self.resolution_results[cycle_start..] {
                 *result = false;
             }

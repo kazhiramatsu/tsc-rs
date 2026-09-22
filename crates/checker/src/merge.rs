@@ -188,12 +188,9 @@ impl<'a> CheckerState<'a> {
     /// target goes through cloneSymbol, including its merged-symbol
     /// redirection, exactly like tsc.
     pub(crate) fn merge_js_symbols(&mut self, target: SymbolId, source: SymbolId) -> SymbolId {
-        if let Some(inferred) = self
-            .links
-            .read_symbol(source, |links| links.inferred_class_symbols.clone())
-            .get(&target)
-            .copied()
-        {
+        if let Some(inferred) = self.links.read_symbol(source, |links| {
+            links.inferred_class_symbols.get(&target).copied()
+        }) {
             return inferred;
         }
         let original = self.binder.symbol(target);

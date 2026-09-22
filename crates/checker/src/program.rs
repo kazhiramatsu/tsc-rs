@@ -1221,6 +1221,7 @@ impl<'a> ProgramBinder<'a> {
 
     /// tsrs-native: multi-file arena routing for a numeric NodeId; tsc
     /// carries the SourceFile/object relationship directly.
+    #[inline]
     pub fn source_of_node(&self, node: NodeId) -> &'a SourceFile {
         self.sources[self.file_index_of_node(node)]
     }
@@ -1278,6 +1279,7 @@ impl<'a> ProgramBinder<'a> {
         (id < owner.end).then_some(owner.file)
     }
 
+    #[inline]
     fn owner_of_symbol(&self, id: SymbolId) -> Result<usize, ()> {
         if id.0 & TRANSIENT_SYMBOL_BIT != 0 {
             return Err(());
@@ -1292,6 +1294,7 @@ impl<'a> ProgramBinder<'a> {
 
     /// tsrs-native: routes a numeric SymbolId to its binder or
     /// checker-owned transient arena; tsc carries object references.
+    #[inline]
     pub fn symbol(&self, id: SymbolId) -> &Symbol {
         match self.owner_of_symbol(id) {
             Ok(file) => match &self.file_entries[file] {
