@@ -585,6 +585,33 @@ pub(crate) struct SpeculativeLinksMarks {
     non_existent_props: usize,
 }
 
+impl LinksTables {
+    /// Pre-size the three ID-keyed tables from the Program's node and
+    /// persistent-symbol counts, bounded so that no input can make the
+    /// eager reservation exceed a fixed number of slots per table.
+    ///
+    /// The ratios come from the measured fill on the benchmark inputs
+    /// (scale256: node links ≈ 1/9 of nodes, symbol links ≈ 71% of symbols,
+    /// type links ≈ 20% of symbols) and are deliberately below the observed
+    /// fill so a hint never allocates a larger table than lazy growth would
+    /// have reached there; the caps bound the cost for inputs with many
+    /// bound but rarely linked symbols (for example a large unused
+    /// declaration file under `skipLibCheck`). Hints only reduce rehash
+    /// work and never change lookup results.
+    pub(crate) fn with_capacity_hint(nodes: usize, symbols: usize) -> Self {
+        const NODE_HINT_CAP: usize = 1 << 16;
+        const SYMBOL_HINT_CAP: usize = 1 << 17;
+        const TYPE_HINT_CAP: usize = 1 << 16;
+        let mut tables = Self::default();
+        tables.node.reserve((nodes / 8).min(NODE_HINT_CAP));
+        tables
+            .symbol
+            .reserve((symbols * 3 / 4).min(SYMBOL_HINT_CAP));
+        tables.ty.reserve((symbols / 5).min(TYPE_HINT_CAP));
+        tables
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct LinksTables {
     // These lookup-only tables use compiler-assigned IDs. Their iteration

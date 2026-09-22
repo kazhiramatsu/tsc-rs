@@ -18,10 +18,10 @@ use std::sync::Arc;
 
 use tsc_checker::emit::CheckerSession;
 use tsc_checker::{
-    check_program_with_authoritative_modules_at,
-    check_program_with_authoritative_modules_at_for_emit,
     check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle,
+    check_program_with_authoritative_modules_at_for_emit_with_workers,
     check_program_with_authoritative_modules_at_harness_cached,
+    check_program_with_authoritative_modules_at_with_workers,
     prepare_authoritative_harness_lib_bundle, AuthoritativeModuleFailure,
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
     AuthoritativeModuleResolution, AuthoritativeModuleResolutionDiagnostic,
@@ -48,6 +48,7 @@ pub use tsc_emitter::{
     UnsupportedEmitFeature,
 };
 pub use tsc_program::PreparedProgramMode;
+pub use tsc_program::WorkerBudget;
 use tsc_program::{
     plan_source_requests, validate_compiler_options, validate_paths_option_diagnostics,
     CompilerOptionValidationLocation, CompilerOptions, MissingResolutionError, ModuleExtension,
@@ -80,6 +81,9 @@ pub struct ProgramSession {
     /// API-supplied per-source facts (see [`SourceApiFacts`]); empty for
     /// ordinary sessions.
     source_api_facts: BTreeMap<SourceFileId, SourceApiFacts>,
+    /// Worker budget for the checker's scoped per-file binding; serial by
+    /// default (see [`WorkerBudget`]). The CLI passes its own budget.
+    worker_budget: WorkerBudget,
 }
 
 /// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
@@ -834,6 +838,7 @@ impl ProgramSession {
             prepared,
             emit_route: EmitRouteKind::Program,
             source_api_facts: BTreeMap::new(),
+            worker_budget: WorkerBudget::serial(),
         }
     }
 
@@ -842,6 +847,19 @@ impl ProgramSession {
     pub fn with_source_api_facts(mut self, source: SourceFileId, facts: SourceApiFacts) -> Self {
         self.source_api_facts.insert(source, facts);
         self
+    }
+
+    /// Select the worker budget for the session's scoped per-file binding.
+    /// Every budget publishes identical identities, diagnostics and output;
+    /// the serial default is the reproducible control.
+    /// tsrs-native: see [`WorkerBudget`].
+    pub fn with_worker_budget(mut self, worker_budget: WorkerBudget) -> Self {
+        self.worker_budget = worker_budget;
+        self
+    }
+
+    pub fn worker_budget(&self) -> WorkerBudget {
+        self.worker_budget
     }
 
     /// Select an H2.8c research route. Only the emit option admission
@@ -925,6 +943,7 @@ impl ProgramSession {
             prepared,
             emit_route,
             source_api_facts,
+            worker_budget,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -960,7 +979,7 @@ impl ProgramSession {
                 })());
             };
         let checked = if check_semantics {
-            tsc_checker::check_program_with_authoritative_modules_at_for_emit(
+            check_program_with_authoritative_modules_at_for_emit_with_workers(
                 &inputs.libs,
                 &inputs.files,
                 &inputs.lib_metadata,
@@ -968,6 +987,7 @@ impl ProgramSession {
                 prepared.compiler_options(),
                 &inputs.current_directory,
                 &provider,
+                worker_budget,
                 &mut checked_operation,
             )
         } else {
@@ -1149,6 +1169,7 @@ impl ProgramSession {
             prepared,
             emit_route,
             source_api_facts,
+            worker_budget,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1197,7 +1218,7 @@ impl ProgramSession {
         };
         let mut pending_operation = Some(operation);
         let mut operation_result = None;
-        let checked = check_program_with_authoritative_modules_at_for_emit(
+        let checked = check_program_with_authoritative_modules_at_for_emit_with_workers(
             &inputs.libs,
             &inputs.files,
             &inputs.lib_metadata,
@@ -1205,6 +1226,7 @@ impl ProgramSession {
             prepared.compiler_options(),
             &inputs.current_directory,
             &provider,
+            worker_budget,
             |snapshot, checker, checked| {
                 if let Some(partial) = checked.partial_checks.first() {
                     operation_result = Some(Err(DriverError::IncompleteCheck {
@@ -1255,6 +1277,7 @@ impl ProgramSession {
             prepared,
             emit_route,
             source_api_facts,
+            worker_budget,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -1295,7 +1318,7 @@ impl ProgramSession {
                     .map_err(DriverError::Emit)
                 }));
             };
-        let checked = check_program_with_authoritative_modules_at_for_emit(
+        let checked = check_program_with_authoritative_modules_at_for_emit_with_workers(
             &inputs.libs,
             &inputs.files,
             &inputs.lib_metadata,
@@ -1303,6 +1326,7 @@ impl ProgramSession {
             prepared.compiler_options(),
             &inputs.current_directory,
             &provider,
+            worker_budget,
             &mut operation,
         );
         drop(checked);
@@ -1342,6 +1366,7 @@ impl ProgramSession {
             prepared,
             emit_route,
             source_api_facts,
+            worker_budget,
         } = self;
         let mut h2_activity = H2ActivityCanary::h2_7e_profile();
         h2_activity.construct_emit_session();
@@ -1436,7 +1461,7 @@ impl ProgramSession {
                 &mut operation,
             )
         } else {
-            check_program_with_authoritative_modules_at_for_emit(
+            check_program_with_authoritative_modules_at_for_emit_with_workers(
                 &inputs.libs,
                 &inputs.files,
                 &inputs.lib_metadata,
@@ -1444,6 +1469,7 @@ impl ProgramSession {
                 prepared.compiler_options(),
                 &inputs.current_directory,
                 &provider,
+                worker_budget,
                 &mut operation,
             )
         }
@@ -1569,7 +1595,7 @@ impl ProgramSession {
                 library_prefix,
             )
         } else {
-            check_program_with_authoritative_modules_at(
+            check_program_with_authoritative_modules_at_with_workers(
                 &inputs.libs,
                 &inputs.files,
                 &inputs.lib_metadata,
@@ -1577,12 +1603,14 @@ impl ProgramSession {
                 self.prepared.compiler_options(),
                 &inputs.current_directory,
                 &provider,
+                self.worker_budget,
             )
         }
         .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;
         let checker_work = checked.work_counters;
         let work_counters = NoEmitWorkCounters {
             parsed_documents: checker_work.parsed_documents(),
+            adopted_documents: checker_work.adopted_documents(),
             bound_documents: checker_work.bound_documents(),
             full_text_copies: checker_work.full_text_copies(),
             full_text_bytes_copied: checker_work.full_text_bytes_copied(),
@@ -1761,14 +1789,22 @@ impl Eq for NoEmitOutcome {}
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct NoEmitWorkCounters {
     parsed_documents: u64,
+    adopted_documents: u64,
     bound_documents: u64,
     full_text_copies: u64,
     full_text_bytes_copied: u64,
 }
 
 impl NoEmitWorkCounters {
+    /// Documents the checker session parsed itself.
     pub const fn parsed_documents(self) -> u64 {
         self.parsed_documents
+    }
+
+    /// Documents whose loader-planned syntax tree the checker session adopted
+    /// instead of parsing (see `CheckWorkCounters::adopted_documents`).
+    pub const fn adopted_documents(self) -> u64 {
+        self.adopted_documents
     }
 
     pub const fn bound_documents(self) -> u64 {
@@ -2038,7 +2074,8 @@ fn project_source(
             .implied_node_format_for_emit()
             .map(checker_resolution_mode),
     };
-    let mut input = InputFile::from_snapshot(name, Arc::clone(source.snapshot()));
+    let mut input = InputFile::from_snapshot(name, Arc::clone(source.snapshot()))
+        .with_preparsed_syntax(source.preparsed_syntax().clone());
     if let Some(facts) = facts {
         input = input
             .with_module_name(facts.module_name.clone())
@@ -2574,6 +2611,7 @@ fn push_programmatic_option_deprecation_name(
 fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {
     NoEmitWorkCounters {
         parsed_documents: checked.work_counters.parsed_documents(),
+        adopted_documents: checked.work_counters.adopted_documents(),
         bound_documents: checked.work_counters.bound_documents(),
         full_text_copies: checked.work_counters.full_text_copies(),
         full_text_bytes_copied: checked.work_counters.full_text_bytes_copied(),

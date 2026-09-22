@@ -354,6 +354,20 @@ impl<'a> BinderWorker<'a> {
                 .is_some_and(|lease| lease.belongs_to(domain))
     }
 
+    /// Bind `source` at local identities (symbol base 0, private-name serial
+    /// base 1) without touching any identity domain. The worker must be
+    /// relocated with [`Self::relocate_into_identity_domain`] before it joins
+    /// a Program. Relocating in Program order on one thread yields exactly
+    /// the identities of an in-order [`Self::bind_in_identity_domain`] (an
+    /// ephemeral domain's sealed tail and a batch lease both advance the same
+    /// bump by the same count), which lets independent files bind on worker
+    /// threads first.
+    pub fn bind_local(source: &'a SourceFile, options: &'a tsc_types::CompilerOptions) -> Self {
+        let mut binder = Self::with_bases(source, options, 1, 0);
+        binder.bind_source_file();
+        binder
+    }
+
     /// Bind one source and publish completed symbol/private-name identities.
     /// Ephemeral domains construct directly at a sealed tail; reclaiming
     /// domains bind locally and relocate only after exact counts are known.

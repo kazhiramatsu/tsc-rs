@@ -128,4 +128,26 @@ pub trait CompilerHost {
     /// Return the physical path for an existing entry. An absent or dangling
     /// entry is `Ok(None)`; inability to inspect it is `Err`.
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError>;
+
+    /// Whether program construction may read root source files ahead of the
+    /// position at which its sequential discovery would read them.
+    ///
+    /// The default is `false`: program discovery then reads every source at
+    /// its original position, so hosts that observe call order, count calls,
+    /// or answer differently on repeated reads see exactly the sequential
+    /// trace. A host returns `true` only when, for the duration of one
+    /// program construction, `read_file_js` is a pure function of the path:
+    /// no side effects, no order dependence, and the same bytes, absence or
+    /// error on every call. Program construction then uses read-ahead only
+    /// under an explicitly parallel worker budget. A retained read-ahead
+    /// result (bytes, `Ok(None)` or `Err`) is applied at the original visit
+    /// position instead of a second call; a payload that cannot be retained
+    /// within the caller's program load limits is dropped and the path is
+    /// read again at its visit, which the purity contract makes equivalent.
+    /// Sources the sequential walk never reaches have their retained result
+    /// dropped. Retained payloads count against the load limits together
+    /// with the admitted sources.
+    fn permits_source_read_ahead(&self) -> bool {
+        false
+    }
 }

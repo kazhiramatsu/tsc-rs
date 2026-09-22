@@ -32,7 +32,7 @@ use tsc_program::{
     parse_config_root_plan_with_cache, CompilerConfigHost, CompilerOptions,
     ConfigEmitOptionOverrides, ConfigExtendedCache, ConfigParseError, ConfigProgramLoadError,
     ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog, PreparedProgramMode, ProgramLoadLimits,
-    ProgramOptions,
+    ProgramOptions, WorkerBudget,
 };
 
 use crate::no_emit_canary::NoEmitCanary;
@@ -59,6 +59,29 @@ const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     64 * 1024 * 1024,
     512 * 1024 * 1024,
 );
+
+/// tsrs-native diagnostic control of the CLI's worker budget (see
+/// [`WorkerBudget`]): `TSRS_WORKERS=<positive integer>` pins the budget
+/// (clamped to the module cap), any other value or an unset variable selects
+/// [`WorkerBudget::automatic`]. This is not a command-line option; every
+/// budget produces identical diagnostics and output, so the variable exists
+/// only for reproducible serial/worker-count measurements.
+const WORKERS_ENV: &str = "TSRS_WORKERS";
+
+fn cli_worker_budget() -> WorkerBudget {
+    match std::env::var(WORKERS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<std::num::NonZeroUsize>().ok())
+    {
+        Some(workers) => WorkerBudget::new(workers),
+        None => WorkerBudget::automatic(),
+    }
+}
+
+/// The CLI's program load limits with its worker budget.
+fn cli_limits() -> ProgramLoadLimits {
+    DEFAULT_LIMITS.with_workers(cli_worker_budget())
+}
 
 /// Result of one CLI invocation. The binary writes the two streams and exits
 /// with [`exit_code`](Self::exit_code); tests and embeddings can inspect the
@@ -376,6 +399,12 @@ impl CompilerHost for CliCompilerHost {
             return Ok(None);
         }
         self.filesystem.realpath(path)
+    }
+
+    /// Embedded library bytes are immutable; everything else delegates to the
+    /// filesystem host's own answer.
+    fn permits_source_read_ahead(&self) -> bool {
+        self.filesystem.permits_source_read_ahead()
     }
 }
 
@@ -838,27 +867,22 @@ fn execute_config(
                 .to_owned(),
         ));
     }
+    let limits = cli_limits();
     let prepared = match overrides.no_emit {
-        Some(true) => {
-            load_config_program_with_no_emit_override(host, plan, catalog, DEFAULT_LIMITS)
-        }
+        Some(true) => load_config_program_with_no_emit_override(host, plan, catalog, limits),
         Some(false) => load_emitting_config_program_with_no_emit_override_and_overrides(
             host,
             plan,
             catalog,
-            DEFAULT_LIMITS,
+            limits,
             overrides.emit,
         ),
         None if plan.compiler_options().no_emit == Some(true) => {
-            load_config_program(host, plan, catalog, DEFAULT_LIMITS)
+            load_config_program(host, plan, catalog, limits)
         }
-        None => load_emitting_config_program_with_overrides(
-            host,
-            plan,
-            catalog,
-            DEFAULT_LIMITS,
-            overrides.emit,
-        ),
+        None => {
+            load_emitting_config_program_with_overrides(host, plan, catalog, limits, overrides.emit)
+        }
     };
     let prepared = match prepared {
         Ok(prepared) => prepared,
@@ -929,24 +953,11 @@ fn execute_explicit_files(
     let program_options = no_lib
         .map(|value| ProgramOptions::default().with_no_lib(value))
         .unwrap_or_default();
+    let limits = cli_limits();
     let prepared = if options.no_emit == Some(true) {
-        load_program(
-            host,
-            roots,
-            options,
-            program_options,
-            catalog,
-            DEFAULT_LIMITS,
-        )
+        load_program(host, roots, options, program_options, catalog, limits)
     } else {
-        load_emitting_program(
-            host,
-            roots,
-            options,
-            program_options,
-            catalog,
-            DEFAULT_LIMITS,
-        )
+        load_emitting_program(host, roots, options, program_options, catalog, limits)
     }
     .map_err(|error| CliError::Load(error.to_string()))?;
     let mut source_texts = BTreeMap::new();
@@ -976,6 +987,7 @@ fn execute_prepared(
         );
     }
     let outcome = ProgramSession::new(prepared)
+        .with_worker_budget(cli_worker_budget())
         .run_with_no_emit_canary(
             false,
             tsc_checker::LibraryPrefixCompletion::Complete,
@@ -1055,6 +1067,7 @@ fn execute_emitting_prepared(
 ) -> Result<CliOutput, CliError> {
     let mut sink = FsOutputSink::new(route.output_filesystem);
     let outcome = ProgramSession::new(prepared)
+        .with_worker_budget(cli_worker_budget())
         .emit_for_cli(&mut sink)
         .map_err(|error| CliError::Driver(error.to_string()))?;
 

@@ -252,6 +252,14 @@ impl CompilerHost for FsCompilerHost {
         validate_observed_path(&physical, HostOperation::Realpath)?;
         Ok(Some(physical))
     }
+
+    /// Filesystem reads are pure functions of the on-disk state, which one
+    /// program construction treats as fixed exactly as TypeScript's
+    /// `createProgram` does; a concurrent external modification during a
+    /// load is outside the host contract either way.
+    fn permits_source_read_ahead(&self) -> bool {
+        true
+    }
 }
 
 impl FsCompilerHost {

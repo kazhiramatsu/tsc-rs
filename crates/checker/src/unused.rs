@@ -29,10 +29,12 @@ impl<'a> CheckerState<'a> {
     /// declarations owned by another before the latter's deferred body walk.
     pub(crate) fn register_for_unused_identifiers_check(&mut self, node: NodeId) {
         let root = self.binder.source_of_node(node).root;
-        let nodes = self.potentially_unused_identifiers.entry(root).or_default();
-        if !nodes.contains(&node) {
-            nodes.push(node);
-        }
+        // IndexSet keeps first-insertion order; a repeated registration is a
+        // no-op exactly like the previous `contains` guard.
+        self.potentially_unused_identifiers
+            .entry(root)
+            .or_default()
+            .insert(node);
     }
 
     /// tsc-port: checkUnusedIdentifiers @6.0.3

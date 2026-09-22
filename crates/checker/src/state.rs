@@ -31,6 +31,15 @@ pub(crate) enum PackageJsonModuleType {
     Missing,
 }
 
+/// One Program file's memoized implied-node-format answers; `None` means
+/// not computed yet, `Some(answer)` stores the worker's (possibly `None`)
+/// result. See `CheckerState::implied_node_format_memo`.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ImpliedNodeFormatMemo {
+    pub(crate) for_emit: Option<Option<crate::modules::ModuleResolutionMode>>,
+    pub(crate) for_file: Option<Option<crate::modules::ModuleResolutionMode>>,
+}
+
 /// A tsc oracle crash that the Rust checker must reproduce as typed
 /// control flow instead of inventing a diagnostic or silently
 /// continuing with a partial relation result.
@@ -581,7 +590,13 @@ pub struct CheckerState<'a> {
     /// file's root. A checker visit can force a declaration in another
     /// file, so registrations cannot be attributed to the file whose
     /// worker happens to be active.
-    pub(crate) potentially_unused_identifiers: std::collections::HashMap<NodeId, Vec<NodeId>>,
+    ///
+    /// The per-file entry keeps tsc's first-registration order (the
+    /// registered array is drained in order), while membership is an O(1)
+    /// set lookup: a Vec `contains` probe per registration was quadratic
+    /// in the number of declarations of one file.
+    pub(crate) potentially_unused_identifiers:
+        std::collections::HashMap<NodeId, indexmap::IndexSet<NodeId, rustc_hash::FxBuildHasher>>,
     /// tsc deferredGlobalDisposableType (60882) — emptyObjectType memo
     /// on miss, like the Promise pair above.
     pub(crate) deferred_global_disposable_type: Option<TypeId>,
@@ -849,6 +864,15 @@ pub struct CheckerState<'a> {
     /// (program-and-modules.md §2; later files shadow earlier
     /// same-name entries like the program layer's last-index-by-name).
     pub program_path_index: std::collections::HashMap<tsc_types::JsString, usize>,
+    /// Per-Program-file memo of getImpliedNodeFormatForFile /
+    /// getImpliedNodeFormatForEmit results. Both are pure functions of the
+    /// file name, the installed authoritative metadata, the package-scope
+    /// host tables and the options — all fixed before checking starts. The
+    /// memo is filled on first use per file and cleared when the
+    /// authoritative provider is installed, so it never observes a stale
+    /// table. Indexed by Program file index; shorter than `file_count()`
+    /// until first use.
+    pub(crate) implied_node_format_memo: std::cell::RefCell<Vec<ImpliedNodeFormatMemo>>,
     /// H0 production-only exact module provider. Its source identities are
     /// caller tokens rather than binder indexes; the two explicit maps below
     /// make filtering and shadowing observable instead of assuming ordinal
@@ -1039,6 +1063,8 @@ impl<'a> CheckerState<'a> {
         self.authoritative_source_may_be_emitted = source_may_be_emitted;
         self.authoritative_implied_node_formats = implied_node_formats;
         self.authoritative_implied_node_formats_for_emit = implied_node_formats_for_emit;
+        // The memo derives from the tables replaced above.
+        self.implied_node_format_memo.borrow_mut().clear();
         Ok(())
     }
 
@@ -1153,6 +1179,15 @@ impl<'a> CheckerState<'a> {
             tsc_types::EscapedName::from_identifier_escaped_text("unknown"),
         );
 
+        // Capacity hints for the ID-keyed link tables (see
+        // LinksTables::with_capacity_hint); lookups are unaffected.
+        let mut program_nodes = 0usize;
+        let mut program_symbols = 0usize;
+        for file_index in 0..binder.file_count() {
+            program_nodes += binder.source(file_index).arena.len();
+            program_symbols += binder.file(file_index).symbols.len();
+        }
+
         let mut state = Self {
             binder,
             options,
@@ -1160,7 +1195,7 @@ impl<'a> CheckerState<'a> {
             emit_display_sources: std::collections::BTreeMap::new(),
             tables,
             strict_function_types,
-            links: LinksTables::default(),
+            links: LinksTables::with_capacity_hint(program_nodes, program_symbols),
             signatures: Vec::new(),
             speculative_signature_return_writes: Vec::new(),
             members: Vec::new(),
@@ -1308,6 +1343,7 @@ impl<'a> CheckerState<'a> {
             unresolved_module_augmentations: std::collections::HashMap::new(),
             unresolved_package_root_cache: Default::default(),
             program_path_index: std::collections::HashMap::new(),
+            implied_node_format_memo: std::cell::RefCell::new(Vec::new()),
             authoritative_module_provider: None,
             authoritative_source_tokens: Vec::new(),
             authoritative_source_index_by_token: std::collections::HashMap::new(),

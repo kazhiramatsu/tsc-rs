@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
+use std::fmt;
+use std::sync::{Arc, Mutex};
 
 use tsc_diagnostics::{Diagnostic, DiagnosticList, DocumentVersion, JsStr, JsString, TextSnapshot};
 use tsc_host::to_file_name_lower_case_js;
+use tsc_syntax::{ParseOptions, SourceFile};
 use tsc_types::CompilerOptions;
 
 use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation};
@@ -78,6 +80,103 @@ impl PathContext {
     }
 }
 
+/// The exact parse produced while planning a source's requests, retained so a
+/// later parser/binder/checker session can adopt it instead of parsing the
+/// same text again.
+///
+/// Producer invariant: the only constructor is the request planner
+/// ([`crate::plan_source_requests_retaining_syntax`]), which parses the
+/// prepared source's own snapshot with the recorded [`ParseOptions`]
+/// (identity bases zero) and never mutates the tree afterwards. The fields
+/// are private so no other producer can attach a foreign or edited tree. A
+/// consumer must still compare the recorded options, file name and snapshot
+/// identity with the parse it would perform itself and fall back to parsing
+/// on any difference.
+#[derive(Debug)]
+pub struct PreparsedSourceFile {
+    options: ParseOptions,
+    source: SourceFile,
+}
+
+impl PreparsedSourceFile {
+    pub(crate) fn new(options: ParseOptions, source: SourceFile) -> Self {
+        Self { options, source }
+    }
+
+    /// The exact parse options the planner used (identity bases zero).
+    pub fn parse_options(&self) -> &ParseOptions {
+        &self.options
+    }
+
+    /// The planner's parse, at local (base-zero) identities.
+    pub fn source(&self) -> &SourceFile {
+        &self.source
+    }
+
+    /// Consume the slot contents into the parsed tree.
+    pub fn into_source(self) -> SourceFile {
+        self.source
+    }
+}
+
+/// A take-once slot that may hold a [`PreparsedSourceFile`].
+///
+/// A prepared source always carries one slot: empty for hand-built or
+/// already-adopted sources, filled by the loader's planning parse. Every
+/// clone of a prepared source shares the same slot, so the first session that
+/// adopts the tree empties it for all clones and later sessions parse again.
+///
+/// The slot is a cache derived from the snapshot text and the recorded
+/// options, not observable program content: `PartialEq` therefore compares
+/// every slot equal (empty, available or consumed), so attaching or consuming
+/// a cache never changes the equality of the prepared source that owns it.
+#[derive(Clone, Default)]
+pub struct PreparsedSyntax {
+    slot: Arc<Mutex<Option<PreparsedSourceFile>>>,
+}
+
+impl PreparsedSyntax {
+    pub(crate) fn new(parsed: PreparsedSourceFile) -> Self {
+        Self {
+            slot: Arc::new(Mutex::new(Some(parsed))),
+        }
+    }
+
+    /// An empty slot: the consumer parses.
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    /// Whether a tree is still available for adoption.
+    pub fn is_available(&self) -> bool {
+        self.slot.lock().map(|slot| slot.is_some()).unwrap_or(false)
+    }
+
+    /// Take the retained tree. `None` once it has been adopted (or if the
+    /// slot lock was poisoned), in which case the caller parses.
+    pub fn take(&self) -> Option<PreparsedSourceFile> {
+        self.slot.lock().ok()?.take()
+    }
+}
+
+impl fmt::Debug for PreparsedSyntax {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PreparsedSyntax")
+            .field("available", &self.is_available())
+            .finish()
+    }
+}
+
+impl PartialEq for PreparsedSyntax {
+    /// Content-independent by design; see the type documentation.
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for PreparsedSyntax {}
+
 /// One decoded source owned by a prepared program.
 ///
 /// `path` is the exact final program/`SourceFile` identity. For a resolved
@@ -104,6 +203,11 @@ pub struct PreparedSourceFile {
     implied_node_format_for_emit: Option<ResolutionMode>,
     is_external_module: Option<bool>,
     package_scope: Option<CanonicalPath>,
+    /// The loader's request-planning parse, available for adoption by the
+    /// first session that proves it used identical parse options. Always
+    /// present (empty when nothing was retained) and excluded from content
+    /// equality by [`PreparsedSyntax`]'s content-independent `PartialEq`.
+    preparsed_syntax: PreparsedSyntax,
 }
 
 impl PreparedSourceFile {
@@ -142,7 +246,23 @@ impl PreparedSourceFile {
             implied_node_format_for_emit: None,
             is_external_module: None,
             package_scope: None,
+            preparsed_syntax: PreparsedSyntax::empty(),
         }
+    }
+
+    /// Attach the planner's parse of this exact snapshot for later adoption.
+    /// The slot is opaque: only [`crate::plan_source_requests_retaining_syntax`]
+    /// produces a filled one, and a consumer re-verifies the snapshot, name
+    /// and options before adopting.
+    pub fn with_preparsed_syntax(mut self, syntax: PreparsedSyntax) -> Self {
+        self.preparsed_syntax = syntax;
+        self
+    }
+
+    /// The retained planner parse slot (empty unless this source was loaded
+    /// through a parse that recorded one and no session has adopted it yet).
+    pub fn preparsed_syntax(&self) -> &PreparsedSyntax {
+        &self.preparsed_syntax
     }
 
     /// Retain the physical host fact separately from the lexical program

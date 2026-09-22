@@ -619,6 +619,12 @@ impl NodeArena {
 
     /// Explicit two-phase stack: deep trees (left-leaning binary
     /// chains) overflow a recursive walk.
+    ///
+    /// The walk allocates its bookkeeping once per tree: the child list is a
+    /// reused scratch buffer and error aggregation reads children through
+    /// the visitor callback, so finalization no longer allocates one Vec per
+    /// node (several hundred thousand short-lived allocations for a large
+    /// program).
     fn finalize_node(&mut self, root: NodeId, parent: Option<NodeId>, seen: &mut [bool]) -> bool {
         enum Phase {
             Enter,
@@ -626,6 +632,7 @@ impl NodeArena {
         }
         let mut error_flags = vec![false; self.nodes.len()];
         let mut stack = vec![(root, parent, Phase::Enter)];
+        let mut children: Vec<NodeId> = Vec::new();
         while let Some((id, parent, phase)) = stack.pop() {
             let index = self.node_index(id);
             match phase {
@@ -636,8 +643,9 @@ impl NodeArena {
                     error_flags[index] = NodeFlags::from_bits(self.nodes[index].flags)
                         .contains(NodeFlags::THIS_NODE_HAS_ERROR);
                     stack.push((id, parent, Phase::Exit));
-                    let children = self.children_including_js_doc(id);
-                    for child in children.into_iter().rev() {
+                    children.clear();
+                    self.collect_children_including_js_doc(id, &mut children);
+                    for &child in children.iter().rev() {
                         stack.push((child, Some(id), Phase::Enter));
                     }
                 }
@@ -650,10 +658,15 @@ impl NodeArena {
                         // parents are fixed up recursively, but their parse
                         // errors are not aggregated into the attached host
                         // (or eagerly through the JSDoc subtree).
-                        for child in self.children(id) {
-                            if error_flags[self.node_index(child)] {
-                                contains_error = true;
-                            }
+                        if !contains_error {
+                            let node_base = self.node_base;
+                            let error_flags = &error_flags;
+                            for_each_child(self, &self.nodes[index], |child| {
+                                if error_flags[(child.0 - node_base) as usize] {
+                                    contains_error = true;
+                                }
+                                false
+                            });
                         }
                         if contains_error {
                             self.nodes[index].flags |=
@@ -667,25 +680,19 @@ impl NodeArena {
         error_flags[self.node_index(root)]
     }
 
-    fn children(&self, id: NodeId) -> Vec<NodeId> {
-        let mut children = Vec::new();
+    /// Parent finalization includes the internal Node.jsDoc attachment,
+    /// while public for_each_child deliberately does not. This mirrors
+    /// tsc setParentRecursive/bindJSDoc and keeps ordinary syntax walks
+    /// from visiting documentation twice. Children are appended to the
+    /// caller's scratch buffer in visit order.
+    fn collect_children_including_js_doc(&self, id: NodeId, children: &mut Vec<NodeId>) {
         for_each_child(self, self.node(id), |child| {
             children.push(child);
             false
         });
-        children
-    }
-
-    /// Parent finalization includes the internal Node.jsDoc attachment,
-    /// while public for_each_child deliberately does not. This mirrors
-    /// tsc setParentRecursive/bindJSDoc and keeps ordinary syntax walks
-    /// from visiting documentation twice.
-    fn children_including_js_doc(&self, id: NodeId) -> Vec<NodeId> {
-        let mut children = self.children(id);
         if let Some(js_doc) = self.node(id).js_doc {
             children.extend(self.node_array(js_doc).nodes.iter().copied());
         }
-        children
     }
 
     fn node_index(&self, id: NodeId) -> usize {

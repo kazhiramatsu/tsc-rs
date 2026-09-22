@@ -108,6 +108,7 @@ mod resolution_cache;
 mod resolution_error;
 mod symlinks;
 mod text;
+mod workers;
 
 pub use config::{
     compiler_option_named_choices, is_non_fatal_option_diagnostic, load_config_program,
@@ -145,9 +146,9 @@ pub use loader::{
     ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation,
 };
 pub use module_requests::{
-    plan_module_requests, plan_source_requests, plan_static_module_requests,
-    source_request_parse_options, PlannedLibReferenceDirective, PlannedPathReference,
-    PlannedTypeReferenceDirective, SourceRequestPlan,
+    plan_module_requests, plan_source_requests, plan_source_requests_retaining_syntax,
+    plan_static_module_requests, source_request_parse_options, PlannedLibReferenceDirective,
+    PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
 };
 pub use module_resolution::js_own_property_entries as package_json_own_entries;
 pub use module_resolution::mangle_scoped_package_name;
@@ -167,8 +168,8 @@ pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{
     PackageJsonType, PackageMetadata, PathContext, PathMapping, PreparationDiagnostics,
     PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder, PreparedProgramMode,
-    PreparedRoot, PreparedSourceFile, ProgramConfigFile, ProgramConfigSpan, ProgramOptions,
-    ResolutionTable, SourceFileId,
+    PreparedRoot, PreparedSourceFile, PreparsedSourceFile, PreparsedSyntax, ProgramConfigFile,
+    ProgramConfigSpan, ProgramOptions, ResolutionTable, SourceFileId,
 };
 pub use resolution::{
     MissingResolutionError, ModuleExtension, ModuleResolution, PackageId, ResolutionError,
@@ -186,3 +187,4 @@ pub use resolution_cache::{
 pub use symlinks::{discover_symlink_facts, SymlinkFacts};
 pub use text::{decode_host_text, HostTextDecodeError, HostTextEncoding};
 pub use tsc_types::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
+pub use workers::{WorkerBudget, MAX_WORKERS, WORKER_STACK_BYTES};

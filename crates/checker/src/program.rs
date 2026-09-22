@@ -944,8 +944,14 @@ pub struct ProgramBinder<'a> {
     node_owner_hint: AtomicUsize,
     /// Node-array-id intervals in parse allocation order.
     array_owners: Vec<ArenaOwner>,
+    /// Validated last-owner hint for `array_owners`, same protocol as
+    /// `node_owner_hint`.
+    array_owner_hint: AtomicUsize,
     /// Persistent symbol intervals in identity allocation order.
     symbol_owners: Vec<ArenaOwner>,
+    /// Validated last-owner hint for `symbol_owners`, same protocol as
+    /// `node_owner_hint`.
+    symbol_owner_hint: AtomicUsize,
     /// Checker-side symbols (tsc createSymbol 47652 adds Transient).
     transient: SymbolArena,
 }
@@ -1152,7 +1158,9 @@ impl<'a> ProgramBinder<'a> {
             node_owners,
             node_owner_hint: AtomicUsize::new(0),
             array_owners,
+            array_owner_hint: AtomicUsize::new(0),
             symbol_owners,
+            symbol_owner_hint: AtomicUsize::new(0),
             transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
         })
     }
@@ -1226,7 +1234,9 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: multi-file arena routing for Rust's numeric
     /// NodeArrayId.
     pub fn node_array(&self, id: NodeArrayId) -> &'a NodeArray {
-        let index = Self::owner_file(&self.array_owners, id.0, "NodeArrayId");
+        let index =
+            Self::try_owner_file_with_hint(&self.array_owners, id.0, &self.array_owner_hint)
+                .unwrap_or_else(|| Self::owner_file(&self.array_owners, id.0, "NodeArrayId"));
         self.sources[index].arena.node_array(id)
     }
 
@@ -1252,6 +1262,9 @@ impl<'a> ProgramBinder<'a> {
         Some(owner.file)
     }
 
+    /// The fail-closed owner lookup: the hinted lookups above fall back to it
+    /// only after a hint miss and an unsuccessful search, so it re-searches
+    /// and panics with the same message the pre-hint routing used.
     fn owner_file(owners: &[ArenaOwner], id: u32, kind: &str) -> usize {
         Self::try_owner_file(owners, id)
             .unwrap_or_else(|| panic!("{kind} {id} is outside every program arena"))
@@ -1269,11 +1282,12 @@ impl<'a> ProgramBinder<'a> {
         if id.0 & TRANSIENT_SYMBOL_BIT != 0 {
             return Err(());
         }
-        Ok(Self::owner_file(
-            &self.symbol_owners,
-            id.0,
-            "persistent SymbolId",
-        ))
+        Ok(
+            Self::try_owner_file_with_hint(&self.symbol_owners, id.0, &self.symbol_owner_hint)
+                .unwrap_or_else(|| {
+                    Self::owner_file(&self.symbol_owners, id.0, "persistent SymbolId")
+                }),
+        )
     }
 
     /// tsrs-native: routes a numeric SymbolId to its binder or

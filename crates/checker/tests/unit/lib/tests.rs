@@ -1290,6 +1290,7 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
             None,
             crate::LibraryPrefixCompletion::Complete,
             crate::DiagnosticSchedule::Eager,
+            tsc_program::WorkerBudget::serial(),
         )
     };
 
@@ -1366,6 +1367,7 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
         None,
         crate::LibraryPrefixCompletion::Complete,
         crate::DiagnosticSchedule::Eager,
+        tsc_program::WorkerBudget::serial(),
     )
     .expect("authoritative alternate-result miss");
 

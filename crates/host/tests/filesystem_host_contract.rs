@@ -412,3 +412,10 @@ fn non_unicode_directory_entries_fail_closed() {
     assert_eq!(error.operation(), HostOperation::ReadDirectory);
     assert_eq!(error.path(), Some(invalid_query.as_path()));
 }
+
+#[test]
+fn filesystem_host_declares_pure_source_reads() {
+    let tree = TempTree::new();
+    let host = FsCompilerHost::new(tree.root(), native_case_profile()).unwrap();
+    assert!(host.permits_source_read_ahead());
+}

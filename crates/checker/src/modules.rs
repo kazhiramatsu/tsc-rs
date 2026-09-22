@@ -6891,7 +6891,34 @@ impl<'a> CheckerState<'a> {
         &self,
         location: NodeId,
     ) -> Option<ModuleResolutionMode> {
-        self.implied_node_format_for_file_name(&self.binder.source_of_node(location).file_name)
+        let file_index = self.binder.file_index_of_node(location);
+        if let Some(memo) = self
+            .implied_node_format_memo
+            .borrow()
+            .get(file_index)
+            .and_then(|memo| memo.for_file)
+        {
+            return memo;
+        }
+        let computed =
+            self.implied_node_format_for_file_name(&self.binder.source(file_index).file_name);
+        self.implied_node_format_memo_slot(file_index).for_file = Some(computed);
+        computed
+    }
+
+    /// The memo row for one Program file, growing the table on first use.
+    fn implied_node_format_memo_slot(
+        &self,
+        file_index: usize,
+    ) -> std::cell::RefMut<'_, crate::state::ImpliedNodeFormatMemo> {
+        let mut memo = self.implied_node_format_memo.borrow_mut();
+        if memo.len() <= file_index {
+            memo.resize(
+                self.binder.file_count().max(file_index + 1),
+                crate::state::ImpliedNodeFormatMemo::default(),
+            );
+        }
+        std::cell::RefMut::map(memo, |memo| &mut memo[file_index])
     }
 
     fn implied_node_format_for_file_name<'n>(
@@ -7028,14 +7055,28 @@ impl<'a> CheckerState<'a> {
         &self,
         location: NodeId,
     ) -> Option<ModuleResolutionMode> {
-        self.implied_node_format_for_emit_file_name(&self.binder.source_of_node(location).file_name)
+        self.implied_node_format_for_emit_file_index(self.binder.file_index_of_node(location))
     }
 
+    /// Memoized per Program file: the worker below re-normalizes and hashes
+    /// the file path, and checkCollisionsForDeclarationName asks for it on
+    /// every declaration.
     fn implied_node_format_for_emit_file_index(
         &self,
         file_index: usize,
     ) -> Option<ModuleResolutionMode> {
-        self.implied_node_format_for_emit_file_name(&self.binder.source(file_index).file_name)
+        if let Some(memo) = self
+            .implied_node_format_memo
+            .borrow()
+            .get(file_index)
+            .and_then(|memo| memo.for_emit)
+        {
+            return memo;
+        }
+        let computed =
+            self.implied_node_format_for_emit_file_name(&self.binder.source(file_index).file_name);
+        self.implied_node_format_memo_slot(file_index).for_emit = Some(computed);
+        computed
     }
 
     fn implied_node_format_for_emit_file_name<'n>(
