@@ -13,6 +13,7 @@ name = "tsc_emitter"
 path = "src/lib.rs"
 
 [dependencies]
+rustc-hash.workspace = true
 tsc-diagnostics.workspace = true
 tsc-program.workspace = true
 tsc-syntax.workspace = true

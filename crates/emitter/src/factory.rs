@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use rustc_hash::FxHashMap;
+
 mod parsed_metadata;
 pub use parsed_metadata::ParsedEmitMetadata;
 
@@ -187,10 +189,18 @@ pub struct TransformArena {
     /// built nodes (the NodeBuilder's `serializedTypes` reuse) keys on it.
     id: u64,
     sources: Vec<TransformSource>,
-    node_transform_flags: BTreeMap<TransformNode, TransformFlags>,
-    array_transform_flags: BTreeMap<TransformNodeArray, TransformFlags>,
+    // Lookup-only side tables keyed by compiler-assigned identities. Nothing
+    // iterates these three in key order (equality, clone and clear are the
+    // only whole-table operations), so the hash tables keep every observable
+    // result of the former ordered maps while removing the O(log n) key
+    // comparisons from the per-node flag reads and writes of every pass.
+    node_transform_flags: FxHashMap<TransformNode, TransformFlags>,
+    array_transform_flags: FxHashMap<TransformNodeArray, TransformFlags>,
+    // `metadata` IS iterated in key order by
+    // `snapshot_parsed_emit_metadata` (parsed_metadata.rs), which assigns
+    // snapshot identities in encounter order, so it stays an ordered map.
     metadata: BTreeMap<TransformNode, EmitMetadata>,
-    literal_properties: BTreeMap<TransformNode, LiteralNodeProperties>,
+    literal_properties: FxHashMap<TransformNode, LiteralNodeProperties>,
     next_generated_binding_id: u64,
 }
 
@@ -201,10 +211,10 @@ impl TransformArena {
         Self {
             id: NEXT_TRANSFORM_ARENA_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             sources: Vec::new(),
-            node_transform_flags: BTreeMap::new(),
-            array_transform_flags: BTreeMap::new(),
+            node_transform_flags: FxHashMap::default(),
+            array_transform_flags: FxHashMap::default(),
             metadata: BTreeMap::new(),
-            literal_properties: BTreeMap::new(),
+            literal_properties: FxHashMap::default(),
             next_generated_binding_id: 0,
         }
     }
@@ -5550,15 +5560,28 @@ impl<'arena> NodeFactory<'arena> {
     /// tsc-hash: d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6
     /// tsc-span: _tsc.js:24436-24466
     pub fn clone_node(&mut self, original: TransformNode) -> Result<TransformNode, TransformError> {
-        let record = self.arena.node(original)?.clone();
+        // Copy the scalar facts by value and the payload exactly once; the
+        // previous whole-record clone duplicated the payload a second time.
+        let (kind, node_flags, numeric_literal_flags, template_flags, multi_line, js_doc, data) = {
+            let record = self.arena.node(original)?;
+            (
+                record.kind,
+                record.flags,
+                record.numeric_literal_flags,
+                record.template_flags,
+                record.multi_line,
+                record.js_doc,
+                record.data.clone(),
+            )
+        };
         let transform_flags = self.arena.transform_flags(original);
-        let flags = NodeFlags::from_bits(record.flags) | NodeFlags::SYNTHESIZED;
+        let flags = NodeFlags::from_bits(node_flags) | NodeFlags::SYNTHESIZED;
         let syntax = &mut self.arena.source_mut(original.source)?.source;
-        let id = match record.data.clone() {
+        let id = match data {
             NodeData::Token => {
                 syntax
                     .arena
-                    .alloc_token(record.kind, u32::MAX as usize, u32::MAX as usize, flags)
+                    .alloc_token(kind, u32::MAX as usize, u32::MAX as usize, flags)
             }
             data => syntax
                 .arena
@@ -5575,10 +5598,10 @@ impl<'arena> NodeFactory<'arena> {
                 .source
                 .arena
                 .node_mut(id);
-            copied.numeric_literal_flags = record.numeric_literal_flags;
-            copied.template_flags = record.template_flags;
-            copied.multi_line = record.multi_line;
-            copied.js_doc = record.js_doc;
+            copied.numeric_literal_flags = numeric_literal_flags;
+            copied.template_flags = template_flags;
+            copied.multi_line = multi_line;
+            copied.js_doc = js_doc;
             copied.parent = None;
         }
         self.arena.set_transform_flags(clone, transform_flags);
@@ -5659,7 +5682,14 @@ impl<'arena> NodeFactory<'arena> {
         mut data: NodeData,
         mut transform_flags: TransformFlags,
     ) -> Result<TransformNode, TransformError> {
-        let record = self.arena.node(original)?.clone();
+        // The original record is never mutated below (embedded-statement
+        // normalization and the parenthesizer rewrite only `data`), so its
+        // scalar facts are copied once and its payload is borrowed for the
+        // comparisons instead of cloning the whole record.
+        let (original_kind, pos, end) = {
+            let record = self.arena.node(original)?;
+            (record.kind, record.pos, record.end)
+        };
         self.normalize_embedded_statements(original.source, &mut data)?;
         // Tokens and kind-only syntax nodes intentionally share the payload-
         // free `NodeData::Token` representation. An update can still change
@@ -5667,42 +5697,52 @@ impl<'arena> NodeFactory<'arena> {
         // rather than derivable from the payload.
         let kind = match data.kind() {
             Some(kind) => kind,
-            None if matches!(data, NodeData::Token) && matches!(record.data, NodeData::Token) => {
-                record.kind
+            None if matches!(data, NodeData::Token)
+                && matches!(self.arena.node(original)?.data, NodeData::Token) =>
+            {
+                original_kind
             }
             None => {
                 return Err(TransformError::FactoryKindMismatch {
-                    expected: record.kind,
+                    expected: original_kind,
                     actual: SyntaxKind::Unknown,
                 });
             }
         };
-        if kind != record.kind {
+        if kind != original_kind {
             return Err(TransformError::FactoryKindMismatch {
-                expected: record.kind,
+                expected: original_kind,
                 actual: kind,
             });
         }
         transform_flags |= private_identifier_expression_flags(self.arena, original.source, &data)?;
-        if record.data == data && self.arena.transform_flags(original) == transform_flags {
+        let same_data = self.arena.node(original)?.data == data;
+        if same_data && self.arena.transform_flags(original) == transform_flags {
             return Ok(original);
         }
         // updateExpressionWithTypeArguments rebuilds only when its factory
         // fields change. A flags-only reconciliation must retain parsed
         // optional heritage syntax at targets that leave the chain intact.
-        if record.data != data || !matches!(data, NodeData::ExpressionWithTypeArguments(_)) {
+        if !same_data || !matches!(data, NodeData::ExpressionWithTypeArguments(_)) {
             self.apply_parenthesizer_rules(original.source, &mut data)?;
         }
-        let (pos, end) = (record.pos, record.end);
-        let literal_payload = matches!(
-            record.kind,
+        let is_literal = matches!(
+            original_kind,
             SyntaxKind::StringLiteral
                 | SyntaxKind::NoSubstitutionTemplateLiteral
                 | SyntaxKind::TemplateHead
                 | SyntaxKind::TemplateMiddle
                 | SyntaxKind::TemplateTail
-        )
-        .then(|| data.clone());
+        );
+        let literal_payload = is_literal.then(|| {
+            (
+                self.arena
+                    .node(original)
+                    .map(|record| record.data.clone())
+                    .expect("validated literal original"),
+                data.clone(),
+            )
+        });
         let updated = self.clone_node(original)?;
         let updated_record = self
             .arena
@@ -5714,9 +5754,9 @@ impl<'arena> NodeFactory<'arena> {
         updated_record.pos = pos;
         updated_record.end = end;
         self.arena.set_transform_flags(updated, transform_flags);
-        if let Some(current) = literal_payload {
+        if let Some((previous, current)) = literal_payload {
             self.arena
-                .reconcile_literal_properties(updated, &record.data, &current);
+                .reconcile_literal_properties(updated, &previous, &current);
         }
         Ok(updated)
     }

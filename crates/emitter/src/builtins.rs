@@ -16458,74 +16458,140 @@ fn initialize_transform_flags(
     source: TransformSourceId,
 ) -> Result<(), TransformError> {
     let root = arena.root(source)?.node();
-    let mut visiting = BTreeSet::new();
-    let mut complete = BTreeSet::new();
-    compute_transform_flags(arena, source, root, &mut visiting, &mut complete)?;
-    Ok(())
+    compute_transform_flags(arena, source, root)
 }
 
+/// Postorder classification state of one node during `compute_transform_flags`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FlagWalkState {
+    Unvisited,
+    /// Entered and not yet exited: an ancestor on the current walk path. A
+    /// child edge back to such a node contributes `TransformFlags::NONE`.
+    Visiting,
+    /// Exited: its arena flags are final.
+    Complete,
+}
+
+/// Compute the transform flags of `root`'s subtree in the exact postorder of
+/// the former recursive walk (ordinary children first, then each child array
+/// in order), storing per-node flags and per-array aggregates in the arena.
+///
+/// The walk is an explicit stack: deep parse trees never recurse on the
+/// native stack, the per-node state lives in one dense table indexed by
+/// arena ordinal instead of two ordered sets, no `Node` record is cloned and
+/// no per-node child vector is allocated. The observable results are those
+/// of the recursion: a node reached again while still on the walk path (a
+/// cycle) contributes `NONE` to its parent's array aggregate, a node already
+/// completed through another path contributes its final flags, and every
+/// array aggregate is stored before its owner's own flags are classified.
 fn compute_transform_flags(
     arena: &mut TransformArena,
     source: TransformSourceId,
-    id: NodeId,
-    visiting: &mut BTreeSet<NodeId>,
-    complete: &mut BTreeSet<NodeId>,
-) -> Result<TransformFlags, TransformError> {
-    if complete.contains(&id) {
-        return Ok(arena.transform_flags(
-            arena
-                .node_ref(source, id)
-                .expect("completed transform node remains in its arena"),
-        ));
+    root: NodeId,
+) -> Result<(), TransformError> {
+    enum Step {
+        Enter(NodeId),
+        Exit(NodeId),
     }
-    if !visiting.insert(id) {
-        return Ok(TransformFlags::NONE);
-    }
-    let node = arena
-        .node_ref(source, id)
-        .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, id)))?;
-    let record = arena.node(node)?.clone();
-    let syntax = arena.source(source)?.syntax();
-    let mut children = Vec::new();
-    for_each_child(&syntax.arena, &record, |child| {
-        children.push(child);
-        false
-    });
-    let mut arrays = Vec::new();
-    for_each_child_array(&record, |array| {
-        arrays.push(array);
-        false
-    });
-
-    for child in &children {
-        compute_transform_flags(arena, source, *child, visiting, complete)?;
-    }
-    for array in arrays {
-        let array_ref = arena
-            .node_array_ref(source, array)
-            .expect("generated child array belongs to its source");
-        let ids = arena.node_array(array_ref)?.nodes.clone();
-        let mut flags = TransformFlags::NONE;
-        for child in ids {
-            let child_flags = compute_transform_flags(arena, source, child, visiting, complete)?;
-            let child = arena
-                .node_ref(source, child)
-                .expect("generated array child belongs to its source");
-            let kind = arena.node(child)?.kind;
-            flags |= child_flags & !TransformFlags::subtree_exclusions(kind);
+    let (node_base, node_count) = {
+        let syntax = arena.source(source)?.syntax();
+        (
+            syntax.arena.node_base(),
+            syntax.arena.node_end() - syntax.arena.node_base(),
+        )
+    };
+    let mut states = vec![FlagWalkState::Unvisited; node_count as usize];
+    let index_of = |id: NodeId| -> Result<usize, TransformError> {
+        id.0.checked_sub(node_base)
+            .filter(|index| *index < node_count)
+            .map(|index| index as usize)
+            .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, id)))
+    };
+    let mut stack = vec![Step::Enter(root)];
+    let mut scratch: Vec<NodeId> = Vec::new();
+    let mut array_scratch: Vec<NodeArrayId> = Vec::new();
+    while let Some(step) = stack.pop() {
+        match step {
+            Step::Enter(id) => {
+                let index = index_of(id)?;
+                if states[index] != FlagWalkState::Unvisited {
+                    continue;
+                }
+                states[index] = FlagWalkState::Visiting;
+                let node = arena
+                    .node_ref(source, id)
+                    .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, id)))?;
+                let record = arena.node(node)?;
+                let syntax = arena.source(source)?.syntax();
+                // Children are pushed in reverse so they pop in forward order:
+                // ordinary children first, then the elements of each child
+                // array in array order — the recursive visiting order.
+                scratch.clear();
+                for_each_child(&syntax.arena, record, |child| {
+                    scratch.push(child);
+                    false
+                });
+                for_each_child_array(record, |array| {
+                    let array_ref = arena
+                        .node_array_ref(source, array)
+                        .expect("generated child array belongs to its source");
+                    if let Ok(array) = arena.node_array(array_ref) {
+                        scratch.extend(array.nodes.iter().copied());
+                    }
+                    false
+                });
+                stack.push(Step::Exit(id));
+                for &child in scratch.iter().rev() {
+                    stack.push(Step::Enter(child));
+                }
+            }
+            Step::Exit(id) => {
+                let node = arena
+                    .node_ref(source, id)
+                    .expect("visited transform node remains in its arena");
+                // Array aggregates first (their owner's classification reads
+                // them), then the node's own flags.
+                array_scratch.clear();
+                for_each_child_array(arena.node(node)?, |array| {
+                    array_scratch.push(array);
+                    false
+                });
+                for &array in &array_scratch {
+                    let array_ref = arena
+                        .node_array_ref(source, array)
+                        .expect("generated child array belongs to its source");
+                    let mut flags = TransformFlags::NONE;
+                    let element_count = arena.node_array(array_ref)?.nodes.len();
+                    for position in 0..element_count {
+                        let child = arena.node_array(array_ref)?.nodes[position];
+                        let child_ref = arena
+                            .node_ref(source, child)
+                            .expect("generated array child belongs to its source");
+                        let child_flags = match states[index_of(child)?] {
+                            FlagWalkState::Complete => arena.transform_flags(child_ref),
+                            FlagWalkState::Visiting | FlagWalkState::Unvisited => {
+                                TransformFlags::NONE
+                            }
+                        };
+                        let kind = arena.node(child_ref)?.kind;
+                        flags |= child_flags & !TransformFlags::subtree_exclusions(kind);
+                    }
+                    arena.set_array_transform_flags(array_ref, flags);
+                }
+                let flags = {
+                    let record = arena.node(node)?;
+                    let mut flags = local_transform_flags(record)
+                        | local_contextual_target_flags(arena, source, record)?;
+                    flags |= factory_child_transform_flags(arena, source, record)?;
+                    let flags = complete_class_transform_flags(arena, source, record, flags)?;
+                    flags | static_this_substitute_flags(arena, node)
+                };
+                arena.set_transform_flags(node, flags);
+                states[index_of(id)?] = FlagWalkState::Complete;
+            }
         }
-        arena.set_array_transform_flags(array_ref, flags);
     }
-
-    let mut flags =
-        local_transform_flags(&record) | local_contextual_target_flags(arena, source, &record)?;
-    flags |= factory_child_transform_flags(arena, source, &record)?;
-    let flags = complete_class_transform_flags(arena, source, &record, flags)?;
-    let flags = flags | static_this_substitute_flags(arena, node);
-    arena.set_transform_flags(node, flags);
-    visiting.remove(&id);
-    complete.insert(id);
-    Ok(flags)
+    Ok(())
 }
 
 /// A class-fields `this` substitute (an identifier whose original is the
@@ -17398,3 +17464,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/unit/builtins/template_flags.rs"]
 mod template_flags_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/builtins/flag_walk.rs"]
+mod flag_walk_tests;
