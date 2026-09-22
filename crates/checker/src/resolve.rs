@@ -21,6 +21,25 @@ use crate::state::{CheckResult, CheckerState};
 /// tsc maximumSuggestionCount (47424).
 const MAXIMUM_SUGGESTION_COUNT: u32 = 10;
 
+/// Own only what lookup needs before mutably borrowing the checker to resolve
+/// aliases. Normal lookups copy one candidate; spelling keeps the original
+/// table snapshot so alias resolution cannot change its candidate order.
+enum LookupInput {
+    Symbol(Option<SymbolId>),
+    Snapshot(SymbolTable),
+}
+
+impl LookupInput {
+    /// tsrs-native: borrow-splitting input for createNameResolver lookups.
+    fn new(table: Option<&SymbolTable>, name: JsStr<'_>, suggestion: bool) -> Self {
+        if suggestion {
+            Self::Snapshot(table.cloned().unwrap_or_default())
+        } else {
+            Self::Symbol(table.and_then(|table| table.get(name)).copied())
+        }
+    }
+}
+
 /// lookup_probe's outcome: the suggestion snapshot defers the &mut
 /// spelling pass so binder-borrowed tables drop their borrow first.
 enum LookupProbe {
@@ -85,24 +104,30 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// The parameterized lookup's probe half (&self): exact match or,
-    /// in suggestion mode, a table snapshot for the spelling pass.
+    /// Resolve the copied candidate or, in suggestion mode, probe the
+    /// original table snapshot for an exact match and spelling candidates.
     /// tsc getSuggestionForSymbolNameLookup (75522-75535) — the
     /// capitalized-primitive synthetics exist only at the GLOBALS
     /// level.
     fn lookup_probe(
         &mut self,
-        table: &SymbolTable,
+        input: LookupInput,
         name: JsStr<'_>,
         meaning: SymbolFlags,
-        suggestion: bool,
         is_globals: bool,
     ) -> CheckResult<LookupProbe> {
-        if let Some(found) = self.get_symbol_in_table(table, name, meaning)? {
+        let table = match input {
+            LookupInput::Symbol(symbol) => {
+                let found = match symbol {
+                    Some(symbol) => self.get_symbol_with_meaning(symbol, meaning)?,
+                    None => None,
+                };
+                return Ok(found.map_or(LookupProbe::Miss, LookupProbe::Found));
+            }
+            LookupInput::Snapshot(table) => table,
+        };
+        if let Some(found) = self.get_symbol_in_table(&table, name, meaning)? {
             return Ok(LookupProbe::Found(found));
-        }
-        if !suggestion {
-            return Ok(LookupProbe::Miss);
         }
         let capitalized_primitives: Vec<&'static str> = if is_globals {
             ["string", "number", "boolean", "object", "bigint", "symbol"]
@@ -247,8 +272,8 @@ impl<'a> CheckerState<'a> {
                 && !self.binder.is_external_or_common_js_module_of_node(loc);
             if !loc_is_global_source_file {
                 if let Some(locals) = self.binder.locals_of(loc) {
-                    let locals = locals.clone();
-                    let probe = self.lookup_probe(&locals, name, meaning, suggestion, false)?;
+                    let input = LookupInput::new(Some(locals), name, suggestion);
+                    let probe = self.lookup_probe(input, name, meaning, false)?;
                     if let Some(found) = self.finish_lookup(probe, name, meaning) {
                         let mut use_result = true;
                         let result_flags = self.binder.symbol(found).flags;
@@ -337,9 +362,7 @@ impl<'a> CheckerState<'a> {
                             .binder
                             .node_symbol(loc)
                             .map(|s| self.get_merged_symbol(s));
-                        let module_exports: SymbolTable = module_symbol
-                            .map(|s| self.binder.symbol(s).exports.clone())
-                            .unwrap_or_default();
+                        let module_exports = module_symbol.map(|s| &self.binder.symbol(s).exports);
                         if is_source_file
                             || (self.kind_of(loc) == SyntaxKind::ModuleDeclaration
                                 && self.node_flags(loc) & NodeFlags::AMBIENT.bits() != 0
@@ -350,9 +373,9 @@ impl<'a> CheckerState<'a> {
                         {
                             // Default exports are not looked up by
                             // local name...
-                            if let Some(&default_export) =
-                                module_exports.get(tsc_types::InternalSymbolName::DEFAULT)
-                            {
+                            if let Some(&default_export) = module_exports.and_then(|exports| {
+                                exports.get(tsc_types::InternalSymbolName::DEFAULT)
+                            }) {
                                 let local = self.local_symbol_for_export_default(default_export);
                                 if let Some(local) = local {
                                     if self.binder.symbol(default_export).flags.intersects(meaning)
@@ -366,7 +389,9 @@ impl<'a> CheckerState<'a> {
                             // ...and export specifiers/namespace
                             // exports of the name are alias-only: skip
                             // the module-exports lookup for them.
-                            if let Some(&module_export) = module_exports.get(name) {
+                            if let Some(&module_export) =
+                                module_exports.and_then(|exports| exports.get(name))
+                            {
                                 let export_symbol = self.binder.symbol(module_export);
                                 if export_symbol.flags == SymbolFlags::ALIAS
                                     && (self
@@ -394,13 +419,8 @@ impl<'a> CheckerState<'a> {
                         }
                         if name != tsc_types::InternalSymbolName::DEFAULT {
                             let masked = meaning & SymbolFlags::MODULE_MEMBER;
-                            let probe = self.lookup_probe(
-                                &module_exports,
-                                name,
-                                masked,
-                                suggestion,
-                                false,
-                            )?;
+                            let input = LookupInput::new(module_exports, name, suggestion);
+                            let probe = self.lookup_probe(input, name, masked, false)?;
                             if let Some(found) = self.finish_lookup(probe, name, masked) {
                                 let is_cjs = is_source_file
                                     && self
@@ -425,14 +445,14 @@ impl<'a> CheckerState<'a> {
                 }
                 SyntaxKind::EnumDeclaration => {
                     // getSymbolOfDeclaration (19609).
-                    let exports: SymbolTable = self
+                    let exports = self
                         .binder
                         .node_symbol(loc)
                         .map(|s| self.get_merged_symbol(s))
-                        .map(|s| self.binder.symbol(s).exports.clone())
-                        .unwrap_or_default();
+                        .map(|s| &self.binder.symbol(s).exports);
                     let masked = meaning & SymbolFlags::ENUM_MEMBER;
-                    let probe = self.lookup_probe(&exports, name, masked, suggestion, false)?;
+                    let input = LookupInput::new(exports, name, suggestion);
+                    let probe = self.lookup_probe(input, name, masked, false)?;
                     if let Some(found) = self.finish_lookup(probe, name, masked) {
                         if name_not_found_message.is_some()
                             && (self.options.isolated_modules == Some(true)
@@ -473,15 +493,10 @@ impl<'a> CheckerState<'a> {
                         if let Some(class) = self.parent_of(loc) {
                             if let Some(ctor) = self.find_constructor_declaration(class) {
                                 if let Some(ctor_locals) = self.binder.locals_of(ctor) {
-                                    let ctor_locals = ctor_locals.clone();
+                                    let input =
+                                        LookupInput::new(Some(ctor_locals), name, suggestion);
                                     let masked = meaning & SymbolFlags::VALUE;
-                                    let probe = self.lookup_probe(
-                                        &ctor_locals,
-                                        name,
-                                        masked,
-                                        suggestion,
-                                        false,
-                                    )?;
+                                    let probe = self.lookup_probe(input, name, masked, false)?;
                                     if self.finish_lookup(probe, name, masked).is_some() {
                                         property_with_invalid_initializer = Some(loc);
                                     }
@@ -496,14 +511,14 @@ impl<'a> CheckerState<'a> {
                     // getSymbolOfDeclaration (19636): merged interface
                     // declarations see type parameters/members from
                     // EVERY declaration (lib interfaces merge).
-                    let members: SymbolTable = self
+                    let members = self
                         .binder
                         .node_symbol(loc)
                         .map(|s| self.get_merged_symbol(s))
-                        .map(|s| self.binder.symbol(s).members.clone())
-                        .unwrap_or_default();
+                        .map(|s| &self.binder.symbol(s).members);
                     let masked = meaning & SymbolFlags::TYPE;
-                    let probe = self.lookup_probe(&members, name, masked, suggestion, false)?;
+                    let input = LookupInput::new(members, name, suggestion);
+                    let probe = self.lookup_probe(input, name, masked, false)?;
                     if let Some(found) = self.finish_lookup(probe, name, masked) {
                         if self.is_type_parameter_symbol_declared_in_container(found, loc) {
                             if last_location.is_some_and(|l| self.is_static_node(l)) {
@@ -553,16 +568,15 @@ impl<'a> CheckerState<'a> {
                                 self.kind_of(container),
                                 SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
                             ) {
-                                let members: SymbolTable = self
+                                let members = self
                                     .binder
                                     .node_symbol(container)
                                     // getSymbolOfDeclaration (19660).
                                     .map(|s| self.get_merged_symbol(s))
-                                    .map(|s| self.binder.symbol(s).members.clone())
-                                    .unwrap_or_default();
+                                    .map(|s| &self.binder.symbol(s).members);
                                 let masked = meaning & SymbolFlags::TYPE;
-                                let probe =
-                                    self.lookup_probe(&members, name, masked, suggestion, false)?;
+                                let input = LookupInput::new(members, name, suggestion);
+                                let probe = self.lookup_probe(input, name, masked, false)?;
                                 if self.finish_lookup(probe, name, masked).is_some() {
                                     if name_not_found_message.is_some() {
                                         self.error_at(
@@ -588,16 +602,15 @@ impl<'a> CheckerState<'a> {
                                 | SyntaxKind::ClassExpression
                                 | SyntaxKind::InterfaceDeclaration
                         ) {
-                            let members: SymbolTable = self
+                            let members = self
                                 .binder
                                 .node_symbol(grandparent)
                                 // getSymbolOfDeclaration (19679).
                                 .map(|s| self.get_merged_symbol(s))
-                                .map(|s| self.binder.symbol(s).members.clone())
-                                .unwrap_or_default();
+                                .map(|s| &self.binder.symbol(s).members);
                             let masked = meaning & SymbolFlags::TYPE;
-                            let probe =
-                                self.lookup_probe(&members, name, masked, suggestion, false)?;
+                            let input = LookupInput::new(members, name, suggestion);
+                            let probe = self.lookup_probe(input, name, masked, false)?;
                             if self.finish_lookup(probe, name, masked).is_some() {
                                 if name_not_found_message.is_some() {
                                     self.error_at(
@@ -797,8 +810,8 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if !exclude_globals {
-                let globals = self.globals.clone();
-                let probe = self.lookup_probe(&globals, name, meaning, suggestion, true)?;
+                let input = LookupInput::new(Some(&self.globals), name, suggestion);
+                let probe = self.lookup_probe(input, name, meaning, true)?;
                 result = self.finish_lookup(probe, name, meaning);
             }
         }
